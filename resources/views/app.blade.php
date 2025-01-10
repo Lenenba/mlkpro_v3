@@ -17,5 +17,7 @@
     </head>
     <body class="font-sans antialiased">
         @inertia
+        <script src="https://cdn.jsdelivr.net/npm/dropzone@5/dist/min/dropzone.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/lodash@4.17.21/lodash.min.js"></script>
     </body>
 </html>

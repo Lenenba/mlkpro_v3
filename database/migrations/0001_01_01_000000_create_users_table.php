@@ -11,29 +11,43 @@ return new class extends Migration
      */
     public function up(): void
     {
+        // Create the 'roles' table
+        Schema::create('roles', function (Blueprint $table) {
+            $table->id(); // Primary key
+            $table->string('name')->unique(); // Unique role name (e.g., superadmin, admin, etc.)
+            $table->string('description')->nullable(); // Optional description of the role
+            $table->timestamps(); // Created at and updated at timestamps
+        });
+
+        // Create the 'users' table
         Schema::create('users', function (Blueprint $table) {
-            $table->id();
-            $table->string('name');
-            $table->string('email')->unique();
-            $table->timestamp('email_verified_at')->nullable();
-            $table->string('password');
-            $table->rememberToken();
-            $table->timestamps();
+            $table->id(); // Primary key
+            $table->string('name'); // User's name
+            $table->string('email')->unique(); // Unique email
+            $table->foreignId('role_id')->constrained('roles')->cascadeOnDelete(); // Foreign key to 'roles' table
+            $table->string('profile_picture')->nullable(); // Optional profile picture
+            $table->string('phone_number')->nullable(); // Optional phone number
+            $table->timestamp('email_verified_at')->nullable(); // Email verification timestamp
+            $table->string('password'); // Password hash
+            $table->rememberToken(); // Remember token for authentication
+            $table->timestamps(); // Created at and updated at timestamps
         });
 
+        // Create the 'password_reset_tokens' table
         Schema::create('password_reset_tokens', function (Blueprint $table) {
-            $table->string('email')->primary();
-            $table->string('token');
-            $table->timestamp('created_at')->nullable();
+            $table->string('email')->primary(); // Primary key is the email
+            $table->string('token'); // Reset token
+            $table->timestamp('created_at')->nullable(); // Token creation timestamp
         });
 
+        // Create the 'sessions' table
         Schema::create('sessions', function (Blueprint $table) {
-            $table->string('id')->primary();
-            $table->foreignId('user_id')->nullable()->index();
-            $table->string('ip_address', 45)->nullable();
-            $table->text('user_agent')->nullable();
-            $table->longText('payload');
-            $table->integer('last_activity')->index();
+            $table->string('id')->primary(); // Primary key is the session ID
+            $table->foreignId('user_id')->nullable()->constrained('users')->cascadeOnDelete(); // Foreign key to 'users' table
+            $table->string('ip_address', 45)->nullable(); // IP address (IPv4 or IPv6)
+            $table->text('user_agent')->nullable(); // Browser's user agent
+            $table->longText('payload'); // Session data
+            $table->integer('last_activity')->index(); // Last activity timestamp (indexed for performance)
         });
     }
 
@@ -42,8 +56,10 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('users');
-        Schema::dropIfExists('password_reset_tokens');
+        // Drop the tables in reverse order to respect dependencies
         Schema::dropIfExists('sessions');
+        Schema::dropIfExists('password_reset_tokens');
+        Schema::dropIfExists('users');
+        Schema::dropIfExists('roles');
     }
 };

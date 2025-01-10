@@ -1,6 +1,9 @@
 import '../css/app.css';
 import './bootstrap';
-
+import 'preline';
+import ApexCharts from 'apexcharts';
+import ClipboardJS from 'clipboard';
+import Dropzone  from 'dropzone';
 import { createInertiaApp } from '@inertiajs/vue3';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { createApp, h } from 'vue';
