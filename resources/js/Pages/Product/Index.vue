@@ -4,6 +4,10 @@ import { Head } from '@inertiajs/vue3';
 import ProductTable from '@/Pages/Product/UI/ProductTable.vue';
 import Stat from '@/Components/UI/Stat.vue';
 const props = defineProps({
+    filters: {
+        type: Object,
+        required: true,
+    },
     products: {
         type: Object,
         required: true,
@@ -25,6 +29,6 @@ const props = defineProps({
 
     <AuthenticatedLayout >
         <Stat />
-        <ProductTable :products="products" :count="count" :categories="categories" />
+        <ProductTable :products="products" :count="count" :categories="categories" :filters="filters"/>
     </AuthenticatedLayout>
 </template>

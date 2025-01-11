@@ -1,9 +1,11 @@
 <script setup>
-import { Link } from '@inertiajs/vue3';
+import { watch } from 'vue';
+import { Link, useForm } from '@inertiajs/vue3';
 import ProductForm from  './ProductForm.vue';
 import Modal from '@/Components/UI/Modal.vue';
 
 const props = defineProps({
+    filters: Object,
     products: {
         type: Object,
         required: true,
@@ -20,6 +22,33 @@ const props = defineProps({
         type: Number,
         required: true,
     },
+});
+
+const filterForm = useForm({
+    name: props.filters.name ?? "",
+});
+
+
+// Fonction de filtrage avec un délai pour éviter des appels excessifs
+let filterTimeout;
+const autoFilter = (routeName) => {
+    if (filterTimeout) {
+        clearTimeout(filterTimeout);
+    }
+    filterTimeout = setTimeout(() => {
+        filterForm.get(route(routeName), {
+            preserveState: true,
+            preserveScroll: true,
+        });
+    }, 300); // Délai de 300ms pour éviter les appels excessifs
+};
+
+// Réinitialiser le formulaire lorsque la recherche est vide
+watch(() => filterForm.name, (newValue) => {
+    if (!newValue) {
+        filterForm.name = "";
+        autoFilter('product.index');
+    }
 });
 
 </script>
@@ -72,6 +101,8 @@ const props = defineProps({
                         </svg>
                     </div>
                     <input type="text"
+                        v-model="filterForm.name"
+                        @input="filterForm.name.length >= 1  ? autoFilter('product.index') : null"
                         class="py-[7px] ps-10 pe-8 block w-full bg-stone-100 border-transparent rounded-lg text-sm placeholder:text-stone-500 focus:border-green-500 focus:ring-green-600 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-700 dark:border-transparent dark:text-neutral-400 dark:placeholder:text-neutral-400 dark:focus:ring-neutral-600"
                         placeholder="Search orders">
                     <div class="hidden absolute inset-y-0 end-0 flex items-center pointer-events-none z-20 pe-1">
