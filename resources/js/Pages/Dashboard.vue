@@ -41,18 +41,18 @@ const categoriesData = [
     <Head title="Dashboard" />
 
     <AuthenticatedLayout :user="user">
-        <div class="grid grid-cols-2 lg:grid-cols-4 gap-2 md:gap-3 lg:gap-5">
-            <Singlegrid>
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-2 md:gap-3 lg:gap-5 ">
+            <Singlegrid borderColor="border-t-4 border-t-cyan-600">
                 <template #image>
                     <img class="bg-gray-100 w-full h-48 object-cover rounded-xl dark:bg-neutral-800"
                         src="https://images.unsplash.com/photo-1526745925052-dd824d27b9ab?q=80&w=560&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
                         alt="Store Image">
                 </template>
                 Video descriptive de l'application
-            </Singlegrid>
-            <Singlegrid>Create Quotes </Singlegrid>
-            <Singlegrid>Create Clients </Singlegrid>
-            <Singlegrid>Create Jobs </Singlegrid>
+            </Singlegrid >
+            <Singlegrid borderColor="border-t-4 border-t-green-600">Create Quotes </Singlegrid>
+            <Singlegrid borderColor="border-t-4 border-t-slate-600">Create Clients </Singlegrid>
+            <Singlegrid borderColor="border-t-4 border-t-red-600">Create Jobs </Singlegrid>
         </div>
         <!-- Stats Grid -->
         <Stat />

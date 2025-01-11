@@ -2,7 +2,7 @@
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-2 md:gap-3 lg:gap-5">
         <!-- Card -->
         <div
-            class="p-4 sm:p-5 bg-white border border-stone-200 rounded-xl shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
+            class="p-4 sm:p-5 bg-white border border-t-4 border-t-cyan-600 border-stone-200 rounded-xl shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
             <div class="sm:flex sm:gap-x-3">
                 <svg class="sm:order-2 mb-2 sm:mb-0 shrink-0 size-6 text-stone-400 dark:text-neutral-600"
                     xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
@@ -43,7 +43,7 @@
 
         <!-- Card -->
         <div
-            class="p-4 sm:p-5 bg-white border border-stone-200 rounded-xl shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
+            class="p-4 sm:p-5 border-t-4 border-t-green-600 bg-white border border-stone-200 rounded-xl shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
             <div class="sm:flex sm:gap-x-3">
                 <svg class="sm:order-2 mb-2 sm:mb-0 shrink-0 size-6 text-stone-400 dark:text-neutral-600"
                     xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
@@ -82,7 +82,7 @@
 
         <!-- Card -->
         <div
-            class="p-4 sm:p-5 bg-white border border-stone-200 rounded-xl shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
+            class="p-4 sm:p-5 bg-white border border-t-4 border-t-slate-600 border-stone-200 rounded-xl shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
             <div class="sm:flex sm:gap-x-3">
                 <svg class="sm:order-2 mb-2 sm:mb-0 shrink-0 size-6 text-stone-400 dark:text-neutral-600"
                     xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
@@ -113,7 +113,7 @@
 
         <!-- Card -->
         <div
-            class="p-4 sm:p-5 bg-white border border-stone-200 rounded-xl shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
+            class="p-4 sm:p-5 border-t-4 border-t-red-600 bg-white border border-stone-200 rounded-xl shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
             <div class="sm:flex sm:gap-x-3">
                 <svg class="sm:order-2 mb-2 sm:mb-0 shrink-0 size-6 text-stone-400 dark:text-neutral-600"
                     xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"

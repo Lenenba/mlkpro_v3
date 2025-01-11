@@ -56,7 +56,7 @@ watch(() => filterForm.name, (newValue) => {
 <template>
     <!-- Orders Table Card -->
     <div
-        class="p-5 space-y-4 flex flex-col bg-white border border-stone-200 shadow-sm rounded-xl dark:bg-neutral-800 dark:border-neutral-700">
+        class="p-5 space-y-4 flex flex-col bg-white border border-stone-200  border-t-4 border-t-green-600 shadow-sm rounded-xl dark:bg-neutral-800 dark:border-neutral-700">
         <!-- Nav Tab -->
         <nav class="relative  flex space-x-1 after:absolute after:bottom-0 after:inset-x-0 after:border-b-2 after:border-stone-200 dark:after:border-neutral-700"
             aria-label="Tabs" role="tablist" aria-orientation="horizontal">
