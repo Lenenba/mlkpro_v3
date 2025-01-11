@@ -25,7 +25,7 @@ class ProductController extends Controller
             ->filter($filters)
             ->with(['category', 'user'])
             ->byUser(Auth::user()->id)
-            ->simplePaginate(6)
+            ->simplePaginate(7)
             ->withQueryString();
         return inertia('Product/Index', [
             'count' => $products->count(),
