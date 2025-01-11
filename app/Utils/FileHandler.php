@@ -15,11 +15,11 @@ class FileHandler
      * @param string|null $defaultImagePath
      * @return string
      */
-    public static function handleImageUpload($request, string $fieldName = null, ?string $defaultImagePath = null, ?string $oldFilename = null): string
+    public static function handleImageUpload( string $folderName, $request, string $fieldName = null, ?string $defaultImagePath = null, ?string $oldFilename = null): string
     {
         if ($request->hasFile($fieldName)) {
             // Delete old file if uploading a new one
-            return $request->file($fieldName)->store('customers', 'public');
+            return $request->file($fieldName)->store($folderName, 'public');
         }
 
         // Return existing filename or default image

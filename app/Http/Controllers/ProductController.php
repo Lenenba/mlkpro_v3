@@ -24,14 +24,14 @@ class ProductController extends Controller
         $user = Auth::user();
         $count = Product::byUser($user->id)->count();
         return inertia('Product/Index', [
-            'user' => $user,
             'count' => $count,
             'filters' => $filters,
+            'categories' => ProductCategory::all(),
             'products' => Product::mostRecent()
                 ->filter($filters)
                 ->with(['category', 'user'])
                 ->byUser(Auth::user()->id)
-                ->simplePaginate(8)
+                ->simplePaginate(6)
                 ->withQueryString()
         ]);
     }
@@ -41,10 +41,7 @@ class ProductController extends Controller
      */
     public function create()
     {
-        $user = Auth::user();
-
         return inertia('Product/Create', [
-            'user' => $user,
             'categories' => ProductCategory::all()
         ]);
     }
@@ -55,7 +52,7 @@ class ProductController extends Controller
     public function store(ProductRequest $request)
     {
         $validated = $request->validated();
-        $validated['image'] = FileHandler::handleImageUpload($request, 'image', 'products/product.jpg');
+        $validated['image'] = FileHandler::handleImageUpload('products', $request, 'image', 'products/product.jpg');
 
         $product = $request->user()->products()->create($validated);
 
@@ -98,7 +95,7 @@ class ProductController extends Controller
         }
 
         $validated = $request->validated();
-        $validated['image'] = FileHandler::handleImageUpload($request, 'image', 'products/product.jpg', $product->image);
+        $validated['image'] = FileHandler::handleImageUpload('products', $request, 'image', 'products/product.jpg', $product->image);
         $product->price = $validated['price'];
         $product->image = $validated['image'];
         $product->update($validated);

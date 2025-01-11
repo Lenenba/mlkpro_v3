@@ -6,7 +6,7 @@ import SingleLink from "@/Components/UI/SingleLink.vue";
 
 const menuItems = [
     { label: "Overview", href: "product.index" },
-    { label: "Add Product", href: "product.index" },
+    { label: "Add Product", href: "product.create" },
 ];
 
 const item = [

@@ -17,7 +17,6 @@ class DashboardController extends Controller
         // Pass data to Inertia view
         return Inertia::render('Dashboard', [
             'users' => $users,
-            'user' => $user
         ]);
     }
 }

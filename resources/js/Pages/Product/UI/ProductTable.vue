@@ -1,9 +1,19 @@
 <script setup>
 import { Link } from '@inertiajs/vue3';
+import ProductForm from  './ProductForm.vue';
+import Modal from '@/Components/UI/Modal.vue';
 
 const props = defineProps({
     products: {
         type: Object,
+        required: true,
+    },
+    product: {
+        type: Object,
+        default: null,
+    },
+    categories: {
+        type: Array,
         required: true,
     },
     count: {
@@ -11,6 +21,7 @@ const props = defineProps({
         required: true,
     },
 });
+
 </script>
 
 <template>
@@ -65,7 +76,7 @@ const props = defineProps({
                         placeholder="Search orders">
                     <div class="hidden absolute inset-y-0 end-0 flex items-center pointer-events-none z-20 pe-1">
                         <button type="button"
-                            class="inline-flex shrink-0 justify-center items-center size-6 rounded-full text-gray-500 hover:text-blue-600 focus:outline-none focus:text-blue-600 dark:text-neutral-500 dark:hover:text-blue-500 dark:focus:text-blue-500"
+                            class="inline-flex shrink-0 justify-center items-center size-6 rounded-full text-gray-500 hover:text-green-600 focus:outline-none focus:text-green-600 dark:text-neutral-500 dark:hover:text-green-500 dark:focus:text-green-500"
                             aria-label="Close">
                             <span class="sr-only">Close</span>
                             <svg class="shrink-0 size-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
@@ -195,20 +206,21 @@ const props = defineProps({
                     </div>
                     <!-- End Dropdown -->
 
-                    <!-- Button -->
-                    <Link :href="route('product.create')">
-                    <button type="button"
-                        class="py-2 px-2.5 ml-2 inline-flex items-center gap-x-1.5 text-xs font-semibold rounded-lg border border-transparent bg-violet-500 text-white hover:bg-violet-600 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:ring-2 focus:ring-violet-600 dark:focus:ring-violet-700">
-                        <svg class="hidden sm:block shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" width="24"
-                            height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                            stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M5 12h14" />
-                            <path d="M12 5v14" />
-                        </svg>
-                        New Product
-                    </button>
-                    </Link>
-                    <!-- End Button -->
+                    <div class="flex justify-end items-center gap-x-2">
+                        <!-- Button -->
+                        <button type="button"
+                            class="py-2 px-2.5 ml-4 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-lg border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:ring-2 focus:ring-green-500"
+                            data-hs-overlay="#hs-pro-dasadpm">
+                            <svg class="hidden sm:block shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" width="24"
+                                height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M5 12h14" />
+                                <path d="M12 5v14" />
+                            </svg>
+                            Add product
+                        </button>
+                        <!-- End Button -->
+                    </div>
                 </div>
                 <!-- End Filter Dropdown -->
             </div>
@@ -987,15 +999,10 @@ const props = defineProps({
                                                 role="menu" aria-orientation="vertical"
                                                 aria-labelledby="hs-pro-errtmd1">
                                                 <div class="p-1">
-                                                    <button type="button"
+                                                    <button type="button" :data-hs-overlay="'#hs-pro-edit' + product.id"
                                                         class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-lg text-[13px] text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800 dark:focus:bg-neutral-800">
                                                         Edit
                                                     </button>
-                                                    <button type="button"
-                                                        class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-lg text-[13px] text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800 dark:focus:bg-neutral-800">
-                                                        Duplicate
-                                                    </button>
-
                                                     <div class="my-1 border-t border-stone-200 dark:border-neutral-800">
                                                     </div>
 
@@ -1007,8 +1014,13 @@ const props = defineProps({
                                             </div>
                                         </div>
                                     </td>
-                                </tr>
 
+                                        <!-- Modal add product -->
+                                        <Modal :title="'Edit product'" :id="'hs-pro-edit' + product.id" >
+                                            <ProductForm :product="product" :categories="categories" :id="'hs-pro-edit' + product.id"/>
+                                        </Modal>
+                                        <!-- End Modal -->
+                                </tr>
                             </tbody>
                         </table>
                         <!-- End Table -->
@@ -1045,7 +1057,7 @@ const props = defineProps({
                                 class="min-h-[38px] flex justify-center items-center text-stone-500 py-2 px-1.5 text-sm dark:text-neutral-500">of</span>
                             <span
                                 class="min-h-[38px] flex justify-center items-center text-stone-500 py-2 px-1.5 text-sm dark:text-neutral-500">{{
-                                products.to }}</span>
+                                    products.to }}</span>
                         </div>
 
                         <Link :href="products.next_page_url" v-if="products.next_page_url">
@@ -1293,4 +1305,10 @@ const props = defineProps({
         </div>
     </div>
     <!-- End Orders Table Card -->
+
+    <!-- Modal add product -->
+    <Modal :title="'Add product'" :id="'hs-pro-dasadpm'">
+        <ProductForm :product="product" :categories="categories" :id="'hs-pro-dasadpm'"/>
+    </Modal>
+
 </template>
