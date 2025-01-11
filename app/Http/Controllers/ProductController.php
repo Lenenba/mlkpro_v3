@@ -21,18 +21,17 @@ class ProductController extends Controller
     public function index(?Request $request)
     {
         $filters = $request->only(['name']);
-        $user = Auth::user();
-        $count = Product::byUser($user->id)->count();
+        $products = Product::mostRecent()
+            ->filter($filters)
+            ->with(['category', 'user'])
+            ->byUser(Auth::user()->id)
+            ->simplePaginate(6)
+            ->withQueryString();
         return inertia('Product/Index', [
-            'count' => $count,
+            'count' => $products->count(),
             'filters' => $filters,
             'categories' => ProductCategory::all(),
-            'products' => Product::mostRecent()
-                ->filter($filters)
-                ->with(['category', 'user'])
-                ->byUser(Auth::user()->id)
-                ->simplePaginate(6)
-                ->withQueryString()
+            'products' => $products
         ]);
     }
 
