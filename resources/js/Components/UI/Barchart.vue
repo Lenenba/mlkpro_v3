@@ -191,7 +191,7 @@ onBeforeUnmount(() => {
 
 <template>
     <div
-        class="xl:col-span-4 flex flex-col bg-white border border-stone-200 shadow-sm rounded-xl dark:bg-neutral-800 dark:border-neutral-700">
+        class="xl:col-span-4 flex flex-col bg-white border border-stone-200 shadow-sm rounded-sm dark:bg-neutral-800 dark:border-neutral-700">
         <!-- Header -->
         <div
             class="py-3 px-5 flex flex-wrap justify-between items-center gap-2 border-b border-stone-200 dark:border-neutral-700">

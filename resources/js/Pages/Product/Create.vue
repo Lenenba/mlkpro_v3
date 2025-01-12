@@ -21,7 +21,7 @@ const props = defineProps({
 
 <template>
 
-    <Head title="Dashboard" />
+    <Head title="Product" />
     <AuthenticatedLayout >
         <ProductForm :product="product" :categories="categories" id="''"/>
     </AuthenticatedLayout>
