@@ -24,7 +24,7 @@ const props = defineProps({
                 </span>
 
                 <div class="grow">
-                    <p class="text-2xl md:text-3xl font-semibold text-gray-800 dark:text-white">
+                    <p class="text-2xl md:text-3xl font-semibold text-gray-600 dark:text-white">
                         {{ customer.company_name }}
                     </p>
                 </div>
