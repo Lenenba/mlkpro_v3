@@ -87,7 +87,7 @@ const buttonLabel = computed(() => (props.product ? 'Update Product' : 'Create P
             <div class="lg:col-span-4 space-y-4">
                 <productCard>
                     <template #title>
-                        Add Product
+                        Details
                     </template>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 gap-y-4">
                         <FloatingInput v-model="form.name" label="Name" />

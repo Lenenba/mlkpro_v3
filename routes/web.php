@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 
@@ -24,6 +25,9 @@ Route::middleware('auth')->group(function () {
 
     // Product Management
     Route::resource('product', ProductController::class);
+    // Customer Management
+    Route::resource('customer', CustomerController::class)
+        ->only(['index', 'store', 'update', 'create', 'show']);
 });
 
 // Authentication Routes

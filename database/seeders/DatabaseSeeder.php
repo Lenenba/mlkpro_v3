@@ -5,6 +5,8 @@ namespace Database\Seeders;
 use App\Models\Role;
 use App\Models\User;
 use App\Models\Product;
+use App\Models\Customer;
+use App\Models\Property;
 use App\Models\ProductCategory;
 use Illuminate\Database\Seeder;
 
@@ -44,6 +46,18 @@ class DatabaseSeeder extends Seeder
         foreach ($Products as $product) {
             $product->number = 'PROD' . str_pad($product->id, 6, '0', STR_PAD_LEFT);
             $product->save();
+        };
+
+        // Crée 10 clients avec 2 adresses chacun
+        $customers = Customer::factory()
+            ->count(4)
+            ->recycle($Superadmin)
+            ->has(Property::factory()->count(2)) // 1 adresse physique + 1 adresse de facturation
+            ->create();
+
+        foreach ($customers as $customer) {
+            $customer->number = 'CUST' . str_pad($customer->id, 6, '0', STR_PAD_LEFT);
+            $customer->save();
         }
 
     }

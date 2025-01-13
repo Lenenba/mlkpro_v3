@@ -137,72 +137,6 @@ watch(() => filterForm.name, (newValue) => {
                                     Order
                                 </label>
                             </div>
-
-                            <div
-                                class="flex items-center gap-x-3 py-1.5 px-2 cursor-pointer rounded-lg hover:bg-stone-100 dark:hover:bg-neutral-800 dark:focus:outline-none dark:focus:ring-1 dark:focus:ring-neutral-600">
-                                <input type="checkbox"
-                                    class="shrink-0 border-stone-300 rounded text-green-600 focus:ring-green-600 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-800 dark:border-neutral-600 dark:checked:bg-green-500 dark:checked:border-green-500 dark:focus:ring-offset-neutral-800"
-                                    id="hs-pro-dupfindch3" checked>
-                                <label for="hs-pro-dupfindch3"
-                                    class="flex flex-1 items-center gap-x-3 cursor-pointer text-[13px] text-stone-800 dark:text-neutral-300">
-                                    Purchased
-                                </label>
-                            </div>
-
-                            <div
-                                class="flex items-center gap-x-3 py-1.5 px-2 cursor-pointer rounded-lg hover:bg-stone-100 dark:hover:bg-neutral-800 dark:focus:outline-none dark:focus:ring-1 dark:focus:ring-neutral-600">
-                                <input type="checkbox"
-                                    class="shrink-0 border-stone-300 rounded text-green-600 focus:ring-green-600 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-800 dark:border-neutral-600 dark:checked:bg-green-500 dark:checked:border-green-500 dark:focus:ring-offset-neutral-800"
-                                    id="hs-pro-dupfindch4" checked>
-                                <label for="hs-pro-dupfindch4"
-                                    class="flex flex-1 items-center gap-x-3 cursor-pointer text-[13px] text-stone-800 dark:text-neutral-300">
-                                    Status
-                                </label>
-                            </div>
-
-                            <div
-                                class="flex items-center gap-x-3 py-1.5 px-2 cursor-pointer rounded-lg hover:bg-stone-100 dark:hover:bg-neutral-800 dark:focus:outline-none dark:focus:ring-1 dark:focus:ring-neutral-600">
-                                <input type="checkbox"
-                                    class="shrink-0 border-stone-300 rounded text-green-600 focus:ring-green-600 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-800 dark:border-neutral-600 dark:checked:bg-green-500 dark:checked:border-green-500 dark:focus:ring-offset-neutral-800"
-                                    id="hs-pro-dupfindch5" checked>
-                                <label for="hs-pro-dupfindch5"
-                                    class="flex flex-1 items-center gap-x-3 cursor-pointer text-[13px] text-stone-800 dark:text-neutral-300">
-                                    Customer
-                                </label>
-                            </div>
-
-                            <div
-                                class="flex items-center gap-x-3 py-1.5 px-2 cursor-pointer rounded-lg hover:bg-stone-100 dark:hover:bg-neutral-800 dark:focus:outline-none dark:focus:ring-1 dark:focus:ring-neutral-600">
-                                <input type="checkbox"
-                                    class="shrink-0 border-stone-300 rounded text-green-600 focus:ring-green-600 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-800 dark:border-neutral-600 dark:checked:bg-green-500 dark:checked:border-green-500 dark:focus:ring-offset-neutral-800"
-                                    id="hs-pro-dupfindch6" checked>
-                                <label for="hs-pro-dupfindch6"
-                                    class="flex flex-1 items-center gap-x-3 cursor-pointer text-[13px] text-stone-800 dark:text-neutral-300">
-                                    Payment Method
-                                </label>
-                            </div>
-
-                            <div
-                                class="flex items-center gap-x-3 py-1.5 px-2 cursor-pointer rounded-lg hover:bg-stone-100 dark:hover:bg-neutral-800 dark:focus:outline-none dark:focus:ring-1 dark:focus:ring-neutral-600">
-                                <input type="checkbox"
-                                    class="shrink-0 border-stone-300 rounded text-green-600 focus:ring-green-600 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-800 dark:border-neutral-600 dark:checked:bg-green-500 dark:checked:border-green-500 dark:focus:ring-offset-neutral-800"
-                                    id="hs-pro-dupfindch7" checked>
-                                <label for="hs-pro-dupfindch7"
-                                    class="flex flex-1 items-center gap-x-3 cursor-pointer text-[13px] text-stone-800 dark:text-neutral-300">
-                                    Payment Status
-                                </label>
-                            </div>
-
-                            <div
-                                class="flex items-center gap-x-3 py-1.5 px-2 cursor-pointer rounded-lg hover:bg-stone-100 dark:hover:bg-neutral-800 dark:focus:outline-none dark:focus:ring-1 dark:focus:ring-neutral-600">
-                                <input type="checkbox"
-                                    class="shrink-0 border-stone-300 rounded text-green-600 focus:ring-green-600 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-800 dark:border-neutral-600 dark:checked:bg-green-500 dark:checked:border-green-500 dark:focus:ring-offset-neutral-800"
-                                    id="hs-pro-dupfindch8" checked>
-                                <label for="hs-pro-dupfindch8"
-                                    class="flex flex-1 items-center gap-x-3 cursor-pointer text-[13px] text-stone-800 dark:text-neutral-300">
-                                    Items
-                                </label>
-                            </div>
                         </div>
                     </div>
                     <!-- End Dropdown -->
@@ -306,10 +240,9 @@ watch(() => filterForm.name, (newValue) => {
                                 <span class="text-sm text-stone-600 dark:text-neutral-400">
                                     {{ product.name }}
                                 </span>
-                                <a class="text-xs text-green-600 decoration-2 hover:underline font-medium focus:outline-none focus:underline dark:text-green-400 dark:hover:text-green-500"
-                                    href="../../pro/ecommerce/order-details.html">
+                                <span class="text-xs text-stone-500 dark:text-neutral-500">
                                     {{ product.number }}
-                                </a>
+                                </span>
                             </div>
                         </div>
                     </td>

@@ -1,15 +1,10 @@
 <script setup>
 import ApplicationLogo from "@/Components/ApplicationLogo.vue";
 import LinkAncor from "@/Components/UI/LinkAncor.vue";
+import { usePage } from '@inertiajs/vue3';
+import MenuDropdown from "@/Components/UI/LinkAncor2.vue";
 
-const menuItems = [
-    { label: "Overview", href: "product.index" },
-    { label: "Add Product", href: "product.create" },
-];
-
-const item = [
-    { label: "Dashboard", href: "/" }
-]
+const page = usePage()
 </script>
 
 <template>
@@ -27,7 +22,7 @@ const item = [
                 <div class="relative z-10 w-16 flex flex-col h-full max-h-full pb-5">
                     <header class="w-16 py-2.5 flex justify-center">
                         <a class="flex-none rounded-md text-xl inline-block font-semibold focus:outline-none focus:opacity-80"
-                            href="../../pro/dashboard/index.html" aria-label="Preline">
+                            :href="route('dashboard')" aria-label="Preline">
                             <ApplicationLogo class="w-12 h-12 p-1" />
                         </a>
                     </header>
@@ -37,6 +32,18 @@ const item = [
                         <!-- Nav -->
                         <nav class="mt-2">
                             <ul class="text-center space-y-4">
+                                <MenuDropdown active-item="/profile">
+                                    <template #toggle-icon>
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round"
+                                            class="lucide lucide-circle-plus text-gray-600 dark:text-neutral-800">
+                                            <circle cx="12" cy="12" r="10" />
+                                            <path d="M8 12h8" />
+                                            <path d="M12 8v8" />
+                                        </svg>
+                                    </template>
+                                </MenuDropdown>
                                 <!-- Item -->
                                 <LinkAncor :label="'Dashboard'" :href="'dashboard'"
                                     :active="route().current('dashboard')">
@@ -49,6 +56,24 @@ const item = [
                                             <rect width="7" height="5" x="14" y="3" rx="1" />
                                             <rect width="7" height="9" x="14" y="12" rx="1" />
                                             <rect width="7" height="5" x="3" y="16" rx="1" />
+                                        </svg>
+                                    </template>
+                                </LinkAncor>
+                                <!-- End Item -->
+
+                                <!-- Item -->
+                                <LinkAncor :label="'Clients'" :href="'customer.index'"
+                                    :active="route().current('customer.index')">
+                                    <template #icon>
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round"
+                                            class="lucide lucide-contact">
+                                            <path d="M16 2v2" />
+                                            <path d="M7 22v-2a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v2" />
+                                            <path d="M8 2v2" />
+                                            <circle cx="12" cy="11" r="3" />
+                                            <rect x="3" y="4" width="18" height="18" rx="2" />
                                         </svg>
                                     </template>
                                 </LinkAncor>
@@ -143,8 +168,7 @@ const item = [
                                 <button id="hs-pro-chmsad" type="button"
                                     class="flex justify-center items-center gap-x-3 size-8 text-start disabled:opacity-50 disabled:pointer-events-none focus:outline-none"
                                     aria-haspopup="menu" aria-expanded="false" aria-label="Dropdown">
-                                    <img class="shrink-0 rounded-full"
-                                        src="https://images.unsplash.com/photo-1659482633369-9fe69af50bfb?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=facearea&facepad=3&w=320&h=320&q=80"
+                                    <img class="shrink-0 rounded-full" :src="page.props.auth.user.profile_picture"
                                         alt="Avatar">
                                     <span
                                         class="absolute -bottom-0 -end-0 block size-2 rounded-full ring-2 ring-gray-100 bg-green-500 dark:ring-neutral-800"></span>
