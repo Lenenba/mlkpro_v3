@@ -40,7 +40,7 @@ const categoriesData = [
 
     <Head title="Dashboard" />
 
-    <AuthenticatedLayout :user="user">
+    <AuthenticatedLayout >
         <div class="grid grid-cols-2 lg:grid-cols-4 gap-2 md:gap-3 lg:gap-5 ">
             <Singlegrid borderColor="border-t-4 border-t-cyan-600">
                 <template #image>

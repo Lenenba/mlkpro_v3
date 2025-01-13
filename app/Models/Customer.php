@@ -118,11 +118,14 @@ class Customer extends Model
     public function scopeFilter(Builder $query, array $filters): Builder
     {
         return $query->when(
-            $filters['company_name'] ?? null,
-            fn($query, $company_name) => $query->where('company_name', 'like', '%' . $company_name . '%')
+            $filters['name'] ?? null,
+            fn($query, $name) => $query->where('company_name', 'like', '%' . $name . '%')
         )->when(
             $filters['name'] ?? null,
-            fn($query, $name) => $query->where('name', 'like', '%' . $name . '%')
+            fn($query, $name) => $query->where('first_name', 'like', '%' . $name . '%')
+        )->when(
+            $filters['name'] ?? null,
+            fn($query, $name) => $query->where('last_name', 'like', '%' . $name . '%')
         );
     }
 }

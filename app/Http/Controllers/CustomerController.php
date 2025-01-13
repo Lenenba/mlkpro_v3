@@ -23,7 +23,6 @@ class CustomerController extends Controller
     {
         $filters = $request->only([
             'name',
-            'company_name'
         ]);
         $userId = Auth::user()->id;
 
@@ -41,6 +40,7 @@ class CustomerController extends Controller
         return Inertia::render('Customer/Index', [
             'customers' => $customers,
             'filters' => $filters,
+            'count' => Customer::count(),
         ]);
     }
 
@@ -84,6 +84,7 @@ class CustomerController extends Controller
 
         return Inertia::render('Customer/Show', [
             'customer' => $customer,
+            'properties' => $customer->properties,
             'works' => $works,
             'filters' => $filters,
         ]);

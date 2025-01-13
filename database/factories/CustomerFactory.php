@@ -4,6 +4,8 @@ namespace Database\Factories;
 
 use App\Models\User;
 use App\Models\Customer;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -38,11 +40,24 @@ class CustomerFactory extends Factory
      */
     private function generateFakeCompanyLogo(): string
     {
-        $bgColor = ltrim($this->faker->hexColor(), '#'); // Couleur d'arrière-plan aléatoire sans le '#'
-        $text = strtoupper(substr($this->faker->company(), 0, 3)); // Premières 3 lettres du nom de l'entreprise
-        $width = 150;
-        $height = 150;
+        try {
+            $response = Http::withHeaders([
+                'Authorization' => 'Client-ID ' . env('UNSPLASH_ACCESS_KEY'),
+            ])->get('https://api.unsplash.com/photos/random', [
+                'query' => 'person',
+                'orientation' => 'squarish',
+            ]);
 
-        return "https://api.oneapipro.com/images/placeholder?text={$text}&width={$width}&height={$height}&color={$bgColor}";
+            if ($response->successful()) {
+                $data = $response->json();
+                return $data['urls']['regular'] ?? null; // Use the 'regular' size
+            }
+
+            Log::error('Unsplash API error: ' . $response->body());
+        } catch (\Exception $e) {
+            Log::error('Unsplash API exception: ' . $e->getMessage());
+        }
+
+        return null; // Default to null if an error occurs
     }
 }

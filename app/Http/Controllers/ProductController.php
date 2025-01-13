@@ -28,7 +28,7 @@ class ProductController extends Controller
             ->simplePaginate(7)
             ->withQueryString();
         return inertia('Product/Index', [
-            'count' => $products->count(),
+            'count' => Product::count(),
             'filters' => $filters,
             'categories' => ProductCategory::all(),
             'products' => $products
