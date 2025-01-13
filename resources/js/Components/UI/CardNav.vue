@@ -14,7 +14,7 @@ import TabEmptyState from './TabEmptyState.vue';
         </div>
         <!-- Audience -->
         <div
-            class="flex flex-col bg-white border border-gray-200 shadow-sm rounded-sm overflow-hidden dark:bg-neutral-800 dark:border-neutral-700">
+            class="flex flex-col bg-white  rounded-sm overflow-hidden dark:bg-neutral-800 dark:border-neutral-700">
             <!-- Tab Nav -->
             <CardNavLink />
             <!-- End Tab Nav -->
