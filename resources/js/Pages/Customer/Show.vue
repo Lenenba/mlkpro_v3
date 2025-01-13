@@ -8,6 +8,7 @@ import { useMapToItem } from '@/Composables/useMapToItem';
 import CardNoHeader from '@/Components/UI/CardNoHeader.vue';
 import DescriptionList from '@/Components/UI/DescriptionList.vue';
 import CardNav from '@/Components/UI/CardNav.vue';
+import TabEmptyState from '@/Components/UI/TabEmptyState.vue';
 
 const props = defineProps({
     customer: Object,

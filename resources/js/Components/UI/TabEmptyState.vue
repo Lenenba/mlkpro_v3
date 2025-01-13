@@ -1,6 +1,12 @@
+<script setup>
+
+const props = defineProps({
+    type: String,
+});
+</script>
 <template>
     <!-- Empty State -->
-    <div class="p-5 min-h-[500px]  flex flex-col justify-center items-center text-center">
+    <div class="p-5 min-h-[100px]  flex flex-col justify-center items-center text-center">
         <svg class="w-48 mx-auto mb-4" width="178" height="90" viewBox="0 0 178 90" fill="none"
             xmlns="http://www.w3.org/2000/svg">
             <rect x="27" y="50.5" width="124" height="39" rx="7.5" fill="currentColor"
@@ -53,22 +59,22 @@
 
         <div class="max-w-sm mx-auto">
             <p class="mt-2 font-medium text-gray-800 dark:text-neutral-200">
-                No Users data
+                No {{ type }} data
             </p>
             <p class="mb-5 text-sm text-gray-500 dark:text-neutral-500">
-                In the meantime, you can create new custom insights to monitor your most important
+                In the meantime, you can create new custom {{ type }} to monitor your most important
                 metrics
             </p>
         </div>
         <button type="button"
-            class="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-transparent bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            class="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-transparent bg-neutral-600 text-white hover:bg-neutral-700 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:ring-2 focus:ring-neutral-500"
             data-hs-overlay="#hs-pro-atbetb">
             <svg class="hidden sm:block shrink-0 size-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
                 viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                 stroke-linejoin="round">
                 <path d="M5 12h14" />
                 <path d="M12 5v14" />
-            </svg>Create insight
+            </svg>Create {{ type }}
         </button>
     </div>
     <!-- End Empty State -->

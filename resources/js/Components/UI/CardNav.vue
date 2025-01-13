@@ -24,7 +24,7 @@ import TabEmptyState from './TabEmptyState.vue';
                 <!-- Tab Content Item -->
                 <div id="bar-with-underline-1" role="tabpanel" aria-labelledby="bar-with-underline-item-1">
                     <!-- Empty State -->
-                    <TabEmptyState />
+                    <TabEmptyState :type="'works'"/>
                     <!-- End Empty State -->
                 </div>
                 <!-- End Tab Content Item -->
@@ -33,7 +33,7 @@ import TabEmptyState from './TabEmptyState.vue';
                 <div id="bar-with-underline-2" class="hidden" role="tabpanel"
                     aria-labelledby="bar-with-underline-item-2">
                     <!-- Empty State -->
-                    <TabEmptyState />
+                    <TabEmptyState :type="'requests'" />
 
                     <!-- End Empty State -->
                 </div>
@@ -43,7 +43,7 @@ import TabEmptyState from './TabEmptyState.vue';
                 <div id="bar-with-underline-3" class="hidden" role="tabpanel"
                     aria-labelledby="bar-with-underline-item-3">
                     <!-- Empty State -->
-                    <TabEmptyState />
+                    <TabEmptyState :type="'quotes'" />
                     <!-- End Empty State -->
                 </div>
                 <!-- End Tab Content Item -->
@@ -51,14 +51,14 @@ import TabEmptyState from './TabEmptyState.vue';
                 <!-- Tab Content Item -->
                 <div id="bar-with-underline-4" class="hidden" role="tabpanel"
                     aria-labelledby="bar-with-underline-item-4">
-                    <TabEmptyState />
+                    <TabEmptyState :type="'jobs'" />
                 </div>
                 <!-- End Tab Content Item -->
 
                 <!-- Tab Content Item -->
                 <div id="bar-with-underline-5" class="hidden" role="tabpanel"
                     aria-labelledby="bar-with-underline-item-5">
-                    <TabEmptyState />
+                    <TabEmptyState :type="'invoices'" />
                 </div>
                 <!-- End Tab Content Item -->
             </div>

@@ -29,7 +29,7 @@ defineExpose({ focus: () => input.value.focus() });
 <template>
     <!-- Floating Select -->
     <div class="relative">
-        <select v-model="model" ref="input" class="peer p-4 pe-9 block w-full border-gray-200 rounded-lg text-sm focus:border-green-600 focus:ring-green-600 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-400 dark:focus:ring-neutral-600
+        <select v-model="model" ref="input" class="peer p-4 pe-9 block w-full border-gray-200 rounded-sm text-sm focus:border-green-600 focus:ring-green-600 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-400 dark:focus:ring-neutral-600
             focus:pt-6
             focus:pb-2
             [&:not(:placeholder-shown)]:pt-6
