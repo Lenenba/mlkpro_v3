@@ -26,6 +26,8 @@ class Customer extends Model
         'phone',
         'description',
         'logo',
+        'refer_by',
+        'salutation',
         'billing_same_as_physical',
     ];
 

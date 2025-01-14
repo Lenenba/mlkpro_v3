@@ -1,0 +1,59 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+
+class Quote extends Model
+{
+    use HasFactory;
+
+    protected $fillable = [
+        'user_id',
+        'job_title',
+        'status',
+        'number',
+        'customer_id',
+        'property_id',
+        'total',
+        'initial_deposit',
+        'is_fixed',
+        'notes',
+    ];
+
+    /**
+     * Relation : Un devis appartient à un client.
+     */
+    public function customer()
+    {
+        return $this->belongsTo(Customer::class);
+    }
+
+    /**
+     * Relation : Un devis appartient à une propriété.
+     */
+    public function property()
+    {
+        return $this->belongsTo(Property::class);
+    }
+
+    /**
+     * Relation : Un devis peut avoir plusieurs produits attachés.
+     */
+    public function products()
+    {
+        return $this->belongsToMany(Product::class, 'quote_products')
+            ->withPivot(['quantity', 'price', 'description', 'total'])
+            ->withTimestamps();
+
+    }
+
+    /**
+     * Relation : Un devis peut avoir plusieurs taxes attachées.
+     */
+    public function taxes()
+    {
+        return $this->hasMany(QuoteTax::class);
+    }
+}

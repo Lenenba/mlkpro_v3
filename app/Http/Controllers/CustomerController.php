@@ -9,6 +9,7 @@ use App\Utils\FileHandler;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use App\Http\Requests\CustomerRequest;
+use App\Http\Requests\PropertyRequest;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 
 class CustomerController extends Controller
@@ -98,15 +99,25 @@ class CustomerController extends Controller
      */
     public function store(CustomerRequest $request)
     {
-        $validated = $request->validated();
-        $validated['logo'] = FileHandler::handleImageUpload($request, 'logo', 'customers/corporateHeader.webp');
 
+        $validated = $request->validated();
+        // $validated['logo'] = FileHandler::handleImageUpload($request, 'logo', 'customers/customer.png');
         $customer = $request->user()->customers()->create($validated);
 
         $customer->description = $validated['description'];
         $customer->number = 'CUST' . str_pad($customer->id, 6, '0', STR_PAD_LEFT);
-        $customer->logo = $validated['logo'];
+        // $customer->logo = $validated['logo'];
+        $customer->logo = 'customers/customer.png';
         $customer->save();
+
+        // Add properties if provided
+        if (!empty($validated['properties'])) {
+            $property = $customer->properties()->create($validated['properties']);
+            $property->country = $validated['properties']['country'];
+            $property->street1 = $validated['properties']['street1'];
+            $property->save();
+        }
+
 
         return redirect()->route('customer.index')->with('success', 'Customer created successfully.');
     }
@@ -119,8 +130,8 @@ class CustomerController extends Controller
         $this->authorize('update', $customer);
 
         $validated = $request->validated();
-        $validated['logo'] = FileHandler::handleImageUpload($request, 'logo', 'customers/corporateHeader.webp');
-        $validated['header_image'] = FileHandler::handleImageUpload($request, 'header_image', 'customers/corporateHeader.webp');
+        $validated['logo'] = FileHandler::handleImageUpload($request, 'logo', 'customers/customer.png');
+        $validated['header_image'] = FileHandler::handleImageUpload($request, 'header_image', 'customers/customer.png');
 
         $customer->header_image = $validated['header_image'];
         $customer->logo = $validated['logo'];
@@ -136,8 +147,8 @@ class CustomerController extends Controller
     {
         $this->authorize('delete', $customer);
 
-        FileHandler::deleteFile($customer->logo, 'customers/corporateHeader.webp');
-        FileHandler::deleteFile($customer->header_image, 'customers/corporateHeader.webp');
+        FileHandler::deleteFile($customer->logo, 'customers/customer.png');
+        FileHandler::deleteFile($customer->header_image, 'customers/customer.png');
         $customer->delete();
 
         return redirect()->route('customer.index')->with('success', 'customer deleted successfully.');

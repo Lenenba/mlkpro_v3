@@ -4,9 +4,12 @@ namespace Database\Seeders;
 
 use App\Models\Role;
 use App\Models\User;
+use App\Models\Quote;
 use App\Models\Product;
 use App\Models\Customer;
 use App\Models\Property;
+use App\Models\QuoteTax;
+use App\Models\QuoteProduct;
 use App\Models\ProductCategory;
 use Illuminate\Database\Seeder;
 
@@ -60,5 +63,26 @@ class DatabaseSeeder extends Seeder
             $customer->save();
         }
 
+        // Générer deux devis avec des produits et des taxes associés
+        $quotes = Quote::factory()
+            ->count(2)
+            ->recycle($Superadmin) // Réutiliser l'utilisateur Superadmin
+            ->recycle($customers) // Réutiliser les clients existants
+            ->recycle($customers->first()->properties) // Réutiliser les propriétés existantes
+            ->create();
+
+        QuoteProduct::factory()
+            ->recycle($quotes) // Réutiliser les devis existants
+            ->recycle($Products) // Réutiliser les produits existants
+            ->count(3)
+            ->create();
+
+        QuoteTax::factory()->count(2)->recycle($quotes)->create();
+
+        // Assigner un numéro unique à chaque devis
+        foreach ($quotes as $quote) {
+            $quote->number = 'QUOTE' . str_pad($quote->id, 6, '0', STR_PAD_LEFT);
+            $quote->save();
+        }
     }
 }

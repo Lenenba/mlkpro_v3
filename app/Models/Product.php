@@ -68,6 +68,15 @@ class Product extends Model
     }
 
     /**
+     * Relation : Un devis peut avoir plusieurs produits attachés.
+     */
+    public function quotes()
+    {
+        return $this->belongsToMany(Quote::class, 'quote_products')
+            ->withPivot(['quantity', 'price', 'description', 'total'])
+            ->withTimestamps();
+    }
+    /**
      * Scope a query to order products by the most recent.
      *
      * @param \Illuminate\Database\Eloquent\Builder $query
@@ -125,7 +134,7 @@ class Product extends Model
         return $query->when(
             $filters['name'] ?? null,
             fn($query, $name) => $query->where('name', 'like', '%' . $name . '%')
-            ->orWhere('description', 'like', '%' . $name . '%')
+                ->orWhere('description', 'like', '%' . $name . '%')
         );
     }
 

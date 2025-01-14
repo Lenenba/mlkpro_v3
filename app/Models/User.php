@@ -3,6 +3,7 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Models\Product;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -21,9 +22,6 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
-        'role_id',
-        'profile_picture',
-        'phone_number',
     ];
 
     /**
@@ -49,13 +47,13 @@ class User extends Authenticatable
         ];
     }
 
-
-    /**
-     * Get the products for the user.
-     */
     public function products()
     {
         return $this->hasMany(Product::class);
     }
 
+    public function customers()
+    {
+        return $this->hasMany(Customer::class);
+    }
 }

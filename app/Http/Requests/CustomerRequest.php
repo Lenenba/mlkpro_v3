@@ -2,7 +2,6 @@
 
 namespace App\Http\Requests;
 
-use App\Models\User;
 use Illuminate\Validation\Rule;
 use Illuminate\Foundation\Http\FormRequest;
 
@@ -18,22 +17,20 @@ class CustomerRequest extends FormRequest
 
     /**
      * Get the validation rules that apply to the request.
-     *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
      */
     public function rules(): array
     {
         $customerId = $this->route('customer') ? $this->route('customer')->id : null;
 
         return [
-            'name' => 'required|string|max:255',
+            'first_name' => 'required|string|max:255',
+            'last_name' => 'required|string|max:255',
             'email' => [
                 'required',
                 'string',
-                'lowercase',
                 'email',
                 'max:255',
-                Rule::unique(User::class)->ignore($this->user()->id),
+                Rule::unique('customers')->ignore($customerId),
             ],
             'phone' => 'nullable|string|max:15',
             'address' => 'nullable|string|max:255',
@@ -41,26 +38,33 @@ class CustomerRequest extends FormRequest
             'state' => 'nullable|string|max:255',
             'zip' => 'nullable|string|max:10',
             'company_name' => 'nullable|string|max:255',
-            'logo' => [
-                'nullable',
-                'image',
-                'mimes:jpg,jpeg,png,svg',
-                'max:2048',
-            ],
-            'type' => 'nullable|string|max:255',
             'description' => 'nullable|string|min:5|max:255',
+            'logo' => 'nullable|image|mimes:jpg,jpeg,png,svg|max:2048',
+            'billing_same_as_physical' => 'nullable|boolean',
+            'refer_by' => 'nullable|string|max:255',
+            'salutation' => [
+                'required',
+                Rule::in(['Mr', 'Mrs', 'Miss']),
+            ],
+            'properties' => 'nullable|array',
+            'properties.type' => 'nullable|string|max:255',
+            'properties.street1' => 'nullable|string|max:255',
+            'properties.street2' => 'nullable|string|max:255',
+            'properties.country' => 'nullable|string|max:255',
+            'properties.address' => 'nullable|string|max:255',
+            'properties.city' => 'nullable|string|max:255',
+            'properties.state' => 'nullable|string|max:255',
+            'properties.zip' => 'nullable|string|max:10',
         ];
     }
 
     /**
-     * Modify the validated data before returning it.
-     *
-     * @return array
+     * Prepare the data for validation.
      */
     protected function prepareForValidation(): void
     {
         $this->merge([
-            'email' => strtolower($this->email), // Normalize email to lowercase
+            'email' => strtolower($this->email),
         ]);
     }
 }
