@@ -105,7 +105,6 @@ class CustomerController extends Controller
         $customer = $request->user()->customers()->create($validated);
 
         $customer->description = $validated['description'];
-        $customer->number = 'CUST' . str_pad($customer->id, 6, '0', STR_PAD_LEFT);
         // $customer->logo = $validated['logo'];
         $customer->logo = 'customers/customer.png';
         $customer->save();

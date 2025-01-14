@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Traits\GeneratesSequentialNumber;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -11,7 +12,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 class Product extends Model
 {
     /** @use HasFactory<\Database\Factories\ProductFactory> */
-    use HasFactory;
+    use HasFactory, GeneratesSequentialNumber;
 
     /**
      * The attributes that are mass assignable.
@@ -37,6 +38,15 @@ class Product extends Model
         'updated_at',
     ];
 
+    protected static function boot()
+    {
+        parent::boot();
+
+        // Auto-generate the quote number before creating
+        static::creating(function ($quote) {
+            $quote->number = self::generateNumber($quote->user_id, 'P');
+        });
+    }
     /**
      * Get the category of the product.
      *

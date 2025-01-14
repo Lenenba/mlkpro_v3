@@ -166,7 +166,7 @@ watch(() => filterForm.name, (newValue) => {
                                     <button id="hs-pro-eptnms" type="button"
                                         class="px-5 py-2.5 text-start w-full flex items-center gap-x-1 text-sm font-normal text-stone-500 focus:outline-none focus:bg-stone-100 dark:text-neutral-500 dark:focus:bg-neutral-700"
                                         aria-haspopup="menu" aria-expanded="false" aria-label="Dropdown">
-                                        Name
+                                        Company name
                                     </button>
                                 </div>
                                 <!-- End Sort Dropdown -->
@@ -178,19 +178,7 @@ watch(() => filterForm.name, (newValue) => {
                                     <button id="hs-pro-eptdts" type="button"
                                         class="px-5 py-2.5 text-start w-full flex items-center gap-x-1 text-sm font-normal text-stone-500 focus:outline-none focus:bg-stone-100 dark:text-neutral-500 dark:focus:bg-neutral-700"
                                         aria-haspopup="menu" aria-expanded="false" aria-label="Dropdown">
-                                        Date
-                                    </button>
-                                </div>
-                                <!-- End Sort Dropdown -->
-                            </th>
-
-                            <th scope="col" class="min-w-[170px] ">
-                                <!-- Sort Dropdown -->
-                                <div class="hs-dropdown relative inline-flex w-full cursor-pointer">
-                                    <button id="hs-pro-eptsts" type="button"
-                                        class="px-5 py-2.5 text-start w-full flex items-center gap-x-1 text-sm font-normal text-stone-500 focus:outline-none focus:bg-stone-100 dark:text-neutral-500 dark:focus:bg-neutral-700"
-                                        aria-haspopup="menu" aria-expanded="false" aria-label="Dropdown">
-                                        Status
+                                        Name
                                     </button>
                                 </div>
                                 <!-- End Sort Dropdown -->
@@ -202,7 +190,7 @@ watch(() => filterForm.name, (newValue) => {
                                     <button id="hs-pro-eptprs" type="button"
                                         class="px-5 py-2.5 text-start w-full flex items-center gap-x-1 text-sm font-normal text-stone-500 focus:outline-none focus:bg-stone-100 dark:text-neutral-500 dark:focus:bg-neutral-700"
                                         aria-haspopup="menu" aria-expanded="false" aria-label="Dropdown">
-                                        Product
+                                        Phone
                                     </button>
                                 </div>
                                 <!-- End Sort Dropdown -->
@@ -214,7 +202,7 @@ watch(() => filterForm.name, (newValue) => {
                                     <button id="hs-pro-eptams" type="button"
                                         class="px-5 py-2.5 text-start w-full flex items-center gap-x-1 text-sm font-normal text-stone-500 focus:outline-none focus:bg-stone-100 dark:text-neutral-500 dark:focus:bg-neutral-700"
                                         aria-haspopup="menu" aria-expanded="false" aria-label="Dropdown">
-                                        Amount
+                                        Description
                                     </button>
                                 </div>
                                 <!-- End Sort Dropdown -->
@@ -250,11 +238,6 @@ watch(() => filterForm.name, (newValue) => {
                                         {{ customer.last_name }}
                                     </span>
                                 </div>
-                            </td>
-                            <td class="size-px whitespace-nowrap px-4 py-1">
-                                <span class="text-sm text-stone-600 dark:text-neutral-400">
-                                    {{ customer.email }}
-                                </span>
                             </td>
                             <td class="size-px whitespace-nowrap px-4 py-1">
                                 <span

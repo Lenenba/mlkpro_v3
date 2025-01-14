@@ -33,44 +33,44 @@ class DatabaseSeeder extends Seeder
         ]);
 
         // Admin user
-        User::factory()->create([
-            'name' => 'Admin User',
-            'email' => 'admin@example.com',
-            'role_id' => 2,
-            'phone_number' => '+0987654321',
-        ]);
+        User::factory()->count(2)->create();
+
+        $users = User::all();
         $categories = ProductCategory::factory(5)->create();
 
         // Create products and associate with categories and users
         $Products = Product::factory(20)
             ->recycle($categories)
-            ->recycle($Superadmin)
+            ->recycle($users)
             ->create();
-
-        foreach ($Products as $product) {
-            $product->number = 'PROD' . str_pad($product->id, 6, '0', STR_PAD_LEFT);
-            $product->save();
-        };
-
         // Crée 10 clients avec 2 adresses chacun
         $customers = Customer::factory()
             ->count(4)
-            ->recycle($Superadmin)
+            ->recycle($users)
             ->has(Property::factory()->count(2)) // 1 adresse physique + 1 adresse de facturation
             ->create();
 
-        foreach ($customers as $customer) {
-            $customer->number = 'CUST' . str_pad($customer->id, 6, '0', STR_PAD_LEFT);
-            $customer->save();
+        // Supposons que $user est l'utilisateur utilisé pour créer les devis
+        foreach ($users as $user) {
+            $quotes = Quote::factory()
+                ->count(2)
+                ->state(function () use ($user) {
+                    return [
+                        'user_id' => $user->id, // Associer les devis à cet utilisateur
+                    ];
+                })
+                ->recycle($user) // Réutiliser l'utilisateur pour chaque devis
+                ->recycle(
+                    Customer::where('user_id', $user->id) // Filtrer les clients par utilisateur
+                        ->get()
+                )
+                ->recycle(
+                    Property::whereHas('customer', function ($query) use ($user) {
+                        $query->where('user_id', $user->id); // Réutiliser les propriétés associées à ces clients
+                    })->get()
+                )
+                ->create();
         }
-
-        // Générer deux devis avec des produits et des taxes associés
-        $quotes = Quote::factory()
-            ->count(2)
-            ->recycle($Superadmin) // Réutiliser l'utilisateur Superadmin
-            ->recycle($customers) // Réutiliser les clients existants
-            ->recycle($customers->first()->properties) // Réutiliser les propriétés existantes
-            ->create();
 
         $tax = Tax::factory()->count(3)->create();
 
@@ -85,11 +85,5 @@ class DatabaseSeeder extends Seeder
             ->recycle($quotes)
             ->recycle($tax)
             ->create();
-
-        // Assigner un numéro unique à chaque devis
-        foreach ($quotes as $quote) {
-            $quote->number = 'QUOTE' . str_pad($quote->id, 6, '0', STR_PAD_LEFT);
-            $quote->save();
-        }
     }
 }
