@@ -69,6 +69,11 @@ class Customer extends Model
     {
         return $this->hasMany(Invoice::class);
     }
+
+    public function quotes()
+    {
+        return $this->hasMany(Quote::class)->with('products');
+    }
     /**
      * Get the works for the customer.
      */

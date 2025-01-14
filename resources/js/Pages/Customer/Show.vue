@@ -12,12 +12,11 @@ import TabEmptyState from '@/Components/UI/TabEmptyState.vue';
 
 const props = defineProps({
     customer: Object,
-    properties: Array,
 });
 
 // Utiliser le composable pour mapper les données
 const { mapToItem } = useMapToItem();
-const mappedItems = props.properties.map(mapToItem);
+const mappedItems = props.customer.properties.map(mapToItem);
 
 </script>
 <template>
@@ -43,7 +42,7 @@ const mappedItems = props.properties.map(mapToItem);
                         </template>
                     </ListGroup>
                 </Card>
-                <CardNav class="mt-5" />
+                <CardNav class="mt-5" :customer="customer"/>
                 <card class="mt-5">
                     <template #title>
                         Schedule

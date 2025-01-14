@@ -1,4 +1,8 @@
 <script setup>
+
+const props = defineProps({
+    customer: Object,
+});
 </script>
 
 <template>
@@ -79,7 +83,7 @@
                     </span>
                     <span class="hidden xl:mt-1 md:flex md:justify-between md:items-center md:gap-x-2">
                         <span class="block text-lg lg:text-xl xl:text-2xl text-gray-800 dark:text-neutral-200">
-                            0
+                            {{ customer.quotes.length }}
                         </span>
                     </span>
                 </span>
