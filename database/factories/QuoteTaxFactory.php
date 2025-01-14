@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Models\Tax;
 use App\Models\Quote;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
@@ -16,14 +17,14 @@ class QuoteTaxFactory extends Factory
      */
     public function definition()
     {
-        $rate = $this->faker->randomElement([5, 9.975, 15]); // Taxes canadiennes : TPS (5%), TVQ (9.975%), ou combiné (15%)
-        $subtotal = $this->faker->randomFloat(2, 100, 10000); // Sous-total aléatoire
+        $rate = $this->faker->randomFloat(2, 1, 15); // Taux aléatoire entre 1% et 15%
+        $subtotal = $this->faker->randomFloat(2, 100, 10000); // Sous-total aléatoire entre 100 et 10 000
 
         return [
-            'quote_id' => Quote::factory(), // Génère un devis associé
-            'name' => $this->faker->randomElement(['TPS', 'TVQ', 'TPS/TVQ']), // Nom de la taxe
-            'rate' => $rate, // Taux de taxe
-            'amount' => $subtotal * ($rate / 100), // Montant calculé
+            'quote_id' => Quote::factory(), // Associer un devis
+            'tax_id' => Tax::factory(), // Associer une taxe par défaut
+            'rate' => $rate, // Copier le taux de la taxe
+            'amount' => $subtotal * ($rate / 100), // Calculer le montant de la taxe
         ];
     }
 }

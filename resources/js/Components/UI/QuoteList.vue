@@ -7,7 +7,7 @@ const props = defineProps({
     <div v-for="quote in quotes" :key="quote.id">
         <!-- quote List Card -->
         <div
-            class="p-4 relative flex flex-col bg-white border border-gray-200 rounded-xl dark:bg-neutral-800 dark:border-neutral-700">
+            class="p-4 relative flex flex-col bg-white border border-gray-200 rounded-sm dark:bg-neutral-800 dark:border-neutral-700">
             <div class="grid lg:grid-cols-12 gap-y-2 lg:gap-y-0 gap-x-4">
                 <div class="lg:col-span-3">
                     <p>
@@ -20,15 +20,17 @@ const props = defineProps({
                     <!-- Badge Group -->
                     <div class="mt-1 lg:mt-2 -mx-0.5 sm:-mx-1">
                         <span
-                            class="m-0.5 sm:m-1 p-1.5 sm:p-2 inline-block bg-gray-100 text-gray-800 text-xs rounded-md dark:bg-neutral-700 dark:text-neutral-200">{{ new Date( quote.created_at).toLocaleDateString()  }}</span>
+                            class="m-0.5 sm:m-1 p-1.5 sm:p-2 inline-block bg-gray-100 text-gray-800 text-xs rounded-sm dark:bg-neutral-700 dark:text-neutral-200">{{
+                                new Date(quote.created_at).toLocaleDateString() }}</span>
                         <span
-                            class="m-0.5 sm:m-1 p-1.5 sm:p-2 inline-block bg-gray-100 text-gray-800 text-xs rounded-md dark:bg-neutral-700 dark:text-neutral-200">{{ quote.status }}</span>
+                            class="m-0.5 sm:m-1 p-1.5 sm:p-2 inline-block bg-gray-100 text-gray-800 text-xs rounded-sm dark:bg-neutral-700 dark:text-neutral-200">{{
+                                quote.status }}</span>
                     </div>
                     <!-- End Badge Group -->
                 </div>
                 <!-- End Col -->
 
-                <div class="lg:col-span-6">
+                <div class="lg:col-span-3">
                     <p class="mt-1 text-sm text-gray-500 dark:text-neutral-500">
                         {{ quote.notes }}
                     </p>
@@ -39,21 +41,49 @@ const props = defineProps({
                             Products:
                         </h4>
                         <div class="flex items-center -space-x-2">
-                            <img v-for="product in quote.products" :key="product.id" class="shrink-0 size-7 rounded-full"
-                                :src="product.image" alt="Avatar">
-                            </div>
+                            <img v-for="product in quote.products" :key="product.id"
+                                class="shrink-0 size-7 rounded-smll" :src="product.image" alt="Avatar">
+                        </div>
                     </div>
                     <!-- End Avatar Group -->
                 </div>
-                <!-- End Col -->
+                <div class="lg:col-span-3">
+                    <!-- Media -->
+                    <div class="flex gap-x-3">
+                        <!-- Logo -->
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                            class="lucide lucide-house">
+                            <path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8" />
+                            <path
+                                d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                        </svg>
+                        <!-- End Logo -->
 
+                        <!-- Body -->
+                        <div class="grow flex flex-col sm:flex-row sm:justify-between gap-y-2 sm:gap-x-3">
+                            <div>
+                                <p class="text-sm font-medium text-gray-800 dark:text-neutral-200">
+                                    {{ quote.property.country }}
+                                </p>
+                                <p class="text-xs text-gray-500 dark:text-neutral-500">
+                                    {{ quote.property.street1 }}
+                                </p>
+                            </div>
+                        </div>
+                        <!-- End Body -->
+                    </div>
+                    <!-- End Media -->
+
+                </div>
+                <!-- End Col -->
                 <div class="lg:col-span-3">
                     <!-- Button Group -->
                     <div
                         class="flex lg:flex-col justify-end items-center gap-2 border-t border-gray-200 lg:border-t-0 pt-3 lg:pt-0 dark:border-neutral-700">
                         <div class="lg:order-2 lg:ms-auto">
                             <button type="button"
-                                class="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-800 shadow-sm hover:bg-gray-50 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-gray-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700"
+                                class="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-sm border border-gray-200 bg-white text-gray-800 shadow-sm hover:bg-gray-50 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-gray-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700"
                                 data-hs-overlay="#hs-pro-chhdl">
                                 More details
                             </button>
@@ -64,22 +94,22 @@ const props = defineProps({
                             <!-- More Dropdown -->
                             <div class="hs-dropdown [--placement:bottom-right] relative inline-flex">
                                 <button id="hs-pro-dupc1" type="button"
-                                    class="size-7 inline-flex justify-center items-center gap-x-2 rounded-lg border border-transparent text-gray-500 hover:bg-gray-100 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-gray-200 dark:text-neutral-400 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700"
+                                    class="size-7 inline-flex justify-center items-center gap-x-2 rounded-sm border border-transparent text-gray-500 hover:bg-gray-100 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-gray-200 dark:text-neutral-400 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700"
                                     aria-haspopup="menu" aria-expanded="false" aria-label="Dropdown">
-                                    <svg class="shrink-0 size-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
-                                        viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                                        stroke-linecap="round" stroke-linejoin="round">
+                                    <svg class="shrink-0 size-4" xmlns="http://www.w3.org/2000/svg" width="24"
+                                        height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                         <circle cx="12" cy="12" r="1" />
                                         <circle cx="12" cy="5" r="1" />
                                         <circle cx="12" cy="19" r="1" />
                                     </svg>
                                 </button>
 
-                                <div class="hs-dropdown-menu hs-dropdown-open:opacity-100 w-40 transition-[opacity,margin] duration opacity-0 hidden z-10 bg-white rounded-xl shadow-[0_10px_40px_10px_rgba(0,0,0,0.08)] dark:shadow-[0_10px_40px_10px_rgba(0,0,0,0.2)] dark:bg-neutral-900"
+                                <div class="hs-dropdown-menu hs-dropdown-open:opacity-100 w-40 transition-[opacity,margin] duration opacity-0 hidden z-10 bg-white rounded-sm shadow-[0_10px_40px_10px_rgba(0,0,0,0.08)] dark:shadow-[0_10px_40px_10px_rgba(0,0,0,0.2)] dark:bg-neutral-900"
                                     role="menu" aria-orientation="vertical" aria-labelledby="hs-pro-dupc1">
                                     <div class="p-1">
                                         <button type="button"
-                                            class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-lg text-[13px] font-normal text-gray-800 hover:bg-gray-100 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-gray-100 dark:text-neutral-300 dark:hover:bg-neutral-800 dark:focus:bg-neutral-800"
+                                            class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] font-normal text-gray-800 hover:bg-gray-100 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-gray-100 dark:text-neutral-300 dark:hover:bg-neutral-800 dark:focus:bg-neutral-800"
                                             data-hs-overlay="#hs-pro-detm">
                                             <svg class="shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" width="24"
                                                 height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -90,7 +120,7 @@ const props = defineProps({
                                             Edit quote
                                         </button>
                                         <button type="button"
-                                            class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-lg text-[13px] font-normal text-gray-800 hover:bg-gray-100 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-gray-100 dark:text-neutral-300 dark:hover:bg-neutral-800 dark:focus:bg-neutral-800">
+                                            class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] font-normal text-gray-800 hover:bg-gray-100 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-gray-100 dark:text-neutral-300 dark:hover:bg-neutral-800 dark:focus:bg-neutral-800">
                                             <svg class="shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" width="24"
                                                 height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                                                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -100,7 +130,7 @@ const props = defineProps({
                                             Add to favorites
                                         </button>
                                         <button type="button"
-                                            class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-lg text-[13px] font-normal text-gray-800 hover:bg-gray-100 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-gray-100 dark:text-neutral-300 dark:hover:bg-neutral-800 dark:focus:bg-neutral-800">
+                                            class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] font-normal text-gray-800 hover:bg-gray-100 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-gray-100 dark:text-neutral-300 dark:hover:bg-neutral-800 dark:focus:bg-neutral-800">
                                             <svg class="shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" width="24"
                                                 height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                                                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -115,7 +145,7 @@ const props = defineProps({
                                         </div>
 
                                         <button type="button"
-                                            class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-lg text-[13px] font-normal text-red-600 hover:bg-gray-100 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-gray-100 dark:text-red-500 dark:hover:bg-neutral-800 dark:focus:bg-neutral-700"
+                                            class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] font-normal text-red-600 hover:bg-gray-100 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-gray-100 dark:text-red-500 dark:hover:bg-neutral-800 dark:focus:bg-neutral-700"
                                             data-hs-overlay="#hs-pro-chhdl">
                                             <svg class="shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" width="24"
                                                 height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -148,14 +178,14 @@ const props = defineProps({
             <div
                 class="hs-overlay-open:mt-7 hs-overlay-open:opacity-100 hs-overlay-open:duration-500 mt-0 opacity-0 ease-out transition-all sm:max-w-xl sm:w-full mx-3 mb-7 h-[calc(100%-3.5rem)] min-h-[calc(100%-3.5rem)] sm:mx-auto">
                 <div
-                    class="w-full max-h-full flex flex-col bg-white rounded-xl pointer-events-auto shadow-[0_10px_40px_10px_rgba(0,0,0,0.08)] dark:shadow-[0_10px_40px_10px_rgba(0,0,0,0.2)] dark:bg-neutral-800">
+                    class="w-full max-h-full flex flex-col bg-white rounded-sm pointer-events-auto shadow-[0_10px_40px_10px_rgba(0,0,0,0.08)] dark:shadow-[0_10px_40px_10px_rgba(0,0,0,0.2)] dark:bg-neutral-800">
                     <!-- Header -->
                     <div class="py-2.5 px-4 flex justify-between items-center border-b dark:border-neutral-700">
                         <h3 id="hs-pro-detm-label" class="font-medium text-gray-800 dark:text-neutral-200">
                             Edit quote
                         </h3>
                         <button type="button"
-                            class="size-8 inline-flex justify-center items-center gap-x-2 rounded-full border border-transparent bg-gray-100 text-gray-800 hover:bg-gray-200 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-gray-200 dark:bg-neutral-700 dark:hover:bg-neutral-600 dark:text-neutral-400 dark:focus:bg-neutral-600"
+                            class="size-8 inline-flex justify-center items-center gap-x-2 rounded-smll border border-transparent bg-gray-100 text-gray-800 hover:bg-gray-200 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-gray-200 dark:bg-neutral-700 dark:hover:bg-neutral-600 dark:text-neutral-400 dark:focus:bg-neutral-600"
                             aria-label="Close" data-hs-overlay="#hs-pro-detm">
                             <span class="sr-only">Close</span>
                             <svg class="shrink-0 size-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
@@ -170,7 +200,7 @@ const props = defineProps({
 
                     <!-- Body -->
                     <div
-                        class="overflow-y-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-gray-100 [&::-webkit-scrollbar-thumb]:bg-gray-300 dark:[&::-webkit-scrollbar-track]:bg-neutral-700 dark:[&::-webkit-scrollbar-thumb]:bg-neutral-500">
+                        class="overflow-y-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:rounded-smll [&::-webkit-scrollbar-track]:bg-gray-100 [&::-webkit-scrollbar-thumb]:bg-gray-300 dark:[&::-webkit-scrollbar-track]:bg-neutral-700 dark:[&::-webkit-scrollbar-thumb]:bg-neutral-500">
                         <div class="p-4 space-y-5">
                             <div class="space-y-2">
                                 <label for="hs-pro-daetmt"
@@ -179,7 +209,7 @@ const props = defineProps({
                                 </label>
 
                                 <input id="hs-pro-daetmt" type="text"
-                                    class="py-2 px-3 block w-full border-gray-200 rounded-lg text-sm placeholder:text-gray-400 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-transparent dark:border-neutral-700 dark:text-neutral-300 dark:placeholder:text-white/60 dark:focus:ring-neutral-600"
+                                    class="py-2 px-3 block w-full border-gray-200 rounded-sm text-sm placeholder:text-gray-400 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-transparent dark:border-neutral-700 dark:text-neutral-300 dark:placeholder:text-white/60 dark:focus:ring-neutral-600"
                                     placeholder="quote title" value="conference ">
                             </div>
 
@@ -190,7 +220,7 @@ const props = defineProps({
                                 </label>
 
                                 <input id="daetmi" type="text"
-                                    class="py-2 px-3 block w-full border-gray-200 rounded-lg text-sm placeholder:text-gray-400 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-transparent dark:border-neutral-700 dark:text-neutral-300 dark:placeholder:text-white/60 dark:focus:ring-neutral-600"
+                                    class="py-2 px-3 block w-full border-gray-200 rounded-sm text-sm placeholder:text-gray-400 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-transparent dark:border-neutral-700 dark:text-neutral-300 dark:placeholder:text-white/60 dark:focus:ring-neutral-600"
                                     placeholder="Enter name">
                             </div>
 
@@ -201,7 +231,7 @@ const props = defineProps({
                                 </label>
 
                                 <textarea id="daetmd"
-                                    class="py-2 px-3 block w-full border-gray-200 rounded-lg text-sm placeholder:text-gray-400 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-transparent dark:border-neutral-700 dark:text-neutral-300 dark:placeholder:text-white/60 dark:focus:ring-neutral-600"
+                                    class="py-2 px-3 block w-full border-gray-200 rounded-sm text-sm placeholder:text-gray-400 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-transparent dark:border-neutral-700 dark:text-neutral-300 dark:placeholder:text-white/60 dark:focus:ring-neutral-600"
                                     rows="3" placeholder="Tell us a little bit about quote"
                                     data-hs-textarea-auto-height>Online meeting services group</textarea>
                             </div>
@@ -215,11 +245,11 @@ const props = defineProps({
                                 <!-- Input Form -->
                                 <div class="flex items-center gap-x-3">
                                     <input id="daetmm" type="text"
-                                        class="py-2 px-3 block w-full border-gray-200 rounded-lg text-sm placeholder:text-gray-400 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-transparent dark:border-neutral-700 dark:text-neutral-300 dark:placeholder:text-white/60 dark:focus:ring-neutral-600"
+                                        class="py-2 px-3 block w-full border-gray-200 rounded-sm text-sm placeholder:text-gray-400 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-transparent dark:border-neutral-700 dark:text-neutral-300 dark:placeholder:text-white/60 dark:focus:ring-neutral-600"
                                         placeholder="Enter name">
 
                                     <button type="button"
-                                        class="py-2 px-3 inline-flex justify-center items-center gap-x-2 text-start bg-white border border-gray-200 text-gray-800 text-sm font-medium rounded-lg shadow-sm align-middle hover:bg-gray-50 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-gray-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700">
+                                        class="py-2 px-3 inline-flex justify-center items-center gap-x-2 text-start bg-white border border-gray-200 text-gray-800 text-sm font-medium rounded-sm shadow-sm align-middle hover:bg-gray-50 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-gray-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700">
                                         <svg class="shrink-0 size-4" xmlns="http://www.w3.org/2000/svg" width="24"
                                             height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                                             stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -240,16 +270,17 @@ const props = defineProps({
                                 <div class="flex items-center space-x-2">
                                     <!-- User -->
                                     <div class="hs-tooltip inline-block">
-                                        <label for="hs-pro-daetcach1" class="relative block rounded-full cursor-pointer">
-                                            <img class="hs-tooltip-toggle shrink-0 size-[46px] rounded-full"
+                                        <label for="hs-pro-daetcach1"
+                                            class="relative block rounded-smll cursor-pointer">
+                                            <img class="hs-tooltip-toggle shrink-0 size-[46px] rounded-smll"
                                                 src="https://images.unsplash.com/photo-1659482633369-9fe69af50bfb?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=facearea&facepad=2.5&w=320&h=320&q=80"
                                                 alt="Avatar">
                                             <span
-                                                class="block absolute -top-1 -end-1 bg-white rounded-full dark:bg-neutral-800">
+                                                class="block absolute -top-1 -end-1 bg-white rounded-smll dark:bg-neutral-800">
                                                 <span
-                                                    class="relative flex flex-col justify-center items-center size-5 bg-blue-100 border-2 border-white text-blue-600 rounded-full dark:bg-blue-500/40 dark:border-neutral-800 dark:text-blue-300">
+                                                    class="relative flex flex-col justify-center items-center size-5 bg-blue-100 border-2 border-white text-blue-600 rounded-smll dark:bg-blue-500/40 dark:border-neutral-800 dark:text-blue-300">
                                                     <input type="checkbox" id="hs-pro-daetcach1"
-                                                        class="absolute top-0 start-0 size-full bg-transparent border-transparent rounded-full focus:outline-none"
+                                                        class="absolute top-0 start-0 size-full bg-transparent border-transparent rounded-smll focus:outline-none"
                                                         checked>
                                                     <svg class="shrink-0 size-3" xmlns="http://www.w3.org/2000/svg"
                                                         width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
@@ -260,7 +291,7 @@ const props = defineProps({
                                             </span>
                                         </label>
                                         <span
-                                            class="hs-tooltip-content hs-tooltip-shown:opacity-100 hs-tooltip-shown:visible opacity-0 inline-block absolute invisible z-20 py-1.5 px-2.5 bg-gray-900 text-xs text-white rounded-lg dark:bg-neutral-700"
+                                            class="hs-tooltip-content hs-tooltip-shown:opacity-100 hs-tooltip-shown:visible opacity-0 inline-block absolute invisible z-20 py-1.5 px-2.5 bg-gray-900 text-xs text-white rounded-sm dark:bg-neutral-700"
                                             role="tooltip">
                                             James Collins
                                         </span>
@@ -269,14 +300,15 @@ const props = defineProps({
 
                                     <!-- User -->
                                     <div class="hs-tooltip inline-block">
-                                        <label for="hs-pro-daetcach2" class="relative block rounded-full cursor-pointer">
+                                        <label for="hs-pro-daetcach2"
+                                            class="relative block rounded-smll cursor-pointer">
                                             <span
-                                                class="hs-tooltip-toggle flex shrink-0 justify-center items-center size-[46px] bg-white border border-gray-200 text-gray-700 font-medium uppercase rounded-full dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300">L</span><span
-                                                class="block absolute -top-1 -end-1 bg-white rounded-full dark:bg-neutral-800">
+                                                class="hs-tooltip-toggle flex shrink-0 justify-center items-center size-[46px] bg-white border border-gray-200 text-gray-700 font-medium uppercase rounded-smll dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300">L</span><span
+                                                class="block absolute -top-1 -end-1 bg-white rounded-smll dark:bg-neutral-800">
                                                 <span
-                                                    class="relative flex flex-col justify-center items-center size-5 bg-blue-100 border-2 border-white text-blue-600 rounded-full dark:bg-blue-500/40 dark:border-neutral-800 dark:text-blue-300">
+                                                    class="relative flex flex-col justify-center items-center size-5 bg-blue-100 border-2 border-white text-blue-600 rounded-smll dark:bg-blue-500/40 dark:border-neutral-800 dark:text-blue-300">
                                                     <input type="checkbox" id="hs-pro-daetcach2"
-                                                        class="absolute top-0 start-0 size-full bg-transparent border-transparent rounded-full focus:outline-none">
+                                                        class="absolute top-0 start-0 size-full bg-transparent border-transparent rounded-smll focus:outline-none">
                                                     <svg class="shrink-0 size-3" xmlns="http://www.w3.org/2000/svg"
                                                         width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
                                                         <path
@@ -286,7 +318,7 @@ const props = defineProps({
                                             </span>
                                         </label>
                                         <span
-                                            class="hs-tooltip-content hs-tooltip-shown:opacity-100 hs-tooltip-shown:visible opacity-0 inline-block absolute invisible z-20 py-1.5 px-2.5 bg-gray-900 text-xs text-white rounded-lg dark:bg-neutral-700"
+                                            class="hs-tooltip-content hs-tooltip-shown:opacity-100 hs-tooltip-shown:visible opacity-0 inline-block absolute invisible z-20 py-1.5 px-2.5 bg-gray-900 text-xs text-white rounded-sm dark:bg-neutral-700"
                                             role="tooltip">
                                             Lori Hunter
                                         </span>
@@ -295,16 +327,17 @@ const props = defineProps({
 
                                     <!-- User -->
                                     <div class="hs-tooltip inline-block">
-                                        <label for="hs-pro-daetcach3" class="relative block rounded-full cursor-pointer">
-                                            <img class="hs-tooltip-toggle shrink-0 size-[46px] rounded-full"
+                                        <label for="hs-pro-daetcach3"
+                                            class="relative block rounded-smll cursor-pointer">
+                                            <img class="hs-tooltip-toggle shrink-0 size-[46px] rounded-smll"
                                                 src="https://images.unsplash.com/photo-1679412330254-90cb240038c5?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=facearea&facepad=2.5&w=320&h=320&q=80"
                                                 alt="Avatar">
                                             <span
-                                                class="block absolute -top-1 -end-1 bg-white rounded-full dark:bg-neutral-800">
+                                                class="block absolute -top-1 -end-1 bg-white rounded-smll dark:bg-neutral-800">
                                                 <span
-                                                    class="relative flex flex-col justify-center items-center size-5 bg-blue-100 border-2 border-white text-blue-600 rounded-full dark:bg-blue-500/40 dark:border-neutral-800 dark:text-blue-300">
+                                                    class="relative flex flex-col justify-center items-center size-5 bg-blue-100 border-2 border-white text-blue-600 rounded-smll dark:bg-blue-500/40 dark:border-neutral-800 dark:text-blue-300">
                                                     <input type="checkbox" id="hs-pro-daetcach3"
-                                                        class="absolute top-0 start-0 size-full bg-transparent border-transparent rounded-full focus:outline-none">
+                                                        class="absolute top-0 start-0 size-full bg-transparent border-transparent rounded-smll focus:outline-none">
                                                     <svg class="shrink-0 size-3" xmlns="http://www.w3.org/2000/svg"
                                                         width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
                                                         <path
@@ -314,7 +347,7 @@ const props = defineProps({
                                             </span>
                                         </label>
                                         <span
-                                            class="hs-tooltip-content hs-tooltip-shown:opacity-100 hs-tooltip-shown:visible opacity-0 inline-block absolute invisible z-20 py-1.5 px-2.5 bg-gray-900 text-xs text-white rounded-lg dark:bg-neutral-700"
+                                            class="hs-tooltip-content hs-tooltip-shown:opacity-100 hs-tooltip-shown:visible opacity-0 inline-block absolute invisible z-20 py-1.5 px-2.5 bg-gray-900 text-xs text-white rounded-sm dark:bg-neutral-700"
                                             role="tooltip">
                                             Lewis Clarke
                                         </span>
@@ -323,16 +356,17 @@ const props = defineProps({
 
                                     <!-- User -->
                                     <div class="hs-tooltip inline-block">
-                                        <label for="hs-pro-daetcach4" class="relative block rounded-full cursor-pointer">
-                                            <img class="hs-tooltip-toggle shrink-0 size-[46px] rounded-full"
+                                        <label for="hs-pro-daetcach4"
+                                            class="relative block rounded-smll cursor-pointer">
+                                            <img class="hs-tooltip-toggle shrink-0 size-[46px] rounded-smll"
                                                 src="https://images.unsplash.com/photo-1659482634023-2c4fda99ac0c?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=facearea&facepad=2.5&w=320&h=320&q=80"
                                                 alt="Avatar">
                                             <span
-                                                class="block absolute -top-1 -end-1 bg-white rounded-full dark:bg-neutral-800">
+                                                class="block absolute -top-1 -end-1 bg-white rounded-smll dark:bg-neutral-800">
                                                 <span
-                                                    class="relative flex flex-col justify-center items-center size-5 bg-blue-100 border-2 border-white text-blue-600 rounded-full dark:bg-blue-500/40 dark:border-neutral-800 dark:text-blue-300">
+                                                    class="relative flex flex-col justify-center items-center size-5 bg-blue-100 border-2 border-white text-blue-600 rounded-smll dark:bg-blue-500/40 dark:border-neutral-800 dark:text-blue-300">
                                                     <input type="checkbox" id="hs-pro-daetcach4"
-                                                        class="absolute top-0 start-0 size-full bg-transparent border-transparent rounded-full focus:outline-none">
+                                                        class="absolute top-0 start-0 size-full bg-transparent border-transparent rounded-smll focus:outline-none">
                                                     <svg class="shrink-0 size-3" xmlns="http://www.w3.org/2000/svg"
                                                         width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
                                                         <path
@@ -342,7 +376,7 @@ const props = defineProps({
                                             </span>
                                         </label>
                                         <span
-                                            class="hs-tooltip-content hs-tooltip-shown:opacity-100 hs-tooltip-shown:visible opacity-0 inline-block absolute invisible z-20 py-1.5 px-2.5 bg-gray-900 text-xs text-white rounded-lg dark:bg-neutral-700"
+                                            class="hs-tooltip-content hs-tooltip-shown:opacity-100 hs-tooltip-shown:visible opacity-0 inline-block absolute invisible z-20 py-1.5 px-2.5 bg-gray-900 text-xs text-white rounded-sm dark:bg-neutral-700"
                                             role="tooltip">
                                             Ella Lauda
                                         </span>
@@ -351,14 +385,15 @@ const props = defineProps({
 
                                     <!-- User -->
                                     <div class="hs-tooltip inline-block">
-                                        <label for="hs-pro-daetcach5" class="relative block rounded-full cursor-pointer">
+                                        <label for="hs-pro-daetcach5"
+                                            class="relative block rounded-smll cursor-pointer">
                                             <span
-                                                class="hs-tooltip-toggle flex shrink-0 justify-center items-center size-[46px] bg-white border border-gray-200 text-gray-700 font-medium uppercase rounded-full dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300">O</span><span
-                                                class="block absolute -top-1 -end-1 bg-white rounded-full dark:bg-neutral-800">
+                                                class="hs-tooltip-toggle flex shrink-0 justify-center items-center size-[46px] bg-white border border-gray-200 text-gray-700 font-medium uppercase rounded-smll dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300">O</span><span
+                                                class="block absolute -top-1 -end-1 bg-white rounded-smll dark:bg-neutral-800">
                                                 <span
-                                                    class="relative flex flex-col justify-center items-center size-5 bg-blue-100 border-2 border-white text-blue-600 rounded-full dark:bg-blue-500/40 dark:border-neutral-800 dark:text-blue-300">
+                                                    class="relative flex flex-col justify-center items-center size-5 bg-blue-100 border-2 border-white text-blue-600 rounded-smll dark:bg-blue-500/40 dark:border-neutral-800 dark:text-blue-300">
                                                     <input type="checkbox" id="hs-pro-daetcach5"
-                                                        class="absolute top-0 start-0 size-full bg-transparent border-transparent rounded-full focus:outline-none"
+                                                        class="absolute top-0 start-0 size-full bg-transparent border-transparent rounded-smll focus:outline-none"
                                                         checked>
                                                     <svg class="shrink-0 size-3" xmlns="http://www.w3.org/2000/svg"
                                                         width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
@@ -369,7 +404,7 @@ const props = defineProps({
                                             </span>
                                         </label>
                                         <span
-                                            class="hs-tooltip-content hs-tooltip-shown:opacity-100 hs-tooltip-shown:visible opacity-0 inline-block absolute invisible z-20 py-1.5 px-2.5 bg-gray-900 text-xs text-white rounded-lg dark:bg-neutral-700"
+                                            class="hs-tooltip-content hs-tooltip-shown:opacity-100 hs-tooltip-shown:visible opacity-0 inline-block absolute invisible z-20 py-1.5 px-2.5 bg-gray-900 text-xs text-white rounded-sm dark:bg-neutral-700"
                                             role="tooltip">
                                             Ols Schols
                                         </span>
@@ -384,10 +419,11 @@ const props = defineProps({
                                     Cover
                                 </label>
                                 <div
-                                    class="p-12 flex justify-center bg-white border border-dashed border-gray-300 rounded-xl dark:bg-neutral-800 dark:border-neutral-600">
+                                    class="p-12 flex justify-center bg-white border border-dashed border-gray-300 rounded-sm dark:bg-neutral-800 dark:border-neutral-600">
                                     <div class="text-center">
-                                        <svg class="w-16 text-gray-400 mx-auto dark:text-neutral-400" width="70" height="46"
-                                            viewBox="0 0 70 46" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                        <svg class="w-16 text-gray-400 mx-auto dark:text-neutral-400" width="70"
+                                            height="46" viewBox="0 0 70 46" fill="none"
+                                            xmlns="http://www.w3.org/2000/svg">
                                             <path
                                                 d="M6.05172 9.36853L17.2131 7.5083V41.3608L12.3018 42.3947C9.01306 43.0871 5.79705 40.9434 5.17081 37.6414L1.14319 16.4049C0.515988 13.0978 2.73148 9.92191 6.05172 9.36853Z"
                                                 fill="currentColor" stroke="currentColor" stroke-width="2"
@@ -412,7 +448,7 @@ const props = defineProps({
                                                 Drop your files here or
                                             </span>
                                             <label for="hs-pro-daetc"
-                                                class="relative cursor-pointer bg-white font-semibold text-blue-600 hover:text-blue-700 rounded-lg decoration-2 hover:underline focus-within:outline-none focus-within:ring-2 focus-within:ring-blue-600 focus-within:ring-offset-2 dark:bg-neutral-800 dark:text-blue-500 dark:hover:text-blue-600">
+                                                class="relative cursor-pointer bg-white font-semibold text-blue-600 hover:text-blue-700 rounded-sm decoration-2 hover:underline focus-within:outline-none focus-within:ring-2 focus-within:ring-blue-600 focus-within:ring-offset-2 dark:bg-neutral-800 dark:text-blue-500 dark:hover:text-blue-600">
                                                 <span>browse</span>
                                                 <input id="hs-pro-daetc" type="file" class="sr-only">
                                             </label>
@@ -433,13 +469,13 @@ const props = defineProps({
                     <div class="p-4 flex justify-between gap-x-2">
                         <div class="flex-1 flex justify-end items-center gap-2">
                             <button type="button"
-                                class="py-2 px-3 text-nowrap inline-flex justify-center items-center text-start bg-white border border-gray-200 text-gray-800 text-sm font-medium rounded-lg shadow-sm align-middle hover:bg-gray-50 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700"
+                                class="py-2 px-3 text-nowrap inline-flex justify-center items-center text-start bg-white border border-gray-200 text-gray-800 text-sm font-medium rounded-sm shadow-sm align-middle hover:bg-gray-50 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700"
                                 data-hs-overlay="#hs-pro-detm">
                                 Cancel
                             </button>
 
                             <button type="button"
-                                class="py-2 px-3 text-nowrap inline-flex justify-center items-center gap-x-2 text-start bg-blue-600 border border-blue-600 text-white text-sm font-medium rounded-lg shadow-sm align-middle hover:bg-blue-700 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:ring-1 focus:ring-blue-300 dark:focus:ring-blue-500"
+                                class="py-2 px-3 text-nowrap inline-flex justify-center items-center gap-x-2 text-start bg-blue-600 border border-blue-600 text-white text-sm font-medium rounded-sm shadow-sm align-middle hover:bg-blue-700 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:ring-1 focus:ring-blue-300 dark:focus:ring-blue-500"
                                 data-hs-overlay="#hs-pro-detm">
                                 Save changes
                             </button>

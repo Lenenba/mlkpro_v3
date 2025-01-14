@@ -72,7 +72,7 @@ class Customer extends Model
 
     public function quotes()
     {
-        return $this->hasMany(Quote::class)->with('products');
+        return $this->hasMany(Quote::class)->with(['products','property']);
     }
     /**
      * Get the works for the customer.

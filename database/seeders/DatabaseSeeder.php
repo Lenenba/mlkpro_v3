@@ -11,6 +11,7 @@ use App\Models\Property;
 use App\Models\QuoteTax;
 use App\Models\QuoteProduct;
 use App\Models\ProductCategory;
+use App\Models\Tax;
 use Illuminate\Database\Seeder;
 
 class DatabaseSeeder extends Seeder
@@ -71,13 +72,19 @@ class DatabaseSeeder extends Seeder
             ->recycle($customers->first()->properties) // Réutiliser les propriétés existantes
             ->create();
 
+        $tax = Tax::factory()->count(3)->create();
+
         QuoteProduct::factory()
             ->recycle($quotes) // Réutiliser les devis existants
             ->recycle($Products) // Réutiliser les produits existants
             ->count(3)
             ->create();
 
-        QuoteTax::factory()->count(2)->recycle($quotes)->create();
+        QuoteTax::factory()
+            ->count(2)
+            ->recycle($quotes)
+            ->recycle($tax)
+            ->create();
 
         // Assigner un numéro unique à chaque devis
         foreach ($quotes as $quote) {
