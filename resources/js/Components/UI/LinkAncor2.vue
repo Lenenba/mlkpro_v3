@@ -33,7 +33,7 @@ const toggleMenu = () => {
             <!-- Items du menu -->
             <ul class="flex">
                 <li v-for="(item, index) in [
-                    { href: '/clients', icon: '👤', label: 'Client' },
+                    { href: '/customer/create', icon: '👤', label: 'Client' },
                     { href: '/requests', icon: '📋', label: 'Request' },
                     { href: '/quotes', icon: '🔍', label: 'Quote' },
                     { href: '/jobs', icon: '🔧', label: 'Job' },

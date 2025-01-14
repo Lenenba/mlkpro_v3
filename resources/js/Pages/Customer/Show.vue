@@ -5,6 +5,10 @@ import Header from './UI/Header.vue';
 import Card from '@/Components/UI/Card.vue';
 import ListGroup from '@/Components/UI/ListGroup.vue';
 import { useMapToItem } from '@/Composables/useMapToItem';
+import CardNoHeader from '@/Components/UI/CardNoHeader.vue';
+import DescriptionList from '@/Components/UI/DescriptionList.vue';
+import CardNav from '@/Components/UI/CardNav.vue';
+import TabEmptyState from '@/Components/UI/TabEmptyState.vue';
 
 const props = defineProps({
     customer: Object,
@@ -22,7 +26,7 @@ const mappedItems = props.properties.map(mapToItem);
     <AuthenticatedLayout>
         <div class="grid grid-cols-1 gap-5 md:grid-cols-3">
             <div class="md:col-span-2">
-                <Header  :customer="customer" />
+                <Header :customer="customer" />
                 <Card class="mt-5">
                     <template #title>
                         Properties
@@ -39,14 +43,10 @@ const mappedItems = props.properties.map(mapToItem);
                         </template>
                     </ListGroup>
                 </Card>
+                <CardNav class="mt-5" />
                 <card class="mt-5">
                     <template #title>
-                        Overview
-                    </template>
-                </card>
-                <card class="mt-5">
-                    <template #title>
-                       Schedule
+                        Schedule
                     </template>
                 </card>
                 <card class="mt-5">
@@ -56,11 +56,22 @@ const mappedItems = props.properties.map(mapToItem);
                 </card>
             </div>
             <div>
-                <card>
+                <CardNoHeader>
                     <template #title>
                         Contact information
                     </template>
-                </card>
+                    <DescriptionList :item="customer" />
+                </CardNoHeader>
+                <CardNoHeader>
+                    <template #title>
+                        Tags
+                    </template>
+                </CardNoHeader>
+                <CardNoHeader>
+                    <template #title>
+                        Last client interaction
+                    </template>
+                </CardNoHeader>
                 <card class="mt-5">
                     <template #title>
                         Billing history

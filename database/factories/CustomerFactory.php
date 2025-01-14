@@ -21,15 +21,17 @@ class CustomerFactory extends Factory
     public function definition(): array
     {
         return [
-            'user_id' => User::factory(), // Génère un utilisateur associé
+            'user_id' => User::factory(), // Generates an associated user
             'first_name' => $this->faker->firstName(),
             'last_name' => $this->faker->lastName(),
             'company_name' => $this->faker->company(),
             'email' => $this->faker->unique()->safeEmail(),
             'phone' => $this->faker->phoneNumber(),
             'description' => $this->faker->sentence(),
+            'logo' => $this->generateFakeCompanyLogo(),
             'billing_same_as_physical' => $this->faker->boolean(),
-            'logo' => $this->generateFakeCompanyLogo()
+            'refer_by' => $this->faker->name(), // Generates a reference name
+            'salutation' => $this->faker->randomElement(['Mr', 'Mrs', 'Miss']),
         ];
     }
 

@@ -5,13 +5,13 @@ const props = defineProps({
 </script>
 <template>
     <div
-        class="p-5 bg-white border border-stone-200 rounded-sm border-t-4 border-t-teal-800 shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
+        class="p-5 bg-white border border-stone-200 rounded-sm border-t-4 border-t-neutral-800 shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
         <!-- Header -->
         <div class="mb-5 mt-4 flex flex-wrap justify-between items-center gap-3">
             <!-- Heading -->
             <div class="flex items-center gap-x-4">
                 <span class="shrink-0 relative size-14">
-                    <img :src="customer.logo" alt="" class="absolute inset-0 object-cover w-full h-full rounded-full">
+                    <img src="/customers/customer.png" alt="" class="absolute inset-0 object-cover w-full h-full rounded-full">
                     <span
                         class="absolute flex shrink-0 justify-center items-center size-6 overflow-hidden -bottom-1 -end-1 bg-white border border-transparent text-gray-800 dark:bg-neutral-700 dark:border-neutral-900 dark:text-neutral-200 rounded-full">
                         <svg class="shrink-0 size-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
@@ -24,7 +24,7 @@ const props = defineProps({
                 </span>
 
                 <div class="grow">
-                    <p class="text-2xl md:text-3xl font-semibold text-gray-800 dark:text-white">
+                    <p class="text-2xl md:text-3xl font-semibold text-gray-600 dark:text-white">
                         {{ customer.company_name }}
                     </p>
                 </div>

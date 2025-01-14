@@ -131,6 +131,20 @@ watch(() => filterForm.name, (newValue) => {
                         </div>
                     </div>
                     <!-- End Dropdown -->
+                    <div class="flex justify-end items-center gap-x-2">
+                        <!-- Button -->
+                        <Link :href="route('customer.create')"
+                            class="py-2 px-2.5 ml-4 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-lg border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:ring-2 focus:ring-green-500" >
+                            <svg class="hidden sm:block shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" width="24"
+                                height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M5 12h14" />
+                                <path d="M12 5v14" />
+                            </svg>
+                            Add customer
+                        </Link>
+                        <!-- End Button -->
+                    </div>
                 </div>
                 <!-- End Filter Dropdown -->
             </div>

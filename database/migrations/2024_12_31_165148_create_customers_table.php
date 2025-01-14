@@ -23,6 +23,8 @@ return new class extends Migration
             $table->string('description')->nullable();
             $table->string('logo')->nullable();
             $table->boolean('billing_same_as_physical')->default(false); // Indicates if billing matches physical address
+            $table->string('refer_by')->nullable();
+            $table->enum('salutation', ['Mr', 'Mrs','Miss'])->default('Mr');
             $table->timestamps();
         });
 
@@ -30,8 +32,8 @@ return new class extends Migration
         Schema::create('properties', function (Blueprint $table) {
             $table->id();
             $table->foreignId('customer_id')->constrained()->onDelete('cascade'); // Link to customers
-            $table->enum('type', ['physical', 'billing','other']); // Address type
-            $table->string('country');
+            $table->enum('type', ['physical', 'billing','other'])->default('physical');
+            $table->string('country')->nullable();
             $table->string('street1')->nullable();
             $table->string('street2')->nullable();
             $table->string('city');
@@ -40,7 +42,6 @@ return new class extends Migration
             $table->timestamps();
         });
     }
-
     /**
      * Reverse the migrations.
      */
