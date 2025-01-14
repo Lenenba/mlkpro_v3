@@ -38,7 +38,7 @@ const props = defineProps({
             <div class="flex flex-wrap gap-2">
 
                 <!-- Button -->
-                <a class="py-2 px-3 inline-flex items-center gap-x-1.5 text-sm font-medium rounded-sm border border-gray-200 bg-white text-gray-800 shadow-sm hover:bg-gray-50 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-gray-50 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800 dark:focus:bg-neutral-800"
+                <a class="py-1 px-3 inline-flex items-center gap-x-1.5 text-sm font-medium rounded-sm border border-gray-100 bg-white text-gray-800   hover:bg-gray-50 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-gray-50 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800 dark:focus:bg-neutral-800"
                     href="../../pro/payment/request.html">
                     Edit
                 </a>
@@ -47,22 +47,14 @@ const props = defineProps({
                 <!-- Button Group -->
                 <div class="inline-flex items-center">
                     <!-- Button -->
-                    <button type="button"
-                        class="py-1.5 px-2.5 inline-flex justify-center items-center gap-x-1.5 font-medium text-sm rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-green-700 focus:z-10">
-                        ... More action
-                    </button>
                     <!-- End Button -->
 
                     <!-- More Send Options Dropdown -->
                     <div class="hs-dropdown [--auto-close:inside] [--placement:top-right] relative inline-flex">
                         <div class="hs-tooltip [--placement:bottom-right] inline-block">
                             <button id="hs-pro-in1trsbgwmdid1" type="button"
-                                class="hs-tooltip-toggle size-[34px] inline-flex justify-center items-center gap-x-1.5 font-medium text-sm rounded-sm border-s border-green-800 bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-green-700 focus:z-10">
-                                <svg class="shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
-                                    viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                                    stroke-linecap="round" stroke-linejoin="round">
-                                    <path d="m18 15-6-6-6 6" />
-                                </svg>
+                                class="hs-tooltip-toggle py-2 px-2.5 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:ring-2 focus:ring-green-500">
+                                ... More action
                                 <span class="sr-only">More send options</span>
                             </button>
                             <span
@@ -93,7 +85,7 @@ const props = defineProps({
                                 </Link>
 
                                 <button type="button"
-                                    class="w-full flex items-center gap-x-3 py-2 px-3 rounded-lg text-sm text-gray-800 hover:bg-gray-100 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-gray-100 dark:text-neutral-300 dark:hover:bg-neutral-800 dark:focus:bg-neutral-800">
+                                    class="w-full flex items-center gap-x-3 py-2 px-3 rounded-sm text-sm text-gray-800 hover:bg-gray-100 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-gray-100 dark:text-neutral-300 dark:hover:bg-neutral-800 dark:focus:bg-neutral-800">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
                                         fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                                         stroke-linejoin="round" class="lucide lucide-git-pull-request">
@@ -106,7 +98,7 @@ const props = defineProps({
                                 </button>
 
                                 <button type="button"
-                                    class="w-full flex items-center gap-x-3 py-2 px-3 rounded-lg text-sm text-gray-800 hover:bg-gray-100 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-gray-100 dark:text-neutral-300 dark:hover:bg-neutral-800 dark:focus:bg-neutral-800">
+                                    class="w-full flex items-center gap-x-3 py-2 px-3 rounded-sm text-sm text-gray-800 hover:bg-gray-100 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-gray-100 dark:text-neutral-300 dark:hover:bg-neutral-800 dark:focus:bg-neutral-800">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
                                         fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                                         stroke-linejoin="round" class="lucide lucide-monitor-cog">
@@ -126,7 +118,7 @@ const props = defineProps({
                                     Create job
                                 </button>
                                 <button type="button"
-                                    class="w-full flex items-center gap-x-3 py-2 px-3 rounded-lg text-sm text-gray-800 hover:bg-gray-100 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-gray-100 dark:text-neutral-300 dark:hover:bg-neutral-800 dark:focus:bg-neutral-800">
+                                    class="w-full flex items-center gap-x-3 py-2 px-3 rounded-sm text-sm text-gray-800 hover:bg-gray-100 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-gray-100 dark:text-neutral-300 dark:hover:bg-neutral-800 dark:focus:bg-neutral-800">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
                                         fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                                         stroke-linejoin="round" class="lucide lucide-file-text">

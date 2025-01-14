@@ -138,14 +138,14 @@ const form = useForm({
                             <table class="min-w-full divide-y divide-gray-200 dark:divide-neutral-700">
                                 <thead>
                                     <tr>
-                                        <th scope="col" class="min-w-[250px] ">
+                                        <th scope="col" class="min-w-[450px] ">
                                             <div
                                                 class="pe-4 py-3 text-start flex items-center gap-x-1 text-sm font-medium text-gray-800 dark:text-neutral-200">
                                                 Product/Services
                                             </div>
                                         </th>
 
-                                        <th scope="col" class="min-w-48">
+                                        <th scope="col">
                                             <div
                                                 class="px-4 py-3 text-start flex items-center gap-x-1 text-sm font-medium text-gray-800 dark:text-neutral-200">
                                                 Qty.
@@ -159,7 +159,7 @@ const form = useForm({
                                             </div>
                                         </th>
 
-                                        <th scope="col" class="min-w-36">
+                                        <th scope="col">
                                             <div
                                                 class="px-4 py-3 text-start flex items-center gap-x-1 text-sm font-medium text-gray-800 dark:text-neutral-200">
                                                 Total
@@ -176,15 +176,49 @@ const form = useForm({
                                             </span>
                                         </td>
                                         <td class="size-px whitespace-nowrap px-4 py-3">
-                                            <span class="text-sm text-gray-600 dark:text-neutral-400">
-                                                <FloatingInput v-model="form.product.name" label=" " />
-                                            </span>
+                                            <!-- Input Number -->
+                                            <div class="py-3.5 px-3 inline-block bg-white border border-gray-200 rounded-sm dark:bg-neutral-900 dark:border-neutral-700"
+                                                data-hs-input-number="">
+                                                <div class="flex items-center gap-x-1.5">
+                                                    <button type="button"
+                                                        class="size-6 inline-flex justify-center items-center gap-x-2 text-sm font-medium rounded-md border border-gray-200 bg-white text-gray-800 shadow-sm hover:bg-gray-50 focus:outline-none focus:bg-gray-50 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-900 dark:border-neutral-700 dark:text-white dark:hover:bg-neutral-800 dark:focus:bg-neutral-800"
+                                                        tabindex="-1" aria-label="Decrease"
+                                                        data-hs-input-number-decrement="">
+                                                        <svg class="shrink-0 size-3.5"
+                                                            xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                                            viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                                            stroke-width="2" stroke-linecap="round"
+                                                            stroke-linejoin="round">
+                                                            <path d="M5 12h14"></path>
+                                                        </svg>
+                                                    </button>
+                                                    <input
+                                                        class="p-0 w-6 bg-transparent border-0 text-gray-800 text-center focus:ring-0 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none dark:text-white"
+                                                        style="-moz-appearance: textfield;" type="number"
+                                                        aria-roledescription="Number field" value="0"
+                                                        data-hs-input-number-input="">
+                                                    <button type="button"
+                                                        class="size-6 inline-flex justify-center items-center gap-x-2 text-sm font-medium rounded-md border border-gray-200 bg-white text-gray-800 shadow-sm hover:bg-gray-50 focus:outline-none focus:bg-gray-50 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-900 dark:border-neutral-700 dark:text-white dark:hover:bg-neutral-800 dark:focus:bg-neutral-800"
+                                                        tabindex="-1" aria-label="Increase"
+                                                        data-hs-input-number-increment="">
+                                                        <svg class="shrink-0 size-3.5"
+                                                            xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                                            viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                                            stroke-width="2" stroke-linecap="round"
+                                                            stroke-linejoin="round">
+                                                            <path d="M5 12h14"></path>
+                                                            <path d="M12 5v14"></path>
+                                                        </svg>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            <!-- End Input Number -->
                                         </td>
                                         <td class="size-px whitespace-nowrap px-4 py-3">
                                             <span class="text-sm text-gray-600 dark:text-neutral-400">
                                                 <div class="relative">
                                                     <input type="number"
-                                                        class="peer py-3 px-4 ps-11 block w-full border-gray-100 border-transparent rounded-sm text-sm focus:border-green-500 focus:ring-green-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-700 dark:border-transparent dark:text-neutral-400 dark:placeholder-neutral-500 dark:focus:ring-neutral-600">
+                                                        class="peer py-3.5 px-4 ps-11 block w-full border-gray-100 border-transparent rounded-sm text-sm focus:border-green-500 focus:ring-green-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-700 dark:border-transparent dark:text-neutral-400 dark:placeholder-neutral-500 dark:focus:ring-neutral-600">
                                                     <div
                                                         class="absolute inset-y-0 start-0 flex items-center pointer-events-none ps-4 peer-disabled:opacity-50 peer-disabled:pointer-events-none">
                                                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
@@ -204,7 +238,7 @@ const form = useForm({
                                             <span class="text-sm text-gray-600 dark:text-neutral-400">
                                                 <div class="relative">
                                                     <input type="number"
-                                                        class="peer py-3 px-4 ps-11 block w-full border-gray-100 border-transparent rounded-sm text-sm focus:border-green-500 focus:ring-green-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-700 dark:border-transparent dark:text-neutral-400 dark:placeholder-neutral-500 dark:focus:ring-neutral-600">
+                                                        class="peer py-3.5 px-4 ps-11 block w-full border-gray-100 border-transparent rounded-sm text-sm focus:border-green-500 focus:ring-green-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-700 dark:border-transparent dark:text-neutral-400 dark:placeholder-neutral-500 dark:focus:ring-neutral-600">
                                                     <div
                                                         class="absolute inset-y-0 start-0 flex items-center pointer-events-none ps-4 peer-disabled:opacity-50 peer-disabled:pointer-events-none">
                                                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
@@ -228,9 +262,10 @@ const form = useForm({
                     </div>
                     <!-- End Table Section -->
                     <div class="text-xs text-gray-600 flex justify-between mt-5">
-                        <button type="button"
-                            class="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-sm border border-green-200 bg-green-400 text-green-800 shadow-sm hover:bg-green-50 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-green-50 dark:bg-green-800 dark:border-green-700 dark:text-green-300 dark:hover:bg-green-700 dark:focus:bg-green-700">
-                            Add line items</button>
+                        <button id="hs-pro-in1trsbgwmdid1" type="button"
+                                class="hs-tooltip-toggle ml-4 py-2 px-2.5 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:ring-2 focus:ring-green-500">
+                                Add new product line
+                            </button>
                     </div>
                 </div>
                 <div
@@ -283,9 +318,9 @@ const form = useForm({
                             <div class="flex justify-end">
                                 <div class="flex items-center gap-x-2">
                                     <span
-                                    class="py-1.5 ps-1.5 pe-2.5 inline-flex items-center gap-x-1 text-xs font-medium border border-green-500 text-green-800 rounded-sm dark:bg-green-500/10 dark:text-green-500">
-                                    Add tax
-                                </span>
+                                        class="py-1.5 ps-1.5 pe-2.5 inline-flex items-center gap-x-1 text-xs font-medium border border-green-500 text-green-800 rounded-sm dark:bg-green-500/10 dark:text-green-500">
+                                        Add tax
+                                    </span>
                                 </div>
                             </div>
                         </div>
@@ -330,15 +365,18 @@ const form = useForm({
 
                     <div class="flex justify-between">
                         <button type="button"
-                            class="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-sm border border-green-200 bg-green-400 text-green-800 shadow-sm hover:bg-green-50 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-green-50 dark:bg-green-800 dark:border-green-700 dark:text-green-300 dark:hover:bg-green-700 dark:focus:bg-green-700">
-                            Send quote</button>
+                            class="py-1.5 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-sm border border-gray-200 bg-white text-gray-800 shadow-sm hover:bg-gray-50 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-800 focus:outline-none focus:bg-gray-100 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700">
+                            Cancel
+                        </button>
                         <div>
                             <button type="button"
-                                class="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-sm border border-green-200 bg-green-400 text-green-800 shadow-sm hover:bg-green-50 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-green-50 dark:bg-green-800 dark:border-green-700 dark:text-green-300 dark:hover:bg-green-700 dark:focus:bg-green-700">
-                                Send quote</button>
-                            <button type="button"
-                                class="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-sm border border-green-200 bg-green-400 text-green-800 shadow-sm hover:bg-green-50 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-green-50 dark:bg-green-800 dark:border-green-700 dark:text-green-300 dark:hover:bg-green-700 dark:focus:bg-green-700">
-                                Send quote</button>
+                                class="py-1.5 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-sm border border-green-600 text-green-600 hover:border-gray-700 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:ring-2 focus:ring-gray-500">
+                                Save and create another
+                            </button>
+                            <button id="hs-pro-in1trsbgwmdid1" type="button"
+                                class="hs-tooltip-toggle ml-4 py-2 px-2.5 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:ring-2 focus:ring-green-500">
+                                Save quote
+                            </button>
                         </div>
                     </div>
                 </div>
