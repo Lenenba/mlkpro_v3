@@ -26,6 +26,13 @@ return new class extends Migration
             $table->timestamps();
         });
 
+        Schema::create('taxes', function (Blueprint $table) {
+            $table->id();
+            $table->string('name')->unique(); // Nom de la taxe (ex : TPS, TVQ)
+            $table->decimal('rate', 5, 2); // Taux de la taxe (ex : 5.00 pour 5%)
+            $table->timestamps();
+        });
+
         Schema::create('quote_products', function (Blueprint $table) {
             $table->id();
             $table->foreignId('quote_id')->constrained()->onDelete('cascade');
@@ -40,7 +47,7 @@ return new class extends Migration
         Schema::create('quote_taxes', function (Blueprint $table) {
             $table->id();
             $table->foreignId('quote_id')->constrained()->onDelete('cascade');
-            $table->string('name');
+            $table->foreignId('tax_id')->constrained()->onDelete('cascade'); // Taxe par défaut
             $table->decimal('rate', 5, 2); // Ex. : 5.00 pour 5%
             $table->decimal('amount', 10, 2)->default(0);
             $table->timestamps();
@@ -54,6 +61,7 @@ return new class extends Migration
     public function down(): void
     {
         Schema::dropIfExists('quotes');
+        Schema::dropIfExists('taxes');
         Schema::dropIfExists('quote_products');
         Schema::dropIfExists('quote_taxes');
     }

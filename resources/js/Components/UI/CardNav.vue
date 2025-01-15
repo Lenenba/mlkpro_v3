@@ -1,6 +1,12 @@
 <script setup>
 import CardNavLink from './CardNavLink.vue';
+import QuoteList from './QuoteList.vue';
 import TabEmptyState from './TabEmptyState.vue';
+
+const props = defineProps({
+    customer: Object,
+});
+
 </script>
 
 <template>
@@ -13,10 +19,9 @@ import TabEmptyState from './TabEmptyState.vue';
             </p>
         </div>
         <!-- Audience -->
-        <div
-            class="flex flex-col bg-white  rounded-sm overflow-hidden dark:bg-neutral-800 dark:border-neutral-700">
+        <div class="flex flex-col bg-white  rounded-sm overflow-hidden dark:bg-neutral-800 dark:border-neutral-700">
             <!-- Tab Nav -->
-            <CardNavLink />
+            <CardNavLink :customer="customer" />
             <!-- End Tab Nav -->
 
             <!-- Tab Content -->
@@ -24,7 +29,7 @@ import TabEmptyState from './TabEmptyState.vue';
                 <!-- Tab Content Item -->
                 <div id="bar-with-underline-1" role="tabpanel" aria-labelledby="bar-with-underline-item-1">
                     <!-- Empty State -->
-                    <TabEmptyState :type="'works'"/>
+                    <TabEmptyState :type="'works'" />
                     <!-- End Empty State -->
                 </div>
                 <!-- End Tab Content Item -->
@@ -43,8 +48,9 @@ import TabEmptyState from './TabEmptyState.vue';
                 <div id="bar-with-underline-3" class="hidden" role="tabpanel"
                     aria-labelledby="bar-with-underline-item-3">
                     <!-- Empty State -->
-                    <TabEmptyState :type="'quotes'" />
+                    <TabEmptyState :type="'quotes'" v-if="customer.quotes.length === 0" />
                     <!-- End Empty State -->
+                    <QuoteList v-else :quotes="customer.quotes" />
                 </div>
                 <!-- End Tab Content Item -->
 

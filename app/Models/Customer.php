@@ -3,13 +3,14 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Traits\GeneratesSequentialNumber;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class Customer extends Model
 {
-    use HasFactory;
+    use HasFactory, GeneratesSequentialNumber;
 
     /**
      * The attributes that are mass assignable.
@@ -42,6 +43,15 @@ class Customer extends Model
         'updated_at',
     ];
 
+    protected static function boot()
+    {
+        parent::boot();
+
+        // Auto-generate the customer number before creating
+        static::creating(function ($customer) {
+            $customer->number = self::generateNumber($customer->user_id, 'C');
+        });
+    }
     /**
      * Get the user that owns the customer.
      */
@@ -68,6 +78,11 @@ class Customer extends Model
     public function invoices()
     {
         return $this->hasMany(Invoice::class);
+    }
+
+    public function quotes()
+    {
+        return $this->hasMany(Quote::class)->with(['products','property']);
     }
     /**
      * Get the works for the customer.

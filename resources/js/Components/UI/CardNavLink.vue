@@ -1,10 +1,13 @@
 <script setup>
+const props = defineProps({
+    customer: Object,
+});
 </script>
 
 <template>
     <!-- Tab Nav -->
-    <nav class="relative z-0 flex border-b border-gray-200 dark:border-neutral-700 bg-gray-100" aria-label="Tabs" role="tablist"
-        aria-orientation="horizontal">
+    <nav class="relative z-0 flex border-b border-gray-200 dark:border-neutral-700 bg-gray-100" aria-label="Tabs"
+        role="tablist" aria-orientation="horizontal">
         <!-- Nav Item -->
         <button type="button"
             class="hs-tab-active:border-t-neutral-600 relative flex-1 first:border-s-0 border-s border-t-[3px] md:border-t-4 border-t-transparent hover:border-t-gray-300 focus:outline-none focus:border-t-gray-300 p-3.5 xl:px-6 text-start focus:z-10 dark:hs-tab-active:border-t-neutral-500 dark:border-t-transparent dark:border-neutral-700 dark:hover:border-t-neutral-600 dark:focus:border-t-neutral-600 active"
@@ -47,7 +50,7 @@
                 </svg>
                 <span class="grow text-center md:text-start">
                     <span class="block text-xs md:text-sm text-gray-500 dark:text-neutral-500">
-                       Requests
+                        Requests
                     </span>
                     <span class="hidden xl:mt-1 md:flex md:justify-between md:items-center md:gap-x-2">
                         <span class="block text-lg lg:text-xl xl:text-2xl text-gray-800 dark:text-neutral-200">
@@ -67,11 +70,11 @@
             <span class="flex gap-x-4">
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
                     stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                    class="lucide lucide-quote">
-                    <path
-                        d="M16 3a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2 1 1 0 0 1 1 1v1a2 2 0 0 1-2 2 1 1 0 0 0-1 1v2a1 1 0 0 0 1 1 6 6 0 0 0 6-6V5a2 2 0 0 0-2-2z" />
-                    <path
-                        d="M5 3a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2 1 1 0 0 1 1 1v1a2 2 0 0 1-2 2 1 1 0 0 0-1 1v2a1 1 0 0 0 1 1 6 6 0 0 0 6-6V5a2 2 0 0 0-2-2z" />
+                    class="lucide lucide-text-quote">
+                    <path d="M17 6H3" />
+                    <path d="M21 12H8" />
+                    <path d="M21 18H8" />
+                    <path d="M3 12v6" />
                 </svg>
                 <span class="grow text-center md:text-start">
                     <span class="block text-xs md:text-sm text-gray-500 dark:text-neutral-500">
@@ -79,7 +82,7 @@
                     </span>
                     <span class="hidden xl:mt-1 md:flex md:justify-between md:items-center md:gap-x-2">
                         <span class="block text-lg lg:text-xl xl:text-2xl text-gray-800 dark:text-neutral-200">
-                            0
+                            {{ customer.quotes.length }}
                         </span>
                     </span>
                 </span>
@@ -111,7 +114,7 @@
                 </svg>
                 <span class="grow text-center md:text-start">
                     <span class="block text-xs md:text-sm text-gray-500 dark:text-neutral-500">
-                       Jobs
+                        Jobs
                     </span>
                     <span class="hidden xl:mt-1 md:flex md:justify-between md:items-center md:gap-x-2">
                         <span class="block text-lg lg:text-xl xl:text-2xl text-gray-800 dark:text-neutral-200">

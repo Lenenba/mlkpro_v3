@@ -83,9 +83,9 @@ class CustomerController extends Controller
             ->paginate(10) // Paginer avec 10 résultats par page
             ->withQueryString(); // Conserver les paramètres de requête dans l'URL
 
+        $customer->load(['properties', 'quotes']);
         return Inertia::render('Customer/Show', [
             'customer' => $customer,
-            'properties' => $customer->properties,
             'works' => $works,
             'filters' => $filters,
         ]);
@@ -105,7 +105,6 @@ class CustomerController extends Controller
         $customer = $request->user()->customers()->create($validated);
 
         $customer->description = $validated['description'];
-        $customer->number = 'CUST' . str_pad($customer->id, 6, '0', STR_PAD_LEFT);
         // $customer->logo = $validated['logo'];
         $customer->logo = 'customers/customer.png';
         $customer->save();

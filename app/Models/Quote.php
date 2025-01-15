@@ -2,12 +2,13 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use App\Traits\GeneratesSequentialNumber;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class Quote extends Model
 {
-    use HasFactory;
+    use HasFactory, GeneratesSequentialNumber;
 
     protected $fillable = [
         'user_id',
@@ -21,6 +22,16 @@ class Quote extends Model
         'is_fixed',
         'notes',
     ];
+
+    protected static function boot()
+    {
+        parent::boot();
+
+        // Auto-generate the quote number before creating
+        static::creating(function ($quote) {
+            $quote->number = self::generateNumber($quote->user_id, 'Q');
+        });
+    }
 
     /**
      * Relation : Un devis appartient à un client.
