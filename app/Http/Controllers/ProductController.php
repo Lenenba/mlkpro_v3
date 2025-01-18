@@ -56,7 +56,6 @@ class ProductController extends Controller
         $product = $request->user()->products()->create($validated);
 
         $product->price = $validated['price'];
-        $product->number = 'PROD' . str_pad($product->id, 6, '0', STR_PAD_LEFT);
         $product->image = $validated['image'];
         $product->save();
 
@@ -114,4 +113,18 @@ class ProductController extends Controller
 
         return redirect()->route('product.index')->with('success', 'Product deleted successfully.');
     }
+
+    /**
+     * Search for products by name.
+     */
+    public function search(Request $request)
+    {
+        $query = $request->input('query');
+        $products = Product::where('name', 'like', "%{$query}%")
+            ->limit(10)
+            ->get(['id', 'name', 'price', 'image']); // Sélectionne uniquement les colonnes nécessaires
+
+        return response()->json($products);
+    }
+
 }

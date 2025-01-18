@@ -7,15 +7,18 @@ use Inertia\Inertia;
 use App\Models\Product;
 use App\Models\Customer;
 use App\Http\Controllers\Controller;
-use App\Traits\GeneratesSequentialNumber;
+use App\Models\Quote;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 
 class QuoteController extends Controller
 {
-    use AuthorizesRequests, GeneratesSequentialNumber;
+    use AuthorizesRequests;
 
     public function create(Customer $customer)
     {
+        $quote = new Quote();
+        $this->authorize('create', $quote);
+
         return Inertia::render('Quote/Create', [
             'lastQuotesNumber' => $this->generateNextNumber($customer->quotes->last()->number ?? null),
             'customer' => $customer->with(['properties'])->first(),

@@ -25,8 +25,12 @@ Route::middleware('auth')->group(function () {
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
     Route::get('/customer/{customer}/quote/create', [QuoteController::class, 'create'])->name('customer.quote.create');
+    // Product custom search
+    Route::get('/product/search', [ProductController::class, 'search'])->name('product.search');
+
     // Product Management
     Route::resource('product', ProductController::class);
+
     // Customer Management
     Route::resource('customer', CustomerController::class)
         ->only(['index', 'store', 'update', 'create', 'show']);

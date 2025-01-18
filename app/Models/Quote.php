@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Database\Eloquent\Model;
 use App\Traits\GeneratesSequentialNumber;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -31,6 +32,7 @@ class Quote extends Model
         static::creating(function ($quote) {
             $quote->number = self::generateNumber($quote->user_id, 'Q');
         });
+
     }
 
     /**
