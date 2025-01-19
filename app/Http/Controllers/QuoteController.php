@@ -167,4 +167,12 @@ class QuoteController extends Controller
         ]);
     }
 
+    public function destroy(Quote $quote)
+    {
+        $this->authorize('destroy', $quote);
+
+        $quote->delete();
+
+        return redirect()->route('customer.show', $quote->customer)->with('success', 'Quote deleted successfully!');
+    }
 }

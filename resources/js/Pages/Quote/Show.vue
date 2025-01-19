@@ -195,15 +195,18 @@ const props = defineProps({
                             class="space-y-2 py-4 border-t border-gray-200 dark:border-neutral-700">
                             <div class="flex justify-between">
                                 <p class="text-sm text-gray-500 dark:text-neutral-500">TPS (5%) :</p>
-                                <p class="text-sm text-gray-800 dark:text-neutral-200">${{ (quote.subtotal * 0.05).toFixed(2) }}</p>
+                                <p class="text-sm text-gray-800 dark:text-neutral-200">${{ (quote.subtotal *
+                                    0.05).toFixed(2) }}</p>
                             </div>
                             <div class="flex justify-between">
                                 <p class="text-sm text-gray-500 dark:text-neutral-500">TVQ (9.975%) :</p>
-                                <p class="text-sm text-gray-800 dark:text-neutral-200">${{ (quote.subtotal * 0.09975).toFixed(2) }}</p>
+                                <p class="text-sm text-gray-800 dark:text-neutral-200">${{ (quote.subtotal *
+                                    0.09975).toFixed(2) }}</p>
                             </div>
                             <div class="flex justify-between font-bold">
                                 <p class="text-sm text-gray-800 dark:text-neutral-200">Total taxes :</p>
-                                <p class="text-sm text-gray-800 dark:text-neutral-200">${{ ((quote.subtotal * 0.05) + (quote.subtotal * 0.09975)).toFixed(2)
+                                <p class="text-sm text-gray-800 dark:text-neutral-200">${{ ((quote.subtotal * 0.05) +
+                                    (quote.subtotal * 0.09975)).toFixed(2)
                                     }}</p>
                             </div>
                         </div>
@@ -237,7 +240,7 @@ const props = defineProps({
                             <!-- Contenu dynamique -->
                             <div class="flex justify-end">
                                 <!-- Si le champ est affiché -->
-                                <div  class="flex items-center gap-x-2">
+                                <div class="flex items-center gap-x-2">
                                     <span class="text-xs text-gray-500 dark:text-neutral-500">
                                         (Min: ${{ quote.initial_deposit }})
                                     </span>
@@ -248,7 +251,8 @@ const props = defineProps({
                     </div>
                 </div>
             </div>
-            <div class="col-span-1"></div> <!-- Colonne vide -->
+            <div class="col-span-1">
+            </div> <!-- Colonne vide -->
         </div>
     </AuthenticatedLayout>
 </template>

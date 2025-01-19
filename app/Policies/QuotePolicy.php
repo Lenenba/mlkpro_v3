@@ -31,4 +31,12 @@ class QuotePolicy
     {
         return $user->id === $quote->user_id;
     }
+
+     /**
+     * Determine whether the user can destroy the model.
+     */
+    public function destroy(User $user, Quote $quote): bool
+    {
+        return $user->id === $quote->user_id;
+    }
 }
