@@ -7,6 +7,7 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
+use App\Http\Controllers\ProductsSearchController;
 
 // Guest Routes
 Route::get('/', [AuthenticatedSessionController::class, 'create'])
@@ -25,8 +26,13 @@ Route::middleware('auth')->group(function () {
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
     Route::get('/customer/{customer}/quote/create', [QuoteController::class, 'create'])->name('customer.quote.create');
+    Route::post('/customer/quote/store', [QuoteController::class, 'store'])->name('customer.quote.store');
+    Route::get('/customer/quote/{quote}/edit', [QuoteController::class, 'edit'])->name('customer.quote.edit');
+    Route::get('/customer/quote/{quote}/show', [QuoteController::class, 'show'])->name('customer.quote.show');
+    Route::put('/customer/quote/{quote}/update', [QuoteController::class, 'update'])->name('customer.quote.update');
+
     // Product custom search
-    Route::get('/product/search', [ProductController::class, 'search'])->name('product.search');
+    Route::get('/product/search', ProductsSearchController::class)->name('product.search');
 
     // Product Management
     Route::resource('product', ProductController::class);

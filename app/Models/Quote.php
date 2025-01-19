@@ -28,9 +28,15 @@ class Quote extends Model
     {
         parent::boot();
 
-        // Auto-generate the quote number before creating
-        static::creating(function ($quote) {
-            $quote->number = self::generateNumber($quote->user_id, 'Q');
+         // Automatically generate the quote number before creating
+         static::creating(function ($quote) {
+            // Ensure `customer_id` is set before generating the number
+            if (!$quote->customer_id) {
+                throw new \Exception('Customer ID is required to generate a quote number.');
+            }
+
+            // Generate the number scoped by customer and user
+            $quote->number = self::generateScopedNumber($quote->customer_id, 'Q');
         });
 
     }
@@ -41,6 +47,7 @@ class Quote extends Model
     public function customer()
     {
         return $this->belongsTo(Customer::class);
+
     }
 
     /**

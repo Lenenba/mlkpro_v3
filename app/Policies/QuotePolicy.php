@@ -15,4 +15,20 @@ class QuotePolicy
     {
         return true;
     }
+
+    /**
+     * Determine whether the user can edit the model.
+     */
+    public function edit(User $user, Quote $quote): bool
+    {
+        return $user->id === $quote->user_id;
+    }
+
+    /**
+     * Determine whether the user can view the model.
+     */
+    public function show(User $user, Quote $quote): bool
+    {
+        return $user->id === $quote->user_id;
+    }
 }
