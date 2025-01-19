@@ -19,6 +19,10 @@ class QuoteController extends Controller
 
     public function create(Customer $customer)
     {
+        if($customer->user_id !== Auth::user()->id){
+            abort(403);
+        }
+
         return Inertia::render('Quote/Create', [
             'lastQuotesNumber' => $this->generateNextNumber($customer->quotes->last()->number ?? null),
             'customer' => $customer->load('properties'),

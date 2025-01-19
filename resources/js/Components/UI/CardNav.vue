@@ -29,7 +29,7 @@ const props = defineProps({
                 <!-- Tab Content Item -->
                 <div id="bar-with-underline-1" role="tabpanel" aria-labelledby="bar-with-underline-item-1">
                     <!-- Empty State -->
-                    <TabEmptyState :type="'works'" />
+                    <TabEmptyState :type="'works'" :customer="customer" />
                     <!-- End Empty State -->
                 </div>
                 <!-- End Tab Content Item -->
@@ -38,7 +38,7 @@ const props = defineProps({
                 <div id="bar-with-underline-2" class="hidden" role="tabpanel"
                     aria-labelledby="bar-with-underline-item-2">
                     <!-- Empty State -->
-                    <TabEmptyState :type="'requests'" />
+                    <TabEmptyState :type="'requests'" :customer="customer" />
 
                     <!-- End Empty State -->
                 </div>
@@ -48,7 +48,7 @@ const props = defineProps({
                 <div id="bar-with-underline-3" class="hidden" role="tabpanel"
                     aria-labelledby="bar-with-underline-item-3">
                     <!-- Empty State -->
-                    <TabEmptyState :type="'quotes'" v-if="customer.quotes.length === 0" />
+                    <TabEmptyState :type="'quotes'" v-if="customer.quotes.length === 0"  :customer="customer" />
                     <!-- End Empty State -->
                     <QuoteList v-else :quotes="customer.quotes" />
                 </div>
@@ -57,14 +57,14 @@ const props = defineProps({
                 <!-- Tab Content Item -->
                 <div id="bar-with-underline-4" class="hidden" role="tabpanel"
                     aria-labelledby="bar-with-underline-item-4">
-                    <TabEmptyState :type="'jobs'" />
+                    <TabEmptyState :type="'jobs'" :customer="customer" />
                 </div>
                 <!-- End Tab Content Item -->
 
                 <!-- Tab Content Item -->
                 <div id="bar-with-underline-5" class="hidden" role="tabpanel"
                     aria-labelledby="bar-with-underline-item-5">
-                    <TabEmptyState :type="'invoices'" />
+                    <TabEmptyState :type="'invoices'" :customer="customer" />
                 </div>
                 <!-- End Tab Content Item -->
             </div>
