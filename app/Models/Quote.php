@@ -4,12 +4,13 @@ namespace App\Models;
 
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Notifications\Notifiable;
 use App\Traits\GeneratesSequentialNumber;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class Quote extends Model
 {
-    use HasFactory, GeneratesSequentialNumber;
+    use HasFactory, GeneratesSequentialNumber, Notifiable;
 
     protected $fillable = [
         'user_id',

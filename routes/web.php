@@ -8,6 +8,7 @@ use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\ProductsSearchController;
+use App\Http\Controllers\QuoteEmaillingController;
 
 // Guest Routes
 Route::get('/', [AuthenticatedSessionController::class, 'create'])
@@ -32,6 +33,9 @@ Route::middleware('auth')->group(function () {
     Route::put('/customer/quote/{quote}/update', [QuoteController::class, 'update'])->name('customer.quote.update');
     Route::delete('/customer/quote/{quote}/destroy', [QuoteController::class, 'destroy'])->name('customer.quote.destroy');
 
+
+
+    Route::post('/quote/{quote}/send-email', QuoteEmaillingController::class)->name('quote.send.email');
     // Product custom search
     Route::get('/product/search', ProductsSearchController::class)->name('product.search');
 

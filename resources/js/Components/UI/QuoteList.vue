@@ -16,6 +16,20 @@ const deleteQuote = async (quote) => {
         console.error('Error deleting quote:', error);
     }
 };
+
+const sendEmail = async (quote) => {
+    try {
+        // Appelle la méthode POST via Inertia
+        router.post(route('quote.send.email', quote), {
+            onSuccess: () => console.log('Email sent successfully!'),
+            onError: (error) => console.error('Error sending email:', error),
+        });
+    } catch (error) {
+        console.error('Error sending email:', error);
+    }
+};
+
+
 </script>
 
 <template>
@@ -149,7 +163,7 @@ const deleteQuote = async (quote) => {
                                             View
                                         </button>
                                         </Link>
-                                        <button type="button"
+                                        <button type="button" @click="sendEmail(quote)"
                                             class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] font-normal text-gray-800 hover:bg-gray-100 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-gray-100 dark:text-neutral-300 dark:hover:bg-neutral-800 dark:focus:bg-neutral-800">
                                             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
                                                 viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"

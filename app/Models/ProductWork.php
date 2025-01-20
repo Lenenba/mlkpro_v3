@@ -13,7 +13,7 @@ class ProductWork extends Model
     /** @use HasFactory<\Database\Factories\WorkFactory> */
     use HasFactory;
 
-    protected $fillable = ['work_id', 'product_id', 'quantity_used', 'unit'];
+    protected $fillable = ['work_id', 'product_id', 'quote_id', 'quantity', 'price', 'description', 'total'];
 
     /**
      * Get the work that owns the product work.
@@ -29,5 +29,13 @@ class ProductWork extends Model
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
+    }
+
+    /**
+     * Get the quote that owns the product work.
+     */
+    public function quote(): BelongsTo
+    {
+        return $this->belongsTo(Quote::class);
     }
 }
