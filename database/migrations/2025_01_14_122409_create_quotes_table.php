@@ -20,9 +20,11 @@ return new class extends Migration
             $table->string('status')->default('draft');
             $table->string('number')->nullable();
             $table->decimal('total', 10, 2)->default(0);
+            $table->decimal('subtotal', 10, 2)->default(0);
             $table->decimal('initial_deposit', 10, 2)->default(0);
             $table->boolean('is_fixed')->default(false);
             $table->text('notes')->nullable();
+            $table->text('messages')->nullable();
             $table->timestamps();
         });
 
@@ -38,7 +40,7 @@ return new class extends Migration
             $table->foreignId('quote_id')->constrained()->onDelete('cascade');
             $table->foreignId('product_id')->nullable()->constrained()->onDelete('cascade');
             $table->integer('quantity')->default(1);
-            $table->decimal('price', 10, 2);
+            $table->decimal('price', 10, 2)->default(0);
             $table->string('description')->nullable();
             $table->decimal('total', 10, 2)->default(0);
             $table->timestamps();

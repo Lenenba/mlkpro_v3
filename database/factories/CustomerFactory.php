@@ -28,7 +28,7 @@ class CustomerFactory extends Factory
             'email' => $this->faker->unique()->safeEmail(),
             'phone' => $this->faker->phoneNumber(),
             'description' => $this->faker->sentence(),
-            'logo' => $this->generateFakeCompanyLogo(),
+            'logo' =>  $this->generateFakeCompanyLogo2(),
             'billing_same_as_physical' => $this->faker->boolean(),
             'refer_by' => $this->faker->name(), // Generates a reference name
             'salutation' => $this->faker->randomElement(['Mr', 'Mrs', 'Miss']),
@@ -61,5 +61,21 @@ class CustomerFactory extends Factory
         }
 
         return null; // Default to null if an error occurs
+    }
+
+
+    /**
+     * Generate a fake company logo URL using One API Pro Placeholder Image Generator.
+     *
+     * @return string
+     */
+    private function generateFakeCompanyLogo2(): string
+    {
+        $bgColor = ltrim($this->faker->hexColor(), '#'); // Couleur d'arrière-plan aléatoire sans le '#'
+        $text = strtoupper(substr($this->faker->company(), 0, 3)); // Premières 3 lettres du nom de l'entreprise
+        $width = 150;
+        $height = 150;
+
+        return "https://api.oneapipro.com/images/placeholder?text={$text}&width={$width}&height={$height}&color={$bgColor}";
     }
 }

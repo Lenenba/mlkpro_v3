@@ -1,7 +1,8 @@
 <script setup>
-
+import { Link } from '@inertiajs/vue3';
 const props = defineProps({
     type: String,
+    customer: Object,
 });
 </script>
 <template>
@@ -66,16 +67,18 @@ const props = defineProps({
                 metrics
             </p>
         </div>
-        <button type="button"
-            class="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-transparent bg-neutral-600 text-white hover:bg-neutral-700 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:ring-2 focus:ring-neutral-500"
-            data-hs-overlay="#hs-pro-atbetb">
-            <svg class="hidden sm:block shrink-0 size-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
-                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                stroke-linejoin="round">
-                <path d="M5 12h14" />
-                <path d="M12 5v14" />
-            </svg>Create {{ type }}
-        </button>
+        <Link :href="route('customer.quote.create', customer)">
+            <button type="button"
+                class="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-transparent bg-neutral-600 text-white hover:bg-neutral-700 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:ring-2 focus:ring-neutral-500"
+                data-hs-overlay="#hs-pro-atbetb">
+                <svg class="hidden sm:block shrink-0 size-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                    viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                    stroke-linejoin="round">
+                    <path d="M5 12h14" />
+                    <path d="M12 5v14" />
+                </svg>Create {{ type }}
+            </button>
+        </Link>
     </div>
     <!-- End Empty State -->
 </template>

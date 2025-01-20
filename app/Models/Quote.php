@@ -2,13 +2,15 @@
 
 namespace App\Models;
 
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Notifications\Notifiable;
 use App\Traits\GeneratesSequentialNumber;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class Quote extends Model
 {
-    use HasFactory, GeneratesSequentialNumber;
+    use HasFactory, GeneratesSequentialNumber, Notifiable;
 
     protected $fillable = [
         'user_id',
@@ -27,10 +29,17 @@ class Quote extends Model
     {
         parent::boot();
 
-        // Auto-generate the quote number before creating
-        static::creating(function ($quote) {
-            $quote->number = self::generateNumber($quote->user_id, 'Q');
+         // Automatically generate the quote number before creating
+         static::creating(function ($quote) {
+            // Ensure `customer_id` is set before generating the number
+            if (!$quote->customer_id) {
+                throw new \Exception('Customer ID is required to generate a quote number.');
+            }
+
+            // Generate the number scoped by customer and user
+            $quote->number = self::generateScopedNumber($quote->customer_id, 'Q');
         });
+
     }
 
     /**
@@ -39,6 +48,7 @@ class Quote extends Model
     public function customer()
     {
         return $this->belongsTo(Customer::class);
+
     }
 
     /**

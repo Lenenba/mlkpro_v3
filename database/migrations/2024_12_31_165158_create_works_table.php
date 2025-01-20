@@ -24,8 +24,8 @@ return new class extends Migration
             $table->datetime('work_date'); // Date and time of the work
             $table->integer('time_spent')->default(0); // Time spent in minutes
             $table->boolean('is_completed')->default(false); // Status of work completion
-            $table->decimal('cost', 10, 2)->nullable(); // Cost of the work (if applicable)
-            $table->decimal('base_cost', 10, 2)->nullable(); // Cost of the work (if applicable)
+            $table->decimal('subtotal', 10, 2)->nullable(); // Cost of the work (if applicable)
+            $table->decimal('total', 10, 2)->nullable(); // Cost of the work (if applicable)
             $table->timestamps();
 
             // Indexes for faster querying
@@ -38,12 +38,15 @@ return new class extends Migration
             $table->id();
             $table->foreignId('work_id')->constrained()->onDelete('cascade');
             $table->foreignId('product_id')->constrained()->onDelete('cascade');
-            $table->integer('quantity_used'); // Quantity of the product used
-            $table->string('unit')->default('pcs'); // Unit of measurement, default is pieces
+            $table->foreignId('quote_id')->nullable()->constrained()->onDelete('cascade'); // Quote
+            $table->integer('quantity')->default(1);
+            $table->decimal('price', 10, 2)->default(0);
+            $table->string('description')->nullable();
+            $table->decimal('total', 10, 2)->default(0);
             $table->timestamps();
 
             // Index for faster queries
-            $table->index(['work_id', 'product_id']);
+            $table->index(['work_id', 'product_id', 'quote_id']);
         });
 
         // Additional table to track worker ratings

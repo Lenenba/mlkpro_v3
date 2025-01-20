@@ -17,6 +17,25 @@ class Work extends Model
 
     protected $fillable = ['user_id', 'company_id', 'description', 'type', 'work_date', 'time_spent', 'is_completed', 'cost', 'location','category'];
 
+
+
+    protected static function boot()
+    {
+        parent::boot();
+
+         // Automatically generate the quote number before creating
+         static::creating(function ($work) {
+            // Ensure `customer_id` is set before generating the number
+            if (!$work->customer_id) {
+                throw new \Exception('Customer ID is required to generate a work number.');
+            }
+
+            // Generate the number scoped by customer and user
+            $work->number = self::generateScopedNumber($work->customer_id, 'Q');
+        });
+
+    }
+
     /**
      * Get the user that owns the work.
      */

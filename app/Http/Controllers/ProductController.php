@@ -56,7 +56,6 @@ class ProductController extends Controller
         $product = $request->user()->products()->create($validated);
 
         $product->price = $validated['price'];
-        $product->number = 'PROD' . str_pad($product->id, 6, '0', STR_PAD_LEFT);
         $product->image = $validated['image'];
         $product->save();
 
@@ -114,4 +113,5 @@ class ProductController extends Controller
 
         return redirect()->route('product.index')->with('success', 'Product deleted successfully.');
     }
+
 }
