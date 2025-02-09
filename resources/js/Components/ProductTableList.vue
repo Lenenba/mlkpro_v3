@@ -1,5 +1,5 @@
 <script setup>
-import { ref, watch, computed, defineProps, defineEmits } from 'vue';
+import { ref, watch, computed } from 'vue';
 import axios from 'axios';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingNumberMiniInput from '@/Components/FloatingNumberMiniInput.vue';

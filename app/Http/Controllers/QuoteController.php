@@ -49,7 +49,7 @@ class QuoteController extends Controller
         return Inertia::render('Quote/Create', [
             'quote' => $quote->load('products', 'taxes'),
             'products' => Product::all(),
-            'customer' => $customer,
+            'customer' =>  $customer->load('properties'),
             'taxes' => Tax::all(),
         ]);
     }
@@ -162,9 +162,8 @@ class QuoteController extends Controller
             'quote' =>$quote->load([
                 'products',
                 'taxes',
-                'customer.properties' => function ($query) use ($quote) {
-                    $query->where('id', $quote->property_id);
-                },
+                'customer',
+                'customer.properties',
             ]),
             'products' => Product::all(),
             'taxes' => Tax::all(),

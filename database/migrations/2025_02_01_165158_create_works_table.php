@@ -17,19 +17,30 @@ return new class extends Migration
             $table->id();
             $table->foreignId('user_id')->constrained()->onDelete('cascade'); // Worker
             $table->foreignIdFor(Customer::class, 'customer_id')->constrained('customers')->onDelete('cascade'); // Client customer
+            $table->foreignId('quote_id')->nullable()->constrained()->onDelete('cascade'); // Quote
             $table->string('number')->nullable(); // Work number
-            $table->text('description'); // Description of the work
-            $table->text('type'); // type of the work
-            $table->text('category'); // Status of the work
-            $table->datetime('work_date'); // Date and time of the work
-            $table->integer('time_spent')->default(0); // Time spent in minutes
+            $table->string('job_title'); // Title of the work
+            $table->text('instructions'); // Description of the work
+            $table->date('start_date')->nullable(); // Start date of the work
+            $table->date('end_date')->nullable(); // End date of the work
+            $table->time('start_time')->nullable(); // Start time of the work
+            $table->time('end_time')->nullable(); // End time of the work
+            $table->boolean('is_all_day')->default(false); // Is the work all day
+            $table->boolean('later')->default(false); // Is the work all day
+            $table->string('ends')->default('Never'); // End date of the work
+            $table->string('frequencyNumber')->default(1); // End date of the work
+            $table->string('frequency')->default('Weekly'); // End date of the work
+            $table->integer('totalVisits')->default(0); // End date of the work
+            $table->json('repeatsOn')->nullable(); // End date of the work
+            $table->text('type')->nullable(); // type of the work
+            $table->text('category')->nullable();// Status of the work
             $table->boolean('is_completed')->default(false); // Status of work completion
             $table->decimal('subtotal', 10, 2)->nullable(); // Cost of the work (if applicable)
             $table->decimal('total', 10, 2)->nullable(); // Cost of the work (if applicable)
             $table->timestamps();
+            $table->softDeletes();
 
             // Indexes for faster querying
-            $table->index(['work_date', 'user_id']);
             $table->index(['customer_id']);
         });
 

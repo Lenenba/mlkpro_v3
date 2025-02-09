@@ -16,8 +16,10 @@ import DatePicker from '@/Components/DatePicker.vue';
 import TimePicker from '@/Components/TimePicker.vue';
 import Checkbox from '@/Components/Checkbox.vue';
 import ProductTableList from '@/Components/ProductTableList.vue';
+import { words } from 'lodash';
 
 const props = defineProps({
+    work: Object,
     customer: Object,
     works: Object,
     lastWorkNumber: String,
@@ -37,13 +39,14 @@ const endOptions = [
 ];
 
 const form = useForm({
+    customer_id: props.customer.id,
     job_title: '',
     instructions: '',
     start_date: '',
     end_date: '',
     start_time: '',
     end_time: '',
-    products: props.quote?.products?.map(product => ({
+    products: props.work?.products?.map(product => ({
         id: product.id,
         name: product.name,
         quantity: product.pivot.quantity,
@@ -61,7 +64,10 @@ const form = useForm({
 });
 
 const formatDate = (dateInput) => {
-    if (!dateInput) {
+    if (!dateInput) { // Si aucune date, retourne la date actuelle
+        if (form.start_date) {
+            return dayjs(form.start_date).format('MMM D, YYYY'); // Ex: "Feb 8, 2025"
+        }
         return dayjs().format('MMM D, YYYY'); // Ex: "Feb 8, 2025"
     }
 
@@ -74,79 +80,64 @@ const formatDate = (dateInput) => {
     return date.format('MMM D, YYYY'); // Ex: "Feb 8, 2025"
 };
 
-// Fonction améliorée pour calculer le total des visites et la date de fin
+const getExactDay = (dateInput, tempo) => {
+    const weekDaysMap = {
+        'Su': 0, 'Mo': 1, 'Tu': 2, 'We': 3,
+        'Th': 4, 'Fr': 5, 'Sa': 6
+    };
+
+    // deternime la date extacte de la fin de la recurrence
+    let endDate = dateInput.add(form.frequencyNumber - 1, tempo);
+    if (tempo === 'week') {
+        // retrouver le dernier jour de form.repeatsOn et prendre le jour correspondant dans la semaine
+        endDate = endDate.day(weekDaysMap[form.repeatsOn[form.repeatsOn.length - 1]]);
+    } else if (tempo === 'month') {
+        // retrouver le dernier jour de form.repeatsOn et prendre le jour correspondant dans le mois
+        endDate = endDate.date(form.repeatsOn[form.repeatsOn.length - 1]);
+    }
+
+    return endDate;
+};
+
+// Fonction pour calculer le total des visites
 const calculateTotalVisits = () => {
-    if (!form.start_date) return; // Vérification obligatoire
+    if (!form.start_date) return; // Si aucune date de début, on ne fait rien
 
     let count = 0;
     let currentDate = dayjs(form.start_date);
+    let endDate = '';
 
-    // Si l'option choisie est "After", on déduit la date de fin
     if (form.ends === 'After' && form.frequencyNumber) {
-        count = form.frequencyNumber;
-        for (let i = 0; i < form.frequencyNumber; i++) {
-            switch (form.frequency) {
-                case 'Daily':
-                    currentDate = currentDate.add(1, 'day');
-                    break;
-                case 'Weekly':
-                    let daysFound = 0;
-                    while (daysFound < 1) {
-                        currentDate = currentDate.add(1, 'day');
-                        if (form.repeatsOn.includes(currentDate.format('dddd'))) {
-                            daysFound++;
-                        }
-                    }
-                    break;
-                case 'Monthly':
-                    let monthsFound = 0;
-                    while (monthsFound < 1) {
-                        currentDate = currentDate.add(1, 'day');
-                        if (form.repeatsOn.includes(currentDate.date().toString())) {
-                            monthsFound++;
-                        }
-                    }
-                    break;
-            }
+        if(form.frequency === 'Daily') {
+            count = form.frequencyNumber;
+        } else if (form.frequency === 'Weekly') {
+            //deternime le nombre total de visite en fonction de la fréquence
+            count = form.frequencyNumber * form.repeatsOn.length;
+            endDate = getExactDay(currentDate, 'week');
+
+        } else if (form.frequency === 'Monthly') {
+            count = form.frequencyNumber * form.repeatsOn.length;
+            endDate = getExactDay(currentDate, 'month');
         }
-        form.end_date = currentDate.format('YYYY-MM-DD'); // Met à jour la date de fin
-    }
-    // Si l'option choisie est "On", on compte les occurrences jusqu'à la date de fin
-    else if (form.ends === 'On' && form.end_date) {
-        let endDate = dayjs(form.end_date);
-        while (currentDate.isBefore(endDate) || currentDate.isSame(endDate)) {
-            switch (form.frequency) {
-                case 'Daily':
-                    count++;
-                    currentDate = currentDate.add(1, 'day');
-                    break;
-                case 'Weekly':
-                    if (form.repeatsOn.includes(currentDate.format('dddd'))) {
-                        count++;
-                    }
-                    currentDate = currentDate.add(1, 'day');
-                    break;
-                case 'Monthly':
-                    if (form.repeatsOn.includes(currentDate.date().toString())) {
-                        count++;
-                    }
-                    currentDate = currentDate.add(1, 'day');
-                    break;
-            }
+    } else if (form.ends === 'On' && form.end_date) {
+        endDate = dayjs(form.end_date);
+        if (form.frequency === 'Daily') {
+            count = currentDate.diff(endDate, 'day');
+        } else if (form.frequency === 'Weekly') {
+            count = currentDate.diff(endDate, 'week') *  -form.repeatsOn.length;
+        } else if (form.frequency === 'Monthly') {
+            count = currentDate.diff(endDate, 'month')*  -form.repeatsOn.length;
         }
     }
 
-    form.totalVisits = count; // Met à jour le nombre total de visites
+    form.totalVisits = count;
+    form.end_date = formatDate(endDate);
 };
 
-// Surveiller les changements et recalculer les visites + date de fin
-watch(
-    [() => form.start_date, () => form.frequency, () => form.ends, () => form.end_date, () => form.frequencyNumber, () => form.repeatsOn],
-    () => {
-        calculateTotalVisits();
-    },
-    { deep: true }
-);
+// Surveiller les changements des valeurs et recalculer automatiquement
+watch([() => form.start_date, () => form.frequency, () => form.ends, () => form.end_date, () => form.frequencyNumber, () => form.repeatsOn], () => {
+    calculateTotalVisits();
+}, { deep: true });
 
 
 // Array of days of the week for weekly recurrence
@@ -218,7 +209,17 @@ const totalWithTaxes = computed(() => {
 
 // Soumettre le formulaire
 const submit = () => {
-    console.log(form.data());
+    const routeName = props.work?.id ? 'work.update' : 'work.store';
+    const routeParams = props.work?.id ? props.work.id : undefined;
+
+    form[props.work?.id ? 'put' : 'post'](route(routeName, routeParams), {
+        onSuccess: () => {
+            console.log('work saved successfully!');
+        },
+        onError: (errors) => {
+            console.error('Validation errors:', errors);
+        },
+    });
 };
 </script>
 
@@ -402,9 +403,6 @@ const submit = () => {
                                                     <div class="p-4 md:p-5">
                                                         <div class="flex flex-row space-x-1 mb-4">
                                                             <DatePicker v-model="form.start_date" label="Start Date"
-                                                                placeholder="Choose a date" />
-                                                            <DatePicker v-model="form.end_date"
-                                                                label="End Date (optional)"
                                                                 placeholder="Choose a date" />
                                                         </div>
                                                         <div class="flex flex-row space-x-1">

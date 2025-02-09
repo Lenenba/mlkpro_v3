@@ -12,6 +12,7 @@ use App\Models\QuoteTax;
 use App\Models\QuoteProduct;
 use App\Models\ProductCategory;
 use App\Models\Tax;
+use App\Models\Work;
 use Illuminate\Database\Seeder;
 
 class DatabaseSeeder extends Seeder
@@ -84,6 +85,14 @@ class DatabaseSeeder extends Seeder
             ->count(2)
             ->recycle($quotes)
             ->recycle($tax)
+            ->create();
+
+        Work::factory()
+            ->count(5)
+            ->recycle($users)
+            ->recycle($customers)
+            ->recycle($quotes)
+            ->has(Product::factory()->count(2))
             ->create();
     }
 }

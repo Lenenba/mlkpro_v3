@@ -3,19 +3,41 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Traits\GeneratesSequentialNumber;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
-use Illuminate\Database\Eloquent\Builder;
 
 class Work extends Model
 {
     /** @use HasFactory<\Database\Factories\WorkFactory> */
-    use HasFactory;
+    use HasFactory, GeneratesSequentialNumber ;
 
 
-    protected $fillable = ['user_id', 'company_id', 'description', 'type', 'work_date', 'time_spent', 'is_completed', 'cost', 'location','category'];
+    protected $fillable = [
+        'user_id',
+        'customer_id',
+        'job_title',
+        'instructions',
+        'start_date',
+        'end_date',
+        'start_time',
+        'end_time',
+        'is_all_day',
+        'later',
+        'ends',
+        'frequencyNumber',
+        'frequency',
+        'totalVisits',
+        'repeatsOn',
+        'type',
+        'category',
+        'is_completed',
+        'subtotal',
+        'total',
+    ];
 
 
 
@@ -31,7 +53,7 @@ class Work extends Model
             }
 
             // Generate the number scoped by customer and user
-            $work->number = self::generateScopedNumber($work->customer_id, 'Q');
+            $work->number = self::generateScopedNumber($work->customer_id, 'W');
         });
 
     }
@@ -65,7 +87,7 @@ class Work extends Model
      */
     public function products(): BelongsToMany
     {
-        return $this->belongsToMany(Product::class, 'product_works')->withPivot('quantity_used', 'unit');
+        return $this->belongsToMany(Product::class, 'product_works')->withPivot('quantity', 'price');
     }
 
     /**

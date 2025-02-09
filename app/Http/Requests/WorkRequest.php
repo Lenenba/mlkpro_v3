@@ -22,13 +22,25 @@ class WorkRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'customer_id' => 'required|exists:customers,id',
-            'type' => 'required|string', // Example of restricted types
-            'category' => 'required|string', // Example of restricted types
-            'description' => 'required|string|max:255', // Optional: restrict the length
-            'work_date' => 'required|date|after:today', // Ensure the work date is in the future
-            'time_spent' => 'nullable|integer|min:0', // Optional: ensure it's non-negative if provided
-            'base_cost' => 'nullable|numeric|min:0', // Ensure the cost is non-negative if provided
+            'customer_id' => 'required|integer|exists:customers,id',
+            'job_title' => 'required|string|max:255',
+            'instructions' => 'nullable|string',
+            'start_date' => 'required|date',
+            'end_date' => 'nullable|date',
+            'start_time' => 'nullable|date_format:H:i',
+            'end_time' => 'nullable|date_format:H:i',
+            'is_all_day' => 'nullable|boolean',
+            'later' => 'nullable|boolean',
+            'ends' => 'nullable|string',
+            'frequencyNumber' => 'nullable|integer',
+            'frequency' => 'nullable|string',
+            'totalVisits' => 'nullable|integer',
+            // 'repeatsOn' => 'nullable|string',
+            'type' => 'nullable|string',
+            'category' => 'nullable|string',
+            'is_completed' => 'nullable|boolean',
+            'subtotal' => 'nullable|numeric',
+            'total' => 'nullable|numeric',
         ];
     }
 }

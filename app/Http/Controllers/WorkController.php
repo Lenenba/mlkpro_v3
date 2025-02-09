@@ -75,21 +75,20 @@ class WorkController extends Controller
     {
         $validated = $request->validated();
         $customer = Customer::with(['works'])->findOrFail($validated['customer_id']);
+        // Convert validated dates and times properly
+        $validated['start_date'] = !empty($validated['start_date']) ? Carbon::parse($validated['start_date'])->toDateString() : null;
+        $validated['end_date'] = !empty($validated['end_date']) ? Carbon::parse($validated['end_date'])->toDateString() : null;
+
+        $validated['start_time'] = !empty($validated['start_time']) ? Carbon::parse($validated['start_time'])->format('H:i:s') : null;
+        $validated['end_time'] = !empty($validated['end_time']) ? Carbon::parse($validated['end_time'])->format('H:i:s') : null;
+
+
         $validated['user_id'] = Auth::user()->id;
         $work = $customer->works()->create($validated);
 
-        $work->base_cost = $validated['base_cost'];
-        $work->cost = $work->base_cost;
-
-        $work->number = 'WORK' . str_pad($work->id, 6, '0', STR_PAD_LEFT);
-        $work->is_completed = 0;
         $work->save();
 
-        return redirect()->route('work.edit', [
-            'work_id' => $work->id,
-            'work' => $work,
-            'customer' => $customer
-        ])->with('success', 'Work created successfully.');
+        return redirect()->route('customer.show', $customer)->with('success', 'Job created successfully!');
     }
 
     /**
@@ -100,9 +99,6 @@ class WorkController extends Controller
         // Fetch work with relationships and ensure authorization
         $work = Work::with(['customer', 'invoice', 'products', 'ratings'])->findOrFail($work_id);
         $this->authorize('edit', $work);
-
-        // Mettre à jour le prix du travail
-        $this->updateWorkCost($work);
 
         // Handle request filters for products
         $filters = $request->only(['category_id', 'name', 'stock']);
@@ -151,7 +147,7 @@ class WorkController extends Controller
                 ProductWork::create([
                     'work_id' => $work->id,
                     'product_id' => $product['product_id'],
-                    'quantity_used' => $product['quantity_used'],
+                    'quantity' => $product['quantity'],
                 ]);
             }
         }
@@ -170,23 +166,4 @@ class WorkController extends Controller
         return response()->json(['message' => 'Work deleted successfully']);
     }
 
-    /**
-     * Update the total cost of the work based on the products attached.
-     *
-     * @param \App\Models\Work $work
-     * @return void
-     */
-    private function updateWorkCost(Work $work)
-    {
-        // Calculer le coût total des produits ajoutés
-        $productsCost = 0;
-
-        foreach ($work->products as $product) {
-            $productsCost += $product->price * $product->pivot->quantity_used;
-        }
-
-        // Mettre à jour le coût du travail, en ajoutant les produits au prix de base
-        $work->cost = $work->base_cost + $productsCost;
-        $work->save();
-    }
 }
