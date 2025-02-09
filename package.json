@@ -31,6 +31,7 @@
         "cally": "^0.7.2",
         "clipboard": "^2.0.11",
         "datatables.net-dt": "^2.2.1",
+        "dayjs": "^1.11.13",
         "dropzone": "^6.0.0-beta.2",
         "lodash": "^4.17.21",
         "preline": "^2.7.0",

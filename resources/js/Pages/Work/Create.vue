@@ -1,8 +1,10 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
-import { computed } from 'vue';
+import { computed,watch } from 'vue';
+import dayjs from 'dayjs';
 import { Head, useForm, router } from '@inertiajs/vue3';
 import FloatingNumberMiniInput from '@/Components/FloatingNumberMiniInput.vue';
+import SelectableItem from '@/Components/SelectableItem.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingTextarea from '@/Components/FloatingTextarea.vue';
@@ -21,12 +23,26 @@ const props = defineProps({
     lastWorkNumber: String,
 });
 
+const Frequency = [
+    { id: 'Daily', name: 'Daily' },
+    { id: 'Weekly', name: 'Weekly' },
+    { id: 'Monthly', name: 'Monthly' },
+    { id: 'Yearly', name: 'Yearly' },
+];
+
+const endOptions = [
+    { id: 'Never', name: 'Never' },
+    { id: 'On', name: 'On' },
+    { id: 'After', name: 'After' },
+];
+
 const form = useForm({
     job_title: '',
     instructions: '',
     start_date: '',
     end_date: '',
     start_time: '',
+    end_time: '',
     products: props.quote?.products?.map(product => ({
         id: product.id,
         name: product.name,
@@ -34,12 +50,120 @@ const form = useForm({
         price: product.pivot.price,
         total: product.pivot.total,
     })) || [{ id: null, name: '', quantity: 1, price: 0, total: 0 }],
-    end_time: '',
     later: false,
-    frequency: '',
+    ends: 'Never',
+    frequencyNumber: 1,
+    frequency: 'Weekly',
+    totalVisits: 0,
+    repeatsOn: [],
     subtotal: 0,
     total: 0,
 });
+
+const formatDate = (dateInput) => {
+    if (!dateInput) {
+        return dayjs().format('MMM D, YYYY'); // Ex: "Feb 8, 2025"
+    }
+
+    let date = dayjs(dateInput, ["YYYY-MM-DD", "YYYY/MM/DD", "MM-DD-YYYY", "DD-MM-YYYY", "YYYY-MM-DDTHH:mm:ssZ"], true);
+
+    if (!date.isValid()) {
+        return "Invalid Date";
+    }
+
+    return date.format('MMM D, YYYY'); // Ex: "Feb 8, 2025"
+};
+
+// Fonction améliorée pour calculer le total des visites et la date de fin
+const calculateTotalVisits = () => {
+    if (!form.start_date) return; // Vérification obligatoire
+
+    let count = 0;
+    let currentDate = dayjs(form.start_date);
+
+    // Si l'option choisie est "After", on déduit la date de fin
+    if (form.ends === 'After' && form.frequencyNumber) {
+        count = form.frequencyNumber;
+        for (let i = 0; i < form.frequencyNumber; i++) {
+            switch (form.frequency) {
+                case 'Daily':
+                    currentDate = currentDate.add(1, 'day');
+                    break;
+                case 'Weekly':
+                    let daysFound = 0;
+                    while (daysFound < 1) {
+                        currentDate = currentDate.add(1, 'day');
+                        if (form.repeatsOn.includes(currentDate.format('dddd'))) {
+                            daysFound++;
+                        }
+                    }
+                    break;
+                case 'Monthly':
+                    let monthsFound = 0;
+                    while (monthsFound < 1) {
+                        currentDate = currentDate.add(1, 'day');
+                        if (form.repeatsOn.includes(currentDate.date().toString())) {
+                            monthsFound++;
+                        }
+                    }
+                    break;
+            }
+        }
+        form.end_date = currentDate.format('YYYY-MM-DD'); // Met à jour la date de fin
+    }
+    // Si l'option choisie est "On", on compte les occurrences jusqu'à la date de fin
+    else if (form.ends === 'On' && form.end_date) {
+        let endDate = dayjs(form.end_date);
+        while (currentDate.isBefore(endDate) || currentDate.isSame(endDate)) {
+            switch (form.frequency) {
+                case 'Daily':
+                    count++;
+                    currentDate = currentDate.add(1, 'day');
+                    break;
+                case 'Weekly':
+                    if (form.repeatsOn.includes(currentDate.format('dddd'))) {
+                        count++;
+                    }
+                    currentDate = currentDate.add(1, 'day');
+                    break;
+                case 'Monthly':
+                    if (form.repeatsOn.includes(currentDate.date().toString())) {
+                        count++;
+                    }
+                    currentDate = currentDate.add(1, 'day');
+                    break;
+            }
+        }
+    }
+
+    form.totalVisits = count; // Met à jour le nombre total de visites
+};
+
+// Surveiller les changements et recalculer les visites + date de fin
+watch(
+    [() => form.start_date, () => form.frequency, () => form.ends, () => form.end_date, () => form.frequencyNumber, () => form.repeatsOn],
+    () => {
+        calculateTotalVisits();
+    },
+    { deep: true }
+);
+
+
+// Array of days of the week for weekly recurrence
+const daysOfWeek = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'
+];
+
+// Array of day numbers (1 to 31) for monthly recurrence
+const daysOfMonth = [];
+for (let i = 1; i <= 31; i++) {
+    daysOfMonth.push(i);
+}
+
+// Watch for changes in `frequency` and reset `repeatsOn` on any change
+watch(() => form.frequency, () => {
+    form.repeatsOn = [];
+});
+
 function formatWorksForFullCalendar(works) {
     if (!Array.isArray(works) || works.length === 0) {
         return [];
@@ -105,7 +229,7 @@ const submit = () => {
         <div class="grid grid-cols-5 gap-4">
             <div class="col-span-1"></div> <!-- Colonne vide -->
             <div class="col-span-3">
-                <form  @submit.prevent="submit">
+                <form @submit.prevent="submit">
                     <div
                         class="p-5 space-y-3 flex flex-col bg-gray-100 border border-gray-100 rounded-sm shadow-sm xl:shadow-none dark:bg-green-800 dark:border-green-700">
                         <!-- Header -->
@@ -191,7 +315,7 @@ const submit = () => {
                                 aria-label="Tabs" role="tablist" aria-orientation="horizontal">
                                 <!-- Nav Item -->
                                 <button type="button"
-                                    class="hs-tab-active:border-t-indigo-600 relative flex-1 first:border-s-0 border-s border-t-[3px] md:border-t-4 border-t-transparent hover:border-t-gray-300 focus:outline-none focus:border-t-gray-300 p-3.5 xl:px-6 text-start focus:z-10 dark:hs-tab-active:border-t-indigo-500 dark:border-t-transparent dark:border-neutral-700 dark:hover:border-t-neutral-600 dark:focus:border-t-neutral-600 active"
+                                    class="hs-tab-active:border-t-green-600 relative flex-1 first:border-s-0 border-s border-t-[3px] md:border-t-4 border-t-transparent hover:border-t-gray-300 focus:outline-none focus:border-t-gray-300 p-3.5 xl:px-6 text-start focus:z-10 dark:hs-tab-active:border-t-green-500 dark:border-t-transparent dark:border-neutral-700 dark:hover:border-t-neutral-600 dark:focus:border-t-neutral-600 active"
                                     id="bar-with-underline-item-1" aria-selected="true"
                                     data-hs-tab="#bar-with-underline-1" aria-controls="bar-with-underline-1" role="tab">
                                     <span class="flex gap-x-4">
@@ -222,7 +346,7 @@ const submit = () => {
 
                                 <!-- Nav Item -->
                                 <button type="button"
-                                    class="hs-tab-active:border-t-indigo-600 relative flex-1 first:border-s-0 border-s border-t-[3px] md:border-t-4 border-t-transparent hover:border-t-gray-300 focus:outline-none focus:border-t-gray-300 p-3.5 xl:px-6 text-start focus:z-10 dark:hs-tab-active:border-t-indigo-500 dark:border-t-transparent dark:border-neutral-700 dark:hover:border-t-neutral-600 dark:focus:border-t-neutral-600"
+                                    class="hs-tab-active:border-t-green-600 relative flex-1 first:border-s-0 border-s border-t-[3px] md:border-t-4 border-t-transparent hover:border-t-gray-300 focus:outline-none focus:border-t-gray-300 p-3.5 xl:px-6 text-start focus:z-10 dark:hs-tab-active:border-t-green-500 dark:border-t-transparent dark:border-neutral-700 dark:hover:border-t-neutral-600 dark:focus:border-t-neutral-600"
                                     id="bar-with-underline-item-2" aria-selected="false"
                                     data-hs-tab="#bar-with-underline-2" aria-controls="bar-with-underline-2" role="tab">
                                     <span class="flex gap-x-4">
@@ -358,155 +482,60 @@ const submit = () => {
                                                                         class="mb-1.5 block text-[13px] text-gray-400 dark:text-neutral-500">
                                                                         Repeat every:
                                                                     </label>
-
-                                                                    <div class="flex items-center gap-x-2">
-                                                                        <!-- Input -->
-                                                                         <FloatingNumberMiniInput v-model="form.frequency" label="Frequency" />
-                                                                         <FloatingSelect v-model="form.frequency" label="Frequency" :options="['Daily', 'Weekly', 'Monthly', 'Yearly']" /> 
-                                                                    </div>
+                                                                    <FloatingSelect v-model="form.frequency"
+                                                                        label="Frequency" :options="Frequency" />
                                                                 </div>
                                                                 <!-- End Item -->
 
-                                                                <!-- Item -->
-                                                                <div>
+                                                                <!-- Repeats on block: loop based on the selected frequency -->
+                                                                <div v-if="form.frequency !== 'Daily'">
                                                                     <label
                                                                         class="mb-1.5 block text-[13px] text-gray-400 dark:text-neutral-500">
                                                                         Repeats on:
                                                                     </label>
-
-                                                                    <div
+                                                                    <!-- If frequency is Weekly, display checkboxes for days of the week -->
+                                                                    <div v-if="form.frequency === 'Weekly'"
                                                                         class="flex sm:justify-between items-center gap-x-1">
                                                                         <!-- Checkbox -->
-                                                                        <label for="hs-pro-clcreromo"
-                                                                            class="group size-[34px] flex justify-center items-center rounded-sm cursor-pointer text-[13px] text-gray-800 bg-gray-100 hover:bg-gray-200 focus:bg-gray-200 has-[:checked]:bg-blue-600 has-[:checked]:text-white dark:text-neutral-300 dark:bg-neutral-700 dark:hover:bg-neutral-600 dark:focus:bg-neutral-600 dark:has-[:checked]:bg-blue-500 dark:has-[:checked]:text-white">
-                                                                            <input type="radio" class="hidden"
-                                                                                id="hs-pro-clcreromo"
-                                                                                name="hs-pro-cremd" checked>
-                                                                            Mo
-                                                                        </label>
-                                                                        <!-- End Checkbox -->
-
-                                                                        <!-- Checkbox -->
-                                                                        <label for="hs-pro-clcrerotu"
-                                                                            class="group size-[34px] flex justify-center items-center rounded-sm cursor-pointer text-[13px] text-gray-800 bg-gray-100 hover:bg-gray-200 focus:bg-gray-200 has-[:checked]:bg-blue-600 has-[:checked]:text-white dark:text-neutral-300 dark:bg-neutral-700 dark:hover:bg-neutral-600 dark:focus:bg-neutral-600 dark:has-[:checked]:bg-blue-500 dark:has-[:checked]:text-white">
-                                                                            <input type="radio" class="hidden"
-                                                                                id="hs-pro-clcrerotu"
-                                                                                name="hs-pro-cremd">
-                                                                            Tu
-                                                                        </label>
-                                                                        <!-- End Checkbox -->
-
-                                                                        <!-- Checkbox -->
-                                                                        <label for="hs-pro-clcrerowe"
-                                                                            class="group size-[34px] flex justify-center items-center rounded-sm cursor-pointer text-[13px] text-gray-800 bg-gray-100 hover:bg-gray-200 focus:bg-gray-200 has-[:checked]:bg-blue-600 has-[:checked]:text-white dark:text-neutral-300 dark:bg-neutral-700 dark:hover:bg-neutral-600 dark:focus:bg-neutral-600 dark:has-[:checked]:bg-blue-500 dark:has-[:checked]:text-white">
-                                                                            <input type="radio" class="hidden"
-                                                                                id="hs-pro-clcrerowe"
-                                                                                name="hs-pro-cremd">
-                                                                            We
-                                                                        </label>
-                                                                        <!-- End Checkbox -->
-
-                                                                        <!-- Checkbox -->
-                                                                        <label for="hs-pro-clcreroth"
-                                                                            class="group size-[34px] flex justify-center items-center rounded-sm cursor-pointer text-[13px] text-gray-800 bg-gray-100 hover:bg-gray-200 focus:bg-gray-200 has-[:checked]:bg-blue-600 has-[:checked]:text-white dark:text-neutral-300 dark:bg-neutral-700 dark:hover:bg-neutral-600 dark:focus:bg-neutral-600 dark:has-[:checked]:bg-blue-500 dark:has-[:checked]:text-white">
-                                                                            <input type="radio" class="hidden"
-                                                                                id="hs-pro-clcreroth"
-                                                                                name="hs-pro-cremd">
-                                                                            Th
-                                                                        </label>
-                                                                        <!-- End Checkbox -->
-
-                                                                        <!-- Checkbox -->
-                                                                        <label for="hs-pro-clcrerofr"
-                                                                            class="group size-[34px] flex justify-center items-center rounded-sm cursor-pointer text-[13px] text-gray-800 bg-gray-100 hover:bg-gray-200 focus:bg-gray-200 has-[:checked]:bg-blue-600 has-[:checked]:text-white dark:text-neutral-300 dark:bg-neutral-700 dark:hover:bg-neutral-600 dark:focus:bg-neutral-600 dark:has-[:checked]:bg-blue-500 dark:has-[:checked]:text-white">
-                                                                            <input type="radio" class="hidden"
-                                                                                id="hs-pro-clcrerofr"
-                                                                                name="hs-pro-cremd">
-                                                                            Fr
-                                                                        </label>
-                                                                        <!-- End Checkbox -->
-
-                                                                        <!-- Checkbox -->
-                                                                        <label for="hs-pro-clcrerosa"
-                                                                            class="group size-[34px] flex justify-center items-center rounded-sm cursor-pointer text-[13px] text-gray-800 bg-gray-100 hover:bg-gray-200 focus:bg-gray-200 has-[:checked]:bg-blue-600 has-[:checked]:text-white dark:text-neutral-300 dark:bg-neutral-700 dark:hover:bg-neutral-600 dark:focus:bg-neutral-600 dark:has-[:checked]:bg-blue-500 dark:has-[:checked]:text-white">
-                                                                            <input type="radio" class="hidden"
-                                                                                id="hs-pro-clcrerosa"
-                                                                                name="hs-pro-cremd">
-                                                                            Sa
-                                                                        </label>
-                                                                        <!-- End Checkbox -->
-
-                                                                        <!-- Checkbox -->
-                                                                        <label for="hs-pro-clcrerosu"
-                                                                            class="group size-[34px] flex justify-center items-center rounded-sm cursor-pointer text-[13px] text-gray-800 bg-gray-100 hover:bg-gray-200 focus:bg-gray-200 has-[:checked]:bg-blue-600 has-[:checked]:text-white dark:text-neutral-300 dark:bg-neutral-700 dark:hover:bg-neutral-600 dark:focus:bg-neutral-600 dark:has-[:checked]:bg-blue-500 dark:has-[:checked]:text-white">
-                                                                            <input type="radio" class="hidden"
-                                                                                id="hs-pro-clcrerosu"
-                                                                                name="hs-pro-cremd">
-                                                                            Su
-                                                                        </label>
+                                                                            <SelectableItem :LoopValue="daysOfWeek" v-model="form.repeatsOn" />
                                                                         <!-- End Checkbox -->
                                                                     </div>
+                                                                    <!-- If frequency is Monthly, display checkboxes for days of the month (1 to 31) -->
+                                                                    <div v-else-if="form.frequency === 'Monthly'"
+                                                                        class="flex flex-wrap gap-2">
+                                                                        <!-- Grid -->
+                                                                        <div class="mt-2  ">
+                                                                            <!-- Checkbox -->
+                                                                           <SelectableItem :LoopValue="daysOfMonth" v-model="form.repeatsOn" />
+                                                                            <!-- End Checkbox -->
+                                                                        </div>
+                                                                        <!-- End Grid -->
+                                                                    </div>
+
+                                                                    <!-- Optionally, you could also add a block for Daily recurrence if nécessaire -->
                                                                 </div>
-                                                                <!-- End Item -->
+                                                                <!-- End Repeats on block -->
 
                                                                 <!-- Item -->
                                                                 <div>
-                                                                    <label
-                                                                        class="mb-1.5 block text-[13px] text-gray-400 dark:text-neutral-500">
-                                                                        Ends:
-                                                                    </label>
 
-                                                                    <!-- Radio -->
-                                                                    <div class="flex">
-                                                                        <input type="radio" name="hs-pro-clcree"
-                                                                            class="shrink-0 border-gray-200 rounded-sm text-blue-600 focus:ring-0 focus:ring-offset-0 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-800 dark:border-neutral-700 dark:checked:bg-blue-500 dark:checked:border-blue-500 dark:focus:ring-offset-neutral-800"
-                                                                            id="hs-pro-clcreen" checked>
-                                                                        <label for="hs-pro-clcreen"
-                                                                            class="text-xs text-gray-500 ms-2 dark:text-neutral-400">Never</label>
-                                                                    </div>
-                                                                    <!-- End Radio -->
+                                                                    <FloatingSelect  :label="'Ends'" v-model="form.ends"
+                                                                        :options="endOptions" />
 
-                                                                    <div class="mt-5 flex items-center gap-x-2">
-                                                                        <!-- Radio -->
-                                                                        <div class="w-20 flex">
-                                                                            <input type="radio" name="hs-pro-clcree"
-                                                                                class="shrink-0 border-gray-200 rounded-sm text-blue-600 focus:ring-0 focus:ring-offset-0 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-800 dark:border-neutral-700 dark:checked:bg-blue-500 dark:checked:border-blue-500 dark:focus:ring-offset-neutral-800"
-                                                                                id="hs-pro-clcreeo">
-                                                                            <label for="hs-pro-clcreeo"
-                                                                                class="text-xs text-gray-500 ms-2 dark:text-neutral-400">On</label>
-                                                                        </div>
-                                                                        <!-- End Radio -->
-
-                                                                        <div class="w-full">
+                                                                        <div class="w-full mt-4" v-if="form.ends === 'On'">
                                                                             <!-- Input -->
-                                                                            <input type="text"
-                                                                                class="py-1 px-2 block w-full bg-gray-100 border-transparent rounded-sm text-[13px] text-gray-700 leading-5 hover:bg-gray-200 placeholder:text-gray-400 disabled:opacity-50 disabled:pointer-events-none focus:bg-gray-200 focus:border-transparent focus:ring-transparent dark:text-neutral-400 dark:bg-neutral-700 dark:text-neutral-300 dark:placeholder:text-neutral-500 dark:hover:bg-neutral-600 dark:focus:bg-neutral-600"
-                                                                                value="Jan 7, 2024">
+                                                                             <DatePicker v-model="form.end_date" label="End Date"
+                                                                                placeholder="Choose a date" />
                                                                             <!-- End Input -->
                                                                         </div>
-                                                                    </div>
-
-                                                                    <div class="mt-3 flex items-center gap-x-2">
-                                                                        <!-- Radio -->
-                                                                        <div class="w-20 flex">
-                                                                            <input type="radio" name="hs-pro-clcree"
-                                                                                class="shrink-0 border-gray-200 rounded-sm text-blue-600 focus:ring-0 focus:ring-offset-0 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-800 dark:border-neutral-700 dark:checked:bg-blue-500 dark:checked:border-blue-500 dark:focus:ring-offset-neutral-800"
-                                                                                id="hs-pro-clcreea">
-                                                                            <label for="hs-pro-clcreea"
-                                                                                class="text-xs text-gray-500 ms-2 dark:text-neutral-400">After</label>
-                                                                        </div>
-                                                                        <!-- End Radio -->
-
-                                                                        <div class="w-full flex items-center gap-x-2">
+                                                                        <div class="w-full flex items-center gap-x-2 mt-4"  v-if="form.ends === 'After'">
                                                                             <!-- Input -->
-                                                                            <input type="text"
-                                                                                class="py-1 px-2 block w-12 bg-gray-100 border-transparent rounded-sm text-[13px] text-gray-700 leading-5 hover:bg-gray-200 placeholder:text-gray-400 disabled:opacity-50 disabled:pointer-events-none focus:bg-gray-200 focus:border-transparent focus:ring-transparent dark:text-neutral-400 dark:bg-neutral-700 dark:text-neutral-300 dark:placeholder:text-neutral-500 dark:hover:bg-neutral-600 dark:focus:bg-neutral-600"
-                                                                                value="7">
+                                                                            <FloatingNumberMiniInput v-model="form.frequencyNumber"
+                                                                                label="Number" />
                                                                             <!-- End Input -->
                                                                             <span
                                                                                 class="text-xs text-gray-400 dark:text-neutral-500">Times</span>
                                                                         </div>
-                                                                    </div>
                                                                 </div>
                                                                 <!-- End Item -->
                                                             </div>
@@ -528,7 +557,7 @@ const submit = () => {
                                                                 </span>
                                                                 <span for="hs-pro-ccremre"
                                                                     class="block text-xs text-gray-600 dark:text-neutral-700">
-                                                                    Feb 6, 2024
+                                                                    {{ formatDate(form.start_date)  }}
                                                                 </span>
                                                             </div>
                                                             <div class="flex flex-col">
@@ -538,7 +567,7 @@ const submit = () => {
                                                                 </span>
                                                                 <span for="hs-pro-ccremre"
                                                                     class="block text-xs text-gray-600 dark:text-neutral-700">
-                                                                    Feb 26, 2024
+                                                                    {{ formatDate(form.end_date)  }}
                                                                 </span>
                                                             </div>
                                                             <div class="flex flex-col">
@@ -548,7 +577,7 @@ const submit = () => {
                                                                 </span>
                                                                 <span for="hs-pro-ccremre"
                                                                     class="block text-xs text-gray-600 dark:text-neutral-700">
-                                                                    6
+                                                                    {{ form.totalVisits }}
                                                                 </span>
                                                             </div>
 
