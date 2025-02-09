@@ -58,20 +58,35 @@ trait GeneratesSequentialNumber
     }
 
     /**
-     * Generate the next number in a sequence.
+     * Generate the next number in a sequence based on the calling controller.
      *
      * @param  string|null $lastNumber The last number in the sequence.
      * @return string                  The next number in the sequence.
+     * @throws \Exception
      */
     public static function generateNextNumber($lastNumber): string
     {
-        // Si aucun numéro précédent, retourner le premier
+        // Déterminer dynamiquement le préfixe basé sur le contrôleur appelant
+        $trace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 2);
+        $callerClass = $trace[1]['class'] ?? null;
+
+        // Définir un préfixe par défaut
+        $prefix = 'X'; // 'X' peut être un préfixe générique si aucun n'est trouvé
+
+        if ($callerClass) {
+            // Extraire la première lettre majuscule du nom du contrôleur
+            if (preg_match('/(\w+)Controller$/', class_basename($callerClass), $matches)) {
+                $prefix = strtoupper(substr($matches[1], 0, 1)); // Première lettre du nom du contrôleur
+            }
+        }
+
+        // Si aucun numéro précédent, retourner le premier avec le bon préfixe
         if (is_null($lastNumber)) {
-            return 'Q001';
+            return $prefix . '001';
         }
 
         // Extraire la partie numérique du dernier numéro
-        preg_match('/Q(\d+)/', $lastNumber, $matches);
+        preg_match('/[A-Z](\d+)/', $lastNumber, $matches);
 
         if (!isset($matches[1])) {
             throw new \Exception("Invalid number format: $lastNumber");
@@ -82,7 +97,7 @@ trait GeneratesSequentialNumber
         // Incrémenter la partie numérique
         $nextNumericPart = $lastNumericPart + 1;
 
-        // Générer le nouveau numéro en format "Q" suivi de 3 chiffres
-        return 'Q' . str_pad($nextNumericPart, 3, '0', STR_PAD_LEFT);
+        // Générer le nouveau numéro en format "<Prefix>" suivi de 3 chiffres
+        return $prefix . str_pad($nextNumericPart, 3, '0', STR_PAD_LEFT);
     }
 }

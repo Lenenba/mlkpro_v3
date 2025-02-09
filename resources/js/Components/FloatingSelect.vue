@@ -36,8 +36,7 @@ defineExpose({ focus: () => input.value.focus() });
             [&:not(:placeholder-shown)]:pb-2
             autofill:pt-6
             autofill:pb-2">
-            <option selected="">Open this select menu</option>
-            <option v-for="option in options" :key="option.id" :value="option.id"> {{ option.name }}</option>
+            <option class=" rounded-sm" v-for="option in options" :key="option.id" :value="option.id"> {{ option.name }}</option>
         </select>
         <label
             class="absolute top-0 start-0 p-4 h-full truncate pointer-events-none transition ease-in-out duration-100 border border-transparent dark:text-white peer-disabled:opacity-50 peer-disabled:pointer-events-none

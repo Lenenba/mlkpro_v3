@@ -96,27 +96,28 @@ const props = defineProps({
                                     </svg>
                                     create request
                                 </button>
-
-                                <button type="button"
-                                    class="w-full flex items-center gap-x-3 py-2 px-3 rounded-sm text-sm text-gray-800 hover:bg-gray-100 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-gray-100 dark:text-neutral-300 dark:hover:bg-neutral-800 dark:focus:bg-neutral-800">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
-                                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                        stroke-linejoin="round" class="lucide lucide-monitor-cog">
-                                        <path d="M12 17v4" />
-                                        <path d="m15.2 4.9-.9-.4" />
-                                        <path d="m15.2 7.1-.9.4" />
-                                        <path d="m16.9 3.2-.4-.9" />
-                                        <path d="m16.9 8.8-.4.9" />
-                                        <path d="m19.5 2.3-.4.9" />
-                                        <path d="m19.5 9.7-.4-.9" />
-                                        <path d="m21.7 4.5-.9.4" />
-                                        <path d="m21.7 7.5-.9-.4" />
-                                        <path d="M22 13v2a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7" />
-                                        <path d="M8 21h8" />
-                                        <circle cx="18" cy="6" r="3" />
-                                    </svg>
-                                    Create job
-                                </button>
+                                <Link :href="route('work.create', customer)">
+                                    <button type="button"
+                                        class="w-full flex items-center gap-x-3 py-2 px-3 rounded-sm text-sm text-gray-800 hover:bg-gray-100 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-gray-100 dark:text-neutral-300 dark:hover:bg-neutral-800 dark:focus:bg-neutral-800">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                                            fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                            stroke-linejoin="round" class="lucide lucide-monitor-cog">
+                                            <path d="M12 17v4" />
+                                            <path d="m15.2 4.9-.9-.4" />
+                                            <path d="m15.2 7.1-.9.4" />
+                                            <path d="m16.9 3.2-.4-.9" />
+                                            <path d="m16.9 8.8-.4.9" />
+                                            <path d="m19.5 2.3-.4.9" />
+                                            <path d="m19.5 9.7-.4-.9" />
+                                            <path d="m21.7 4.5-.9.4" />
+                                            <path d="m21.7 7.5-.9-.4" />
+                                            <path d="M22 13v2a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7" />
+                                            <path d="M8 21h8" />
+                                            <circle cx="18" cy="6" r="3" />
+                                        </svg>
+                                        Create job
+                                    </button>
+                                </Link>
                                 <button type="button"
                                     class="w-full flex items-center gap-x-3 py-2 px-3 rounded-sm text-sm text-gray-800 hover:bg-gray-100 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-gray-100 dark:text-neutral-300 dark:hover:bg-neutral-800 dark:focus:bg-neutral-800">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"

@@ -1,14 +1,15 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\WorkController;
 use App\Http\Controllers\QuoteController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\DashboardController;
-use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\ProductsSearchController;
 use App\Http\Controllers\QuoteEmaillingController;
+use App\Http\Controllers\Auth\AuthenticatedSessionController;
 
 // Guest Routes
 Route::get('/', [AuthenticatedSessionController::class, 'create'])
@@ -45,6 +46,13 @@ Route::middleware('auth')->group(function () {
     // Customer Management
     Route::resource('customer', CustomerController::class)
         ->only(['index', 'store', 'update', 'create', 'show']);
+
+    // Work Management
+    Route::get('/work/create/{customer}', [WorkController::class, 'create'])
+        ->name('work.create');
+
+    Route::resource('work', WorkController::class)
+        ->except(['create']);
 });
 
 // Authentication Routes

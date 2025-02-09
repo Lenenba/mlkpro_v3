@@ -1,13 +1,678 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
-import { Head } from '@inertiajs/vue3';
+import { computed } from 'vue';
+import { Head, useForm, router } from '@inertiajs/vue3';
+import FloatingNumberMiniInput from '@/Components/FloatingNumberMiniInput.vue';
+import FloatingSelect from '@/Components/FloatingSelect.vue';
+import FloatingInput from '@/Components/FloatingInput.vue';
+import FloatingTextarea from '@/Components/FloatingTextarea.vue';
+import FullCalendar from '@fullcalendar/vue3';
+import dayGridPlugin from '@fullcalendar/daygrid';
+import timeGridPlugin from '@fullcalendar/timegrid';
+import interactionPlugin from '@fullcalendar/interaction';
+import DatePicker from '@/Components/DatePicker.vue';
+import TimePicker from '@/Components/TimePicker.vue';
+import Checkbox from '@/Components/Checkbox.vue';
+import ProductTableList from '@/Components/ProductTableList.vue';
 
+const props = defineProps({
+    customer: Object,
+    works: Object,
+    lastWorkNumber: String,
+});
+
+const form = useForm({
+    job_title: '',
+    instructions: '',
+    start_date: '',
+    end_date: '',
+    start_time: '',
+    products: props.quote?.products?.map(product => ({
+        id: product.id,
+        name: product.name,
+        quantity: product.pivot.quantity,
+        price: product.pivot.price,
+        total: product.pivot.total,
+    })) || [{ id: null, name: '', quantity: 1, price: 0, total: 0 }],
+    end_time: '',
+    later: false,
+    frequency: '',
+    subtotal: 0,
+    total: 0,
+});
+function formatWorksForFullCalendar(works) {
+    if (!Array.isArray(works) || works.length === 0) {
+        return [];
+    }
+
+    return works.map(work => ({
+        id: work.id,        // Identifiant unique du travail
+        title: work.title,  // Titre à afficher
+        start: work.date,   // Assurez-vous que "date" est au format ISO (YYYY-MM-DD)
+    }));
+}
+
+// Exemple d'utilisation :
+const events = formatWorksForFullCalendar(props.works);
+
+
+const calendarOptions = {
+    plugins: [dayGridPlugin, timeGridPlugin, interactionPlugin],
+    initialView: 'dayGridMonth', // Affiche la semaine en cours
+    weekends: false, // initial value
+    headerToolbar: {
+        left: 'prev,next today',
+        center: 'title',
+        right: 'timeGridWeek,dayGridMonth', // Options de vue semaine/mois
+    },
+    events: events, // Assignation des événements au calendrier
+    eventClick(arg) {
+        // Redirection vers une page spécifique
+        const workId = arg.event.id;
+        router.get(`/work/${workId}`); // Adaptez l'URL selon votre configuration
+    },
+};
+
+// Handler to update the subtotal when the child component emits an update
+const updateSubtotal = (newSubtotal) => {
+    form.subtotal = newSubtotal;
+};
+
+const taxRates = { tps: 0.05, tvq: 0.09975 };
+const taxes = computed(() => ({
+    tps: form.subtotal * taxRates.tps,
+    tvq: form.subtotal * taxRates.tvq,
+    totalTaxes: form.subtotal * (taxRates.tps + taxRates.tvq),
+}));
+
+const totalWithTaxes = computed(() => {
+    const subtotal = Number(form.subtotal) || 0; // Assurez-vous que le sous-total est un nombre
+    form.total = parseFloat((subtotal + taxes?.value.totalTaxes).toFixed(2)); // Retourne un nombre avec 2 décimales
+
+    return form.total;
+});
+
+// Soumettre le formulaire
+const submit = () => {
+    console.log(form.data());
+};
 </script>
 
 <template>
 
     <Head title="Create work" />
-
     <AuthenticatedLayout>
+        <div class="grid grid-cols-5 gap-4">
+            <div class="col-span-1"></div> <!-- Colonne vide -->
+            <div class="col-span-3">
+                <form  @submit.prevent="submit">
+                    <div
+                        class="p-5 space-y-3 flex flex-col bg-gray-100 border border-gray-100 rounded-sm shadow-sm xl:shadow-none dark:bg-green-800 dark:border-green-700">
+                        <!-- Header -->
+                        <div class="flex justify-between items-center mb-4">
+                            <h1 class="text-xl inline-block font-semibold text-gray-800 dark:text-green-100">
+                                Job For : {{ customer.company_name }}
+                            </h1>
+                        </div>
+                        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                            <div class="col-span-2 space-x-2">
+                                <div class="mb-4" x-data="{ open: false }">
+                                    <FloatingInput v-model="form.job_title" label="Job title" />
+                                    <FloatingTextarea v-model="form.instructions" label="instructions" />
+                                </div>
+                                <div class="flex flex-row space-x-6">
+                                    <div class="lg:col-span-3">
+                                        <p>
+                                            Property address
+                                        </p>
+                                        <div class="text-xs text-gray-600">
+                                            {{ customer.properties[0].country }}
+                                        </div>
+                                        <div class="text-xs text-gray-600">
+                                            {{ customer.properties[0].street1 }}
+                                        </div>
+                                        <div class="text-xs text-gray-600">
+                                            {{ customer.properties[0].state }} - {{ customer.properties[0].zip }}
+                                        </div>
+                                    </div>
+                                    <div class="lg:col-span-3">
+                                        <p>
+                                            Contact details
+                                        </p>
+                                        <div class="text-xs text-gray-600">
+                                            {{ customer.first_name }} {{ customer.last_name }}
+                                        </div>
+                                        <div class="text-xs text-gray-600">
+                                            {{ customer.email }}
+                                        </div>
+                                        <div class="text-xs text-gray-600">
+                                            {{ customer.phone }}
+                                        </div>
+                                    </div>
+                                </div>
+
+                            </div>
+                            <div class="bg-white p-4 ">
+                                <div class="lg:col-span-3">
+                                    <p>
+                                        Job details
+                                    </p>
+                                    <div class="text-xs text-gray-600 flex justify-between">
+                                        <span> Job :</span>
+                                        <span>{{ lastWorkNumber }} </span>
+                                    </div>
+                                    <div class="text-xs text-gray-600 flex justify-between">
+                                        <span> Rate opportunity :</span>
+                                        <span class="flex flex-row space-x-1">
+                                            <svg xmlns="http://www.w3.org/2000/svg" cl viewBox="0 0 24 24" fill="none"
+                                                stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                                stroke-linejoin="round" class="lucide lucide-star h-4 w-4">
+                                                <path
+                                                    d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z" />
+                                            </svg>
+                                        </span>
+                                    </div>
+                                    <div class="text-xs text-gray-600 flex justify-between mt-5">
+                                        <button type="button" disabled
+                                            class="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-sm border border-green-200 bg-white text-green-800 shadow-sm hover:bg-green-50 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-green-50 dark:bg-green-800 dark:border-green-700 dark:text-green-300 dark:hover:bg-green-700 dark:focus:bg-green-700">
+                                            Add custom fields</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-4">
+
+                        <!-- Audience -->
+                        <div
+                            class="flex flex-col bg-white border border-gray-200 shadow-sm rounded-sm erflow-hidden dark:bg-neutral-800 dark:border-neutral-700">
+                            <!-- Tab Nav -->
+                            <nav class="relative z-0 flex border-b border-gray-200 dark:border-neutral-700"
+                                aria-label="Tabs" role="tablist" aria-orientation="horizontal">
+                                <!-- Nav Item -->
+                                <button type="button"
+                                    class="hs-tab-active:border-t-indigo-600 relative flex-1 first:border-s-0 border-s border-t-[3px] md:border-t-4 border-t-transparent hover:border-t-gray-300 focus:outline-none focus:border-t-gray-300 p-3.5 xl:px-6 text-start focus:z-10 dark:hs-tab-active:border-t-indigo-500 dark:border-t-transparent dark:border-neutral-700 dark:hover:border-t-neutral-600 dark:focus:border-t-neutral-600 active"
+                                    id="bar-with-underline-item-1" aria-selected="true"
+                                    data-hs-tab="#bar-with-underline-1" aria-controls="bar-with-underline-1" role="tab">
+                                    <span class="flex gap-x-4">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round"
+                                            class="lucide lucide-calendar">
+                                            <path d="M8 2v4" />
+                                            <path d="M16 2v4" />
+                                            <rect width="18" height="18" x="3" y="4" rx="2" />
+                                            <path d="M3 10h18" />
+                                        </svg>
+                                        <span class="grow text-center md:text-start">
+                                            <span class="block text-xs md:text-sm text-gray-700 dark:text-neutral-700">
+                                                ONE-OFF JOB
+                                            </span>
+                                            <span
+                                                class="hidden xl:mt-1 md:flex md:justify-between md:items-center md:gap-x-2">
+                                                <span
+                                                    class="block text-xs md:text-sm text-gray-500 dark:text-neutral-500">
+                                                    A one time job with one or more visits
+                                                </span>
+                                            </span>
+                                        </span>
+                                    </span>
+                                </button>
+                                <!-- End Nav Item -->
+
+                                <!-- Nav Item -->
+                                <button type="button"
+                                    class="hs-tab-active:border-t-indigo-600 relative flex-1 first:border-s-0 border-s border-t-[3px] md:border-t-4 border-t-transparent hover:border-t-gray-300 focus:outline-none focus:border-t-gray-300 p-3.5 xl:px-6 text-start focus:z-10 dark:hs-tab-active:border-t-indigo-500 dark:border-t-transparent dark:border-neutral-700 dark:hover:border-t-neutral-600 dark:focus:border-t-neutral-600"
+                                    id="bar-with-underline-item-2" aria-selected="false"
+                                    data-hs-tab="#bar-with-underline-2" aria-controls="bar-with-underline-2" role="tab">
+                                    <span class="flex gap-x-4">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round"
+                                            class="lucide lucide-calendar-sync">
+                                            <path d="M11 10v4h4" />
+                                            <path d="m11 14 1.535-1.605a5 5 0 0 1 8 1.5" />
+                                            <path d="M16 2v4" />
+                                            <path d="m21 18-1.535 1.605a5 5 0 0 1-8-1.5" />
+                                            <path d="M21 22v-4h-4" />
+                                            <path d="M21 8.5V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h4.3" />
+                                            <path d="M3 10h4" />
+                                            <path d="M8 2v4" />
+                                        </svg>
+                                        <span class="grow text-center md:text-start">
+                                            <span class="block text-xs md:text-sm text-gray-700 dark:text-neutral-700">
+                                                RECURRING JOB
+                                            </span>
+                                            <span
+                                                class="hidden xl:mt-1 md:flex md:justify-between md:items-center md:gap-x-2">
+                                                <span
+                                                    class="block text-xs md:text-sm text-gray-500 dark:text-neutral-500">
+                                                    A contract job with repeating visits
+                                                </span>
+                                            </span>
+                                        </span>
+                                    </span>
+                                </button>
+                                <!-- End Nav Item -->
+                            </nav>
+                            <!-- End Tab Nav -->
+
+                            <!-- Tab Content -->
+                            <div class="p-5">
+                                <!-- Tab Content Item -->
+                                <div id="bar-with-underline-1" role="tabpanel"
+                                    aria-labelledby="bar-with-underline-item-1">
+                                    <div>
+                                        <div class="grid grid-cols-3 gap-6">
+                                            <!-- Premier div (1/3) -->
+                                            <div class="col-span-1 mb-4" x-data="{ open: false }">
+                                                <div
+                                                    class="flex flex-col bg-white border shadow-sm rounded-sm dark:bg-neutral-900 dark:border-neutral-700 dark:shadow-neutral-700/70">
+                                                    <div
+                                                        class="flex flex-row bg-gray-100 dark:bg-gray-600 border-b rounded-t-sm py-3 px-4 md:px-5 dark:border-neutral-700">
+                                                        <h3
+                                                            class="text-lg  ml-2 font-bold text-gray-800 dark:text-white">
+                                                            SCHEDULE
+                                                        </h3>
+                                                    </div>
+                                                    <div class="p-4 md:p-5">
+                                                        <div class="flex flex-row space-x-1 mb-4">
+                                                            <DatePicker v-model="form.start_date" label="Start Date"
+                                                                placeholder="Choose a date" />
+                                                            <DatePicker v-model="form.end_date"
+                                                                label="End Date (optional)"
+                                                                placeholder="Choose a date" />
+                                                        </div>
+                                                        <div class="flex flex-row space-x-1">
+                                                            <TimePicker v-model="form.start_time" label="Start Time"
+                                                                placeholder="Choose a time" />
+                                                            <TimePicker v-model="form.end_time"
+                                                                label="End Time (optional)"
+                                                                placeholder="Choose a time" />
+                                                        </div>
+                                                        <div class="mt-4 block">
+                                                            <label class="flex items-center">
+                                                                <Checkbox name="remember"
+                                                                    v-model:checked="form.later" />
+                                                                <span class="ms-2 text-sm text-gray-600">Schedule
+                                                                    later</span>
+                                                            </label>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div
+                                                    class="flex flex-col bg-white border shadow-sm rounded-sm dark:bg-neutral-900 dark:border-neutral-700 dark:shadow-neutral-700/70 mt-4">
+                                                    <div
+                                                        class="flex flex-row bg-gray-100 dark:bg-gray-600 border-b rounded-t-sm py-3 px-4 md:px-5 dark:border-neutral-700">
+                                                        <h3
+                                                            class="text-lg  ml-2 font-bold text-gray-800 dark:text-white">
+                                                            TEAM
+                                                        </h3>
+                                                    </div>
+                                                    <div class="p-4 md:p-5">
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <!-- Deuxième div (2/3) -->
+                                            <div class="col-span-2">
+                                                <FullCalendar :options="calendarOptions" />
+                                            </div>
+                                        </div>
+
+                                    </div>
+                                </div>
+                                <!-- End Tab Content Item -->
+
+                                <!-- Tab Content Item -->
+                                <div id="bar-with-underline-2" class="hidden" role="tabpanel"
+                                    aria-labelledby="bar-with-underline-item-2">
+                                    <div class="grid grid-cols-3 gap-6">
+                                        <!-- Premier div (1/3) -->
+                                        <div class="col-span-1 mb-4" x-data="{ open: false }">
+                                            <div
+                                                class="flex flex-col bg-white border shadow-sm rounded-sm dark:bg-neutral-900 dark:border-neutral-700 dark:shadow-neutral-700/70">
+                                                <div
+                                                    class="flex flex-row bg-gray-100 dark:bg-gray-600 border-b rounded-t-sm py-3 px-4 md:px-5 dark:border-neutral-700">
+                                                    <h3 class="text-lg  ml-2 font-bold text-gray-800 dark:text-white">
+                                                        SCHEDULE
+                                                    </h3>
+                                                </div>
+                                                <div class="p-4 md:p-5">
+                                                    <DatePicker v-model="form.start_date" label="Start Date"
+                                                        placeholder="Choose a date" />
+                                                    <div class="flex flex-row space-x-1 my-4">
+                                                        <TimePicker v-model="form.start_time" label="Start Time"
+                                                            placeholder="Choose a time" />
+                                                        <TimePicker v-model="form.end_time" label="End Time (optional)"
+                                                            placeholder="Choose a time" />
+                                                    </div>
+
+                                                    <!-- Body -->
+                                                    <div id="hs-modal-custom-recurrence-event"
+                                                        class="overflow-y-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:rounded-sm [&::-webkit-scrollbar-track]:bg-gray-100 [&::-webkit-scrollbar-thumb]:bg-gray-300 dark:[&::-webkit-scrollbar-track]:bg-neutral-700 dark:[&::-webkit-scrollbar-thumb]:bg-neutral-500">
+                                                        <div class="space-y-3">
+                                                            <div class="grid gap-y-5">
+                                                                <!-- Item -->
+                                                                <div>
+                                                                    <label for="hs-pro-ccremre"
+                                                                        class="mb-1.5 block text-[13px] text-gray-400 dark:text-neutral-500">
+                                                                        Repeat every:
+                                                                    </label>
+
+                                                                    <div class="flex items-center gap-x-2">
+                                                                        <!-- Input -->
+                                                                         <FloatingNumberMiniInput v-model="form.frequency" label="Frequency" />
+                                                                         <FloatingSelect v-model="form.frequency" label="Frequency" :options="['Daily', 'Weekly', 'Monthly', 'Yearly']" /> 
+                                                                    </div>
+                                                                </div>
+                                                                <!-- End Item -->
+
+                                                                <!-- Item -->
+                                                                <div>
+                                                                    <label
+                                                                        class="mb-1.5 block text-[13px] text-gray-400 dark:text-neutral-500">
+                                                                        Repeats on:
+                                                                    </label>
+
+                                                                    <div
+                                                                        class="flex sm:justify-between items-center gap-x-1">
+                                                                        <!-- Checkbox -->
+                                                                        <label for="hs-pro-clcreromo"
+                                                                            class="group size-[34px] flex justify-center items-center rounded-sm cursor-pointer text-[13px] text-gray-800 bg-gray-100 hover:bg-gray-200 focus:bg-gray-200 has-[:checked]:bg-blue-600 has-[:checked]:text-white dark:text-neutral-300 dark:bg-neutral-700 dark:hover:bg-neutral-600 dark:focus:bg-neutral-600 dark:has-[:checked]:bg-blue-500 dark:has-[:checked]:text-white">
+                                                                            <input type="radio" class="hidden"
+                                                                                id="hs-pro-clcreromo"
+                                                                                name="hs-pro-cremd" checked>
+                                                                            Mo
+                                                                        </label>
+                                                                        <!-- End Checkbox -->
+
+                                                                        <!-- Checkbox -->
+                                                                        <label for="hs-pro-clcrerotu"
+                                                                            class="group size-[34px] flex justify-center items-center rounded-sm cursor-pointer text-[13px] text-gray-800 bg-gray-100 hover:bg-gray-200 focus:bg-gray-200 has-[:checked]:bg-blue-600 has-[:checked]:text-white dark:text-neutral-300 dark:bg-neutral-700 dark:hover:bg-neutral-600 dark:focus:bg-neutral-600 dark:has-[:checked]:bg-blue-500 dark:has-[:checked]:text-white">
+                                                                            <input type="radio" class="hidden"
+                                                                                id="hs-pro-clcrerotu"
+                                                                                name="hs-pro-cremd">
+                                                                            Tu
+                                                                        </label>
+                                                                        <!-- End Checkbox -->
+
+                                                                        <!-- Checkbox -->
+                                                                        <label for="hs-pro-clcrerowe"
+                                                                            class="group size-[34px] flex justify-center items-center rounded-sm cursor-pointer text-[13px] text-gray-800 bg-gray-100 hover:bg-gray-200 focus:bg-gray-200 has-[:checked]:bg-blue-600 has-[:checked]:text-white dark:text-neutral-300 dark:bg-neutral-700 dark:hover:bg-neutral-600 dark:focus:bg-neutral-600 dark:has-[:checked]:bg-blue-500 dark:has-[:checked]:text-white">
+                                                                            <input type="radio" class="hidden"
+                                                                                id="hs-pro-clcrerowe"
+                                                                                name="hs-pro-cremd">
+                                                                            We
+                                                                        </label>
+                                                                        <!-- End Checkbox -->
+
+                                                                        <!-- Checkbox -->
+                                                                        <label for="hs-pro-clcreroth"
+                                                                            class="group size-[34px] flex justify-center items-center rounded-sm cursor-pointer text-[13px] text-gray-800 bg-gray-100 hover:bg-gray-200 focus:bg-gray-200 has-[:checked]:bg-blue-600 has-[:checked]:text-white dark:text-neutral-300 dark:bg-neutral-700 dark:hover:bg-neutral-600 dark:focus:bg-neutral-600 dark:has-[:checked]:bg-blue-500 dark:has-[:checked]:text-white">
+                                                                            <input type="radio" class="hidden"
+                                                                                id="hs-pro-clcreroth"
+                                                                                name="hs-pro-cremd">
+                                                                            Th
+                                                                        </label>
+                                                                        <!-- End Checkbox -->
+
+                                                                        <!-- Checkbox -->
+                                                                        <label for="hs-pro-clcrerofr"
+                                                                            class="group size-[34px] flex justify-center items-center rounded-sm cursor-pointer text-[13px] text-gray-800 bg-gray-100 hover:bg-gray-200 focus:bg-gray-200 has-[:checked]:bg-blue-600 has-[:checked]:text-white dark:text-neutral-300 dark:bg-neutral-700 dark:hover:bg-neutral-600 dark:focus:bg-neutral-600 dark:has-[:checked]:bg-blue-500 dark:has-[:checked]:text-white">
+                                                                            <input type="radio" class="hidden"
+                                                                                id="hs-pro-clcrerofr"
+                                                                                name="hs-pro-cremd">
+                                                                            Fr
+                                                                        </label>
+                                                                        <!-- End Checkbox -->
+
+                                                                        <!-- Checkbox -->
+                                                                        <label for="hs-pro-clcrerosa"
+                                                                            class="group size-[34px] flex justify-center items-center rounded-sm cursor-pointer text-[13px] text-gray-800 bg-gray-100 hover:bg-gray-200 focus:bg-gray-200 has-[:checked]:bg-blue-600 has-[:checked]:text-white dark:text-neutral-300 dark:bg-neutral-700 dark:hover:bg-neutral-600 dark:focus:bg-neutral-600 dark:has-[:checked]:bg-blue-500 dark:has-[:checked]:text-white">
+                                                                            <input type="radio" class="hidden"
+                                                                                id="hs-pro-clcrerosa"
+                                                                                name="hs-pro-cremd">
+                                                                            Sa
+                                                                        </label>
+                                                                        <!-- End Checkbox -->
+
+                                                                        <!-- Checkbox -->
+                                                                        <label for="hs-pro-clcrerosu"
+                                                                            class="group size-[34px] flex justify-center items-center rounded-sm cursor-pointer text-[13px] text-gray-800 bg-gray-100 hover:bg-gray-200 focus:bg-gray-200 has-[:checked]:bg-blue-600 has-[:checked]:text-white dark:text-neutral-300 dark:bg-neutral-700 dark:hover:bg-neutral-600 dark:focus:bg-neutral-600 dark:has-[:checked]:bg-blue-500 dark:has-[:checked]:text-white">
+                                                                            <input type="radio" class="hidden"
+                                                                                id="hs-pro-clcrerosu"
+                                                                                name="hs-pro-cremd">
+                                                                            Su
+                                                                        </label>
+                                                                        <!-- End Checkbox -->
+                                                                    </div>
+                                                                </div>
+                                                                <!-- End Item -->
+
+                                                                <!-- Item -->
+                                                                <div>
+                                                                    <label
+                                                                        class="mb-1.5 block text-[13px] text-gray-400 dark:text-neutral-500">
+                                                                        Ends:
+                                                                    </label>
+
+                                                                    <!-- Radio -->
+                                                                    <div class="flex">
+                                                                        <input type="radio" name="hs-pro-clcree"
+                                                                            class="shrink-0 border-gray-200 rounded-sm text-blue-600 focus:ring-0 focus:ring-offset-0 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-800 dark:border-neutral-700 dark:checked:bg-blue-500 dark:checked:border-blue-500 dark:focus:ring-offset-neutral-800"
+                                                                            id="hs-pro-clcreen" checked>
+                                                                        <label for="hs-pro-clcreen"
+                                                                            class="text-xs text-gray-500 ms-2 dark:text-neutral-400">Never</label>
+                                                                    </div>
+                                                                    <!-- End Radio -->
+
+                                                                    <div class="mt-5 flex items-center gap-x-2">
+                                                                        <!-- Radio -->
+                                                                        <div class="w-20 flex">
+                                                                            <input type="radio" name="hs-pro-clcree"
+                                                                                class="shrink-0 border-gray-200 rounded-sm text-blue-600 focus:ring-0 focus:ring-offset-0 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-800 dark:border-neutral-700 dark:checked:bg-blue-500 dark:checked:border-blue-500 dark:focus:ring-offset-neutral-800"
+                                                                                id="hs-pro-clcreeo">
+                                                                            <label for="hs-pro-clcreeo"
+                                                                                class="text-xs text-gray-500 ms-2 dark:text-neutral-400">On</label>
+                                                                        </div>
+                                                                        <!-- End Radio -->
+
+                                                                        <div class="w-full">
+                                                                            <!-- Input -->
+                                                                            <input type="text"
+                                                                                class="py-1 px-2 block w-full bg-gray-100 border-transparent rounded-sm text-[13px] text-gray-700 leading-5 hover:bg-gray-200 placeholder:text-gray-400 disabled:opacity-50 disabled:pointer-events-none focus:bg-gray-200 focus:border-transparent focus:ring-transparent dark:text-neutral-400 dark:bg-neutral-700 dark:text-neutral-300 dark:placeholder:text-neutral-500 dark:hover:bg-neutral-600 dark:focus:bg-neutral-600"
+                                                                                value="Jan 7, 2024">
+                                                                            <!-- End Input -->
+                                                                        </div>
+                                                                    </div>
+
+                                                                    <div class="mt-3 flex items-center gap-x-2">
+                                                                        <!-- Radio -->
+                                                                        <div class="w-20 flex">
+                                                                            <input type="radio" name="hs-pro-clcree"
+                                                                                class="shrink-0 border-gray-200 rounded-sm text-blue-600 focus:ring-0 focus:ring-offset-0 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-800 dark:border-neutral-700 dark:checked:bg-blue-500 dark:checked:border-blue-500 dark:focus:ring-offset-neutral-800"
+                                                                                id="hs-pro-clcreea">
+                                                                            <label for="hs-pro-clcreea"
+                                                                                class="text-xs text-gray-500 ms-2 dark:text-neutral-400">After</label>
+                                                                        </div>
+                                                                        <!-- End Radio -->
+
+                                                                        <div class="w-full flex items-center gap-x-2">
+                                                                            <!-- Input -->
+                                                                            <input type="text"
+                                                                                class="py-1 px-2 block w-12 bg-gray-100 border-transparent rounded-sm text-[13px] text-gray-700 leading-5 hover:bg-gray-200 placeholder:text-gray-400 disabled:opacity-50 disabled:pointer-events-none focus:bg-gray-200 focus:border-transparent focus:ring-transparent dark:text-neutral-400 dark:bg-neutral-700 dark:text-neutral-300 dark:placeholder:text-neutral-500 dark:hover:bg-neutral-600 dark:focus:bg-neutral-600"
+                                                                                value="7">
+                                                                            <!-- End Input -->
+                                                                            <span
+                                                                                class="text-xs text-gray-400 dark:text-neutral-500">Times</span>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                                <!-- End Item -->
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <!-- End Body -->
+
+                                                    <div class="mt-4 block">
+                                                        <label for="hs-pro-ccremre"
+                                                            class="mb-1.5 block text-[13px] text-gray-400 dark:text-neutral-500">
+                                                            Visits:
+                                                        </label>
+
+                                                        <div class="grid grid-cols-3 gap-4">
+                                                            <div class="flex flex-col">
+                                                                <span for="hs-pro-ccremre"
+                                                                    class="block text-sm text-gray-400 dark:text-neutral-500">
+                                                                    First:
+                                                                </span>
+                                                                <span for="hs-pro-ccremre"
+                                                                    class="block text-xs text-gray-600 dark:text-neutral-700">
+                                                                    Feb 6, 2024
+                                                                </span>
+                                                            </div>
+                                                            <div class="flex flex-col">
+                                                                <span for="hs-pro-ccremre"
+                                                                    class="block text-sm text-gray-400 dark:text-neutral-500">
+                                                                    Last:
+                                                                </span>
+                                                                <span for="hs-pro-ccremre"
+                                                                    class="block text-xs text-gray-600 dark:text-neutral-700">
+                                                                    Feb 26, 2024
+                                                                </span>
+                                                            </div>
+                                                            <div class="flex flex-col">
+                                                                <span for="hs-pro-ccremre"
+                                                                    class="block text-sm text-gray-400 dark:text-neutral-500">
+                                                                    Total:
+                                                                </span>
+                                                                <span for="hs-pro-ccremre"
+                                                                    class="block text-xs text-gray-600 dark:text-neutral-700">
+                                                                    6
+                                                                </span>
+                                                            </div>
+
+                                                        </div>
+
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div
+                                                class="flex flex-col bg-white border shadow-sm rounded-sm dark:bg-neutral-900 dark:border-neutral-700 dark:shadow-neutral-700/70 mt-4">
+                                                <div
+                                                    class="flex flex-row bg-gray-100 dark:bg-gray-600 border-b rounded-t-sm py-3 px-4 md:px-5 dark:border-neutral-700">
+                                                    <h3 class="text-lg  ml-2 font-bold text-gray-800 dark:text-white">
+                                                        TEAM
+                                                    </h3>
+                                                </div>
+                                                <div class="p-4 md:p-5">
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <!-- Deuxième div (2/3) -->
+                                        <div class="col-span-2">
+                                            <FullCalendar :options="calendarOptions" />
+                                        </div>
+                                    </div>
+                                </div>
+                                <!-- End Tab Content Item -->
+
+                            </div>
+                            <!-- End Tab Content -->
+                        </div>
+                        <!-- End Audience -->
+                    </div>
+                    <div
+                        class="flex flex-col bg-white border shadow-sm rounded-sm dark:bg-neutral-900 dark:border-neutral-700 dark:shadow-neutral-700/70 mt-4">
+                        <div
+                            class="flex flex-row bg-gray-100 dark:bg-gray-600 border-b rounded-t-sm py-3 px-4 md:px-5 dark:border-neutral-700">
+                            <h3 class="text-lg  ml-2 font-bold text-gray-800 dark:text-white">
+                                INVOICING
+                            </h3>
+                        </div>
+                        <div class="p-4 md:p-5">
+                            <label class="flex items-center">
+                                <Checkbox name="remember" v-model:checked="form.later" />
+                                <span class="ms-2 text-sm text-gray-600">Remenber me to invoice when i close the
+                                    job</span>
+                            </label>
+                        </div>
+                    </div>
+                    <div
+                        class="flex flex-col bg-white border shadow-sm rounded-sm dark:bg-neutral-900 dark:border-neutral-700 dark:shadow-neutral-700/70 mt-4">
+                        <div
+                            class="flex flex-row bg-gray-100 dark:bg-gray-600 border-b rounded-t-sm py-3 px-4 md:px-5 dark:border-neutral-700">
+                            <h3 class="text-lg  ml-2 font-bold text-gray-800 dark:text-white">
+                                LINE ITEMS
+                            </h3>
+                        </div>
+                        <div class="p-4 md:p-5">
+                            <ProductTableList v-model="form.products" @update:subtotal="updateSubtotal" />
+                        </div>
+                        <div
+                            class="p-5 grid grid-cols-2 gap-4 justify-between bg-white border-t-2 border-t-gray-100 rounded-sm  dark:bg-green-800 dark:border-green-700">
+
+                            <div>
+                            </div>
+                            <div class="border-l border-gray-200 dark:border-neutral-700 rounded-sm p-4">
+                                <!-- List Item -->
+                                <div class="py-4 grid grid-cols-2 gap-x-4  dark:border-neutral-700">
+                                    <div class="col-span-1">
+                                        <p class="text-sm text-gray-500 dark:text-neutral-500">
+                                            Subtotal:
+                                        </p>
+                                    </div>
+                                    <div class="col-span-1 flex justify-end">
+                                        <p>
+                                            <a class="text-sm text-green-600 decoration-2 hover:underline font-medium focus:outline-none focus:underline dark:text-green-400 dark:hover:text-green-500"
+                                                href="#">
+                                                $ {{ form.subtotal }}
+                                            </a>
+                                        </p>
+                                    </div>
+                                </div>
+                                <!-- End List Item -->
+                                <!-- List Item -->
+                                <div
+                                    class="py-4 grid grid-cols-2 gap-x-4 border-t border-gray-200 dark:border-neutral-700">
+                                    <div class="col-span-1">
+                                        <p class="text-sm text-gray-800 font-bold dark:text-neutral-500">
+                                            Total amount:
+                                        </p>
+                                    </div>
+                                    <div class="flex justify-end">
+                                        <p class="text-sm text-gray-800 font-bold dark:text-neutral-200">
+                                            $ {{ totalWithTaxes?.toFixed(2) }}
+                                        </p>
+                                    </div>
+                                </div>
+                                <!-- End List Item -->
+                            </div>
+                        </div>
+                    </div>
+                    <div
+                        class="mt-4 mb-4 grid grid-cols-1 gap-4 justify-between bg-white  dark:bg-green-800 dark:border-green-700">
+
+                        <div class="flex justify-between">
+                            <button type="button"
+                                class="py-1.5 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-sm border border-gray-200 bg-white text-gray-800 shadow-sm hover:bg-gray-50 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-800 focus:outline-none focus:bg-gray-100 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700">
+                                Cancel
+                            </button>
+                            <div>
+                                <button type="button" disabled
+                                    class="py-1.5 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-sm border border-green-600 text-green-600 hover:border-gray-700 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:ring-2 focus:ring-gray-500">
+                                    Save and create another
+                                </button>
+                                <button id="hs-pro-in1trsbgwmdid1" type="submit"
+                                    class="hs-tooltip-toggle ml-4 py-2 px-2.5 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:ring-2 focus:ring-green-500">
+                                    Save job
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="col-span-1"></div> <!-- Colonne vide -->
+        </div>
     </AuthenticatedLayout>
 </template>
