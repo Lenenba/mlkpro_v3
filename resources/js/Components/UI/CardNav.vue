@@ -1,11 +1,23 @@
 <script setup>
 import CardNavLink from './CardNavLink.vue';
+import dayjs from 'dayjs';
+import isSameOrAfter from 'dayjs/plugin/isSameOrAfter';
 import QuoteList from './QuoteList.vue';
+import WorkList from './WorkList.vue';
 import TabEmptyState from './TabEmptyState.vue';
+
+dayjs.extend(isSameOrAfter);
 
 const props = defineProps({
     customer: Object,
 });
+
+
+const findActiveWorks = (works) => {
+    return works.filter((work) => dayjs(work.end_date).isSameOrAfter(new Date(), "day"));
+};
+
+const ActiveWorks = findActiveWorks(props.customer.works);
 
 </script>
 
@@ -21,7 +33,7 @@ const props = defineProps({
         <!-- Audience -->
         <div class="flex flex-col bg-white  rounded-sm overflow-hidden dark:bg-neutral-800 dark:border-neutral-700">
             <!-- Tab Nav -->
-            <CardNavLink :customer="customer" />
+            <CardNavLink :customer="customer" :ActiveWorks="ActiveWorks"/>
             <!-- End Tab Nav -->
 
             <!-- Tab Content -->
@@ -29,8 +41,11 @@ const props = defineProps({
                 <!-- Tab Content Item -->
                 <div id="bar-with-underline-1" role="tabpanel" aria-labelledby="bar-with-underline-item-1">
                     <!-- Empty State -->
-                    <TabEmptyState :type="'works'" :customer="customer" />
+                    <TabEmptyState :type="'works'"  v-if="ActiveWorks.length === 0" :customer="customer" />
                     <!-- End Empty State -->
+
+                    <WorkList v-else :works="ActiveWorks" />
+
                 </div>
                 <!-- End Tab Content Item -->
 
@@ -57,7 +72,9 @@ const props = defineProps({
                 <!-- Tab Content Item -->
                 <div id="bar-with-underline-4" class="hidden" role="tabpanel"
                     aria-labelledby="bar-with-underline-item-4">
-                    <TabEmptyState :type="'jobs'" :customer="customer" />
+                    <TabEmptyState :type="'jobs'" v-if="customer.works.length === 0" :customer="customer" />
+
+                    <WorkList v-else :works="customer.works" />
                 </div>
                 <!-- End Tab Content Item -->
 

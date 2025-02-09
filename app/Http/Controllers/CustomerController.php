@@ -83,7 +83,7 @@ class CustomerController extends Controller
             ->paginate(10) // Paginer avec 10 résultats par page
             ->withQueryString(); // Conserver les paramètres de requête dans l'URL
 
-        $customer->load(['properties', 'quotes']);
+        $customer->load(['properties', 'quotes', 'works']);
         return Inertia::render('Customer/Show', [
             'customer' => $customer,
             'works' => $works,
