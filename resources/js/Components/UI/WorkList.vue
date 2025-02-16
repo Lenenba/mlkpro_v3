@@ -25,7 +25,7 @@ const props = defineProps({
                     <ul class="mt-1 text-xs text-gray-500 dark:text-neutral-500">
                         <li
                             class="inline-block relative pe-3 last:pe-0 first-of-type:before:hidden before:absolute before:top-1/2 before:-start-2 before:-translate-y-1/2 before:w-px before:h-3 before:bg-gray-300 before:rounded-full dark:before:bg-neutral-600">
-                            Created {{dayjs(work.created_at).fromNow() }}
+                            Created {{ dayjs(work.created_at).fromNow() }}
                         </li>
                         <li
                             class="hidden sm:inline-block relative pe-3 last:pe-0 first-of-type:before:hidden before:absolute before:top-1/2 before:-start-2 before:-translate-y-1/2 before:w-px before:h-3 before:bg-gray-300 before:rounded-full dark:before:bg-neutral-600">

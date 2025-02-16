@@ -1,6 +1,6 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
-import { computed,watch } from 'vue';
+import { computed, watch, ref, onMounted, nextTick } from 'vue';
 import dayjs from 'dayjs';
 import { Head, useForm, router } from '@inertiajs/vue3';
 import FloatingNumberMiniInput from '@/Components/FloatingNumberMiniInput.vue';
@@ -16,9 +16,9 @@ import DatePicker from '@/Components/DatePicker.vue';
 import TimePicker from '@/Components/TimePicker.vue';
 import Checkbox from '@/Components/Checkbox.vue';
 import ProductTableList from '@/Components/ProductTableList.vue';
-import { words } from 'lodash';
 
 const props = defineProps({
+    works: Object,
     work: Object,
     customer: Object,
     works: Object,
@@ -141,7 +141,8 @@ watch([() => form.start_date, () => form.frequency, () => form.ends, () => form.
 
 
 // Array of days of the week for weekly recurrence
-const daysOfWeek = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'
+const daysOfWeek = [
+    'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'
 ];
 
 // Array of day numbers (1 to 31) for monthly recurrence
@@ -160,21 +161,73 @@ function formatWorksForFullCalendar(works) {
         return [];
     }
 
-    return works.map(work => ({
-        id: work.id,        // Identifiant unique du travail
-        title: work.title,  // Titre à afficher
-        start: work.date,   // Assurez-vous que "date" est au format ISO (YYYY-MM-DD)
-    }));
+    const dayMapping = {
+        "Su": 0, "Mo": 1, "Tu": 2, "We": 3, "Th": 4, "Fr": 5, "Sa": 6
+    };
+
+    let events = [];
+
+    works.forEach(work => {
+        if (!work.start_date || !work.frequency || !work.repeatsOn) {
+            return;
+        }
+
+        let startDate = new Date(work.start_date);
+        let totalVisits = work.totalVisits || 1;
+        let frequency = work.frequency.toLowerCase();
+        let repeatsOn = work.repeatsOn ?? [];
+
+        if (frequency === 'daily') {
+            for (let i = 0; i < totalVisits; i++) {
+                events.push({
+                    id: work.id,
+                    title: work.job_title + ' - ' + work.start_time,
+                    start: dayjs(startDate).add(i, 'day').format('YYYY-MM-DD'),
+                    end: dayjs(startDate).add(i, 'day').format('YYYY-MM-DD'),
+                    allDay: true,
+                });
+            }
+        } else if (frequency === 'weekly') {
+            for (let i = 0; i < totalVisits; i++) {
+                repeatsOn.forEach(day => {
+                    let dayIndex = dayMapping[day];
+                    let dayDiff = dayIndex - dayjs(startDate).day();
+                    let newStartDate = dayjs(startDate).add(i, 'week').add(dayDiff, 'day');
+
+                    events.push({
+                        id: work.id,
+                        title: work.job_title + ' - ' + work.start_time,
+                        start: newStartDate.format('YYYY-MM-DD'),
+                        allDay: true,
+                    });
+                });
+            }
+        } else if (frequency === 'monthly') {
+            for (let i = 0; i < totalVisits; i++) {
+                repeatsOn.forEach(day => {
+                    let newStartDate = dayjs(startDate).add(i, 'month').date(day);
+
+                    events.push({
+                        id: work.id,
+                        title: work.job_title + ' - ' + work.start_time,
+                        start: newStartDate.format('YYYY-MM-DD'),
+                        allDay: true,
+                    });
+                });
+            }
+        }
+    });
+
+    return events;
 }
 
 // Exemple d'utilisation :
 const events = formatWorksForFullCalendar(props.works);
 
-
 const calendarOptions = {
     plugins: [dayGridPlugin, timeGridPlugin, interactionPlugin],
     initialView: 'dayGridMonth', // Affiche la semaine en cours
-    weekends: false, // initial value
+    weekends: true, // initial value
     headerToolbar: {
         left: 'prev,next today',
         center: 'title',
@@ -221,6 +274,38 @@ const submit = () => {
         },
     });
 };
+
+const calendarRef = ref(null);
+
+const loadCalendar = () => {
+    nextTick(() => {
+        if (calendarRef.value) {
+            const calendarApi = calendarRef.value.getApi(); // Récupère FullCalendar
+            calendarApi.updateSize(); // 🔹 Met à jour la taille pour l'afficher correctement
+            console.log("Calendar reloaded");
+        }
+    });
+};
+
+onMounted(() => {
+    loadCalendar(); // Charge FullCalendar au montage du composant
+});
+
+
+document.addEventListener("DOMContentLoaded", function () {
+    document.querySelectorAll("[data-hs-tab]").forEach(tab => {
+        tab.addEventListener("click", function () {
+            let targetTab = document.querySelector(tab.getAttribute("data-hs-tab"));
+
+            if (targetTab && calendarRef.value) {
+                setTimeout(() => {
+                    loadCalendar(); // 🔹 Met à jour FullCalendar après l'affichage
+                }, 100);
+            }
+        });
+    });
+});
+
 </script>
 
 <template>
@@ -437,7 +522,7 @@ const submit = () => {
                                             </div>
                                             <!-- Deuxième div (2/3) -->
                                             <div class="col-span-2">
-                                                <FullCalendar :options="calendarOptions" />
+                                                <FullCalendar :options="calendarOptions"  ref="calendarRef"/>
                                             </div>
                                         </div>
 
@@ -598,7 +683,7 @@ const submit = () => {
                                         </div>
                                         <!-- Deuxième div (2/3) -->
                                         <div class="col-span-2">
-                                            <FullCalendar :options="calendarOptions" />
+                                            <FullCalendar :options="calendarOptions"   ref="calendarRef"/>
                                         </div>
                                     </div>
                                 </div>

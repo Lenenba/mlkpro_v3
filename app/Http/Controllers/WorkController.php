@@ -24,7 +24,7 @@ class WorkController extends Controller
     {
         $works = Work::with(['customer', 'products', 'ratings'])
             ->byUser(Auth::user()->id)
-            ->orderBy('work_date', 'desc')
+            ->orderBy('start_date', 'desc')
             ->paginate(10);
 
             return inertia('Work/Index', [
@@ -32,7 +32,7 @@ class WorkController extends Controller
                     return [
                         'id' => $work->id,
                         'title' => $work->number, // Remplacez par le champ utilisé pour le titre
-                        'date' => Carbon::parse($work->work_date)->format('Y-m-d'), // Format ISO
+                        'date' => Carbon::parse($work->start_date)->format('Y-m-d'), // Format ISO
                     ];
                 }),
             ]);
@@ -56,7 +56,7 @@ class WorkController extends Controller
      */
     public function show($id)
     {
-        $work = Work::with(['customer', 'invoice', 'products', 'ratings'])->findOrFail($id);
+        $work = Work::with(['customer'])->findOrFail($id);
 
         $this->authorize('view', $work);
         return inertia(

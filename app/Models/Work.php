@@ -39,6 +39,9 @@ class Work extends Model
         'total',
     ];
 
+    protected $casts = [
+        'repeatsOn' => 'array', // Cast `repeatsOn` to an array
+    ];
 
 
     protected static function boot()
