@@ -1,7 +1,7 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head } from '@inertiajs/vue3';
-import Barchart from '@/components/UI/Barchart.vue';
+// import Barchart from '@/components/UI/Barchart.vue';
 import Stat from '@/components/UI/Stat.vue';
 import Singlegrid from '@/components/UI/Singlegrid.vue';
 
@@ -60,7 +60,7 @@ const categoriesData = [
 
         <!-- Utilisation du composant AreaChart -->
         <div class="mt-6">
-            <Barchart :series="seriesData" :categories="categoriesData" />
+            <!-- <Barchart :series="seriesData" :categories="categoriesData" /> -->
         </div>
     </AuthenticatedLayout>
 </template>
