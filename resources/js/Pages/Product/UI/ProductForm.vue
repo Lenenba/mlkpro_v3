@@ -1,7 +1,7 @@
 <script setup>
 import { useForm } from '@inertiajs/vue3';
 import { ref, computed } from 'vue';
-import productCard from '@Pages/Product/UI/Card.vue';
+import productCard from '@/Components/UI/ProductCard2.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
 import FloatingNumberInput from '@/Components/FloatingNumberInput.vue';
