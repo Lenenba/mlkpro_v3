@@ -1,9 +1,9 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head } from '@inertiajs/vue3';
-// import Barchart from '@/components/UI/Barchart.vue';
-import Stat from '@/components/UI/Stat.vue';
-import Singlegrid from '@/components/UI/Singlegrid.vue';
+import LineChart from '@/Components/UI/LineChart.vue';
+import StatCard from '@/Components/UI/StatCard.vue';
+import Singlegrid from '@/Components/UI/OneGrid.vue';
 
 const props = defineProps({
     user: Object,
@@ -55,12 +55,12 @@ const categoriesData = [
             <Singlegrid borderColor="border-t-4 border-t-red-600">Create Jobs </Singlegrid>
         </div>
         <!-- Stats Grid -->
-        <Stat />
+        <StatCard />
         <!-- End Stats Grid -->
 
         <!-- Utilisation du composant AreaChart -->
         <div class="mt-6">
-            <!-- <Barchart :series="seriesData" :categories="categoriesData" /> -->
+             <LineChart :series="seriesData" :categories="categoriesData" />
         </div>
     </AuthenticatedLayout>
 </template>
