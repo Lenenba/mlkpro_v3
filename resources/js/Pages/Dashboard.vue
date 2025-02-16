@@ -2,8 +2,8 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head } from '@inertiajs/vue3';
 // import Barchart from '@/components/UI/Barchart.vue';
-import Stat from '@/components/UI/Stat.vue';
-import Singlegrid from '@/components/UI/Singlegrid.vue';
+// import Stat from '@/components/UI/Stat.vue';
+// import Singlegrid from '@/components/UI/Singlegrid.vue';
 
 const props = defineProps({
     user: Object,
@@ -41,7 +41,7 @@ const categoriesData = [
     <Head title="Dashboard" />
 
     <AuthenticatedLayout >
-        <div class="grid grid-cols-2 lg:grid-cols-4 gap-2 md:gap-3 lg:gap-5 ">
+        <!-- <div class="grid grid-cols-2 lg:grid-cols-4 gap-2 md:gap-3 lg:gap-5 ">
             <Singlegrid borderColor="border-t-4 border-t-cyan-600">
                 <template #image>
                     <img class="bg-gray-100 w-full h-48 object-cover rounded-sm dark:bg-neutral-800"
@@ -53,9 +53,9 @@ const categoriesData = [
             <Singlegrid borderColor="border-t-4 border-t-green-600">Create Quotes </Singlegrid>
             <Singlegrid borderColor="border-t-4 border-t-slate-600">Create Clients </Singlegrid>
             <Singlegrid borderColor="border-t-4 border-t-red-600">Create Jobs </Singlegrid>
-        </div>
+        </div> -->
         <!-- Stats Grid -->
-        <Stat />
+        <!-- <Stat /> -->
         <!-- End Stats Grid -->
 
         <!-- Utilisation du composant AreaChart -->
