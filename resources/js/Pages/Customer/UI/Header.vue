@@ -13,7 +13,7 @@ const props = defineProps({
             <!-- Heading -->
             <div class="flex items-center gap-x-4">
                 <span class="shrink-0 relative size-14">
-                    <img src="/customers/customer.png" alt=""
+                    <img :src="customer.logo_url || customer.logo" :alt="customer.company_name"
                         class="absolute inset-0 object-cover w-full h-full rounded-sm">
                     <span
                         class="absolute flex shrink-0 justify-center items-center size-6 overflow-hidden -bottom-1 -end-1 bg-white border border-transparent text-gray-800 dark:bg-neutral-700 dark:border-neutral-900 dark:text-neutral-200 rounded-sm">
@@ -28,7 +28,10 @@ const props = defineProps({
 
                 <div class="grow">
                     <p class="text-2xl md:text-3xl font-semibold text-gray-600 dark:text-white">
-                        {{ customer.company_name }}
+                        {{ customer.company_name || `${customer.first_name} ${customer.last_name}` }}
+                    </p>
+                    <p class="text-sm text-gray-500 dark:text-neutral-400">
+                        {{ customer.email }} | {{ customer.phone || 'No phone' }}
                     </p>
                 </div>
             </div>
@@ -38,10 +41,10 @@ const props = defineProps({
             <div class="flex flex-wrap gap-2">
 
                 <!-- Button -->
-                <a class="py-1 px-3 inline-flex items-center gap-x-1.5 text-sm font-medium rounded-sm border border-gray-100 bg-white text-gray-800   hover:bg-gray-50 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-gray-50 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800 dark:focus:bg-neutral-800"
-                    href="../../pro/payment/request.html">
-                    Edit
-                </a>
+                <Link :href="route('customer.index')"
+                    class="py-1 px-3 inline-flex items-center gap-x-1.5 text-sm font-medium rounded-sm border border-gray-100 bg-white text-gray-800 hover:bg-gray-50 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-gray-50 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800 dark:focus:bg-neutral-800">
+                    Back to list
+                </Link>
                 <!-- End Button -->
 
                 <!-- Button Group -->

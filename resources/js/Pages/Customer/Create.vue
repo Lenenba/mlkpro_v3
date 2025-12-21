@@ -49,7 +49,6 @@ const submit = () => {
     form[props.customer?.id ? 'put' : 'post'](route(routeName, routeParams), {
         onSuccess: () => {
             console.log('Customer saved successfully!');
-            emit('close');
         },
         onError: (errors) => {
             console.error('Validation errors:', errors);

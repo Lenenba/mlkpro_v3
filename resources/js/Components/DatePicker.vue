@@ -22,11 +22,15 @@
                scale-90
                translate-x-0.5
                -translate-y-1.5
-               text-gray-500 dark:peer-focus:text-neutral-500
-               peer-[not(:placeholder-shown)]:scale-90
-               peer-[not(:placeholder-shown)]:translate-x-0.5
-               peer-[not(:placeholder-shown)]:-translate-y-1.5
-               peer-[not(:placeholder-shown)]:text-gray-500 dark:peer-[not(:placeholder-shown)]:text-neutral-500 dark:text-neutral-500"
+               text-gray-500 dark:text-neutral-500
+               peer-placeholder-shown:scale-100
+               peer-placeholder-shown:translate-x-0
+               peer-placeholder-shown:translate-y-0
+               peer-placeholder-shown:text-gray-500 dark:peer-placeholder-shown:text-neutral-500
+               peer-focus:scale-90
+               peer-focus:translate-x-0.5
+               peer-focus:-translate-y-1.5
+               peer-focus:text-gray-500 dark:peer-focus:text-neutral-500"
       >
         {{ label }}
       </label>

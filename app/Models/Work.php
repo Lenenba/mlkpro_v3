@@ -9,16 +9,17 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Support\Carbon;
 
 class Work extends Model
 {
     /** @use HasFactory<\Database\Factories\WorkFactory> */
-    use HasFactory, GeneratesSequentialNumber ;
-
+    use HasFactory, GeneratesSequentialNumber;
 
     protected $fillable = [
         'user_id',
         'customer_id',
+        'quote_id',
         'job_title',
         'instructions',
         'start_date',
@@ -34,186 +35,194 @@ class Work extends Model
         'repeatsOn',
         'type',
         'category',
+        'status',
         'is_completed',
+        'completed_at',
         'subtotal',
         'total',
     ];
 
-    protected $casts = [
-        'repeatsOn' => 'array', // Cast `repeatsOn` to an array
+    public const STATUSES = [
+        'scheduled',
+        'in_progress',
+        'completed',
+        'cancelled',
     ];
 
+    protected $casts = [
+        'repeatsOn' => 'array',
+        'start_date' => 'date',
+        'end_date' => 'date',
+        'completed_at' => 'datetime',
+    ];
 
     protected static function boot()
     {
         parent::boot();
 
-         // Automatically generate the quote number before creating
-         static::creating(function ($work) {
-            // Ensure `customer_id` is set before generating the number
+        static::creating(function ($work) {
             if (!$work->customer_id) {
                 throw new \Exception('Customer ID is required to generate a work number.');
             }
 
-            // Generate the number scoped by customer and user
             $work->number = self::generateScopedNumber($work->customer_id, 'W');
         });
 
+        static::saving(function ($work) {
+            if ($work->status === 'completed') {
+                $work->is_completed = true;
+                $work->completed_at = $work->completed_at ?? now();
+                return;
+            }
+
+            if ($work->isDirty('status')) {
+                $work->is_completed = false;
+                $work->completed_at = null;
+            }
+        });
     }
 
-    /**
-     * Get the user that owns the work.
-     */
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }
 
-    /**
-     * Get the invoice that owns the work.
-     */
     public function invoice()
     {
         return $this->hasOne(Invoice::class);
     }
 
-    /**
-     * Get the company that owns the work.
-     */
+    public function quote(): BelongsTo
+    {
+        return $this->belongsTo(Quote::class);
+    }
+
     public function customer(): BelongsTo
     {
         return $this->belongsTo(Customer::class, 'customer_id');
     }
 
-    /**
-     * Get the products used in the work.
-     */
     public function products(): BelongsToMany
     {
-        return $this->belongsToMany(Product::class, 'product_works')->withPivot('quantity', 'price');
+        return $this->belongsToMany(Product::class, 'product_works')
+            ->withPivot(['quantity', 'price', 'description', 'total']);
     }
 
-    /**
-     * Get the ratings for the work.
-     */
     public function ratings(): HasMany
     {
         return $this->hasMany(WorkRating::class);
     }
 
-    /**
-     * Scope a query to order products by the most recent.
-     *
-     * @param \Illuminate\Database\Eloquent\Builder $query
-     * @return \Illuminate\Database\Eloquent\Builder
-     */
-    public function scopeCompleted($query): Builder
+    public function scopeCompleted(Builder $query): Builder
     {
         return $query->where('is_completed', true);
     }
 
-    /**
-     * Scope a query to only include customers of a given user.
-     *
-     * @param \Illuminate\Database\Eloquent\Builder $query
-     * @param int $userId
-     * @return \Illuminate\Database\Eloquent\Builder
-     */
-    public function scopeByUser($query, int $userId)
+    public function scopeByUser(Builder $query, int $userId): Builder
     {
         return $query->where('user_id', $userId);
     }
 
-    /**
-     * Scope a query to filter by one or more customer IDs.
-     *
-     * @param \Illuminate\Database\Eloquent\Builder $query
-     * @param array|int $customerIds
-     * @return \Illuminate\Database\Eloquent\Builder
-     */
-    public function scopeByCustomer($query, $customerIds)
+    public function scopeByCustomer(Builder $query, $customerIds): Builder
     {
-        // Vérifier si un seul ID est passé et le convertir en tableau
-        if (!is_array($customerIds)) {
-            $customerIds = [$customerIds];
-        }
+        $ids = is_array($customerIds) ? $customerIds : [$customerIds];
 
-        return $query->whereIn('customer_id', $customerIds);
+        return $query->whereIn('customer_id', $ids);
     }
 
-    /**
-     * Scope a query to filter by one or more customer IDs.
-     *
-     * @param \Illuminate\Database\Eloquent\Builder $query
-     * @param array|int $customerIds
-     * @return \Illuminate\Database\Eloquent\Builder
-     */
     public function scopeByCategory(Builder $query, string $category): Builder
     {
         return $query->where('category', $category);
     }
 
-    /**
-     * Scope a query to order products by the most recent.
-     *
-     * @param \Illuminate\Database\Eloquent\Builder $query
-     * @return \Illuminate\Database\Eloquent\Builder
-     */
     public function scopeMostRecent(Builder $query): Builder
     {
         return $query->orderByDesc('created_at');
     }
 
-    /**
-     * Scope a query to order products by the most recent.
-     *
-     * @param \Illuminate\Database\Eloquent\Builder $query
-     * @return \Illuminate\Database\Eloquent\Builder
-     */
-    public function scopeRecent($query, $days)
+    public function scopeRecent(Builder $query, int $days): Builder
     {
-        return $query->where('work_date', '>=', now()->subDays($days));
+        return $query->whereDate('start_date', '>=', now()->subDays($days));
     }
 
-    /**
-     * Get the duration of the work in hours.
-     *
-     * @return float
-     */
     public function getDurationInHours(): float
     {
-        return round($this->time_spent / 60, 2);
+        if (!$this->start_time || !$this->end_time) {
+            return 0.0;
+        }
+
+        $start = Carbon::createFromFormat('H:i:s', $this->start_time);
+        $end = Carbon::createFromFormat('H:i:s', $this->end_time);
+
+        if (!$start || !$end) {
+            return 0.0;
+        }
+
+        $minutes = $start->diffInMinutes($end, false);
+
+        return round(max(0, $minutes) / 60, 2);
     }
 
-    /**
-     * Get the formatted date of the work.
-     *
-     * @return string
-     */
     public function getFormattedDate(): string
     {
-        return $this->work_date->format('d M Y, H:i');
+        if (!$this->start_date) {
+            return '';
+        }
+
+        $date = $this->start_date instanceof Carbon
+            ? $this->start_date
+            : Carbon::parse($this->start_date);
+
+        $time = $this->start_time ?: '00:00:00';
+
+        return Carbon::parse($date->toDateString() . ' ' . $time)->format('d M Y, H:i');
     }
 
-    /**
-     * Scope a query to filter products based on given criteria.
-     *
-     * @param \Illuminate\Database\Eloquent\Builder $query
-     * @param array $filters
-     * @return \Illuminate\Database\Eloquent\Builder
-     */
     public function scopeFilter(Builder $query, array $filters): Builder
     {
-        return $query->when(
-            $filters['name'] ?? null,
-            fn($query, $name) => $query->where('type', 'like', '%' . $name . '%')
-        )->when(
-            $filters['status'] ?? null,
-            fn($query, $status) => $query->where('is_completed', $status  )
-        )->when(
-            $filters['month'] ?? null,
-            fn($query, $month) => $query->whereMonth('work_date', $month))
-        ;
-    }
+        $search = $filters['search'] ?? $filters['name'] ?? null;
 
+        return $query
+            ->when(
+                $search,
+                fn(Builder $query, $value) => $query->where(function (Builder $sub) use ($value) {
+                    $sub->where('job_title', 'like', '%' . $value . '%')
+                        ->orWhere('instructions', 'like', '%' . $value . '%')
+                        ->orWhere('type', 'like', '%' . $value . '%');
+                })
+            )
+            ->when(
+                $filters['status'] ?? null,
+                function (Builder $query, $status) {
+                    if (in_array($status, self::STATUSES, true)) {
+                        $query->where('status', $status);
+                        return;
+                    }
+
+                    $flag = filter_var($status, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+                    if ($flag !== null) {
+                        $query->where('is_completed', $flag);
+                    }
+                }
+            )
+            ->when(
+                $filters['customer_id'] ?? null,
+                function (Builder $query, $customerIds) {
+                    $ids = is_array($customerIds) ? $customerIds : [$customerIds];
+                    $query->whereIn('customer_id', $ids);
+                }
+            )
+            ->when(
+                $filters['start_from'] ?? null,
+                fn(Builder $query, $from) => $query->whereDate('start_date', '>=', $from)
+            )
+            ->when(
+                $filters['start_to'] ?? null,
+                fn(Builder $query, $to) => $query->whereDate('start_date', '<=', $to)
+            )
+            ->when(
+                $filters['month'] ?? null,
+                fn(Builder $query, $month) => $query->whereMonth('start_date', $month)
+            );
+    }
 }

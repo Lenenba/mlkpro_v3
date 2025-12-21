@@ -11,7 +11,7 @@ const props = defineProps({
 
 // Modèle réactif pour la valeur de l'entrée
 const model = defineModel({
-    type: [Number],
+    type: [Number, String],
     required: true,
 });
 
@@ -19,13 +19,19 @@ const model = defineModel({
 const input = ref(null);
 
 // Méthodes pour gérer l'incrémentation et la décrémentation
+const toNumber = (value) => {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+};
+
 const increment = () => {
-    model.value = (model.value || 0) + 1; // Incrémente la valeur
+    model.value = toNumber(model.value) + 1; // Incr‚mente la valeur
 };
 
 const decrement = () => {
-    if ((model.value || 0) > 0) {
-        model.value = model.value - 1; // Décrémente uniquement si la valeur est supérieure à 0
+    const currentValue = toNumber(model.value);
+    if (currentValue > 0) {
+        model.value = currentValue - 1; // D‚cr‚mente uniquement si la valeur est sup‚rieure … 0
     }
 };
 

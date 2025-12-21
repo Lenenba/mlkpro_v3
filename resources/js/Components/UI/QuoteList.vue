@@ -2,12 +2,40 @@
 import { Link, router } from '@inertiajs/vue3';
 
 const props = defineProps({
-    quotes: Object, // Liste des devis (quotes)
+    quotes: {
+        type: Array,
+        default: () => [],
+    },
 });
+
+const formatDate = (value) => {
+    if (!value) {
+        return '';
+    }
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+        return '';
+    }
+    return date.toLocaleDateString();
+};
+
+const statusClasses = (status) => {
+    switch (status) {
+        case 'accepted':
+            return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-400';
+        case 'declined':
+            return 'bg-red-100 text-red-800 dark:bg-red-500/10 dark:text-red-400';
+        case 'sent':
+            return 'bg-blue-100 text-blue-800 dark:bg-blue-500/10 dark:text-blue-400';
+        default:
+            return 'bg-gray-100 text-gray-800 dark:bg-neutral-700 dark:text-neutral-200';
+    }
+};
+
+const propertyForQuote = (quote) => quote.property || quote.customer?.properties?.[0] || null;
 
 const deleteQuote = async (quote) => {
     try {
-        // Appelle la méthode DELETE via Inertia
         router.delete(route('customer.quote.destroy', quote), {
             onSuccess: () => console.log('Quote deleted successfully!'),
             onError: (error) => console.error('Error deleting quote:', error),
@@ -19,7 +47,6 @@ const deleteQuote = async (quote) => {
 
 const sendEmail = async (quote) => {
     try {
-        // Appelle la méthode POST via Inertia
         router.post(route('quote.send.email', quote), {
             onSuccess: () => console.log('Email sent successfully!'),
             onError: (error) => console.error('Error sending email:', error),
@@ -28,8 +55,6 @@ const sendEmail = async (quote) => {
         console.error('Error sending email:', error);
     }
 };
-
-
 </script>
 
 <template>
@@ -50,10 +75,10 @@ const sendEmail = async (quote) => {
                     <div class="mt-1 lg:mt-2 -mx-0.5 sm:-mx-1">
                         <span
                             class="m-0.5 sm:m-1 p-1.5 sm:p-2 inline-block bg-gray-100 text-gray-800 text-xs rounded-sm dark:bg-neutral-700 dark:text-neutral-200">{{
-                                new Date(quote.created_at).toLocaleDateString() }}</span>
+                                formatDate(quote.created_at) }}</span>
                         <span
-                            class="m-0.5 sm:m-1 p-1.5 sm:p-2 inline-block bg-gray-100 text-gray-800 text-xs rounded-sm dark:bg-neutral-700 dark:text-neutral-200">{{
-                                quote.status }}</span>
+                            class="m-0.5 sm:m-1 p-1.5 sm:p-2 inline-block text-xs rounded-sm"
+                            :class="statusClasses(quote.status)">{{ quote.status }}</span>
                     </div>
                     <!-- End Badge Group -->
                 </div>
@@ -71,7 +96,7 @@ const sendEmail = async (quote) => {
                         </h4>
                         <div class="flex items-center -space-x-2">
                             <img v-for="product in quote.products" :key="product.id"
-                                class="shrink-0 size-7 rounded-smll" :src="product.image" alt="Avatar">
+                                class="shrink-0 size-7 rounded-smll" :src="product.image_url || product.image" alt="Avatar">
                         </div>
                     </div>
                     <!-- End Avatar Group -->
@@ -92,11 +117,14 @@ const sendEmail = async (quote) => {
                         <!-- Body -->
                         <div class="grow flex flex-col sm:flex-row sm:justify-between gap-y-2 sm:gap-x-3">
                             <div>
-                                <p class="text-sm font-medium text-gray-800 dark:text-neutral-200">
-                                    {{ quote.property.country }}
+                                <p v-if="propertyForQuote(quote)" class="text-sm font-medium text-gray-800 dark:text-neutral-200">
+                                    {{ propertyForQuote(quote).country }}
                                 </p>
-                                <p class="text-xs text-gray-500 dark:text-neutral-500">
-                                    {{ quote.property.street1 }}
+                                <p v-if="propertyForQuote(quote)" class="text-xs text-gray-500 dark:text-neutral-500">
+                                    {{ propertyForQuote(quote).street1 }}
+                                </p>
+                                <p v-else class="text-xs text-gray-500 dark:text-neutral-500">
+                                    No property
                                 </p>
                             </div>
                         </div>

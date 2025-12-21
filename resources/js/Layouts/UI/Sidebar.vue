@@ -90,6 +90,53 @@ const page = usePage()
                                 </LinkAncor>
                                 <!-- End Item -->
                                 <!-- Item -->
+                                <LinkAncor :label="'Quotes'" :href="'quote.index'"
+                                    :active="route().current('quote.index') || route().current('customer.quote.*')">
+                                    <template #icon>
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round"
+                                            class="lucide lucide-file-text">
+                                            <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2Z" />
+                                            <path d="M14 2v6h6" />
+                                            <path d="M8 13h8" />
+                                            <path d="M8 17h5" />
+                                        </svg>
+                                    </template>
+                                </LinkAncor>
+                                <!-- End Item -->
+                                <!-- Item -->
+                                <LinkAncor :label="'Jobs'" :href="'jobs.index'"
+                                    :active="route().current('jobs.index') || route().current('work.*')">
+                                    <template #icon>
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round"
+                                            class="lucide lucide-briefcase">
+                                            <rect width="20" height="14" x="2" y="7" rx="2" />
+                                            <path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2" />
+                                            <path d="M2 13h20" />
+                                        </svg>
+                                    </template>
+                                </LinkAncor>
+                                <!-- End Item -->
+                                <!-- Item -->
+                                <LinkAncor :label="'Invoices'" :href="'invoice.index'"
+                                    :active="route().current('invoice.*')">
+                                    <template #icon>
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round"
+                                            class="lucide lucide-receipt">
+                                            <path d="M4 2h16v20l-4-2-4 2-4-2-4 2V2z" />
+                                            <path d="M8 6h8" />
+                                            <path d="M8 10h8" />
+                                            <path d="M8 14h6" />
+                                        </svg>
+                                    </template>
+                                </LinkAncor>
+                                <!-- End Item -->
+                                <!-- Item -->
                                 <li>
                                     <!-- More Dropdown -->
                                     <div

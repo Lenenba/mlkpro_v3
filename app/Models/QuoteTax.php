@@ -11,7 +11,7 @@ class QuoteTax extends Model
 
     protected $fillable = [
         'quote_id',
-        'name',
+        'tax_id',
         'rate',
         'amount',
     ];
@@ -22,6 +22,14 @@ class QuoteTax extends Model
     public function quote()
     {
         return $this->belongsTo(Quote::class);
+    }
+
+    /**
+     * Relation : Cette taxe appartient a une taxe definie.
+     */
+    public function tax()
+    {
+        return $this->belongsTo(Tax::class);
     }
 
     /**

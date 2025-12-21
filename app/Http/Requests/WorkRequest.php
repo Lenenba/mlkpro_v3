@@ -39,9 +39,15 @@ class WorkRequest extends FormRequest
             'repeatsOn.*' => 'string',
             'type' => 'nullable|string',
             'category' => 'nullable|string',
+            'status' => 'nullable|string|in:scheduled,in_progress,completed,cancelled',
             'is_completed' => 'nullable|boolean',
             'subtotal' => 'nullable|numeric',
             'total' => 'nullable|numeric',
+            'products' => 'nullable|array',
+            'products.*.id' => 'required_with:products|integer|exists:products,id',
+            'products.*.quantity' => 'required_with:products|integer|min:1',
+            'products.*.price' => 'nullable|numeric|min:0',
+            'products.*.total' => 'nullable|numeric|min:0',
         ];
     }
 }

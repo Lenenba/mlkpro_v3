@@ -6,6 +6,7 @@ use App\Models\Product;
 use App\Utils\FileHandler;
 use Illuminate\Http\Request;
 use App\Models\ProductCategory;
+use App\Models\ActivityLog;
 use App\Http\Requests\ProductRequest;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\RedirectResponse;
@@ -139,6 +140,16 @@ class ProductController extends Controller
     }
 
     /**
+     * Return product categories for quick-create dialogs.
+     */
+    public function options()
+    {
+        return response()->json([
+            'categories' => ProductCategory::orderBy('name')->get(['id', 'name']),
+        ]);
+    }
+
+    /**
      * Show the form for creating a new product.
      */
     public function create()
@@ -254,6 +265,12 @@ class ProductController extends Controller
             'note' => $data['note'] ?? null,
         ]);
 
+        ActivityLog::record(Auth::user(), $product, 'stock_movement', [
+            'type' => $data['type'],
+            'quantity' => $delta,
+            'note' => $data['note'] ?? null,
+        ], 'Stock movement recorded');
+
         return redirect()->back()->with('success', 'Stock updated successfully.');
     }
 
@@ -367,6 +384,10 @@ class ProductController extends Controller
             ->with('category');
 
         $filename = 'products-' . now()->format('Ymd-His') . '.csv';
+
+        ActivityLog::record($request->user(), $request->user(), 'product_export', [
+            'filters' => $filters,
+        ], 'Products exported');
 
         return response()->streamDownload(function () use ($query) {
             $handle = fopen('php://output', 'w');
@@ -493,6 +514,10 @@ class ProductController extends Controller
         }
 
         fclose($handle);
+
+        ActivityLog::record($request->user(), $request->user(), 'product_import', [
+            'imported' => $imported,
+        ], 'Products imported');
 
         return redirect()->back()->with('success', "Imported {$imported} products.");
     }

@@ -10,7 +10,14 @@ class Property extends Model
     use HasFactory;
 
     protected $fillable = [
-        'customer_id', 'type', 'address', 'city', 'state', 'zip',
+        'customer_id',
+        'type',
+        'country',
+        'street1',
+        'street2',
+        'city',
+        'state',
+        'zip',
     ];
 
     public function customer()
@@ -26,10 +33,12 @@ class Property extends Model
     public function getFullAddressAttribute()
     {
         $parts = array_filter([
-            $this->address,
+            $this->street1,
+            $this->street2,
             $this->city,
             $this->state,
             $this->zip,
+            $this->country,
         ]);
 
         return implode(', ', $parts);

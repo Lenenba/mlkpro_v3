@@ -100,7 +100,8 @@ class Product extends Model
      */
     public function works(): BelongsToMany
     {
-        return $this->belongsToMany(Work::class, 'product_works')->withPivot('quantity', 'unit');
+        return $this->belongsToMany(Work::class, 'product_works')
+            ->withPivot(['quantity', 'price', 'description', 'total']);
     }
 
     public function images(): HasMany

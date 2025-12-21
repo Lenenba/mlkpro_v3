@@ -2,9 +2,8 @@
 
 namespace Database\Factories;
 
+use App\Models\Role;
 use Illuminate\Database\Eloquent\Factories\Factory;
-use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 /**
@@ -25,38 +24,13 @@ class UserFactory extends Factory
             'email_verified_at' => now(),
             'password' => 'password', // Default password
             'remember_token' => Str::random(10),
-            'role_id' => 4, // Default role (client)
-            'profile_picture' => $this->getRandomUnsplashPhoto(), // Photo from Unsplash
+            'role_id' => Role::query()->firstOrCreate(
+                ['name' => 'client'],
+                ['description' => 'Default client role']
+            )->id,
+            'profile_picture' => null,
             'phone_number' => $this->faker->e164PhoneNumber(), // Random phone number
         ];
-    }
-
-    /**
-     * Get a random photo URL from Unsplash.
-     *
-     * @return string|null
-     */
-    private function getRandomUnsplashPhoto(): ?string
-    {
-        try {
-            $response = Http::withHeaders([
-                'Authorization' => 'Client-ID ' . env('UNSPLASH_ACCESS_KEY'),
-            ])->get('https://api.unsplash.com/photos/random', [
-                'query' => 'person',
-                'orientation' => 'squarish',
-            ]);
-
-            if ($response->successful()) {
-                $data = $response->json();
-                return $data['urls']['regular'] ?? null; // Use the 'regular' size
-            }
-
-            Log::error('Unsplash API error: ' . $response->body());
-        } catch (\Exception $e) {
-            Log::error('Unsplash API exception: ' . $e->getMessage());
-        }
-
-        return null; // Default to null if an error occurs
     }
 
     /**
@@ -68,6 +42,16 @@ class UserFactory extends Factory
     {
         return $this->state(fn (array $attributes) => [
             'role_id' => $roleId,
+        ]);
+    }
+
+    /**
+     * Indicate that the user's email address should be unverified.
+     */
+    public function unverified(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'email_verified_at' => null,
         ]);
     }
 }

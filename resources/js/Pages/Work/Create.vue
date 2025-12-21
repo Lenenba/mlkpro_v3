@@ -37,29 +37,37 @@ const endOptions = [
     { id: 'After', name: 'After' },
 ];
 
+const statusOptions = [
+    { id: 'scheduled', name: 'Scheduled' },
+    { id: 'in_progress', name: 'In progress' },
+    { id: 'completed', name: 'Completed' },
+    { id: 'cancelled', name: 'Cancelled' },
+];
+
 const form = useForm({
-    customer_id: props.customer.id,
-    job_title: '',
-    instructions: '',
-    start_date: '',
-    end_date: '',
-    start_time: '',
-    end_time: '',
+    customer_id: props.work?.customer_id ?? props.customer?.id ?? null,
+    job_title: props.work?.job_title ?? '',
+    instructions: props.work?.instructions ?? '',
+    start_date: props.work?.start_date ?? '',
+    end_date: props.work?.end_date ?? '',
+    start_time: props.work?.start_time ?? '',
+    end_time: props.work?.end_time ?? '',
     products: props.work?.products?.map(product => ({
         id: product.id,
         name: product.name,
-        quantity: product.pivot.quantity,
-        price: product.pivot.price,
-        total: product.pivot.total,
+        quantity: product.pivot?.quantity ?? 1,
+        price: product.pivot?.price ?? product.price ?? 0,
+        total: product.pivot?.total ?? 0,
     })) || [{ id: null, name: '', quantity: 1, price: 0, total: 0 }],
-    later: false,
-    ends: 'Never',
-    frequencyNumber: 1,
-    frequency: 'Weekly',
-    totalVisits: 0,
-    repeatsOn: [],
-    subtotal: 0,
-    total: 0,
+    later: props.work?.later ?? false,
+    ends: props.work?.ends ?? 'Never',
+    frequencyNumber: props.work?.frequencyNumber ?? 1,
+    frequency: props.work?.frequency ?? 'Weekly',
+    totalVisits: props.work?.totalVisits ?? 0,
+    repeatsOn: props.work?.repeatsOn ?? [],
+    status: props.work?.status ?? 'scheduled',
+    subtotal: props.work?.subtotal ?? 0,
+    total: props.work?.total ?? 0,
 });
 
 const formatDate = (dateInput) => {
@@ -333,13 +341,13 @@ document.addEventListener("DOMContentLoaded", function () {
                                             Property address
                                         </p>
                                         <div class="text-xs text-gray-600 dark:text-neutral-400">
-                                            {{ customer.properties[0].country }}
+                                            {{ customer.properties?.[0]?.country ?? '-' }}
                                         </div>
                                         <div class="text-xs text-gray-600 dark:text-neutral-400">
-                                            {{ customer.properties[0].street1 }}
+                                            {{ customer.properties?.[0]?.street1 ?? '-' }}
                                         </div>
                                         <div class="text-xs text-gray-600 dark:text-neutral-400">
-                                            {{ customer.properties[0].state }} - {{ customer.properties[0].zip }}
+                                            {{ customer.properties?.[0]?.state ?? '-' }} - {{ customer.properties?.[0]?.zip ?? '-' }}
                                         </div>
                                     </div>
                                     <div class="lg:col-span-3">
@@ -378,6 +386,9 @@ document.addEventListener("DOMContentLoaded", function () {
                                                     d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z" />
                                             </svg>
                                         </span>
+                                    </div>
+                                    <div class="mt-4">
+                                        <FloatingSelect v-model="form.status" label="Status" :options="statusOptions" />
                                     </div>
                                     <div class="text-xs text-gray-600 dark:text-neutral-400 flex justify-between mt-5">
                                         <button type="button" disabled

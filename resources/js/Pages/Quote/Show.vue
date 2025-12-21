@@ -1,9 +1,14 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head } from '@inertiajs/vue3';
+import { computed } from 'vue';
 const props = defineProps({
     quote: Object,
 });
+
+const property = computed(() => props.quote.property || props.quote.customer?.properties?.[0] || null);
+const taxTotal = computed(() => (props.quote.taxes || []).reduce((sum, tax) => sum + Number(tax.amount || 0), 0));
+
 
 </script>
 
@@ -31,15 +36,19 @@ const props = defineProps({
                                         <p>
                                             Property address
                                         </p>
-                                        <div class="text-xs text-gray-600 dark:text-neutral-400">
-                                            {{ quote.customer.properties[0].country }}
+                                        <div v-if="property" class="space-y-1">
+                                            <div class="text-xs text-gray-600 dark:text-neutral-400">
+                                                {{ property.country }}
+                                            </div>
+                                            <div class="text-xs text-gray-600 dark:text-neutral-400">
+                                                {{ property.street1 }}
+                                            </div>
+                                            <div class="text-xs text-gray-600 dark:text-neutral-400">
+                                                {{ property.state }} - {{ property.zip }}
+                                            </div>
                                         </div>
-                                        <div class="text-xs text-gray-600 dark:text-neutral-400">
-                                            {{ quote.customer.properties[0].street1 }}
-                                        </div>
-                                        <div class="text-xs text-gray-600 dark:text-neutral-400">
-                                            {{ quote.customer.properties[0].state }} - {{ quote.customer.properties[0].zip
-                                            }}
+                                        <div v-else class="text-xs text-gray-600 dark:text-neutral-400">
+                                            No property selected.
                                         </div>
                                     </div>
                                     <div class="lg:col-span-3">
@@ -188,24 +197,20 @@ const props = defineProps({
                         </div>
                         <!-- End List Item -->
 
-                        <!-- Section des détails des taxes (affichée ou masquée) -->
-                        <div v-if="quote.subtotal < quote.total"
+                        <!-- Section des details des taxes -->
+                        <div v-if="quote.taxes && quote.taxes.length"
                             class="space-y-2 py-4 border-t border-gray-200 dark:border-neutral-700">
-                            <div class="flex justify-between">
-                                <p class="text-sm text-gray-500 dark:text-neutral-500">TPS (5%) :</p>
-                                <p class="text-sm text-gray-800 dark:text-neutral-200">${{ (quote.subtotal *
-                                    0.05).toFixed(2) }}</p>
-                            </div>
-                            <div class="flex justify-between">
-                                <p class="text-sm text-gray-500 dark:text-neutral-500">TVQ (9.975%) :</p>
-                                <p class="text-sm text-gray-800 dark:text-neutral-200">${{ (quote.subtotal *
-                                    0.09975).toFixed(2) }}</p>
+                            <div v-for="tax in quote.taxes" :key="tax.id" class="flex justify-between">
+                                <p class="text-sm text-gray-500 dark:text-neutral-500">
+                                    {{ tax.tax?.name || 'Tax' }} ({{ Number(tax.rate || 0).toFixed(2) }}%) :
+                                </p>
+                                <p class="text-sm text-gray-800 dark:text-neutral-200">
+                                    ${{ Number(tax.amount || 0).toFixed(2) }}
+                                </p>
                             </div>
                             <div class="flex justify-between font-bold">
                                 <p class="text-sm text-gray-800 dark:text-neutral-200">Total taxes :</p>
-                                <p class="text-sm text-gray-800 dark:text-neutral-200">${{ ((quote.subtotal * 0.05) +
-                                    (quote.subtotal * 0.09975)).toFixed(2)
-                                    }}</p>
+                                <p class="text-sm text-gray-800 dark:text-neutral-200">${{ taxTotal.toFixed(2) }}</p>
                             </div>
                         </div>
                         <!-- End List Item -->

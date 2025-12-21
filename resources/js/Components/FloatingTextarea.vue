@@ -34,16 +34,20 @@ defineExpose({ focus: () => input.value.focus() });
                             autofill:pb-2" placeholder="This is a textarea placeholder"
             data-hs-textarea-auto-height=""></textarea>
             <label
-            for="floating-input"
+            for="hs-textarea-autoheight-to-destroy"
             class="absolute top-0 left-0 p-4 h-full text-sm truncate pointer-events-none transition ease-in-out duration-100 origin-[0_0] dark:text-white peer-disabled:opacity-50 peer-disabled:pointer-events-none
                 scale-90
                 translate-x-0.5
                 -translate-y-1.5
-                text-gray-500 dark:peer-focus:text-neutral-500
-                peer-[not(:placeholder-shown)]:scale-90
-                peer-[not(:placeholder-shown)]:translate-x-0.5
-                peer-[not(:placeholder-shown)]:-translate-y-1.5
-                peer-[not(:placeholder-shown)]:text-gray-500 dark:peer-[not(:placeholder-shown)]:text-neutral-500 dark:text-neutral-500">
+                text-gray-500 dark:text-neutral-500
+                peer-placeholder-shown:scale-100
+                peer-placeholder-shown:translate-x-0
+                peer-placeholder-shown:translate-y-0
+                peer-placeholder-shown:text-gray-500 dark:peer-placeholder-shown:text-neutral-500
+                peer-focus:scale-90
+                peer-focus:translate-x-0.5
+                peer-focus:-translate-y-1.5
+                peer-focus:text-gray-500 dark:peer-focus:text-neutral-500">
             {{ label }}
         </label>
     </div>

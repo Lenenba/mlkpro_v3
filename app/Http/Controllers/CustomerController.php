@@ -6,10 +6,10 @@ use App\Models\Work;
 use Inertia\Inertia;
 use App\Models\Customer;
 use App\Utils\FileHandler;
+use App\Models\ActivityLog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use App\Http\Requests\CustomerRequest;
-use App\Http\Requests\PropertyRequest;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 
 class CustomerController extends Controller
@@ -24,24 +24,128 @@ class CustomerController extends Controller
     {
         $filters = $request->only([
             'name',
+            'city',
+            'country',
+            'has_quotes',
+            'has_works',
+            'created_from',
+            'created_to',
+            'sort',
+            'direction',
         ]);
         $userId = Auth::user()->id;
 
-        // Fetch customers with pagination
-        $customers = Customer::mostRecent()
-            ->with(['works' => function ($query) use ($userId) {
-                $query->where('user_id', $userId)->with('products');
-            }])
+        $baseQuery = Customer::query()
             ->filter($filters)
-            ->byUser($userId)
+            ->byUser($userId);
+
+        $sort = in_array($filters['sort'] ?? null, ['company_name', 'first_name', 'created_at', 'quotes_count', 'works_count'], true)
+            ? $filters['sort']
+            : 'created_at';
+        $direction = ($filters['direction'] ?? 'desc') === 'asc' ? 'asc' : 'desc';
+
+        // Fetch customers with pagination
+        $customers = (clone $baseQuery)
+            ->with(['properties'])
+            ->withCount([
+                'quotes as quotes_count' => fn($query) => $query->where('user_id', $userId),
+                'works as works_count' => fn($query) => $query->where('user_id', $userId),
+            ])
+            ->orderBy($sort, $direction)
             ->simplePaginate(12)
             ->withQueryString();
+
+        $totalCount = (clone $baseQuery)->count();
+        $recentThreshold = now()->subDays(30);
+        $newCount = (clone $baseQuery)
+            ->whereDate('created_at', '>=', $recentThreshold)
+            ->count();
+        $withQuotes = (clone $baseQuery)
+            ->whereHas('quotes', fn($query) => $query->where('user_id', $userId))
+            ->count();
+        $withWorks = (clone $baseQuery)
+            ->whereHas('works', fn($query) => $query->where('user_id', $userId))
+            ->count();
+        $activeCount = (clone $baseQuery)
+            ->where(function ($query) use ($userId, $recentThreshold) {
+                $query->whereHas('quotes', function ($sub) use ($userId, $recentThreshold) {
+                    $sub->where('user_id', $userId)
+                        ->where('created_at', '>=', $recentThreshold);
+                })->orWhereHas('works', function ($sub) use ($userId, $recentThreshold) {
+                    $sub->where('user_id', $userId)
+                        ->where('created_at', '>=', $recentThreshold);
+                });
+            })
+            ->count();
+
+        $stats = [
+            'total' => $totalCount,
+            'new' => $newCount,
+            'with_quotes' => $withQuotes,
+            'with_works' => $withWorks,
+            'active' => $activeCount,
+        ];
+
+        $topCustomers = (clone $baseQuery)
+            ->withCount([
+                'quotes as quotes_count' => fn($query) => $query->where('user_id', $userId),
+                'works as works_count' => fn($query) => $query->where('user_id', $userId),
+            ])
+            ->orderByDesc('quotes_count')
+            ->orderByDesc('works_count')
+            ->limit(5)
+            ->get(['id', 'company_name', 'first_name', 'last_name', 'logo', 'header_image']);
 
         // Pass data to Inertia view
         return Inertia::render('Customer/Index', [
             'customers' => $customers,
             'filters' => $filters,
-            'count' => Customer::count(),
+            'count' => $totalCount,
+            'stats' => $stats,
+            'topCustomers' => $topCustomers,
+        ]);
+    }
+
+    /**
+     * Return customers and properties for quick-create dialogs.
+     */
+    public function options(Request $request)
+    {
+        $userId = $request->user()->id;
+
+        $customers = Customer::byUser($userId)
+            ->with(['properties' => function ($query) {
+                $query->orderBy('id');
+            }])
+            ->orderBy('company_name')
+            ->orderBy('last_name')
+            ->get(['id', 'company_name', 'first_name', 'last_name', 'email', 'phone']);
+
+        $payload = $customers->map(function ($customer) {
+            return [
+                'id' => $customer->id,
+                'company_name' => $customer->company_name,
+                'first_name' => $customer->first_name,
+                'last_name' => $customer->last_name,
+                'email' => $customer->email,
+                'phone' => $customer->phone,
+                'properties' => $customer->properties->map(function ($property) {
+                    return [
+                        'id' => $property->id,
+                        'type' => $property->type,
+                        'street1' => $property->street1,
+                        'street2' => $property->street2,
+                        'city' => $property->city,
+                        'state' => $property->state,
+                        'zip' => $property->zip,
+                        'country' => $property->country,
+                    ];
+                })->values(),
+            ];
+        })->values();
+
+        return response()->json([
+            'customers' => $payload,
         ]);
     }
 
@@ -101,24 +205,72 @@ class CustomerController extends Controller
     {
 
         $validated = $request->validated();
-        // $validated['logo'] = FileHandler::handleImageUpload($request, 'logo', 'customers/customer.png');
+        $validated['logo'] = FileHandler::handleImageUpload('customers', $request, 'logo', 'customers/customer.png');
+        $validated['header_image'] = FileHandler::handleImageUpload('customers', $request, 'header_image', 'customers/customer.png');
         $customer = $request->user()->customers()->create($validated);
-
-        $customer->description = $validated['description'];
-        // $customer->logo = $validated['logo'];
-        $customer->logo = 'customers/customer.png';
-        $customer->save();
 
         // Add properties if provided
         if (!empty($validated['properties'])) {
-            $property = $customer->properties()->create($validated['properties']);
-            $property->country = $validated['properties']['country'];
-            $property->street1 = $validated['properties']['street1'];
-            $property->save();
+            $customer->properties()->create($validated['properties']);
         }
 
+        ActivityLog::record($request->user(), $customer, 'created', [
+            'company_name' => $customer->company_name,
+            'email' => $customer->email,
+        ], 'Customer created');
 
         return redirect()->route('customer.index')->with('success', 'Customer created successfully.');
+    }
+
+    /**
+     * Store a customer from quick-create dialogs.
+     */
+    public function storeQuick(CustomerRequest $request)
+    {
+        $validated = $request->validated();
+
+        $customer = $request->user()->customers()->create($validated);
+
+        $property = null;
+        if (!empty($validated['properties'])) {
+            $propertyPayload = $validated['properties'];
+            $propertyPayload['type'] = $propertyPayload['type'] ?? 'physical';
+            if (!empty($propertyPayload['city'])) {
+                $property = $customer->properties()->create($propertyPayload);
+            }
+        }
+
+        ActivityLog::record($request->user(), $customer, 'created', [
+            'company_name' => $customer->company_name,
+            'email' => $customer->email,
+        ], 'Customer created');
+
+        $propertyData = [];
+        if ($property) {
+            $propertyData[] = [
+                'id' => $property->id,
+                'type' => $property->type,
+                'street1' => $property->street1,
+                'street2' => $property->street2,
+                'city' => $property->city,
+                'state' => $property->state,
+                'zip' => $property->zip,
+                'country' => $property->country,
+            ];
+        }
+
+        return response()->json([
+            'customer' => [
+                'id' => $customer->id,
+                'company_name' => $customer->company_name,
+                'first_name' => $customer->first_name,
+                'last_name' => $customer->last_name,
+                'email' => $customer->email,
+                'phone' => $customer->phone,
+            ],
+            'property_id' => $property?->id,
+            'properties' => $propertyData,
+        ], 201);
     }
 
     /**
@@ -129,27 +281,46 @@ class CustomerController extends Controller
         $this->authorize('update', $customer);
 
         $validated = $request->validated();
-        $validated['logo'] = FileHandler::handleImageUpload($request, 'logo', 'customers/customer.png');
-        $validated['header_image'] = FileHandler::handleImageUpload($request, 'header_image', 'customers/customer.png');
+        $validated['logo'] = FileHandler::handleImageUpload(
+            'customers',
+            $request,
+            'logo',
+            'customers/customer.png',
+            $customer->logo
+        );
+        $validated['header_image'] = FileHandler::handleImageUpload(
+            'customers',
+            $request,
+            'header_image',
+            'customers/customer.png',
+            $customer->header_image
+        );
 
-        $customer->header_image = $validated['header_image'];
-        $customer->logo = $validated['logo'];
         $customer->update($validated);
 
-        return redirect()->route('customer.index')->with('success', 'customer updated successfully.');
+        ActivityLog::record($request->user(), $customer, 'updated', [
+            'company_name' => $customer->company_name,
+            'email' => $customer->email,
+        ], 'Customer updated');
+
+        return redirect()->route('customer.index')->with('success', 'Customer updated successfully.');
     }
 
     /**
      * Remove the specified customer from the database.
      */
-    public function destroy(Customer $customer)
+    public function destroy(Request $request, Customer $customer)
     {
         $this->authorize('delete', $customer);
 
         FileHandler::deleteFile($customer->logo, 'customers/customer.png');
         FileHandler::deleteFile($customer->header_image, 'customers/customer.png');
+        ActivityLog::record($request->user(), $customer, 'deleted', [
+            'company_name' => $customer->company_name,
+            'email' => $customer->email,
+        ], 'Customer deleted');
         $customer->delete();
 
-        return redirect()->route('customer.index')->with('success', 'customer deleted successfully.');
+        return redirect()->route('customer.index')->with('success', 'Customer deleted successfully.');
     }
 }

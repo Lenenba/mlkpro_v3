@@ -1,6 +1,6 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
-import { Head, Link, useForm } from '@inertiajs/vue3';
+import { Head, useForm } from '@inertiajs/vue3';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingTextarea from '@/Components/FloatingTextarea.vue';
 import FloatingNumberMiniInput from '@/Components/FloatingNumberMiniInput.vue';
@@ -11,13 +11,15 @@ const props = defineProps({
     customer: Object,
     quote: Object,
     lastQuotesNumber: String,
+    taxes: Array,
 });
 
 const form = useForm({
-    // Pré-remplissage pour création ou édition
+    // Pre-remplissage pour creation ou edition
     customer_id: props.quote?.customer_id || props.customer.id,
     property_id: props.quote?.property_id || props.customer.properties[0]?.id,
     job_title: props.quote?.job_title || '',
+    status: props.quote?.status || 'draft',
     notes: props.quote?.notes || '',
     messages: props.quote?.messages || '',
     product: props.quote?.products?.map(product => ({
@@ -27,12 +29,22 @@ const form = useForm({
         price: product.pivot.price,
         total: product.pivot.total,
     })) || [{ id: null, name: '', quantity: 1, price: 0, total: 0 }],
-    subtotal: props.quote?.subtotal || 0,
-    discount: props.quote?.discount || 0,
-    tax: props.quote?.tax || 0,
-    total: props.quote?.total || 0,
-    initial_deposit: props.quote?.initial_deposit || 0,
+    subtotal: Number(props.quote?.subtotal || 0),
+    total: Number(props.quote?.total || 0),
+    initial_deposit: Number(props.quote?.initial_deposit || 0),
+    taxes: props.quote?.taxes?.map(tax => tax.tax_id) || [],
 });
+
+const properties = computed(() => props.customer?.properties || []);
+const selectedProperty = computed(() => {
+    if (!properties.value.length) {
+        return null;
+    }
+    return properties.value.find((property) => property.id === form.property_id) || properties.value[0];
+});
+
+const availableTaxes = computed(() => props.taxes || []);
+
 
 // Ajouter une nouvelle ligne de produit
 const addNewLine = () => {
@@ -77,72 +89,79 @@ const selectProduct = (product, index) => {
 watch(
     () => form.product,
     (newProducts) => {
-        // Mise à jour des totaux par produit
         newProducts.forEach(product => {
-            product.total = product.quantity * product.price;
+            const quantity = Number(product.quantity) || 0;
+            const price = Number(product.price) || 0;
+            product.total = Math.round(quantity * price * 100) / 100;
         });
 
-        // Calcul du sous-total
-        form.subtotal = newProducts.reduce((acc, product) => acc + product.total, 0);
+        const subtotal = newProducts.reduce((acc, product) => acc + Number(product.total || 0), 0);
+        form.subtotal = Math.round(subtotal * 100) / 100;
     },
     { deep: true }
 );
 
-// Taxes (TPS/TVQ) et totaux
-const showTaxDetails = ref(false);
+// Taxes et totaux
+const showTaxDetails = ref(form.taxes.length > 0);
 
-// Vérification initiale pour déterminer si les détails des taxes doivent être affichés
-if (props.quote) {
-    const subtotal = parseFloat(props.quote.subtotal || 0);
-    const total = parseFloat(props.quote.total || 0);
+const taxAmount = (tax) => {
+    const subtotal = Number(form.subtotal) || 0;
+    const rate = Number(tax.rate || 0);
+    return Math.round(subtotal * (rate / 100) * 100) / 100;
+};
 
-    // Si le total est différent du sous-total, cela signifie que des taxes sont incluses
-    showTaxDetails.value = subtotal !== total;
-}
+const selectedTaxes = computed(() =>
+    availableTaxes.value.filter((tax) => form.taxes.includes(tax.id))
+);
 
-const taxRates = { tps: 0.05, tvq: 0.09975 };
-const taxes = computed(() => ({
-    tps: form.subtotal * taxRates.tps,
-    tvq: form.subtotal * taxRates.tvq,
-    totalTaxes: form.subtotal * (taxRates.tps + taxRates.tvq),
-}));
+const totalTaxAmount = computed(() =>
+    selectedTaxes.value.reduce((sum, tax) => sum + taxAmount(tax), 0)
+);
+
 const totalWithTaxes = computed(() => {
-    const subtotal = Number(form.subtotal) || 0; // Assurez-vous que le sous-total est un nombre
-    const totalTaxes = showTaxDetails.value ? taxes?.value.totalTaxes || 0 : 0; // Assurez-vous que les taxes sont valides
-    return parseFloat((subtotal + totalTaxes).toFixed(2)); // Retourne un nombre avec 2 décimales
+    const subtotal = Number(form.subtotal) || 0;
+    const taxTotal = showTaxDetails.value ? totalTaxAmount.value : 0;
+    return Math.round((subtotal + taxTotal) * 100) / 100;
 });
 
+watch(totalWithTaxes, (value) => {
+    form.total = value;
+}, { immediate: true });
 
-// Activer/désactiver les détails des taxes
+// Activer/desactiver les details des taxes
 const toggleTaxDetails = () => {
     showTaxDetails.value = !showTaxDetails.value;
-    form.total = totalWithTaxes.value;
+    if (!showTaxDetails.value) {
+        form.taxes = [];
+        return;
+    }
+    if (!form.taxes.length) {
+        form.taxes = availableTaxes.value.map((tax) => tax.id);
+    }
 };
 
 // Gestion des acomptes
-const showDepositInput = ref(false);
+const showDepositInput = ref(Number(form.initial_deposit) > 0);
 
-// Vérification initiale pour déterminer si les détails des taxes doivent être affichés
-if (props.quote) {
-    showDepositInput.value =  props.quote.initial_deposit > 0? true : false;
-}
-
-const depositValue = ref(form.initial_deposit || 0);
-const minimumDeposit = computed(() => (form.total * 0.15).toFixed(2));
+const minimumDeposit = computed(() => (totalWithTaxes.value * 0.15).toFixed(2));
 const validateDeposit = () => {
-    if (depositValue.value < minimumDeposit.value) {
-        depositValue.value = minimumDeposit.value;
+    const minValue = Number(minimumDeposit.value) || 0;
+    if (Number(form.initial_deposit) < minValue) {
+        form.initial_deposit = minValue;
     }
 };
 const toggleDepositInput = () => {
     showDepositInput.value = true;
-    depositValue.value = minimumDeposit.value;
+    form.initial_deposit = Number(minimumDeposit.value) || 0;
 };
 
 // Soumettre le formulaire
 const submit = () => {
     const routeName = props.quote?.id ? 'customer.quote.update' : 'customer.quote.store';
     const routeParams = props.quote?.id ? { quote: props.quote.id } : { customer: props.customer.id };
+
+    form.total = totalWithTaxes.value;
+
 
     form[props.quote?.id ? 'put' : 'post'](route(routeName, routeParams), {
         onSuccess: () => {
@@ -174,19 +193,34 @@ const submit = () => {
                         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                             <div class="col-span-2 space-x-2">
                                 <FloatingInput v-model="form.job_title" label="Job title" class="mb-2" />
+                                <div class="mb-3">
+                                    <label class="text-xs text-gray-500 dark:text-neutral-400">Property</label>
+                                    <select v-model.number="form.property_id"
+                                        class="mt-1 w-full py-2 px-3 bg-white border border-gray-200 rounded-sm text-sm text-gray-700 focus:border-green-500 focus:ring-green-500 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
+                                        <option v-if="!customer.properties || !customer.properties.length" value="">No property</option>
+                                        <option v-for="property in customer.properties" :key="property.id" :value="property.id">
+                                            {{ property.street1 }}{{ property.city ? ', ' + property.city : '' }}
+                                        </option>
+                                    </select>
+                                </div>
                                 <div class="flex flex-row space-x-6">
                                     <div class="lg:col-span-3">
                                         <p>
                                             Property address
                                         </p>
-                                        <div class="text-xs text-gray-600 dark:text-neutral-400">
-                                            {{ customer.properties[0].country }}
+                                        <div v-if="selectedProperty" class="space-y-1">
+                                            <div class="text-xs text-gray-600 dark:text-neutral-400">
+                                                {{ selectedProperty.country }}
+                                            </div>
+                                            <div class="text-xs text-gray-600 dark:text-neutral-400">
+                                                {{ selectedProperty.street1 }}
+                                            </div>
+                                            <div class="text-xs text-gray-600 dark:text-neutral-400">
+                                                {{ selectedProperty.state }} - {{ selectedProperty.zip }}
+                                            </div>
                                         </div>
-                                        <div class="text-xs text-gray-600 dark:text-neutral-400">
-                                            {{ customer.properties[0].street1 }}
-                                        </div>
-                                        <div class="text-xs text-gray-600 dark:text-neutral-400">
-                                            {{ customer.properties[0].state }} - {{ customer.properties[0].zip }}
+                                        <div v-else class="text-xs text-gray-600 dark:text-neutral-400">
+                                            No property selected.
                                         </div>
                                     </div>
                                     <div class="lg:col-span-3">
@@ -214,6 +248,16 @@ const submit = () => {
                                     <div class="text-xs text-gray-600 dark:text-neutral-400 flex justify-between">
                                         <span> Quote :</span>
                                         <span>{{ lastQuotesNumber|| quote?.number }} </span>
+                                    </div>
+                                    <div class="text-xs text-gray-600 dark:text-neutral-400 flex justify-between mt-2">
+                                        <span>Status :</span>
+                                        <select v-model="form.status"
+                                            class="py-1 px-2 text-xs bg-white border border-gray-200 rounded-sm text-gray-700 focus:border-green-500 focus:ring-green-500 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
+                                            <option value="draft">Draft</option>
+                                            <option value="sent">Sent</option>
+                                            <option value="accepted">Accepted</option>
+                                            <option value="declined">Declined</option>
+                                        </select>
                                     </div>
                                     <div class="text-xs text-gray-600 dark:text-neutral-400 flex justify-between">
                                         <span> Rate opportunity :</span>
@@ -401,21 +445,28 @@ const submit = () => {
                                     </div>
                                 </div>
                             </div>
-                            <!-- Section des détails des taxes (affichée ou masquée) -->
+                            <!-- Section des details des taxes (affichee ou masquee) -->
                             <div v-if="showTaxDetails"
-                                class="space-y-2 py-4 border-t border-gray-200 dark:border-neutral-700">
-                                <div class="flex justify-between">
-                                    <p class="text-sm text-gray-500 dark:text-neutral-500">TPS (5%) :</p>
-                                    <p class="text-sm text-gray-800 dark:text-neutral-200">${{ taxes.tps.toFixed(2) }}</p>
+                                class="space-y-3 py-4 border-t border-gray-200 dark:border-neutral-700">
+                                <div v-if="!availableTaxes.length" class="text-xs text-gray-500 dark:text-neutral-500">
+                                    No taxes configured.
                                 </div>
-                                <div class="flex justify-between">
-                                    <p class="text-sm text-gray-500 dark:text-neutral-500">TVQ (9.975%) :</p>
-                                    <p class="text-sm text-gray-800 dark:text-neutral-200">${{ taxes.tvq.toFixed(2) }}</p>
+                                <div v-else class="space-y-2">
+                                    <label v-for="tax in availableTaxes" :key="tax.id"
+                                        class="flex items-center justify-between gap-3 text-sm text-gray-700 dark:text-neutral-200">
+                                        <span class="flex items-center gap-2">
+                                            <input type="checkbox" :value="tax.id" v-model="form.taxes"
+                                                class="size-4 rounded border-gray-300 text-green-600 focus:ring-green-500 dark:bg-neutral-900 dark:border-neutral-600" />
+                                            {{ tax.name }} ({{ tax.rate }}%)
+                                        </span>
+                                        <span class="text-sm text-gray-800 dark:text-neutral-200">
+                                            ${{ taxAmount(tax).toFixed(2) }}
+                                        </span>
+                                    </label>
                                 </div>
                                 <div class="flex justify-between font-bold">
                                     <p class="text-sm text-gray-800 dark:text-neutral-200">Total taxes :</p>
-                                    <p class="text-sm text-gray-800 dark:text-neutral-200">${{ taxes.totalTaxes.toFixed(2)
-                                        }}</p>
+                                    <p class="text-sm text-gray-800 dark:text-neutral-200">${{ totalTaxAmount.toFixed(2) }}</p>
                                 </div>
                             </div>
                             <!-- End List Item -->

@@ -8,6 +8,7 @@ use App\Traits\GeneratesSequentialNumber;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Support\Facades\Storage;
 
 class Customer extends Model
 {
@@ -28,6 +29,7 @@ class Customer extends Model
         'phone',
         'description',
         'logo',
+        'header_image',
         'refer_by',
         'salutation',
         'billing_same_as_physical',
@@ -40,8 +42,15 @@ class Customer extends Model
      */
     protected $hidden = [
         'user_id', // Optionnel si vous ne souhaitez pas exposer l'ID de l'utilisateur
-        'created_at',
-        'updated_at',
+    ];
+
+    protected $casts = [
+        'billing_same_as_physical' => 'boolean',
+    ];
+
+    protected $appends = [
+        'logo_url',
+        'header_image_url',
     ];
 
     protected static function boot()
@@ -126,6 +135,28 @@ class Customer extends Model
         return $this->works()->count();
     }
 
+    public function getLogoUrlAttribute(): ?string
+    {
+        $path = $this->logo ?: 'customers/customer.png';
+
+        if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
+            return $path;
+        }
+
+        return Storage::url($path);
+    }
+
+    public function getHeaderImageUrlAttribute(): ?string
+    {
+        $path = $this->header_image ?: 'customers/customer.png';
+
+        if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
+            return $path;
+        }
+
+        return Storage::url($path);
+    }
+
     /**
      * Scope a query to filter products based on given criteria.
      *
@@ -135,15 +166,58 @@ class Customer extends Model
      */
     public function scopeFilter(Builder $query, array $filters): Builder
     {
-        return $query->when(
-            $filters['name'] ?? null,
-            fn($query, $name) => $query->where('company_name', 'like', '%' . $name . '%')
-        )->when(
-            $filters['name'] ?? null,
-            fn($query, $name) => $query->where('first_name', 'like', '%' . $name . '%')
-        )->when(
-            $filters['name'] ?? null,
-            fn($query, $name) => $query->where('last_name', 'like', '%' . $name . '%')
-        );
+        return $query
+            ->when(
+                $filters['name'] ?? null,
+                function (Builder $query, $name) {
+                    $query->where(function (Builder $query) use ($name) {
+                        $query->where('company_name', 'like', '%' . $name . '%')
+                            ->orWhere('first_name', 'like', '%' . $name . '%')
+                            ->orWhere('last_name', 'like', '%' . $name . '%')
+                            ->orWhere('email', 'like', '%' . $name . '%')
+                            ->orWhere('phone', 'like', '%' . $name . '%');
+                    });
+                }
+            )
+            ->when(
+                $filters['city'] ?? null,
+                fn(Builder $query, $city) => $query->whereHas('properties', function (Builder $sub) use ($city) {
+                    $sub->where('city', 'like', '%' . $city . '%');
+                })
+            )
+            ->when(
+                $filters['country'] ?? null,
+                fn(Builder $query, $country) => $query->whereHas('properties', function (Builder $sub) use ($country) {
+                    $sub->where('country', 'like', '%' . $country . '%');
+                })
+            )
+            ->when(
+                array_key_exists('has_quotes', $filters) && $filters['has_quotes'] !== '',
+                function (Builder $query) use ($filters) {
+                    $hasQuotes = filter_var($filters['has_quotes'], FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+                    if ($hasQuotes === null) {
+                        return;
+                    }
+                    $hasQuotes ? $query->whereHas('quotes') : $query->whereDoesntHave('quotes');
+                }
+            )
+            ->when(
+                array_key_exists('has_works', $filters) && $filters['has_works'] !== '',
+                function (Builder $query) use ($filters) {
+                    $hasWorks = filter_var($filters['has_works'], FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+                    if ($hasWorks === null) {
+                        return;
+                    }
+                    $hasWorks ? $query->whereHas('works') : $query->whereDoesntHave('works');
+                }
+            )
+            ->when(
+                $filters['created_from'] ?? null,
+                fn(Builder $query, $createdFrom) => $query->whereDate('created_at', '>=', $createdFrom)
+            )
+            ->when(
+                $filters['created_to'] ?? null,
+                fn(Builder $query, $createdTo) => $query->whereDate('created_at', '<=', $createdTo)
+            );
     }
 }
