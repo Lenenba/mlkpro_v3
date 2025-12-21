@@ -1,8 +1,9 @@
 <script setup>
-import { watch } from 'vue';
-import { Link, useForm } from '@inertiajs/vue3';
+import { computed, ref, watch } from 'vue';
+import { Link, router, useForm } from '@inertiajs/vue3';
 import ProductForm from './ProductForm.vue';
 import Modal from '@/Components/UI/Modal.vue';
+import Checkbox from '@/Components/Checkbox.vue';
 
 const props = defineProps({
     filters: Object,
@@ -24,257 +25,607 @@ const props = defineProps({
     },
 });
 
+const normalizeArray = (value) => {
+    if (Array.isArray(value)) {
+        return value;
+    }
+    if (value === null || value === undefined || value === '') {
+        return [];
+    }
+    return [value];
+};
+
 const filterForm = useForm({
-    name: props.filters.name ?? "",
+    name: props.filters?.name ?? '',
+    category_ids: normalizeArray(props.filters?.category_ids ?? props.filters?.category_id ?? []),
+    stock_status: props.filters?.stock_status ?? '',
+    price_min: props.filters?.price_min ?? '',
+    price_max: props.filters?.price_max ?? '',
+    stock_min: props.filters?.stock_min ?? '',
+    stock_max: props.filters?.stock_max ?? '',
+    has_image: props.filters?.has_image ?? '',
+    created_from: props.filters?.created_from ?? '',
+    created_to: props.filters?.created_to ?? '',
+    status: props.filters?.status ?? '',
+    sort: props.filters?.sort ?? 'created_at',
+    direction: props.filters?.direction ?? 'desc',
 });
 
+const showAdvanced = ref(false);
 
-// Fonction de filtrage avec un délai pour éviter des appels excessifs
+const filterPayload = () => {
+    const payload = {
+        name: filterForm.name,
+        category_ids: filterForm.category_ids,
+        stock_status: filterForm.stock_status,
+        price_min: filterForm.price_min,
+        price_max: filterForm.price_max,
+        stock_min: filterForm.stock_min,
+        stock_max: filterForm.stock_max,
+        has_image: filterForm.has_image,
+        created_from: filterForm.created_from,
+        created_to: filterForm.created_to,
+        status: filterForm.status,
+        sort: filterForm.sort,
+        direction: filterForm.direction,
+    };
+
+    Object.keys(payload).forEach((key) => {
+        const value = payload[key];
+        if (value === '' || value === null || value === undefined) {
+            delete payload[key];
+            return;
+        }
+        if (Array.isArray(value) && value.length === 0) {
+            delete payload[key];
+        }
+    });
+
+    return payload;
+};
+
 let filterTimeout;
-const autoFilter = (routeName) => {
+const autoFilter = () => {
     if (filterTimeout) {
         clearTimeout(filterTimeout);
     }
     filterTimeout = setTimeout(() => {
-        filterForm.get(route(routeName), {
+        router.get(route('product.index'), filterPayload(), {
             preserveState: true,
             preserveScroll: true,
+            replace: true,
         });
-    }, 300); // Délai de 300ms pour éviter les appels excessifs
+    }, 300);
 };
 
-// Réinitialiser le formulaire lorsque la recherche est vide
-watch(() => filterForm.name, (newValue) => {
-    if (!newValue) {
-        filterForm.name = "";
-        autoFilter('product.index');
+watch(() => filterForm.name, () => {
+    autoFilter();
+});
+
+watch(() => filterForm.category_ids, () => {
+    autoFilter();
+}, { deep: true });
+
+watch(() => [
+    filterForm.stock_status,
+    filterForm.price_min,
+    filterForm.price_max,
+    filterForm.stock_min,
+    filterForm.stock_max,
+    filterForm.has_image,
+    filterForm.created_from,
+    filterForm.created_to,
+    filterForm.status,
+    filterForm.sort,
+    filterForm.direction,
+], () => {
+    autoFilter();
+});
+
+const clearFilters = () => {
+    filterForm.name = '';
+    filterForm.category_ids = [];
+    filterForm.stock_status = '';
+    filterForm.price_min = '';
+    filterForm.price_max = '';
+    filterForm.stock_min = '';
+    filterForm.stock_max = '';
+    filterForm.has_image = '';
+    filterForm.created_from = '';
+    filterForm.created_to = '';
+    filterForm.status = '';
+    filterForm.sort = 'created_at';
+    filterForm.direction = 'desc';
+    autoFilter();
+};
+
+const exportUrl = computed(() => route('product.export', filterPayload()));
+
+const formatCurrency = (value) =>
+    `$${Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+const formatNumber = (value) =>
+    Number(value || 0).toLocaleString(undefined, { maximumFractionDigits: 0 });
+
+const isLowStock = (product) =>
+    product.stock > 0 && product.stock <= product.minimum_stock;
+
+const isOutOfStock = (product) =>
+    product.stock <= 0;
+
+const toggleSort = (column) => {
+    if (filterForm.sort === column) {
+        filterForm.direction = filterForm.direction === 'asc' ? 'desc' : 'asc';
+        return;
+    }
+    filterForm.sort = column;
+    filterForm.direction = 'asc';
+};
+
+const selected = ref([]);
+const selectAllRef = ref(null);
+const allSelected = computed(() =>
+    props.products.data.length > 0 && selected.value.length === props.products.data.length
+);
+const someSelected = computed(() =>
+    selected.value.length > 0 && !allSelected.value
+);
+
+watch(() => props.products.data, () => {
+    selected.value = [];
+}, { deep: true });
+
+watch([allSelected, someSelected], () => {
+    if (selectAllRef.value) {
+        selectAllRef.value.indeterminate = someSelected.value;
     }
 });
 
+const toggleAll = (event) => {
+    selected.value = event.target.checked
+        ? props.products.data.map((product) => product.id)
+        : [];
+};
+
+const bulkForm = useForm({
+    action: '',
+    ids: [],
+});
+
+const runBulk = (action) => {
+    if (!selected.value.length) {
+        return;
+    }
+    if (action === 'delete' && !confirm('Delete selected products?')) {
+        return;
+    }
+    bulkForm.action = action;
+    bulkForm.ids = selected.value;
+    bulkForm.post(route('product.bulk'), {
+        preserveScroll: true,
+        onSuccess: () => {
+            selected.value = [];
+        },
+    });
+};
+
+const editingId = ref(null);
+const inlineForm = useForm({
+    price: 0,
+    stock: 0,
+    minimum_stock: 0,
+});
+
+const startInlineEdit = (product) => {
+    editingId.value = product.id;
+    inlineForm.price = product.price ?? 0;
+    inlineForm.stock = product.stock ?? 0;
+    inlineForm.minimum_stock = product.minimum_stock ?? 0;
+};
+
+const cancelInlineEdit = () => {
+    editingId.value = null;
+    inlineForm.reset();
+};
+
+const saveInlineEdit = () => {
+    if (!editingId.value) {
+        return;
+    }
+    inlineForm.put(route('product.quick-update', editingId.value), {
+        preserveScroll: true,
+        onSuccess: () => {
+            editingId.value = null;
+        },
+    });
+};
+
+const destroyProduct = (product) => {
+    if (!confirm(`Delete "${product.name}"?`)) {
+        return;
+    }
+
+    router.delete(route('product.destroy', product.id), {
+        preserveScroll: true,
+    });
+};
+
+const toggleArchive = (product) => {
+    const nextState = !product.is_active;
+    const label = nextState ? 'Restore' : 'Archive';
+    if (!confirm(`${label} "${product.name}"?`)) {
+        return;
+    }
+    router.put(route('product.quick-update', product.id), {
+        is_active: nextState,
+    }, {
+        preserveScroll: true,
+    });
+};
+
+const duplicateProduct = (product) => {
+    router.post(route('product.duplicate', product.id), {}, {
+        preserveScroll: true,
+    });
+};
+
+const activeProduct = ref(null);
+const adjustForm = useForm({
+    type: 'in',
+    quantity: 1,
+    note: '',
+});
+
+const openAdjust = (product) => {
+    activeProduct.value = product;
+    adjustForm.reset();
+    if (window.HSOverlay) {
+        window.HSOverlay.open('#hs-pro-stock-adjust');
+    }
+};
+
+const submitAdjust = () => {
+    if (!activeProduct.value) {
+        return;
+    }
+    adjustForm.post(route('product.adjust-stock', activeProduct.value.id), {
+        preserveScroll: true,
+        onSuccess: () => {
+            if (window.HSOverlay) {
+                window.HSOverlay.close('#hs-pro-stock-adjust');
+            }
+        },
+    });
+};
+
+const formatDate = (value) => {
+    if (!value) {
+        return '';
+    }
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+        return '';
+    }
+    return date.toLocaleDateString();
+};
+
+const importForm = useForm({
+    file: null,
+});
+
+const submitImport = () => {
+    if (!importForm.file) {
+        return;
+    }
+    importForm.post(route('product.import'), {
+        forceFormData: true,
+        preserveScroll: true,
+        onSuccess: () => {
+            importForm.reset();
+            if (window.HSOverlay) {
+                window.HSOverlay.close('#hs-pro-import');
+            }
+        },
+    });
+};
 </script>
 
 <template>
-    <!-- Orders Table Card -->
     <div
-        class="p-5 space-y-4 flex flex-col border-t-4 border-t-green-600 bg-white border border-stone-200  shadow-sm rounded-xs dark:bg-neutral-800 dark:border-neutral-700">
+        class="p-5 space-y-4 flex flex-col border-t-4 border-t-green-600 bg-white border border-stone-200 shadow-sm rounded-xs dark:bg-neutral-800 dark:border-neutral-700">
 
-        <!-- Filter Group -->
-        <div class="grid md:grid-cols-2 gap-y-2 md:gap-y-0 md:gap-x-5">
-            <div>
-                <!-- Search Input -->
-                <div class="relative">
-                    <div class="absolute inset-y-0 start-0 flex items-center pointer-events-none z-20 ps-3.5">
-                        <svg class="shrink-0 size-4 text-stone-500 dark:text-neutral-400"
-                            xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
-                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <circle cx="11" cy="11" r="8" />
-                            <path d="m21 21-4.3-4.3" />
-                        </svg>
-                    </div>
-                    <input type="text" v-model="filterForm.name"
-                        @input="filterForm.name.length >= 1 ? autoFilter('product.index') : null"
-                        class="py-[7px] ps-10 pe-8 block w-full bg-stone-100 border-transparent rounded-lg text-sm placeholder:text-stone-500 focus:border-green-500 focus:ring-green-600 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-700 dark:border-transparent dark:text-neutral-400 dark:placeholder:text-neutral-400 dark:focus:ring-neutral-600"
-                        placeholder="Search orders">
-                    <div class="hidden absolute inset-y-0 end-0 flex items-center pointer-events-none z-20 pe-1">
-                        <button type="button"
-                            class="inline-flex shrink-0 justify-center items-center size-6 rounded-full text-gray-500 hover:text-green-600 focus:outline-none focus:text-green-600 dark:text-neutral-500 dark:hover:text-green-500 dark:focus:text-green-500"
-                            aria-label="Close">
-                            <span class="sr-only">Close</span>
-                            <svg class="shrink-0 size-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
-                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                                stroke-linecap="round" stroke-linejoin="round">
-                                <circle cx="12" cy="12" r="10" />
-                                <path d="m15 9-6 6" />
-                                <path d="m9 9 6 6" />
+        <div class="space-y-3">
+            <div class="flex flex-col lg:flex-row lg:items-center gap-2">
+                <div class="flex-1">
+                    <div class="relative">
+                        <div class="absolute inset-y-0 start-0 flex items-center pointer-events-none z-20 ps-3.5">
+                            <svg class="shrink-0 size-4 text-stone-500 dark:text-neutral-400"
+                                xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="11" cy="11" r="8" />
+                                <path d="m21 21-4.3-4.3" />
                             </svg>
-                        </button>
+                        </div>
+                        <input type="text" v-model="filterForm.name"
+                            class="py-[7px] ps-10 pe-8 block w-full bg-stone-100 border-transparent rounded-lg text-sm placeholder:text-stone-500 focus:border-green-500 focus:ring-green-600 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-700 dark:border-transparent dark:text-neutral-200 dark:placeholder:text-neutral-400 dark:focus:ring-neutral-600"
+                            placeholder="Search products, SKU, or barcode">
                     </div>
                 </div>
-                <!-- End Search Input -->
-            </div>
-            <!-- End Col -->
 
-            <div class="flex md:justify-end items-center gap-x-2">
-
-                <!-- Filter Dropdown -->
-                <div class="hs-dropdown [--auto-close:inside] [--placement:bottom-right] relative inline-flex">
-                    <!-- Filter Button -->
-                    <button id="hs-pro-dupfind" type="button"
-                        class="py-2 px-2.5 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-100 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700"
-                        aria-haspopup="menu" aria-expanded="false" aria-label="Dropdown">
-                        <svg class="shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
-                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                            stroke-linecap="round" stroke-linejoin="round">
-                            <line x1="21" x2="14" y1="4" y2="4" />
-                            <line x1="10" x2="3" y1="4" y2="4" />
-                            <line x1="21" x2="12" y1="12" y2="12" />
-                            <line x1="8" x2="3" y1="12" y2="12" />
-                            <line x1="21" x2="16" y1="20" y2="20" />
-                            <line x1="12" x2="3" y1="20" y2="20" />
-                            <line x1="14" x2="14" y1="2" y2="6" />
-                            <line x1="8" x2="8" y1="10" y2="14" />
-                            <line x1="16" x2="16" y1="18" y2="22" />
-                        </svg>
-                        Filter
-                        <span
-                            class="font-medium text-[10px] py-0.5 px-[5px] bg-stone-800 text-white leading-3 rounded-full dark:bg-neutral-500">
-                            7
-                        </span>
+                <div class="flex flex-wrap items-center gap-2 justify-end">
+                    <button type="button" @click="showAdvanced = !showAdvanced"
+                        class="py-2 px-2.5 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700">
+                        Filters
                     </button>
-                    <!-- End Filter Button -->
+                    <a :href="exportUrl"
+                        class="py-2 px-2.5 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700">
+                        Export CSV
+                    </a>
+                    <button type="button" data-hs-overlay="#hs-pro-import"
+                        class="py-2 px-2.5 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700">
+                        Import CSV
+                    </button>
+                    <button type="button"
+                        class="py-2 px-2.5 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:ring-2 focus:ring-green-500"
+                        data-hs-overlay="#hs-pro-dasadpm">
+                        <svg class="hidden sm:block shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" width="24"
+                            height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                            stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M5 12h14" />
+                            <path d="M12 5v14" />
+                        </svg>
+                        Add product
+                    </button>
+                </div>
+            </div>
 
-                    <!-- Dropdown -->
-                    <div class="hs-dropdown-menu hs-dropdown-open:opacity-100 w-44 transition-[opacity,margin] duration opacity-0 hidden z-10 bg-white rounded-xl shadow-[0_10px_40px_10px_rgba(0,0,0,0.08)] dark:shadow-[0_10px_40px_10px_rgba(0,0,0,0.2)] dark:bg-neutral-900"
-                        role="menu" aria-orientation="vertical" aria-labelledby="hs-pro-dupfind">
-                        <div class="p-1">
-                            <div
-                                class="flex items-center gap-x-3 py-1.5 px-2 cursor-pointer rounded-lg hover:bg-stone-100 dark:hover:bg-neutral-800 dark:focus:outline-none dark:focus:ring-1 dark:focus:ring-neutral-600">
-                                <input type="checkbox"
-                                    class="shrink-0 border-stone-300 rounded text-green-600 focus:ring-green-600 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-800 dark:border-neutral-600 dark:checked:bg-green-500 dark:checked:border-green-500 dark:focus:ring-offset-neutral-800"
-                                    id="hs-pro-dupfindch2" checked>
-                                <label for="hs-pro-dupfindch2"
-                                    class="flex flex-1 items-center gap-x-3 cursor-pointer text-[13px] text-stone-800 dark:text-neutral-300">
-                                    Order
-                                </label>
+            <div class="flex flex-wrap items-center justify-between gap-2">
+                <div class="flex flex-wrap items-center gap-2">
+                    <select v-model="filterForm.stock_status"
+                        class="py-2 ps-3 pe-8 bg-stone-100 border-transparent rounded-lg text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-700 dark:text-neutral-200 dark:focus:ring-neutral-600">
+                        <option value="">All stock</option>
+                        <option value="in">In stock</option>
+                        <option value="low">Low stock</option>
+                        <option value="out">Out of stock</option>
+                    </select>
+
+                    <select v-model="filterForm.status"
+                        class="py-2 ps-3 pe-8 bg-stone-100 border-transparent rounded-lg text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-700 dark:text-neutral-200 dark:focus:ring-neutral-600">
+                        <option value="">All status</option>
+                        <option value="active">Active</option>
+                        <option value="archived">Archived</option>
+                    </select>
+
+                    <select v-model="filterForm.has_image"
+                        class="py-2 ps-3 pe-8 bg-stone-100 border-transparent rounded-lg text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-700 dark:text-neutral-200 dark:focus:ring-neutral-600">
+                        <option value="">All media</option>
+                        <option value="1">With image</option>
+                        <option value="0">Without image</option>
+                    </select>
+
+                    <button type="button" @click="clearFilters"
+                        class="py-2 px-3 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700">
+                        Clear
+                    </button>
+                </div>
+
+                <div v-if="selected.length" class="flex items-center gap-2">
+                    <span class="text-xs text-stone-500 dark:text-neutral-400">
+                        {{ selected.length }} selected
+                    </span>
+                    <div class="hs-dropdown [--auto-close:inside] [--placement:bottom-right] relative inline-flex">
+                        <button type="button"
+                            class="py-2 px-2.5 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700"
+                            aria-haspopup="menu" aria-expanded="false" aria-label="Dropdown">
+                            Bulk actions
+                        </button>
+                        <div class="hs-dropdown-menu hs-dropdown-open:opacity-100 w-36 transition-[opacity,margin] duration opacity-0 hidden z-10 bg-white rounded-xl shadow-[0_10px_40px_10px_rgba(0,0,0,0.08)] dark:shadow-[0_10px_40px_10px_rgba(0,0,0,0.2)] dark:bg-neutral-900"
+                            role="menu" aria-orientation="vertical">
+                            <div class="p-1">
+                                <button type="button" @click="runBulk('archive')"
+                                    class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-lg text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
+                                    Archive
+                                </button>
+                                <button type="button" @click="runBulk('restore')"
+                                    class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-lg text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
+                                    Restore
+                                </button>
+                                <div class="my-1 border-t border-stone-200 dark:border-neutral-800"></div>
+                                <button type="button" @click="runBulk('delete')"
+                                    class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-lg text-[13px] text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-neutral-800">
+                                    Delete
+                                </button>
                             </div>
                         </div>
                     </div>
-                    <!-- End Dropdown -->
-
-                    <div class="flex justify-end items-center gap-x-2">
-                        <!-- Button -->
-                        <button type="button"
-                            class="py-2 px-2.5 ml-4 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:ring-2 focus:ring-green-500"
-                            data-hs-overlay="#hs-pro-dasadpm">
-                            <svg class="hidden sm:block shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" width="24"
-                                height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                                stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M5 12h14" />
-                                <path d="M12 5v14" />
-                            </svg>
-                            Add product
-                        </button>
-                        <!-- End Button -->
-                    </div>
                 </div>
-                <!-- End Filter Dropdown -->
             </div>
-            <!-- End Col -->
+
+            <div v-if="showAdvanced" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-2">
+                <input type="number" step="0.01" v-model="filterForm.price_min"
+                    class="py-2 px-3 bg-stone-100 border-transparent rounded-lg text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-700 dark:text-neutral-200"
+                    placeholder="Price min">
+                <input type="number" step="0.01" v-model="filterForm.price_max"
+                    class="py-2 px-3 bg-stone-100 border-transparent rounded-lg text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-700 dark:text-neutral-200"
+                    placeholder="Price max">
+                <input type="number" step="1" v-model="filterForm.stock_min"
+                    class="py-2 px-3 bg-stone-100 border-transparent rounded-lg text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-700 dark:text-neutral-200"
+                    placeholder="Stock min">
+                <input type="number" step="1" v-model="filterForm.stock_max"
+                    class="py-2 px-3 bg-stone-100 border-transparent rounded-lg text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-700 dark:text-neutral-200"
+                    placeholder="Stock max">
+                <input type="date" v-model="filterForm.created_from"
+                    class="py-2 px-3 bg-stone-100 border-transparent rounded-lg text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-700 dark:text-neutral-200"
+                    placeholder="Created from">
+                <input type="date" v-model="filterForm.created_to"
+                    class="py-2 px-3 bg-stone-100 border-transparent rounded-lg text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-700 dark:text-neutral-200"
+                    placeholder="Created to">
+                <div class="md:col-span-2 lg:col-span-6">
+                    <select multiple v-model="filterForm.category_ids"
+                        class="w-full py-2 ps-3 pe-8 bg-stone-100 border-transparent rounded-lg text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-700 dark:text-neutral-200">
+                        <option v-for="category in categories" :key="category.id" :value="category.id">
+                            {{ category.name }}
+                        </option>
+                    </select>
+                </div>
+            </div>
         </div>
-        <!-- End Filter Group -->
 
-
-        <!-- Table -->
         <table class="min-w-full divide-y divide-stone-200 dark:divide-neutral-700">
             <thead>
                 <tr class="border-t border-stone-200 dark:border-neutral-700">
-                    <th scope="col" class="min-w-[230px] ">
-                        <!-- Sort Dropdown -->
-                        <div class="hs-dropdown relative inline-flex w-full cursor-pointer">
-                            <button id="hs-pro-eptprs" type="button"
-                                class="px-5 py-2.5 text-start w-full flex items-center gap-x-1 text-sm font-normal text-stone-500 focus:outline-none focus:bg-stone-100 dark:text-neutral-500 dark:focus:bg-neutral-700"
-                                aria-haspopup="menu" aria-expanded="false" aria-label="Dropdown">
-                                Name
-                            </button>
-                        </div>
-                        <!-- End Sort Dropdown -->
+                    <th scope="col" class="px-4 py-2 w-10">
+                        <input ref="selectAllRef" type="checkbox" :checked="allSelected" @change="toggleAll"
+                            class="rounded border-gray-300 text-green-600 shadow-sm focus:ring-green-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-green-400 dark:focus:ring-green-400" />
                     </th>
-
+                    <th scope="col" class="min-w-[230px]">
+                        <button type="button" @click="toggleSort('name')"
+                            class="px-5 py-2.5 text-start w-full flex items-center gap-x-1 text-sm font-normal text-stone-500 hover:text-stone-700 focus:outline-none dark:text-neutral-500 dark:hover:text-neutral-300">
+                            Name
+                            <svg v-if="filterForm.sort === 'name'" class="size-3" xmlns="http://www.w3.org/2000/svg"
+                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round"
+                                :class="filterForm.direction === 'asc' ? 'rotate-180' : ''">
+                                <path d="m6 9 6 6 6-6" />
+                            </svg>
+                        </button>
+                    </th>
+                    <th scope="col" class="min-w-32">
+                        <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
+                            State
+                        </div>
+                    </th>
                     <th scope="col" class="min-w-36">
-                        <!-- Sort Dropdown -->
-                        <div class="hs-dropdown relative inline-flex w-full cursor-pointer">
-                            <button id="hs-pro-eptsts" type="button"
-                                class="px-5 py-2.5 text-start w-full flex items-center gap-x-1 text-sm font-normal text-stone-500 focus:outline-none focus:bg-stone-100 dark:text-neutral-500 dark:focus:bg-neutral-700"
-                                aria-haspopup="menu" aria-expanded="false" aria-label="Dropdown">
-                                Status
-                            </button>
+                        <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
+                            Stock status
                         </div>
-                        <!-- End Sort Dropdown -->
                     </th>
-
                     <th scope="col" class="min-w-36">
-                        <!-- Sort Dropdown -->
-                        <div class="hs-dropdown relative inline-flex w-full cursor-pointer">
-                            <button id="hs-pro-eptcts" type="button"
-                                class="px-5 py-2.5 text-start w-full flex items-center gap-x-1 text-sm font-normal text-stone-500 focus:outline-none focus:bg-stone-100 dark:text-neutral-500 dark:focus:bg-neutral-700"
-                                aria-haspopup="menu" aria-expanded="false" aria-label="Dropdown">
-                                Price
-                            </button>
-                        </div>
-                        <!-- End Sort Dropdown -->
+                        <button type="button" @click="toggleSort('price')"
+                            class="px-5 py-2.5 text-start w-full flex items-center gap-x-1 text-sm font-normal text-stone-500 hover:text-stone-700 focus:outline-none dark:text-neutral-500 dark:hover:text-neutral-300">
+                            Price
+                            <svg v-if="filterForm.sort === 'price'" class="size-3" xmlns="http://www.w3.org/2000/svg"
+                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round"
+                                :class="filterForm.direction === 'asc' ? 'rotate-180' : ''">
+                                <path d="m6 9 6 6 6-6" />
+                            </svg>
+                        </button>
                     </th>
-
-                    <th scope="col" class="min-w-[165px] ">
-                        <!-- Sort Dropdown -->
-                        <div class="hs-dropdown relative inline-flex w-full cursor-pointer">
-                            <button id="hs-pro-eptpms" type="button"
-                                class="px-5 py-2.5 text-start w-full flex items-center gap-x-1 text-sm font-normal text-stone-500 focus:outline-none focus:bg-stone-100 dark:text-neutral-500 dark:focus:bg-neutral-700"
-                                aria-haspopup="menu" aria-expanded="false" aria-label="Dropdown">
-                                Category
-                            </button>
+                    <th scope="col" class="min-w-[165px]">
+                        <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
+                            Category
                         </div>
-                        <!-- End Sort Dropdown -->
                     </th>
-
-                    <th scope="col" class="min-w-[155px] ">
-                        <!-- Sort Dropdown -->
-                        <div class="hs-dropdown relative inline-flex w-full cursor-pointer">
-                            <button id="hs-pro-eptpss" type="button"
-                                class="px-5 py-2.5 text-start w-full flex items-center gap-x-1 text-sm font-normal text-stone-500 focus:outline-none focus:bg-stone-100 dark:text-neutral-500 dark:focus:bg-neutral-700"
-                                aria-haspopup="menu" aria-expanded="false" aria-label="Dropdown">
-                                Stock
-                            </button>
-                        </div>
-                        <!-- End Sort Dropdown -->
+                    <th scope="col" class="min-w-[155px]">
+                        <button type="button" @click="toggleSort('stock')"
+                            class="px-5 py-2.5 text-start w-full flex items-center gap-x-1 text-sm font-normal text-stone-500 hover:text-stone-700 focus:outline-none dark:text-neutral-500 dark:hover:text-neutral-300">
+                            Stock
+                            <svg v-if="filterForm.sort === 'stock'" class="size-3" xmlns="http://www.w3.org/2000/svg"
+                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round"
+                                :class="filterForm.direction === 'asc' ? 'rotate-180' : ''">
+                                <path d="m6 9 6 6 6-6" />
+                            </svg>
+                        </button>
                     </th>
                     <th scope="col"></th>
                 </tr>
             </thead>
 
             <tbody class="divide-y divide-stone-200 dark:divide-neutral-700">
-                <tr v-for="product in products.data" :key="product.id" :value="product.id">
-                    <td class="size-px whitespace-nowrap px-4 py-1">
+                <tr v-for="product in products.data" :key="product.id"
+                    :class="{
+                        'bg-amber-50/40 dark:bg-amber-500/5': isLowStock(product),
+                        'bg-red-50/40 dark:bg-red-500/5': isOutOfStock(product),
+                    }">
+                    <td class="size-px whitespace-nowrap px-4 py-2">
+                        <Checkbox v-model:checked="selected" :value="product.id" />
+                    </td>
+                    <td class="size-px whitespace-nowrap px-4 py-2">
                         <div class="w-full flex items-center gap-x-3">
-                            <img class="shrink-0 size-10 rounded-md" :src="product.image" alt="Product Image">
+                            <img class="shrink-0 size-10 rounded-md" :src="product.image_url || product.image"
+                                alt="Product Image">
                             <div class="flex flex-col">
-                                <span class="text-sm text-stone-600 dark:text-neutral-400">
+                                <span class="text-sm text-stone-600 dark:text-neutral-300">
                                     {{ product.name }}
                                 </span>
                                 <span class="text-xs text-stone-500 dark:text-neutral-500">
-                                    {{ product.number }}
+                                    {{ product.sku || product.number || 'No SKU' }}
                                 </span>
                             </div>
                         </div>
                     </td>
-                    <td class="size-px whitespace-nowrap px-4 py-1">
-                        <span v-if="product.minimum_stock < product.stock"
+                    <td class="size-px whitespace-nowrap px-4 py-2">
+                        <span v-if="product.is_active"
+                            class="py-1.5 px-2 inline-flex items-center gap-x-1.5 text-xs font-medium bg-emerald-100 text-emerald-800 rounded-full dark:bg-emerald-500/10 dark:text-emerald-400">
+                            Active
+                        </span>
+                        <span v-else
+                            class="py-1.5 px-2 inline-flex items-center gap-x-1.5 text-xs font-medium bg-stone-200 text-stone-700 rounded-full dark:bg-neutral-700 dark:text-neutral-300">
+                            Archived
+                        </span>
+                    </td>
+                    <td class="size-px whitespace-nowrap px-4 py-2">
+                        <span v-if="isOutOfStock(product)"
+                            class="py-1.5 px-2 inline-flex items-center gap-x-1.5 text-xs font-medium bg-red-100 text-red-800 rounded-full dark:bg-red-500/10 dark:text-red-500">
+                            Out of stock
+                        </span>
+                        <span v-else-if="!isLowStock(product)"
                             class="py-1.5 px-2 inline-flex items-center gap-x-1.5 text-xs font-medium bg-green-100 text-green-800 rounded-full dark:bg-green-500/10 dark:text-green-500">
                             In stock
                         </span>
                         <span v-else
-                            class="py-1.5 px-2 inline-flex items-center gap-x-1.5 text-xs font-medium bg-red-100 text-red-800 rounded-full dark:bg-red-500/10 dark:text-red-500">
+                            class="py-1.5 px-2 inline-flex items-center gap-x-1.5 text-xs font-medium bg-amber-100 text-amber-800 rounded-full dark:bg-amber-500/10 dark:text-amber-400">
                             Low stock
                         </span>
                     </td>
-                    <td class="size-px whitespace-nowrap px-4 py-1">
-                        <span class="text-sm text-stone-600 dark:text-neutral-400">
-                            {{ product.price }} $
+                    <td class="size-px whitespace-nowrap px-4 py-2">
+                        <div v-if="editingId === product.id" class="flex items-center gap-2">
+                            <input type="number" step="0.01" v-model="inlineForm.price"
+                                class="w-28 py-1.5 px-2 bg-white border border-stone-200 rounded-lg text-xs text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200">
+                        </div>
+                        <span v-else class="text-sm text-stone-600 dark:text-neutral-400">
+                            {{ formatCurrency(product.price) }}
                         </span>
                     </td>
-                    <td class="size-px whitespace-nowrap px-4 py-1">
+                    <td class="size-px whitespace-nowrap px-4 py-2">
                         <span class="inline-flex items-center gap-x-1 text-sm text-stone-600 dark:text-neutral-400">
-                            {{ product.category.name }}
+                            {{ product.category ? product.category.name : 'Uncategorized' }}
                         </span>
                     </td>
-                    <td class="size-px whitespace-nowrap px-4 py-1">
-                        <span
-                            class="py-1.5 px-2 inline-flex items-center gap-x-1.5 text-xs font-medium bg-stone-100 text-stone-800 rounded-full dark:bg-neutral-700 dark:text-neutral-200">
-                            {{ product.stock }}
-                        </span>
+                    <td class="size-px whitespace-nowrap px-4 py-2">
+                        <div v-if="editingId === product.id" class="space-y-2">
+                            <input type="number" step="1" v-model="inlineForm.stock"
+                                class="w-24 py-1.5 px-2 bg-white border border-stone-200 rounded-lg text-xs text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200"
+                                placeholder="Stock">
+                            <input type="number" step="1" v-model="inlineForm.minimum_stock"
+                                class="w-24 py-1.5 px-2 bg-white border border-stone-200 rounded-lg text-xs text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200"
+                                placeholder="Min">
+                        </div>
+                        <div v-else class="space-y-1">
+                            <span
+                                class="py-1.5 px-2 inline-flex items-center gap-x-1.5 text-xs font-medium bg-stone-100 text-stone-800 rounded-full dark:bg-neutral-700 dark:text-neutral-200">
+                                {{ formatNumber(product.stock) }}
+                            </span>
+                            <div class="text-xs text-stone-500 dark:text-neutral-500">
+                                Min {{ formatNumber(product.minimum_stock) }}
+                            </div>
+                        </div>
                     </td>
-                    <td class="size-px whitespace-nowrap px-4 py-1 text-end">
-                        <div class="hs-dropdown [--auto-close:inside] [--placement:bottom-right] relative inline-flex">
-                            <button id="hs-pro-errtmd1" type="button"
+                    <td class="size-px whitespace-nowrap px-4 py-2 text-end">
+                        <div v-if="editingId === product.id" class="flex items-center justify-end gap-2">
+                            <button type="button" @click="saveInlineEdit"
+                                class="py-1.5 px-2 text-xs font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700">
+                                Save
+                            </button>
+                            <button type="button" @click="cancelInlineEdit"
+                                class="py-1.5 px-2 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200">
+                                Cancel
+                            </button>
+                        </div>
+                        <div v-else class="hs-dropdown [--auto-close:inside] [--placement:bottom-right] relative inline-flex">
+                            <button type="button"
                                 class="size-7 inline-flex justify-center items-center gap-x-2 rounded-lg border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700"
                                 aria-haspopup="menu" aria-expanded="false" aria-label="Dropdown">
                                 <svg class="shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
@@ -286,18 +637,32 @@ watch(() => filterForm.name, (newValue) => {
                                 </svg>
                             </button>
 
-                            <div class="hs-dropdown-menu hs-dropdown-open:opacity-100 w-24 transition-[opacity,margin] duration opacity-0 hidden z-10 bg-white rounded-xl shadow-[0_10px_40px_10px_rgba(0,0,0,0.08)] dark:shadow-[0_10px_40px_10px_rgba(0,0,0,0.2)] dark:bg-neutral-900"
-                                role="menu" aria-orientation="vertical" aria-labelledby="hs-pro-errtmd1">
+                            <div class="hs-dropdown-menu hs-dropdown-open:opacity-100 w-32 transition-[opacity,margin] duration opacity-0 hidden z-10 bg-white rounded-xl shadow-[0_10px_40px_10px_rgba(0,0,0,0.08)] dark:shadow-[0_10px_40px_10px_rgba(0,0,0,0.2)] dark:bg-neutral-900"
+                                role="menu" aria-orientation="vertical">
                                 <div class="p-1">
+                                    <button type="button" @click="startInlineEdit(product)"
+                                        class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-lg text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
+                                        Quick edit
+                                    </button>
+                                    <button type="button" @click="openAdjust(product)"
+                                        class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-lg text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
+                                        Adjust stock
+                                    </button>
+                                    <button type="button" @click="duplicateProduct(product)"
+                                        class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-lg text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
+                                        Duplicate
+                                    </button>
+                                    <button type="button" @click="toggleArchive(product)"
+                                        class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-lg text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
+                                        {{ product.is_active ? 'Archive' : 'Restore' }}
+                                    </button>
                                     <button type="button" :data-hs-overlay="'#hs-pro-edit' + product.id"
-                                        class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-lg text-[13px] text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800 dark:focus:bg-neutral-800">
+                                        class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-lg text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
                                         Edit
                                     </button>
-                                    <div class="my-1 border-t border-stone-200 dark:border-neutral-800">
-                                    </div>
-
-                                    <button type="button"
-                                        class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-lg text-[13px] text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800 dark:focus:bg-neutral-800">
+                                    <div class="my-1 border-t border-stone-200 dark:border-neutral-800"></div>
+                                    <button type="button" @click="destroyProduct(product)"
+                                        class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-lg text-[13px] text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-neutral-800">
                                         Delete
                                     </button>
                                 </div>
@@ -305,23 +670,19 @@ watch(() => filterForm.name, (newValue) => {
                         </div>
                     </td>
 
-                    <!-- Modal add product -->
                     <Modal :title="'Edit product'" :id="'hs-pro-edit' + product.id">
                         <ProductForm :product="product" :categories="categories" :id="'hs-pro-edit' + product.id" />
                     </Modal>
-                    <!-- End Modal -->
                 </tr>
             </tbody>
         </table>
-        <!-- End Table -->
-        <!-- Footer -->
+
         <div class="mt-5 flex flex-wrap justify-between items-center gap-2">
             <p class="text-sm text-stone-800 dark:text-neutral-200">
                 <span class="font-medium"> {{ count }} </span>
                 <span class="text-stone-500 dark:text-neutral-500"> results</span>
             </p>
 
-            <!-- Pagination -->
             <nav class="flex justify-end items-center gap-x-1" aria-label="Pagination">
                 <Link :href="products.prev_page_url" v-if="products.prev_page_url">
                 <button type="button"
@@ -359,17 +720,104 @@ watch(() => filterForm.name, (newValue) => {
                 </button>
                 </Link>
             </nav>
-            <!-- End Pagination -->
         </div>
-        <!-- End Footer -->
-
-
     </div>
-    <!-- End Orders Table Card -->
 
-    <!-- Modal add product -->
     <Modal :title="'Add product'" :id="'hs-pro-dasadpm'">
         <ProductForm :product="product" :categories="categories" :id="'hs-pro-dasadpm'" />
     </Modal>
 
+    <Modal :title="'Import products'" :id="'hs-pro-import'">
+        <form @submit.prevent="submitImport" class="space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-stone-700 dark:text-neutral-300">CSV file</label>
+                <input type="file" accept=".csv,text/csv" @change="importForm.file = $event.target.files[0]"
+                    class="mt-2 block w-full text-sm text-stone-600 file:me-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-stone-100 file:text-stone-700 hover:file:bg-stone-200 dark:text-neutral-400 dark:file:bg-neutral-700 dark:file:text-neutral-200 dark:hover:file:bg-neutral-600">
+            </div>
+            <div class="flex justify-end gap-2">
+                <button type="button" data-hs-overlay="#hs-pro-import"
+                    class="py-2 px-3 inline-flex items-center text-sm font-medium rounded-lg border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200">
+                    Cancel
+                </button>
+                <button type="submit"
+                    class="py-2 px-3 inline-flex items-center text-sm font-medium rounded-lg border border-transparent bg-green-600 text-white hover:bg-green-700">
+                    Import
+                </button>
+            </div>
+        </form>
+    </Modal>
+
+    <Modal :title="'Adjust stock'" :id="'hs-pro-stock-adjust'">
+        <div v-if="activeProduct" class="space-y-4">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                    <div class="text-xs uppercase text-stone-500 dark:text-neutral-400">Product</div>
+                    <div class="text-sm font-medium text-stone-800 dark:text-neutral-200">{{ activeProduct.name }}</div>
+                </div>
+                <div class="text-sm text-stone-500 dark:text-neutral-400">
+                    Current stock: <span class="font-medium text-stone-800 dark:text-neutral-200">{{ activeProduct.stock }}</span>
+                </div>
+            </div>
+
+            <div v-if="activeProduct.stock <= activeProduct.minimum_stock" class="text-xs text-amber-600">
+                Low stock alert. Minimum is {{ activeProduct.minimum_stock }}.
+            </div>
+
+            <form @submit.prevent="submitAdjust" class="space-y-3">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <select v-model="adjustForm.type"
+                        class="py-2 px-3 bg-stone-100 border-transparent rounded-lg text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-700 dark:text-neutral-200">
+                        <option value="in">Stock in</option>
+                        <option value="out">Stock out</option>
+                        <option value="adjust">Adjust</option>
+                    </select>
+                    <input type="number" step="1" v-model="adjustForm.quantity"
+                        class="py-2 px-3 bg-stone-100 border-transparent rounded-lg text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-700 dark:text-neutral-200"
+                        :placeholder="adjustForm.type === 'adjust' ? 'Quantity change' : 'Quantity'">
+                    <input type="text" v-model="adjustForm.note"
+                        class="py-2 px-3 bg-stone-100 border-transparent rounded-lg text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-700 dark:text-neutral-200"
+                        placeholder="Note (optional)">
+                </div>
+                <div class="flex justify-end gap-2">
+                    <button type="button" data-hs-overlay="#hs-pro-stock-adjust"
+                        class="py-2 px-3 inline-flex items-center text-sm font-medium rounded-lg border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200">
+                        Cancel
+                    </button>
+                    <button type="submit"
+                        class="py-2 px-3 inline-flex items-center text-sm font-medium rounded-lg border border-transparent bg-green-600 text-white hover:bg-green-700">
+                        Save
+                    </button>
+                </div>
+            </form>
+
+            <div class="space-y-2">
+                <div class="text-sm font-medium text-stone-700 dark:text-neutral-300">Recent movements</div>
+                <div v-if="!activeProduct.stock_movements || !activeProduct.stock_movements.length"
+                    class="text-sm text-stone-500 dark:text-neutral-400">
+                    No movements yet.
+                </div>
+                <div v-else class="space-y-2">
+                    <div v-for="movement in activeProduct.stock_movements" :key="movement.id"
+                        class="flex items-center justify-between rounded-lg border border-stone-200 px-3 py-2 text-sm dark:border-neutral-700">
+                        <div>
+                            <div class="text-xs uppercase text-stone-500 dark:text-neutral-400">
+                                {{ movement.type }} - {{ formatDate(movement.created_at) }}
+                            </div>
+                            <div class="text-sm text-stone-700 dark:text-neutral-300">
+                                {{ movement.note || 'No note' }}
+                            </div>
+                        </div>
+                        <div
+                            :class="movement.quantity > 0 ? 'text-emerald-600' : 'text-red-600'"
+                            class="text-sm font-medium">
+                            {{ movement.quantity > 0 ? '+' : '' }}{{ movement.quantity }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div v-else class="text-sm text-stone-500 dark:text-neutral-400">
+            Select a product to adjust stock.
+        </div>
+    </Modal>
 </template>

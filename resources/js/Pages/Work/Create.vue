@@ -21,7 +21,6 @@ const props = defineProps({
     works: Object,
     work: Object,
     customer: Object,
-    works: Object,
     lastWorkNumber: String,
 });
 
@@ -312,10 +311,8 @@ document.addEventListener("DOMContentLoaded", function () {
 
     <Head title="Create work" />
     <AuthenticatedLayout>
-        <div class="grid grid-cols-5 gap-4">
-            <div class="col-span-1"></div> <!-- Colonne vide -->
-            <div class="col-span-3">
-                <form @submit.prevent="submit">
+        <div class="mx-auto w-full max-w-6xl">
+            <form @submit.prevent="submit">
                     <div
                         class="p-5 space-y-3 flex flex-col bg-gray-100 border border-gray-100 rounded-sm shadow-sm xl:shadow-none dark:bg-green-800 dark:border-green-700">
                         <!-- Header -->
@@ -335,13 +332,13 @@ document.addEventListener("DOMContentLoaded", function () {
                                         <p>
                                             Property address
                                         </p>
-                                        <div class="text-xs text-gray-600">
+                                        <div class="text-xs text-gray-600 dark:text-neutral-400">
                                             {{ customer.properties[0].country }}
                                         </div>
-                                        <div class="text-xs text-gray-600">
+                                        <div class="text-xs text-gray-600 dark:text-neutral-400">
                                             {{ customer.properties[0].street1 }}
                                         </div>
-                                        <div class="text-xs text-gray-600">
+                                        <div class="text-xs text-gray-600 dark:text-neutral-400">
                                             {{ customer.properties[0].state }} - {{ customer.properties[0].zip }}
                                         </div>
                                     </div>
@@ -349,32 +346,32 @@ document.addEventListener("DOMContentLoaded", function () {
                                         <p>
                                             Contact details
                                         </p>
-                                        <div class="text-xs text-gray-600">
+                                        <div class="text-xs text-gray-600 dark:text-neutral-400">
                                             {{ customer.first_name }} {{ customer.last_name }}
                                         </div>
-                                        <div class="text-xs text-gray-600">
+                                        <div class="text-xs text-gray-600 dark:text-neutral-400">
                                             {{ customer.email }}
                                         </div>
-                                        <div class="text-xs text-gray-600">
+                                        <div class="text-xs text-gray-600 dark:text-neutral-400">
                                             {{ customer.phone }}
                                         </div>
                                     </div>
                                 </div>
 
                             </div>
-                            <div class="bg-white p-4 ">
+                            <div class="bg-white p-4 rounded-sm border border-gray-100 dark:bg-neutral-900 dark:border-neutral-700">
                                 <div class="lg:col-span-3">
                                     <p>
                                         Job details
                                     </p>
-                                    <div class="text-xs text-gray-600 flex justify-between">
+                                    <div class="text-xs text-gray-600 dark:text-neutral-400 flex justify-between">
                                         <span> Job :</span>
                                         <span>{{ lastWorkNumber }} </span>
                                     </div>
-                                    <div class="text-xs text-gray-600 flex justify-between">
+                                    <div class="text-xs text-gray-600 dark:text-neutral-400 flex justify-between">
                                         <span> Rate opportunity :</span>
                                         <span class="flex flex-row space-x-1">
-                                            <svg xmlns="http://www.w3.org/2000/svg" cl viewBox="0 0 24 24" fill="none"
+                                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
                                                 stroke="currentColor" stroke-width="2" stroke-linecap="round"
                                                 stroke-linejoin="round" class="lucide lucide-star h-4 w-4">
                                                 <path
@@ -382,7 +379,7 @@ document.addEventListener("DOMContentLoaded", function () {
                                             </svg>
                                         </span>
                                     </div>
-                                    <div class="text-xs text-gray-600 flex justify-between mt-5">
+                                    <div class="text-xs text-gray-600 dark:text-neutral-400 flex justify-between mt-5">
                                         <button type="button" disabled
                                             class="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-sm border border-green-200 bg-white text-green-800 shadow-sm hover:bg-green-50 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-green-50 dark:bg-green-800 dark:border-green-700 dark:text-green-300 dark:hover:bg-green-700 dark:focus:bg-green-700">
                                             Add custom fields</button>
@@ -395,7 +392,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
                         <!-- Audience -->
                         <div
-                            class="flex flex-col bg-white border border-gray-200 shadow-sm rounded-sm erflow-hidden dark:bg-neutral-800 dark:border-neutral-700">
+                            class="flex flex-col bg-white border border-gray-200 shadow-sm rounded-sm overflow-hidden dark:bg-neutral-800 dark:border-neutral-700">
                             <!-- Tab Nav -->
                             <nav class="relative z-0 flex border-b border-gray-200 dark:border-neutral-700"
                                 aria-label="Tabs" role="tablist" aria-orientation="horizontal">
@@ -415,7 +412,7 @@ document.addEventListener("DOMContentLoaded", function () {
                                             <path d="M3 10h18" />
                                         </svg>
                                         <span class="grow text-center md:text-start">
-                                            <span class="block text-xs md:text-sm text-gray-700 dark:text-neutral-700">
+                                            <span class="block text-xs md:text-sm text-gray-700 dark:text-neutral-300">
                                                 ONE-OFF JOB
                                             </span>
                                             <span
@@ -450,7 +447,7 @@ document.addEventListener("DOMContentLoaded", function () {
                                             <path d="M8 2v4" />
                                         </svg>
                                         <span class="grow text-center md:text-start">
-                                            <span class="block text-xs md:text-sm text-gray-700 dark:text-neutral-700">
+                                            <span class="block text-xs md:text-sm text-gray-700 dark:text-neutral-300">
                                                 RECURRING JOB
                                             </span>
                                             <span
@@ -501,7 +498,7 @@ document.addEventListener("DOMContentLoaded", function () {
                                                             <label class="flex items-center">
                                                                 <Checkbox name="remember"
                                                                     v-model:checked="form.later" />
-                                                                <span class="ms-2 text-sm text-gray-600">Schedule
+                                                                <span class="ms-2 text-sm text-gray-600 dark:text-neutral-400">Schedule
                                                                     later</span>
                                                             </label>
                                                         </div>
@@ -639,7 +636,7 @@ document.addEventListener("DOMContentLoaded", function () {
                                                                     First:
                                                                 </span>
                                                                 <span for="hs-pro-ccremre"
-                                                                    class="block text-xs text-gray-600 dark:text-neutral-700">
+                                                                    class="block text-xs text-gray-600 dark:text-neutral-400">
                                                                     {{ formatDate(form.start_date)  }}
                                                                 </span>
                                                             </div>
@@ -649,7 +646,7 @@ document.addEventListener("DOMContentLoaded", function () {
                                                                     Last:
                                                                 </span>
                                                                 <span for="hs-pro-ccremre"
-                                                                    class="block text-xs text-gray-600 dark:text-neutral-700">
+                                                                    class="block text-xs text-gray-600 dark:text-neutral-400">
                                                                     {{ formatDate(form.end_date)  }}
                                                                 </span>
                                                             </div>
@@ -659,7 +656,7 @@ document.addEventListener("DOMContentLoaded", function () {
                                                                     Total:
                                                                 </span>
                                                                 <span for="hs-pro-ccremre"
-                                                                    class="block text-xs text-gray-600 dark:text-neutral-700">
+                                                                    class="block text-xs text-gray-600 dark:text-neutral-400">
                                                                     {{ form.totalVisits }}
                                                                 </span>
                                                             </div>
@@ -705,7 +702,7 @@ document.addEventListener("DOMContentLoaded", function () {
                         <div class="p-4 md:p-5">
                             <label class="flex items-center">
                                 <Checkbox name="remember" v-model:checked="form.later" />
-                                <span class="ms-2 text-sm text-gray-600">Remenber me to invoice when i close the
+                                <span class="ms-2 text-sm text-gray-600 dark:text-neutral-400">Remenber me to invoice when i close the
                                     job</span>
                             </label>
                         </div>
@@ -782,9 +779,7 @@ document.addEventListener("DOMContentLoaded", function () {
                             </div>
                         </div>
                     </div>
-                </form>
-            </div>
-            <div class="col-span-1"></div> <!-- Colonne vide -->
+            </form>
         </div>
     </AuthenticatedLayout>
 </template>

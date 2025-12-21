@@ -41,6 +41,12 @@ Route::middleware('auth')->group(function () {
     Route::get('/product/search', ProductsSearchController::class)->name('product.search');
 
     // Product Management
+    Route::post('/product/bulk', [ProductController::class, 'bulk'])->name('product.bulk');
+    Route::post('/product/{product}/duplicate', [ProductController::class, 'duplicate'])->name('product.duplicate');
+    Route::put('/product/{product}/quick-update', [ProductController::class, 'quickUpdate'])->name('product.quick-update');
+    Route::post('/product/{product}/adjust-stock', [ProductController::class, 'adjustStock'])->name('product.adjust-stock');
+    Route::get('/product/export/csv', [ProductController::class, 'export'])->name('product.export');
+    Route::post('/product/import/csv', [ProductController::class, 'import'])->name('product.import');
     Route::resource('product', ProductController::class);
 
     // Customer Management

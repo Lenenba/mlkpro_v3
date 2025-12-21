@@ -3,24 +3,21 @@ import { Head } from '@inertiajs/vue3';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import ProductForm from './UI/ProductForm.vue';
 
-const props = defineProps({
+defineProps({
+    product: {
+        type: Object,
+        required: true,
+    },
     categories: {
         type: Array,
         required: true,
     },
-    product: {
-        type: Object,
-        default: null,
-    },
 });
-
-
 </script>
 
 <template>
-
     <Head title="Product" />
-    <AuthenticatedLayout >
+    <AuthenticatedLayout>
         <ProductForm :product="product" :categories="categories" />
     </AuthenticatedLayout>
 </template>

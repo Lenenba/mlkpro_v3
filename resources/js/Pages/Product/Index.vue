@@ -2,8 +2,8 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head } from '@inertiajs/vue3';
 import ProductTable from '@/Pages/Product/UI/ProductTable.vue';
-import Stat from '@/Components/UI/Stat.vue';
-import TrafficStat from '@/Components/UI/TrafficStat.vue';
+import ProductStats from '@/Components/UI/ProductStats.vue';
+import ProductUsageStat from '@/Components/UI/ProductUsageStat.vue';
 const props = defineProps({
     filters: {
         type: Object,
@@ -21,18 +21,26 @@ const props = defineProps({
         type: Array,
         required: true,
     },
+    stats: {
+        type: Object,
+        required: true,
+    },
+    topProducts: {
+        type: Array,
+        required: true,
+    },
 });
 
 </script>
 <template>
     <Head title="Product" />
     <AuthenticatedLayout>
-        <Stat />
+        <ProductStats :stats="stats" />
         <div class="grid grid-cols-1 lg:grid-cols-4 gap-2 md:gap-3 lg:gap-5 ">
             <div class="col-span-1 lg:col-span-3">
                 <ProductTable :products="products" :count="count" :categories="categories" :filters="filters" />
             </div>
-            <TrafficStat />
+            <ProductUsageStat :items="topProducts" />
         </div>
     </AuthenticatedLayout>
 </template>

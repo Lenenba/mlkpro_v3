@@ -12,9 +12,7 @@ const props = defineProps({
     <Head title="View quote" />
 
     <AuthenticatedLayout>
-        <div class="grid grid-cols-5 gap-4">
-            <div class="col-span-1"></div> <!-- Colonne vide -->
-            <div class="col-span-3">
+        <div class="mx-auto w-full max-w-6xl space-y-5">
                 <div
                     class="p-5 space-y-3 flex flex-col bg-gray-100 border border-gray-100 rounded-sm shadow-sm xl:shadow-none dark:bg-green-800 dark:border-green-700">
                     <!-- Header -->
@@ -25,55 +23,55 @@ const props = defineProps({
                     </div>
                     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                         <div class="col-span-2 space-x-2">
-                            <div class="bg-white rounded-sm p-4 mb-4">
+                            <div class="bg-white rounded-sm border border-gray-100 p-4 mb-4 dark:bg-neutral-900 dark:border-neutral-700">
                                 {{ quote.job_title }}
                             </div>
-                            <div class="flex flex-row space-x-6">
-                                <div class="lg:col-span-3">
-                                    <p>
-                                        Property address
-                                    </p>
-                                    <div class="text-xs text-gray-600">
-                                        {{ quote.customer.properties[0].country }}
+                                <div class="flex flex-row space-x-6">
+                                    <div class="lg:col-span-3">
+                                        <p>
+                                            Property address
+                                        </p>
+                                        <div class="text-xs text-gray-600 dark:text-neutral-400">
+                                            {{ quote.customer.properties[0].country }}
+                                        </div>
+                                        <div class="text-xs text-gray-600 dark:text-neutral-400">
+                                            {{ quote.customer.properties[0].street1 }}
+                                        </div>
+                                        <div class="text-xs text-gray-600 dark:text-neutral-400">
+                                            {{ quote.customer.properties[0].state }} - {{ quote.customer.properties[0].zip
+                                            }}
+                                        </div>
                                     </div>
-                                    <div class="text-xs text-gray-600">
-                                        {{ quote.customer.properties[0].street1 }}
-                                    </div>
-                                    <div class="text-xs text-gray-600">
-                                        {{ quote.customer.properties[0].state }} - {{ quote.customer.properties[0].zip
-                                        }}
+                                    <div class="lg:col-span-3">
+                                        <p>
+                                            Contact details
+                                        </p>
+                                        <div class="text-xs text-gray-600 dark:text-neutral-400">
+                                            {{ quote.customer.first_name }} {{ quote.customer.last_name }}
+                                        </div>
+                                        <div class="text-xs text-gray-600 dark:text-neutral-400">
+                                            {{ quote.customer.email }}
+                                        </div>
+                                        <div class="text-xs text-gray-600 dark:text-neutral-400">
+                                            {{ quote.customer.phone }}
+                                        </div>
                                     </div>
                                 </div>
-                                <div class="lg:col-span-3">
-                                    <p>
-                                        Contact details
-                                    </p>
-                                    <div class="text-xs text-gray-600">
-                                        {{ quote.customer.first_name }} {{ quote.customer.last_name }}
-                                    </div>
-                                    <div class="text-xs text-gray-600">
-                                        {{ quote.customer.email }}
-                                    </div>
-                                    <div class="text-xs text-gray-600">
-                                        {{ quote.customer.phone }}
-                                    </div>
-                                </div>
-                            </div>
 
-                        </div>
-                        <div class="bg-white p-4 ">
-                            <div class="lg:col-span-3">
-                                <p>
-                                    Quote details
-                                </p>
-                                <div class="text-xs text-gray-600 flex justify-between">
+                            </div>
+                            <div class="bg-white p-4 rounded-sm border border-gray-100 dark:bg-neutral-900 dark:border-neutral-700">
+                                <div class="lg:col-span-3">
+                                    <p>
+                                        Quote details
+                                    </p>
+                                <div class="text-xs text-gray-600 dark:text-neutral-400 flex justify-between">
                                     <span> Quote :</span>
                                     <span>{{ quote?.number }} </span>
                                 </div>
-                                <div class="text-xs text-gray-600 flex justify-between">
+                                <div class="text-xs text-gray-600 dark:text-neutral-400 flex justify-between">
                                     <span> Rate opportunity :</span>
                                     <span class="flex flex-row space-x-1">
-                                        <svg xmlns="http://www.w3.org/2000/svg" cl viewBox="0 0 24 24" fill="none"
+                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
                                             stroke="currentColor" stroke-width="2" stroke-linecap="round"
                                             stroke-linejoin="round" class="lucide lucide-star h-4 w-4">
                                             <path
@@ -81,7 +79,7 @@ const props = defineProps({
                                         </svg>
                                     </span>
                                 </div>
-                                <div class="text-xs text-gray-600 flex justify-between mt-5">
+                                <div class="text-xs text-gray-600 dark:text-neutral-400 flex justify-between mt-5">
                                     <button type="button" disabled
                                         class="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-sm border border-green-200 bg-white text-green-800 shadow-sm hover:bg-green-50 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-green-50 dark:bg-green-800 dark:border-green-700 dark:text-green-300 dark:hover:bg-green-700 dark:focus:bg-green-700">
                                         Add custom fields</button>
@@ -250,9 +248,6 @@ const props = defineProps({
                         <!-- End List Item -->
                     </div>
                 </div>
-            </div>
-            <div class="col-span-1">
-            </div> <!-- Colonne vide -->
         </div>
     </AuthenticatedLayout>
 </template>

@@ -1,14 +1,14 @@
 <script setup>
 import { useForm } from '@inertiajs/vue3';
-import { ref, computed } from 'vue';
+import { computed, watch } from 'vue';
 import productCard from '@/Components/UI/ProductCard2.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
 import FloatingNumberInput from '@/Components/FloatingNumberInput.vue';
 import FloatingTextarea from '@/Components/FloatingTextarea.vue';
 import DropzoneInput from '@/Components/DropzoneInput.vue';
-
-Dropzone.autoDiscover = false;
+import Checkbox from '@/Components/Checkbox.vue';
+import MultiImageInput from '@/Components/MultiImageInput.vue';
 
 const props = defineProps({
     categories: {
@@ -21,11 +21,12 @@ const props = defineProps({
     },
     id: {
         type: String,
-        required: true,
+        default: null,
     },
 });
 
 const emit = defineEmits(['submitted']); // Déclare l'événement "submitted"
+const overlayTarget = computed(() => (props.id ? `#${props.id}` : null));
 
 // Initialize the form
 const form = useForm({
@@ -33,9 +34,40 @@ const form = useForm({
     category_id: props.product?.category_id || '',
     stock: props.product?.stock || 0,
     price: props.product?.price || 0,
+    cost_price: props.product?.cost_price || 0,
+    margin_percent: props.product?.margin_percent || 0,
     minimum_stock: props.product?.minimum_stock || 0,
     description: props.product?.description || '',
-    image: props.product?.image || '',
+    image: props.product?.image_url || props.product?.image || '',
+    images: [],
+    remove_image_ids: [],
+    sku: props.product?.sku || '',
+    barcode: props.product?.barcode || '',
+    unit: props.product?.unit || '',
+    supplier_name: props.product?.supplier_name || '',
+    tax_rate: props.product?.tax_rate || 0,
+    is_active: props.product?.is_active ?? true,
+});
+
+const unitOptions = [
+    { id: 'piece', name: 'Piece' },
+    { id: 'hour', name: 'Hour' },
+    { id: 'm2', name: 'm2' },
+    { id: 'other', name: 'Other' },
+];
+
+const existingImages = computed(() => props.product?.images || []);
+const marginPreview = computed(() => {
+    if (!form.price) {
+        return 0;
+    }
+    return ((form.price - form.cost_price) / form.price) * 100;
+});
+
+watch([() => form.price, () => form.cost_price], () => {
+    if (form.price > 0) {
+        form.margin_percent = Number(marginPreview.value.toFixed(2));
+    }
 });
 
 // Validator function for the form
@@ -45,9 +77,7 @@ const isValid = computed(() => {
         form.category_id &&
         form.stock >= 0 &&
         form.price >= 0 &&
-        form.minimum_stock >= 0 &&
-        form.description.trim() !== '' &&
-        form.image !== ''
+        form.minimum_stock >= 0
     );
 });
 
@@ -61,15 +91,25 @@ const submit = () => {
     const routeName = props.product?.id ? 'product.update' : 'product.store';
     const routeParams = props.product?.id ? props.product.id : undefined;
 
-    form[props.product?.id ? 'put' : 'post'](route(routeName, routeParams), {
-        onSuccess: () => {
-            console.log('Product saved successfully!');
-            emit('submitted'); // Émet l'événement "submitted"
-        },
-        onError: (errors) => {
-            console.error('Validation errors:', errors);
-        },
-    });
+    form
+        .transform((data) => ({
+            ...data,
+            image: data.image instanceof File ? data.image : null,
+            images: data.images?.filter((file) => file instanceof File) || [],
+            remove_image_ids: data.remove_image_ids || [],
+        }))
+        [props.product?.id ? 'put' : 'post'](route(routeName, routeParams), {
+            onSuccess: () => {
+                console.log('Product saved successfully!');
+                emit('submitted');
+                if (overlayTarget.value && window.HSOverlay) {
+                    window.HSOverlay.close(overlayTarget.value);
+                }
+            },
+            onError: (errors) => {
+                console.error('Validation errors:', errors);
+            },
+        });
 };
 
 const cancel = () => {
@@ -92,9 +132,23 @@ const buttonLabel = computed(() => (props.product ? 'Update Product' : 'Create P
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 gap-y-4">
                         <FloatingInput v-model="form.name" label="Name" />
                         <FloatingSelect v-model="form.category_id" label="Category" :options="categories" />
+                        <FloatingInput v-model="form.sku" label="SKU" />
+                        <FloatingInput v-model="form.barcode" label="Barcode" />
+                        <FloatingSelect v-model="form.unit" label="Unit" :options="unitOptions" />
+                        <FloatingInput v-model="form.supplier_name" label="Supplier" />
+                        <FloatingNumberInput v-model="form.tax_rate" label="Tax rate (%)" />
+                        <div class="flex items-center gap-x-2">
+                            <Checkbox v-model:checked="form.is_active" />
+                            <span class="text-sm text-gray-600 dark:text-neutral-400">Active</span>
+                        </div>
                     </div>
                     <FloatingTextarea v-model="form.description" label="Description" />
-                    <DropzoneInput v-model="form.image" label="Image" />
+                    <DropzoneInput v-model="form.image" label="Primary image" />
+                    <MultiImageInput
+                        v-model:files="form.images"
+                        v-model:removedIds="form.remove_image_ids"
+                        :existing="existingImages"
+                    />
                 </productCard>
             </div>
             <div class="lg:col-span-2 space-y-4">
@@ -105,8 +159,10 @@ const buttonLabel = computed(() => (props.product ? 'Update Product' : 'Create P
 
                     <div class="grid grid-cols-1 gap-4 gap-y-4">
                         <FloatingNumberInput v-model="form.price" label="Price" />
-                        <FloatingNumberInput v-model="form.stock" label="stock" />
-                        <FloatingNumberInput v-model="form.minimum_stock" label="minimum_stock" />
+                        <FloatingNumberInput v-model="form.cost_price" label="Cost price" />
+                        <FloatingNumberInput v-model="form.margin_percent" label="Margin (%)" />
+                        <FloatingNumberInput v-model="form.stock" label="Stock" />
+                        <FloatingNumberInput v-model="form.minimum_stock" label="Minimum stock" />
                     </div>
                 </productCard>
             </div>
@@ -114,12 +170,12 @@ const buttonLabel = computed(() => (props.product ? 'Update Product' : 'Create P
         <!-- Footer -->
         <div class="p-4 flex justify-end gap-x-2">
             <div class="flex justify-end items-center gap-2">
-                <button :data-hs-overlay="isValid ? `#${id}` : undefined" type="button"
+                <button :data-hs-overlay="overlayTarget || undefined" type="button" @click="cancel"
                     class="py-2 px-3 text-nowrap inline-flex justify-center items-center text-start bg-white border border-gray-200 text-gray-800 text-sm font-medium rounded-lg shadow-sm align-middle hover:bg-gray-50 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700">
                     Cancel
                 </button>
 
-                <button type="submit" :data-hs-overlay="isValid ? `#${id}` : undefined" :disabled="!isValid"
+                <button type="submit" :disabled="!isValid"
                     class="py-2 px-3 text-nowrap inline-flex justify-center items-center gap-x-2 text-start bg-green-600 border border-green-600 text-white text-sm font-medium rounded-lg shadow-sm align-middle hover:bg-green-700 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:ring-1 focus:ring-green-300 dark:focus:ring-green-500">
                     {{ buttonLabel }}
                 </button>

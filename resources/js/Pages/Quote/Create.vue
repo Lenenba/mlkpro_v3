@@ -161,10 +161,8 @@ const submit = () => {
     <Head title="Create quote" />
 
     <AuthenticatedLayout>
-        <div class="grid grid-cols-5 gap-4">
-            <div class="col-span-1"></div> <!-- Colonne vide -->
-            <div class="col-span-3">
-                <form @submit.prevent="submit">
+        <div class="mx-auto w-full max-w-6xl">
+            <form class="space-y-5" @submit.prevent="submit">
                     <div
                         class="p-5 space-y-3 flex flex-col bg-gray-100 border border-gray-100 rounded-sm shadow-sm xl:shadow-none dark:bg-green-800 dark:border-green-700">
                         <!-- Header -->
@@ -181,13 +179,13 @@ const submit = () => {
                                         <p>
                                             Property address
                                         </p>
-                                        <div class="text-xs text-gray-600">
+                                        <div class="text-xs text-gray-600 dark:text-neutral-400">
                                             {{ customer.properties[0].country }}
                                         </div>
-                                        <div class="text-xs text-gray-600">
+                                        <div class="text-xs text-gray-600 dark:text-neutral-400">
                                             {{ customer.properties[0].street1 }}
                                         </div>
-                                        <div class="text-xs text-gray-600">
+                                        <div class="text-xs text-gray-600 dark:text-neutral-400">
                                             {{ customer.properties[0].state }} - {{ customer.properties[0].zip }}
                                         </div>
                                     </div>
@@ -195,32 +193,32 @@ const submit = () => {
                                         <p>
                                             Contact details
                                         </p>
-                                        <div class="text-xs text-gray-600">
+                                        <div class="text-xs text-gray-600 dark:text-neutral-400">
                                             {{ customer.first_name }} {{ customer.last_name }}
                                         </div>
-                                        <div class="text-xs text-gray-600">
+                                        <div class="text-xs text-gray-600 dark:text-neutral-400">
                                             {{ customer.email }}
                                         </div>
-                                        <div class="text-xs text-gray-600">
+                                        <div class="text-xs text-gray-600 dark:text-neutral-400">
                                             {{ customer.phone }}
                                         </div>
                                     </div>
                                 </div>
 
                             </div>
-                            <div class="bg-white p-4 ">
+                            <div class="bg-white p-4 rounded-sm border border-gray-100 dark:bg-neutral-900 dark:border-neutral-700">
                                 <div class="lg:col-span-3">
                                     <p>
                                         Quote details
                                     </p>
-                                    <div class="text-xs text-gray-600 flex justify-between">
+                                    <div class="text-xs text-gray-600 dark:text-neutral-400 flex justify-between">
                                         <span> Quote :</span>
                                         <span>{{ lastQuotesNumber|| quote?.number }} </span>
                                     </div>
-                                    <div class="text-xs text-gray-600 flex justify-between">
+                                    <div class="text-xs text-gray-600 dark:text-neutral-400 flex justify-between">
                                         <span> Rate opportunity :</span>
                                         <span class="flex flex-row space-x-1">
-                                            <svg xmlns="http://www.w3.org/2000/svg" cl viewBox="0 0 24 24" fill="none"
+                                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
                                                 stroke="currentColor" stroke-width="2" stroke-linecap="round"
                                                 stroke-linejoin="round" class="lucide lucide-star h-4 w-4">
                                                 <path
@@ -228,7 +226,7 @@ const submit = () => {
                                             </svg>
                                         </span>
                                     </div>
-                                    <div class="text-xs text-gray-600 flex justify-between mt-5">
+                                    <div class="text-xs text-gray-600 dark:text-neutral-400 flex justify-between mt-5">
                                         <button type="button" disabled
                                             class="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-sm border border-green-200 bg-white text-green-800 shadow-sm hover:bg-green-50 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-green-50 dark:bg-green-800 dark:border-green-700 dark:text-green-300 dark:hover:bg-green-700 dark:focus:bg-green-700">
                                             Add custom fields</button>
@@ -339,7 +337,7 @@ const submit = () => {
                             </div>
                         </div>
                         <!-- End Table Section -->
-                        <div class="text-xs text-gray-600 flex justify-between mt-5">
+                        <div class="text-xs text-gray-600 dark:text-neutral-400 flex justify-between mt-5">
                             <button id="hs-pro-in1trsbgwmdid1" type="button" @click="addNewLine"
                                 class="hs-tooltip-toggle ml-4 py-2 px-2.5 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:ring-2 focus:ring-green-500">
                                 Add new product line
@@ -490,9 +488,7 @@ const submit = () => {
                             </div>
                         </div>
                     </div>
-                </form>
-            </div>
-            <div class="col-span-1"></div> <!-- Colonne vide -->
+            </form>
         </div>
     </AuthenticatedLayout>
 </template>

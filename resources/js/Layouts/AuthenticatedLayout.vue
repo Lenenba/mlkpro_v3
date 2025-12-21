@@ -1,16 +1,16 @@
 <script setup>
 import { computed } from 'vue';
-import Header from '@/Layouts/UI/Header.vue'; ``
+import Header from '@/Layouts/UI/Header.vue';
 import Sidebar from '@/Layouts/UI/Sidebar.vue';
 import { usePage } from '@inertiajs/vue3';
 
 const page = usePage()
 
 const flashSuccess = computed(
-    () => page.props.flash.success
+    () => page.props.flash?.success
 )
 const flashError = computed(
-    () => page.props.flash.error
+    () => page.props.flash?.error
 )
 </script>
 
@@ -24,7 +24,7 @@ const flashError = computed(
     <!-- ========== END MAIN SIDEBAR ========== -->
 
     <!-- ========== MAIN CONTENT ========== -->
-    <main id="content" class="lg:ps-16 pt-[59px] lg:pt-0 ">
+    <main id="content" class="lg:ps-16 pt-[59px] lg:pt-0 min-h-screen bg-gray-50 dark:bg-neutral-900">
         <div class="p-2 sm:p-5 sm:py-0 md:pt-5 space-y-5">
             <div v-if="flashSuccess" class="bg-teal-50 border-t-4 border-teal-500 rounded-sm p-4 dark:bg-teal-800/30"
                 role="alert" tabindex="-1" aria-labelledby="hs-bordered-success-style-label">

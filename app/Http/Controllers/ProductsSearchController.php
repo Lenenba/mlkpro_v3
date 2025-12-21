@@ -14,6 +14,8 @@ class ProductsSearchController extends Controller
     {
         $query = $request->input('query');
         $products = Product::where('name', 'like', "%{$query}%")
+            ->byUser($request->user()->id)
+            ->where('is_active', true)
             ->limit(10)
             ->get(['id', 'name', 'price', 'image']); // Sélectionne uniquement les colonnes nécessaires
 
