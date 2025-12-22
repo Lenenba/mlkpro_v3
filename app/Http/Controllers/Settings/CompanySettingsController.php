@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Settings;
 
 use App\Http\Controllers\Controller;
+use App\Models\ProductCategory;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -36,6 +37,7 @@ class CompanySettingsController extends Controller
                 'company_city' => $user->company_city,
                 'company_type' => $user->company_type,
             ],
+            'categories' => ProductCategory::orderBy('name')->get(['id', 'name']),
         ]);
     }
 
@@ -78,4 +80,3 @@ class CompanySettingsController extends Controller
         return redirect()->back()->with('success', 'Company settings updated.');
     }
 }
-

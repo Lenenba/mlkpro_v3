@@ -14,10 +14,13 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->web(append: [
             \App\Http\Middleware\HandleInertiaRequests::class,
             \App\Http\Middleware\EnsureOnboardingIsComplete::class,
+            \App\Http\Middleware\EnsureNotSuspended::class,
             \Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets::class,
         ]);
 
-        //
+        $middleware->alias([
+            'company.feature' => \App\Http\Middleware\EnsureCompanyFeature::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
         //

@@ -5,6 +5,7 @@ namespace App\Models;
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use App\Models\Product;
 use App\Models\Role;
+use App\Models\PlatformAdmin;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
@@ -40,6 +41,10 @@ class User extends Authenticatable
         'company_type',
         'onboarding_completed_at',
         'payment_methods',
+        'company_features',
+        'is_suspended',
+        'suspended_at',
+        'suspension_reason',
     ];
 
     /**
@@ -66,6 +71,9 @@ class User extends Authenticatable
             'payment_methods' => 'array',
             'trial_ends_at' => 'datetime',
             'must_change_password' => 'boolean',
+            'company_features' => 'array',
+            'is_suspended' => 'boolean',
+            'suspended_at' => 'datetime',
         ];
     }
 
@@ -92,6 +100,11 @@ class User extends Authenticatable
     public function ownedTeamMembers(): HasMany
     {
         return $this->hasMany(TeamMember::class, 'account_id');
+    }
+
+    public function platformAdmin(): HasOne
+    {
+        return $this->hasOne(PlatformAdmin::class);
     }
 
     public function teamMembership(): HasOne
@@ -126,6 +139,51 @@ class User extends Authenticatable
     public function isSuperadmin(): bool
     {
         return $this->hasRole('superadmin');
+    }
+
+    public function isPlatformAdmin(): bool
+    {
+        return $this->hasRole('admin');
+    }
+
+    public function hasPlatformPermission(string $permission): bool
+    {
+        if ($this->isSuperadmin()) {
+            return true;
+        }
+
+        if (!$this->isPlatformAdmin()) {
+            return false;
+        }
+
+        $adminProfile = $this->relationLoaded('platformAdmin')
+            ? $this->platformAdmin
+            : $this->platformAdmin()->first();
+
+        if (!$adminProfile || !$adminProfile->is_active) {
+            return false;
+        }
+
+        return $adminProfile->hasPermission($permission);
+    }
+
+    public function hasCompanyFeature(string $feature): bool
+    {
+        $features = $this->company_features;
+        if (!$features || !is_array($features)) {
+            return true;
+        }
+
+        if (!array_key_exists($feature, $features)) {
+            return true;
+        }
+
+        return (bool) $features[$feature];
+    }
+
+    public function isSuspended(): bool
+    {
+        return (bool) $this->is_suspended;
     }
 
     public function accountOwnerId(): int

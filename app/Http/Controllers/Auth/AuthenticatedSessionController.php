@@ -34,7 +34,16 @@ class AuthenticatedSessionController extends Controller
         $request->session()->regenerate();
 
         $user = $request->user();
-        if ($user?->isAccountOwner() && !$user->onboarding_completed_at) {
+        if ($user?->is_suspended) {
+            Auth::guard('web')->logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+
+            return redirect()
+                ->back()
+                ->withErrors(['email' => 'Account suspended. Please contact support.']);
+        }
+        if ($user?->isAccountOwner() && !$user->onboarding_completed_at && !$user->isSuperadmin() && !$user->isPlatformAdmin()) {
             return redirect()->route('onboarding.index');
         }
 

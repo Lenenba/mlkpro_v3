@@ -22,6 +22,10 @@ class EnsureOnboardingIsComplete
             return $next($request);
         }
 
+        if ($user->isSuperadmin() || $user->isPlatformAdmin()) {
+            return $next($request);
+        }
+
         if (!$user->isAccountOwner()) {
             return $next($request);
         }

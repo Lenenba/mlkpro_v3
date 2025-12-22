@@ -12,6 +12,11 @@ const showServices = computed(() => companyType.value !== 'products');
 const showProducts = computed(() => companyType.value !== 'services');
 const isOwner = computed(() => Boolean(page.props.auth?.account?.is_owner));
 const isClient = computed(() => Boolean(page.props.auth?.account?.is_client));
+const isSuperadmin = computed(() => Boolean(page.props.auth?.account?.is_superadmin));
+const isPlatformAdmin = computed(() => Boolean(page.props.auth?.account?.is_platform_admin));
+const platformPermissions = computed(() => page.props.auth?.account?.platform?.permissions || []);
+const showPlatformNav = computed(() => isSuperadmin.value || isPlatformAdmin.value);
+const canPlatform = (permission) => isSuperadmin.value || platformPermissions.value.includes(permission);
 const userName = computed(() => page.props.auth?.user?.name || '');
 const userEmail = computed(() => page.props.auth?.user?.email || '');
 const avatarUrl = computed(() => page.props.auth?.user?.profile_picture || '');
@@ -46,6 +51,101 @@ const avatarInitial = computed(() => {
                         <!-- Nav -->
                         <nav class="mt-2">
                             <ul class="text-center space-y-4">
+                                <template v-if="showPlatformNav">
+                                    <LinkAncor v-if="canPlatform('analytics.view')" :label="'Admin'" :href="'superadmin.dashboard'"
+                                        :active="route().current('superadmin.dashboard')">
+                                        <template #icon>
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                                stroke-linecap="round" stroke-linejoin="round"
+                                                class="lucide lucide-shield">
+                                                <path d="M12 2 3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5z" />
+                                            </svg>
+                                        </template>
+                                    </LinkAncor>
+
+                                    <LinkAncor v-if="canPlatform('tenants.view')" :label="'Tenants'" :href="'superadmin.tenants.index'"
+                                        :active="route().current('superadmin.tenants.*')">
+                                        <template #icon>
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                                stroke-linecap="round" stroke-linejoin="round"
+                                                class="lucide lucide-building-2">
+                                                <path d="M6 22V2l6 4 6-4v20" />
+                                                <path d="M6 12h12" />
+                                                <path d="M6 18h12" />
+                                                <path d="M6 6h12" />
+                                            </svg>
+                                        </template>
+                                    </LinkAncor>
+
+                                    <LinkAncor v-if="canPlatform('support.manage')" :label="'Support'" :href="'superadmin.support.index'"
+                                        :active="route().current('superadmin.support.*')">
+                                        <template #icon>
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                                stroke-linecap="round" stroke-linejoin="round"
+                                                class="lucide lucide-life-buoy">
+                                                <circle cx="12" cy="12" r="10" />
+                                                <circle cx="12" cy="12" r="4" />
+                                                <line x1="4.93" x2="9.17" y1="4.93" y2="9.17" />
+                                                <line x1="14.83" x2="19.07" y1="14.83" y2="19.07" />
+                                                <line x1="14.83" x2="19.07" y1="9.17" y2="4.93" />
+                                                <line x1="14.83" x2="18.36" y1="9.17" y2="5.64" />
+                                            </svg>
+                                        </template>
+                                    </LinkAncor>
+
+                                    <LinkAncor v-if="canPlatform('admins.manage')" :label="'Admins'" :href="'superadmin.admins.index'"
+                                        :active="route().current('superadmin.admins.*')">
+                                        <template #icon>
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                                stroke-linecap="round" stroke-linejoin="round"
+                                                class="lucide lucide-users-2">
+                                                <path d="M14 19a6 6 0 0 0-12 0" />
+                                                <circle cx="8" cy="9" r="4" />
+                                                <path d="M22 20a6 6 0 0 0-4-5.65" />
+                                                <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                                            </svg>
+                                        </template>
+                                    </LinkAncor>
+
+                                    <LinkAncor v-if="canPlatform('notifications.manage')" :label="'Notifications'" :href="'superadmin.notifications.edit'"
+                                        :active="route().current('superadmin.notifications.*')">
+                                        <template #icon>
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                                stroke-linecap="round" stroke-linejoin="round"
+                                                class="lucide lucide-bell">
+                                                <path d="M10 5a2 2 0 1 1 4 0" />
+                                                <path d="M6 8a6 6 0 0 1 12 0c0 7 3 7 3 7H3s3 0 3-7" />
+                                                <path d="M10 21a2 2 0 0 0 4 0" />
+                                            </svg>
+                                        </template>
+                                    </LinkAncor>
+
+                                    <LinkAncor v-if="canPlatform('settings.manage')" :label="'Settings'" :href="'superadmin.settings.edit'"
+                                        :active="route().current('superadmin.settings.*')">
+                                        <template #icon>
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                                stroke-linecap="round" stroke-linejoin="round"
+                                                class="lucide lucide-settings">
+                                                <path d="M12 1v2" />
+                                                <path d="M12 21v2" />
+                                                <path d="M4.22 4.22l1.42 1.42" />
+                                                <path d="M18.36 18.36l1.42 1.42" />
+                                                <path d="M1 12h2" />
+                                                <path d="M21 12h2" />
+                                                <path d="M4.22 19.78l1.42-1.42" />
+                                                <path d="M18.36 5.64l1.42-1.42" />
+                                                <circle cx="12" cy="12" r="3" />
+                                            </svg>
+                                        </template>
+                                    </LinkAncor>
+                                </template>
+                                <template v-else>
                                 <MenuDropdown v-if="!isClient" active-item="/profile">
                                     <template #toggle-icon>
                                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
@@ -197,6 +297,7 @@ const avatarInitial = computed(() => {
                                     </template>
                                 </LinkAncor>
                                 <!-- End Item -->
+                                </template>
                             </ul>
                         </nav>
                         <!-- End Nav -->
@@ -304,5 +405,5 @@ const avatarInitial = computed(() => {
             </div>
         </div>
     </aside>
-    <QuickCreateModals v-if="!isClient" />
+    <QuickCreateModals v-if="!isClient && !showPlatformNav" />
 </template>
