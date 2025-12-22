@@ -3,6 +3,7 @@ import { onMounted, ref } from 'vue';
 import axios from 'axios';
 import Modal from '@/Components/UI/Modal.vue';
 import ProductQuickForm from '@/Components/QuickCreate/ProductQuickForm.vue';
+import ServiceQuickForm from '@/Components/QuickCreate/ServiceQuickForm.vue';
 import CustomerQuickForm from '@/Components/QuickCreate/CustomerQuickForm.vue';
 import QuoteQuickDialog from '@/Components/QuickCreate/QuoteQuickDialog.vue';
 
@@ -86,6 +87,21 @@ onMounted(() => {
         </div>
         <div v-else>
             <ProductQuickForm :categories="categories" :overlay-id="'#hs-quick-create-product'" />
+        </div>
+    </Modal>
+
+    <Modal :title="'New service'" :id="'hs-quick-create-service'">
+        <div v-if="loadingCategories" class="text-sm text-stone-500 dark:text-neutral-400">
+            Loading categories...
+        </div>
+        <div v-else-if="categoryError" class="text-sm text-red-600">
+            {{ categoryError }}
+        </div>
+        <div v-else-if="!categories.length" class="text-sm text-stone-500 dark:text-neutral-400">
+            Add at least one category before creating services.
+        </div>
+        <div v-else>
+            <ServiceQuickForm :categories="categories" :overlay-id="'#hs-quick-create-service'" />
         </div>
     </Modal>
 

@@ -34,7 +34,9 @@ const selectedCustomer = computed(() => {
 const propertyOptions = computed(() => selectedCustomer.value?.properties || []);
 
 watch(selectedCustomer, (customer) => {
-    selectedPropertyId.value = customer?.properties?.[0]?.id || '';
+    selectedPropertyId.value = customer?.properties?.find((property) => property.is_default)?.id
+        || customer?.properties?.[0]?.id
+        || '';
 });
 
 watch(() => props.customers.length, (length) => {

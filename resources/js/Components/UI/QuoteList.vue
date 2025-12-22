@@ -32,7 +32,12 @@ const statusClasses = (status) => {
     }
 };
 
-const propertyForQuote = (quote) => quote.property || quote.customer?.properties?.[0] || null;
+const fallbackPropertyForCustomer = (customer) => {
+    const properties = customer?.properties || [];
+    return properties.find((property) => property.is_default) || properties[0] || null;
+};
+
+const propertyForQuote = (quote) => quote.property || fallbackPropertyForCustomer(quote.customer);
 
 const deleteQuote = async (quote) => {
     try {

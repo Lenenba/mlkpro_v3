@@ -16,6 +16,9 @@ class Product extends Model
     /** @use HasFactory<\Database\Factories\ProductFactory> */
     use HasFactory, GeneratesSequentialNumber;
 
+    public const ITEM_TYPE_PRODUCT = 'product';
+    public const ITEM_TYPE_SERVICE = 'service';
+
     /**
      * The attributes that are mass assignable.
      *
@@ -38,6 +41,7 @@ class Product extends Model
         'tax_rate',
         'is_active',
         'user_id', // Ajout pour permettre une meilleure gestion multi-utilisateurs
+        'item_type',
     ];
 
     /**
@@ -68,9 +72,10 @@ class Product extends Model
     {
         parent::boot();
 
-        // Auto-generate the quote number before creating
-        static::creating(function ($quote) {
-            $quote->number = self::generateNumber($quote->user_id, 'P');
+        static::creating(function (self $product) {
+            $itemType = $product->item_type ?? self::ITEM_TYPE_PRODUCT;
+            $prefix = $itemType === self::ITEM_TYPE_SERVICE ? 'S' : 'P';
+            $product->number = self::generateNumber($product->user_id, $prefix);
         });
     }
     /**
@@ -286,6 +291,16 @@ class Product extends Model
     public function scopeByUser($query, int $userId)
     {
         return $query->where('user_id', $userId);
+    }
+
+    public function scopeProducts(Builder $query): Builder
+    {
+        return $query->where('item_type', self::ITEM_TYPE_PRODUCT);
+    }
+
+    public function scopeServices(Builder $query): Builder
+    {
+        return $query->where('item_type', self::ITEM_TYPE_SERVICE);
     }
 
     /**

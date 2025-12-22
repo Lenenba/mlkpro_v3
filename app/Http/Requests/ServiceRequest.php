@@ -1,0 +1,33 @@
+<?php
+
+namespace App\Http\Requests;
+
+use Illuminate\Foundation\Http\FormRequest;
+
+class ServiceRequest extends FormRequest
+{
+    public function authorize(): bool
+    {
+        return true;
+    }
+
+    public function rules(): array
+    {
+        return [
+            'name' => 'required|string|max:255',
+            'price' => 'required|numeric|min:0',
+            'cost_price' => 'nullable|numeric|min:0',
+            'margin_percent' => 'nullable|numeric|min:0|max:100',
+            'description' => 'nullable|string',
+            'category_id' => 'required|exists:product_categories,id',
+            'sku' => 'nullable|string|max:100',
+            'barcode' => 'nullable|string|max:100',
+            'unit' => 'nullable|string|max:50',
+            'supplier_name' => 'nullable|string|max:255',
+            'tax_rate' => 'nullable|numeric|min:0|max:100',
+            'is_active' => 'nullable|boolean',
+            'image' => 'nullable|image|mimes:jpg,png,jpeg,webp|max:5000',
+        ];
+    }
+}
+

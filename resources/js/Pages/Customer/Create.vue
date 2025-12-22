@@ -18,6 +18,22 @@ const Salutation = [
     { id: 'Mrs', name: 'Mrs' },
     { id: 'Miss', name: 'Miss' },
 ];
+
+const resolvePrimaryProperty = () => {
+    const properties = props.customer?.properties;
+    const primary = Array.isArray(properties)
+        ? (properties.find((property) => property.is_default) || properties[0] || null)
+        : (properties || null);
+
+    return {
+        street1: primary?.street1 || '',
+        street2: primary?.street2 || '',
+        city: primary?.city || '',
+        state: primary?.state || '',
+        zip: primary?.zip || '',
+        country: primary?.country || '',
+    };
+};
 // Initialize the form
 const form = useForm({
     first_name: props.customer?.first_name || '',
@@ -30,15 +46,7 @@ const form = useForm({
     refer_by: props.customer?.refer_by || '',
     salutation: props.customer?.salutation || '',
     phone: props.customer?.phone || '',
-    properties : props.customer?.properties ||
-        {
-            street1: '',
-            street2: '',
-            city: '',
-            state: '',
-            zip: '',
-            country: '',
-        },
+    properties: resolvePrimaryProperty(),
 });
 
 

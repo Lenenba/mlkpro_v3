@@ -255,14 +255,14 @@ const createInvoice = (work) => {
                     <tbody class="divide-y divide-stone-200 dark:divide-neutral-700">
                         <tr v-for="work in works.data" :key="work.id">
                             <td class="size-px whitespace-nowrap px-4 py-2 text-start">
-                                <div class="flex flex-col">
+                                <Link :href="route('work.show', work.id)" class="flex flex-col hover:underline">
                                     <span class="text-sm text-stone-600 dark:text-neutral-300">
                                         {{ work.job_title }}
                                     </span>
                                     <span class="text-xs text-stone-500 dark:text-neutral-500">
                                         {{ work.number }}
                                     </span>
-                                </div>
+                                </Link>
                             </td>
                             <td class="size-px whitespace-nowrap px-4 py-2">
                                 <span class="text-sm text-stone-600 dark:text-neutral-300">
@@ -292,19 +292,42 @@ const createInvoice = (work) => {
                                 </span>
                             </td>
                             <td class="size-px whitespace-nowrap px-4 py-2 text-end">
-                                <div class="flex items-center justify-end gap-2">
-                                    <Link :href="route('work.edit', work.id)"
-                                        class="py-1.5 px-2 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700">
-                                        Edit
-                                    </Link>
-                                    <Link v-if="work.invoice" :href="route('invoice.show', work.invoice.id)"
-                                        class="py-1.5 px-2 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700">
-                                        Invoice
-                                    </Link>
-                                    <button v-else type="button" @click="createInvoice(work)"
-                                        class="py-1.5 px-2 text-xs font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700">
-                                        Create invoice
+                                <div
+                                    class="hs-dropdown [--auto-close:inside] [--placement:bottom-right] relative inline-flex">
+                                    <button type="button"
+                                        class="size-7 inline-flex justify-center items-center gap-x-2 rounded-lg border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700"
+                                        aria-haspopup="menu" aria-expanded="false" aria-label="Dropdown">
+                                        <svg class="shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" width="24"
+                                            height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <circle cx="12" cy="12" r="1" />
+                                            <circle cx="12" cy="5" r="1" />
+                                            <circle cx="12" cy="19" r="1" />
+                                        </svg>
                                     </button>
+
+                                    <div class="hs-dropdown-menu hs-dropdown-open:opacity-100 w-40 transition-[opacity,margin] duration opacity-0 hidden z-10 bg-white rounded-xl shadow-[0_10px_40px_10px_rgba(0,0,0,0.08)] dark:shadow-[0_10px_40px_10px_rgba(0,0,0,0.2)] dark:bg-neutral-900"
+                                        role="menu" aria-orientation="vertical">
+                                        <div class="p-1">
+                                            <Link :href="route('work.show', work.id)"
+                                                class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-lg text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
+                                                View
+                                            </Link>
+                                            <Link :href="route('work.edit', work.id)"
+                                                class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-lg text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
+                                                Edit
+                                            </Link>
+                                            <div class="my-1 border-t border-stone-200 dark:border-neutral-800"></div>
+                                            <Link v-if="work.invoice" :href="route('invoice.show', work.invoice.id)"
+                                                class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-lg text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
+                                                View invoice
+                                            </Link>
+                                            <button v-else type="button" @click="createInvoice(work)"
+                                                class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-lg text-[13px] text-emerald-600 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-neutral-800">
+                                                Create invoice
+                                            </button>
+                                        </div>
+                                    </div>
                                 </div>
                             </td>
                         </tr>

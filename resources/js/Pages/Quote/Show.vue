@@ -6,7 +6,12 @@ const props = defineProps({
     quote: Object,
 });
 
-const property = computed(() => props.quote.property || props.quote.customer?.properties?.[0] || null);
+const fallbackProperty = computed(() => {
+    const properties = props.quote.customer?.properties || [];
+    return properties.find((item) => item.is_default) || properties[0] || null;
+});
+
+const property = computed(() => props.quote.property || fallbackProperty.value);
 const taxTotal = computed(() => (props.quote.taxes || []).reduce((sum, tax) => sum + Number(tax.amount || 0), 0));
 
 

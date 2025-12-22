@@ -12,12 +12,17 @@ class Property extends Model
     protected $fillable = [
         'customer_id',
         'type',
+        'is_default',
         'country',
         'street1',
         'street2',
         'city',
         'state',
         'zip',
+    ];
+
+    protected $casts = [
+        'is_default' => 'boolean',
     ];
 
     public function customer()

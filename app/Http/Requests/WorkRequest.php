@@ -2,7 +2,10 @@
 
 namespace App\Http\Requests;
 
+use App\Models\Product;
+use App\Models\User;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class WorkRequest extends FormRequest
 {
@@ -21,6 +24,20 @@ class WorkRequest extends FormRequest
      */
     public function rules(): array
     {
+        $user = $this->user();
+        $accountId = $user?->accountOwnerId() ?? 0;
+
+        $accountCompanyType = null;
+        if ($user && $accountId) {
+            $accountCompanyType = $accountId === $user->id
+                ? $user->company_type
+                : User::query()->whereKey($accountId)->value('company_type');
+        }
+
+        $itemType = $accountCompanyType === 'products'
+            ? Product::ITEM_TYPE_PRODUCT
+            : Product::ITEM_TYPE_SERVICE;
+
         return [
             'customer_id' => 'required|integer|exists:customers,id',
             'job_title' => 'required|string|max:255',
@@ -44,7 +61,13 @@ class WorkRequest extends FormRequest
             'subtotal' => 'nullable|numeric',
             'total' => 'nullable|numeric',
             'products' => 'nullable|array',
-            'products.*.id' => 'required_with:products|integer|exists:products,id',
+            'products.*.id' => [
+                'required_with:products',
+                'integer',
+                Rule::exists('products', 'id')
+                    ->where('user_id', $accountId)
+                    ->where('item_type', $itemType),
+            ],
             'products.*.quantity' => 'required_with:products|integer|min:1',
             'products.*.price' => 'nullable|numeric|min:0',
             'products.*.total' => 'nullable|numeric|min:0',

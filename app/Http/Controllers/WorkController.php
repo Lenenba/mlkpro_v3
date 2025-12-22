@@ -8,6 +8,7 @@ use App\Models\Product;
 use App\Models\Customer;
 use App\Models\ActivityLog;
 use App\Models\TeamMember;
+use App\Models\User;
 use Illuminate\Http\Request;
 use App\Http\Requests\WorkRequest;
 use Illuminate\Support\Facades\Auth;
@@ -112,11 +113,15 @@ class WorkController extends Controller
             ->orderBy('created_at')
             ->get();
 
+        $itemType = $user->company_type === 'products'
+            ? Product::ITEM_TYPE_PRODUCT
+            : Product::ITEM_TYPE_SERVICE;
+
         return inertia('Work/Create', [
             'lastWorkNumber' => $this->generateNextNumber($customer->works->last()->number ?? null),
             'works' => $works,
             'customer' => $customer->load('properties'),
-            'products' => Product::byUser($accountId)->get(),
+            'products' => Product::byUser($accountId)->where('item_type', $itemType)->get(),
             'teamMembers' => $teamMembers,
         ]);
     }
@@ -147,6 +152,10 @@ class WorkController extends Controller
         if (!$user || $user->id !== $accountId) {
             abort(403);
         }
+
+        $itemType = $user->company_type === 'products'
+            ? Product::ITEM_TYPE_PRODUCT
+            : Product::ITEM_TYPE_SERVICE;
 
         $validated = $request->validated();
         $customer = Customer::byUser($accountId)->with(['works'])->findOrFail($validated['customer_id']);
@@ -194,6 +203,7 @@ class WorkController extends Controller
             $productMap = collect();
             if ($lines->isNotEmpty()) {
                 $productMap = Product::byUser($accountId)
+                    ->where('item_type', $itemType)
                     ->whereIn('id', $lines->pluck('product_id'))
                     ->get()
                     ->keyBy('id');
@@ -262,6 +272,13 @@ class WorkController extends Controller
     public function edit(int $work_id, ?Request $request)
     {
         $accountId = Auth::user()?->accountOwnerId() ?? Auth::id();
+        $accountCompanyType = Auth::user()?->id === $accountId
+            ? Auth::user()?->company_type
+            : User::query()->whereKey($accountId)->value('company_type');
+        $itemType = $accountCompanyType === 'products'
+            ? Product::ITEM_TYPE_PRODUCT
+            : Product::ITEM_TYPE_SERVICE;
+
         $work = Work::byUser($accountId)
             ->with(['customer', 'invoice', 'products', 'ratings', 'teamMembers.user'])
             ->findOrFail($work_id);
@@ -270,7 +287,11 @@ class WorkController extends Controller
         $filters = $request->only(['category_id', 'name', 'stock']);
         $workProducts = $work->products()->with('category')->get() ?: [];
 
-        $productsQuery = Product::byUser($accountId)->mostRecent()->filter($filters)->with(['category', 'works']);
+        $productsQuery = Product::byUser($accountId)
+            ->where('item_type', $itemType)
+            ->mostRecent()
+            ->filter($filters)
+            ->with(['category', 'works']);
         $products = $productsQuery->simplePaginate(8)->withQueryString();
 
         $customer = Customer::with(['works'])
@@ -306,6 +327,13 @@ class WorkController extends Controller
         $work = Work::byUser($accountId)->findOrFail($id);
         $this->authorize('update', $work);
 
+        $accountCompanyType = $user?->id === $accountId
+            ? $user?->company_type
+            : User::query()->whereKey($accountId)->value('company_type');
+        $itemType = $accountCompanyType === 'products'
+            ? Product::ITEM_TYPE_PRODUCT
+            : Product::ITEM_TYPE_SERVICE;
+
         $validated = $request->validated();
         $previousStatus = $work->status;
         $validated['instructions'] = $validated['instructions'] ?? $work->instructions ?? '';
@@ -327,6 +355,7 @@ class WorkController extends Controller
         $productMap = collect();
         if ($lines->isNotEmpty()) {
             $productMap = Product::byUser($accountId)
+                ->where('item_type', $itemType)
                 ->whereIn('id', $lines->pluck('product_id'))
                 ->get()
                 ->keyBy('id');

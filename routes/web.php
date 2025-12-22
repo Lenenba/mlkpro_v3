@@ -6,6 +6,7 @@ use App\Http\Controllers\QuoteController;
 use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\ProductController;
+use App\Http\Controllers\ServiceController;
 use App\Http\Controllers\TaskController;
 use App\Http\Controllers\TeamMemberController;
 use App\Http\Controllers\ProfileController;
@@ -17,6 +18,7 @@ use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\WelcomeController;
 use App\Http\Controllers\Settings\CompanySettingsController;
 use App\Http\Controllers\Settings\BillingSettingsController;
+use App\Http\Controllers\CustomerPropertyController;
 
 Route::get('/favicon.ico', function () {
     return response()->file(public_path('favicon.ico'));
@@ -62,8 +64,14 @@ Route::middleware('auth')->group(function () {
     Route::get('/product/search', ProductsSearchController::class)->name('product.search');
     Route::get('/products/options', [ProductController::class, 'options'])->name('product.options');
     Route::post('/products/quick', [ProductController::class, 'storeQuick'])->name('product.quick.store');
+    Route::get('/services/options', [ServiceController::class, 'options'])->name('service.options');
+    Route::post('/services/quick', [ServiceController::class, 'storeQuick'])->name('service.quick.store');
     Route::get('/customers/options', [CustomerController::class, 'options'])->name('customer.options');
     Route::post('/customers/quick', [CustomerController::class, 'storeQuick'])->name('customer.quick.store');
+
+    // Service Management
+    Route::resource('service', ServiceController::class)
+        ->only(['index', 'store', 'update', 'destroy']);
 
     // Product Management
     Route::post('/product/bulk', [ProductController::class, 'bulk'])->name('product.bulk');
@@ -75,6 +83,17 @@ Route::middleware('auth')->group(function () {
     Route::resource('product', ProductController::class);
 
     // Customer Management
+    Route::scopeBindings()->group(function () {
+        Route::post('/customer/{customer}/properties', [CustomerPropertyController::class, 'store'])
+            ->name('customer.properties.store');
+        Route::put('/customer/{customer}/properties/{property}', [CustomerPropertyController::class, 'update'])
+            ->name('customer.properties.update');
+        Route::delete('/customer/{customer}/properties/{property}', [CustomerPropertyController::class, 'destroy'])
+            ->name('customer.properties.destroy');
+        Route::put('/customer/{customer}/properties/{property}/default', [CustomerPropertyController::class, 'setDefault'])
+            ->name('customer.properties.default');
+    });
+
     Route::resource('customer', CustomerController::class)
         ->only(['index', 'store', 'update', 'create', 'show', 'destroy']);
 

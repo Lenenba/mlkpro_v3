@@ -74,6 +74,11 @@ const form = useForm({
     team_member_ids: props.work?.team_members?.map(member => member.id) ?? [],
 });
 
+const primaryProperty = computed(() => {
+    const properties = props.customer?.properties || [];
+    return properties.find((property) => property.is_default) || properties[0] || null;
+});
+
 const toIsoDate = (dateInput) => {
     if (!dateInput) {
         return '';
@@ -395,13 +400,13 @@ onBeforeUnmount(() => {
                                             Property address
                                         </p>
                                         <div class="text-xs text-gray-600 dark:text-neutral-400">
-                                            {{ customer.properties?.[0]?.country ?? '-' }}
+                                            {{ primaryProperty?.country ?? '-' }}
                                         </div>
                                         <div class="text-xs text-gray-600 dark:text-neutral-400">
-                                            {{ customer.properties?.[0]?.street1 ?? '-' }}
+                                            {{ primaryProperty?.street1 ?? '-' }}
                                         </div>
                                         <div class="text-xs text-gray-600 dark:text-neutral-400">
-                                            {{ customer.properties?.[0]?.state ?? '-' }} - {{ customer.properties?.[0]?.zip ?? '-' }}
+                                            {{ primaryProperty?.state ?? '-' }} - {{ primaryProperty?.zip ?? '-' }}
                                         </div>
                                     </div>
                                     <div class="lg:col-span-3">

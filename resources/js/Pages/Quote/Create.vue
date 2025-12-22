@@ -14,10 +14,20 @@ const props = defineProps({
     selectedPropertyId: Number,
 });
 
+const resolveDefaultPropertyId = (customer) => {
+    const properties = customer?.properties || [];
+    return properties.find((property) => property.is_default)?.id || properties[0]?.id || null;
+};
+
+const initialPropertyId = props.quote?.property_id
+    || props.selectedPropertyId
+    || resolveDefaultPropertyId(props.customer)
+    || null;
+
 const form = useForm({
     // Pre-remplissage pour creation ou edition
     customer_id: props.quote?.customer_id || props.customer.id,
-    property_id: props.quote?.property_id || props.selectedPropertyId || props.customer?.properties?.[0]?.id || null,
+    property_id: initialPropertyId,
     job_title: props.quote?.job_title || '',
     status: props.quote?.status || 'draft',
     notes: props.quote?.notes || '',

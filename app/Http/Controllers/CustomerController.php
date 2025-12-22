@@ -9,6 +9,7 @@ use App\Utils\FileHandler;
 use App\Models\ActivityLog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use App\Http\Requests\CustomerRequest;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 
@@ -115,7 +116,7 @@ class CustomerController extends Controller
 
         $customers = Customer::byUser($userId)
             ->with(['properties' => function ($query) {
-                $query->orderBy('id');
+                $query->orderByDesc('is_default')->orderBy('id');
             }])
             ->orderBy('company_name')
             ->orderBy('last_name')
@@ -133,6 +134,7 @@ class CustomerController extends Controller
                     return [
                         'id' => $property->id,
                         'type' => $property->type,
+                        'is_default' => (bool) $property->is_default,
                         'street1' => $property->street1,
                         'street2' => $property->street2,
                         'city' => $property->city,
@@ -211,7 +213,12 @@ class CustomerController extends Controller
 
         // Add properties if provided
         if (!empty($validated['properties'])) {
-            $customer->properties()->create($validated['properties']);
+            $propertyPayload = $validated['properties'];
+            $propertyPayload['type'] = $propertyPayload['type'] ?? 'physical';
+            if (!empty($propertyPayload['city'])) {
+                $propertyPayload['is_default'] = true;
+                $customer->properties()->create($propertyPayload);
+            }
         }
 
         ActivityLog::record($request->user(), $customer, 'created', [
@@ -238,6 +245,7 @@ class CustomerController extends Controller
             $propertyPayload = $validated['properties'];
             $propertyPayload['type'] = $propertyPayload['type'] ?? 'physical';
             if (!empty($propertyPayload['city'])) {
+                $propertyPayload['is_default'] = true;
                 $property = $customer->properties()->create($propertyPayload);
             }
         }
@@ -252,6 +260,7 @@ class CustomerController extends Controller
             $propertyData[] = [
                 'id' => $property->id,
                 'type' => $property->type,
+                'is_default' => (bool) $property->is_default,
                 'street1' => $property->street1,
                 'street2' => $property->street2,
                 'city' => $property->city,
@@ -299,6 +308,31 @@ class CustomerController extends Controller
         );
 
         $customer->update($validated);
+
+        if (!empty($validated['properties'])) {
+            $propertyPayload = $validated['properties'];
+            $propertyPayload['type'] = $propertyPayload['type'] ?? 'physical';
+
+            if (!empty($propertyPayload['city'])) {
+                DB::transaction(function () use ($customer, $propertyPayload) {
+                    $defaultProperty = $customer->properties()->where('is_default', true)->first();
+                    if ($defaultProperty) {
+                        $defaultProperty->update($propertyPayload);
+                        return;
+                    }
+
+                    $fallbackProperty = $customer->properties()->reorder('id')->first();
+                    if ($fallbackProperty) {
+                        $customer->properties()->update(['is_default' => false]);
+                        $fallbackProperty->update(array_merge($propertyPayload, ['is_default' => true]));
+                        return;
+                    }
+
+                    $propertyPayload['is_default'] = true;
+                    $customer->properties()->create($propertyPayload);
+                });
+            }
+        }
 
         ActivityLog::record($request->user(), $customer, 'updated', [
             'company_name' => $customer->company_name,

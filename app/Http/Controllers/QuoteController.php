@@ -140,6 +140,10 @@ class QuoteController extends Controller
      */
     public function store(Request $request)
     {
+        $itemType = Auth::user()?->company_type === 'products'
+            ? Product::ITEM_TYPE_PRODUCT
+            : Product::ITEM_TYPE_SERVICE;
+
         $validated = $request->validate([
             'job_title' => 'required|string',
             'property_id' => 'nullable|integer',
@@ -148,7 +152,9 @@ class QuoteController extends Controller
             'product' => 'required|array|min:1',
             'product.*.id' => [
                 'required',
-                Rule::exists('products', 'id')->where('user_id', Auth::id()),
+                Rule::exists('products', 'id')
+                    ->where('user_id', Auth::id())
+                    ->where('item_type', $itemType),
             ],
             'product.*.quantity' => 'required|integer|min:1',
             'product.*.price' => 'required|numeric|min:0',
@@ -237,6 +243,10 @@ class QuoteController extends Controller
 
     public function update(Request $request, Quote $quote)
     {
+        $itemType = Auth::user()?->company_type === 'products'
+            ? Product::ITEM_TYPE_PRODUCT
+            : Product::ITEM_TYPE_SERVICE;
+
         $validated = $request->validate([
             'job_title' => 'required|string',
             'property_id' => 'nullable|integer',
@@ -245,7 +255,9 @@ class QuoteController extends Controller
             'product' => 'required|array|min:1',
             'product.*.id' => [
                 'required',
-                Rule::exists('products', 'id')->where('user_id', Auth::id()),
+                Rule::exists('products', 'id')
+                    ->where('user_id', Auth::id())
+                    ->where('item_type', $itemType),
             ],
             'product.*.quantity' => 'required|integer|min:1',
             'product.*.price' => 'required|numeric|min:0',

@@ -42,6 +42,7 @@ class ProductController extends Controller
         $userId = Auth::user()->id;
 
         $baseQuery = Product::query()
+            ->products()
             ->filter($filters)
             ->byUser($userId);
 
@@ -165,6 +166,7 @@ class ProductController extends Controller
     public function store(ProductRequest $request)
     {
         $validated = $request->validated();
+        $validated['item_type'] = Product::ITEM_TYPE_PRODUCT;
         $validated['image'] = FileHandler::handleImageUpload('products', $request, 'image', 'products/product.jpg');
         $extraImages = FileHandler::handleMultipleImageUpload('products', $request, 'images');
 
@@ -192,6 +194,7 @@ class ProductController extends Controller
     public function storeQuick(ProductRequest $request)
     {
         $validated = $request->validated();
+        $validated['item_type'] = Product::ITEM_TYPE_PRODUCT;
         $validated['image'] = FileHandler::handleImageUpload('products', $request, 'image', 'products/product.jpg');
         $extraImages = FileHandler::handleMultipleImageUpload('products', $request, 'images');
 
@@ -231,6 +234,8 @@ class ProductController extends Controller
             return redirect()->back()->with('error', 'You are not authorized to edit this product.');
         }
 
+        $this->ensureProductItem($product);
+
         return inertia('Product/Show', [
             'product' => $product->load(['category', 'user', 'images', 'stockMovements' => function ($query) {
                 $query->limit(10);
@@ -253,6 +258,7 @@ class ProductController extends Controller
     public function quickUpdate(Request $request, Product $product): RedirectResponse
     {
         $this->authorize('update', $product);
+        $this->ensureProductItem($product);
 
         $data = $request->validate([
             'price' => 'nullable|numeric|min:0',
@@ -275,6 +281,7 @@ class ProductController extends Controller
     public function adjustStock(Request $request, Product $product): RedirectResponse
     {
         $this->authorize('update', $product);
+        $this->ensureProductItem($product);
 
         $data = $request->validate([
             'type' => 'required|in:in,out,adjust',
@@ -319,7 +326,9 @@ class ProductController extends Controller
             'ids.*' => 'integer',
         ]);
 
-        $products = Product::byUser(Auth::id())
+        $products = Product::query()
+            ->products()
+            ->byUser(Auth::id())
             ->whereIn('id', $data['ids'])
             ->get();
 
@@ -327,7 +336,7 @@ class ProductController extends Controller
             foreach ($products as $product) {
                 $this->authorize('update', $product);
             }
-            Product::byUser(Auth::id())->whereIn('id', $data['ids'])->update(['is_active' => false]);
+            Product::query()->products()->byUser(Auth::id())->whereIn('id', $data['ids'])->update(['is_active' => false]);
             return redirect()->back()->with('success', 'Products archived.');
         }
 
@@ -335,7 +344,7 @@ class ProductController extends Controller
             foreach ($products as $product) {
                 $this->authorize('update', $product);
             }
-            Product::byUser(Auth::id())->whereIn('id', $data['ids'])->update(['is_active' => true]);
+            Product::query()->products()->byUser(Auth::id())->whereIn('id', $data['ids'])->update(['is_active' => true]);
             return redirect()->back()->with('success', 'Products restored.');
         }
 
@@ -357,6 +366,7 @@ class ProductController extends Controller
     public function duplicate(Product $product): RedirectResponse
     {
         $this->authorize('update', $product);
+        $this->ensureProductItem($product);
 
         $copy = $product->replicate(['created_at', 'updated_at']);
         $copy->name = $product->name . ' (Copy)';
@@ -413,6 +423,7 @@ class ProductController extends Controller
         ]);
 
         $query = Product::query()
+            ->products()
             ->filter($filters)
             ->byUser(Auth::id())
             ->with('category');
@@ -524,7 +535,7 @@ class ProductController extends Controller
                 'is_active' => ($dataRow['is_active'] ?? '1') === '1',
             ];
 
-            $query = Product::byUser(Auth::id());
+            $query = Product::query()->products()->byUser(Auth::id());
             if (!empty($payload['sku'])) {
                 $query->where('sku', $payload['sku']);
             } else {
@@ -536,6 +547,7 @@ class ProductController extends Controller
                 $existing->update(array_filter($payload, static fn($value) => $value !== null));
             } else {
                 $payload['user_id'] = Auth::id();
+                $payload['item_type'] = Product::ITEM_TYPE_PRODUCT;
                 if (!$payload['category_id']) {
                     $payload['category_id'] = ProductCategory::first()->id ?? null;
                 }
@@ -566,7 +578,10 @@ class ProductController extends Controller
             return redirect()->back()->with('error', 'You are not authorized to edit this product.');
         }
 
+        $this->ensureProductItem($product);
+
         $validated = $request->validated();
+        $validated['item_type'] = Product::ITEM_TYPE_PRODUCT;
         $validated['image'] = FileHandler::handleImageUpload('products', $request, 'image', 'products/product.jpg', $product->image);
         $extraImages = FileHandler::handleMultipleImageUpload('products', $request, 'images');
         $removeImageIds = $request->input('remove_image_ids', []);
@@ -605,6 +620,7 @@ class ProductController extends Controller
     public function destroy(Product $product)
     {
         $this->authorize('delete', $product);
+        $this->ensureProductItem($product);
 
         foreach ($product->images as $image) {
             FileHandler::deleteFile($image->path, 'products/product.jpg');
@@ -613,6 +629,13 @@ class ProductController extends Controller
         $product->delete();
 
         return redirect()->route('product.index')->with('success', 'Product deleted successfully.');
+    }
+
+    private function ensureProductItem(Product $product): void
+    {
+        if ($product->item_type !== Product::ITEM_TYPE_PRODUCT) {
+            abort(404);
+        }
     }
 
 }

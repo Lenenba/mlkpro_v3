@@ -1,6 +1,7 @@
 <script setup>
 import { ref, watch, computed } from 'vue';
 import axios from 'axios';
+import { usePage } from '@inertiajs/vue3';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingNumberMiniInput from '@/Components/FloatingNumberMiniInput.vue';
 
@@ -16,10 +17,19 @@ const props = defineProps({
     type: String,
     default: 'product.search',
   },
+  itemType: {
+    type: String,
+    default: null,
+  },
 });
 
 // Define events to emit
 const emits = defineEmits(['update:modelValue', 'update:subtotal']);
+
+const page = usePage();
+const companyType = computed(() => page.props.auth?.account?.company?.type ?? null);
+const resolvedItemType = computed(() => props.itemType || (companyType.value === 'products' ? 'product' : 'service'));
+const lineItemLabel = computed(() => (resolvedItemType.value === 'service' ? 'Service' : 'Product'));
 
 // Local reactive state for product lines
 const products = ref([...props.modelValue]);
@@ -63,7 +73,12 @@ const removeLine = index => {
 const searchProducts = async (query, index) => {
   if (query.length > 0) {
     try {
-      const response = await axios.get(route(props.searchEndpoint), { params: { query } });
+      const response = await axios.get(route(props.searchEndpoint), {
+        params: {
+          query,
+          item_type: resolvedItemType.value,
+        },
+      });
       searchResults.value[index] = response.data;
     } catch (error) {
       console.error('Error fetching products:', error);
@@ -97,7 +112,7 @@ const selectProduct = (product, index) => {
             <tr>
               <th scope="col" class="min-w-[450px]">
                 <div class="pe-4 py-3 text-start flex items-center gap-x-1 text-sm font-medium text-gray-800 dark:text-neutral-200">
-                  Product/Services
+                  {{ lineItemLabel }}
                 </div>
               </th>
               <th scope="col">
@@ -173,7 +188,7 @@ const selectProduct = (product, index) => {
     <div class="text-xs text-gray-600 flex justify-between mt-5">
       <button type="button" @click="addNewLine"
           class="hs-tooltip-toggle ml-4 py-2 px-2.5 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:ring-2 focus:ring-green-500">
-          Add new product line
+          Add new {{ lineItemLabel.toLowerCase() }} line
       </button>
     </div>
   </div>

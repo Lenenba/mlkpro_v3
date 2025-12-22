@@ -26,6 +26,7 @@ class TaskController extends Controller
         $membership = $user && $user->id !== $accountId
             ? $user->teamMembership()->first()
             : null;
+        $isAdminMember = $membership && $membership->role === 'admin';
 
         $query = Task::query()
             ->forAccount($accountId)
@@ -48,6 +49,14 @@ class TaskController extends Controller
             $query->where('assigned_team_member_id', $membership->id);
         }
 
+        $totalCount = (clone $query)->count();
+        $stats = [
+            'total' => $totalCount,
+            'todo' => (clone $query)->where('status', 'todo')->count(),
+            'in_progress' => (clone $query)->where('status', 'in_progress')->count(),
+            'done' => (clone $query)->where('status', 'done')->count(),
+        ];
+
         $tasks = $query
             ->orderByRaw('CASE WHEN due_date IS NULL THEN 1 ELSE 0 END')
             ->orderBy('due_date')
@@ -56,11 +65,19 @@ class TaskController extends Controller
             ->withQueryString();
 
         $canManage = $user
-            ? ($user->id === $accountId || ($membership && $membership->role === 'admin'))
+            ? ($user->id === $accountId || ($isAdminMember && $membership->hasPermission('tasks.edit')))
+            : false;
+
+        $canEditStatus = $user
+            ? ($user->id === $accountId || ($membership && $membership->hasPermission('tasks.edit')))
+            : false;
+
+        $canDelete = $user
+            ? ($user->id === $accountId || ($isAdminMember && $membership->hasPermission('tasks.delete')))
             : false;
 
         $teamMembers = collect();
-        if ($canManage) {
+        if ($user && ($user->id === $accountId || ($isAdminMember && ($membership->hasPermission('tasks.create') || $membership->hasPermission('tasks.edit'))))) {
             $teamMembers = TeamMember::query()
                 ->forAccount($accountId)
                 ->active()
@@ -74,8 +91,12 @@ class TaskController extends Controller
             'filters' => $filters,
             'statuses' => Task::STATUSES,
             'teamMembers' => $teamMembers,
+            'stats' => $stats,
+            'count' => $totalCount,
             'canCreate' => $user ? $user->can('create', Task::class) : false,
             'canManage' => $canManage,
+            'canDelete' => $canDelete,
+            'canEditStatus' => $canEditStatus,
         ]);
     }
 

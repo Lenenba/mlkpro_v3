@@ -72,7 +72,15 @@ class Customer extends Model
 
     public function properties()
     {
-        return $this->hasMany(Property::class);
+        return $this->hasMany(Property::class)
+            ->orderByDesc('is_default')
+            ->orderBy('id');
+    }
+
+    public function defaultProperty()
+    {
+        return $this->hasOne(Property::class)
+            ->where('is_default', true);
     }
 
     public function physicalAddress()

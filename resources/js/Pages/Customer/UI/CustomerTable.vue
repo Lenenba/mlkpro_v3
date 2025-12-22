@@ -119,7 +119,7 @@ const getPrimaryProperty = (customer) => {
     if (!customer.properties || !customer.properties.length) {
         return null;
     }
-    return customer.properties[0];
+    return customer.properties.find((property) => property.is_default) || customer.properties[0];
 };
 
 const getCity = (customer) => {

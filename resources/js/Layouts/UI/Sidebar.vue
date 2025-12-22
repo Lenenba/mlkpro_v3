@@ -102,6 +102,21 @@ const avatarInitial = computed(() => {
                                     </template>
                                 </LinkAncor>
                                 <!-- End Item -->
+
+                                <!-- Item -->
+                                <LinkAncor v-if="showServices && page.props.auth.account?.is_owner" :label="'Services'" :href="'service.index'"
+                                    :active="route().current('service.*')">
+                                    <template #icon>
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round"
+                                            class="lucide lucide-wrench">
+                                            <path
+                                                d="M14.7 6.3a4 4 0 0 0-5.66 5.66l-6.34 6.34a2 2 0 0 0 2.83 2.83l6.34-6.34a4 4 0 0 0 5.66-5.66l-2.12 2.12-2.83-2.83 2.12-2.12z" />
+                                        </svg>
+                                    </template>
+                                </LinkAncor>
+                                <!-- End Item -->
                                 <!-- Item -->
                                 <LinkAncor v-if="showServices && page.props.auth.account?.is_owner" :label="'Quotes'" :href="'quote.index'"
                                     :active="route().current('quote.index') || route().current('customer.quote.*')">

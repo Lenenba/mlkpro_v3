@@ -37,6 +37,12 @@ class TeamMemberController extends Controller
         return inertia('Team/Index', [
             'teamMembers' => $teamMembers,
             'availablePermissions' => self::AVAILABLE_PERMISSIONS,
+            'stats' => [
+                'total' => $teamMembers->count(),
+                'active' => $teamMembers->where('is_active', true)->count(),
+                'admins' => $teamMembers->where('role', 'admin')->count(),
+                'members' => $teamMembers->where('role', 'member')->count(),
+            ],
         ]);
     }
 
