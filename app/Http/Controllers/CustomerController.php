@@ -5,11 +5,15 @@ namespace App\Http\Controllers;
 use App\Models\Work;
 use Inertia\Inertia;
 use App\Models\Customer;
+use App\Models\Role;
+use App\Models\User;
 use App\Utils\FileHandler;
 use App\Models\ActivityLog;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use App\Http\Requests\CustomerRequest;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 
@@ -205,11 +209,18 @@ class CustomerController extends Controller
      */
     public function store(CustomerRequest $request)
     {
-
         $validated = $request->validated();
         $validated['logo'] = FileHandler::handleImageUpload('customers', $request, 'logo', 'customers/customer.png');
         $validated['header_image'] = FileHandler::handleImageUpload('customers', $request, 'header_image', 'customers/customer.png');
-        $customer = $request->user()->customers()->create($validated);
+
+        $customerData = Arr::except($validated, ['temporary_password']);
+
+        $customer = DB::transaction(function () use ($request, $validated, $customerData) {
+            $portalUser = $this->createPortalUser($validated);
+            $customerData['portal_user_id'] = $portalUser->id;
+
+            return $request->user()->customers()->create($customerData);
+        });
 
         // Add properties if provided
         if (!empty($validated['properties'])) {
@@ -238,7 +249,14 @@ class CustomerController extends Controller
         $validated['logo'] = FileHandler::handleImageUpload('customers', $request, 'logo', 'customers/customer.png');
         $validated['header_image'] = FileHandler::handleImageUpload('customers', $request, 'header_image', 'customers/customer.png');
 
-        $customer = $request->user()->customers()->create($validated);
+        $customerData = Arr::except($validated, ['temporary_password']);
+
+        $customer = DB::transaction(function () use ($request, $validated, $customerData) {
+            $portalUser = $this->createPortalUser($validated);
+            $customerData['portal_user_id'] = $portalUser->id;
+
+            return $request->user()->customers()->create($customerData);
+        });
 
         $property = null;
         if (!empty($validated['properties'])) {
@@ -358,5 +376,28 @@ class CustomerController extends Controller
         $customer->delete();
 
         return redirect()->route('customer.index')->with('success', 'Customer deleted successfully.');
+    }
+
+    private function createPortalUser(array $validated): User
+    {
+        $roleId = Role::query()->where('name', 'client')->value('id');
+        if (!$roleId) {
+            throw new \RuntimeException('Client role not found.');
+        }
+
+        $name = trim(($validated['first_name'] ?? '') . ' ' . ($validated['last_name'] ?? ''));
+        if ($name === '') {
+            $name = $validated['company_name'] ?? $validated['email'];
+        }
+
+        return User::create([
+            'name' => $name ?: $validated['email'],
+            'email' => $validated['email'],
+            'password' => Hash::make($validated['temporary_password']),
+            'role_id' => $roleId,
+            'phone_number' => $validated['phone'] ?? null,
+            'company_name' => $validated['company_name'] ?? null,
+            'must_change_password' => true,
+        ]);
     }
 }

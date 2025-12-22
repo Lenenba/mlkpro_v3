@@ -1,6 +1,7 @@
 <script setup>
 import { computed, ref, watch } from 'vue';
 import { Link, router, useForm } from '@inertiajs/vue3';
+import { humanizeDate } from '@/utils/date';
 import ProductForm from './ProductForm.vue';
 import Modal from '@/Components/UI/Modal.vue';
 import Checkbox from '@/Components/Checkbox.vue';
@@ -298,16 +299,7 @@ const submitAdjust = () => {
     });
 };
 
-const formatDate = (value) => {
-    if (!value) {
-        return '';
-    }
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) {
-        return '';
-    }
-    return date.toLocaleDateString();
-};
+const formatDate = (value) => humanizeDate(value);
 
 const importForm = useForm({
     file: null,

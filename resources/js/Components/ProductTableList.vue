@@ -29,7 +29,7 @@ const emits = defineEmits(['update:modelValue', 'update:subtotal']);
 const page = usePage();
 const companyType = computed(() => page.props.auth?.account?.company?.type ?? null);
 const resolvedItemType = computed(() => props.itemType || (companyType.value === 'products' ? 'product' : 'service'));
-const lineItemLabel = computed(() => (resolvedItemType.value === 'service' ? 'Service' : 'Product'));
+const lineItemLabel = computed(() => (resolvedItemType.value === 'service' ? 'Service' : 'Produit'));
 
 // Local reactive state for product lines
 const products = ref([...props.modelValue]);
@@ -117,12 +117,12 @@ const selectProduct = (product, index) => {
               </th>
               <th scope="col">
                 <div class="px-4 py-3 text-start flex items-center gap-x-1 text-sm font-medium text-gray-800 dark:text-neutral-200">
-                  Qty.
+                  Qte
                 </div>
               </th>
               <th scope="col">
                 <div class="px-4 py-3 text-start flex items-center gap-x-1 text-sm font-medium text-gray-800 dark:text-neutral-200">
-                  Unit cost
+                  Prix unitaire
                 </div>
               </th>
               <th scope="col">
@@ -141,7 +141,7 @@ const selectProduct = (product, index) => {
             <tr v-for="(product, index) in products" :key="index">
               <td class="size-px whitespace-nowrap px-4 py-3">
                 <div class="relative">
-                  <FloatingInput autofocus v-model="products[index].name" label="Name"
+                  <FloatingInput autofocus v-model="products[index].name" label="Nom"
                     @input="searchProducts(products[index].name, index)" />
                 </div>
                 <div class="relative w-full">
@@ -156,10 +156,10 @@ const selectProduct = (product, index) => {
                 </div>
               </td>
               <td class="size-px whitespace-nowrap px-4 py-3">
-                <FloatingNumberMiniInput v-model="products[index].quantity" label="Quantity" />
+                <FloatingNumberMiniInput v-model="products[index].quantity" label="Quantite" />
               </td>
               <td class="size-px whitespace-nowrap px-4 py-3">
-                <FloatingNumberMiniInput v-model="products[index].price" aria-disabled="true" label="Unit Price" />
+                <FloatingNumberMiniInput v-model="products[index].price" aria-disabled="true" label="Prix unitaire" />
               </td>
               <td class="size-px whitespace-nowrap px-4 py-3">
                 <FloatingNumberMiniInput v-model="products[index].total" label="Total" />
@@ -188,7 +188,7 @@ const selectProduct = (product, index) => {
     <div class="text-xs text-gray-600 flex justify-between mt-5">
       <button type="button" @click="addNewLine"
           class="hs-tooltip-toggle ml-4 py-2 px-2.5 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:ring-2 focus:ring-green-500">
-          Add new {{ lineItemLabel.toLowerCase() }} line
+          Ajouter une ligne de {{ lineItemLabel.toLowerCase() }}
       </button>
     </div>
   </div>

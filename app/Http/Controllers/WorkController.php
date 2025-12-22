@@ -14,6 +14,7 @@ use App\Models\TeamMember;
 use App\Models\WorkChecklistItem;
 use App\Models\User;
 use App\Services\WorkBillingService;
+use App\Notifications\ActionEmailNotification;
 use Illuminate\Http\Request;
 use App\Http\Requests\WorkRequest;
 use Illuminate\Support\Facades\Auth;
@@ -65,6 +66,8 @@ class WorkController extends Controller
 
         $works = (clone $baseQuery)
             ->with(['customer', 'invoice'])
+            ->withAvg('ratings', 'rating')
+            ->withCount('ratings')
             ->orderBy($sort, $direction)
             ->simplePaginate(10)
             ->withQueryString();
@@ -149,7 +152,11 @@ class WorkController extends Controller
     public function show($id)
     {
         $accountId = Auth::user()?->accountOwnerId() ?? Auth::id();
-        $work = Work::byUser($accountId)->with(['customer', 'invoice', 'products', 'teamMembers.user'])->findOrFail($id);
+        $work = Work::byUser($accountId)
+            ->with(['customer', 'invoice', 'products', 'teamMembers.user', 'ratings'])
+            ->withAvg('ratings', 'rating')
+            ->withCount('ratings')
+            ->findOrFail($id);
 
         $this->authorize('view', $work);
 
@@ -498,6 +505,28 @@ class WorkController extends Controller
             'from' => $previousStatus,
             'to' => $nextStatus,
         ], 'Job status updated');
+
+        $notifyStatuses = [Work::STATUS_TECH_COMPLETE, Work::STATUS_PENDING_REVIEW];
+        if (!in_array($previousStatus, $notifyStatuses, true) && in_array($nextStatus, $notifyStatuses, true)) {
+            $customer = $work->customer;
+            if ($customer && $customer->email) {
+                $customerLabel = $customer->company_name
+                    ?: trim(($customer->first_name ?? '') . ' ' . ($customer->last_name ?? ''));
+
+                $customer->notify(new ActionEmailNotification(
+                    'Job ready for validation',
+                    'A job is ready for your validation.',
+                    [
+                        ['label' => 'Job', 'value' => $work->job_title ?? $work->number ?? $work->id],
+                        ['label' => 'Status', 'value' => $nextStatus],
+                        ['label' => 'Customer', 'value' => $customerLabel ?: 'Client'],
+                    ],
+                    route('dashboard'),
+                    'Open dashboard',
+                    'Job ready for validation'
+                ));
+            }
+        }
 
         if (in_array($nextStatus, [Work::STATUS_VALIDATED, Work::STATUS_AUTO_VALIDATED], true)) {
             $billingService->createInvoiceFromWork($work, $user);

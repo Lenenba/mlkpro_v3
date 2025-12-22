@@ -2,6 +2,7 @@
 import { computed } from 'vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, Link, usePage } from '@inertiajs/vue3';
+import { humanizeDate } from '@/utils/date';
 
 const props = defineProps({
     stats: {
@@ -41,16 +42,7 @@ const formatNumber = (value) =>
 const formatCurrency = (value) =>
     `$${Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-const formatDate = (value) => {
-    if (!value) {
-        return '';
-    }
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) {
-        return '';
-    }
-    return date.toLocaleDateString();
-};
+const formatDate = (value) => humanizeDate(value);
 
 const revenueMax = computed(() => {
     const values = props.revenueSeries?.values || [];

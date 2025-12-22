@@ -1,5 +1,7 @@
 <script setup>
+import { computed } from 'vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import StarRating from '@/Components/UI/StarRating.vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 
 const props = defineProps({
@@ -7,13 +9,41 @@ const props = defineProps({
     customer: Object,
 });
 
+const ratingValue = computed(() => {
+    const ratings = props.work?.ratings || [];
+    if (!ratings.length) {
+        return null;
+    }
+    const sum = ratings.reduce((total, rating) => total + Number(rating.rating || 0), 0);
+    return sum / ratings.length;
+});
+
+const ratingCount = computed(() => props.work?.ratings?.length || 0);
+
+const statusLabels = {
+    to_schedule: 'A planifier',
+    scheduled: 'Planifie',
+    en_route: 'En route',
+    in_progress: 'En cours',
+    tech_complete: 'Tech termine',
+    pending_review: 'En attente de validation',
+    validated: 'Valide',
+    auto_validated: 'Auto valide',
+    dispute: 'Litige',
+    closed: 'Cloture',
+    cancelled: 'Annule',
+    completed: 'Termine (ancien)',
+};
+
+const formatStatus = (status) => statusLabels[status] || status || '-';
+
 const createInvoice = () => {
     router.post(route('invoice.store-from-work', props.work.id), {}, { preserveScroll: true });
 };
 </script>
 <template>
 
-    <Head title="Show jobs" />
+    <Head title="Voir le job" />
     <AuthenticatedLayout>
         <div class="max-w-5xl mx-auto space-y-4">
             <div class="p-5 bg-white border border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
@@ -23,29 +53,29 @@ const createInvoice = () => {
                             {{ work.job_title }}
                         </h1>
                         <p class="text-sm text-stone-500 dark:text-neutral-400">
-                            {{ work.number }} · {{ work.status }}
+                            {{ work.number }} - {{ formatStatus(work.status) }}
                         </p>
                     </div>
                     <div class="flex items-center gap-2">
                         <Link :href="route('work.edit', work.id)"
                             class="py-2 px-3 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700">
-                            Edit job
+                            Modifier le job
                         </Link>
                         <Link v-if="work.invoice" :href="route('invoice.show', work.invoice.id)"
                             class="py-2 px-3 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700">
-                            View invoice
+                            Voir la facture
                         </Link>
                         <button v-else type="button" @click="createInvoice"
                             class="py-2 px-3 text-xs font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700">
-                            Create invoice
+                            Creer une facture
                         </button>
                     </div>
                 </div>
             </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
                 <div class="p-4 bg-white border border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
-                    <h2 class="text-sm text-stone-500 dark:text-neutral-400">Customer</h2>
+                    <h2 class="text-sm text-stone-500 dark:text-neutral-400">Client</h2>
                     <p class="text-sm text-stone-800 dark:text-neutral-100">
                         {{ customer.company_name || `${customer.first_name} ${customer.last_name}` }}
                     </p>
@@ -53,13 +83,22 @@ const createInvoice = () => {
                 </div>
                 <div class="p-4 bg-white border border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
                     <h2 class="text-sm text-stone-500 dark:text-neutral-400">Dates</h2>
-                    <p class="text-sm text-stone-800 dark:text-neutral-100">Start: {{ work.start_date || '-' }}</p>
-                    <p class="text-xs text-stone-500 dark:text-neutral-400">End: {{ work.end_date || '-' }}</p>
+                    <p class="text-sm text-stone-800 dark:text-neutral-100">Debut : {{ work.start_date || '-' }}</p>
+                    <p class="text-xs text-stone-500 dark:text-neutral-400">Fin : {{ work.end_date || '-' }}</p>
                 </div>
                 <div class="p-4 bg-white border border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
-                    <h2 class="text-sm text-stone-500 dark:text-neutral-400">Totals</h2>
-                    <p class="text-sm text-stone-800 dark:text-neutral-100">Subtotal: ${{ Number(work.subtotal || 0).toFixed(2) }}</p>
-                    <p class="text-xs text-stone-500 dark:text-neutral-400">Total: ${{ Number(work.total || 0).toFixed(2) }}</p>
+                    <h2 class="text-sm text-stone-500 dark:text-neutral-400">Totaux</h2>
+                    <p class="text-sm text-stone-800 dark:text-neutral-100">Sous-total : ${{ Number(work.subtotal || 0).toFixed(2) }}</p>
+                    <p class="text-xs text-stone-500 dark:text-neutral-400">Total : ${{ Number(work.total || 0).toFixed(2) }}</p>
+                </div>
+                <div class="p-4 bg-white border border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
+                    <h2 class="text-sm text-stone-500 dark:text-neutral-400">Note</h2>
+                    <div class="mt-1 flex items-center gap-2">
+                        <StarRating :value="ratingValue" show-value empty-label="Aucune note" />
+                        <span v-if="ratingCount" class="text-xs text-stone-500 dark:text-neutral-400">
+                            ({{ ratingCount }})
+                        </span>
+                    </div>
                 </div>
             </div>
         </div>

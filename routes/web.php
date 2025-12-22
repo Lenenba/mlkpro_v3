@@ -21,11 +21,22 @@ use App\Http\Controllers\WorkChecklistController;
 use App\Http\Controllers\WelcomeController;
 use App\Http\Controllers\Settings\CompanySettingsController;
 use App\Http\Controllers\Settings\BillingSettingsController;
+use App\Http\Controllers\Settings\SubscriptionController;
 use App\Http\Controllers\CustomerPropertyController;
+use App\Http\Controllers\Portal\PortalInvoiceController;
+use App\Http\Controllers\Portal\PortalQuoteController;
+use App\Http\Controllers\Portal\PortalRatingController;
+use App\Http\Controllers\Portal\PortalWorkController;
+use App\Http\Middleware\EnsureClientUser;
+use App\Http\Middleware\EnsureInternalUser;
+use Laravel\Cashier\Http\Controllers\WebhookController as CashierWebhookController;
 
 Route::get('/favicon.ico', function () {
     return response()->file(public_path('favicon.ico'));
 })->name('favicon');
+
+Route::post('/stripe/webhook', [CashierWebhookController::class, 'handleWebhook'])
+    ->name('cashier.webhook');
 
 // Guest Routes
 Route::get('/', [WelcomeController::class, 'index'])->name('welcome');
@@ -35,21 +46,26 @@ Route::get('/dashboard', [DashboardController::class, 'index'])->middleware(['au
 
 // Authenticated User Routes
 Route::middleware('auth')->group(function () {
-
-    // Onboarding (account setup)
-    Route::get('/onboarding', [OnboardingController::class, 'index'])->name('onboarding.index');
-    Route::post('/onboarding', [OnboardingController::class, 'store'])->name('onboarding.store');
-
     // Profile Management
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+});
+
+// Internal User Routes
+Route::middleware(['auth', EnsureInternalUser::class])->group(function () {
+
+    // Onboarding (account setup)
+    Route::get('/onboarding', [OnboardingController::class, 'index'])->name('onboarding.index');
+    Route::post('/onboarding', [OnboardingController::class, 'store'])->name('onboarding.store');
 
     // Settings (owner only)
     Route::get('/settings/company', [CompanySettingsController::class, 'edit'])->name('settings.company.edit');
     Route::put('/settings/company', [CompanySettingsController::class, 'update'])->name('settings.company.update');
     Route::get('/settings/billing', [BillingSettingsController::class, 'edit'])->name('settings.billing.edit');
     Route::put('/settings/billing', [BillingSettingsController::class, 'update'])->name('settings.billing.update');
+    Route::post('/settings/billing/subscribe', [SubscriptionController::class, 'checkout'])->name('settings.billing.subscribe');
+    Route::post('/settings/billing/portal', [SubscriptionController::class, 'portal'])->name('settings.billing.portal');
 
     // Lead Requests
     Route::post('/requests', [RequestController::class, 'store'])->name('request.store');
@@ -137,6 +153,20 @@ Route::middleware('auth')->group(function () {
     // Payment Management
     Route::post('/invoice/{invoice}/payments', [PaymentController::class, 'store'])->name('payment.store');
 });
+
+// Client Portal Routes
+Route::middleware(['auth', EnsureClientUser::class])
+    ->prefix('portal')
+    ->name('portal.')
+    ->group(function () {
+        Route::post('/quotes/{quote}/accept', [PortalQuoteController::class, 'accept'])->name('quotes.accept');
+        Route::post('/quotes/{quote}/decline', [PortalQuoteController::class, 'decline'])->name('quotes.decline');
+        Route::post('/works/{work}/validate', [PortalWorkController::class, 'validateWork'])->name('works.validate');
+        Route::post('/works/{work}/dispute', [PortalWorkController::class, 'dispute'])->name('works.dispute');
+        Route::post('/invoices/{invoice}/payments', [PortalInvoiceController::class, 'storePayment'])->name('invoices.payments.store');
+        Route::post('/quotes/{quote}/ratings', [PortalRatingController::class, 'storeQuote'])->name('quotes.ratings.store');
+        Route::post('/works/{work}/ratings', [PortalRatingController::class, 'storeWork'])->name('works.ratings.store');
+    });
 
 // Authentication Routes
 require __DIR__ . '/auth.php';

@@ -25,8 +25,8 @@ class UserFactory extends Factory
             'password' => 'password', // Default password
             'remember_token' => Str::random(10),
             'role_id' => Role::query()->firstOrCreate(
-                ['name' => 'client'],
-                ['description' => 'Default client role']
+                ['name' => 'owner'],
+                ['description' => 'Account owner role']
             )->id,
             'profile_picture' => null,
             'phone_number' => $this->faker->e164PhoneNumber(), // Random phone number

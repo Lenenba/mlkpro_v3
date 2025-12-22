@@ -17,7 +17,7 @@ const formatNumber = (value) =>
             <div class="sm:flex sm:gap-x-3">
                 <div class="sm:order-1 grow space-y-1">
                     <h2 class="sm:mb-2 text-sm text-stone-500 dark:text-neutral-400">
-                        Total jobs
+                        Total des jobs
                     </h2>
                     <p class="text-lg md:text-xl font-semibold text-stone-800 dark:text-neutral-200">
                         {{ formatNumber(stats.total) }}
@@ -31,7 +31,7 @@ const formatNumber = (value) =>
             <div class="sm:flex sm:gap-x-3">
                 <div class="sm:order-1 grow space-y-1">
                     <h2 class="sm:mb-2 text-sm text-stone-500 dark:text-neutral-400">
-                        Scheduled
+                        Planifie
                     </h2>
                     <p class="text-lg md:text-xl font-semibold text-stone-800 dark:text-neutral-200">
                         {{ formatNumber(stats.scheduled) }}
@@ -45,7 +45,7 @@ const formatNumber = (value) =>
             <div class="sm:flex sm:gap-x-3">
                 <div class="sm:order-1 grow space-y-1">
                     <h2 class="sm:mb-2 text-sm text-stone-500 dark:text-neutral-400">
-                        In progress
+                        En cours
                     </h2>
                     <p class="text-lg md:text-xl font-semibold text-stone-800 dark:text-neutral-200">
                         {{ formatNumber(stats.in_progress) }}
@@ -59,7 +59,7 @@ const formatNumber = (value) =>
             <div class="sm:flex sm:gap-x-3">
                 <div class="sm:order-1 grow space-y-1">
                     <h2 class="sm:mb-2 text-sm text-stone-500 dark:text-neutral-400">
-                        Completed
+                        Termine
                     </h2>
                     <p class="text-lg md:text-xl font-semibold text-stone-800 dark:text-neutral-200">
                         {{ formatNumber(stats.completed) }}
@@ -73,7 +73,7 @@ const formatNumber = (value) =>
             <div class="sm:flex sm:gap-x-3">
                 <div class="sm:order-1 grow space-y-1">
                     <h2 class="sm:mb-2 text-sm text-stone-500 dark:text-neutral-400">
-                        Cancelled
+                        Annule
                     </h2>
                     <p class="text-lg md:text-xl font-semibold text-stone-800 dark:text-neutral-200">
                         {{ formatNumber(stats.cancelled) }}

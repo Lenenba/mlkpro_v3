@@ -11,6 +11,7 @@ const companyType = computed(() => page.props.auth?.account?.company?.type ?? nu
 const showServices = computed(() => companyType.value !== 'products');
 const showProducts = computed(() => companyType.value !== 'services');
 const isOwner = computed(() => Boolean(page.props.auth?.account?.is_owner));
+const isClient = computed(() => Boolean(page.props.auth?.account?.is_client));
 const userName = computed(() => page.props.auth?.user?.name || '');
 const userEmail = computed(() => page.props.auth?.user?.email || '');
 const avatarUrl = computed(() => page.props.auth?.user?.profile_picture || '');
@@ -45,7 +46,7 @@ const avatarInitial = computed(() => {
                         <!-- Nav -->
                         <nav class="mt-2">
                             <ul class="text-center space-y-4">
-                                <MenuDropdown active-item="/profile">
+                                <MenuDropdown v-if="!isClient" active-item="/profile">
                                     <template #toggle-icon>
                                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
                                             viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
@@ -134,7 +135,7 @@ const avatarInitial = computed(() => {
                                 </LinkAncor>
                                 <!-- End Item -->
                                 <!-- Item -->
-                                <LinkAncor v-if="showServices" :label="'Jobs'" :href="'jobs.index'"
+                                <LinkAncor v-if="showServices && !isClient" :label="'Jobs'" :href="'jobs.index'"
                                     :active="route().current('jobs.index') || route().current('work.*')">
                                     <template #icon>
                                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
@@ -150,7 +151,7 @@ const avatarInitial = computed(() => {
                                 <!-- End Item -->
 
                                 <!-- Item -->
-                                <LinkAncor :label="'Tasks'" :href="'task.index'"
+                                <LinkAncor v-if="!isClient" :label="'Tasks'" :href="'task.index'"
                                     :active="route().current('task.*')">
                                     <template #icon>
                                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
@@ -303,5 +304,5 @@ const avatarInitial = computed(() => {
             </div>
         </div>
     </aside>
-    <QuickCreateModals />
+    <QuickCreateModals v-if="!isClient" />
 </template>

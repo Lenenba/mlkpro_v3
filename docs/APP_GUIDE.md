@@ -23,6 +23,10 @@ Roles internes:
 - Admin (team member): peut gerer les jobs et les taches selon ses permissions.
 - Membre (team member): acces limite (jobs/taches assignes).
 
+Role client (portail):
+- Peut accepter/refuser un devis, valider un job, payer une facture, noter un devis ou un job.
+- Acces limite aux actions de workflow; pas de gestion interne (clients, produits, jobs, etc.).
+
 Permissions actuelles (team):
 - jobs.view, jobs.edit
 - tasks.view, tasks.create, tasks.edit, tasks.delete
@@ -167,6 +171,7 @@ Phase 2 - Quote
 - Le devis snapshotte les prix dans quote_products.
 - Acceptation: status accepted + creation du job + checklist.
 - Acompte: enregistre dans transactions.
+- Le client peut accepter ou refuser le devis via le portail.
 
 Phase 3 - Job setup
 - Job passe a to_schedule puis scheduled.
@@ -180,10 +185,12 @@ Phase 4 - Execution
 Phase 5 - QA
 - pending_review, validated, auto_validated, dispute.
 - Commande cron: `php artisan workflow:auto-validate`.
+- Le client peut valider un job (ou le marquer en dispute).
 
 Phase 6 - Facturation
 - Facture generee sur validated / auto_validated.
 - Paiement complet => job closed.
+- Le client peut payer la facture depuis le portail.
 
 ## 13. Donnees de demo (LaunchSeeder)
 Seeder: `Database\\Seeders\\LaunchSeeder`
@@ -198,6 +205,8 @@ Comptes demo:
 - admin.services@example.com / password
 - member.services@example.com / password
 - owner.products@example.com / password
+- client.north@example.com / password
+- client.products@example.com / password
 
 Ce seeder cree:
 - entreprises services + products
@@ -221,3 +230,71 @@ Quand une page, un statut ou une regle change:
 - mettre a jour ce guide
 - ajuster la section "Workflow unifie" si necessaire
 - ajouter les nouvelles commandes ou seeders
+
+## 16. Abonnement plateforme (Stripe)
+Le compte proprietaire gere l abonnement mensuel dans `Settings > Billing`.
+
+Champs env requis:
+- STRIPE_KEY
+- STRIPE_SECRET
+- STRIPE_WEBHOOK_SECRET
+- STRIPE_PRICE_STARTER / STRIPE_PRICE_STARTER_AMOUNT
+- STRIPE_PRICE_GROWTH / STRIPE_PRICE_GROWTH_AMOUNT
+- STRIPE_PRICE_SCALE / STRIPE_PRICE_SCALE_AMOUNT
+
+Notes:
+- Les prix Stripe sont des PRICE_ID (mensuels).
+- Le portail Stripe est disponible via le bouton "Gerer le paiement".
+
+## 17. Scenarios de test (LaunchSeeder)
+Seeder: `Database\\Seeders\\LaunchSeeder`
+
+Preparation:
+1. `php artisan migrate:fresh`
+2. `php artisan db:seed --class=Database\\Seeders\\LaunchSeeder`
+
+Comptes:
+- owner.services@example.com / password
+- admin.services@example.com / password
+- member.services@example.com / password
+- owner.products@example.com / password
+- client.north@example.com / password (portail client)
+- client.products@example.com / password (portail client)
+
+Donnees a tester:
+- Leads:
+  - Lead - Window cleaning (converti)
+  - Lead - Gutter cleaning (nouveau)
+  - Lead - Supply order (nouveau)
+- Quotes:
+  - Window cleaning package (accepted)
+  - Seasonal maintenance quote (sent)
+  - Draft - Exterior prep (draft)
+  - Declined - Fence wash (declined)
+  - Extra - Screen repair (change order)
+  - Starter supply pack (product, sent)
+- Jobs:
+  - Window cleaning package (validated)
+  - Review - Exterior refresh (pending_review)
+  - Scheduled - Seasonal checkup (scheduled)
+  - In progress - Driveway wash (in_progress)
+  - Dispute - Balcony cleanup (dispute)
+  - Cancelled - Patio wash (cancelled)
+  - Closed - Full service (closed)
+- Invoices:
+  - Window cleaning package (partial)
+  - Scheduled - Seasonal checkup (sent)
+  - Dispute - Balcony cleanup (overdue)
+  - Closed - Full service (paid)
+- Tasks:
+  - Prepare follow up call (todo)
+  - Upload before photos (in_progress)
+  - Send thank you note (done)
+- Ratings:
+  - Quote and job rated by client.north@example.com
+
+Tests rapides:
+1. Login owner.services@example.com, verifier dashboard + filtres jobs/quotes/invoices.
+2. Ouvrir Seasonal maintenance quote et tester accept/decline via portail client.
+3. Login client.north@example.com, valider ou mettre en dispute "Review - Exterior refresh".
+4. Login owner.products@example.com, verifier quote "Starter supply pack".

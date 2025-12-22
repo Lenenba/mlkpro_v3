@@ -21,6 +21,8 @@ class CustomerRequest extends FormRequest
     public function rules(): array
     {
         $customerId = $this->route('customer') ? $this->route('customer')->id : null;
+        $portalUserId = $this->route('customer') ? $this->route('customer')->portal_user_id : null;
+        $requiresPassword = $this->isMethod('post');
 
         return [
             'first_name' => 'required|string|max:255',
@@ -31,6 +33,7 @@ class CustomerRequest extends FormRequest
                 'email',
                 'max:255',
                 Rule::unique('customers')->ignore($customerId),
+                Rule::unique('users', 'email')->ignore($portalUserId),
             ],
             'phone' => 'nullable|string|max:25',
             'company_name' => 'nullable|string|max:255',
@@ -39,6 +42,11 @@ class CustomerRequest extends FormRequest
             'header_image' => 'nullable|image|mimes:jpg,jpeg,png,svg|max:2048',
             'billing_same_as_physical' => 'nullable|boolean',
             'refer_by' => 'nullable|string|max:255',
+            'temporary_password' => [
+                $requiresPassword ? 'required' : 'nullable',
+                'string',
+                'min:8',
+            ],
             'salutation' => [
                 'required',
                 Rule::in(['Mr', 'Mrs', 'Miss']),

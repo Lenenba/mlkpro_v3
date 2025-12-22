@@ -11,11 +11,12 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Laravel\Cashier\Billable;
 
 class User extends Authenticatable
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable;
+    use HasFactory, Notifiable, Billable;
 
     /**
      * The attributes that are mass assignable.
@@ -26,6 +27,7 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'must_change_password',
         'role_id',
         'profile_picture',
         'phone_number',
@@ -62,6 +64,8 @@ class User extends Authenticatable
             'password' => 'hashed',
             'onboarding_completed_at' => 'datetime',
             'payment_methods' => 'array',
+            'trial_ends_at' => 'datetime',
+            'must_change_password' => 'boolean',
         ];
     }
 

@@ -78,9 +78,9 @@ class OnboardingController extends Controller
             'invites.*.role' => 'required|string|in:admin,member',
         ]);
 
-        $clientRoleId = Role::query()->firstOrCreate(
-            ['name' => 'client'],
-            ['description' => 'Default client role']
+        $ownerRoleId = Role::query()->firstOrCreate(
+            ['name' => 'owner'],
+            ['description' => 'Account owner role']
         )->id;
 
         $employeeRoleId = Role::query()->firstOrCreate(
@@ -97,9 +97,11 @@ class OnboardingController extends Controller
                 'name' => $validated['owner_name'],
                 'email' => $validated['owner_email'],
                 'password' => Hash::make($ownerPassword),
-                'role_id' => $clientRoleId,
+                'role_id' => $ownerRoleId,
                 'email_verified_at' => now(),
             ]);
+
+            $creator->update(['role_id' => $employeeRoleId]);
 
             TeamMember::updateOrCreate(
                 [
@@ -112,6 +114,8 @@ class OnboardingController extends Controller
                     'is_active' => true,
                 ]
             );
+        } elseif ($creator->role_id !== $ownerRoleId) {
+            $creator->update(['role_id' => $ownerRoleId]);
         }
 
         $companyLogoPath = $accountOwner->company_logo;

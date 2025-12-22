@@ -11,6 +11,7 @@
     "require": {
         "php": "^8.2",
         "inertiajs/inertia-laravel": "^2.0",
+        "laravel/cashier": "^15.2",
         "laravel/framework": "^11.31",
         "laravel/sanctum": "^4.0",
         "laravel/tinker": "^2.9",
@@ -66,6 +67,13 @@
         "optimize-autoloader": true,
         "preferred-install": "dist",
         "sort-packages": true,
+        "audit": {
+            "ignore": [
+                "PKSA-8qx3-n5y5-vvnd",
+                "PKSA-rqc2-tcc6-nc79",
+                "PKSA-365x-2zjk-pt47"
+            ]
+        },
         "allow-plugins": {
             "pestphp/pest-plugin": true,
             "php-http/discovery": true

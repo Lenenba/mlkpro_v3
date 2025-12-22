@@ -38,6 +38,12 @@ class AuthenticatedSessionController extends Controller
             return redirect()->route('onboarding.index');
         }
 
+        if ($user?->must_change_password) {
+            return redirect()
+                ->route('profile.edit')
+                ->with('warning', 'Please update your temporary password.');
+        }
+
         return redirect()->intended(route('dashboard', absolute: false));
     }
 

@@ -3,6 +3,7 @@ import { ref, watch } from 'vue';
 import { Link, router, useForm } from '@inertiajs/vue3';
 import Modal from '@/Components/UI/Modal.vue';
 import ServiceForm from '@/Pages/Service/UI/ServiceForm.vue';
+import { humanizeDate } from '@/utils/date';
 
 const props = defineProps({
     filters: Object,
@@ -110,16 +111,7 @@ const toggleSort = (column) => {
 const formatCurrency = (value) =>
     `$${Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-const formatDate = (value) => {
-    if (!value) {
-        return '';
-    }
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) {
-        return '';
-    }
-    return date.toLocaleDateString();
-};
+const formatDate = (value) => humanizeDate(value);
 
 const editingService = ref(null);
 
@@ -401,4 +393,3 @@ const destroyService = (service) => {
         </Modal>
     </div>
 </template>
-

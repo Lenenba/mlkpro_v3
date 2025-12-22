@@ -53,6 +53,8 @@ class QuoteController extends Controller
 
         $quotes = (clone $baseQuery)
             ->with(['customer', 'property'])
+            ->withAvg('ratings', 'rating')
+            ->withCount('ratings')
             ->orderBy($sort, $direction)
             ->simplePaginate(10)
             ->withQueryString();
@@ -490,7 +492,9 @@ class QuoteController extends Controller
                 'customer',
                 'property',
                 'customer.properties',
-            ]),
+                'ratings',
+            ])->loadAvg('ratings', 'rating')
+              ->loadCount('ratings'),
             'products' => Product::byUser(Auth::id())->where('item_type', $itemType)->get(),
             'taxes' => Tax::all(),
         ]);

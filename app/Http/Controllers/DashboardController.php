@@ -19,6 +19,196 @@ class DashboardController extends Controller
     public function index()
     {
         $user = Auth::user();
+        if ($user && $user->isClient()) {
+            $customer = $user->customerProfile;
+            if (!$customer) {
+                return Inertia::render('DashboardClient', [
+                    'profileMissing' => true,
+                    'stats' => [
+                        'quotes_pending' => 0,
+                        'works_pending' => 0,
+                        'invoices_due' => 0,
+                        'ratings_due' => 0,
+                    ],
+                    'pendingQuotes' => [],
+                    'validatedQuotes' => [],
+                    'pendingWorks' => [],
+                    'validatedWorks' => [],
+                    'invoicesDue' => [],
+                    'quoteRatingsDue' => [],
+                    'workRatingsDue' => [],
+                ]);
+            }
+
+            $customerId = $customer->id;
+
+            $pendingQuotesQuery = Quote::query()
+                ->where('customer_id', $customerId)
+                ->where('status', 'sent');
+            $validatedQuotesQuery = Quote::query()
+                ->where('customer_id', $customerId)
+                ->whereIn('status', ['accepted', 'declined']);
+
+            $pendingWorksQuery = Work::query()
+                ->where('customer_id', $customerId)
+                ->whereIn('status', [Work::STATUS_PENDING_REVIEW, Work::STATUS_TECH_COMPLETE]);
+            $validatedWorksQuery = Work::query()
+                ->where('customer_id', $customerId)
+                ->whereIn('status', [
+                    Work::STATUS_VALIDATED,
+                    Work::STATUS_AUTO_VALIDATED,
+                    Work::STATUS_CLOSED,
+                    Work::STATUS_COMPLETED,
+                ]);
+
+            $invoicesDueQuery = Invoice::query()
+                ->where('customer_id', $customerId)
+                ->whereIn('status', ['sent', 'partial', 'overdue']);
+
+            $quoteRatingsQuery = Quote::query()
+                ->where('customer_id', $customerId)
+                ->whereIn('status', ['accepted', 'declined'])
+                ->whereDoesntHave('ratings', function ($query) use ($user) {
+                    $query->where('user_id', $user->id);
+                });
+
+            $workRatingsQuery = Work::query()
+                ->where('customer_id', $customerId)
+                ->whereIn('status', [
+                    Work::STATUS_VALIDATED,
+                    Work::STATUS_AUTO_VALIDATED,
+                    Work::STATUS_CLOSED,
+                    Work::STATUS_COMPLETED,
+                ])
+                ->whereDoesntHave('ratings', function ($query) use ($user) {
+                    $query->where('user_id', $user->id);
+                });
+
+            $stats = [
+                'quotes_pending' => (clone $pendingQuotesQuery)->count(),
+                'works_pending' => (clone $pendingWorksQuery)->count(),
+                'invoices_due' => (clone $invoicesDueQuery)->count(),
+                'ratings_due' => (clone $quoteRatingsQuery)->count()
+                    + (clone $workRatingsQuery)->count(),
+            ];
+
+            $pendingQuotes = (clone $pendingQuotesQuery)
+                ->latest()
+                ->limit(8)
+                ->get(['id', 'number', 'job_title', 'status', 'total', 'initial_deposit', 'created_at'])
+                ->map(function ($quote) {
+                    return [
+                        'id' => $quote->id,
+                        'number' => $quote->number,
+                        'job_title' => $quote->job_title,
+                        'status' => $quote->status,
+                        'total' => (float) $quote->total,
+                        'initial_deposit' => (float) ($quote->initial_deposit ?? 0),
+                        'created_at' => $quote->created_at,
+                    ];
+                });
+
+            $validatedQuotes = (clone $validatedQuotesQuery)
+                ->orderByDesc('updated_at')
+                ->limit(6)
+                ->get(['id', 'number', 'job_title', 'status', 'total', 'signed_at', 'accepted_at', 'updated_at'])
+                ->map(function ($quote) {
+                    return [
+                        'id' => $quote->id,
+                        'number' => $quote->number,
+                        'job_title' => $quote->job_title,
+                        'status' => $quote->status,
+                        'total' => (float) $quote->total,
+                        'decided_at' => $quote->accepted_at ?? $quote->signed_at ?? $quote->updated_at,
+                    ];
+                });
+
+            $pendingWorks = (clone $pendingWorksQuery)
+                ->orderByDesc('updated_at')
+                ->limit(8)
+                ->get(['id', 'job_title', 'status', 'start_date', 'end_date', 'completed_at'])
+                ->map(function ($work) {
+                    return [
+                        'id' => $work->id,
+                        'job_title' => $work->job_title,
+                        'status' => $work->status,
+                        'start_date' => $work->start_date,
+                        'end_date' => $work->end_date,
+                        'completed_at' => $work->completed_at,
+                    ];
+                });
+
+            $validatedWorks = (clone $validatedWorksQuery)
+                ->orderByDesc('completed_at')
+                ->limit(6)
+                ->get(['id', 'job_title', 'status', 'completed_at'])
+                ->map(function ($work) {
+                    return [
+                        'id' => $work->id,
+                        'job_title' => $work->job_title,
+                        'status' => $work->status,
+                        'completed_at' => $work->completed_at,
+                    ];
+                });
+
+            $invoicesDue = (clone $invoicesDueQuery)
+                ->withSum('payments', 'amount')
+                ->orderByDesc('created_at')
+                ->limit(8)
+                ->get(['id', 'number', 'status', 'total', 'created_at'])
+                ->map(function ($invoice) {
+                    return [
+                        'id' => $invoice->id,
+                        'number' => $invoice->number,
+                        'status' => $invoice->status,
+                        'total' => (float) $invoice->total,
+                        'amount_paid' => (float) ($invoice->payments_sum_amount ?? 0),
+                        'balance_due' => $invoice->balance_due,
+                        'created_at' => $invoice->created_at,
+                    ];
+                });
+
+            $quoteRatingsDue = (clone $quoteRatingsQuery)
+                ->orderByDesc('updated_at')
+                ->limit(6)
+                ->get(['id', 'number', 'job_title', 'status', 'total', 'accepted_at', 'signed_at', 'updated_at'])
+                ->map(function ($quote) {
+                    return [
+                        'id' => $quote->id,
+                        'number' => $quote->number,
+                        'job_title' => $quote->job_title,
+                        'status' => $quote->status,
+                        'total' => (float) $quote->total,
+                        'decided_at' => $quote->accepted_at ?? $quote->signed_at ?? $quote->updated_at,
+                    ];
+                });
+
+            $workRatingsDue = (clone $workRatingsQuery)
+                ->orderByDesc('completed_at')
+                ->limit(6)
+                ->get(['id', 'job_title', 'status', 'completed_at'])
+                ->map(function ($work) {
+                    return [
+                        'id' => $work->id,
+                        'job_title' => $work->job_title,
+                        'status' => $work->status,
+                        'completed_at' => $work->completed_at,
+                    ];
+                });
+
+            return Inertia::render('DashboardClient', [
+                'profileMissing' => false,
+                'stats' => $stats,
+                'pendingQuotes' => $pendingQuotes,
+                'validatedQuotes' => $validatedQuotes,
+                'pendingWorks' => $pendingWorks,
+                'validatedWorks' => $validatedWorks,
+                'invoicesDue' => $invoicesDue,
+                'quoteRatingsDue' => $quoteRatingsDue,
+                'workRatingsDue' => $workRatingsDue,
+            ]);
+        }
+
         $accountId = $user?->accountOwnerId() ?? Auth::id();
         $isAccountOwner = ($user?->id ?? Auth::id()) === $accountId;
 

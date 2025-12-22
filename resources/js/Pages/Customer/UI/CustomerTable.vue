@@ -1,6 +1,7 @@
 <script setup>
 import { computed, ref, watch } from 'vue';
 import { Link, router, useForm } from '@inertiajs/vue3';
+import { humanizeDate } from '@/utils/date';
 
 const props = defineProps({
     filters: Object,
@@ -127,16 +128,7 @@ const getCity = (customer) => {
     return property ? property.city : '';
 };
 
-const formatDate = (value) => {
-    if (!value) {
-        return '';
-    }
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) {
-        return '';
-    }
-    return date.toLocaleDateString();
-};
+const formatDate = (value) => humanizeDate(value);
 </script>
 
 <template>

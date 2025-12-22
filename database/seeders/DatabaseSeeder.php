@@ -14,7 +14,7 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         // Seed the roles table with stable names
-        foreach (['superadmin', 'admin', 'employee', 'client'] as $name) {
+        foreach (['superadmin', 'admin', 'owner', 'employee', 'client'] as $name) {
             Role::firstOrCreate(
                 ['name' => $name],
                 ['description' => ucfirst($name) . ' role']

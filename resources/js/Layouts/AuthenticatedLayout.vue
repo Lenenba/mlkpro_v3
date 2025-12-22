@@ -12,6 +12,9 @@ const flashSuccess = computed(
 const flashError = computed(
     () => page.props.flash?.error
 )
+const flashWarning = computed(
+    () => page.props.flash?.warning
+)
 </script>
 
 <template>
@@ -76,6 +79,32 @@ const flashError = computed(
                         </h3>
                         <p class="text-sm text-gray-700 dark:text-neutral-400">
                             {{ flashError }}
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <div v-if="flashWarning" class="bg-amber-50 border-s-4 border-amber-500 p-4 dark:bg-amber-800/30"
+                role="alert" tabindex="-1" aria-labelledby="hs-bordered-warning-style-label">
+                <div class="flex">
+                    <div class="shrink-0">
+                        <span
+                            class="inline-flex justify-center items-center size-8 rounded-full border-4 border-amber-100 bg-amber-200 text-amber-800 dark:border-amber-900 dark:bg-amber-800 dark:text-amber-400">
+                            <svg class="shrink-0 size-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"></path>
+                                <path d="M12 9v4"></path>
+                                <path d="M12 17h.01"></path>
+                            </svg>
+                        </span>
+                    </div>
+                    <div class="ms-3">
+                        <h3 id="hs-bordered-warning-style-label" class="text-gray-800 font-semibold dark:text-white">
+                            Attention.
+                        </h3>
+                        <p class="text-sm text-gray-700 dark:text-neutral-400">
+                            {{ flashWarning }}
                         </p>
                     </div>
                 </div>

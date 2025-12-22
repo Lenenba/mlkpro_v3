@@ -25,32 +25,32 @@ const props = defineProps({
     teamMembers: Array,
 });
 
-const Frequency = [
-    { id: 'Daily', name: 'Daily' },
-    { id: 'Weekly', name: 'Weekly' },
-    { id: 'Monthly', name: 'Monthly' },
-    { id: 'Yearly', name: 'Yearly' },
+const Frequence = [
+    { id: 'Daily', name: 'Quotidien' },
+    { id: 'Weekly', name: 'Hebdomadaire' },
+    { id: 'Monthly', name: 'Mensuel' },
+    { id: 'Yearly', name: 'Annuel' },
 ];
 
 const endOptions = [
-    { id: 'Never', name: 'Never' },
-    { id: 'On', name: 'On' },
-    { id: 'After', name: 'After' },
+    { id: 'Never', name: 'Jamais' },
+    { id: 'On', name: 'Le' },
+    { id: 'After', name: 'Apres' },
 ];
 
 const statusOptions = [
-    { id: 'to_schedule', name: 'To schedule' },
-    { id: 'scheduled', name: 'Scheduled' },
+    { id: 'to_schedule', name: 'A planifier' },
+    { id: 'scheduled', name: 'Planifie' },
     { id: 'en_route', name: 'En route' },
-    { id: 'in_progress', name: 'In progress' },
-    { id: 'tech_complete', name: 'Tech complete' },
-    { id: 'pending_review', name: 'Pending review' },
-    { id: 'validated', name: 'Validated' },
-    { id: 'auto_validated', name: 'Auto validated' },
-    { id: 'dispute', name: 'Dispute' },
-    { id: 'closed', name: 'Closed' },
-    { id: 'cancelled', name: 'Cancelled' },
-    { id: 'completed', name: 'Completed (legacy)' },
+    { id: 'in_progress', name: 'En cours' },
+    { id: 'tech_complete', name: 'Tech termine' },
+    { id: 'pending_review', name: 'En attente de validation' },
+    { id: 'validated', name: 'Valide' },
+    { id: 'auto_validated', name: 'Auto valide' },
+    { id: 'dispute', name: 'Litige' },
+    { id: 'closed', name: 'Cloture' },
+    { id: 'cancelled', name: 'Annule' },
+    { id: 'completed', name: 'Termine (ancien)' },
 ];
 
 const defaultStartDate = props.work?.start_date ?? dayjs().format('YYYY-MM-DD');
@@ -74,7 +74,7 @@ const form = useForm({
     ends: props.work?.ends ?? 'Never',
     frequencyNumber: props.work?.frequencyNumber ?? 1,
     frequency: props.work?.frequency ?? 'Weekly',
-    totalVisits: props.work?.totalVisits ?? 0,
+    totalVisites : props.work?.totalVisits ?? 0,
     repeatsOn: props.work?.repeatsOn ?? [],
     status: props.work?.status ?? 'scheduled',
     subtotal: props.work?.subtotal ?? 0,
@@ -103,7 +103,7 @@ const formatDateLabel = (dateInput) => {
     if (!date.isValid()) {
         return '-';
     }
-    return date.format('MMM D, YYYY');
+    return date.format('DD/MM/YYYY');
 };
 
 const getExactDay = (dateInput, tempo) => {
@@ -208,7 +208,13 @@ watch([() => form.start_date, () => form.frequency, () => form.ends, () => form.
 
 // Array of days of the week for weekly recurrence
 const daysOfWeek = [
-    'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'
+    { value: 'Mo', label: 'Lu' },
+    { value: 'Tu', label: 'Ma' },
+    { value: 'We', label: 'Me' },
+    { value: 'Th', label: 'Je' },
+    { value: 'Fr', label: 'Ve' },
+    { value: 'Sa', label: 'Sa' },
+    { value: 'Su', label: 'Di' },
 ];
 
 // Array of day numbers (1 to 31) for monthly recurrence
@@ -384,7 +390,7 @@ onBeforeUnmount(() => {
 
 <template>
 
-    <Head title="Create work" />
+    <Head title="Creer un job" />
     <AuthenticatedLayout>
         <div class="mx-auto w-full max-w-6xl">
             <form @submit.prevent="submit">
@@ -393,19 +399,19 @@ onBeforeUnmount(() => {
                         <!-- Header -->
                         <div class="flex justify-between items-center mb-4">
                             <h1 class="text-xl inline-block font-semibold text-gray-800 dark:text-green-100">
-                                Job For : {{ customer.company_name }}
+                                Job pour : {{ customer.company_name }}
                             </h1>
                         </div>
                         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                             <div class="col-span-2 space-x-2">
                                 <div class="mb-4" x-data="{ open: false }">
-                                    <FloatingInput v-model="form.job_title" label="Job title" />
-                                    <FloatingTextarea v-model="form.instructions" label="instructions" />
+                                    <FloatingInput v-model="form.job_title" label="Titre du job" />
+                                    <FloatingTextarea v-model="form.instructions" label="Instructions" />
                                 </div>
                                 <div class="flex flex-row space-x-6">
                                     <div class="lg:col-span-3">
                                         <p>
-                                            Property address
+                                            Adresse du bien
                                         </p>
                                         <div class="text-xs text-gray-600 dark:text-neutral-400">
                                             {{ primaryProperty?.country ?? '-' }}
@@ -419,7 +425,7 @@ onBeforeUnmount(() => {
                                     </div>
                                     <div class="lg:col-span-3">
                                         <p>
-                                            Contact details
+                                            Coordonnees
                                         </p>
                                         <div class="text-xs text-gray-600 dark:text-neutral-400">
                                             {{ customer.first_name }} {{ customer.last_name }}
@@ -437,14 +443,14 @@ onBeforeUnmount(() => {
                             <div class="bg-white p-4 rounded-sm border border-gray-100 dark:bg-neutral-900 dark:border-neutral-700">
                                 <div class="lg:col-span-3">
                                     <p>
-                                        Job details
+                                        Details du job
                                     </p>
                                     <div class="text-xs text-gray-600 dark:text-neutral-400 flex justify-between">
                                         <span> Job :</span>
                                         <span>{{ lastWorkNumber }} </span>
                                     </div>
                                     <div class="text-xs text-gray-600 dark:text-neutral-400 flex justify-between">
-                                        <span> Rate opportunity :</span>
+                                        <span> Note :</span>
                                         <span class="flex flex-row space-x-1">
                                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
                                                 stroke="currentColor" stroke-width="2" stroke-linecap="round"
@@ -455,12 +461,12 @@ onBeforeUnmount(() => {
                                         </span>
                                     </div>
                                     <div class="mt-4">
-                                        <FloatingSelect v-model="form.status" label="Status" :options="statusOptions" />
+                                        <FloatingSelect v-model="form.status" label="Statut" :options="statusOptions" />
                                     </div>
                                     <div class="text-xs text-gray-600 dark:text-neutral-400 flex justify-between mt-5">
                                         <button type="button" disabled
                                             class="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-sm border border-green-200 bg-white text-green-800 shadow-sm hover:bg-green-50 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-green-50 dark:bg-green-800 dark:border-green-700 dark:text-green-300 dark:hover:bg-green-700 dark:focus:bg-green-700">
-                                            Add custom fields</button>
+                                            Ajouter des champs</button>
                                     </div>
                                 </div>
                             </div>
@@ -489,15 +495,15 @@ onBeforeUnmount(() => {
                                             <rect width="18" height="18" x="3" y="4" rx="2" />
                                             <path d="M3 10h18" />
                                         </svg>
-                                        <span class="grow text-center md:text-start">
-                                            <span class="block text-xs md:text-sm text-gray-700 dark:text-neutral-300">
-                                                ONE-OFF JOB
+                                            <span class="grow text-center md:text-start">
+                                                <span class="block text-xs md:text-sm text-gray-700 dark:text-neutral-300">
+                                                JOB UNIQUE
                                             </span>
                                             <span
                                                 class="hidden xl:mt-1 md:flex md:justify-between md:items-center md:gap-x-2">
                                                 <span
                                                     class="block text-xs md:text-sm text-gray-500 dark:text-neutral-500">
-                                                    A one time job with one or more visits
+                                                    Un job unique avec une ou plusieurs visites
                                                 </span>
                                             </span>
                                         </span>
@@ -526,13 +532,13 @@ onBeforeUnmount(() => {
                                         </svg>
                                         <span class="grow text-center md:text-start">
                                             <span class="block text-xs md:text-sm text-gray-700 dark:text-neutral-300">
-                                                RECURRING JOB
+                                                JOB RECURRENT
                                             </span>
                                             <span
                                                 class="hidden xl:mt-1 md:flex md:justify-between md:items-center md:gap-x-2">
                                                 <span
                                                     class="block text-xs md:text-sm text-gray-500 dark:text-neutral-500">
-                                                    A contract job with repeating visits
+                                                    Un job contractuel avec des visites repetees
                                                 </span>
                                             </span>
                                         </span>
@@ -557,27 +563,26 @@ onBeforeUnmount(() => {
                                                         class="flex flex-row bg-gray-100 dark:bg-gray-600 border-b rounded-t-sm py-3 px-4 md:px-5 dark:border-neutral-700">
                                                         <h3
                                                             class="text-lg  ml-2 font-bold text-gray-800 dark:text-white">
-                                                            SCHEDULE
+                                                            PLANIFICATION
                                                         </h3>
                                                     </div>
                                                     <div class="p-4 md:p-5">
                                                         <div class="flex flex-row space-x-1 mb-4">
-                                                            <DatePicker v-model="form.start_date" label="Start Date"
-                                                                placeholder="Choose a date" />
+                                                            <DatePicker v-model="form.start_date" label="Date de debut"
+                                                                placeholder="Choisir une date" />
                                                         </div>
                                                         <div class="flex flex-row space-x-1">
-                                                            <TimePicker v-model="form.start_time" label="Start Time"
-                                                                placeholder="Choose a time" />
+                                                            <TimePicker v-model="form.start_time" label="Heure de debut"
+                                                                placeholder="Choisir une heure" />
                                                             <TimePicker v-model="form.end_time"
-                                                                label="End Time (optional)"
-                                                                placeholder="Choose a time" />
+                                                                label="Heure de fin (optionnel)"
+                                                                placeholder="Choisir une heure" />
                                                         </div>
                                                         <div class="mt-4 block">
                                                             <label class="flex items-center">
                                                                 <Checkbox name="remember"
                                                                     v-model:checked="form.later" />
-                                                                <span class="ms-2 text-sm text-gray-600 dark:text-neutral-400">Schedule
-                                                                    later</span>
+                                                                <span class="ms-2 text-sm text-gray-600 dark:text-neutral-400">Planifier plus tard</span>
                                                             </label>
                                                         </div>
                                                     </div>
@@ -588,14 +593,14 @@ onBeforeUnmount(() => {
                                                         class="flex flex-row bg-gray-100 dark:bg-gray-600 border-b rounded-t-sm py-3 px-4 md:px-5 dark:border-neutral-700">
                                                         <h3
                                                             class="text-lg  ml-2 font-bold text-gray-800 dark:text-white">
-                                                            TEAM
+                                                            EQUIPE
                                                         </h3>
                                                     </div>
                                                     <div class="p-4 md:p-5">
                                                         <div class="space-y-3">
                                                             <div v-if="!teamMembers?.length"
                                                                 class="text-sm text-gray-600 dark:text-neutral-400">
-                                                                No team members yet.
+                                                                Aucun membre pour l'instant.
                                                             </div>
                                                             <div v-else class="space-y-2">
                                                                 <label v-for="member in teamMembers" :key="member.id"
@@ -605,7 +610,7 @@ onBeforeUnmount(() => {
                                                                     <div class="flex flex-col">
                                                                         <span
                                                                             class="text-sm text-gray-800 dark:text-neutral-200">
-                                                                            {{ member.user?.name ?? 'Team member' }}
+                                                                            {{ member.user?.name ?? 'Membre equipe' }}
                                                                         </span>
                                                                         <span
                                                                             class="text-xs text-gray-500 dark:text-neutral-500">
@@ -643,17 +648,17 @@ onBeforeUnmount(() => {
                                                 <div
                                                     class="flex flex-row bg-gray-100 dark:bg-gray-600 border-b rounded-t-sm py-3 px-4 md:px-5 dark:border-neutral-700">
                                                     <h3 class="text-lg  ml-2 font-bold text-gray-800 dark:text-white">
-                                                        SCHEDULE
+                                                        PLANIFICATION
                                                     </h3>
                                                 </div>
                                                 <div class="p-4 md:p-5">
-                                                    <DatePicker v-model="form.start_date" label="Start Date"
-                                                        placeholder="Choose a date" />
+                                                    <DatePicker v-model="form.start_date" label="Date de debut"
+                                                        placeholder="Choisir une date" />
                                                     <div class="flex flex-row space-x-1 my-4">
-                                                        <TimePicker v-model="form.start_time" label="Start Time"
-                                                            placeholder="Choose a time" />
-                                                        <TimePicker v-model="form.end_time" label="End Time (optional)"
-                                                            placeholder="Choose a time" />
+                                                        <TimePicker v-model="form.start_time" label="Heure de debut"
+                                                            placeholder="Choisir une heure" />
+                                                        <TimePicker v-model="form.end_time" label="Heure de fin (optionnel)"
+                                                            placeholder="Choisir une heure" />
                                                     </div>
 
                                                     <!-- Body -->
@@ -665,10 +670,10 @@ onBeforeUnmount(() => {
                                                                 <div>
                                                                     <label for="hs-pro-ccremre"
                                                                         class="mb-1.5 block text-[13px] text-gray-400 dark:text-neutral-500">
-                                                                        Repeat every:
+                                                                        Repeter chaque :
                                                                     </label>
                                                                     <FloatingSelect v-model="form.frequency"
-                                                                        label="Frequency" :options="Frequency" />
+                                                                        label="Frequence" :options="Frequence" />
                                                                 </div>
                                                                 <!-- End Item -->
 
@@ -676,7 +681,7 @@ onBeforeUnmount(() => {
                                                                 <div v-if="form.frequency !== 'Daily'">
                                                                     <label
                                                                         class="mb-1.5 block text-[13px] text-gray-400 dark:text-neutral-500">
-                                                                        Repeats on:
+                                                                        Repete le :
                                                                     </label>
                                                                     <!-- If frequency is Weekly, display checkboxes for days of the week -->
                                                                     <div v-if="form.frequency === 'Weekly'"
@@ -704,22 +709,22 @@ onBeforeUnmount(() => {
                                                                 <!-- Item -->
                                                                 <div>
 
-                                                                    <FloatingSelect  :label="'Ends'" v-model="form.ends"
+                                                                    <FloatingSelect  :label="'Fin'" v-model="form.ends"
                                                                         :options="endOptions" />
 
                                                                         <div class="w-full mt-4" v-if="form.ends === 'On'">
                                                                             <!-- Input -->
-                                                                             <DatePicker v-model="form.end_date" label="End Date"
-                                                                                placeholder="Choose a date" />
+                                                                             <DatePicker v-model="form.end_date" label="Date de fin"
+                                                                                placeholder="Choisir une date" />
                                                                             <!-- End Input -->
                                                                         </div>
                                                                         <div class="w-full flex items-center gap-x-2 mt-4"  v-if="form.ends === 'After'">
                                                                             <!-- Input -->
                                                                             <FloatingNumberMiniInput v-model="form.frequencyNumber"
-                                                                                label="Number" />
+                                                                                label="Nombre" />
                                                                             <!-- End Input -->
                                                                             <span
-                                                                                class="text-xs text-gray-400 dark:text-neutral-500">Times</span>
+                                                                                class="text-xs text-gray-400 dark:text-neutral-500">fois</span>
                                                                         </div>
                                                                 </div>
                                                                 <!-- End Item -->
@@ -731,14 +736,14 @@ onBeforeUnmount(() => {
                                                     <div class="mt-4 block">
                                                         <label for="hs-pro-ccremre"
                                                             class="mb-1.5 block text-[13px] text-gray-400 dark:text-neutral-500">
-                                                            Visits:
+                                                            Visites :
                                                         </label>
 
                                                         <div class="grid grid-cols-3 gap-4">
                                                             <div class="flex flex-col">
                                                                 <span for="hs-pro-ccremre"
                                                                     class="block text-sm text-gray-400 dark:text-neutral-500">
-                                                                    First:
+                                                                    Premiere :
                                                                 </span>
                                                                 <span for="hs-pro-ccremre"
                                                                     class="block text-xs text-gray-600 dark:text-neutral-400">
@@ -748,7 +753,7 @@ onBeforeUnmount(() => {
                                                             <div class="flex flex-col">
                                                                 <span for="hs-pro-ccremre"
                                                                     class="block text-sm text-gray-400 dark:text-neutral-500">
-                                                                    Last:
+                                                                    Derniere :
                                                                 </span>
                                                                 <span for="hs-pro-ccremre"
                                                                     class="block text-xs text-gray-600 dark:text-neutral-400">
@@ -758,7 +763,7 @@ onBeforeUnmount(() => {
                                                             <div class="flex flex-col">
                                                                 <span for="hs-pro-ccremre"
                                                                     class="block text-sm text-gray-400 dark:text-neutral-500">
-                                                                    Total:
+                                                                    Total :
                                                                 </span>
                                                                 <span for="hs-pro-ccremre"
                                                                     class="block text-xs text-gray-600 dark:text-neutral-400">
@@ -776,14 +781,14 @@ onBeforeUnmount(() => {
                                                 <div
                                                     class="flex flex-row bg-gray-100 dark:bg-gray-600 border-b rounded-t-sm py-3 px-4 md:px-5 dark:border-neutral-700">
                                                     <h3 class="text-lg  ml-2 font-bold text-gray-800 dark:text-white">
-                                                        TEAM
+                                                        EQUIPE
                                                     </h3>
                                                 </div>
                                                 <div class="p-4 md:p-5">
                                                     <div class="space-y-3">
                                                         <div v-if="!teamMembers?.length"
                                                             class="text-sm text-gray-600 dark:text-neutral-400">
-                                                            No team members yet.
+                                                            Aucun membre pour l'instant.
                                                         </div>
                                                         <div v-else class="space-y-2">
                                                             <label v-for="member in teamMembers" :key="member.id"
@@ -793,7 +798,7 @@ onBeforeUnmount(() => {
                                                                 <div class="flex flex-col">
                                                                     <span
                                                                         class="text-sm text-gray-800 dark:text-neutral-200">
-                                                                        {{ member.user?.name ?? 'Team member' }}
+                                                                        {{ member.user?.name ?? 'Membre equipe' }}
                                                                     </span>
                                                                     <span
                                                                         class="text-xs text-gray-500 dark:text-neutral-500">
@@ -828,13 +833,13 @@ onBeforeUnmount(() => {
                         <div
                             class="flex flex-row bg-gray-100 dark:bg-gray-600 border-b rounded-t-sm py-3 px-4 md:px-5 dark:border-neutral-700">
                             <h3 class="text-lg  ml-2 font-bold text-gray-800 dark:text-white">
-                                INVOICING
+                                FACTURATION
                             </h3>
                         </div>
                         <div class="p-4 md:p-5">
                             <label class="flex items-center">
                                 <Checkbox name="remember" v-model:checked="form.later" />
-                                <span class="ms-2 text-sm text-gray-600 dark:text-neutral-400">Remenber me to invoice when i close the
+                                <span class="ms-2 text-sm text-gray-600 dark:text-neutral-400">Me rappeler de facturer a la fermeture du
                                     job</span>
                             </label>
                         </div>
@@ -844,7 +849,7 @@ onBeforeUnmount(() => {
                         <div
                             class="flex flex-row bg-gray-100 dark:bg-gray-600 border-b rounded-t-sm py-3 px-4 md:px-5 dark:border-neutral-700">
                             <h3 class="text-lg  ml-2 font-bold text-gray-800 dark:text-white">
-                                LINE ITEMS
+                                LIGNES
                             </h3>
                         </div>
                         <div class="p-4 md:p-5">
@@ -860,7 +865,7 @@ onBeforeUnmount(() => {
                                 <div class="py-4 grid grid-cols-2 gap-x-4  dark:border-neutral-700">
                                     <div class="col-span-1">
                                         <p class="text-sm text-gray-500 dark:text-neutral-500">
-                                            Subtotal:
+                                            Sous-total:
                                         </p>
                                     </div>
                                     <div class="col-span-1 flex justify-end">
@@ -878,7 +883,7 @@ onBeforeUnmount(() => {
                                     class="py-4 grid grid-cols-2 gap-x-4 border-t border-gray-200 dark:border-neutral-700">
                                     <div class="col-span-1">
                                         <p class="text-sm text-gray-800 font-bold dark:text-neutral-500">
-                                            Total amount:
+                                            Montant total:
                                         </p>
                                     </div>
                                     <div class="flex justify-end">
@@ -897,16 +902,16 @@ onBeforeUnmount(() => {
                         <div class="flex justify-between">
                             <button type="button"
                                 class="py-1.5 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-sm border border-gray-200 bg-white text-gray-800 shadow-sm hover:bg-gray-50 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-800 focus:outline-none focus:bg-gray-100 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700">
-                                Cancel
+                                Annuler
                             </button>
                             <div>
                                 <button type="button" disabled
                                     class="py-1.5 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-sm border border-green-600 text-green-600 hover:border-gray-700 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:ring-2 focus:ring-gray-500">
-                                    Save and create another
+                                    Sauvegarder et creer un autre
                                 </button>
                                 <button id="hs-pro-in1trsbgwmdid1" type="submit"
                                     class="hs-tooltip-toggle ml-4 py-2 px-2.5 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:ring-2 focus:ring-green-500">
-                                    Save job
+                                    Sauvegarder le job
                                 </button>
                             </div>
                         </div>

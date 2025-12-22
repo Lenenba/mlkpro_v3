@@ -37,11 +37,11 @@ class RegisteredUserController extends Controller
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
         ]);
 
-        $roleId = Role::where('name', 'client')->value('id');
+        $roleId = Role::where('name', 'owner')->value('id');
         if (!$roleId) {
             $roleId = Role::create([
-                'name' => 'client',
-                'description' => 'Default client role',
+                'name' => 'owner',
+                'description' => 'Account owner role',
             ])->id;
         }
 

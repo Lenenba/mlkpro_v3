@@ -1,6 +1,8 @@
 <script setup>
 import { computed, ref, watch } from 'vue';
 import { Link, router, useForm } from '@inertiajs/vue3';
+import StarRating from '@/Components/UI/StarRating.vue';
+import { humanizeDate } from '@/utils/date';
 
 const props = defineProps({
     quotes: {
@@ -109,16 +111,7 @@ const clearFilters = () => {
 const formatCurrency = (value) =>
     `$${Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-const formatDate = (value) => {
-    if (!value) {
-        return '';
-    }
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) {
-        return '';
-    }
-    return date.toLocaleDateString();
-};
+const formatDate = (value) => humanizeDate(value);
 
 const displayCustomer = (customer) =>
     customer?.company_name ||
@@ -288,6 +281,9 @@ const startQuote = () => {
                             </button>
                         </th>
                         <th class="px-4 py-3 text-start">
+                            <span class="text-sm font-medium text-stone-800 dark:text-neutral-200">Rating</span>
+                        </th>
+                        <th class="px-4 py-3 text-start">
                             <button type="button" @click="toggleSort('total')"
                                 class="text-sm font-medium text-stone-800 dark:text-neutral-200 flex items-center gap-x-1">
                                 Total
@@ -321,6 +317,9 @@ const startQuote = () => {
                                 :class="statusClasses(quote.status)">
                                 {{ quote.status || 'draft' }}
                             </span>
+                        </td>
+                        <td class="px-4 py-3">
+                            <StarRating :value="quote.ratings_avg_rating" icon-class="h-3.5 w-3.5" empty-label="-" />
                         </td>
                         <td class="px-4 py-3 text-sm text-stone-600 dark:text-neutral-300">
                             {{ formatCurrency(quote.total) }}

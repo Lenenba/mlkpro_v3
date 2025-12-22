@@ -7,6 +7,7 @@ use Illuminate\Notifications\Notifiable;
 use App\Traits\GeneratesSequentialNumber;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Quote extends Model
 {
@@ -117,6 +118,11 @@ class Quote extends Model
     public function works()
     {
         return $this->hasMany(Work::class);
+    }
+
+    public function ratings(): HasMany
+    {
+        return $this->hasMany(QuoteRating::class);
     }
 
     /**

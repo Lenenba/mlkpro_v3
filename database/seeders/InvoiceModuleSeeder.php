@@ -6,6 +6,7 @@ use App\Models\Customer;
 use App\Models\Invoice;
 use App\Models\Payment;
 use App\Models\Quote;
+use App\Models\Role;
 use App\Models\User;
 use App\Models\Work;
 use Illuminate\Database\Seeder;
@@ -17,12 +18,17 @@ class InvoiceModuleSeeder extends Seeder
      */
     public function run(): void
     {
+        $ownerRoleId = Role::firstOrCreate(
+            ['name' => 'owner'],
+            ['description' => 'Account owner role']
+        )->id;
+
         $user = User::first();
         if (!$user) {
             $user = User::factory()->create([
                 'name' => 'Invoice Demo',
                 'email' => 'invoice.demo@example.com',
-                'role_id' => 1,
+                'role_id' => $ownerRoleId,
             ]);
         }
 

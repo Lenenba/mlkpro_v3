@@ -5,6 +5,7 @@ import Modal from '@/Components/UI/Modal.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingTextarea from '@/Components/FloatingTextarea.vue';
 import InputError from '@/Components/InputError.vue';
+import { humanizeDate } from '@/utils/date';
 
 const props = defineProps({
     tasks: {
@@ -107,16 +108,7 @@ const statusClasses = (status) => {
     }
 };
 
-const formatDate = (value) => {
-    if (!value) {
-        return '';
-    }
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) {
-        return String(value);
-    }
-    return date.toLocaleDateString();
-};
+const formatDate = (value) => humanizeDate(value) || String(value || '');
 
 const canChangeStatus = computed(() => props.canManage || props.canEditStatus);
 
@@ -564,4 +556,3 @@ const displayAssignee = (task) => task?.assignee?.user?.name || '-';
         </form>
     </Modal>
 </template>
-

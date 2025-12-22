@@ -8,6 +8,7 @@ use App\Models\Quote;
 use App\Models\Transaction;
 use App\Models\User;
 use App\Models\Work;
+use App\Notifications\ActionEmailNotification;
 
 class WorkBillingService
 {
@@ -54,7 +55,22 @@ class WorkBillingService
             ], 'Invoice created from job');
         }
 
+        $customer = $work->customer;
+        if ($customer && $customer->email) {
+            $customer->notify(new ActionEmailNotification(
+                'New invoice available',
+                'A new invoice has been generated for your job.',
+                [
+                    ['label' => 'Invoice', 'value' => $invoice->number ?? $invoice->id],
+                    ['label' => 'Job', 'value' => $work->job_title ?? $work->number ?? $work->id],
+                    ['label' => 'Total', 'value' => '$' . number_format((float) $invoice->total, 2)],
+                ],
+                route('dashboard'),
+                'Open dashboard',
+                'New invoice available'
+            ));
+        }
+
         return $invoice;
     }
 }
-

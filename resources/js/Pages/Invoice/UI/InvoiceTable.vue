@@ -1,6 +1,8 @@
 <script setup>
 import { ref, watch } from 'vue';
 import { Link, router, useForm } from '@inertiajs/vue3';
+import StarRating from '@/Components/UI/StarRating.vue';
+import { humanizeDate } from '@/utils/date';
 
 const props = defineProps({
     invoices: {
@@ -117,16 +119,7 @@ const toggleSort = (column) => {
     filterForm.direction = 'asc';
 };
 
-const formatDate = (value) => {
-    if (!value) {
-        return '';
-    }
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) {
-        return '';
-    }
-    return date.toLocaleDateString();
-};
+const formatDate = (value) => humanizeDate(value);
 
 const getCustomerName = (invoice) => {
     const customer = invoice.customer;
@@ -235,6 +228,11 @@ const getCustomerName = (invoice) => {
                                 </button>
                             </th>
                             <th scope="col" class="min-w-32">
+                                <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
+                                    Rating
+                                </div>
+                            </th>
+                            <th scope="col" class="min-w-32">
                                 <button type="button" @click="toggleSort('total')"
                                     class="px-5 py-2.5 text-start w-full flex items-center gap-x-1 text-sm font-normal text-stone-500 hover:text-stone-700 focus:outline-none dark:text-neutral-500 dark:hover:text-neutral-300">
                                     Total
@@ -296,6 +294,9 @@ const getCustomerName = (invoice) => {
                                     }">
                                     {{ invoice.status }}
                                 </span>
+                            </td>
+                            <td class="size-px whitespace-nowrap px-4 py-2">
+                                <StarRating :value="invoice.work?.ratings_avg_rating" icon-class="h-3.5 w-3.5" empty-label="-" />
                             </td>
                             <td class="size-px whitespace-nowrap px-4 py-2">
                                 <span class="text-sm text-stone-600 dark:text-neutral-300">

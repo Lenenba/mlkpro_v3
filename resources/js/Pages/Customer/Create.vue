@@ -39,6 +39,7 @@ const form = useForm({
     first_name: props.customer?.first_name || '',
     last_name: props.customer?.last_name || '',
     email: props.customer?.email || '',
+    temporary_password: '',
     company_name: props.customer?.company_name || '',
     billing_same_as_physical: props.customer?.billing_same_as_physical || false,
     logo: props.customer?.logo || '',
@@ -149,6 +150,10 @@ const selectAddress = (details) => {
                         <h2 class="pt-4 text-sm  my-2 font-bold text-gray-800 dark:text-white"> Contact details</h2>
                         <FloatingInput v-model="form.phone" label="Phone" />
                         <FloatingInput v-model="form.email" label="Email address" />
+                        <FloatingInput v-model="form.temporary_password" label="Mot de passe temporaire" type="password" />
+                        <p class="text-xs text-gray-500 dark:text-neutral-400">
+                            Le client pourra le changer lors de la premiere connexion.
+                        </p>
                         <h2 class="pt-4 text-sm  my-2 font-bold text-gray-800 dark:text-white"> Additional notifications
                         </h2>
                         <ListInput />

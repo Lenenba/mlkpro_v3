@@ -49,6 +49,7 @@ class HandleInertiaRequests extends Middleware
                 'account' => $user ? [
                     'owner_id' => $ownerId,
                     'is_owner' => $user->isAccountOwner(),
+                    'is_client' => $user->isClient(),
                     'company' => $accountOwner ? [
                         'name' => $accountOwner->company_name,
                         'type' => $accountOwner->company_type,
@@ -58,7 +59,8 @@ class HandleInertiaRequests extends Middleware
             ],
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
-                'error' => fn () => $request->session()->get('error')
+                'error' => fn () => $request->session()->get('error'),
+                'warning' => fn () => $request->session()->get('warning'),
             ],
         ];
     }

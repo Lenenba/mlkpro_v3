@@ -1,5 +1,6 @@
 <script setup>
 import { Link, router } from '@inertiajs/vue3';
+import { humanizeDate } from '@/utils/date';
 
 const props = defineProps({
     quotes: {
@@ -8,16 +9,7 @@ const props = defineProps({
     },
 });
 
-const formatDate = (value) => {
-    if (!value) {
-        return '';
-    }
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) {
-        return '';
-    }
-    return date.toLocaleDateString();
-};
+const formatDate = (value) => humanizeDate(value);
 
 const statusClasses = (status) => {
     switch (status) {

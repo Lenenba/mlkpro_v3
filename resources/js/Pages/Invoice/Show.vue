@@ -1,6 +1,9 @@
 <script setup>
+import { computed } from 'vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import StarRating from '@/Components/UI/StarRating.vue';
 import { Head, useForm } from '@inertiajs/vue3';
+import { humanizeDate } from '@/utils/date';
 
 const props = defineProps({
     invoice: Object,
@@ -23,65 +26,211 @@ const submitPayment = () => {
     });
 };
 
-const formatDate = (value) => {
-    if (!value) {
+const customer = computed(() => props.invoice.customer || null);
+const work = computed(() => props.invoice.work || null);
+const lineItems = computed(() => work.value?.products || []);
+
+const customerName = computed(() => {
+    const data = customer.value;
+    if (!data) {
+        return 'Customer';
+    }
+    const name = data.company_name || `${data.first_name || ''} ${data.last_name || ''}`.trim();
+    return name || 'Customer';
+});
+
+const contactName = computed(() => {
+    const data = customer.value;
+    if (!data) {
         return '-';
     }
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) {
-        return '-';
+    const name = `${data.first_name || ''} ${data.last_name || ''}`.trim();
+    return name || data.company_name || '-';
+});
+
+const contactEmail = computed(() => customer.value?.email || '-');
+const contactPhone = computed(() => customer.value?.phone || '-');
+
+const fallbackProperty = computed(() => {
+    const properties = customer.value?.properties || [];
+    return properties.find((item) => item.is_default) || properties[0] || null;
+});
+
+const property = computed(() => work.value?.quote?.property || fallbackProperty.value);
+
+const ratingValue = computed(() => {
+    const ratings = work.value?.ratings || [];
+    if (!ratings.length) {
+        return null;
     }
-    return date.toLocaleDateString();
-};
+    const sum = ratings.reduce((total, rating) => total + Number(rating.rating || 0), 0);
+    return sum / ratings.length;
+});
+
+const ratingCount = computed(() => work.value?.ratings?.length || 0);
+
+const formatDate = (value) => humanizeDate(value) || '-';
+
+const formatCurrency = (value) =>
+    `$${Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 </script>
 
 <template>
     <Head :title="`Invoice ${invoice.number || invoice.id}`" />
+
     <AuthenticatedLayout>
-        <div class="max-w-5xl mx-auto space-y-4">
-            <div class="p-5 bg-white border border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
-                <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+        <div class="mx-auto w-full max-w-6xl space-y-5">
+            <div class="p-5 space-y-3 flex flex-col bg-gray-100 border border-gray-100 rounded-sm shadow-sm">
+                <div class="flex flex-wrap justify-between items-center gap-3">
                     <div>
-                        <h1 class="text-xl font-semibold text-stone-800 dark:text-neutral-100">
-                            {{ invoice.number || `Invoice #${invoice.id}` }}
+                        <h1 class="text-xl inline-block font-semibold text-gray-800">
+                            Invoice For {{ customerName }}
                         </h1>
-                        <p class="text-sm text-stone-500 dark:text-neutral-400">
-                            Job: {{ invoice.work?.job_title ?? '-' }}
+                        <p class="text-sm text-gray-600">
+                            {{ work?.job_title || 'Job' }}
                         </p>
                     </div>
-                    <span
-                        class="py-1.5 px-3 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-full"
+                    <span class="py-1.5 px-3 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-full"
                         :class="{
-                            'bg-stone-100 text-stone-700 dark:bg-neutral-700 dark:text-neutral-200': invoice.status === 'draft',
-                            'bg-sky-100 text-sky-700 dark:bg-sky-500/20 dark:text-sky-200': invoice.status === 'sent',
-                            'bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-200': invoice.status === 'partial',
-                            'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-200': invoice.status === 'paid',
-                            'bg-rose-100 text-rose-800 dark:bg-rose-500/20 dark:text-rose-200': invoice.status === 'overdue' || invoice.status === 'void',
+                            'bg-stone-100 text-stone-700': invoice.status === 'draft',
+                            'bg-sky-100 text-sky-700': invoice.status === 'sent',
+                            'bg-amber-100 text-amber-800': invoice.status === 'partial',
+                            'bg-emerald-100 text-emerald-800': invoice.status === 'paid',
+                            'bg-rose-100 text-rose-800': invoice.status === 'overdue' || invoice.status === 'void',
                         }">
                         {{ invoice.status }}
                     </span>
                 </div>
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div class="col-span-2 space-x-2">
+                        <div class="bg-white rounded-sm border border-gray-100 p-4 mb-4">
+                            {{ work?.job_title || 'Job' }}
+                        </div>
+                        <div class="flex flex-row space-x-6">
+                            <div class="lg:col-span-3">
+                                <p>Property address</p>
+                                <div v-if="property" class="space-y-1">
+                                    <div class="text-xs text-gray-600">{{ property.country }}</div>
+                                    <div class="text-xs text-gray-600">{{ property.street1 }}</div>
+                                    <div class="text-xs text-gray-600">{{ property.state }} - {{ property.zip }}</div>
+                                </div>
+                                <div v-else class="text-xs text-gray-600">
+                                    No property selected.
+                                </div>
+                            </div>
+                            <div class="lg:col-span-3">
+                                <p>Contact details</p>
+                                <div class="text-xs text-gray-600">
+                                    {{ contactName }}
+                                </div>
+                                <div class="text-xs text-gray-600">
+                                    {{ contactEmail }}
+                                </div>
+                                <div class="text-xs text-gray-600">
+                                    {{ contactPhone }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-white p-4 rounded-sm border border-gray-100">
+                        <p>Invoice details</p>
+                        <div class="text-xs text-gray-600 flex justify-between">
+                            <span>Invoice:</span>
+                            <span>{{ invoice.number || invoice.id }}</span>
+                        </div>
+                        <div class="text-xs text-gray-600 flex justify-between">
+                            <span>Issued:</span>
+                            <span>{{ formatDate(invoice.created_at) }}</span>
+                        </div>
+                        <div class="text-xs text-gray-600 flex justify-between">
+                            <span>Balance due:</span>
+                            <span>{{ formatCurrency(invoice.balance_due) }}</span>
+                        </div>
+                        <div class="text-xs text-gray-600 flex justify-between">
+                            <span>Job rating:</span>
+                            <span class="flex items-center gap-2">
+                                <StarRating :value="ratingValue" show-value empty-label="No rating yet" />
+                                <span v-if="ratingCount" class="text-xs text-gray-500">({{ ratingCount }})</span>
+                            </span>
+                        </div>
+                    </div>
+                </div>
             </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-                <div class="p-4 bg-white border border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
-                    <h2 class="text-sm text-stone-500 dark:text-neutral-400">Customer</h2>
-                    <p class="text-sm text-stone-800 dark:text-neutral-100">
-                        {{ invoice.customer?.company_name || `${invoice.customer?.first_name ?? ''} ${invoice.customer?.last_name ?? ''}`.trim() || '-' }}
-                    </p>
-                    <p class="text-xs text-stone-500 dark:text-neutral-400">
-                        {{ invoice.customer?.email ?? '-' }}
-                    </p>
+            <div class="p-5 space-y-3 flex flex-col bg-white border border-gray-100 rounded-sm shadow-sm">
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead>
+                            <tr>
+                                <th class="min-w-[300px] text-left text-sm font-medium text-gray-800">Product/Services</th>
+                                <th class="text-left text-sm font-medium text-gray-800">Qty.</th>
+                                <th class="text-left text-sm font-medium text-gray-800">Unit cost</th>
+                                <th class="text-left text-sm font-medium text-gray-800">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-200">
+                            <tr v-for="product in lineItems" :key="product.id">
+                                <td class="px-4 py-3">{{ product.name }}</td>
+                                <td class="px-4 py-3">{{ product.pivot?.quantity ?? '-' }}</td>
+                                <td class="px-4 py-3">{{ formatCurrency(product.pivot?.price) }}</td>
+                                <td class="px-4 py-3">{{ formatCurrency(product.pivot?.total) }}</td>
+                            </tr>
+                            <tr v-if="!lineItems.length">
+                                <td colspan="4" class="px-4 py-4 text-sm text-gray-500">
+                                    No line items.
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
-                <div class="p-4 bg-white border border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
-                    <h2 class="text-sm text-stone-500 dark:text-neutral-400">Totals</h2>
-                    <p class="text-sm text-stone-800 dark:text-neutral-100">Total: ${{ Number(invoice.total || 0).toFixed(2) }}</p>
-                    <p class="text-xs text-stone-500 dark:text-neutral-400">Paid: ${{ Number(invoice.amount_paid || 0).toFixed(2) }}</p>
-                    <p class="text-xs text-stone-500 dark:text-neutral-400">Balance: ${{ Number(invoice.balance_due || 0).toFixed(2) }}</p>
-                </div>
-                <div class="p-4 bg-white border border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
-                    <h2 class="text-sm text-stone-500 dark:text-neutral-400">Created</h2>
-                    <p class="text-sm text-stone-800 dark:text-neutral-100">{{ formatDate(invoice.created_at) }}</p>
+            </div>
+
+            <div class="p-5 grid grid-cols-2 gap-4 justify-between bg-white border border-gray-100 rounded-sm shadow-sm">
+                <div></div>
+                <div class="border-l border-gray-200 rounded-sm p-4">
+                    <div class="py-4 grid grid-cols-2 gap-x-4">
+                        <div class="col-span-1">
+                            <p class="text-sm text-gray-500">Subtotal:</p>
+                        </div>
+                        <div class="col-span-1 flex justify-end">
+                            <p class="text-sm text-green-600">
+                                {{ formatCurrency(work?.subtotal ?? invoice.total) }}
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="py-4 grid grid-cols-2 gap-x-4 border-t border-gray-200">
+                        <div class="col-span-1">
+                            <p class="text-sm text-gray-500">Paid:</p>
+                        </div>
+                        <div class="flex justify-end">
+                            <p class="text-sm text-gray-800">
+                                {{ formatCurrency(invoice.amount_paid) }}
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="py-4 grid grid-cols-2 gap-x-4 border-t border-gray-200">
+                        <div class="col-span-1">
+                            <p class="text-sm text-gray-800 font-bold">Total amount:</p>
+                        </div>
+                        <div class="flex justify-end">
+                            <p class="text-sm text-gray-800 font-bold">
+                                {{ formatCurrency(invoice.total) }}
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="py-4 grid grid-cols-2 gap-x-4 border-t border-gray-200">
+                        <div class="col-span-1">
+                            <p class="text-sm text-gray-500">Balance due:</p>
+                        </div>
+                        <div class="flex justify-end">
+                            <p class="text-sm text-gray-800">
+                                {{ formatCurrency(invoice.balance_due) }}
+                            </p>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -93,7 +242,7 @@ const formatDate = (value) => {
                             class="flex items-center justify-between p-2 rounded-sm bg-stone-50 dark:bg-neutral-900">
                             <div>
                                 <p class="text-sm text-stone-700 dark:text-neutral-200">
-                                    ${{ Number(payment.amount || 0).toFixed(2) }} · {{ payment.method || 'method' }}
+                                    {{ formatCurrency(payment.amount) }} - {{ payment.method || 'method' }}
                                 </p>
                                 <p class="text-xs text-stone-500 dark:text-neutral-400">
                                     {{ formatDate(payment.paid_at) }}

@@ -3,12 +3,14 @@
 namespace Database\Seeders;
 
 use App\Models\Customer;
+use App\Models\Invoice;
 use App\Models\Payment;
 use App\Models\Product;
 use App\Models\ProductCategory;
 use App\Models\Property;
 use App\Models\Quote;
 use App\Models\QuoteProduct;
+use App\Models\QuoteRating;
 use App\Models\Request as LeadRequest;
 use App\Models\Role;
 use App\Models\Task;
@@ -17,6 +19,8 @@ use App\Models\Transaction;
 use App\Models\User;
 use App\Models\Work;
 use App\Models\WorkChecklistItem;
+use App\Models\WorkMedia;
+use App\Models\WorkRating;
 use App\Services\WorkBillingService;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
@@ -48,7 +52,7 @@ class LaunchSeeder extends Seeder
             [
                 'name' => 'Service Owner',
                 'password' => Hash::make('password'),
-                'role_id' => $clientRoleId,
+                'role_id' => $ownerRoleId,
                 'email_verified_at' => $now,
                 'phone_number' => '+15145550000',
                 'company_name' => 'Service Demo Co',
@@ -67,7 +71,7 @@ class LaunchSeeder extends Seeder
             [
                 'name' => 'Product Owner',
                 'password' => Hash::make('password'),
-                'role_id' => $clientRoleId,
+                'role_id' => $ownerRoleId,
                 'email_verified_at' => $now,
                 'phone_number' => '+14165550000',
                 'company_name' => 'Product Demo Co',
@@ -181,10 +185,10 @@ class LaunchSeeder extends Seeder
 
         $serviceCustomer = Customer::updateOrCreate(
             [
-                'user_id' => $serviceOwner->id,
                 'email' => 'north-co@example.com',
             ],
             [
+                'user_id' => $serviceOwner->id,
                 'first_name' => 'Ava',
                 'last_name' => 'Lefebvre',
                 'company_name' => 'North & Co',
@@ -194,6 +198,20 @@ class LaunchSeeder extends Seeder
                 'billing_same_as_physical' => true,
             ]
         );
+
+        $servicePortalUser = User::updateOrCreate(
+            ['email' => 'client.north@example.com'],
+            [
+                'name' => 'Ava Lefebvre',
+                'password' => Hash::make('password'),
+                'role_id' => $clientRoleId,
+                'email_verified_at' => $now,
+            ]
+        );
+
+        if ($serviceCustomer->portal_user_id !== $servicePortalUser->id) {
+            $serviceCustomer->update(['portal_user_id' => $servicePortalUser->id]);
+        }
 
         $serviceProperty = Property::updateOrCreate(
             [
@@ -210,12 +228,43 @@ class LaunchSeeder extends Seeder
             ]
         );
 
+        $serviceCustomerAlt = Customer::updateOrCreate(
+            [
+                'email' => 'launch-owlwood@example.com',
+            ],
+            [
+                'user_id' => $serviceOwner->id,
+                'first_name' => 'Jordan',
+                'last_name' => 'Moreau',
+                'company_name' => 'Owlwood Properties',
+                'phone' => '+15145550110',
+                'description' => 'Secondary customer for extended workflow coverage.',
+                'salutation' => 'Mrs',
+                'billing_same_as_physical' => true,
+            ]
+        );
+
+        $servicePropertyAlt = Property::updateOrCreate(
+            [
+                'customer_id' => $serviceCustomerAlt->id,
+                'type' => 'physical',
+                'street1' => '250 Demo Rd',
+            ],
+            [
+                'is_default' => true,
+                'city' => 'Laval',
+                'state' => 'QC',
+                'zip' => 'H7N5H9',
+                'country' => 'Canada',
+            ]
+        );
+
         $productCustomer = Customer::updateOrCreate(
             [
-                'user_id' => $productOwner->id,
                 'email' => 'product-buyer@example.com',
             ],
             [
+                'user_id' => $productOwner->id,
                 'first_name' => 'Mia',
                 'last_name' => 'Roy',
                 'company_name' => 'Mia Builds',
@@ -225,6 +274,20 @@ class LaunchSeeder extends Seeder
                 'billing_same_as_physical' => true,
             ]
         );
+
+        $productPortalUser = User::updateOrCreate(
+            ['email' => 'client.products@example.com'],
+            [
+                'name' => 'Mia Roy',
+                'password' => Hash::make('password'),
+                'role_id' => $clientRoleId,
+                'email_verified_at' => $now,
+            ]
+        );
+
+        if ($productCustomer->portal_user_id !== $productPortalUser->id) {
+            $productCustomer->update(['portal_user_id' => $productPortalUser->id]);
+        }
 
         $productProperty = Property::updateOrCreate(
             [
@@ -259,6 +322,27 @@ class LaunchSeeder extends Seeder
                 'state' => 'QC',
                 'city' => 'Montreal',
                 'street1' => '100 Service Ave',
+            ]
+        );
+
+        LeadRequest::updateOrCreate(
+            [
+                'user_id' => $serviceOwner->id,
+                'title' => 'Lead - Gutter cleaning',
+            ],
+            [
+                'customer_id' => $serviceCustomerAlt->id,
+                'status' => LeadRequest::STATUS_NEW,
+                'service_type' => 'Maintenance',
+                'urgency' => 'low',
+                'channel' => 'web',
+                'contact_name' => 'Jordan Moreau',
+                'contact_email' => 'launch-owlwood@example.com',
+                'contact_phone' => '+15145550110',
+                'country' => 'Canada',
+                'state' => 'QC',
+                'city' => 'Laval',
+                'street1' => '250 Demo Rd',
             ]
         );
 
@@ -454,6 +538,387 @@ class LaunchSeeder extends Seeder
             );
         }
 
+        $portalQuote = Quote::updateOrCreate(
+            [
+                'user_id' => $serviceOwner->id,
+                'customer_id' => $serviceCustomer->id,
+                'job_title' => 'Seasonal maintenance quote',
+            ],
+            [
+                'property_id' => $serviceProperty->id,
+                'status' => 'sent',
+                'notes' => 'Seeded quote awaiting client approval.',
+                'messages' => 'Please review and accept this quote.',
+                'is_fixed' => false,
+            ]
+        );
+
+        $portalItems = [
+            [
+                'product' => $serviceProducts[0],
+                'quantity' => 1,
+                'price' => (float) $serviceProducts[0]->price,
+                'description' => 'Seasonal maintenance',
+            ],
+        ];
+
+        $portalPivot = [];
+        foreach ($portalItems as $item) {
+            $total = round($item['quantity'] * $item['price'], 2);
+            $portalPivot[$item['product']->id] = [
+                'quantity' => $item['quantity'],
+                'price' => $item['price'],
+                'total' => $total,
+                'description' => $item['description'],
+            ];
+        }
+
+        $portalSubtotal = collect($portalPivot)->sum('total');
+        $portalQuote->update([
+            'subtotal' => $portalSubtotal,
+            'total' => $portalSubtotal,
+            'initial_deposit' => 0,
+        ]);
+        $portalQuote->products()->sync($portalPivot);
+
+        $draftQuote = Quote::updateOrCreate(
+            [
+                'user_id' => $serviceOwner->id,
+                'customer_id' => $serviceCustomerAlt->id,
+                'job_title' => 'Draft - Exterior prep',
+            ],
+            [
+                'property_id' => $servicePropertyAlt->id,
+                'status' => 'draft',
+                'notes' => 'Draft quote for future review.',
+                'messages' => null,
+                'is_fixed' => false,
+            ]
+        );
+
+        $draftItems = [
+            [
+                'product' => $serviceProducts[1],
+                'quantity' => 1,
+                'price' => (float) $serviceProducts[1]->price,
+                'description' => 'Exterior prep package',
+            ],
+        ];
+
+        $draftPivot = [];
+        foreach ($draftItems as $item) {
+            $total = round($item['quantity'] * $item['price'], 2);
+            $draftPivot[$item['product']->id] = [
+                'quantity' => $item['quantity'],
+                'price' => $item['price'],
+                'total' => $total,
+                'description' => $item['description'],
+            ];
+        }
+
+        $draftSubtotal = collect($draftPivot)->sum('total');
+        $draftQuote->update([
+            'subtotal' => $draftSubtotal,
+            'total' => $draftSubtotal,
+            'initial_deposit' => 0,
+        ]);
+        $draftQuote->products()->sync($draftPivot);
+
+        $declinedQuote = Quote::updateOrCreate(
+            [
+                'user_id' => $serviceOwner->id,
+                'customer_id' => $serviceCustomerAlt->id,
+                'job_title' => 'Declined - Fence wash',
+            ],
+            [
+                'property_id' => $servicePropertyAlt->id,
+                'status' => 'declined',
+                'notes' => 'Client declined due to timing.',
+                'messages' => null,
+                'signed_at' => $now->copy()->subDays(5),
+                'accepted_at' => null,
+                'is_fixed' => false,
+            ]
+        );
+
+        $declinedItems = [
+            [
+                'product' => $serviceProducts[2],
+                'quantity' => 1,
+                'price' => (float) $serviceProducts[2]->price,
+                'description' => 'Fence pressure wash',
+            ],
+        ];
+
+        $declinedPivot = [];
+        foreach ($declinedItems as $item) {
+            $total = round($item['quantity'] * $item['price'], 2);
+            $declinedPivot[$item['product']->id] = [
+                'quantity' => $item['quantity'],
+                'price' => $item['price'],
+                'total' => $total,
+                'description' => $item['description'],
+            ];
+        }
+
+        $declinedSubtotal = collect($declinedPivot)->sum('total');
+        $declinedQuote->update([
+            'subtotal' => $declinedSubtotal,
+            'total' => $declinedSubtotal,
+            'initial_deposit' => 0,
+        ]);
+        $declinedQuote->products()->sync($declinedPivot);
+
+        $reviewQuote = Quote::updateOrCreate(
+            [
+                'user_id' => $serviceOwner->id,
+                'customer_id' => $serviceCustomer->id,
+                'job_title' => 'Review - Exterior refresh',
+            ],
+            [
+                'property_id' => $serviceProperty->id,
+                'status' => 'accepted',
+                'notes' => 'Accepted quote waiting on client validation.',
+                'messages' => null,
+                'signed_at' => $now->copy()->subDays(2),
+                'accepted_at' => $now->copy()->subDays(2),
+                'is_fixed' => false,
+            ]
+        );
+
+        $reviewItems = [
+            [
+                'product' => $serviceProducts[1],
+                'quantity' => 1,
+                'price' => (float) $serviceProducts[1]->price,
+                'description' => 'Exterior refresh',
+            ],
+        ];
+
+        $reviewPivot = [];
+        foreach ($reviewItems as $item) {
+            $total = round($item['quantity'] * $item['price'], 2);
+            $reviewPivot[$item['product']->id] = [
+                'quantity' => $item['quantity'],
+                'price' => $item['price'],
+                'total' => $total,
+                'description' => $item['description'],
+            ];
+        }
+
+        $reviewSubtotal = collect($reviewPivot)->sum('total');
+        $reviewQuote->update([
+            'subtotal' => $reviewSubtotal,
+            'total' => $reviewSubtotal,
+            'initial_deposit' => 0,
+        ]);
+        $reviewQuote->products()->sync($reviewPivot);
+
+        $reviewWork = Work::updateOrCreate(
+            [
+                'user_id' => $serviceOwner->id,
+                'customer_id' => $serviceCustomer->id,
+                'job_title' => 'Review - Exterior refresh',
+            ],
+            [
+                'quote_id' => $reviewQuote->id,
+                'instructions' => $reviewQuote->notes ?? '',
+                'start_date' => $now->copy()->subDay()->toDateString(),
+                'status' => Work::STATUS_PENDING_REVIEW,
+                'subtotal' => $reviewSubtotal,
+                'total' => $reviewSubtotal,
+            ]
+        );
+
+        if ($reviewQuote->work_id !== $reviewWork->id) {
+            $reviewQuote->update(['work_id' => $reviewWork->id]);
+        }
+
+        $reviewProducts = QuoteProduct::query()
+            ->where('quote_id', $reviewQuote->id)
+            ->with('product')
+            ->orderBy('id')
+            ->get();
+
+        foreach ($reviewProducts as $index => $item) {
+            WorkChecklistItem::updateOrCreate(
+                [
+                    'work_id' => $reviewWork->id,
+                    'quote_product_id' => $item->id,
+                ],
+                [
+                    'quote_id' => $reviewQuote->id,
+                    'title' => $item->product?->name ?? 'Line item',
+                    'description' => $item->description,
+                    'status' => 'done',
+                    'sort_order' => $index,
+                    'completed_at' => $now->copy()->subDay(),
+                ]
+            );
+        }
+
+        foreach (range(1, 3) as $index) {
+            WorkMedia::updateOrCreate(
+                [
+                    'work_id' => $reviewWork->id,
+                    'type' => 'after',
+                    'path' => 'work_media/review-after-' . $index . '.jpg',
+                ],
+                [
+                    'user_id' => $serviceOwner->id,
+                    'meta' => ['seeded' => true],
+                ]
+            );
+        }
+
+        $scheduledTotal = (float) $serviceProducts[0]->price;
+        $inProgressTotal = (float) $serviceProducts[1]->price;
+        $disputeTotal = (float) $serviceProducts[2]->price;
+        $cancelledTotal = (float) ($serviceProducts[0]->price + $serviceProducts[2]->price);
+        $closedTotal = (float) ($serviceProducts[1]->price + $serviceProducts[2]->price);
+
+        $scheduledWork = Work::updateOrCreate(
+            [
+                'user_id' => $serviceOwner->id,
+                'customer_id' => $serviceCustomerAlt->id,
+                'job_title' => 'Scheduled - Seasonal checkup',
+            ],
+            [
+                'instructions' => 'Seeded scheduled job.',
+                'start_date' => $now->copy()->addDays(2)->toDateString(),
+                'status' => Work::STATUS_SCHEDULED,
+                'subtotal' => $scheduledTotal,
+                'total' => $scheduledTotal,
+            ]
+        );
+
+        $inProgressWork = Work::updateOrCreate(
+            [
+                'user_id' => $serviceOwner->id,
+                'customer_id' => $serviceCustomerAlt->id,
+                'job_title' => 'In progress - Driveway wash',
+            ],
+            [
+                'instructions' => 'Seeded in-progress job.',
+                'start_date' => $now->copy()->subDay()->toDateString(),
+                'status' => Work::STATUS_IN_PROGRESS,
+                'subtotal' => $inProgressTotal,
+                'total' => $inProgressTotal,
+            ]
+        );
+
+        foreach (range(1, 3) as $index) {
+            WorkMedia::updateOrCreate(
+                [
+                    'work_id' => $inProgressWork->id,
+                    'type' => 'before',
+                    'path' => 'work_media/in-progress-before-' . $index . '.jpg',
+                ],
+                [
+                    'user_id' => $serviceOwner->id,
+                    'meta' => ['seeded' => true],
+                ]
+            );
+        }
+
+        $disputeWork = Work::updateOrCreate(
+            [
+                'user_id' => $serviceOwner->id,
+                'customer_id' => $serviceCustomerAlt->id,
+                'job_title' => 'Dispute - Balcony cleanup',
+            ],
+            [
+                'instructions' => 'Seeded disputed job.',
+                'start_date' => $now->copy()->subDays(4)->toDateString(),
+                'status' => Work::STATUS_DISPUTE,
+                'subtotal' => $disputeTotal,
+                'total' => $disputeTotal,
+            ]
+        );
+
+        $cancelledWork = Work::updateOrCreate(
+            [
+                'user_id' => $serviceOwner->id,
+                'customer_id' => $serviceCustomerAlt->id,
+                'job_title' => 'Cancelled - Patio wash',
+            ],
+            [
+                'instructions' => 'Seeded cancelled job.',
+                'start_date' => $now->copy()->subDays(6)->toDateString(),
+                'status' => Work::STATUS_CANCELLED,
+                'subtotal' => $cancelledTotal,
+                'total' => $cancelledTotal,
+            ]
+        );
+
+        $closedWork = Work::updateOrCreate(
+            [
+                'user_id' => $serviceOwner->id,
+                'customer_id' => $serviceCustomerAlt->id,
+                'job_title' => 'Closed - Full service',
+            ],
+            [
+                'instructions' => 'Seeded paid job.',
+                'start_date' => $now->copy()->subDays(8)->toDateString(),
+                'status' => Work::STATUS_CLOSED,
+                'subtotal' => $closedTotal,
+                'total' => $closedTotal,
+            ]
+        );
+
+        Invoice::updateOrCreate(
+            [
+                'work_id' => $scheduledWork->id,
+            ],
+            [
+                'user_id' => $serviceOwner->id,
+                'customer_id' => $serviceCustomerAlt->id,
+                'status' => 'sent',
+                'total' => $scheduledWork->total,
+            ]
+        );
+
+        Invoice::updateOrCreate(
+            [
+                'work_id' => $disputeWork->id,
+            ],
+            [
+                'user_id' => $serviceOwner->id,
+                'customer_id' => $serviceCustomerAlt->id,
+                'status' => 'overdue',
+                'total' => $disputeWork->total,
+            ]
+        );
+
+        $paidInvoice = Invoice::updateOrCreate(
+            [
+                'work_id' => $closedWork->id,
+            ],
+            [
+                'user_id' => $serviceOwner->id,
+                'customer_id' => $serviceCustomerAlt->id,
+                'status' => 'sent',
+                'total' => $closedWork->total,
+            ]
+        );
+
+        Payment::updateOrCreate(
+            [
+                'invoice_id' => $paidInvoice->id,
+                'reference' => 'SEED-PAY-PAID-001',
+            ],
+            [
+                'customer_id' => $serviceCustomerAlt->id,
+                'user_id' => $serviceOwner->id,
+                'amount' => $paidInvoice->total,
+                'method' => 'card',
+                'status' => 'completed',
+                'notes' => 'Seeded full payment',
+                'paid_at' => $now->copy()->subDays(7),
+            ]
+        );
+        $paidInvoice->refreshPaymentStatus();
+
         $billingService = app(WorkBillingService::class);
         $invoice = $billingService->createInvoiceFromWork($work);
 
@@ -504,6 +969,44 @@ class LaunchSeeder extends Seeder
                 'description' => 'Remember to upload before photos on site.',
                 'status' => 'in_progress',
                 'due_date' => $now->copy()->addDay()->toDateString(),
+            ]
+        );
+
+        Task::updateOrCreate(
+            [
+                'account_id' => $serviceOwner->id,
+                'title' => 'Send thank you note',
+            ],
+            [
+                'created_by_user_id' => $serviceOwner->id,
+                'assigned_team_member_id' => $adminMember->id,
+                'customer_id' => $serviceCustomer->id,
+                'product_id' => $serviceProducts[2]->id,
+                'description' => 'Follow up after payment is complete.',
+                'status' => 'done',
+                'due_date' => $now->copy()->subDay()->toDateString(),
+            ]
+        );
+
+        QuoteRating::updateOrCreate(
+            [
+                'quote_id' => $quote->id,
+                'user_id' => $servicePortalUser->id,
+            ],
+            [
+                'rating' => 5,
+                'feedback' => 'Clear quote and great experience.',
+            ]
+        );
+
+        WorkRating::updateOrCreate(
+            [
+                'work_id' => $work->id,
+                'user_id' => $servicePortalUser->id,
+            ],
+            [
+                'rating' => 4,
+                'feedback' => 'Good job overall.',
             ]
         );
 

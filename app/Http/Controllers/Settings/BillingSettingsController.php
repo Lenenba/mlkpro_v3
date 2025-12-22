@@ -25,9 +25,34 @@ class BillingSettingsController extends Controller
             abort(403);
         }
 
+        $plans = collect(config('billing.plans', []))
+            ->map(function (array $plan, string $key) {
+                return [
+                    'key' => $key,
+                    'name' => $plan['name'] ?? ucfirst($key),
+                    'price_id' => $plan['price_id'] ?? null,
+                    'price' => $plan['price'] ?? null,
+                    'features' => $plan['features'] ?? [],
+                ];
+            })
+            ->values()
+            ->all();
+
+        $subscription = $user->subscription('default');
+
         return Inertia::render('Settings/Billing', [
             'availableMethods' => self::AVAILABLE_METHODS,
             'paymentMethods' => array_values($user->payment_methods ?? []),
+            'plans' => $plans,
+            'subscription' => [
+                'active' => $user->subscribed('default'),
+                'on_trial' => $user->onTrial('default'),
+                'status' => $subscription?->stripe_status,
+                'stripe_price' => $subscription?->stripe_price,
+                'ends_at' => $subscription?->ends_at,
+                'trial_ends_at' => $subscription?->trial_ends_at,
+            ],
+            'checkoutStatus' => $request->query('checkout'),
         ]);
     }
 
@@ -52,4 +77,3 @@ class BillingSettingsController extends Controller
         return redirect()->back()->with('success', 'Payment settings updated.');
     }
 }
-

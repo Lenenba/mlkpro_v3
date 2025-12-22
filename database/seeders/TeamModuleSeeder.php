@@ -16,12 +16,17 @@ class TeamModuleSeeder extends Seeder
      */
     public function run(): void
     {
+        $ownerRoleId = Role::firstOrCreate(
+            ['name' => 'owner'],
+            ['description' => 'Account owner role']
+        )->id;
+
         $account = User::first();
         if (!$account) {
             $account = User::factory()->create([
                 'name' => 'Team Demo',
                 'email' => 'team.demo@example.com',
-                'role_id' => 1,
+                'role_id' => $ownerRoleId,
             ]);
         }
 

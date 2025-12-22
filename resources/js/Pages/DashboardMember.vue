@@ -2,6 +2,7 @@
 import { computed } from 'vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, Link, usePage } from '@inertiajs/vue3';
+import { humanizeDate } from '@/utils/date';
 
 const props = defineProps({
     stats: Object,
@@ -12,6 +13,7 @@ const page = usePage();
 const userName = computed(() => page.props.auth?.user?.name || 'there');
 
 const stat = (key) => props.stats?.[key] ?? 0;
+const formatDate = (value) => humanizeDate(value) || '-';
 </script>
 
 <template>
@@ -60,7 +62,7 @@ const stat = (key) => props.stats?.[key] ?? 0;
                             <div class="min-w-0">
                                 <div class="truncate font-medium text-gray-900 dark:text-neutral-100">{{ task.title }}</div>
                                 <div class="text-xs text-gray-500 dark:text-neutral-400">
-                                    Due: {{ task.due_date || '-' }}
+                                    Due: {{ formatDate(task.due_date) }}
                                 </div>
                             </div>
                             <div class="shrink-0 rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-700 dark:bg-neutral-900 dark:text-neutral-200">
@@ -73,4 +75,3 @@ const stat = (key) => props.stats?.[key] ?? 0;
         </div>
     </AuthenticatedLayout>
 </template>
-

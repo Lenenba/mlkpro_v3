@@ -39,7 +39,10 @@ class InvoiceController extends Controller
         $direction = ($filters['direction'] ?? 'desc') === 'asc' ? 'asc' : 'desc';
 
         $invoices = (clone $baseQuery)
-            ->with(['customer', 'work'])
+            ->with([
+                'customer',
+                'work' => fn ($query) => $query->withAvg('ratings', 'rating')->withCount('ratings'),
+            ])
             ->withSum('payments', 'amount')
             ->orderBy($sort, $direction)
             ->simplePaginate(10)
@@ -86,7 +89,13 @@ class InvoiceController extends Controller
         }
 
         return inertia('Invoice/Show', [
-            'invoice' => $invoice->load(['customer', 'work', 'payments']),
+            'invoice' => $invoice->load([
+                'customer.properties',
+                'work.products',
+                'work.quote.property',
+                'work.ratings',
+                'payments',
+            ]),
         ]);
     }
 
