@@ -228,6 +228,8 @@ class CustomerController extends Controller
     public function storeQuick(CustomerRequest $request)
     {
         $validated = $request->validated();
+        $validated['logo'] = FileHandler::handleImageUpload('customers', $request, 'logo', 'customers/customer.png');
+        $validated['header_image'] = FileHandler::handleImageUpload('customers', $request, 'header_image', 'customers/customer.png');
 
         $customer = $request->user()->customers()->create($validated);
 

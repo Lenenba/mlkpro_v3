@@ -7,6 +7,7 @@ use App\Models\Work;
 use App\Models\Product;
 use App\Models\Customer;
 use App\Models\ActivityLog;
+use App\Models\TeamMember;
 use Illuminate\Http\Request;
 use App\Http\Requests\WorkRequest;
 use Illuminate\Support\Facades\Auth;
@@ -33,11 +34,22 @@ class WorkController extends Controller
             'direction',
         ]);
 
-        $userId = Auth::id();
+        $user = Auth::user();
+        $accountId = $user?->accountOwnerId() ?? Auth::id();
+        $isAccountOwner = ($user?->id ?? Auth::id()) === $accountId;
 
         $baseQuery = Work::query()
             ->filter($filters)
-            ->byUser($userId);
+            ->byUser($accountId);
+
+        if (!$isAccountOwner) {
+            $membership = $user?->teamMembership()->first();
+            if ($membership) {
+                $baseQuery->whereHas('teamMembers', fn($query) => $query->whereKey($membership->id));
+            } else {
+                $baseQuery->whereRaw('1=0');
+            }
+        }
 
         $sort = in_array($filters['sort'] ?? null, ['start_date', 'status', 'total', 'job_title'], true)
             ? $filters['sort']
@@ -58,9 +70,16 @@ class WorkController extends Controller
             'cancelled' => (clone $baseQuery)->where('status', 'cancelled')->count(),
         ];
 
-        $customers = Customer::byUser($userId)
-            ->orderBy('company_name')
-            ->get(['id', 'company_name', 'first_name', 'last_name']);
+        $customersQuery = Customer::byUser($accountId)->orderBy('company_name');
+        if (!$isAccountOwner) {
+            $customerIds = (clone $baseQuery)
+                ->select('customer_id')
+                ->distinct()
+                ->pluck('customer_id');
+            $customersQuery->whereIn('id', $customerIds);
+        }
+
+        $customers = $customersQuery->get(['id', 'company_name', 'first_name', 'last_name']);
 
         return inertia('Work/Index', [
             'works' => $works,
@@ -75,17 +94,30 @@ class WorkController extends Controller
      */
     public function create(Customer $customer)
     {
-        if ($customer->user_id !== Auth::id()) {
+        $user = Auth::user();
+        $accountId = $user?->accountOwnerId() ?? Auth::id();
+        if (!$user || $user->id !== $accountId) {
             abort(403);
         }
 
-        $works = Work::where('user_id', Auth::id())->latest()->get();
+        if ($customer->user_id !== $accountId) {
+            abort(403);
+        }
+
+        $works = Work::where('user_id', $accountId)->latest()->get();
+        $teamMembers = TeamMember::query()
+            ->forAccount($accountId)
+            ->active()
+            ->with('user')
+            ->orderBy('created_at')
+            ->get();
 
         return inertia('Work/Create', [
             'lastWorkNumber' => $this->generateNextNumber($customer->works->last()->number ?? null),
             'works' => $works,
             'customer' => $customer->load('properties'),
-            'products' => Product::byUser(Auth::id())->get(),
+            'products' => Product::byUser($accountId)->get(),
+            'teamMembers' => $teamMembers,
         ]);
     }
 
@@ -94,7 +126,8 @@ class WorkController extends Controller
      */
     public function show($id)
     {
-        $work = Work::with(['customer', 'invoice', 'products'])->findOrFail($id);
+        $accountId = Auth::user()?->accountOwnerId() ?? Auth::id();
+        $work = Work::byUser($accountId)->with(['customer', 'invoice', 'products', 'teamMembers.user'])->findOrFail($id);
 
         $this->authorize('view', $work);
 
@@ -109,8 +142,14 @@ class WorkController extends Controller
      */
     public function store(WorkRequest $request)
     {
+        $user = Auth::user();
+        $accountId = $user?->accountOwnerId() ?? Auth::id();
+        if (!$user || $user->id !== $accountId) {
+            abort(403);
+        }
+
         $validated = $request->validated();
-        $customer = Customer::byUser(Auth::id())->with(['works'])->findOrFail($validated['customer_id']);
+        $customer = Customer::byUser($accountId)->with(['works'])->findOrFail($validated['customer_id']);
         $validated['instructions'] = $validated['instructions'] ?? '';
 
         $validated['start_date'] = !empty($validated['start_date'])
@@ -127,8 +166,14 @@ class WorkController extends Controller
             ? Carbon::parse($validated['end_time'])->format('H:i:s')
             : null;
 
-        $validated['user_id'] = Auth::id();
+        $validated['user_id'] = $accountId;
         $validated['status'] = $validated['status'] ?? 'scheduled';
+
+        $selectedTeamMemberIds = collect($validated['team_member_ids'] ?? [])
+            ->map(fn($id) => (int) $id)
+            ->filter(fn($id) => $id > 0)
+            ->unique()
+            ->values();
 
         $lines = collect();
         if (array_key_exists('products', $validated)) {
@@ -148,7 +193,7 @@ class WorkController extends Controller
 
             $productMap = collect();
             if ($lines->isNotEmpty()) {
-                $productMap = Product::byUser(Auth::id())
+                $productMap = Product::byUser($accountId)
                     ->whereIn('id', $lines->pluck('product_id'))
                     ->get()
                     ->keyBy('id');
@@ -178,7 +223,11 @@ class WorkController extends Controller
             unset($validated['subtotal'], $validated['total']);
         }
 
-        $work = DB::transaction(function () use ($customer, $validated, $lines) {
+        $allowedTeamMemberIds = $selectedTeamMemberIds->isNotEmpty()
+            ? TeamMember::query()->forAccount($accountId)->whereIn('id', $selectedTeamMemberIds)->pluck('id')
+            : collect();
+
+        $work = DB::transaction(function () use ($customer, $validated, $lines, $allowedTeamMemberIds) {
             $work = $customer->works()->create($validated);
 
             if ($lines->isNotEmpty()) {
@@ -193,6 +242,8 @@ class WorkController extends Controller
                 });
                 $work->products()->sync($pivotData);
             }
+
+            $work->teamMembers()->sync($allowedTeamMemberIds->all());
 
             return $work;
         });
@@ -210,20 +261,28 @@ class WorkController extends Controller
      */
     public function edit(int $work_id, ?Request $request)
     {
-        $work = Work::byUser(Auth::id())
-            ->with(['customer', 'invoice', 'products', 'ratings'])
+        $accountId = Auth::user()?->accountOwnerId() ?? Auth::id();
+        $work = Work::byUser($accountId)
+            ->with(['customer', 'invoice', 'products', 'ratings', 'teamMembers.user'])
             ->findOrFail($work_id);
         $this->authorize('edit', $work);
 
         $filters = $request->only(['category_id', 'name', 'stock']);
         $workProducts = $work->products()->with('category')->get() ?: [];
 
-        $productsQuery = Product::mostRecent()->filter($filters)->with(['category', 'works']);
+        $productsQuery = Product::byUser($accountId)->mostRecent()->filter($filters)->with(['category', 'works']);
         $products = $productsQuery->simplePaginate(8)->withQueryString();
 
         $customer = Customer::with(['works'])
-            ->byUser(Auth::id())
+            ->byUser($accountId)
             ->findOrFail($work->customer_id);
+
+        $teamMembers = TeamMember::query()
+            ->forAccount($accountId)
+            ->active()
+            ->with('user')
+            ->orderBy('created_at')
+            ->get();
 
         return inertia('Work/Create', [
             'work' => $work,
@@ -232,7 +291,8 @@ class WorkController extends Controller
             'filters' => $filters,
             'workProducts' => $workProducts,
             'products' => $products,
-            'works' => Work::byUser(Auth::id())->latest()->get(),
+            'works' => Work::byUser($accountId)->latest()->get(),
+            'teamMembers' => $teamMembers,
         ]);
     }
 
@@ -241,7 +301,10 @@ class WorkController extends Controller
      */
     public function update(WorkRequest $request, $id)
     {
-        $work = Work::byUser(Auth::id())->findOrFail($id);
+        $user = Auth::user();
+        $accountId = $user?->accountOwnerId() ?? Auth::id();
+        $work = Work::byUser($accountId)->findOrFail($id);
+        $this->authorize('update', $work);
 
         $validated = $request->validated();
         $previousStatus = $work->status;
@@ -263,7 +326,7 @@ class WorkController extends Controller
 
         $productMap = collect();
         if ($lines->isNotEmpty()) {
-            $productMap = Product::byUser(Auth::id())
+            $productMap = Product::byUser($accountId)
                 ->whereIn('id', $lines->pluck('product_id'))
                 ->get()
                 ->keyBy('id');
@@ -291,7 +354,25 @@ class WorkController extends Controller
         $validated['total'] = $subtotal;
         $validated['status'] = $validated['status'] ?? $work->status ?? 'scheduled';
 
-        DB::transaction(function () use ($work, $validated, $lines) {
+        $shouldSyncTeamMembers = $user && $user->id === $accountId && array_key_exists('team_member_ids', $validated);
+
+        $allowedTeamMemberIds = collect();
+        if ($shouldSyncTeamMembers) {
+            $selectedTeamMemberIds = collect($validated['team_member_ids'] ?? [])
+                ->map(fn($id) => (int) $id)
+                ->filter(fn($id) => $id > 0)
+                ->unique()
+                ->values();
+
+            if ($selectedTeamMemberIds->isNotEmpty()) {
+                $allowedTeamMemberIds = TeamMember::query()
+                    ->forAccount($accountId)
+                    ->whereIn('id', $selectedTeamMemberIds)
+                    ->pluck('id');
+            }
+        }
+
+        DB::transaction(function () use ($work, $validated, $lines, $allowedTeamMemberIds, $shouldSyncTeamMembers) {
             $work->update($validated);
 
             if ($lines->isNotEmpty()) {
@@ -305,6 +386,10 @@ class WorkController extends Controller
                     ];
                 });
                 $work->products()->sync($pivotData);
+            }
+
+            if ($shouldSyncTeamMembers) {
+                $work->teamMembers()->sync($allowedTeamMemberIds->all());
             }
         });
 
@@ -327,7 +412,13 @@ class WorkController extends Controller
      */
     public function destroy($id)
     {
-        $work = Work::byUser(Auth::id())->findOrFail($id);
+        $user = Auth::user();
+        $accountId = $user?->accountOwnerId() ?? Auth::id();
+        if (!$user || $user->id !== $accountId) {
+            abort(403);
+        }
+
+        $work = Work::byUser($accountId)->findOrFail($id);
         ActivityLog::record(Auth::user(), $work, 'deleted', [
             'status' => $work->status,
             'total' => $work->total,

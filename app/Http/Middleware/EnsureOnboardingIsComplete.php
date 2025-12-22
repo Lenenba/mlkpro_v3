@@ -1,0 +1,41 @@
+<?php
+
+namespace App\Http\Middleware;
+
+use Closure;
+use Illuminate\Http\Request;
+use Symfony\Component\HttpFoundation\Response;
+
+class EnsureOnboardingIsComplete
+{
+    /**
+     * @param  \Closure(\Illuminate\Http\Request): (\Symfony\Component\HttpFoundation\Response)  $next
+     */
+    public function handle(Request $request, Closure $next): Response
+    {
+        $user = $request->user();
+        if (!$user) {
+            return $next($request);
+        }
+
+        if (!$user->isAccountOwner()) {
+            return $next($request);
+        }
+
+        $route = $request->route();
+        if ($route?->named('onboarding.*')
+            || $route?->named('logout')
+            || $route?->named('verification.*')
+            || $route?->named('password.*')
+        ) {
+            return $next($request);
+        }
+
+        if ($user->onboarding_completed_at) {
+            return $next($request);
+        }
+
+        return redirect()->route('onboarding.index');
+    }
+}
+

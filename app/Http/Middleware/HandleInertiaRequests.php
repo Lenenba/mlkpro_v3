@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\User;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -29,10 +30,31 @@ class HandleInertiaRequests extends Middleware
      */
     public function share(Request $request): array
     {
+        $user = $request->user();
+        $ownerId = $user?->accountOwnerId();
+
+        $accountOwner = null;
+        if ($user && $ownerId) {
+            $accountOwner = $ownerId === $user->id
+                ? $user
+                : User::query()
+                    ->select(['id', 'company_name', 'company_type', 'onboarding_completed_at'])
+                    ->find($ownerId);
+        }
+
         return [
             ...parent::share($request),
             'auth' => [
-                'user' => $request->user(),
+                'user' => $user,
+                'account' => $user ? [
+                    'owner_id' => $ownerId,
+                    'is_owner' => $user->isAccountOwner(),
+                    'company' => $accountOwner ? [
+                        'name' => $accountOwner->company_name,
+                        'type' => $accountOwner->company_type,
+                        'onboarded' => (bool) $accountOwner->onboarding_completed_at,
+                    ] : null,
+                ] : null,
             ],
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),

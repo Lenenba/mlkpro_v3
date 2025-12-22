@@ -48,6 +48,8 @@ class WorkRequest extends FormRequest
             'products.*.quantity' => 'required_with:products|integer|min:1',
             'products.*.price' => 'nullable|numeric|min:0',
             'products.*.total' => 'nullable|numeric|min:0',
+            'team_member_ids' => 'nullable|array',
+            'team_member_ids.*' => 'integer|exists:team_members,id',
         ];
     }
 }

@@ -35,6 +35,7 @@ class DatabaseSeeder extends Seeder
         $this->call([
             ProductModuleSeeder::class,
             CustomerModuleSeeder::class,
+            TeamModuleSeeder::class,
             QuoteModuleSeeder::class,
             InvoiceModuleSeeder::class,
         ]);

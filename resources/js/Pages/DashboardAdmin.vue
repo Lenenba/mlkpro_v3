@@ -1,0 +1,81 @@
+<script setup>
+import { computed } from 'vue';
+import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import { Head, Link, usePage } from '@inertiajs/vue3';
+
+const props = defineProps({
+    stats: Object,
+    tasks: Array,
+});
+
+const page = usePage();
+const userName = computed(() => page.props.auth?.user?.name || 'there');
+
+const stat = (key) => props.stats?.[key] ?? 0;
+</script>
+
+<template>
+    <Head title="Dashboard" />
+
+    <AuthenticatedLayout>
+        <div class="mx-auto w-full max-w-6xl space-y-5">
+            <div class="rounded-sm border border-gray-200 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-800">
+                <h1 class="text-xl font-semibold text-gray-800 dark:text-neutral-100">Dashboard</h1>
+                <p class="mt-1 text-sm text-gray-600 dark:text-neutral-400">
+                    Welcome back, {{ userName }}. Here is the team task overview.
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 gap-3 md:grid-cols-4">
+                <div class="rounded-sm border border-gray-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-800">
+                    <p class="text-xs text-gray-500 dark:text-neutral-400">Total</p>
+                    <p class="mt-1 text-2xl font-semibold text-gray-900 dark:text-neutral-100">{{ stat('tasks_total') }}</p>
+                </div>
+                <div class="rounded-sm border border-gray-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-800">
+                    <p class="text-xs text-gray-500 dark:text-neutral-400">To do</p>
+                    <p class="mt-1 text-2xl font-semibold text-gray-900 dark:text-neutral-100">{{ stat('tasks_todo') }}</p>
+                </div>
+                <div class="rounded-sm border border-gray-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-800">
+                    <p class="text-xs text-gray-500 dark:text-neutral-400">In progress</p>
+                    <p class="mt-1 text-2xl font-semibold text-gray-900 dark:text-neutral-100">{{ stat('tasks_in_progress') }}</p>
+                </div>
+                <div class="rounded-sm border border-gray-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-800">
+                    <p class="text-xs text-gray-500 dark:text-neutral-400">Done</p>
+                    <p class="mt-1 text-2xl font-semibold text-gray-900 dark:text-neutral-100">{{ stat('tasks_done') }}</p>
+                </div>
+            </div>
+
+            <div class="flex flex-col bg-white border border-gray-200 shadow-sm rounded-sm overflow-hidden dark:bg-neutral-800 dark:border-neutral-700">
+                <div class="py-3 px-4 border-b border-gray-200 dark:border-neutral-700 flex items-center justify-between">
+                    <h2 class="text-sm font-semibold text-gray-800 dark:text-neutral-100">Upcoming tasks</h2>
+                    <Link :href="route('task.index')" class="text-xs font-medium text-green-600 hover:text-green-700">
+                        Manage tasks
+                    </Link>
+                </div>
+
+                <div class="p-4">
+                    <div v-if="!tasks?.length" class="text-sm text-gray-600 dark:text-neutral-400">
+                        No tasks yet.
+                    </div>
+
+                    <div v-else class="space-y-2">
+                        <div v-for="task in tasks" :key="task.id"
+                            class="flex items-center justify-between gap-3 rounded-sm border border-gray-200 px-3 py-2 text-sm dark:border-neutral-700">
+                            <div class="min-w-0">
+                                <div class="truncate font-medium text-gray-900 dark:text-neutral-100">{{ task.title }}</div>
+                                <div class="text-xs text-gray-500 dark:text-neutral-400">
+                                    Due: {{ task.due_date || '-' }} <span class="mx-1">•</span>
+                                    Assignee: {{ task.assignee?.name || '-' }}
+                                </div>
+                            </div>
+                            <div class="shrink-0 rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-700 dark:bg-neutral-900 dark:text-neutral-200">
+                                {{ task.status }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </AuthenticatedLayout>
+</template>
+

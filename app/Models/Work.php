@@ -108,6 +108,13 @@ class Work extends Model
             ->withPivot(['quantity', 'price', 'description', 'total']);
     }
 
+    public function teamMembers(): BelongsToMany
+    {
+        return $this->belongsToMany(TeamMember::class, 'work_team_members')
+            ->withPivot(['role'])
+            ->withTimestamps();
+    }
+
     public function ratings(): HasMany
     {
         return $this->hasMany(WorkRating::class);

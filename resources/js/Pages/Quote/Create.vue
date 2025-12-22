@@ -3,21 +3,21 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, useForm } from '@inertiajs/vue3';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingTextarea from '@/Components/FloatingTextarea.vue';
-import FloatingNumberMiniInput from '@/Components/FloatingNumberMiniInput.vue';
+import ProductTableList from '@/Components/ProductTableList.vue';
 import { ref, watch, computed } from 'vue';
-import axios from 'axios';
 
 const props = defineProps({
     customer: Object,
     quote: Object,
     lastQuotesNumber: String,
     taxes: Array,
+    selectedPropertyId: Number,
 });
 
 const form = useForm({
     // Pre-remplissage pour creation ou edition
     customer_id: props.quote?.customer_id || props.customer.id,
-    property_id: props.quote?.property_id || props.customer.properties[0]?.id,
+    property_id: props.quote?.property_id || props.selectedPropertyId || props.customer?.properties?.[0]?.id || null,
     job_title: props.quote?.job_title || '',
     status: props.quote?.status || 'draft',
     notes: props.quote?.notes || '',
@@ -25,9 +25,9 @@ const form = useForm({
     product: props.quote?.products?.map(product => ({
         id: product.id,
         name: product.name,
-        quantity: product.pivot.quantity,
-        price: product.pivot.price,
-        total: product.pivot.total,
+        quantity: Number(product.pivot?.quantity ?? 1),
+        price: Number(product.pivot?.price ?? product.price ?? 0),
+        total: Number(product.pivot?.total ?? 0),
     })) || [{ id: null, name: '', quantity: 1, price: 0, total: 0 }],
     subtotal: Number(props.quote?.subtotal || 0),
     total: Number(props.quote?.total || 0),
@@ -37,69 +37,19 @@ const form = useForm({
 
 const properties = computed(() => props.customer?.properties || []);
 const selectedProperty = computed(() => {
-    if (!properties.value.length) {
+    if (!properties.value.length || !form.property_id) {
         return null;
     }
-    return properties.value.find((property) => property.id === form.property_id) || properties.value[0];
+    return properties.value.find((property) => property.id === form.property_id) || null;
 });
 
 const availableTaxes = computed(() => props.taxes || []);
 
 
-// Ajouter une nouvelle ligne de produit
-const addNewLine = () => {
-    form.product.push({ id: null, name: '', quantity: 1, price: 0, total: 0 });
+const updateSubtotal = (newSubtotal) => {
+    const value = Number(newSubtotal) || 0;
+    form.subtotal = Math.round(value * 100) / 100;
 };
-
-// Supprimer une ligne de produit
-const removeLine = index => {
-    if (form.product.length > 1) {
-        form.product.splice(index, 1);
-    }
-};
-
-// Gestion de la recherche de produits
-const searchResults = ref([]);
-const searchProducts = async (query, index) => {
-    if (query.length > 0) {
-        try {
-            const response = await axios.get(route('product.search'), { params: { query } });
-            searchResults.value[index] = response.data;
-        } catch (error) {
-            console.error('Error fetching products:', error);
-        }
-    } else {
-        searchResults.value[index] = [];
-    }
-};
-
-// Sélectionner un produit
-const selectProduct = (product, index) => {
-    form.product[index] = {
-        id: product.id,
-        name: product.name,
-        quantity: 1,
-        price: product.price,
-        total: product.price,
-    };
-    searchResults.value[index] = [];
-};
-
-// Watch pour recalculer les totaux
-watch(
-    () => form.product,
-    (newProducts) => {
-        newProducts.forEach(product => {
-            const quantity = Number(product.quantity) || 0;
-            const price = Number(product.price) || 0;
-            product.total = Math.round(quantity * price * 100) / 100;
-        });
-
-        const subtotal = newProducts.reduce((acc, product) => acc + Number(product.total || 0), 0);
-        form.subtotal = Math.round(subtotal * 100) / 100;
-    },
-    { deep: true }
-);
 
 // Taxes et totaux
 const showTaxDetails = ref(form.taxes.length > 0);
@@ -281,112 +231,7 @@ const submit = () => {
                     </div>
                     <div
                         class="p-5 space-y-3 flex flex-col bg-white border border-gray-100 rounded-sm shadow-sm xl:shadow-none dark:bg-green-800 dark:border-green-700">
-                        <!-- Table Section -->
-                        <div
-                            class="overflow-x-auto [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-gray-100 [&::-webkit-scrollbar-thumb]:bg-gray-300 dark:[&::-webkit-scrollbar-track]:bg-neutral-700 dark:[&::-webkit-scrollbar-thumb]:bg-neutral-500">
-                            <div class="min-w-full inline-block align-middle min-h-[300px]">
-                                <!-- Table -->
-                                <table class="min-w-full divide-y divide-gray-200 dark:divide-neutral-700">
-                                    <thead>
-                                        <tr>
-                                            <th scope="col" class="min-w-[450px] ">
-                                                <div
-                                                    class="pe-4 py-3 text-start flex items-center gap-x-1 text-sm font-medium text-gray-800 dark:text-neutral-200">
-                                                    Product/Services
-                                                </div>
-                                            </th>
-
-                                            <th scope="col">
-                                                <div
-                                                    class="px-4 py-3 text-start flex items-center gap-x-1 text-sm font-medium text-gray-800 dark:text-neutral-200">
-                                                    Qty.
-                                                </div>
-                                            </th>
-
-                                            <th scope="col">
-                                                <div
-                                                    class="px-4 py-3 text-start flex items-center gap-x-1 text-sm font-medium text-gray-800 dark:text-neutral-200">
-                                                    Unit cost
-                                                </div>
-                                            </th>
-
-                                            <th scope="col">
-                                                <div
-                                                    class="px-4 py-3 text-start flex items-center gap-x-1 text-sm font-medium text-gray-800 dark:text-neutral-200">
-                                                    Total
-                                                </div>
-                                            </th>
-                                            <th scope="col" class="size-px">
-                                                <div
-                                                    class="px-4 py-3 text-start flex items-center gap-x-1 text-sm font-medium text-gray-800 dark:text-neutral-200">
-                                                    Actions
-                                                </div>
-                                            </th>
-                                        </tr>
-                                    </thead>
-
-                                    <tbody class="divide-y divide-gray-200 dark:divide-neutral-700">
-                                        <tr v-for="(product, index) in form.product" :key="index">
-                                            <td class="size-px whitespace-nowrap px-4 py-3">
-                                                <span class="text-sm text-gray-600 dark:text-neutral-400">
-                                                    <div class="relative">
-                                                        <FloatingInput autofocus v-model="form.product[index].name"
-                                                            label="Name"
-                                                            @input="searchProducts(form.product[index].name, index)" />
-                                                    </div>
-                                                    <div class="relative w-full">
-                                                        <ul v-if="searchResults[index]?.length"
-                                                            class="absolute left-0 top-full z-50 w-full max-h-60 overflow-y-auto bg-white border border-gray-200 rounded-md shadow-lg dark:bg-neutral-800 dark:border-neutral-700">
-                                                            <li v-for="result in searchResults[index]" :key="result.id"
-                                                                @click="selectProduct(result, index)"
-                                                                class="px-3 py-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-neutral-700 text-gray-800 dark:text-neutral-200">
-                                                                {{ result.name }}
-                                                            </li>
-                                                        </ul>
-                                                    </div>
-                                                </span>
-                                            </td>
-                                            <td class="size-px whitespace-nowrap px-4 py-3">
-                                                <FloatingNumberMiniInput v-model="form.product[index].quantity"
-                                                    label="Quantity" />
-                                            </td>
-                                            <td class="size-px whitespace-nowrap px-4 py-3">
-                                                <FloatingNumberMiniInput v-model="form.product[index].price"
-                                                    aria-disabled="true" label="Unit Price" />
-                                            </td>
-                                            <td class="size-px whitespace-nowrap px-4 py-3">
-                                                <FloatingNumberMiniInput v-model="form.product[index].total"
-                                                    label="Total" />
-                                            </td>
-                                            <td>
-                                                <button type="button" v-if="form.product.length > 1"
-                                                    @click="removeLine(index)"
-                                                    class="px-4 py-4 inline-flex items-center gap-x-2 text-sm font-medium text-red-800  hover:text-red-600 disabled:opacity-50 disabled:pointer-events-none focus:outline-none   dark:text-red-300 ">
-                                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
-                                                        viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                                        stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                                                        class="lucide lucide-trash-2">
-                                                        <path d="M3 6h18" />
-                                                        <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
-                                                        <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
-                                                        <line x1="10" x2="10" y1="11" y2="17" />
-                                                        <line x1="14" x2="14" y1="11" y2="17" />
-                                                    </svg>
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                                <!-- End Table -->
-                            </div>
-                        </div>
-                        <!-- End Table Section -->
-                        <div class="text-xs text-gray-600 dark:text-neutral-400 flex justify-between mt-5">
-                            <button id="hs-pro-in1trsbgwmdid1" type="button" @click="addNewLine"
-                                class="hs-tooltip-toggle ml-4 py-2 px-2.5 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:ring-2 focus:ring-green-500">
-                                Add new product line
-                            </button>
-                        </div>
+                        <ProductTableList v-model="form.product" @update:subtotal="updateSubtotal" />
                     </div>
                     <div
                         class="p-5 grid grid-cols-2 gap-4 justify-between bg-white border border-gray-100 rounded-sm shadow-sm xl:shadow-none dark:bg-green-800 dark:border-green-700">

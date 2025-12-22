@@ -1,10 +1,23 @@
 <script setup>
+import { computed } from 'vue';
 import ApplicationLogo from "@/Components/ApplicationLogo.vue";
 import LinkAncor from "@/Components/UI/LinkAncor.vue";
-import { usePage } from '@inertiajs/vue3';
+import { Link, usePage } from '@inertiajs/vue3';
 import MenuDropdown from "@/Components/UI/LinkAncor2.vue";
+import QuickCreateModals from "@/Components/QuickCreate/QuickCreateModals.vue";
 
 const page = usePage()
+const companyType = computed(() => page.props.auth?.account?.company?.type ?? null);
+const showServices = computed(() => companyType.value !== 'products');
+const showProducts = computed(() => companyType.value !== 'services');
+const isOwner = computed(() => Boolean(page.props.auth?.account?.is_owner));
+const userName = computed(() => page.props.auth?.user?.name || '');
+const userEmail = computed(() => page.props.auth?.user?.email || '');
+const avatarUrl = computed(() => page.props.auth?.user?.profile_picture || '');
+const avatarInitial = computed(() => {
+    const label = (userName.value || userEmail.value || '?').trim();
+    return label.length ? label[0].toUpperCase() : '?';
+});
 </script>
 
 <template>
@@ -62,7 +75,7 @@ const page = usePage()
                                 <!-- End Item -->
 
                                 <!-- Item -->
-                                <LinkAncor :label="'Clients'" :href="'customer.index'"
+                                <LinkAncor v-if="showServices && page.props.auth.account?.is_owner" :label="'Clients'" :href="'customer.index'"
                                     :active="route().current('customer.index')">
                                     <template #icon>
                                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-contact"><path d="M16 2v2"/><path d="M7 22v-2a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v2"/><path d="M8 2v2"/><circle cx="12" cy="11" r="3"/><rect x="3" y="4" width="18" height="18" rx="2"/></svg>
@@ -71,7 +84,7 @@ const page = usePage()
                                 <!-- End Item -->
 
                                 <!-- Item -->
-                                <LinkAncor :label="'Products'" :href="'product.index'"
+                                <LinkAncor v-if="showProducts && page.props.auth.account?.is_owner" :label="'Products'" :href="'product.index'"
                                     :active="route().current('product.index')">
                                     <template #icon>
                                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
@@ -90,7 +103,7 @@ const page = usePage()
                                 </LinkAncor>
                                 <!-- End Item -->
                                 <!-- Item -->
-                                <LinkAncor :label="'Quotes'" :href="'quote.index'"
+                                <LinkAncor v-if="showServices && page.props.auth.account?.is_owner" :label="'Quotes'" :href="'quote.index'"
                                     :active="route().current('quote.index') || route().current('customer.quote.*')">
                                     <template #icon>
                                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
@@ -106,7 +119,7 @@ const page = usePage()
                                 </LinkAncor>
                                 <!-- End Item -->
                                 <!-- Item -->
-                                <LinkAncor :label="'Jobs'" :href="'jobs.index'"
+                                <LinkAncor v-if="showServices" :label="'Jobs'" :href="'jobs.index'"
                                     :active="route().current('jobs.index') || route().current('work.*')">
                                     <template #icon>
                                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
@@ -120,8 +133,40 @@ const page = usePage()
                                     </template>
                                 </LinkAncor>
                                 <!-- End Item -->
+
                                 <!-- Item -->
-                                <LinkAncor :label="'Invoices'" :href="'invoice.index'"
+                                <LinkAncor :label="'Tasks'" :href="'task.index'"
+                                    :active="route().current('task.*')">
+                                    <template #icon>
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round"
+                                            class="lucide lucide-check-square">
+                                            <path d="M9 11l3 3L22 4" />
+                                            <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+                                        </svg>
+                                    </template>
+                                </LinkAncor>
+                                <!-- End Item -->
+
+                                <!-- Item -->
+                                <LinkAncor v-if="page.props.auth.account?.is_owner" :label="'Team'" :href="'team.index'"
+                                    :active="route().current('team.*')">
+                                    <template #icon>
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round"
+                                            class="lucide lucide-users">
+                                            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                                            <circle cx="9" cy="7" r="4" />
+                                            <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+                                            <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                                        </svg>
+                                    </template>
+                                </LinkAncor>
+                                <!-- End Item -->
+                                <!-- Item -->
+                                <LinkAncor v-if="showServices && page.props.auth.account?.is_owner" :label="'Invoices'" :href="'invoice.index'"
                                     :active="route().current('invoice.*')">
                                     <template #icon>
                                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
@@ -135,61 +180,6 @@ const page = usePage()
                                         </svg>
                                     </template>
                                 </LinkAncor>
-                                <!-- End Item -->
-                                <!-- Item -->
-                                <li>
-                                    <!-- More Dropdown -->
-                                    <div
-                                        class="hs-dropdown [--strategy:absolute] [--placement:bottom-right] [--auto-close:inside] relative inline-flex">
-                                        <button id="hs-pro-chmsnmd" type="button"
-                                            class="relative group flex flex-col justify-center items-center gap-y-1 text-[11px] text-gray-600 dark:text-neutral-200 disabled:opacity-50 disabled:pointer-events-none focus:outline-none"
-                                            aria-haspopup="menu" aria-expanded="false" aria-label="Dropdown">
-                                            <span
-                                                class="flex justify-center items-center gap-x-3 size-9 rounded-lg group-hover:bg-gray-300 group-focus:bg-gray-300 dark:group-hover:bg-neutral-800 dark:group-focus:bg-neutral-800">
-                                                <svg class="shrink-0 size-4 group-hover:scale-110 mx-auto transition"
-                                                    xmlns="http://www.w3.org/2000/svg" width="24" height="24"
-                                                    viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                                    <path d="M20 7h-9" />
-                                                    <path d="M14 17H5" />
-                                                    <circle cx="17" cy="17" r="3" />
-                                                    <circle cx="7" cy="7" r="3" />
-                                                </svg>
-                                            </span>
-                                            Settings
-                                        </button>
-
-                                        <!-- More Dropdown -->
-                                        <div class="hs-dropdown-menu hs-dropdown-open:opacity-100 w-40 transition-[opacity,margin] duration opacity-0 hidden z-10 bg-white rounded-xl shadow-lg dark:bg-neutral-900"
-                                            role="menu" aria-orientation="vertical" aria-labelledby="hs-pro-chmsnmd">
-                                            <div class="p-1 space-y-0.5">
-                                                <!-- Item -->
-                                                <label for="hs-pro-chsnldin"
-                                                    class="py-1.5 px-3 group flex items-center gap-x-3 rounded-lg cursor-pointer text-[13px] text-gray-800 hover:bg-gray-100 dark:text-neutral-200 dark:hover:bg-neutral-800 dark:focus:bg-neutral-800">
-                                                    <input type="checkbox" class="hidden" id="hs-pro-chsnldin"
-                                                        name="hs-pro-chsnld" checked>
-                                                    <svg class="shrink-0 size-4" xmlns="http://www.w3.org/2000/svg"
-                                                        width="24" height="24" viewBox="0 0 24 24" fill="none"
-                                                        stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                                        stroke-linejoin="round">
-                                                        <path
-                                                            d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-                                                    </svg>
-                                                    Inbox
-                                                    <svg class="shrink-0 size-3.5 ms-auto opacity-0 group-has-[:checked]:opacity-100"
-                                                        xmlns="http://www.w3.org/2000/svg" width="24" height="24"
-                                                        viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                                        stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                                        <path d="M20 6 9 17l-5-5" />
-                                                    </svg>
-                                                </label>
-                                                <!-- End Item -->
-                                            </div>
-                                        </div>
-                                        <!-- End More Dropdown -->
-                                    </div>
-                                    <!-- End More Dropdown -->
-                                </li>
                                 <!-- End Item -->
                             </ul>
                         </nav>
@@ -206,8 +196,11 @@ const page = usePage()
                                 <button id="hs-pro-chmsad" type="button"
                                     class="flex justify-center items-center gap-x-3 size-8 text-start disabled:opacity-50 disabled:pointer-events-none focus:outline-none"
                                     aria-haspopup="menu" aria-expanded="false" aria-label="Dropdown">
-                                    <img class="shrink-0 rounded-full" :src="page.props.auth.user.profile_picture"
-                                        alt="Avatar">
+                                    <img v-if="avatarUrl" class="shrink-0 size-8 rounded-full object-cover" :src="avatarUrl"
+                                        :alt="userName || 'Avatar'">
+                                    <div v-else class="size-8 rounded-full bg-gray-200 text-gray-700 flex items-center justify-center text-xs font-semibold dark:bg-neutral-800 dark:text-neutral-200">
+                                        {{ avatarInitial }}
+                                    </div>
                                     <span
                                         class="absolute -bottom-0 -end-0 block size-2 rounded-full ring-2 ring-gray-100 bg-green-500 dark:ring-neutral-800"></span>
                                 </button>
@@ -215,9 +208,32 @@ const page = usePage()
                                 <!-- Account Dropdown -->
                                 <div class="hs-dropdown-menu hs-dropdown-open:opacity-100 w-48 transition-[opacity,margin] duration opacity-0 hidden z-20 bg-white rounded-xl shadow-[0_10px_40px_10px_rgba(0,0,0,0.08)] dark:shadow-[0_10px_40px_10px_rgba(0,0,0,0.2)] dark:bg-neutral-900"
                                     role="menu" aria-orientation="vertical" aria-labelledby="hs-pro-chmsad">
+                                    <div class="px-3 pt-3 pb-2">
+                                        <div class="text-sm font-semibold text-gray-800 dark:text-neutral-100">
+                                            {{ userName || 'Account' }}
+                                        </div>
+                                        <div class="text-xs text-gray-500 dark:text-neutral-400 truncate">
+                                            {{ userEmail }}
+                                        </div>
+                                        <div v-if="page.props.auth?.account?.company?.name" class="mt-1 text-xs text-gray-500 dark:text-neutral-400 truncate">
+                                            Entreprise: {{ page.props.auth.account.company.name }}
+                                        </div>
+                                    </div>
                                     <div class="p-1">
-                                        <a class="flex items-center gap-x-3 py-1.5 px-2.5 rounded-lg text-sm text-gray-800 hover:bg-gray-100 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-gray-100 dark:text-neutral-300 dark:hover:bg-neutral-800 dark:focus:bg-neutral-800"
-                                            href="#">
+                                        <Link v-if="isOwner" :href="route('settings.company.edit')"
+                                            class="flex items-center gap-x-3 py-1.5 px-2.5 rounded-lg text-sm text-gray-800 hover:bg-gray-100 focus:outline-none focus:bg-gray-100 dark:text-neutral-300 dark:hover:bg-neutral-800 dark:focus:bg-neutral-800">
+                                            <svg class="shrink-0 mt-0.5 size-4" xmlns="http://www.w3.org/2000/svg"
+                                                width="24" height="24" viewBox="0 0 24 24" fill="none"
+                                                stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                                stroke-linejoin="round">
+                                                <path d="M3 21V7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v14" />
+                                                <path d="M9 21V9h6v12" />
+                                            </svg>
+                                            Parametres entreprise
+                                        </Link>
+
+                                        <Link v-if="isOwner" :href="route('settings.billing.edit')"
+                                            class="flex items-center gap-x-3 py-1.5 px-2.5 rounded-lg text-sm text-gray-800 hover:bg-gray-100 focus:outline-none focus:bg-gray-100 dark:text-neutral-300 dark:hover:bg-neutral-800 dark:focus:bg-neutral-800">
                                             <svg class="shrink-0 mt-0.5 size-4" xmlns="http://www.w3.org/2000/svg"
                                                 width="24" height="24" viewBox="0 0 24 24" fill="none"
                                                 stroke="currentColor" stroke-width="2" stroke-linecap="round"
@@ -225,21 +241,11 @@ const page = usePage()
                                                 <rect width="20" height="14" x="2" y="5" rx="2" />
                                                 <line x1="2" x2="22" y1="10" y2="10" />
                                             </svg>
-                                            Billing
-                                        </a>
-                                        <a class="flex items-center gap-x-3 py-1.5 px-2.5 rounded-lg text-sm text-gray-800 hover:bg-gray-100 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-gray-100 dark:text-neutral-300 dark:hover:bg-neutral-800 dark:focus:bg-neutral-800"
-                                            href="#">
-                                            <svg class="shrink-0 size-4" xmlns="http://www.w3.org/2000/svg" width="24"
-                                                height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                                <path
-                                                    d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
-                                                <circle cx="12" cy="12" r="3" />
-                                            </svg>
-                                            Settings
-                                        </a>
-                                        <a class="flex items-center gap-x-3 py-1.5 px-2.5 rounded-lg text-sm text-gray-800 hover:bg-gray-100 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-gray-100 dark:text-neutral-300 dark:hover:bg-neutral-800 dark:focus:bg-neutral-800"
-                                            href="#">
+                                            Paiements
+                                        </Link>
+
+                                        <Link :href="route('profile.edit')"
+                                            class="flex items-center gap-x-3 py-1.5 px-2.5 rounded-lg text-sm text-gray-800 hover:bg-gray-100 focus:outline-none focus:bg-gray-100 dark:text-neutral-300 dark:hover:bg-neutral-800 dark:focus:bg-neutral-800">
                                             <svg class="shrink-0 mt-0.5 size-4" xmlns="http://www.w3.org/2000/svg"
                                                 width="24" height="24" viewBox="0 0 24 24" fill="none"
                                                 stroke="currentColor" stroke-width="2" stroke-linecap="round"
@@ -247,8 +253,8 @@ const page = usePage()
                                                 <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
                                                 <circle cx="12" cy="7" r="4" />
                                             </svg>
-                                            My account
-                                        </a>
+                                            Mon compte
+                                        </Link>
                                     </div>
                                     <div class="py-1.5 px-3.5 border-y border-gray-200 dark:border-neutral-800">
                                         <!-- Switch/Toggle -->
@@ -266,10 +272,10 @@ const page = usePage()
                                         <!-- End Switch/Toggle -->
                                     </div>
                                     <div class="p-1">
-                                        <a class="flex items-center gap-x-3 py-1.5 px-2.5 rounded-lg text-sm text-gray-800 hover:bg-gray-100 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-gray-100 dark:text-neutral-300 dark:hover:bg-neutral-800 dark:focus:bg-neutral-800"
-                                            href="#">
-                                            Sign out
-                                        </a>
+                                        <Link :href="route('logout')" method="post" as="button" type="button"
+                                            class="w-full flex items-center gap-x-3 py-1.5 px-2.5 rounded-lg text-sm text-gray-800 hover:bg-gray-100 focus:outline-none focus:bg-gray-100 dark:text-neutral-300 dark:hover:bg-neutral-800 dark:focus:bg-neutral-800">
+                                            Se deconnecter
+                                        </Link>
                                     </div>
                                 </div>
                                 <!-- End Account Dropdown -->
@@ -282,4 +288,5 @@ const page = usePage()
             </div>
         </div>
     </aside>
+    <QuickCreateModals />
 </template>

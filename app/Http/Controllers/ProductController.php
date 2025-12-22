@@ -187,6 +187,40 @@ class ProductController extends Controller
     }
 
     /**
+     * Store a product from quick-create dialogs.
+     */
+    public function storeQuick(ProductRequest $request)
+    {
+        $validated = $request->validated();
+        $validated['image'] = FileHandler::handleImageUpload('products', $request, 'image', 'products/product.jpg');
+        $extraImages = FileHandler::handleMultipleImageUpload('products', $request, 'images');
+
+        $product = $request->user()->products()->create($validated);
+
+        $product->images()->updateOrCreate(
+            ['is_primary' => true],
+            ['path' => $product->image, 'is_primary' => true, 'sort_order' => 0]
+        );
+
+        foreach ($extraImages as $index => $path) {
+            $product->images()->create([
+                'path' => $path,
+                'is_primary' => false,
+                'sort_order' => $index + 1,
+            ]);
+        }
+
+        return response()->json([
+            'product' => [
+                'id' => $product->id,
+                'name' => $product->name,
+                'price' => $product->price,
+                'stock' => $product->stock,
+            ],
+        ], 201);
+    }
+
+    /**
      * Display the specified product.
      */
     public function show(Product $product)

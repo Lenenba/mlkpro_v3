@@ -1,6 +1,6 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
-import { computed, watch, ref, onMounted, nextTick } from 'vue';
+import { computed, watch, ref, onMounted, onBeforeUnmount, nextTick } from 'vue';
 import dayjs from 'dayjs';
 import { Head, useForm, router } from '@inertiajs/vue3';
 import FloatingNumberMiniInput from '@/Components/FloatingNumberMiniInput.vue';
@@ -22,6 +22,7 @@ const props = defineProps({
     work: Object,
     customer: Object,
     lastWorkNumber: String,
+    teamMembers: Array,
 });
 
 const Frequency = [
@@ -44,20 +45,22 @@ const statusOptions = [
     { id: 'cancelled', name: 'Cancelled' },
 ];
 
+const defaultStartDate = props.work?.start_date ?? dayjs().format('YYYY-MM-DD');
+
 const form = useForm({
     customer_id: props.work?.customer_id ?? props.customer?.id ?? null,
     job_title: props.work?.job_title ?? '',
     instructions: props.work?.instructions ?? '',
-    start_date: props.work?.start_date ?? '',
+    start_date: defaultStartDate,
     end_date: props.work?.end_date ?? '',
     start_time: props.work?.start_time ?? '',
     end_time: props.work?.end_time ?? '',
     products: props.work?.products?.map(product => ({
         id: product.id,
         name: product.name,
-        quantity: product.pivot?.quantity ?? 1,
-        price: product.pivot?.price ?? product.price ?? 0,
-        total: product.pivot?.total ?? 0,
+        quantity: Number(product.pivot?.quantity ?? 1),
+        price: Number(product.pivot?.price ?? product.price ?? 0),
+        total: Number(product.pivot?.total ?? 0),
     })) || [{ id: null, name: '', quantity: 1, price: 0, total: 0 }],
     later: props.work?.later ?? false,
     ends: props.work?.ends ?? 'Never',
@@ -68,39 +71,58 @@ const form = useForm({
     status: props.work?.status ?? 'scheduled',
     subtotal: props.work?.subtotal ?? 0,
     total: props.work?.total ?? 0,
+    team_member_ids: props.work?.team_members?.map(member => member.id) ?? [],
 });
 
-const formatDate = (dateInput) => {
-    if (!dateInput) { // Si aucune date, retourne la date actuelle
-        if (form.start_date) {
-            return dayjs(form.start_date).format('MMM D, YYYY'); // Ex: "Feb 8, 2025"
-        }
-        return dayjs().format('MMM D, YYYY'); // Ex: "Feb 8, 2025"
+const toIsoDate = (dateInput) => {
+    if (!dateInput) {
+        return '';
     }
+    const date = dayjs(dateInput);
+    return date.isValid() ? date.format('YYYY-MM-DD') : '';
+};
 
-    let date = dayjs(dateInput, ["YYYY-MM-DD", "YYYY/MM/DD", "MM-DD-YYYY", "DD-MM-YYYY", "YYYY-MM-DDTHH:mm:ssZ"], true);
-
+const formatDateLabel = (dateInput) => {
+    if (!dateInput) {
+        return '-';
+    }
+    const date = dayjs(dateInput);
     if (!date.isValid()) {
-        return "Invalid Date";
+        return '-';
     }
-
-    return date.format('MMM D, YYYY'); // Ex: "Feb 8, 2025"
+    return date.format('MMM D, YYYY');
 };
 
 const getExactDay = (dateInput, tempo) => {
     const weekDaysMap = {
-        'Su': 0, 'Mo': 1, 'Tu': 2, 'We': 3,
-        'Th': 4, 'Fr': 5, 'Sa': 6
+        'Su': 0,
+        'Mo': 1,
+        'Tu': 2,
+        'We': 3,
+        'Th': 4,
+        'Fr': 5,
+        'Sa': 6,
     };
 
-    // deternime la date extacte de la fin de la recurrence
-    let endDate = dateInput.add(form.frequencyNumber - 1, tempo);
+    const repeats = Array.isArray(form.repeatsOn) ? form.repeatsOn : [];
+    const frequencyCount = Math.max(1, Number(form.frequencyNumber) || 1);
+
+    let endDate = dateInput.add(frequencyCount - 1, tempo);
+    if (!repeats.length) {
+        return endDate;
+    }
+
     if (tempo === 'week') {
-        // retrouver le dernier jour de form.repeatsOn et prendre le jour correspondant dans la semaine
-        endDate = endDate.day(weekDaysMap[form.repeatsOn[form.repeatsOn.length - 1]]);
+        const target = repeats[repeats.length - 1];
+        if (weekDaysMap[target] !== undefined) {
+            endDate = endDate.day(weekDaysMap[target]);
+        }
     } else if (tempo === 'month') {
-        // retrouver le dernier jour de form.repeatsOn et prendre le jour correspondant dans le mois
-        endDate = endDate.date(form.repeatsOn[form.repeatsOn.length - 1]);
+        const target = repeats[repeats.length - 1];
+        const dayNumber = Number(target);
+        if (Number.isFinite(dayNumber)) {
+            endDate = endDate.date(dayNumber);
+        }
     }
 
     return endDate;
@@ -108,37 +130,61 @@ const getExactDay = (dateInput, tempo) => {
 
 // Fonction pour calculer le total des visites
 const calculateTotalVisits = () => {
-    if (!form.start_date) return; // Si aucune date de début, on ne fait rien
-
-    let count = 0;
-    let currentDate = dayjs(form.start_date);
-    let endDate = '';
-
-    if (form.ends === 'After' && form.frequencyNumber) {
-        if(form.frequency === 'Daily') {
-            count = form.frequencyNumber;
-        } else if (form.frequency === 'Weekly') {
-            //deternime le nombre total de visite en fonction de la fréquence
-            count = form.frequencyNumber * form.repeatsOn.length;
-            endDate = getExactDay(currentDate, 'week');
-
-        } else if (form.frequency === 'Monthly') {
-            count = form.frequencyNumber * form.repeatsOn.length;
-            endDate = getExactDay(currentDate, 'month');
+    if (!form.start_date) {
+        form.totalVisits = 0;
+        if (form.ends !== 'On') {
+            form.end_date = '';
         }
-    } else if (form.ends === 'On' && form.end_date) {
-        endDate = dayjs(form.end_date);
-        if (form.frequency === 'Daily') {
-            count = currentDate.diff(endDate, 'day');
-        } else if (form.frequency === 'Weekly') {
-            count = currentDate.diff(endDate, 'week') *  -form.repeatsOn.length;
-        } else if (form.frequency === 'Monthly') {
-            count = currentDate.diff(endDate, 'month')*  -form.repeatsOn.length;
-        }
+        return;
     }
 
-    form.totalVisits = count;
-    form.end_date = formatDate(endDate);
+    const currentDate = dayjs(form.start_date);
+    if (!currentDate.isValid()) {
+        form.totalVisits = 0;
+        if (form.ends !== 'On') {
+            form.end_date = '';
+        }
+        return;
+    }
+
+    const repeats = Array.isArray(form.repeatsOn) ? form.repeatsOn : [];
+    const repeatCount = repeats.length;
+    const frequencyCount = Math.max(1, Number(form.frequencyNumber) || 1);
+
+    let count = 0;
+    let endDate = null;
+
+    if (form.ends === 'After') {
+        if (form.frequency === 'Daily') {
+            count = frequencyCount;
+            endDate = currentDate.add(frequencyCount - 1, 'day');
+        } else if (form.frequency === 'Weekly') {
+            count = repeatCount ? frequencyCount * repeatCount : 0;
+            endDate = getExactDay(currentDate, 'week');
+        } else if (form.frequency === 'Monthly') {
+            count = repeatCount ? frequencyCount * repeatCount : 0;
+            endDate = getExactDay(currentDate, 'month');
+        }
+
+        form.end_date = endDate ? toIsoDate(endDate) : '';
+    } else if (form.ends === 'On' && form.end_date) {
+        const end = dayjs(form.end_date);
+        if (!end.isValid() || end.isBefore(currentDate, 'day')) {
+            count = 0;
+        } else if (form.frequency === 'Daily') {
+            count = end.diff(currentDate, 'day') + 1;
+        } else if (form.frequency === 'Weekly') {
+            const weeks = end.diff(currentDate, 'week');
+            count = repeatCount ? (weeks + 1) * repeatCount : 0;
+        } else if (form.frequency === 'Monthly') {
+            const months = end.diff(currentDate, 'month');
+            count = repeatCount ? (months + 1) * repeatCount : 0;
+        }
+    } else {
+        form.end_date = '';
+    }
+
+    form.totalVisits = Math.max(0, Math.trunc(count));
 };
 
 // Surveiller les changements des valeurs et recalculer automatiquement
@@ -250,20 +296,13 @@ const calendarOptions = {
 
 // Handler to update the subtotal when the child component emits an update
 const updateSubtotal = (newSubtotal) => {
-    form.subtotal = newSubtotal;
+    const value = Number(newSubtotal) || 0;
+    form.subtotal = Math.round(value * 100) / 100;
 };
 
-const taxRates = { tps: 0.05, tvq: 0.09975 };
-const taxes = computed(() => ({
-    tps: form.subtotal * taxRates.tps,
-    tvq: form.subtotal * taxRates.tvq,
-    totalTaxes: form.subtotal * (taxRates.tps + taxRates.tvq),
-}));
-
 const totalWithTaxes = computed(() => {
-    const subtotal = Number(form.subtotal) || 0; // Assurez-vous que le sous-total est un nombre
-    form.total = parseFloat((subtotal + taxes?.value.totalTaxes).toFixed(2)); // Retourne un nombre avec 2 décimales
-
+    const subtotal = Number(form.subtotal) || 0;
+    form.total = Math.round(subtotal * 100) / 100;
     return form.total;
 });
 
@@ -294,23 +333,38 @@ const loadCalendar = () => {
     });
 };
 
-onMounted(() => {
-    loadCalendar(); // Charge FullCalendar au montage du composant
-});
+const tabListeners = [];
 
-
-document.addEventListener("DOMContentLoaded", function () {
-    document.querySelectorAll("[data-hs-tab]").forEach(tab => {
-        tab.addEventListener("click", function () {
-            let targetTab = document.querySelector(tab.getAttribute("data-hs-tab"));
-
+const setupTabListeners = () => {
+    document.querySelectorAll("[data-hs-tab]").forEach((tab) => {
+        const handler = () => {
+            const targetTab = document.querySelector(tab.getAttribute("data-hs-tab"));
             if (targetTab && calendarRef.value) {
                 setTimeout(() => {
-                    loadCalendar(); // 🔹 Met à jour FullCalendar après l'affichage
+                    loadCalendar(); // Met a jour FullCalendar apres l'affichage
                 }, 100);
             }
-        });
+        };
+
+        tab.addEventListener("click", handler);
+        tabListeners.push({ tab, handler });
     });
+};
+
+const teardownTabListeners = () => {
+    tabListeners.forEach(({ tab, handler }) => {
+        tab.removeEventListener("click", handler);
+    });
+    tabListeners.length = 0;
+};
+
+onMounted(() => {
+    loadCalendar(); // Charge FullCalendar au montage du composant
+    setupTabListeners();
+});
+
+onBeforeUnmount(() => {
+    teardownTabListeners();
 });
 
 </script>
@@ -525,6 +579,33 @@ document.addEventListener("DOMContentLoaded", function () {
                                                         </h3>
                                                     </div>
                                                     <div class="p-4 md:p-5">
+                                                        <div class="space-y-3">
+                                                            <div v-if="!teamMembers?.length"
+                                                                class="text-sm text-gray-600 dark:text-neutral-400">
+                                                                No team members yet.
+                                                            </div>
+                                                            <div v-else class="space-y-2">
+                                                                <label v-for="member in teamMembers" :key="member.id"
+                                                                    class="flex items-start gap-3">
+                                                                    <Checkbox v-model:checked="form.team_member_ids"
+                                                                        :value="member.id" />
+                                                                    <div class="flex flex-col">
+                                                                        <span
+                                                                            class="text-sm text-gray-800 dark:text-neutral-200">
+                                                                            {{ member.user?.name ?? 'Team member' }}
+                                                                        </span>
+                                                                        <span
+                                                                            class="text-xs text-gray-500 dark:text-neutral-500">
+                                                                            {{ member.user?.email ?? '-' }}
+                                                                        </span>
+                                                                        <span v-if="member.title"
+                                                                            class="text-xs text-gray-500 dark:text-neutral-500">
+                                                                            {{ member.title }}
+                                                                        </span>
+                                                                    </div>
+                                                                </label>
+                                                            </div>
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>
@@ -648,7 +729,7 @@ document.addEventListener("DOMContentLoaded", function () {
                                                                 </span>
                                                                 <span for="hs-pro-ccremre"
                                                                     class="block text-xs text-gray-600 dark:text-neutral-400">
-                                                                    {{ formatDate(form.start_date)  }}
+                                                                    {{ formatDateLabel(form.start_date)  }}
                                                                 </span>
                                                             </div>
                                                             <div class="flex flex-col">
@@ -658,7 +739,7 @@ document.addEventListener("DOMContentLoaded", function () {
                                                                 </span>
                                                                 <span for="hs-pro-ccremre"
                                                                     class="block text-xs text-gray-600 dark:text-neutral-400">
-                                                                    {{ formatDate(form.end_date)  }}
+                                                                    {{ formatDateLabel(form.end_date)  }}
                                                                 </span>
                                                             </div>
                                                             <div class="flex flex-col">
@@ -686,6 +767,33 @@ document.addEventListener("DOMContentLoaded", function () {
                                                     </h3>
                                                 </div>
                                                 <div class="p-4 md:p-5">
+                                                    <div class="space-y-3">
+                                                        <div v-if="!teamMembers?.length"
+                                                            class="text-sm text-gray-600 dark:text-neutral-400">
+                                                            No team members yet.
+                                                        </div>
+                                                        <div v-else class="space-y-2">
+                                                            <label v-for="member in teamMembers" :key="member.id"
+                                                                class="flex items-start gap-3">
+                                                                <Checkbox v-model:checked="form.team_member_ids"
+                                                                    :value="member.id" />
+                                                                <div class="flex flex-col">
+                                                                    <span
+                                                                        class="text-sm text-gray-800 dark:text-neutral-200">
+                                                                        {{ member.user?.name ?? 'Team member' }}
+                                                                    </span>
+                                                                    <span
+                                                                        class="text-xs text-gray-500 dark:text-neutral-500">
+                                                                        {{ member.user?.email ?? '-' }}
+                                                                    </span>
+                                                                    <span v-if="member.title"
+                                                                        class="text-xs text-gray-500 dark:text-neutral-500">
+                                                                        {{ member.title }}
+                                                                    </span>
+                                                                </div>
+                                                            </label>
+                                                        </div>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>

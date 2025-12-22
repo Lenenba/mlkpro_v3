@@ -30,6 +30,15 @@ class UserFactory extends Factory
             )->id,
             'profile_picture' => null,
             'phone_number' => $this->faker->e164PhoneNumber(), // Random phone number
+            'company_name' => $this->faker->company(),
+            'company_logo' => null,
+            'company_description' => $this->faker->sentence(12),
+            'company_country' => $this->faker->country(),
+            'company_province' => $this->faker->state(),
+            'company_city' => $this->faker->city(),
+            'company_type' => $this->faker->randomElement(['services', 'products']),
+            'onboarding_completed_at' => now(),
+            'payment_methods' => ['cash', 'card'],
         ];
     }
 
