@@ -9,6 +9,9 @@ use App\Models\Product;
 use App\Models\Customer;
 use App\Models\Work;
 use App\Models\ActivityLog;
+use App\Models\QuoteProduct;
+use App\Models\Transaction;
+use App\Models\WorkChecklistItem;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Auth;
@@ -102,12 +105,16 @@ class QuoteController extends Controller
             $propertyId = null;
         }
 
+        $itemType = Auth::user()?->company_type === 'products'
+            ? Product::ITEM_TYPE_PRODUCT
+            : Product::ITEM_TYPE_SERVICE;
+
         return Inertia::render('Quote/Create', [
             'lastQuotesNumber' => $this->generateNextNumber(
                 $customer->quotes()->latest('created_at')->value('number')
             ),
             'customer' => $customer,
-            'products' => Product::all(),
+            'products' => Product::byUser(Auth::id())->where('item_type', $itemType)->get(),
             'taxes' => Tax::all(),
             'selectedPropertyId' => $propertyId ? (int) $propertyId : null,
         ]);
@@ -123,10 +130,13 @@ class QuoteController extends Controller
         $this->authorize('edit', $quote);
 
         $customer = $quote->customer->load('properties');
+        $itemType = Auth::user()?->company_type === 'products'
+            ? Product::ITEM_TYPE_PRODUCT
+            : Product::ITEM_TYPE_SERVICE;
 
         return Inertia::render('Quote/Create', [
             'quote' => $quote->load('products', 'taxes'),
-            'products' => Product::all(),
+            'products' => Product::byUser(Auth::id())->where('item_type', $itemType)->get(),
             'customer' =>  $customer,
             'taxes' => Tax::all(),
         ]);
@@ -172,14 +182,25 @@ class QuoteController extends Controller
             return back()->withErrors(['property_id' => 'Invalid property for this customer.']);
         }
 
-        $items = collect($validated['product'])->map(function ($product) {
+        $productIds = collect($validated['product'])->pluck('id')->map(fn($id) => (int) $id)->unique()->values();
+        $productMap = $productIds->isNotEmpty()
+            ? Product::byUser(Auth::id())
+                ->where('item_type', $itemType)
+                ->whereIn('id', $productIds)
+                ->get()
+                ->keyBy('id')
+            : collect();
+
+        $items = collect($validated['product'])->map(function ($product) use ($productMap) {
             $quantity = (int) $product['quantity'];
             $price = (float) $product['price'];
+            $model = $productMap->get((int) $product['id']);
             return [
                 'id' => (int) $product['id'],
                 'quantity' => $quantity,
                 'price' => $price,
                 'total' => round($quantity * $price, 2),
+                'description' => $product['description'] ?? $model?->description,
             ];
         });
 
@@ -221,6 +242,7 @@ class QuoteController extends Controller
                         'quantity' => $item['quantity'],
                         'price' => $item['price'],
                         'total' => $item['total'],
+                        'description' => $item['description'],
                     ],
                 ];
             });
@@ -276,14 +298,25 @@ class QuoteController extends Controller
             return back()->withErrors(['property_id' => 'Invalid property for this customer.']);
         }
 
-        $items = collect($validated['product'])->map(function ($product) {
+        $productIds = collect($validated['product'])->pluck('id')->map(fn($id) => (int) $id)->unique()->values();
+        $productMap = $productIds->isNotEmpty()
+            ? Product::byUser(Auth::id())
+                ->where('item_type', $itemType)
+                ->whereIn('id', $productIds)
+                ->get()
+                ->keyBy('id')
+            : collect();
+
+        $items = collect($validated['product'])->map(function ($product) use ($productMap) {
             $quantity = (int) $product['quantity'];
             $price = (float) $product['price'];
+            $model = $productMap->get((int) $product['id']);
             return [
                 'id' => (int) $product['id'],
                 'quantity' => $quantity,
                 'price' => $price,
                 'total' => round($quantity * $price, 2),
+                'description' => $product['description'] ?? $model?->description,
             ];
         });
 
@@ -325,6 +358,7 @@ class QuoteController extends Controller
                         'quantity' => $item['quantity'],
                         'price' => $item['price'],
                         'total' => $item['total'],
+                        'description' => $item['description'],
                     ],
                 ];
             });
@@ -350,9 +384,104 @@ class QuoteController extends Controller
         return redirect()->route('customer.show', $quote->customer)->with('success', 'Quote updated successfully!');
     }
 
+    public function accept(Request $request, Quote $quote)
+    {
+        $this->authorize('edit', $quote);
+
+        $validated = $request->validate([
+            'deposit_amount' => 'nullable|numeric|min:0',
+            'method' => 'nullable|string|max:50',
+            'reference' => 'nullable|string|max:120',
+            'signed_at' => 'nullable|date',
+        ]);
+
+        $requiredDeposit = (float) ($quote->initial_deposit ?? 0);
+        $depositAmount = (float) ($validated['deposit_amount'] ?? $requiredDeposit);
+
+        if ($requiredDeposit > 0 && $depositAmount < $requiredDeposit) {
+            return redirect()->back()->withErrors([
+                'deposit_amount' => 'Deposit is below the required amount.',
+            ]);
+        }
+
+        $work = null;
+        DB::transaction(function () use ($quote, $validated, $depositAmount, &$work) {
+            $work = Work::where('quote_id', $quote->id)->first();
+            if (!$work) {
+                $work = Work::create([
+                    'user_id' => $quote->user_id,
+                    'customer_id' => $quote->customer_id,
+                    'quote_id' => $quote->id,
+                    'job_title' => $quote->job_title,
+                    'instructions' => $quote->notes ?: ($quote->messages ?: ''),
+                    'status' => Work::STATUS_TO_SCHEDULE,
+                    'subtotal' => $quote->subtotal,
+                    'total' => $quote->total,
+                ]);
+            }
+
+            $quote->update([
+                'status' => 'accepted',
+                'accepted_at' => now(),
+                'signed_at' => $validated['signed_at'] ?? now(),
+                'work_id' => $work->id,
+            ]);
+
+            if ($depositAmount > 0) {
+                $hasDeposit = Transaction::where('quote_id', $quote->id)
+                    ->where('type', 'deposit')
+                    ->where('status', 'completed')
+                    ->exists();
+
+                if (!$hasDeposit) {
+                    Transaction::create([
+                        'quote_id' => $quote->id,
+                        'work_id' => $work->id,
+                        'customer_id' => $quote->customer_id,
+                        'user_id' => $quote->user_id,
+                        'amount' => $depositAmount,
+                        'type' => 'deposit',
+                        'method' => $validated['method'] ?? null,
+                        'status' => 'completed',
+                        'reference' => $validated['reference'] ?? null,
+                        'paid_at' => now(),
+                    ]);
+                }
+            }
+
+            $items = QuoteProduct::query()
+                ->where('quote_id', $quote->id)
+                ->with('product')
+                ->orderBy('id')
+                ->get();
+
+            foreach ($items as $index => $item) {
+                WorkChecklistItem::firstOrCreate(
+                    [
+                        'work_id' => $work->id,
+                        'quote_product_id' => $item->id,
+                    ],
+                    [
+                        'quote_id' => $quote->id,
+                        'title' => $item->product?->name ?? 'Line item',
+                        'description' => $item->description ?: $item->product?->description,
+                        'status' => 'pending',
+                        'sort_order' => $index,
+                    ]
+                );
+            }
+        });
+
+        return redirect()->route('work.edit', $work)->with('success', 'Quote accepted and job created.');
+    }
+
     public function show(Quote $quote)
     {
         $this->authorize('show', $quote);
+
+        $itemType = Auth::user()?->company_type === 'products'
+            ? Product::ITEM_TYPE_PRODUCT
+            : Product::ITEM_TYPE_SERVICE;
 
         return Inertia::render('Quote/Show', [
             'quote' =>$quote->load([
@@ -362,7 +491,7 @@ class QuoteController extends Controller
                 'property',
                 'customer.properties',
             ]),
-            'products' => Product::all(),
+            'products' => Product::byUser(Auth::id())->where('item_type', $itemType)->get(),
             'taxes' => Tax::all(),
         ]);
     }
@@ -399,7 +528,7 @@ class QuoteController extends Controller
                 'job_title' => $quote->job_title,
                 'instructions' => $quote->notes ?: ($quote->messages ?: ''),
                 'start_date' => now()->toDateString(),
-                'status' => 'scheduled',
+                'status' => Work::STATUS_TO_SCHEDULE,
                 'subtotal' => $quote->subtotal,
                 'total' => $quote->total,
             ]);
@@ -420,7 +549,35 @@ class QuoteController extends Controller
             }
 
             if (in_array($quote->status, ['draft', 'sent'], true)) {
-                $quote->update(['status' => 'accepted']);
+                $quote->update([
+                    'status' => 'accepted',
+                    'accepted_at' => now(),
+                    'work_id' => $work->id,
+                ]);
+            } elseif (!$quote->work_id) {
+                $quote->update(['work_id' => $work->id]);
+            }
+
+            $items = QuoteProduct::query()
+                ->where('quote_id', $quote->id)
+                ->with('product')
+                ->orderBy('id')
+                ->get();
+
+            foreach ($items as $index => $item) {
+                WorkChecklistItem::firstOrCreate(
+                    [
+                        'work_id' => $work->id,
+                        'quote_product_id' => $item->id,
+                    ],
+                    [
+                        'quote_id' => $quote->id,
+                        'title' => $item->product?->name ?? 'Line item',
+                        'description' => $item->description ?: $item->product?->description,
+                        'status' => 'pending',
+                        'sort_order' => $index,
+                    ]
+                );
             }
 
             return $work;

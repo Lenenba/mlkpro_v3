@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Invoice;
 use App\Models\Payment;
 use App\Models\ActivityLog;
+use App\Models\Work;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
@@ -55,6 +56,11 @@ class PaymentController extends Controller
                 'from' => $previousStatus,
                 'to' => $invoice->status,
             ], 'Invoice status updated');
+        }
+
+        if ($invoice->status === 'paid' && $invoice->work) {
+            $invoice->work->status = Work::STATUS_CLOSED;
+            $invoice->work->save();
         }
 
         return redirect()->back()->with('success', 'Payment recorded successfully.');

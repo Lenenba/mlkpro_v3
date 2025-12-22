@@ -21,6 +21,7 @@ class Customer extends Model
      */
     protected $fillable = [
         'user_id',
+        'portal_user_id',
         'number',
         'first_name',
         'last_name',
@@ -68,6 +69,11 @@ class Customer extends Model
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function portalUser()
+    {
+        return $this->belongsTo(User::class, 'portal_user_id');
     }
 
     public function properties()

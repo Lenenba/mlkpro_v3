@@ -4,9 +4,11 @@ namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use App\Models\Product;
+use App\Models\Role;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
@@ -68,9 +70,19 @@ class User extends Authenticatable
         return $this->hasMany(Product::class);
     }
 
+    public function role(): BelongsTo
+    {
+        return $this->belongsTo(Role::class, 'role_id');
+    }
+
     public function customers()
     {
         return $this->hasMany(Customer::class);
+    }
+
+    public function customerProfile(): HasOne
+    {
+        return $this->hasOne(Customer::class, 'portal_user_id');
     }
 
     public function ownedTeamMembers(): HasMany
@@ -81,6 +93,35 @@ class User extends Authenticatable
     public function teamMembership(): HasOne
     {
         return $this->hasOne(TeamMember::class, 'user_id')->where('is_active', true);
+    }
+
+    public function hasRole(string $name): bool
+    {
+        $roleName = $this->relationLoaded('role')
+            ? $this->role?->name
+            : Role::query()->whereKey($this->role_id)->value('name');
+
+        return $roleName === $name;
+    }
+
+    public function isOwner(): bool
+    {
+        return $this->hasRole('owner');
+    }
+
+    public function isEmployee(): bool
+    {
+        return $this->hasRole('employee');
+    }
+
+    public function isClient(): bool
+    {
+        return $this->hasRole('client');
+    }
+
+    public function isSuperadmin(): bool
+    {
+        return $this->hasRole('superadmin');
     }
 
     public function accountOwnerId(): int
@@ -94,6 +135,14 @@ class User extends Authenticatable
 
     public function isAccountOwner(): bool
     {
-        return $this->accountOwnerId() === $this->id;
+        if ($this->isSuperadmin()) {
+            return true;
+        }
+
+        if ($this->isOwner()) {
+            return true;
+        }
+
+        return false;
     }
 }

@@ -5,10 +5,9 @@ namespace App\Http\Controllers;
 use App\Models\Work;
 use App\Models\Invoice;
 use App\Models\Customer;
-use App\Models\ActivityLog;
+use App\Services\WorkBillingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
 
 class InvoiceController extends Controller
 {
@@ -94,7 +93,7 @@ class InvoiceController extends Controller
     /**
      * Create an invoice from a work record.
      */
-    public function storeFromWork(Request $request, Work $work)
+    public function storeFromWork(Request $request, Work $work, WorkBillingService $billingService)
     {
         if ($work->user_id !== Auth::id()) {
             abort(403);
@@ -104,20 +103,7 @@ class InvoiceController extends Controller
             return redirect()->back()->with('error', 'This job already has an invoice.');
         }
 
-        $invoice = DB::transaction(function () use ($work) {
-            return Invoice::create([
-                'user_id' => $work->user_id,
-                'customer_id' => $work->customer_id,
-                'work_id' => $work->id,
-                'status' => 'draft',
-                'total' => $work->total ?? 0,
-            ]);
-        });
-
-        ActivityLog::record($request->user(), $invoice, 'created', [
-            'work_id' => $work->id,
-            'total' => $invoice->total,
-        ], 'Invoice created from job');
+        $invoice = $billingService->createInvoiceFromWork($work, $request->user());
 
         return redirect()->route('invoice.show', $invoice)->with('success', 'Invoice created successfully.');
     }

@@ -16,6 +16,19 @@ class Work extends Model
     /** @use HasFactory<\Database\Factories\WorkFactory> */
     use HasFactory, GeneratesSequentialNumber;
 
+    public const STATUS_TO_SCHEDULE = 'to_schedule';
+    public const STATUS_SCHEDULED = 'scheduled';
+    public const STATUS_EN_ROUTE = 'en_route';
+    public const STATUS_IN_PROGRESS = 'in_progress';
+    public const STATUS_TECH_COMPLETE = 'tech_complete';
+    public const STATUS_PENDING_REVIEW = 'pending_review';
+    public const STATUS_VALIDATED = 'validated';
+    public const STATUS_AUTO_VALIDATED = 'auto_validated';
+    public const STATUS_DISPUTE = 'dispute';
+    public const STATUS_CLOSED = 'closed';
+    public const STATUS_CANCELLED = 'cancelled';
+    public const STATUS_COMPLETED = 'completed';
+
     protected $fillable = [
         'user_id',
         'customer_id',
@@ -43,10 +56,27 @@ class Work extends Model
     ];
 
     public const STATUSES = [
-        'scheduled',
-        'in_progress',
-        'completed',
-        'cancelled',
+        self::STATUS_TO_SCHEDULE,
+        self::STATUS_SCHEDULED,
+        self::STATUS_EN_ROUTE,
+        self::STATUS_IN_PROGRESS,
+        self::STATUS_TECH_COMPLETE,
+        self::STATUS_PENDING_REVIEW,
+        self::STATUS_VALIDATED,
+        self::STATUS_AUTO_VALIDATED,
+        self::STATUS_DISPUTE,
+        self::STATUS_CLOSED,
+        self::STATUS_CANCELLED,
+        self::STATUS_COMPLETED,
+    ];
+
+    public const COMPLETED_STATUSES = [
+        self::STATUS_TECH_COMPLETE,
+        self::STATUS_PENDING_REVIEW,
+        self::STATUS_VALIDATED,
+        self::STATUS_AUTO_VALIDATED,
+        self::STATUS_CLOSED,
+        self::STATUS_COMPLETED,
     ];
 
     protected $casts = [
@@ -69,7 +99,7 @@ class Work extends Model
         });
 
         static::saving(function ($work) {
-            if ($work->status === 'completed') {
+            if (in_array($work->status, self::COMPLETED_STATUSES, true)) {
                 $work->is_completed = true;
                 $work->completed_at = $work->completed_at ?? now();
                 return;
@@ -97,6 +127,11 @@ class Work extends Model
         return $this->belongsTo(Quote::class);
     }
 
+    public function quotes(): HasMany
+    {
+        return $this->hasMany(Quote::class);
+    }
+
     public function customer(): BelongsTo
     {
         return $this->belongsTo(Customer::class, 'customer_id');
@@ -118,6 +153,16 @@ class Work extends Model
     public function ratings(): HasMany
     {
         return $this->hasMany(WorkRating::class);
+    }
+
+    public function checklistItems(): HasMany
+    {
+        return $this->hasMany(WorkChecklistItem::class);
+    }
+
+    public function media(): HasMany
+    {
+        return $this->hasMany(WorkMedia::class);
     }
 
     public function scopeCompleted(Builder $query): Builder

@@ -6,12 +6,18 @@ use Carbon\Carbon;
 use App\Models\Work;
 use App\Models\Product;
 use App\Models\Customer;
+use App\Models\Quote;
+use App\Models\QuoteProduct;
+use App\Models\Tax;
 use App\Models\ActivityLog;
 use App\Models\TeamMember;
+use App\Models\WorkChecklistItem;
 use App\Models\User;
+use App\Services\WorkBillingService;
 use Illuminate\Http\Request;
 use App\Http\Requests\WorkRequest;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\Rule;
 use App\Traits\GeneratesSequentialNumber;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Support\Facades\DB;
@@ -63,12 +69,23 @@ class WorkController extends Controller
             ->simplePaginate(10)
             ->withQueryString();
 
+        $scheduledStatuses = [Work::STATUS_TO_SCHEDULE, Work::STATUS_SCHEDULED];
+        $inProgressStatuses = [Work::STATUS_EN_ROUTE, Work::STATUS_IN_PROGRESS];
+        $completedStatuses = [
+            Work::STATUS_TECH_COMPLETE,
+            Work::STATUS_PENDING_REVIEW,
+            Work::STATUS_VALIDATED,
+            Work::STATUS_AUTO_VALIDATED,
+            Work::STATUS_CLOSED,
+            Work::STATUS_COMPLETED,
+        ];
+
         $stats = [
             'total' => (clone $baseQuery)->count(),
-            'scheduled' => (clone $baseQuery)->where('status', 'scheduled')->count(),
-            'in_progress' => (clone $baseQuery)->where('status', 'in_progress')->count(),
-            'completed' => (clone $baseQuery)->where('status', 'completed')->count(),
-            'cancelled' => (clone $baseQuery)->where('status', 'cancelled')->count(),
+            'scheduled' => (clone $baseQuery)->whereIn('status', $scheduledStatuses)->count(),
+            'in_progress' => (clone $baseQuery)->whereIn('status', $inProgressStatuses)->count(),
+            'completed' => (clone $baseQuery)->whereIn('status', $completedStatuses)->count(),
+            'cancelled' => (clone $baseQuery)->where('status', Work::STATUS_CANCELLED)->count(),
         ];
 
         $customersQuery = Customer::byUser($accountId)->orderBy('company_name');
@@ -436,6 +453,59 @@ class WorkController extends Controller
         return redirect()->back()->with('success', 'Job updated successfully.');
     }
 
+    public function updateStatus(Request $request, Work $work, WorkBillingService $billingService)
+    {
+        $user = Auth::user();
+        $accountId = $user?->accountOwnerId() ?? Auth::id();
+        if (!$user || $work->user_id !== $accountId) {
+            abort(403);
+        }
+
+        $validated = $request->validate([
+            'status' => ['required', Rule::in(Work::STATUSES)],
+        ]);
+
+        $nextStatus = $validated['status'];
+        $beforeCount = $work->media()->where('type', 'before')->count();
+        $afterCount = $work->media()->where('type', 'after')->count();
+
+        if ($nextStatus === Work::STATUS_IN_PROGRESS && $beforeCount < 3) {
+            return redirect()->back()->withErrors([
+                'status' => 'Upload at least 3 before photos before starting the job.',
+            ]);
+        }
+
+        if ($nextStatus === Work::STATUS_TECH_COMPLETE) {
+            $pendingChecklist = $work->checklistItems()->where('status', '!=', 'done')->count();
+            if ($pendingChecklist > 0) {
+                return redirect()->back()->withErrors([
+                    'status' => 'Complete all checklist items before finishing the job.',
+                ]);
+            }
+
+            if ($afterCount < 3) {
+                return redirect()->back()->withErrors([
+                    'status' => 'Upload at least 3 after photos before finishing the job.',
+                ]);
+            }
+        }
+
+        $previousStatus = $work->status;
+        $work->status = $nextStatus;
+        $work->save();
+
+        ActivityLog::record($user, $work, 'status_changed', [
+            'from' => $previousStatus,
+            'to' => $nextStatus,
+        ], 'Job status updated');
+
+        if (in_array($nextStatus, [Work::STATUS_VALIDATED, Work::STATUS_AUTO_VALIDATED], true)) {
+            $billingService->createInvoiceFromWork($work, $user);
+        }
+
+        return redirect()->back()->with('success', 'Job status updated.');
+    }
+
     /**
      * Remove the specified work from storage.
      */
@@ -456,4 +526,135 @@ class WorkController extends Controller
 
         return redirect()->back()->with('success', 'Job deleted successfully.');
     }
+
+    public function addExtraQuote(Request $request, Work $work)
+    {
+        $user = Auth::user();
+        $accountId = $user?->accountOwnerId() ?? Auth::id();
+        if (!$user || $user->id !== $accountId) {
+            abort(403);
+        }
+
+        if ($work->user_id !== $accountId) {
+            abort(403);
+        }
+
+        $itemType = $user->company_type === 'products'
+            ? Product::ITEM_TYPE_PRODUCT
+            : Product::ITEM_TYPE_SERVICE;
+
+        $validated = $request->validate([
+            'job_title' => 'required|string|max:255',
+            'status' => ['nullable', Rule::in(['draft', 'sent', 'accepted', 'declined'])],
+            'product' => 'required|array|min:1',
+            'product.*.id' => [
+                'required',
+                Rule::exists('products', 'id')
+                    ->where('user_id', $accountId)
+                    ->where('item_type', $itemType),
+            ],
+            'product.*.quantity' => 'required|integer|min:1',
+            'product.*.price' => 'required|numeric|min:0',
+            'notes' => 'nullable|string',
+            'messages' => 'nullable|string',
+            'taxes' => 'nullable|array',
+            'taxes.*' => ['integer', Rule::exists('taxes', 'id')],
+        ]);
+
+        $productIds = collect($validated['product'])->pluck('id')->map(fn($id) => (int) $id)->unique()->values();
+        $productMap = $productIds->isNotEmpty()
+            ? Product::byUser($accountId)
+                ->where('item_type', $itemType)
+                ->whereIn('id', $productIds)
+                ->get()
+                ->keyBy('id')
+            : collect();
+
+        $items = collect($validated['product'])->map(function ($product) use ($productMap) {
+            $quantity = (int) $product['quantity'];
+            $price = (float) $product['price'];
+            $model = $productMap->get((int) $product['id']);
+            return [
+                'id' => (int) $product['id'],
+                'quantity' => $quantity,
+                'price' => $price,
+                'total' => round($quantity * $price, 2),
+                'description' => $product['description'] ?? $model?->description,
+            ];
+        });
+
+        $subtotal = $items->sum('total');
+        $selectedTaxes = Tax::whereIn('id', $validated['taxes'] ?? [])->get();
+        $taxLines = $selectedTaxes->map(function ($tax) use ($subtotal) {
+            $amount = round($subtotal * ((float) $tax->rate / 100), 2);
+            return [
+                'tax_id' => $tax->id,
+                'rate' => (float) $tax->rate,
+                'amount' => $amount,
+            ];
+        });
+        $taxTotal = $taxLines->sum('amount');
+        $total = round($subtotal + $taxTotal, 2);
+
+        $quote = null;
+        DB::transaction(function () use ($work, $validated, $items, $subtotal, $total, $taxLines, &$quote) {
+            $quote = Quote::create([
+                'user_id' => $work->user_id,
+                'customer_id' => $work->customer_id,
+                'property_id' => $work->quote?->property_id,
+                'job_title' => $validated['job_title'],
+                'subtotal' => $subtotal,
+                'total' => $total,
+                'notes' => $validated['notes'] ?? null,
+                'messages' => $validated['messages'] ?? null,
+                'initial_deposit' => 0,
+                'status' => $validated['status'] ?? 'accepted',
+                'is_fixed' => false,
+                'parent_id' => $work->quote_id,
+                'work_id' => $work->id,
+                'signed_at' => now(),
+                'accepted_at' => now(),
+            ]);
+
+            $pivotData = $items->mapWithKeys(function ($item) {
+                return [
+                    $item['id'] => [
+                        'quantity' => $item['quantity'],
+                        'price' => $item['price'],
+                        'total' => $item['total'],
+                        'description' => $item['description'],
+                    ],
+                ];
+            });
+            $quote->products()->sync($pivotData);
+
+            if ($taxLines->isNotEmpty()) {
+                $quote->taxes()->createMany($taxLines->toArray());
+            }
+
+            $lineItems = QuoteProduct::where('quote_id', $quote->id)
+                ->with('product')
+                ->orderBy('id')
+                ->get();
+
+            foreach ($lineItems as $index => $item) {
+                WorkChecklistItem::firstOrCreate(
+                    [
+                        'work_id' => $work->id,
+                        'quote_product_id' => $item->id,
+                    ],
+                    [
+                        'quote_id' => $quote->id,
+                        'title' => $item->product?->name ?? 'Line item',
+                        'description' => $item->description ?: $item->product?->description,
+                        'status' => 'pending',
+                        'sort_order' => $index,
+                    ]
+                );
+            }
+        });
+
+        return redirect()->route('customer.quote.edit', $quote)->with('success', 'Extra quote created.');
+    }
+
 }

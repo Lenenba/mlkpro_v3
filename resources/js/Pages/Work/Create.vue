@@ -39,10 +39,18 @@ const endOptions = [
 ];
 
 const statusOptions = [
+    { id: 'to_schedule', name: 'To schedule' },
     { id: 'scheduled', name: 'Scheduled' },
+    { id: 'en_route', name: 'En route' },
     { id: 'in_progress', name: 'In progress' },
-    { id: 'completed', name: 'Completed' },
+    { id: 'tech_complete', name: 'Tech complete' },
+    { id: 'pending_review', name: 'Pending review' },
+    { id: 'validated', name: 'Validated' },
+    { id: 'auto_validated', name: 'Auto validated' },
+    { id: 'dispute', name: 'Dispute' },
+    { id: 'closed', name: 'Closed' },
     { id: 'cancelled', name: 'Cancelled' },
+    { id: 'completed', name: 'Completed (legacy)' },
 ];
 
 const defaultStartDate = props.work?.start_date ?? dayjs().format('YYYY-MM-DD');

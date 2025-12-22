@@ -19,12 +19,17 @@ class Quote extends Model
         'number',
         'customer_id',
         'property_id',
+        'request_id',
+        'parent_id',
+        'work_id',
         'total',
         'subtotal',
         'initial_deposit',
         'is_fixed',
         'notes',
         'messages',
+        'signed_at',
+        'accepted_at',
     ];
 
     protected $casts = [
@@ -32,6 +37,8 @@ class Quote extends Model
         'subtotal' => 'decimal:2',
         'initial_deposit' => 'decimal:2',
         'is_fixed' => 'boolean',
+        'signed_at' => 'datetime',
+        'accepted_at' => 'datetime',
     ];
 
     protected static function boot()
@@ -77,6 +84,26 @@ class Quote extends Model
             ->withPivot(['quantity', 'price', 'description', 'total'])
             ->withTimestamps();
 
+    }
+
+    public function request()
+    {
+        return $this->belongsTo(Request::class);
+    }
+
+    public function parent()
+    {
+        return $this->belongsTo(self::class, 'parent_id');
+    }
+
+    public function children()
+    {
+        return $this->hasMany(self::class, 'parent_id');
+    }
+
+    public function work()
+    {
+        return $this->belongsTo(Work::class);
     }
 
     /**

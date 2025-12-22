@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Models\Product;
+use App\Models\Work;
 use App\Models\User;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -56,7 +57,7 @@ class WorkRequest extends FormRequest
             'repeatsOn.*' => 'string',
             'type' => 'nullable|string',
             'category' => 'nullable|string',
-            'status' => 'nullable|string|in:scheduled,in_progress,completed,cancelled',
+            'status' => ['nullable', 'string', Rule::in(Work::STATUSES)],
             'is_completed' => 'nullable|boolean',
             'subtotal' => 'nullable|numeric',
             'total' => 'nullable|numeric',

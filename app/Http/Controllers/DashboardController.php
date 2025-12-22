@@ -118,6 +118,17 @@ class DashboardController extends Controller
             ->selectRaw('COALESCE(SUM(stock * COALESCE(NULLIF(cost_price, 0), price)), 0) as value')
             ->value('value');
 
+        $scheduledStatuses = [Work::STATUS_TO_SCHEDULE, Work::STATUS_SCHEDULED];
+        $inProgressStatuses = [Work::STATUS_EN_ROUTE, Work::STATUS_IN_PROGRESS];
+        $completedStatuses = [
+            Work::STATUS_TECH_COMPLETE,
+            Work::STATUS_PENDING_REVIEW,
+            Work::STATUS_VALIDATED,
+            Work::STATUS_AUTO_VALIDATED,
+            Work::STATUS_CLOSED,
+            Work::STATUS_COMPLETED,
+        ];
+
         $stats = [
             'customers_total' => (clone $customersQuery)->count(),
             'customers_new' => (clone $customersQuery)->whereDate('created_at', '>=', $recentSince)->count(),
@@ -133,9 +144,9 @@ class DashboardController extends Controller
             'quotes_accepted' => (clone $quotesQuery)->where('status', 'accepted')->count(),
             'quotes_month' => (clone $quotesQuery)->whereDate('created_at', '>=', $startOfMonth)->count(),
             'works_total' => (clone $worksQuery)->count(),
-            'works_scheduled' => (clone $worksQuery)->where('status', 'scheduled')->count(),
-            'works_in_progress' => (clone $worksQuery)->where('status', 'in_progress')->count(),
-            'works_completed' => (clone $worksQuery)->where('status', 'completed')->count(),
+            'works_scheduled' => (clone $worksQuery)->whereIn('status', $scheduledStatuses)->count(),
+            'works_in_progress' => (clone $worksQuery)->whereIn('status', $inProgressStatuses)->count(),
+            'works_completed' => (clone $worksQuery)->whereIn('status', $completedStatuses)->count(),
             'invoices_total' => (clone $invoicesQuery)->count(),
             'invoices_paid' => (clone $invoicesQuery)->where('status', 'paid')->count(),
             'invoices_partial' => (clone $invoicesQuery)->where('status', 'partial')->count(),

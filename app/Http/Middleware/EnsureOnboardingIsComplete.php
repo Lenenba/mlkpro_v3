@@ -18,6 +18,10 @@ class EnsureOnboardingIsComplete
             return $next($request);
         }
 
+        if ($user->isClient()) {
+            return $next($request);
+        }
+
         if (!$user->isAccountOwner()) {
             return $next($request);
         }
@@ -38,4 +42,3 @@ class EnsureOnboardingIsComplete
         return redirect()->route('onboarding.index');
     }
 }
-

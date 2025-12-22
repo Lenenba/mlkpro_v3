@@ -31,11 +31,36 @@ const showAdvanced = ref(false);
 
 const statusOptions = [
     { value: '', label: 'All statuses' },
+    { value: 'to_schedule', label: 'To schedule' },
     { value: 'scheduled', label: 'Scheduled' },
+    { value: 'en_route', label: 'En route' },
     { value: 'in_progress', label: 'In progress' },
-    { value: 'completed', label: 'Completed' },
+    { value: 'tech_complete', label: 'Tech complete' },
+    { value: 'pending_review', label: 'Pending review' },
+    { value: 'validated', label: 'Validated' },
+    { value: 'auto_validated', label: 'Auto validated' },
+    { value: 'dispute', label: 'Dispute' },
+    { value: 'closed', label: 'Closed' },
     { value: 'cancelled', label: 'Cancelled' },
+    { value: 'completed', label: 'Completed (legacy)' },
 ];
+
+const statusLabels = {
+    to_schedule: 'To schedule',
+    scheduled: 'Scheduled',
+    en_route: 'En route',
+    in_progress: 'In progress',
+    tech_complete: 'Tech complete',
+    pending_review: 'Pending review',
+    validated: 'Validated',
+    auto_validated: 'Auto validated',
+    dispute: 'Dispute',
+    closed: 'Closed',
+    cancelled: 'Cancelled',
+    completed: 'Completed',
+};
+
+const formatStatus = (status) => statusLabels[status] || status || 'Scheduled';
 
 const filterPayload = () => {
     const payload = {
@@ -273,12 +298,14 @@ const createInvoice = (work) => {
                                 <span
                                     class="py-1.5 px-2 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-full"
                                     :class="{
-                                        'bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-200': (work.status || 'scheduled') === 'scheduled',
-                                        'bg-blue-100 text-blue-800 dark:bg-blue-500/20 dark:text-blue-200': work.status === 'in_progress',
-                                        'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-200': work.status === 'completed',
-                                        'bg-rose-100 text-rose-800 dark:bg-rose-500/20 dark:text-rose-200': work.status === 'cancelled',
+                                        'bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-200': ['to_schedule', 'scheduled'].includes(work.status || 'scheduled'),
+                                        'bg-blue-100 text-blue-800 dark:bg-blue-500/20 dark:text-blue-200': ['en_route', 'in_progress'].includes(work.status),
+                                        'bg-indigo-100 text-indigo-800 dark:bg-indigo-500/20 dark:text-indigo-200': ['tech_complete', 'pending_review'].includes(work.status),
+                                        'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-200': ['validated', 'auto_validated', 'closed', 'completed'].includes(work.status),
+                                        'bg-rose-100 text-rose-800 dark:bg-rose-500/20 dark:text-rose-200': work.status === 'dispute',
+                                        'bg-stone-200 text-stone-700 dark:bg-neutral-700 dark:text-neutral-300': work.status === 'cancelled',
                                     }">
-                                    {{ work.status || 'scheduled' }}
+                                    {{ formatStatus(work.status) }}
                                 </span>
                             </td>
                             <td class="size-px whitespace-nowrap px-4 py-2">

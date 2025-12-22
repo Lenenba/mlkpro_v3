@@ -15,6 +15,9 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ProductsSearchController;
 use App\Http\Controllers\QuoteEmaillingController;
 use App\Http\Controllers\OnboardingController;
+use App\Http\Controllers\RequestController;
+use App\Http\Controllers\WorkMediaController;
+use App\Http\Controllers\WorkChecklistController;
 use App\Http\Controllers\WelcomeController;
 use App\Http\Controllers\Settings\CompanySettingsController;
 use App\Http\Controllers\Settings\BillingSettingsController;
@@ -48,6 +51,10 @@ Route::middleware('auth')->group(function () {
     Route::get('/settings/billing', [BillingSettingsController::class, 'edit'])->name('settings.billing.edit');
     Route::put('/settings/billing', [BillingSettingsController::class, 'update'])->name('settings.billing.update');
 
+    // Lead Requests
+    Route::post('/requests', [RequestController::class, 'store'])->name('request.store');
+    Route::post('/requests/{lead}/convert', [RequestController::class, 'convert'])->name('request.convert');
+
     Route::get('/quotes', [QuoteController::class, 'index'])->name('quote.index');
     Route::get('/customer/{customer}/quote/create', [QuoteController::class, 'create'])->name('customer.quote.create');
     Route::post('/customer/quote/store', [QuoteController::class, 'store'])->name('customer.quote.store');
@@ -55,6 +62,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/customer/quote/{quote}/show', [QuoteController::class, 'show'])->name('customer.quote.show');
     Route::put('/customer/quote/{quote}/update', [QuoteController::class, 'update'])->name('customer.quote.update');
     Route::delete('/customer/quote/{quote}/destroy', [QuoteController::class, 'destroy'])->name('customer.quote.destroy');
+    Route::post('/quote/{quote}/accept', [QuoteController::class, 'accept'])->name('quote.accept');
 
 
 
@@ -104,6 +112,10 @@ Route::middleware('auth')->group(function () {
 
     Route::resource('work', WorkController::class)
         ->except(['create']);
+    Route::post('/work/{work}/status', [WorkController::class, 'updateStatus'])->name('work.status');
+    Route::post('/work/{work}/extras', [WorkController::class, 'addExtraQuote'])->name('work.extras');
+    Route::post('/work/{work}/media', [WorkMediaController::class, 'store'])->name('work.media.store');
+    Route::patch('/work/{work}/checklist/{item}', [WorkChecklistController::class, 'update'])->name('work.checklist.update');
 
     // Team Management
     Route::get('/team', [TeamMemberController::class, 'index'])->name('team.index');
