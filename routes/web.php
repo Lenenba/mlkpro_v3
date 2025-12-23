@@ -73,6 +73,8 @@ Route::middleware(['auth', EnsureInternalUser::class])->group(function () {
     Route::put('/settings/billing', [BillingSettingsController::class, 'update'])->name('settings.billing.update');
     Route::post('/settings/billing/swap', [SubscriptionController::class, 'swap'])->name('settings.billing.swap');
     Route::post('/settings/billing/portal', [SubscriptionController::class, 'portal'])->name('settings.billing.portal');
+    Route::post('/settings/billing/payment-method', [SubscriptionController::class, 'paymentMethodTransaction'])
+        ->name('settings.billing.payment-method');
 
     // Lead Requests
     Route::get('/requests', [RequestController::class, 'index'])->name('request.index');

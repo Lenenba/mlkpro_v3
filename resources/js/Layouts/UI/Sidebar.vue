@@ -353,7 +353,7 @@ const avatarInitial = computed(() => {
                                     </div>
                                     <div class="p-1">
                                         <Link v-if="isOwner" :href="route('settings.company.edit')"
-                                            class="flex items-center gap-x-3 py-1.5 px-2.5 rounded-lg text-sm text-gray-800 hover:bg-gray-100 focus:outline-none focus:bg-gray-100 dark:text-neutral-300 dark:hover:bg-neutral-800 dark:focus:bg-neutral-800">
+                                            class="flex items-center gap-x-3 py-1.5 px-2.5 rounded-sm text-sm text-gray-800 hover:bg-gray-100 focus:outline-none focus:bg-gray-100 dark:text-neutral-300 dark:hover:bg-neutral-800 dark:focus:bg-neutral-800">
                                             <svg class="shrink-0 mt-0.5 size-4" xmlns="http://www.w3.org/2000/svg"
                                                 width="24" height="24" viewBox="0 0 24 24" fill="none"
                                                 stroke="currentColor" stroke-width="2" stroke-linecap="round"
@@ -361,11 +361,11 @@ const avatarInitial = computed(() => {
                                                 <path d="M3 21V7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v14" />
                                                 <path d="M9 21V9h6v12" />
                                             </svg>
-                                            Parametres entreprise
+                                            Parametres
                                         </Link>
 
                                         <Link v-if="isOwner" :href="route('settings.billing.edit')"
-                                            class="flex items-center gap-x-3 py-1.5 px-2.5 rounded-lg text-sm text-gray-800 hover:bg-gray-100 focus:outline-none focus:bg-gray-100 dark:text-neutral-300 dark:hover:bg-neutral-800 dark:focus:bg-neutral-800">
+                                            class="flex items-center gap-x-3 py-1.5 px-2.5 rounded-sm text-sm text-gray-800 hover:bg-gray-100 focus:outline-none focus:bg-gray-100 dark:text-neutral-300 dark:hover:bg-neutral-800 dark:focus:bg-neutral-800">
                                             <svg class="shrink-0 mt-0.5 size-4" xmlns="http://www.w3.org/2000/svg"
                                                 width="24" height="24" viewBox="0 0 24 24" fill="none"
                                                 stroke="currentColor" stroke-width="2" stroke-linecap="round"
@@ -377,7 +377,7 @@ const avatarInitial = computed(() => {
                                         </Link>
 
                                         <Link :href="route('profile.edit')"
-                                            class="flex items-center gap-x-3 py-1.5 px-2.5 rounded-lg text-sm text-gray-800 hover:bg-gray-100 focus:outline-none focus:bg-gray-100 dark:text-neutral-300 dark:hover:bg-neutral-800 dark:focus:bg-neutral-800">
+                                            class="flex items-center gap-x-3 py-1.5 px-2.5 rounded-sm text-sm text-gray-800 hover:bg-gray-100 focus:outline-none focus:bg-gray-100 dark:text-neutral-300 dark:hover:bg-neutral-800 dark:focus:bg-neutral-800">
                                             <svg class="shrink-0 mt-0.5 size-4" xmlns="http://www.w3.org/2000/svg"
                                                 width="24" height="24" viewBox="0 0 24 24" fill="none"
                                                 stroke="currentColor" stroke-width="2" stroke-linecap="round"
@@ -405,7 +405,7 @@ const avatarInitial = computed(() => {
                                     </div>
                                     <div class="p-1">
                                         <Link :href="route('logout')" method="post" as="button" type="button"
-                                            class="w-full flex items-center gap-x-3 py-1.5 px-2.5 rounded-lg text-sm text-gray-800 hover:bg-gray-100 focus:outline-none focus:bg-gray-100 dark:text-neutral-300 dark:hover:bg-neutral-800 dark:focus:bg-neutral-800">
+                                            class="w-full flex items-center gap-x-3 py-1.5 px-2.5 rounded-sm text-sm text-gray-800 hover:bg-gray-100 focus:outline-none focus:bg-gray-100 dark:text-neutral-300 dark:hover:bg-neutral-800 dark:focus:bg-neutral-800">
                                             Se deconnecter
                                         </Link>
                                     </div>

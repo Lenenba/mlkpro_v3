@@ -3,14 +3,18 @@
 namespace App\Http\Controllers\Settings;
 
 use App\Http\Controllers\Controller;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
+use Inertia\Inertia;
 use Laravel\Paddle\Subscription;
+use Symfony\Component\HttpFoundation\Response;
 
 class SubscriptionController extends Controller
 {
-    public function portal(Request $request): RedirectResponse
+    public function portal(Request $request): Response
     {
         $user = $request->user();
         if (!$user || !$user->isAccountOwner()) {
@@ -22,7 +26,52 @@ class SubscriptionController extends Controller
             return redirect()->back()->with('error', 'No active subscription found.');
         }
 
-        return $subscription->redirectToUpdatePaymentMethod();
+        $updateUrl = $subscription->paymentMethodUpdateUrl();
+
+        if ($request->header('X-Inertia')) {
+            return Inertia::location($updateUrl);
+        }
+
+        return redirect()->away($updateUrl);
+    }
+
+    public function paymentMethodTransaction(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        if (!$user || !$user->isAccountOwner()) {
+            abort(403);
+        }
+
+        $subscription = $user->subscription(Subscription::DEFAULT_TYPE);
+        if (!$subscription) {
+            return response()->json([
+                'message' => 'No subscription found.',
+            ], 422);
+        }
+
+        try {
+            $transaction = $subscription->paymentMethodUpdateTransaction();
+        } catch (\Throwable $exception) {
+            Log::warning('Unable to create Paddle payment method update transaction.', [
+                'user_id' => $user->id,
+                'exception' => $exception->getMessage(),
+            ]);
+
+            return response()->json([
+                'message' => 'Unable to start payment method update.',
+            ], 500);
+        }
+
+        $transactionId = $transaction['id'] ?? $transaction['transaction_id'] ?? null;
+        if (!$transactionId) {
+            return response()->json([
+                'message' => 'Invalid Paddle transaction response.',
+            ], 500);
+        }
+
+        return response()->json([
+            'transaction_id' => $transactionId,
+        ]);
     }
 
     public function swap(Request $request): RedirectResponse
@@ -75,4 +124,3 @@ class SubscriptionController extends Controller
         ], fn($value) => $value !== null && $value !== ''));
     }
 }
-

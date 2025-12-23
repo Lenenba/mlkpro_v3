@@ -585,7 +585,7 @@ onBeforeUnmount(() => {
                                             31
                                         </button>
                                     </div>
-                                    <div class="bg-gradient-to-r from-stone-100 dark:from-stone-800">
+                                    <div class="bg-stone-100 dark:bg-stone-800">
                                         <button type="button"
                                             class="m-px size-10 flex justify-center items-center border border-transparent text-sm text-stone-800 hover:border-green-600 hover:text-green-600 rounded-full disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-100 dark:text-neutral-200 dark:hover:border-neutral-500 dark:focus:bg-neutral-700"
                                             disabled>
@@ -748,7 +748,7 @@ onBeforeUnmount(() => {
 
                                 <!-- Days -->
                                 <div class="flex">
-                                    <div class="bg-gradient-to-l from-stone-100 dark:from-stone-800">
+                                    <div class="bg-stone-100 dark:bg-stone-800">
                                         <button type="button"
                                             class="m-px size-10 flex justify-center items-center border border-transparent text-sm text-stone-800 hover:border-green-600 hover:text-green-600 rounded-full disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-100 dark:text-neutral-200 dark:hover:border-neutral-500 dark:focus:bg-neutral-700"
                                             disabled>

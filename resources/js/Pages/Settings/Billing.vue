@@ -1,7 +1,8 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue';
+import axios from 'axios';
 import { Head, router, useForm } from '@inertiajs/vue3';
-import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import SettingsLayout from '@/Layouts/SettingsLayout.vue';
 import Checkbox from '@/Components/Checkbox.vue';
 
 const props = defineProps({
@@ -41,8 +42,10 @@ const form = useForm({
 
 const paddleUiError = ref('');
 const paddleIsLoading = ref(false);
+const paymentMethodIsLoading = ref(false);
 
 const isSubscribed = computed(() => Boolean(props.subscription?.active));
+const hasSubscription = computed(() => Boolean(props.subscription?.paddle_id));
 const hasPlans = computed(() => props.plans.some((plan) => Boolean(plan.price_id)));
 const canUsePaddle = computed(() => Boolean(props.paddle?.js_enabled && props.paddle?.api_enabled && !props.paddle?.error));
 
@@ -81,8 +84,52 @@ const submit = () => {
     form.put(route('settings.billing.update'), { preserveScroll: true });
 };
 
-const openPortal = () => {
-    router.post(route('settings.billing.portal'), {}, { preserveScroll: true });
+const startPaymentMethodUpdate = async () => {
+    paddleUiError.value = '';
+
+    if (!canUsePaddle.value) {
+        paddleUiError.value = props.paddle?.error || "Paddle n'est pas configure.";
+        return;
+    }
+
+    if (!hasSubscription.value) {
+        paddleUiError.value = 'Aucun abonnement actif.';
+        return;
+    }
+
+    paymentMethodIsLoading.value = true;
+
+    const ready = await ensurePaddleReady();
+    if (!ready) {
+        paymentMethodIsLoading.value = false;
+        paddleUiError.value = paddleUiError.value || "Paddle.js n'est pas pret. Rechargez la page.";
+        return;
+    }
+
+    try {
+        const response = await axios.post(route('settings.billing.payment-method'));
+        const transactionId = response?.data?.transaction_id;
+
+        if (!transactionId) {
+            throw new Error('Missing transaction id');
+        }
+
+        const successUrl = route('settings.billing.edit', { checkout: 'payment-method' });
+
+        window.Paddle.Checkout.open({
+            transactionId,
+            settings: {
+                displayMode: 'overlay',
+                successUrl,
+                allowLogout: false,
+            },
+        });
+    } catch (error) {
+        const message = error?.response?.data?.message || 'Impossible de lancer la mise a jour du paiement.';
+        paddleUiError.value = message;
+    } finally {
+        paymentMethodIsLoading.value = false;
+    }
 };
 
 const ensurePaddleReady = async () => {
@@ -228,8 +275,8 @@ watch(
 <template>
     <Head title="Facturation" />
 
-    <AuthenticatedLayout>
-        <div class="mx-auto w-full max-w-4xl space-y-5">
+    <SettingsLayout active="billing">
+        <div class="w-full max-w-4xl space-y-5">
             <div class="flex flex-col bg-white border border-gray-200 shadow-sm rounded-sm overflow-hidden dark:bg-neutral-800 dark:border-neutral-700">
                 <div class="p-4 space-y-4">
                     <div class="flex flex-wrap items-start justify-between gap-4">
@@ -239,9 +286,10 @@ watch(
                                 Choisissez un plan mensuel pour activer toutes les fonctionnalites.
                             </p>
                         </div>
-                        <button v-if="subscription?.active" type="button" @click="openPortal"
-                            class="py-2 px-3 text-sm font-medium rounded-sm border border-gray-200 text-gray-700 hover:bg-gray-50 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700">
-                            Gerer le paiement
+                        <button v-if="hasSubscription" type="button" @click="startPaymentMethodUpdate"
+                            :disabled="paymentMethodIsLoading"
+                            class="py-2 px-3 text-sm font-medium rounded-sm border border-gray-200 text-gray-700 hover:bg-gray-50 disabled:opacity-60 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700">
+                            Mettre a jour la carte
                         </button>
                     </div>
 
@@ -269,6 +317,10 @@ watch(
                         class="rounded-sm border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
                         Plan mis à jour vers <strong class="text-emerald-700">{{ checkoutPlanName || 'le nouveau plan' }}</strong>.
                     </div>
+                    <div v-else-if="checkoutStatus === 'payment-method'"
+                        class="rounded-sm border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+                        Carte mise a jour. Merci !
+                    </div>
                     <div v-else-if="checkoutStatus === 'cancel'"
                         class="rounded-sm border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
                         Paiement annule. Choisissez un plan pour continuer.
@@ -290,74 +342,267 @@ watch(
                         Aucun plan configure. Ajoutez vos PRICE_ID Paddle dans l'environnement.
                     </div>
 
-                    <div class="grid gap-3 md:grid-cols-3">
-                        <div v-for="plan in plans" :key="plan.key"
-                            :class="[
-                                'rounded-sm p-4 shadow-sm transition',
-                                plan.price_id === subscription?.price_id
-                                    ? 'border border-emerald-400 bg-emerald-50/70 dark:border-emerald-500 dark:bg-emerald-900/30'
-                                    : 'border border-gray-200 bg-white dark:border-neutral-700 dark:bg-neutral-900'
-                            ]">
-                            <div class="flex items-center justify-between">
-                                <h3 class="text-sm font-semibold text-gray-800 dark:text-neutral-100">{{ plan.name }}</h3>
-                                <span v-if="subscription?.price_id === plan.price_id"
-                                    class="rounded-full bg-emerald-100 px-2 py-0.5 text-xs text-emerald-700">
-                                    Actif
-                                </span>
+                    <div class="billing-plans">
+                        <div class="billing-plans__grid">
+                            <div v-for="plan in plans" :key="plan.key" class="plan-card"
+                                :data-active="plan.price_id === subscription?.price_id">
+                                <div class="plan-card__top">
+                                    <div>
+                                        <h3 class="plan-card__name">{{ plan.name }}</h3>
+                                        <p class="plan-card__meta">Plan mensuel</p>
+                                    </div>
+                                    <span v-if="subscription?.price_id === plan.price_id"
+                                        class="plan-card__badge plan-card__badge--active">
+                                        Actif
+                                    </span>
+                                    <span v-else-if="plan.key === 'growth'" class="plan-card__badge">Populaire</span>
+                                </div>
+                                <div class="plan-card__price">
+                                    <span class="plan-card__amount">{{ plan.display_price || '--' }}</span>
+                                    <span class="plan-card__interval">/mois</span>
+                                </div>
+                                <p v-if="subscription?.active && plan.price_id === subscription?.price_id"
+                                    class="plan-card__status">
+                                    Vous etes sur ce plan.
+                                </p>
+                                <ul class="plan-card__features">
+                                    <li v-for="feature in plan.features" :key="feature" class="plan-card__feature">
+                                        {{ feature }}
+                                    </li>
+                                </ul>
+                                <button type="button" @click="startCheckout(plan)" class="plan-card__cta"
+                                    :disabled="paddleIsLoading || !plan.price_id || plan.price_id === subscription?.price_id"
+                                    :class="{ 'is-active': plan.price_id === subscription?.price_id }">
+                                    <span v-if="plan.price_id === subscription?.price_id">Plan actif</span>
+                                    <span v-else>{{ planActionLabel }}</span>
+                                </button>
                             </div>
-                            <div class="mt-2 text-2xl font-semibold text-gray-900 dark:text-white">
-                                <span v-if="plan.display_price">{{ plan.display_price }}</span>
-                                <span v-else>--</span>
-                                <span class="text-sm font-normal text-gray-500 dark:text-neutral-400">/mois</span>
-                            </div>
-                            <p v-if="subscription?.active && plan.price_id === subscription?.price_id"
-                                class="mt-1 text-xs text-emerald-700 dark:text-emerald-200">
-                                Vous êtes sur ce plan.
-                            </p>
-                            <ul class="mt-3 space-y-1 text-xs text-gray-600 dark:text-neutral-400">
-                                <li v-for="feature in plan.features" :key="feature">- {{ feature }}</li>
-                            </ul>
-                            <button type="button" @click="startCheckout(plan)"
-                                :disabled="paddleIsLoading || !plan.price_id || plan.price_id === subscription?.price_id"
-                                :class="[
-                                    'mt-4 w-full rounded-sm px-3 py-2 text-sm font-medium transition',
-                                    plan.price_id === subscription?.price_id
-                                        ? 'border border-gray-200 bg-gray-200 text-gray-500 cursor-not-allowed dark:border-neutral-600 dark:bg-neutral-800 dark:text-neutral-400'
-                                        : 'border border-transparent bg-green-600 text-white hover:bg-green-700'
-                                ]">
-                                <span v-if="plan.price_id === subscription?.price_id">Plan actif</span>
-                                <span v-else>{{ planActionLabel }}</span>
-                            </button>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <div>
-                <h1 class="text-xl font-semibold text-gray-800 dark:text-neutral-100">Parametres de paiement</h1>
-                <p class="mt-1 text-sm text-gray-600 dark:text-neutral-400">
-                    Definissez les moyens de paiement disponibles dans l'application.
-                </p>
-            </div>
-
-            <div class="flex flex-col bg-white border border-gray-200 shadow-sm rounded-sm overflow-hidden dark:bg-neutral-800 dark:border-neutral-700">
-                <div class="p-4 space-y-3">
-                    <div class="space-y-2">
-                        <label v-for="method in availableMethods" :key="method.id"
-                            class="flex items-center gap-2 text-sm text-gray-700 dark:text-neutral-200">
-                            <Checkbox v-model:checked="form.payment_methods" :value="method.id" />
-                            <span>{{ method.name }}</span>
-                        </label>
-                    </div>
-
-                    <div class="flex justify-end">
-                        <button type="button" @click="submit" :disabled="form.processing"
-                            class="py-2 px-3 text-sm font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:pointer-events-none">
-                            Enregistrer
-                        </button>
-                    </div>
-                </div>
-            </div>
         </div>
-    </AuthenticatedLayout>
+    </SettingsLayout>
 </template>
+
+<style scoped>
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap');
+
+.billing-plans {
+    --plan-bg: #f8fafc;
+    --plan-card: #ffffff;
+    --plan-border: rgba(15, 23, 42, 0.08);
+    --plan-border-hover: rgba(15, 23, 42, 0.18);
+    --plan-text: #0f172a;
+    --plan-muted: rgba(15, 23, 42, 0.6);
+    --plan-accent: rgba(16, 185, 129, 0.85);
+    --plan-status: rgba(15, 118, 110, 0.85);
+    --plan-shadow: 0 18px 40px rgba(15, 23, 42, 0.12);
+    --plan-shadow-hover: 0 24px 50px rgba(15, 23, 42, 0.16);
+    --plan-active-shadow: 0 0 0 1px rgba(16, 185, 129, 0.25), 0 22px 40px rgba(16, 185, 129, 0.15);
+    --plan-badge-bg: rgba(15, 23, 42, 0.06);
+    --plan-badge-border: rgba(15, 23, 42, 0.14);
+    --plan-badge-text: #0f172a;
+    --plan-badge-active-bg: rgba(16, 185, 129, 0.16);
+    --plan-badge-active-border: rgba(16, 185, 129, 0.5);
+    --plan-badge-active-text: #0f766e;
+    --plan-dot: rgba(148, 163, 184, 0.9);
+    --plan-dot-ring: rgba(148, 163, 184, 0.18);
+    --plan-cta-bg: rgba(15, 23, 42, 0.04);
+    --plan-cta-border: rgba(15, 23, 42, 0.14);
+    --plan-cta-text: #0f172a;
+    --plan-cta-hover-bg: rgba(15, 23, 42, 0.08);
+    --plan-cta-hover-border: rgba(15, 23, 42, 0.3);
+    --plan-cta-disabled: rgba(15, 23, 42, 0.35);
+    --plan-cta-disabled-bg: rgba(15, 23, 42, 0.06);
+    --plan-cta-disabled-border: rgba(15, 23, 42, 0.1);
+    margin-top: 16px;
+    padding: 20px;
+    border-radius: 2px;
+    border: 1px solid var(--plan-border);
+    background: var(--plan-bg);
+    font-family: "Space Grotesk", "IBM Plex Sans", sans-serif;
+}
+
+:global(.dark) .billing-plans {
+    --plan-bg: #0b0f14;
+    --plan-card: rgba(255, 255, 255, 0.04);
+    --plan-border: rgba(255, 255, 255, 0.08);
+    --plan-border-hover: rgba(255, 255, 255, 0.18);
+    --plan-text: #e2e8f0;
+    --plan-muted: rgba(226, 232, 240, 0.7);
+    --plan-accent: rgba(16, 185, 129, 0.8);
+    --plan-status: rgba(167, 243, 208, 0.85);
+    --plan-shadow: 0 18px 40px rgba(5, 8, 12, 0.45);
+    --plan-shadow-hover: 0 24px 50px rgba(5, 8, 12, 0.55);
+    --plan-active-shadow: 0 0 0 1px rgba(16, 185, 129, 0.35), 0 26px 60px rgba(16, 185, 129, 0.18);
+    --plan-badge-bg: rgba(15, 23, 42, 0.5);
+    --plan-badge-border: rgba(255, 255, 255, 0.16);
+    --plan-badge-text: #e2e8f0;
+    --plan-badge-active-bg: rgba(16, 185, 129, 0.18);
+    --plan-badge-active-border: rgba(16, 185, 129, 0.6);
+    --plan-badge-active-text: #d1fae5;
+    --plan-dot: rgba(148, 163, 184, 0.9);
+    --plan-dot-ring: rgba(148, 163, 184, 0.12);
+    --plan-cta-bg: rgba(15, 23, 42, 0.8);
+    --plan-cta-border: rgba(255, 255, 255, 0.18);
+    --plan-cta-text: #f8fafc;
+    --plan-cta-hover-bg: rgba(15, 23, 42, 0.95);
+    --plan-cta-hover-border: rgba(255, 255, 255, 0.32);
+    --plan-cta-disabled: rgba(226, 232, 240, 0.6);
+    --plan-cta-disabled-bg: rgba(15, 23, 42, 0.5);
+    --plan-cta-disabled-border: rgba(255, 255, 255, 0.08);
+    background: var(--plan-bg);
+}
+
+.billing-plans__grid {
+    display: grid;
+    gap: 16px;
+}
+
+@media (min-width: 768px) {
+    .billing-plans__grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
+.plan-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding: 20px;
+    border-radius: 2px;
+    border: 1px solid var(--plan-border);
+    background: var(--plan-card);
+    color: var(--plan-text);
+    box-shadow: var(--plan-shadow);
+    backdrop-filter: blur(10px);
+    transition: transform 150ms ease, box-shadow 150ms ease, border-color 150ms ease;
+}
+
+.plan-card:hover {
+    transform: translateY(-2px);
+    border-color: var(--plan-border-hover);
+    box-shadow: var(--plan-shadow-hover);
+}
+
+.plan-card[data-active="true"] {
+    border-color: var(--plan-accent);
+    box-shadow: var(--plan-active-shadow);
+}
+
+.plan-card__top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.plan-card__name {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--plan-text);
+}
+
+.plan-card__meta {
+    margin-top: 2px;
+    font-size: 0.75rem;
+    color: var(--plan-muted);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.plan-card__badge {
+    border-radius: 2px;
+    border: 1px solid var(--plan-badge-border);
+    padding: 4px 10px;
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--plan-badge-text);
+    background: var(--plan-badge-bg);
+}
+
+.plan-card__badge--active {
+    border-color: var(--plan-badge-active-border);
+    color: var(--plan-badge-active-text);
+    background: var(--plan-badge-active-bg);
+}
+
+.plan-card__price {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+}
+
+.plan-card__amount {
+    font-size: 2.25rem;
+    font-weight: 600;
+    color: var(--plan-text);
+}
+
+.plan-card__interval {
+    font-size: 0.9rem;
+    color: var(--plan-muted);
+}
+
+.plan-card__status {
+    font-size: 0.78rem;
+    color: var(--plan-status);
+}
+
+.plan-card__features {
+    display: grid;
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    color: rgba(226, 232, 240, 0.85);
+    font-size: 0.8rem;
+}
+
+.plan-card__feature {
+    position: relative;
+    padding-left: 18px;
+}
+
+.plan-card__feature::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0.35rem;
+    width: 6px;
+    height: 6px;
+    border-radius: 2px;
+    background: var(--plan-dot);
+    box-shadow: 0 0 0 3px var(--plan-dot-ring);
+}
+
+.plan-card__cta {
+    width: 100%;
+    border-radius: 2px;
+    border: 1px solid var(--plan-cta-border);
+    background: var(--plan-cta-bg);
+    color: var(--plan-cta-text);
+    padding: 10px 14px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    transition: transform 150ms ease, border-color 150ms ease, background 150ms ease;
+}
+
+.plan-card__cta:hover:not(:disabled) {
+    transform: translateY(-1px);
+    border-color: var(--plan-cta-hover-border);
+    background: var(--plan-cta-hover-bg);
+}
+
+.plan-card__cta:disabled,
+.plan-card__cta.is-active {
+    cursor: not-allowed;
+    color: var(--plan-cta-disabled);
+    background: var(--plan-cta-disabled-bg);
+    border-color: var(--plan-cta-disabled-border);
+}
+</style>

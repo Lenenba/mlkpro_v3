@@ -177,7 +177,7 @@ const submitWorkRating = (workId) => {
     <AuthenticatedLayout>
         <div class="space-y-6">
             <section
-                class="rounded-sm border border-stone-200 bg-gradient-to-br from-white via-white to-sky-50 p-5 shadow-sm dark:border-neutral-700 dark:from-neutral-900 dark:via-neutral-900 dark:to-neutral-800">
+                class="rounded-sm border border-stone-200 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
                 <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                     <div class="space-y-1">
                         <h1 class="text-xl font-semibold text-stone-800 dark:text-neutral-100">

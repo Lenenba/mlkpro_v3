@@ -1,7 +1,7 @@
 <script setup>
 import { computed, watch } from 'vue';
 import { Head, useForm } from '@inertiajs/vue3';
-import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import SettingsLayout from '@/Layouts/SettingsLayout.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import InputError from '@/Components/InputError.vue';
 import DropzoneInput from '@/Components/DropzoneInput.vue';
@@ -244,8 +244,8 @@ const addCategory = () => {
 <template>
     <Head title="Entreprise" />
 
-    <AuthenticatedLayout>
-        <div class="mx-auto w-full max-w-4xl space-y-5">
+    <SettingsLayout active="company">
+        <div class="w-full max-w-4xl space-y-5">
             <div class="flex items-center justify-between">
                 <div>
                     <h1 class="text-xl font-semibold text-gray-800 dark:text-neutral-100">Parametres entreprise</h1>
@@ -376,5 +376,5 @@ const addCategory = () => {
                 </div>
             </div>
         </div>
-    </AuthenticatedLayout>
+    </SettingsLayout>
 </template>

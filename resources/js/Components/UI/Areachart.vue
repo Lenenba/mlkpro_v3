@@ -61,13 +61,8 @@ const chartOptions = {
     borderColor: '#e5e7eb',
   },
   fill: {
-    type: 'gradient',
-    gradient: {
-      type: 'vertical',
-      shadeIntensity: 1,
-      opacityFrom: 0.1,
-      opacityTo: 0.8,
-    },
+    type: 'solid',
+    opacity: 0.15,
   },
   xaxis: {
     type: 'category',

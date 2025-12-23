@@ -13,6 +13,17 @@ export default {
     ],
 
     theme: {
+        borderRadius: {
+            none: '0px',
+            sm: '0.125rem',
+            DEFAULT: '0.125rem',
+            md: '0.125rem',
+            lg: '0.125rem',
+            xl: '0.125rem',
+            '2xl': '0.125rem',
+            '3xl': '0.125rem',
+            full: '0.125rem',
+        },
         extend: {
             fontFamily: {
                 sans: ['Figtree', ...defaultTheme.fontFamily.sans],

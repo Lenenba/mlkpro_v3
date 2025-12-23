@@ -1,5 +1,5 @@
 <script setup>
-import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import SettingsLayout from '@/Layouts/SettingsLayout.vue';
 import DeleteUserForm from './Partials/DeleteUserForm.vue';
 import UpdatePasswordForm from './Partials/UpdatePasswordForm.vue';
 import UpdateProfileInformationForm from './Partials/UpdateProfileInformationForm.vue';
@@ -16,41 +16,38 @@ defineProps({
 </script>
 
 <template>
-    <Head title="Profile" />
+    <Head title="Profil" />
 
-    <AuthenticatedLayout>
-        <template #header>
-            <h2
-                class="text-xl font-semibold leading-tight text-gray-800"
-            >
-                Profile
-            </h2>
-        </template>
+    <SettingsLayout active="profile">
+        <div class="w-full max-w-4xl space-y-5">
+            <div>
+                <h1 class="text-xl font-semibold text-gray-800 dark:text-neutral-100">Profil</h1>
+                <p class="mt-1 text-sm text-gray-600 dark:text-neutral-400">
+                    Gere vos informations de compte et la securite.
+                </p>
+            </div>
 
-        <div class="py-12">
-            <div class="mx-auto max-w-7xl space-y-6 sm:px-6 lg:px-8">
-                <div
-                    class="bg-white p-4 shadow sm:rounded-lg sm:p-8"
-                >
+            <div class="flex flex-col bg-white border border-gray-200 shadow-sm rounded-sm overflow-hidden dark:bg-neutral-800 dark:border-neutral-700">
+                <div class="p-4">
                     <UpdateProfileInformationForm
                         :must-verify-email="mustVerifyEmail"
                         :status="status"
                         class="max-w-xl"
                     />
                 </div>
+            </div>
 
-                <div
-                    class="bg-white p-4 shadow sm:rounded-lg sm:p-8"
-                >
+            <div class="flex flex-col bg-white border border-gray-200 shadow-sm rounded-sm overflow-hidden dark:bg-neutral-800 dark:border-neutral-700">
+                <div class="p-4">
                     <UpdatePasswordForm class="max-w-xl" />
                 </div>
+            </div>
 
-                <div
-                    class="bg-white p-4 shadow sm:rounded-lg sm:p-8"
-                >
+            <div class="flex flex-col bg-white border border-gray-200 shadow-sm rounded-sm overflow-hidden dark:bg-neutral-800 dark:border-neutral-700">
+                <div class="p-4">
                     <DeleteUserForm class="max-w-xl" />
                 </div>
             </div>
         </div>
-    </AuthenticatedLayout>
+    </SettingsLayout>
 </template>
