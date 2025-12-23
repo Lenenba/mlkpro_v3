@@ -20,6 +20,7 @@ use App\Http\Controllers\RequestController;
 use App\Http\Controllers\WorkMediaController;
 use App\Http\Controllers\WorkChecklistController;
 use App\Http\Controllers\WelcomeController;
+use App\Http\Controllers\LocaleController;
 use App\Http\Controllers\Settings\CompanySettingsController;
 use App\Http\Controllers\Settings\BillingSettingsController;
 use App\Http\Controllers\Settings\ProductCategoryController;
@@ -53,6 +54,7 @@ Route::get('/', [WelcomeController::class, 'index'])->name('welcome');
 
 // Dashboard Route
 Route::get('/dashboard', [DashboardController::class, 'index'])->middleware(['auth', 'verified'])->name('dashboard');
+Route::post('/locale', [LocaleController::class, 'update'])->name('locale.update');
 
 // Authenticated User Routes
 Route::middleware('auth')->group(function () {

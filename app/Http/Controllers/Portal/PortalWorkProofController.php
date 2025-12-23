@@ -33,7 +33,7 @@ class PortalWorkProofController extends Controller
 
         $tasks = $work->tasks()
             ->whereIn('status', ['in_progress', 'done'])
-            ->with(['assignee.user:id,name', 'media.user:id,name'])
+            ->with(['assignee.user:id,name', 'media.user:id,name', 'materials.product:id,name,unit,price'])
             ->orderByRaw('CASE WHEN due_date IS NULL THEN 1 ELSE 0 END')
             ->orderBy('due_date')
             ->orderBy('start_time')
@@ -56,6 +56,20 @@ class PortalWorkProofController extends Controller
                     'start_time' => $task->start_time,
                     'end_time' => $task->end_time,
                     'assignee' => $task->assignee?->user?->name,
+                    'materials' => $task->materials
+                        ->where('billable', true)
+                        ->sortBy('sort_order')
+                        ->values()
+                        ->map(function ($material) {
+                            return [
+                                'id' => $material->id,
+                                'label' => $material->label,
+                                'quantity' => $material->quantity,
+                                'unit' => $material->unit,
+                                'unit_price' => $material->unit_price,
+                                'product_name' => $material->product?->name,
+                            ];
+                        }),
                     'media' => $task->media
                         ->sortByDesc('created_at')
                         ->values()

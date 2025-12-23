@@ -1,0 +1,93 @@
+{
+    "nav": {
+        "admin": "Admin",
+        "tenants": "Tenants",
+        "support": "Support",
+        "admins": "Admins",
+        "notifications": "Notifications",
+        "settings": "Settings",
+        "dashboard": "Dashboard",
+        "customers": "Customers",
+        "products": "Products",
+        "services": "Services",
+        "quotes": "Quotes",
+        "requests": "Requests",
+        "jobs": "Jobs",
+        "tasks": "Tasks",
+        "team": "Team",
+        "invoices": "Invoices"
+    },
+    "account": {
+        "default_name": "Account",
+        "company_label": "Company",
+        "settings": "Settings",
+        "billing": "Billing",
+        "profile": "My account",
+        "dark_mode": "Dark mode",
+        "logout": "Sign out",
+        "language": "Language"
+    },
+    "language": {
+        "fr": "French",
+        "en": "English"
+    },
+    "alerts": {
+        "maintenance": {
+            "title": "Maintenance mode",
+            "message": "The platform is currently in maintenance mode."
+        },
+        "impersonation": {
+            "title": "Impersonating",
+            "message": "You are impersonating this account. Original admin: {name}."
+        },
+        "success": {
+            "title": "Success."
+        },
+        "error": {
+            "title": "Error."
+        },
+        "warning": {
+            "title": "Warning."
+        }
+    },
+    "actions": {
+        "stop_impersonation": "Stop impersonation"
+    },
+    "quick_create": {
+        "customer": "Customer",
+        "service": "Service",
+        "request": "Request",
+        "quote": "Quote",
+        "product": "Product"
+    },
+    "settings": {
+        "groups": {
+            "account": "Account",
+            "platform": "Platform"
+        },
+        "items": {
+            "profile": {
+                "label": "Profile",
+                "description": "Identity and access"
+            },
+            "security": {
+                "label": "Security",
+                "description": "Password and 2FA",
+                "badge": "Soon"
+            },
+            "company": {
+                "label": "Company",
+                "description": "Info and categories"
+            },
+            "billing": {
+                "label": "Billing",
+                "description": "Plan and payments"
+            },
+            "notifications": {
+                "label": "Notifications",
+                "description": "Emails and alerts",
+                "badge": "Soon"
+            }
+        }
+    }
+}

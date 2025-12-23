@@ -15,6 +15,10 @@ const props = defineProps({
     canManage: Boolean,
     canDelete: Boolean,
     canEditStatus: Boolean,
+    materialProducts: {
+        type: Array,
+        default: () => [],
+    },
 });
 </script>
 
@@ -33,8 +37,8 @@ const props = defineProps({
                 :canManage="canManage"
                 :canDelete="canDelete"
                 :canEditStatus="canEditStatus"
+                :materialProducts="materialProducts"
             />
         </div>
     </AuthenticatedLayout>
 </template>
-

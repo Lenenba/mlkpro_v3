@@ -159,6 +159,30 @@ const proofType = (type) => {
                         </span>
                     </div>
 
+                    <div v-if="task.materials?.length" class="mt-4">
+                        <div class="text-xs uppercase tracking-wide text-stone-500 dark:text-neutral-400">
+                            Materiel
+                        </div>
+                        <div class="mt-2 space-y-2">
+                            <div v-for="material in task.materials" :key="material.id"
+                                class="flex flex-wrap items-center justify-between gap-2 rounded-sm border border-stone-200 bg-stone-50 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-800">
+                                <div class="text-sm text-stone-700 dark:text-neutral-200">
+                                    {{ material.label }}
+                                </div>
+                                <div class="text-xs text-stone-500 dark:text-neutral-400">
+                                    {{ material.quantity }} {{ material.unit || '' }}
+                                </div>
+                                <div v-if="!isClient" class="text-xs text-stone-500 dark:text-neutral-400">
+                                    {{ Number(material.unit_price || 0).toFixed(2) }}
+                                </div>
+                                <span v-if="!isClient && material.billable"
+                                    class="rounded-sm bg-emerald-100 px-2 py-0.5 text-[11px] font-medium text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300">
+                                    Billable
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
                     <div v-if="task.media?.length" class="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                         <div v-for="media in task.media" :key="media.id"
                             class="rounded-sm border border-stone-200 bg-white p-3 text-sm dark:border-neutral-700 dark:bg-neutral-900">

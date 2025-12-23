@@ -3,7 +3,10 @@ import { computed, ref, watch } from 'vue';
 import { Link, router, useForm } from '@inertiajs/vue3';
 import Modal from '@/Components/UI/Modal.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
+import FloatingNumberInput from '@/Components/FloatingNumberInput.vue';
+import FloatingSelect from '@/Components/FloatingSelect.vue';
 import FloatingTextarea from '@/Components/FloatingTextarea.vue';
+import Checkbox from '@/Components/Checkbox.vue';
 import InputError from '@/Components/InputError.vue';
 import { humanizeDate } from '@/utils/date';
 
@@ -21,6 +24,10 @@ const props = defineProps({
         default: () => [],
     },
     teamMembers: {
+        type: Array,
+        default: () => [],
+    },
+    materialProducts: {
         type: Array,
         default: () => [],
     },
@@ -112,12 +119,83 @@ const formatDate = (value) => humanizeDate(value) || String(value || '');
 
 const canChangeStatus = computed(() => props.canManage || props.canEditStatus);
 
+const materialOptions = computed(() => [
+    { id: '', name: 'Custom' },
+    ...props.materialProducts.map((product) => ({
+        id: product.id,
+        name: product.name,
+    })),
+]);
+
+const materialProductMap = computed(() => {
+    const map = new Map();
+    props.materialProducts.forEach((product) => {
+        map.set(product.id, product);
+    });
+    return map;
+});
+
+const buildMaterial = (material = {}, index = 0) => ({
+    id: material.id ?? null,
+    product_id: material.product_id ?? '',
+    label: material.label ?? '',
+    description: material.description ?? '',
+    unit: material.unit ?? '',
+    quantity: material.quantity ?? 1,
+    unit_price: material.unit_price ?? 0,
+    billable: material.billable ?? true,
+    sort_order: material.sort_order ?? index,
+    source_service_id: material.source_service_id ?? null,
+});
+
+const mapTaskMaterials = (materials = []) =>
+    materials.map((material, index) => buildMaterial(material, index));
+
+const addMaterial = (form) => {
+    form.materials.push(buildMaterial({}, form.materials.length));
+};
+
+const removeMaterial = (form, index) => {
+    form.materials.splice(index, 1);
+};
+
+const applyMaterialDefaults = (material) => {
+    if (!material.product_id) {
+        return;
+    }
+    const product = materialProductMap.value.get(Number(material.product_id));
+    if (!product) {
+        return;
+    }
+    if (!material.label) {
+        material.label = product.name;
+    }
+    if (!material.unit) {
+        material.unit = product.unit || '';
+    }
+    if (!material.unit_price) {
+        material.unit_price = product.price || 0;
+    }
+};
+
+const normalizeMaterials = (materials) =>
+    materials
+        .map((material, index) => ({
+            ...material,
+            product_id: material.product_id || null,
+            sort_order: index,
+        }))
+        .filter((material) => material.label || material.product_id);
+
+const isTaskLocked = (task) => task?.status === 'done';
+
 const createForm = useForm({
     title: '',
     description: '',
     status: 'todo',
     due_date: '',
     assigned_team_member_id: '',
+    materials: [],
 });
 
 const closeOverlay = (overlayId) => {
@@ -131,11 +209,14 @@ const submitCreate = () => {
         return;
     }
 
+    createForm.materials = normalizeMaterials(createForm.materials);
+
     createForm.post(route('task.store'), {
         preserveScroll: true,
         onSuccess: () => {
             createForm.reset('title', 'description', 'due_date', 'assigned_team_member_id');
             createForm.status = 'todo';
+            createForm.materials = [];
             closeOverlay('#hs-task-create');
         },
     });
@@ -150,10 +231,14 @@ const editForm = useForm({
     assigned_team_member_id: '',
     customer_id: null,
     product_id: null,
+    materials: [],
 });
 
 const openEditTask = (task) => {
     if (!props.canManage) {
+        return;
+    }
+    if (isTaskLocked(task)) {
         return;
     }
 
@@ -167,6 +252,7 @@ const openEditTask = (task) => {
     editForm.assigned_team_member_id = task.assigned_team_member_id || '';
     editForm.customer_id = task.customer_id ?? null;
     editForm.product_id = task.product_id ?? null;
+    editForm.materials = mapTaskMaterials(task.materials || []);
 
     if (window.HSOverlay) {
         window.HSOverlay.open('#hs-task-edit');
@@ -178,6 +264,8 @@ const submitEdit = () => {
         return;
     }
 
+    editForm.materials = normalizeMaterials(editForm.materials);
+
     editForm.put(route('task.update', editingTaskId.value), {
         preserveScroll: true,
         onSuccess: () => {
@@ -187,7 +275,7 @@ const submitEdit = () => {
 };
 
 const setTaskStatus = (task, status) => {
-    if (!canChangeStatus.value || task.status === status) {
+    if (!canChangeStatus.value || task.status === status || isTaskLocked(task)) {
         return;
     }
 
@@ -402,17 +490,17 @@ const submitProof = () => {
                                             <div class="px-2 py-1 text-[11px] uppercase tracking-wide text-stone-400 dark:text-neutral-500">
                                                 Set status
                                             </div>
-                                            <button type="button" :disabled="!canChangeStatus || task.status === 'todo'"
+                                            <button type="button" :disabled="!canChangeStatus || task.status === 'todo' || isTaskLocked(task)"
                                                 @click="setTaskStatus(task, 'todo')"
                                                 class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-lg text-[13px] text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none dark:text-neutral-300 dark:hover:bg-neutral-800">
                                                 To do
                                             </button>
-                                            <button type="button" :disabled="!canChangeStatus || task.status === 'in_progress'"
+                                            <button type="button" :disabled="!canChangeStatus || task.status === 'in_progress' || isTaskLocked(task)"
                                                 @click="setTaskStatus(task, 'in_progress')"
                                                 class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-lg text-[13px] text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none dark:text-neutral-300 dark:hover:bg-neutral-800">
                                                 In progress
                                             </button>
-                                            <button type="button" :disabled="!canChangeStatus || task.status === 'done'"
+                                            <button type="button" :disabled="!canChangeStatus || task.status === 'done' || isTaskLocked(task)"
                                                 @click="setTaskStatus(task, 'done')"
                                                 class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-lg text-[13px] text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none dark:text-neutral-300 dark:hover:bg-neutral-800">
                                                 Done
@@ -423,7 +511,8 @@ const submitProof = () => {
                                             </template>
 
                                             <button v-if="canManage" type="button" @click="openEditTask(task)"
-                                                class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-lg text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
+                                                :disabled="isTaskLocked(task)"
+                                                class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-lg text-[13px] text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none dark:text-neutral-300 dark:hover:bg-neutral-800">
                                                 Edit
                                             </button>
                                             <button v-if="canChangeStatus" type="button" @click="openProofUpload(task)"
@@ -532,6 +621,47 @@ const submitProof = () => {
                 </div>
             </div>
 
+            <div class="space-y-3">
+                <div class="flex items-center justify-between">
+                    <p class="text-xs uppercase tracking-wide text-stone-500 dark:text-neutral-500">Materials</p>
+                    <button type="button" @click="addMaterial(createForm)"
+                        class="py-1.5 px-2.5 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200">
+                        Add material
+                    </button>
+                </div>
+                <div v-if="createForm.materials.length" class="space-y-3">
+                    <div v-for="(material, index) in createForm.materials" :key="material.id || index"
+                        class="rounded-sm border border-stone-200 bg-stone-50 p-3 space-y-3 dark:border-neutral-700 dark:bg-neutral-900">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <FloatingSelect
+                                v-model="material.product_id"
+                                :options="materialOptions"
+                                label="Product"
+                                @update:modelValue="applyMaterialDefaults(material)"
+                            />
+                            <FloatingInput v-model="material.label" label="Label" />
+                            <FloatingNumberInput v-model="material.quantity" label="Quantity" />
+                            <FloatingNumberInput v-model="material.unit_price" label="Unit price" />
+                            <FloatingInput v-model="material.unit" label="Unit" />
+                            <div class="flex items-center gap-2 p-2 rounded-sm border border-stone-200 bg-white dark:bg-neutral-900 dark:border-neutral-700">
+                                <Checkbox v-model:checked="material.billable" />
+                                <span class="text-sm text-stone-600 dark:text-neutral-400">Billable</span>
+                            </div>
+                        </div>
+                        <FloatingTextarea v-model="material.description" label="Description (optional)" />
+                        <div class="flex justify-end">
+                            <button type="button" @click="removeMaterial(createForm, index)"
+                                class="py-1.5 px-2.5 text-xs font-medium rounded-sm border border-red-200 bg-white text-red-600 hover:bg-red-50 dark:bg-neutral-800 dark:border-red-500/40 dark:text-red-400">
+                                Remove
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <p v-else class="text-xs text-stone-500 dark:text-neutral-500">
+                    No materials yet.
+                </p>
+            </div>
+
             <div class="flex justify-end gap-2">
                 <button type="button" data-hs-overlay="#hs-task-create"
                     class="py-2 px-3 inline-flex items-center text-sm font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200">
@@ -585,6 +715,47 @@ const submitProof = () => {
                     </select>
                     <InputError class="mt-1" :message="editForm.errors.assigned_team_member_id" />
                 </div>
+            </div>
+
+            <div class="space-y-3">
+                <div class="flex items-center justify-between">
+                    <p class="text-xs uppercase tracking-wide text-stone-500 dark:text-neutral-500">Materials</p>
+                    <button type="button" @click="addMaterial(editForm)"
+                        class="py-1.5 px-2.5 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200">
+                        Add material
+                    </button>
+                </div>
+                <div v-if="editForm.materials.length" class="space-y-3">
+                    <div v-for="(material, index) in editForm.materials" :key="material.id || index"
+                        class="rounded-sm border border-stone-200 bg-stone-50 p-3 space-y-3 dark:border-neutral-700 dark:bg-neutral-900">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <FloatingSelect
+                                v-model="material.product_id"
+                                :options="materialOptions"
+                                label="Product"
+                                @update:modelValue="applyMaterialDefaults(material)"
+                            />
+                            <FloatingInput v-model="material.label" label="Label" />
+                            <FloatingNumberInput v-model="material.quantity" label="Quantity" />
+                            <FloatingNumberInput v-model="material.unit_price" label="Unit price" />
+                            <FloatingInput v-model="material.unit" label="Unit" />
+                            <div class="flex items-center gap-2 p-2 rounded-sm border border-stone-200 bg-white dark:bg-neutral-900 dark:border-neutral-700">
+                                <Checkbox v-model:checked="material.billable" />
+                                <span class="text-sm text-stone-600 dark:text-neutral-400">Billable</span>
+                            </div>
+                        </div>
+                        <FloatingTextarea v-model="material.description" label="Description (optional)" />
+                        <div class="flex justify-end">
+                            <button type="button" @click="removeMaterial(editForm, index)"
+                                class="py-1.5 px-2.5 text-xs font-medium rounded-sm border border-red-200 bg-white text-red-600 hover:bg-red-50 dark:bg-neutral-800 dark:border-red-500/40 dark:text-red-400">
+                                Remove
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <p v-else class="text-xs text-stone-500 dark:text-neutral-500">
+                    No materials yet.
+                </p>
             </div>
 
             <div class="flex justify-end gap-2">

@@ -88,6 +88,8 @@ class HandleInertiaRequests extends Middleware
             'platform' => [
                 'maintenance' => $maintenance,
             ],
+            'locale' => app()->getLocale(),
+            'locales' => ['fr', 'en'],
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
                 'error' => fn () => $request->session()->get('error'),

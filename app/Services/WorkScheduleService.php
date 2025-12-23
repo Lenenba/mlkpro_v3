@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Task;
 use App\Models\TeamMember;
 use App\Models\Work;
+use App\Models\Product;
 use Illuminate\Support\Carbon;
 
 class WorkScheduleService
@@ -42,7 +43,9 @@ class WorkScheduleService
         $startTime = $work->start_time ? Carbon::parse($work->start_time)->format('H:i:s') : null;
         $endTime = $work->end_time ? Carbon::parse($work->end_time)->format('H:i:s') : null;
 
-        $tasks = [];
+        $materialTemplate = $this->buildMaterialTemplate($work);
+        $createdCount = 0;
+
         foreach ($dates as $index => $date) {
             $dateString = $date->toDateString();
             if (isset($existingDates[$dateString])) {
@@ -51,7 +54,7 @@ class WorkScheduleService
 
             $assigneeId = $assigneeCount ? $assigneeIds[$index % $assigneeCount] : null;
 
-            $tasks[] = [
+            $task = Task::create([
                 'account_id' => $accountId,
                 'created_by_user_id' => $createdByUserId,
                 'assigned_team_member_id' => $assigneeId,
@@ -65,18 +68,16 @@ class WorkScheduleService
                 'start_time' => $startTime,
                 'end_time' => $endTime,
                 'completed_at' => null,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ];
+            ]);
+
+            $createdCount++;
+
+            if ($materialTemplate) {
+                $task->materials()->createMany($materialTemplate);
+            }
         }
 
-        if (!$tasks) {
-            return 0;
-        }
-
-        Task::insert($tasks);
-
-        return count($tasks);
+        return $createdCount;
     }
 
     private function buildOccurrenceDates(Work $work): array
@@ -178,5 +179,42 @@ class WorkScheduleService
         }
 
         return $dates;
+    }
+
+    private function buildMaterialTemplate(Work $work): array
+    {
+        $services = $work->products()
+            ->where('item_type', Product::ITEM_TYPE_SERVICE)
+            ->with('serviceMaterials')
+            ->get();
+
+        if ($services->isEmpty()) {
+            return [];
+        }
+
+        $materials = [];
+
+        foreach ($services as $service) {
+            $pivotQuantity = (float) ($service->pivot?->quantity ?? 1);
+            $pivotQuantity = $pivotQuantity > 0 ? $pivotQuantity : 1;
+
+            foreach ($service->serviceMaterials as $material) {
+                $quantity = (float) $material->quantity * $pivotQuantity;
+
+                $materials[] = [
+                    'product_id' => $material->product_id,
+                    'source_service_id' => $service->id,
+                    'label' => $material->label,
+                    'description' => $material->description,
+                    'unit' => $material->unit,
+                    'quantity' => max(0, $quantity),
+                    'unit_price' => max(0, (float) $material->unit_price),
+                    'billable' => (bool) $material->billable,
+                    'sort_order' => (int) $material->sort_order,
+                ];
+            }
+        }
+
+        return $materials;
     }
 }

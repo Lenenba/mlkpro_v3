@@ -15,6 +15,10 @@ const props = defineProps({
         type: Array,
         required: true,
     },
+    materialProducts: {
+        type: Array,
+        default: () => [],
+    },
     count: {
         type: Number,
         required: true,
@@ -387,6 +391,7 @@ const destroyService = (service) => {
                 :key="editingService?.id || 'new'"
                 :id="'hs-service-upsert'"
                 :categories="categories"
+                :materialProducts="materialProducts"
                 :service="editingService"
                 @submitted="editingService = null"
             />

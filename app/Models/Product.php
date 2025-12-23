@@ -114,6 +114,11 @@ class Product extends Model
         return $this->hasMany(ProductImage::class);
     }
 
+    public function serviceMaterials(): HasMany
+    {
+        return $this->hasMany(ServiceMaterial::class, 'service_id')->orderBy('sort_order');
+    }
+
     public function stockMovements(): HasMany
     {
         return $this->hasMany(ProductStockMovement::class)->latest();

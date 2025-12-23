@@ -78,6 +78,11 @@ class Task extends Model
         return $this->hasOne(InvoiceItem::class);
     }
 
+    public function materials(): HasMany
+    {
+        return $this->hasMany(TaskMaterial::class)->orderBy('sort_order');
+    }
+
     public function media(): HasMany
     {
         return $this->hasMany(TaskMedia::class);

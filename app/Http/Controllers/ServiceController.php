@@ -45,7 +45,7 @@ class ServiceController extends Controller
         $direction = ($filters['direction'] ?? 'desc') === 'asc' ? 'asc' : 'desc';
 
         $services = (clone $baseQuery)
-            ->with('category')
+            ->with(['category', 'serviceMaterials.product'])
             ->orderBy($sort, $direction)
             ->simplePaginate(10)
             ->withQueryString();
@@ -61,6 +61,11 @@ class ServiceController extends Controller
             'filters' => $filters,
             'services' => $services,
             'categories' => ProductCategory::orderBy('name')->get(['id', 'name']),
+            'materialProducts' => Product::query()
+                ->products()
+                ->byUser($userId)
+                ->orderBy('name')
+                ->get(['id', 'name', 'unit', 'price']),
             'stats' => $stats,
             'count' => $stats['total'],
         ]);
@@ -85,7 +90,11 @@ class ServiceController extends Controller
         $validated['minimum_stock'] = 0;
         $validated['image'] = FileHandler::handleImageUpload('services', $request, 'image', 'products/product.jpg');
 
-        $request->user()->products()->create($validated);
+        $service = $request->user()->products()->create($validated);
+
+        if ($request->has('materials')) {
+            $this->syncServiceMaterials($service, $validated['materials'] ?? []);
+        }
 
         return redirect()->route('service.index')->with('success', 'Service created successfully.');
     }
@@ -124,6 +133,10 @@ class ServiceController extends Controller
 
         $service->update($validated);
 
+        if ($request->has('materials')) {
+            $this->syncServiceMaterials($service, $validated['materials'] ?? []);
+        }
+
         return redirect()->route('service.index')->with('success', 'Service updated successfully.');
     }
 
@@ -157,5 +170,69 @@ class ServiceController extends Controller
         if ($service->item_type !== Product::ITEM_TYPE_SERVICE) {
             abort(404);
         }
+    }
+
+    private function syncServiceMaterials(Product $service, array $materials): void
+    {
+        $service->serviceMaterials()->delete();
+
+        if (!$materials) {
+            return;
+        }
+
+        $userId = $service->user_id;
+        $productIds = collect($materials)
+            ->pluck('product_id')
+            ->filter()
+            ->map(fn($id) => (int) $id)
+            ->unique()
+            ->values();
+
+        $productMap = $productIds->isNotEmpty()
+            ? Product::query()
+                ->products()
+                ->byUser($userId)
+                ->whereIn('id', $productIds)
+                ->get()
+                ->keyBy('id')
+            : collect();
+
+        $payload = collect($materials)
+            ->map(function ($material, $index) use ($productMap) {
+                $productId = isset($material['product_id']) ? (int) $material['product_id'] : null;
+                $product = $productId ? $productMap->get($productId) : null;
+                $label = trim((string) ($material['label'] ?? ''));
+                if (!$label && $product) {
+                    $label = $product->name;
+                }
+
+                if (!$label) {
+                    return null;
+                }
+
+                $quantity = isset($material['quantity']) ? (float) $material['quantity'] : 1;
+                $unitPrice = isset($material['unit_price'])
+                    ? (float) $material['unit_price']
+                    : (float) ($product?->price ?? 0);
+
+                return [
+                    'product_id' => $product?->id,
+                    'label' => $label,
+                    'description' => $material['description'] ?? null,
+                    'unit' => $material['unit'] ?? $product?->unit ?? null,
+                    'quantity' => max(0, $quantity),
+                    'unit_price' => max(0, $unitPrice),
+                    'billable' => isset($material['billable']) ? (bool) $material['billable'] : true,
+                    'sort_order' => isset($material['sort_order']) ? (int) $material['sort_order'] : $index,
+                ];
+            })
+            ->filter()
+            ->values();
+
+        if ($payload->isEmpty()) {
+            return;
+        }
+
+        $service->serviceMaterials()->createMany($payload->all());
     }
 }

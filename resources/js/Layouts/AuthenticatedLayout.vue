@@ -38,10 +38,10 @@ const isSuperadmin = computed(() => Boolean(page.props.auth?.account?.is_superad
                 <div class="flex items-start justify-between gap-3">
                     <div>
                         <h3 id="hs-platform-maintenance-label" class="text-gray-800 font-semibold dark:text-white">
-                            Maintenance mode
+                            {{ $t('alerts.maintenance.title') }}
                         </h3>
                         <p class="text-sm text-gray-700 dark:text-neutral-400">
-                            {{ maintenance.message || 'The platform is currently in maintenance mode.' }}
+                            {{ maintenance.message || $t('alerts.maintenance.message') }}
                         </p>
                     </div>
                 </div>
@@ -53,15 +53,15 @@ const isSuperadmin = computed(() => Boolean(page.props.auth?.account?.is_superad
                 <div class="flex flex-wrap items-center justify-between gap-3">
                     <div>
                         <h3 id="hs-platform-impersonation-label" class="text-gray-800 font-semibold dark:text-white">
-                            Impersonating
+                            {{ $t('alerts.impersonation.title') }}
                         </h3>
                         <p class="text-sm text-gray-700 dark:text-neutral-400">
-                            You are impersonating this account. Original admin: {{ impersonator.name || impersonator.email }}.
+                            {{ $t('alerts.impersonation.message', { name: impersonator.name || impersonator.email }) }}
                         </p>
                     </div>
                     <Link :href="route('superadmin.impersonate.stop')" method="post" as="button" type="button"
                         class="py-2 px-3 text-sm font-medium rounded-sm border border-transparent bg-blue-600 text-white hover:bg-blue-700">
-                        Stop impersonation
+                        {{ $t('actions.stop_impersonation') }}
                     </Link>
                 </div>
             </div>
@@ -84,7 +84,7 @@ const isSuperadmin = computed(() => Boolean(page.props.auth?.account?.is_superad
                     </div>
                     <div class="ms-3">
                         <h3 id="hs-bordered-success-style-label" class="text-gray-800 font-semibold dark:text-white">
-                            Success.
+                            {{ $t('alerts.success.title') }}
                         </h3>
                         <p class="text-sm text-gray-700 dark:text-neutral-400">
                             {{ flashSuccess }}
@@ -111,7 +111,7 @@ const isSuperadmin = computed(() => Boolean(page.props.auth?.account?.is_superad
                     </div>
                     <div class="ms-3">
                         <h3 id="hs-bordered-red-style-label" class="text-gray-800 font-semibold dark:text-white">
-                            Error!
+                            {{ $t('alerts.error.title') }}
                         </h3>
                         <p class="text-sm text-gray-700 dark:text-neutral-400">
                             {{ flashError }}
@@ -137,7 +137,7 @@ const isSuperadmin = computed(() => Boolean(page.props.auth?.account?.is_superad
                     </div>
                     <div class="ms-3">
                         <h3 id="hs-bordered-warning-style-label" class="text-gray-800 font-semibold dark:text-white">
-                            Attention.
+                            {{ $t('alerts.warning.title') }}
                         </h3>
                         <p class="text-sm text-gray-700 dark:text-neutral-400">
                             {{ flashWarning }}

@@ -48,7 +48,7 @@ class TaskBillingService
             return;
         }
 
-        $task->loadMissing(['work.customer', 'assignee.user', 'invoiceItem']);
+        $task->loadMissing(['work.customer', 'assignee.user', 'invoiceItem', 'materials']);
         $work = $task->work;
         if (!$work) {
             return;
@@ -101,7 +101,7 @@ class TaskBillingService
             return;
         }
 
-        $tasks->loadMissing('invoiceItem');
+        $tasks->loadMissing(['invoiceItem', 'materials']);
         $tasks = $tasks->filter(fn($task) => $task->billable && !$task->invoiceItem);
         if ($tasks->isEmpty()) {
             return;
@@ -162,7 +162,44 @@ class TaskBillingService
                 ];
             });
 
-            $invoice->items()->createMany($items->all());
+            $materialItems = $tasks->flatMap(function ($task) use ($work) {
+                $assigneeName = $task->assignee?->user?->name;
+                $scheduledDate = $task->due_date ?: $work->start_date;
+
+                return $task->materials
+                    ->filter(fn($material) => $material->billable && (float) $material->quantity > 0)
+                    ->map(function ($material) use ($task, $assigneeName, $scheduledDate, $work) {
+                        $quantity = max(0, (float) $material->quantity);
+                        $unitPrice = max(0, (float) $material->unit_price);
+                        $total = round($quantity * $unitPrice, 2);
+
+                        return [
+                            'task_id' => null,
+                            'work_id' => $work->id,
+                            'assigned_team_member_id' => $task->assigned_team_member_id,
+                            'title' => 'Material - ' . $material->label,
+                            'description' => $material->description,
+                            'scheduled_date' => $scheduledDate,
+                            'start_time' => $task->start_time,
+                            'end_time' => $task->end_time,
+                            'assignee_name' => $assigneeName,
+                            'task_status' => $task->status,
+                            'quantity' => $quantity,
+                            'unit_price' => $unitPrice,
+                            'total' => $total,
+                            'meta' => [
+                                'type' => 'material',
+                                'task_id' => $task->id,
+                                'material_id' => $material->id,
+                            ],
+                        ];
+                    });
+            });
+
+            $invoice->items()->createMany([
+                ...$items->all(),
+                ...$materialItems->all(),
+            ]);
 
             $invoice->total = $invoice->items()->sum('total');
             $invoice->save();
