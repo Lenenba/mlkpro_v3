@@ -5,7 +5,8 @@ namespace Database\Seeders;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Database\Seeder;
-
+use Illuminate\Support\Facades\Hash;
+use RuntimeException;
 
 class ProdSeeder extends Seeder
 {
@@ -14,24 +15,37 @@ class ProdSeeder extends Seeder
      */
     public function run(): void
     {
-        // Ensure essential roles exist
-        foreach (['superadmin', 'admin', 'owner', 'employee', 'client'] as $name) {
-            Role::firstOrCreate(
+        $roles = ['superadmin', 'admin', 'owner', 'employee', 'client'];
+
+        foreach ($roles as $name) {
+            Role::query()->firstOrCreate(
                 ['name' => $name],
                 ['description' => ucfirst($name) . ' role']
             );
         }
 
-        $superadminRoleId = Role::query()->where('name', 'superadmin')->value('id');
+        $superadminRole = Role::query()
+            ->where('name', 'superadmin')
+            ->firstOrFail();
 
-        // Create or update the superadmin user
+        $email = mb_strtolower('bilitikjulesroger@yahoo.fr');
+
+        // Prefer config over env() in production (config caching).
+        // Add this to a config file (e.g. config/app.php):
+        // 'superadmin_password' => env('SUPERADMIN_PASSWORD'),
+        $plainPassword = env('SUPERADMIN_PASSWORD');
+
+        if ($plainPassword === '') {
+            throw new RuntimeException('SUPERADMIN_PASSWORD is missing. Refusing to seed superadmin without a password.');
+        }
+
         User::query()->updateOrCreate(
-            ['email' => 'bilitikjulesroger@yahoo.fr'],
+            ['email' => $email],
             [
                 'name' => 'Super Admin',
-                'role_id' => $superadminRoleId,
+                'role_id' => $superadminRole->id,
                 'phone_number' => '+1234567890',
-                'password' => env('SUPERADMIN_PASSWORD'),
+                'password' => Hash::make($plainPassword),
             ]
         );
     }
