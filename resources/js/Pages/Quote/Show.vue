@@ -1,11 +1,15 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
-import { Head } from '@inertiajs/vue3';
+import { Head, usePage } from '@inertiajs/vue3';
 import { computed } from 'vue';
 import StarRating from '@/Components/UI/StarRating.vue';
 const props = defineProps({
     quote: Object,
 });
+
+const page = usePage();
+const companyName = computed(() => page.props.auth?.account?.company?.name || 'Entreprise');
+const companyLogo = computed(() => page.props.auth?.account?.company?.logo_url || null);
 
 const fallbackProperty = computed(() => {
     const properties = props.quote.customer?.properties || [];
@@ -46,10 +50,21 @@ const ratingCount = computed(() => {
                 <div
                     class="p-5 space-y-3 flex flex-col bg-gray-100 border border-gray-100 rounded-sm shadow-sm xl:shadow-none dark:bg-green-800 dark:border-green-700">
                     <!-- Header -->
-                    <div class="flex justify-between items-center mb-4">
-                        <h1 class="text-xl inline-block font-semibold text-gray-800 dark:text-green-100">
-                            Quote For {{ quote.customer.company_name }}
-                        </h1>
+                    <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
+                        <div class="flex items-center gap-3">
+                            <img v-if="companyLogo"
+                                :src="companyLogo"
+                                :alt="companyName"
+                                class="h-12 w-12 rounded-sm border border-stone-200 object-cover dark:border-neutral-700" />
+                            <div>
+                                <p class="text-xs uppercase text-gray-500 dark:text-neutral-400">
+                                    {{ companyName }}
+                                </p>
+                                <h1 class="text-xl inline-block font-semibold text-gray-800 dark:text-green-100">
+                                    Quote For {{ quote.customer.company_name }}
+                                </h1>
+                            </div>
+                        </div>
                     </div>
                     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                         <div class="col-span-2 space-x-2">

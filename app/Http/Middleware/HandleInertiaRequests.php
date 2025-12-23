@@ -39,7 +39,7 @@ class HandleInertiaRequests extends Middleware
             $accountOwner = $ownerId === $user->id
                 ? $user
                 : User::query()
-                    ->select(['id', 'company_name', 'company_type', 'onboarding_completed_at'])
+                    ->select(['id', 'company_name', 'company_type', 'company_logo', 'onboarding_completed_at'])
                     ->find($ownerId);
         }
 
@@ -75,6 +75,7 @@ class HandleInertiaRequests extends Middleware
                         'name' => $accountOwner->company_name,
                         'type' => $accountOwner->company_type,
                         'onboarded' => (bool) $accountOwner->onboarding_completed_at,
+                        'logo_url' => $accountOwner->company_logo_url,
                     ] : null,
                     'platform' => $platformAdmin ? [
                         'role' => $platformAdmin->role,

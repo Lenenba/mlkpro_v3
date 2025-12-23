@@ -2,12 +2,16 @@
 import { computed } from 'vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import StarRating from '@/Components/UI/StarRating.vue';
-import { Head, useForm } from '@inertiajs/vue3';
+import { Head, useForm, usePage } from '@inertiajs/vue3';
 import { humanizeDate } from '@/utils/date';
 
 const props = defineProps({
     invoice: Object,
 });
+
+const page = usePage();
+const companyName = computed(() => page.props.auth?.account?.company?.name || 'Entreprise');
+const companyLogo = computed(() => page.props.auth?.account?.company?.logo_url || null);
 
 const form = useForm({
     amount: '',
@@ -123,13 +127,22 @@ const lineItemColspan = computed(() => (isTaskBased.value ? 5 : 4));
         <div class="mx-auto w-full max-w-6xl space-y-5">
             <div class="p-5 space-y-3 flex flex-col bg-gray-100 border border-gray-100 rounded-sm shadow-sm">
                 <div class="flex flex-wrap justify-between items-center gap-3">
-                    <div>
-                        <h1 class="text-xl inline-block font-semibold text-gray-800">
-                            Invoice For {{ customerName }}
-                        </h1>
-                        <p class="text-sm text-gray-600">
-                            {{ work?.job_title || 'Job' }}
-                        </p>
+                    <div class="flex items-center gap-3">
+                        <img v-if="companyLogo"
+                            :src="companyLogo"
+                            :alt="companyName"
+                            class="h-12 w-12 rounded-sm border border-stone-200 object-cover dark:border-neutral-700" />
+                        <div>
+                            <p class="text-xs uppercase text-gray-500">
+                                {{ companyName }}
+                            </p>
+                            <h1 class="text-xl inline-block font-semibold text-gray-800">
+                                Invoice For {{ customerName }}
+                            </h1>
+                            <p class="text-sm text-gray-600">
+                                {{ work?.job_title || 'Job' }}
+                            </p>
+                        </div>
                     </div>
                     <span class="py-1.5 px-3 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-full"
                         :class="{

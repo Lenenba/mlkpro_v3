@@ -32,6 +32,19 @@
 <body class="bg-gray-50 text-gray-900">
     <main class="min-h-screen">
         <div class="p-4 sm:p-6 lg:p-8">
+            @php
+                $companyName = $companyName ?? config('app.name');
+                $companyLogo = $companyLogo ?? null;
+            @endphp
+            <div class="mb-6 flex items-center gap-3">
+                @if ($companyLogo)
+                    <img src="{{ $companyLogo }}" alt="{{ $companyName }} logo" class="h-10 w-auto">
+                @else
+                    <div class="text-lg font-semibold text-gray-800">
+                        {{ $companyName }}
+                    </div>
+                @endif
+            </div>
             @yield('content')
         </div>
     </main>

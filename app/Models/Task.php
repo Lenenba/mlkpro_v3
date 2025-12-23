@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Task extends Model
 {
@@ -75,6 +76,11 @@ class Task extends Model
     public function invoiceItem(): HasOne
     {
         return $this->hasOne(InvoiceItem::class);
+    }
+
+    public function media(): HasMany
+    {
+        return $this->hasMany(TaskMedia::class);
     }
 
     public function scopeForAccount(Builder $query, int $accountId): Builder

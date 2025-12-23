@@ -8,6 +8,7 @@ use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ServiceController;
 use App\Http\Controllers\TaskController;
+use App\Http\Controllers\TaskMediaController;
 use App\Http\Controllers\TeamMemberController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\CustomerController;
@@ -33,7 +34,10 @@ use App\Http\Controllers\CustomerPropertyController;
 use App\Http\Controllers\Portal\PortalInvoiceController;
 use App\Http\Controllers\Portal\PortalQuoteController;
 use App\Http\Controllers\Portal\PortalRatingController;
+use App\Http\Controllers\Portal\PortalTaskMediaController;
+use App\Http\Controllers\Portal\PortalWorkProofController;
 use App\Http\Controllers\Portal\PortalWorkController;
+use App\Http\Controllers\WorkProofController;
 use App\Http\Middleware\EnsureClientUser;
 use App\Http\Middleware\EnsureInternalUser;
 use App\Http\Middleware\EnsurePlatformAdmin;
@@ -155,6 +159,7 @@ Route::middleware(['auth', EnsureInternalUser::class])->group(function () {
 
         Route::resource('work', WorkController::class)
             ->except(['create']);
+        Route::get('/work/{work}/proofs', [WorkProofController::class, 'show'])->name('work.proofs');
         Route::post('/work/{work}/status', [WorkController::class, 'updateStatus'])->name('work.status');
         Route::post('/work/{work}/extras', [WorkController::class, 'addExtraQuote'])->name('work.extras');
         Route::post('/work/{work}/media', [WorkMediaController::class, 'store'])->name('work.media.store');
@@ -173,6 +178,7 @@ Route::middleware(['auth', EnsureInternalUser::class])->group(function () {
         Route::post('/tasks', [TaskController::class, 'store'])->name('task.store');
         Route::put('/tasks/{task}', [TaskController::class, 'update'])->name('task.update');
         Route::delete('/tasks/{task}', [TaskController::class, 'destroy'])->name('task.destroy');
+        Route::post('/tasks/{task}/media', [TaskMediaController::class, 'store'])->name('task.media.store');
     });
 
     // Invoice Management
@@ -194,9 +200,11 @@ Route::middleware(['auth', EnsureClientUser::class])
         Route::post('/quotes/{quote}/accept', [PortalQuoteController::class, 'accept'])->name('quotes.accept');
         Route::post('/quotes/{quote}/decline', [PortalQuoteController::class, 'decline'])->name('quotes.decline');
         Route::post('/works/{work}/validate', [PortalWorkController::class, 'validateWork'])->name('works.validate');
+        Route::get('/works/{work}/proofs', [PortalWorkProofController::class, 'show'])->name('works.proofs');
         Route::post('/works/{work}/schedule/confirm', [PortalWorkController::class, 'confirmSchedule'])->name('works.schedule.confirm');
         Route::post('/works/{work}/schedule/reject', [PortalWorkController::class, 'rejectSchedule'])->name('works.schedule.reject');
         Route::post('/works/{work}/dispute', [PortalWorkController::class, 'dispute'])->name('works.dispute');
+        Route::post('/tasks/{task}/media', [PortalTaskMediaController::class, 'store'])->name('tasks.media.store');
         Route::post('/invoices/{invoice}/payments', [PortalInvoiceController::class, 'storePayment'])->name('invoices.payments.store');
         Route::post('/quotes/{quote}/ratings', [PortalRatingController::class, 'storeQuote'])->name('quotes.ratings.store');
         Route::post('/works/{work}/ratings', [PortalRatingController::class, 'storeWork'])->name('works.ratings.store');

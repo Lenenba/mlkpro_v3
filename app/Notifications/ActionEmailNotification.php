@@ -5,6 +5,8 @@ namespace App\Notifications;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
+use App\Models\Customer;
+use App\Models\User;
 
 class ActionEmailNotification extends Notification
 {
@@ -43,6 +45,16 @@ class ActionEmailNotification extends Notification
 
     public function toMail(object $notifiable): MailMessage
     {
+        $companyUser = null;
+        if ($notifiable instanceof Customer) {
+            $companyUser = $notifiable->user;
+        } elseif ($notifiable instanceof User) {
+            $companyUser = User::find($notifiable->accountOwnerId());
+        }
+
+        $companyName = $companyUser?->company_name ?: config('app.name');
+        $companyLogo = $companyUser?->company_logo_url;
+
         return (new MailMessage)
             ->subject($this->subject ?? $this->title)
             ->view('emails.notifications.action', [
@@ -52,6 +64,8 @@ class ActionEmailNotification extends Notification
                 'actionUrl' => $this->actionUrl,
                 'actionLabel' => $this->actionLabel,
                 'note' => $this->note,
+                'companyName' => $companyName,
+                'companyLogo' => $companyLogo,
             ]);
     }
 }

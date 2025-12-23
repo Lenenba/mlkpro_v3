@@ -227,6 +227,46 @@ const deleteTask = (task) => {
 };
 
 const displayAssignee = (task) => task?.assignee?.user?.name || '-';
+
+const proofTaskId = ref(null);
+const proofForm = useForm({
+    type: 'execution',
+    file: null,
+    note: '',
+});
+
+const openProofUpload = (task) => {
+    if (!canChangeStatus.value) {
+        return;
+    }
+
+    proofTaskId.value = task.id;
+    proofForm.reset();
+    proofForm.clearErrors();
+
+    if (window.HSOverlay) {
+        window.HSOverlay.open('#hs-task-proof');
+    }
+};
+
+const handleProofFile = (event) => {
+    const file = event.target.files?.[0] || null;
+    proofForm.file = file;
+};
+
+const submitProof = () => {
+    if (!proofTaskId.value || proofForm.processing) {
+        return;
+    }
+
+    proofForm.post(route('task.media.store', proofTaskId.value), {
+        preserveScroll: true,
+        forceFormData: true,
+        onSuccess: () => {
+            closeOverlay('#hs-task-proof');
+        },
+    });
+};
 </script>
 
 <template>
@@ -385,6 +425,10 @@ const displayAssignee = (task) => task?.assignee?.user?.name || '-';
                                             <button v-if="canManage" type="button" @click="openEditTask(task)"
                                                 class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-lg text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
                                                 Edit
+                                            </button>
+                                            <button v-if="canChangeStatus" type="button" @click="openProofUpload(task)"
+                                                class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-lg text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
+                                                Add proof
                                             </button>
                                             <button v-if="canDelete" type="button" @click="deleteTask(task)"
                                                 class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-lg text-[13px] text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-neutral-800">
@@ -551,6 +595,44 @@ const displayAssignee = (task) => task?.assignee?.user?.name || '-';
                 <button type="submit" :disabled="editForm.processing"
                     class="py-2 px-3 inline-flex items-center text-sm font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50">
                     Save
+                </button>
+            </div>
+        </form>
+    </Modal>
+
+    <Modal v-if="canChangeStatus" :title="'Add task proof'" :id="'hs-task-proof'">
+        <form class="space-y-4" @submit.prevent="submitProof">
+            <div>
+                <label class="block text-xs text-gray-500 dark:text-neutral-400">Type</label>
+                <select v-model="proofForm.type"
+                    class="mt-1 block w-full rounded-sm border-gray-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
+                    <option value="execution">Execution</option>
+                    <option value="completion">Completion</option>
+                    <option value="other">Other</option>
+                </select>
+                <InputError class="mt-1" :message="proofForm.errors.type" />
+            </div>
+
+            <div>
+                <label class="block text-xs text-gray-500 dark:text-neutral-400">File (photo or video)</label>
+                <input type="file" @change="handleProofFile" accept="image/*,video/*"
+                    class="mt-1 block w-full text-sm text-stone-600 file:mr-4 file:py-2 file:px-3 file:rounded-sm file:border-0 file:text-sm file:font-medium file:bg-stone-100 file:text-stone-700 hover:file:bg-stone-200 dark:text-neutral-300 dark:file:bg-neutral-800 dark:file:text-neutral-200" />
+                <InputError class="mt-1" :message="proofForm.errors.file" />
+            </div>
+
+            <div>
+                <FloatingInput v-model="proofForm.note" label="Note (optional)" />
+                <InputError class="mt-1" :message="proofForm.errors.note" />
+            </div>
+
+            <div class="flex justify-end gap-2">
+                <button type="button" data-hs-overlay="#hs-task-proof"
+                    class="py-2 px-3 inline-flex items-center text-sm font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200">
+                    Cancel
+                </button>
+                <button type="submit" :disabled="proofForm.processing"
+                    class="py-2 px-3 inline-flex items-center text-sm font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50">
+                    Upload
                 </button>
             </div>
         </form>

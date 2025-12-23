@@ -36,6 +36,7 @@ class DashboardController extends Controller
                     'pendingWorks' => [],
                     'validatedWorks' => [],
                     'invoicesDue' => [],
+                    'taskProofs' => [],
                     'quoteRatingsDue' => [],
                     'workRatingsDue' => [],
                 ]);
@@ -183,6 +184,36 @@ class DashboardController extends Controller
                     ];
                 });
 
+            $taskProofs = Task::query()
+                ->where('customer_id', $customerId)
+                ->whereNotNull('work_id')
+                ->whereIn('status', ['in_progress', 'done'])
+                ->with(['work:id,job_title'])
+                ->orderByDesc('due_date')
+                ->orderByDesc('created_at')
+                ->limit(8)
+                ->get([
+                    'id',
+                    'title',
+                    'status',
+                    'due_date',
+                    'start_time',
+                    'end_time',
+                    'work_id',
+                ])
+                ->map(function ($task) {
+                    return [
+                        'id' => $task->id,
+                        'title' => $task->title,
+                        'status' => $task->status,
+                        'due_date' => $task->due_date,
+                        'start_time' => $task->start_time,
+                        'end_time' => $task->end_time,
+                        'work_id' => $task->work_id,
+                        'work_title' => $task->work?->job_title,
+                    ];
+                });
+
             $validatedWorks = (clone $validatedWorksQuery)
                 ->orderByDesc('completed_at')
                 ->limit(6)
@@ -248,6 +279,7 @@ class DashboardController extends Controller
                 'pendingSchedules' => $pendingSchedules,
                 'validatedQuotes' => $validatedQuotes,
                 'pendingWorks' => $pendingWorks,
+                'taskProofs' => $taskProofs,
                 'validatedWorks' => $validatedWorks,
                 'invoicesDue' => $invoicesDue,
                 'quoteRatingsDue' => $quoteRatingsDue,

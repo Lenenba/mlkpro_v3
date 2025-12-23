@@ -49,6 +49,15 @@ class WorkPolicy
 
     private function canEdit(User $user, Work $work): bool
     {
+        if (in_array($work->status, [
+            Work::STATUS_VALIDATED,
+            Work::STATUS_AUTO_VALIDATED,
+            Work::STATUS_CLOSED,
+            Work::STATUS_COMPLETED,
+        ], true)) {
+            return false;
+        }
+
         $accountId = $user->accountOwnerId();
         if ($work->user_id !== $accountId) {
             return false;
@@ -71,4 +80,3 @@ class WorkPolicy
         return $work->teamMembers()->whereKey($membership->id)->exists();
     }
 }
-

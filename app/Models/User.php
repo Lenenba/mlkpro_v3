@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Paddle\Billable;
+use Illuminate\Support\Facades\Storage;
 
 class User extends Authenticatable
 {
@@ -208,5 +209,16 @@ class User extends Authenticatable
         }
 
         return false;
+    }
+
+    public function getCompanyLogoUrlAttribute(): ?string
+    {
+        $path = $this->company_logo ?: 'customers/customer.png';
+
+        if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
+            return $path;
+        }
+
+        return Storage::disk('public')->url($path);
     }
 }

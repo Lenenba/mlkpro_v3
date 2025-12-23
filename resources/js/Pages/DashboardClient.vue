@@ -1,7 +1,7 @@
 <script setup>
 import { computed, reactive, ref, watchEffect, nextTick } from 'vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
-import { Head, router, usePage } from '@inertiajs/vue3';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { humanizeDate } from '@/utils/date';
 import FullCalendar from '@fullcalendar/vue3';
 import dayGridPlugin from '@fullcalendar/daygrid';
@@ -26,6 +26,10 @@ const props = defineProps({
         default: () => [],
     },
     pendingSchedules: {
+        type: Array,
+        default: () => [],
+    },
+    taskProofs: {
         type: Array,
         default: () => [],
     },
@@ -138,6 +142,14 @@ const schedulePreviewOpen = ref(false);
 const schedulePreviewWork = ref(null);
 const schedulePreviewCalendar = ref(null);
 
+const taskProofOpen = ref(false);
+const taskProofTask = ref(null);
+const taskProofForm = useForm({
+    type: 'execution',
+    file: null,
+    note: '',
+});
+
 const schedulePreviewId = computed(() => schedulePreviewWork.value?.id ?? null);
 const schedulePreviewAssignees = computed(() => schedulePreviewWork.value?.team_members || []);
 
@@ -248,6 +260,38 @@ const openSchedulePreview = (work) => {
 const closeSchedulePreview = () => {
     schedulePreviewOpen.value = false;
     schedulePreviewWork.value = null;
+};
+
+const openTaskProof = (task) => {
+    taskProofTask.value = task;
+    taskProofForm.reset();
+    taskProofForm.clearErrors();
+    taskProofOpen.value = true;
+};
+
+const closeTaskProof = () => {
+    taskProofOpen.value = false;
+    taskProofTask.value = null;
+};
+
+const handleTaskProofFile = (event) => {
+    const file = event.target.files?.[0] || null;
+    taskProofForm.file = file;
+};
+
+const submitTaskProof = () => {
+    const taskId = taskProofTask.value?.id;
+    if (!taskId || taskProofForm.processing) {
+        return;
+    }
+
+    taskProofForm.post(route('portal.tasks.media.store', taskId), {
+        preserveScroll: true,
+        forceFormData: true,
+        onSuccess: () => {
+            closeTaskProof();
+        },
+    });
 };
 
 const acceptQuote = (quoteId) => {
@@ -515,6 +559,50 @@ const submitWorkRating = (workId) => {
                         <div v-if="!pendingWorks.length" class="text-sm text-stone-500 dark:text-neutral-400">
                             No jobs waiting for validation.
                         </div>
+                    </div>
+                </div>
+            </section>
+
+            <section v-if="!profileMissing"
+                class="bg-white border border-stone-200 rounded-sm p-5 shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
+                <div class="flex items-center justify-between">
+                    <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                        Task proofs
+                    </h2>
+                </div>
+                <div class="mt-4 space-y-3">
+                    <div v-for="task in taskProofs" :key="`proof-${task.id}`"
+                        class="flex flex-col gap-3 rounded-lg border border-stone-200 p-3 text-sm dark:border-neutral-700">
+                        <div class="flex flex-wrap items-center justify-between gap-2">
+                            <div>
+                                <div class="font-medium text-stone-800 dark:text-neutral-100">
+                                    {{ task.title || 'Task' }}
+                                </div>
+                                <div class="text-xs text-stone-500 dark:text-neutral-400">
+                                    {{ formatDate(task.due_date) }} {{ task.start_time || '' }}
+                                </div>
+                                <div v-if="task.work_title" class="text-xs text-stone-500 dark:text-neutral-400">
+                                    {{ task.work_title }}
+                                </div>
+                            </div>
+                            <span class="px-2 py-0.5 text-xs font-medium rounded-full"
+                                :class="statusClass(task.status)">
+                                {{ formatStatus(task.status) }}
+                            </span>
+                        </div>
+                        <div class="flex flex-wrap items-center gap-2">
+                            <button type="button" @click="openTaskProof(task)"
+                                class="py-2 px-3 inline-flex items-center gap-x-2 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200">
+                                Add proof
+                            </button>
+                            <Link v-if="task.work_id" :href="route('portal.works.proofs', task.work_id)"
+                                class="py-2 px-3 inline-flex items-center gap-x-2 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200">
+                                Voir les preuves
+                            </Link>
+                        </div>
+                    </div>
+                    <div v-if="!taskProofs.length" class="text-sm text-stone-500 dark:text-neutral-400">
+                        No tasks available yet.
                     </div>
                 </div>
             </section>
@@ -824,6 +912,70 @@ const submitWorkRating = (workId) => {
                         </button>
                     </div>
                 </div>
+            </div>
+        </div>
+
+        <div v-if="taskProofOpen" class="fixed inset-0 z-50 flex items-center justify-center px-4 py-6">
+            <div class="absolute inset-0 bg-stone-900/60" @click="closeTaskProof"></div>
+            <div class="relative w-full max-w-lg rounded-sm border border-stone-200 bg-white p-5 shadow-lg dark:border-neutral-700 dark:bg-neutral-900">
+                <div class="flex items-start justify-between gap-4">
+                    <div>
+                        <h3 class="text-base font-semibold text-stone-800 dark:text-neutral-100">
+                            Upload proof
+                        </h3>
+                        <p class="text-sm text-stone-500 dark:text-neutral-400">
+                            {{ taskProofTask?.title || 'Task' }}
+                        </p>
+                    </div>
+                    <button type="button" @click="closeTaskProof"
+                        class="py-1.5 px-3 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200">
+                        Close
+                    </button>
+                </div>
+
+                <form class="mt-4 space-y-4" @submit.prevent="submitTaskProof">
+                    <div>
+                        <label class="block text-xs text-stone-500 dark:text-neutral-400">Type</label>
+                        <select v-model="taskProofForm.type"
+                            class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
+                            <option value="execution">Execution</option>
+                            <option value="completion">Completion</option>
+                            <option value="other">Other</option>
+                        </select>
+                        <div v-if="taskProofForm.errors.type" class="mt-1 text-xs text-red-600">
+                            {{ taskProofForm.errors.type }}
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs text-stone-500 dark:text-neutral-400">File (photo or video)</label>
+                        <input type="file" @change="handleTaskProofFile" accept="image/*,video/*"
+                            class="mt-1 block w-full text-sm text-stone-600 file:mr-4 file:py-2 file:px-3 file:rounded-sm file:border-0 file:text-sm file:font-medium file:bg-stone-100 file:text-stone-700 hover:file:bg-stone-200 dark:text-neutral-300 dark:file:bg-neutral-800 dark:file:text-neutral-200" />
+                        <div v-if="taskProofForm.errors.file" class="mt-1 text-xs text-red-600">
+                            {{ taskProofForm.errors.file }}
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs text-stone-500 dark:text-neutral-400">Note (optional)</label>
+                        <input v-model="taskProofForm.note" type="text"
+                            class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200" />
+                        <div v-if="taskProofForm.errors.note" class="mt-1 text-xs text-red-600">
+                            {{ taskProofForm.errors.note }}
+                        </div>
+                    </div>
+
+                    <div class="flex justify-end gap-2">
+                        <button type="button" @click="closeTaskProof"
+                            class="py-2 px-3 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200">
+                            Cancel
+                        </button>
+                        <button type="submit" :disabled="taskProofForm.processing"
+                            class="py-2 px-3 text-xs font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:pointer-events-none disabled:opacity-50">
+                            Upload
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
     </AuthenticatedLayout>

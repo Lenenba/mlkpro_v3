@@ -21,7 +21,7 @@ class QuoteEmaillingController extends Controller
             ]);
         }
 
-        $quote->load(['customer', 'property', 'products', 'taxes.tax']);
+        $quote->load(['customer.user', 'property', 'products', 'taxes.tax']);
 
         if (!$quote->customer || !$quote->customer->email) {
             return redirect()->back()->with('error', 'Customer email address is not available.');
