@@ -37,14 +37,12 @@ use App\Http\Controllers\Portal\PortalWorkController;
 use App\Http\Middleware\EnsureClientUser;
 use App\Http\Middleware\EnsureInternalUser;
 use App\Http\Middleware\EnsurePlatformAdmin;
-use Laravel\Cashier\Http\Controllers\WebhookController as CashierWebhookController;
 
 Route::get('/favicon.ico', function () {
     return response()->file(public_path('favicon.ico'));
 })->name('favicon');
 
-Route::post('/stripe/webhook', [CashierWebhookController::class, 'handleWebhook'])
-    ->name('cashier.webhook');
+// Paddle webhook is registered by Cashier Paddle at `/{CASHIER_PATH}/webhook`.
 
 // Guest Routes
 Route::get('/', [WelcomeController::class, 'index'])->name('welcome');
@@ -73,12 +71,14 @@ Route::middleware(['auth', EnsureInternalUser::class])->group(function () {
     Route::post('/settings/categories', [ProductCategoryController::class, 'store'])->name('settings.categories.store');
     Route::get('/settings/billing', [BillingSettingsController::class, 'edit'])->name('settings.billing.edit');
     Route::put('/settings/billing', [BillingSettingsController::class, 'update'])->name('settings.billing.update');
-    Route::post('/settings/billing/subscribe', [SubscriptionController::class, 'checkout'])->name('settings.billing.subscribe');
+    Route::post('/settings/billing/swap', [SubscriptionController::class, 'swap'])->name('settings.billing.swap');
     Route::post('/settings/billing/portal', [SubscriptionController::class, 'portal'])->name('settings.billing.portal');
 
     // Lead Requests
+    Route::get('/requests', [RequestController::class, 'index'])->name('request.index');
     Route::post('/requests', [RequestController::class, 'store'])->name('request.store');
     Route::post('/requests/{lead}/convert', [RequestController::class, 'convert'])->name('request.convert');
+    Route::delete('/requests/{lead}', [RequestController::class, 'destroy'])->name('request.destroy');
 
     Route::middleware('company.feature:quotes')->group(function () {
         Route::get('/quotes', [QuoteController::class, 'index'])->name('quote.index');
@@ -88,6 +88,7 @@ Route::middleware(['auth', EnsureInternalUser::class])->group(function () {
         Route::get('/customer/quote/{quote}/show', [QuoteController::class, 'show'])->name('customer.quote.show');
         Route::put('/customer/quote/{quote}/update', [QuoteController::class, 'update'])->name('customer.quote.update');
         Route::delete('/customer/quote/{quote}/destroy', [QuoteController::class, 'destroy'])->name('customer.quote.destroy');
+        Route::post('/customer/quote/{quote}/restore', [QuoteController::class, 'restore'])->name('customer.quote.restore');
         Route::post('/quote/{quote}/accept', [QuoteController::class, 'accept'])->name('quote.accept');
         Route::post('/quote/{quote}/send-email', QuoteEmaillingController::class)->name('quote.send.email');
         Route::post('/quote/{quote}/convert', [QuoteController::class, 'convertToWork'])->name('quote.convert');
@@ -135,6 +136,11 @@ Route::middleware(['auth', EnsureInternalUser::class])->group(function () {
         Route::put('/customer/{customer}/properties/{property}/default', [CustomerPropertyController::class, 'setDefault'])
             ->name('customer.properties.default');
     });
+
+    Route::patch('/customer/{customer}/notes', [CustomerController::class, 'updateNotes'])
+        ->name('customer.notes.update');
+    Route::patch('/customer/{customer}/tags', [CustomerController::class, 'updateTags'])
+        ->name('customer.tags.update');
 
     Route::resource('customer', CustomerController::class)
         ->only(['index', 'store', 'update', 'create', 'show', 'destroy']);
@@ -207,10 +213,9 @@ require __DIR__ . '/auth.php';
             Route::post('/tenants/{tenant}/restore', [SuperAdminTenantController::class, 'restore'])->name('tenants.restore');
             Route::post('/tenants/{tenant}/reset-onboarding', [SuperAdminTenantController::class, 'resetOnboarding'])->name('tenants.reset-onboarding');
             Route::put('/tenants/{tenant}/features', [SuperAdminTenantController::class, 'updateFeatures'])->name('tenants.features.update');
+            Route::put('/tenants/{tenant}/limits', [SuperAdminTenantController::class, 'updateLimits'])->name('tenants.limits.update');
             Route::post('/tenants/{tenant}/impersonate', [SuperAdminTenantController::class, 'impersonate'])->name('tenants.impersonate');
             Route::get('/tenants/{tenant}/export', [SuperAdminTenantController::class, 'export'])->name('tenants.export');
-
-            Route::post('/impersonate/stop', [SuperAdminTenantController::class, 'stopImpersonate'])->name('impersonate.stop');
 
             Route::get('/admins', [SuperAdminAdminController::class, 'index'])->name('admins.index');
             Route::post('/admins', [SuperAdminAdminController::class, 'store'])->name('admins.store');
@@ -226,3 +231,7 @@ require __DIR__ . '/auth.php';
             Route::get('/settings', [SuperAdminPlatformSettingsController::class, 'edit'])->name('settings.edit');
             Route::put('/settings', [SuperAdminPlatformSettingsController::class, 'update'])->name('settings.update');
         });
+
+    Route::post('/impersonate/stop', [SuperAdminTenantController::class, 'stopImpersonate'])
+        ->middleware('impersonating')
+        ->name('superadmin.impersonate.stop');

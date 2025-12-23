@@ -4,6 +4,24 @@ import { Link } from '@inertiajs/vue3';
 const props = defineProps({
     customer: Object,
 });
+
+const openRequestModal = () => {
+    if (!props.customer?.id) {
+        return;
+    }
+
+    if (typeof window !== 'undefined') {
+        window.dispatchEvent(
+            new CustomEvent('quick-create-request', {
+                detail: { customerId: props.customer.id },
+            })
+        );
+
+        if (window.HSOverlay) {
+            window.HSOverlay.open('#hs-quick-create-request');
+        }
+    }
+};
 </script>
 <template>
     <div
@@ -87,7 +105,7 @@ const props = defineProps({
                                     </button>
                                 </Link>
 
-                                <button type="button"
+                                <button type="button" @click="openRequestModal"
                                     class="w-full flex items-center gap-x-3 py-2 px-3 rounded-sm text-sm text-gray-800 hover:bg-gray-100 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-gray-100 dark:text-neutral-300 dark:hover:bg-neutral-800 dark:focus:bg-neutral-800">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
                                         fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
@@ -97,7 +115,7 @@ const props = defineProps({
                                         <path d="M13 6h3a2 2 0 0 1 2 2v7" />
                                         <line x1="6" x2="6" y1="9" y2="21" />
                                     </svg>
-                                    create request
+                                    Create request
                                 </button>
                                 <Link :href="route('work.create', customer)">
                                     <button type="button"

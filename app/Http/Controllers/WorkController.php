@@ -143,6 +143,7 @@ class WorkController extends Controller
             'customer' => $customer->load('properties'),
             'products' => Product::byUser($accountId)->where('item_type', $itemType)->get(),
             'teamMembers' => $teamMembers,
+            'lockedFromQuote' => false,
         ]);
     }
 
@@ -153,16 +154,20 @@ class WorkController extends Controller
     {
         $accountId = Auth::user()?->accountOwnerId() ?? Auth::id();
         $work = Work::byUser($accountId)
-            ->with(['customer', 'invoice', 'products', 'teamMembers.user', 'ratings'])
+            ->with(['customer', 'invoice', 'products', 'teamMembers.user', 'ratings', 'quote.products'])
             ->withAvg('ratings', 'rating')
             ->withCount('ratings')
             ->findOrFail($id);
 
         $this->authorize('view', $work);
 
+        $this->applyQuoteSnapshotToWork($work);
+        $lockedFromQuote = (bool) $work->quote_id && $work->relationLoaded('quote') && $work->quote;
+
         return inertia('Work/Show', [
             'work' => $work,
             'customer' => $work->customer,
+            'lockedFromQuote' => $lockedFromQuote,
         ]);
     }
 
@@ -304,9 +309,12 @@ class WorkController extends Controller
             : Product::ITEM_TYPE_SERVICE;
 
         $work = Work::byUser($accountId)
-            ->with(['customer', 'invoice', 'products', 'ratings', 'teamMembers.user'])
+            ->with(['customer', 'invoice', 'products', 'ratings', 'teamMembers.user', 'quote.products'])
             ->findOrFail($work_id);
         $this->authorize('edit', $work);
+
+        $this->applyQuoteSnapshotToWork($work);
+        $lockedFromQuote = (bool) $work->quote_id && $work->relationLoaded('quote') && $work->quote;
 
         $filters = $request->only(['category_id', 'name', 'stock']);
         $workProducts = $work->products()->with('category')->get() ?: [];
@@ -338,6 +346,7 @@ class WorkController extends Controller
             'products' => $products,
             'works' => Work::byUser($accountId)->latest()->get(),
             'teamMembers' => $teamMembers,
+            'lockedFromQuote' => $lockedFromQuote,
         ]);
     }
 
@@ -362,49 +371,75 @@ class WorkController extends Controller
         $previousStatus = $work->status;
         $validated['instructions'] = $validated['instructions'] ?? $work->instructions ?? '';
 
-        $lines = collect($validated['products'] ?? [])
-            ->map(function ($product) {
-                $quantity = (int) ($product['quantity'] ?? 1);
-                $price = (float) ($product['price'] ?? 0);
-
-                return [
-                    'product_id' => (int) $product['id'],
-                    'quantity' => $quantity,
-                    'price' => $price,
-                    'total' => round($quantity * $price, 2),
-                ];
-            })
-            ->filter(fn($line) => $line['product_id'] > 0);
-
-        $productMap = collect();
-        if ($lines->isNotEmpty()) {
-            $productMap = Product::byUser($accountId)
-                ->where('item_type', $itemType)
-                ->whereIn('id', $lines->pluck('product_id'))
-                ->get()
-                ->keyBy('id');
+        $lockedQuote = null;
+        if ($work->quote_id) {
+            $lockedQuote = Quote::query()
+                ->where('user_id', $accountId)
+                ->with('products')
+                ->find($work->quote_id);
         }
 
-        $lines = $lines->map(function ($line) use ($productMap) {
-            $product = $productMap->get($line['product_id']);
-            if (!$product) {
-                return null;
+        if ($lockedQuote) {
+            $validated['job_title'] = $lockedQuote->job_title;
+            $validated['instructions'] = $lockedQuote->notes ?: ($lockedQuote->messages ?: '');
+            $validated['subtotal'] = $lockedQuote->subtotal;
+            $validated['total'] = $lockedQuote->total;
+
+            $lines = $lockedQuote->products->map(function ($product) use ($work) {
+                return [
+                    'product_id' => $product->id,
+                    'quote_id' => $work->quote_id,
+                    'quantity' => (int) $product->pivot->quantity,
+                    'price' => (float) $product->pivot->price,
+                    'total' => (float) $product->pivot->total,
+                    'description' => $product->pivot->description,
+                ];
+            });
+        } else {
+            $lines = collect($validated['products'] ?? [])
+                ->map(function ($product) {
+                    $quantity = (int) ($product['quantity'] ?? 1);
+                    $price = (float) ($product['price'] ?? 0);
+
+                    return [
+                        'product_id' => (int) $product['id'],
+                        'quantity' => $quantity,
+                        'price' => $price,
+                        'total' => round($quantity * $price, 2),
+                    ];
+                })
+                ->filter(fn($line) => $line['product_id'] > 0);
+
+            $productMap = collect();
+            if ($lines->isNotEmpty()) {
+                $productMap = Product::byUser($accountId)
+                    ->where('item_type', $itemType)
+                    ->whereIn('id', $lines->pluck('product_id'))
+                    ->get()
+                    ->keyBy('id');
             }
 
-            $price = $line['price'] > 0 ? $line['price'] : (float) $product->price;
-            $quantity = (int) $line['quantity'];
+            $lines = $lines->map(function ($line) use ($productMap) {
+                $product = $productMap->get($line['product_id']);
+                if (!$product) {
+                    return null;
+                }
 
-            return [
-                'product_id' => $product->id,
-                'quantity' => $quantity,
-                'price' => $price,
-                'total' => round($price * $quantity, 2),
-            ];
-        })->filter();
+                $price = $line['price'] > 0 ? $line['price'] : (float) $product->price;
+                $quantity = (int) $line['quantity'];
 
-        $subtotal = $lines->sum('total');
-        $validated['subtotal'] = $subtotal;
-        $validated['total'] = $subtotal;
+                return [
+                    'product_id' => $product->id,
+                    'quantity' => $quantity,
+                    'price' => $price,
+                    'total' => round($price * $quantity, 2),
+                ];
+            })->filter();
+
+            $subtotal = $lines->sum('total');
+            $validated['subtotal'] = $subtotal;
+            $validated['total'] = $subtotal;
+        }
         $validated['status'] = $validated['status'] ?? $work->status ?? 'scheduled';
 
         $shouldSyncTeamMembers = $user && $user->id === $accountId && array_key_exists('team_member_ids', $validated);
@@ -425,10 +460,23 @@ class WorkController extends Controller
             }
         }
 
-        DB::transaction(function () use ($work, $validated, $lines, $allowedTeamMemberIds, $shouldSyncTeamMembers) {
+        DB::transaction(function () use ($work, $validated, $lines, $allowedTeamMemberIds, $shouldSyncTeamMembers, $lockedQuote) {
             $work->update($validated);
 
-            if ($lines->isNotEmpty()) {
+            if ($lockedQuote) {
+                $pivotData = $lines->mapWithKeys(function ($line) {
+                    return [
+                        $line['product_id'] => [
+                            'quote_id' => $line['quote_id'] ?? null,
+                            'quantity' => $line['quantity'],
+                            'price' => $line['price'],
+                            'description' => $line['description'] ?? null,
+                            'total' => $line['total'],
+                        ],
+                    ];
+                });
+                $work->products()->sync($pivotData->toArray());
+            } elseif ($lines->isNotEmpty()) {
                 $pivotData = $lines->mapWithKeys(function ($line) {
                     return [
                         $line['product_id'] => [
@@ -684,6 +732,24 @@ class WorkController extends Controller
         });
 
         return redirect()->route('customer.quote.edit', $quote)->with('success', 'Extra quote created.');
+    }
+
+    private function applyQuoteSnapshotToWork(Work $work): void
+    {
+        if (!$work->quote_id) {
+            return;
+        }
+
+        $work->loadMissing('quote.products');
+        if (!$work->quote) {
+            return;
+        }
+
+        $work->setRelation('products', $work->quote->products);
+        $work->job_title = $work->quote->job_title;
+        $work->instructions = $work->quote->notes ?: ($work->quote->messages ?: '');
+        $work->subtotal = $work->quote->subtotal;
+        $work->total = $work->quote->total;
     }
 
 }

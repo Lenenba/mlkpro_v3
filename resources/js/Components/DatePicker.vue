@@ -3,6 +3,7 @@
     <div ref="containerRef" class="relative w-full">
       <!-- Read-only input used as the peer element for floating label -->
       <input
+        :id="inputId"
         type="text"
         readonly
         :value="selectedDate || ''"
@@ -17,7 +18,7 @@
       />
       <!-- Floating label -->
       <label
-        for="floating-input"
+        :for="inputId"
         class="absolute top-0 left-0 p-4 h-full text-sm truncate pointer-events-none transition ease-in-out duration-100 origin-[0_0] dark:text-white peer-disabled:opacity-50 peer-disabled:pointer-events-none
                scale-90
                translate-x-0.5
@@ -132,6 +133,7 @@
 
   // Container ref for click-outside detection
   const containerRef = ref(null);
+  const inputId = `date-picker-${Math.random().toString(36).slice(2, 10)}`;
 
   // Reactive state to toggle the calendar dropdown visibility
   const showPicker = ref(false);

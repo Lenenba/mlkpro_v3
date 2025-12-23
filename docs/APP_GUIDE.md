@@ -231,20 +231,21 @@ Quand une page, un statut ou une regle change:
 - ajuster la section "Workflow unifie" si necessaire
 - ajouter les nouvelles commandes ou seeders
 
-## 16. Abonnement plateforme (Stripe)
+## 16. Abonnement plateforme (Paddle)
 Le compte proprietaire gere l abonnement mensuel dans `Settings > Billing`.
 
 Champs env requis:
-- STRIPE_KEY
-- STRIPE_SECRET
-- STRIPE_WEBHOOK_SECRET
-- STRIPE_PRICE_STARTER / STRIPE_PRICE_STARTER_AMOUNT
-- STRIPE_PRICE_GROWTH / STRIPE_PRICE_GROWTH_AMOUNT
-- STRIPE_PRICE_SCALE / STRIPE_PRICE_SCALE_AMOUNT
+- PADDLE_SANDBOX (true/false)
+- PADDLE_CLIENT_SIDE_TOKEN (Paddle.js)
+- PADDLE_API_KEY (ou PADDLE_AUTH_CODE)
+- PADDLE_WEBHOOK_SECRET (prod)
+- PADDLE_PRICE_STARTER / PADDLE_PRICE_STARTER_AMOUNT
+- PADDLE_PRICE_GROWTH / PADDLE_PRICE_GROWTH_AMOUNT
+- PADDLE_PRICE_SCALE / PADDLE_PRICE_SCALE_AMOUNT
 
 Notes:
-- Les prix Stripe sont des PRICE_ID (mensuels).
-- Le portail Stripe est disponible via le bouton "Gerer le paiement".
+- Les prix sont des PRICE_ID Paddle Billing (mensuels).
+- Le bouton "Gerer le paiement" redirige vers Paddle (update payment method).
 
 ## 17. Scenarios de test (LaunchSeeder)
 Seeder: `Database\\Seeders\\LaunchSeeder`

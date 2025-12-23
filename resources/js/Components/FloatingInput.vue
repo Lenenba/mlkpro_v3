@@ -1,52 +1,76 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 
-// Définir les props et les événements
 const props = defineProps({
     modelValue: {
         type: String,
-        required: true, // La valeur liée est obligatoire
+        required: true,
     },
     type: {
         type: String,
         default: 'text',
     },
+    id: {
+        type: String,
+        default: null,
+    },
     label: {
         type: String,
-        required: true, // Le label est obligatoire
+        required: true,
+    },
+    autocomplete: {
+        type: String,
+        default: null,
+    },
+    disabled: {
+        type: Boolean,
+        default: false,
     },
 });
 
-const emit = defineEmits(['update:modelValue']); // Émettre l'événement pour synchroniser les données avec le parent
+const emit = defineEmits(['update:modelValue']);
 
 const input = ref(null);
+const generatedId = `floating-input-${Math.random().toString(36).slice(2, 10)}`;
 
-// Propriété calculée pour lier `modelValue` à une valeur locale
 const value = computed({
-    get: () => props.modelValue, // Lecture de la prop
+    get: () => props.modelValue,
     set: (newValue) => {
-        emit('update:modelValue', newValue); // Émettre l'événement pour mettre à jour le parent
+        emit('update:modelValue', newValue);
     },
 });
 
-// Gestion du focus automatique
+const inputId = computed(() => props.id || generatedId);
+const resolvedAutocomplete = computed(() => {
+    if (props.autocomplete) {
+        return props.autocomplete;
+    }
+
+    if (props.type === 'password') {
+        return 'current-password';
+    }
+
+    return 'off';
+});
+
 onMounted(() => {
     if (input.value && input.value.hasAttribute('autofocus')) {
         input.value.focus();
     }
 });
 
-// Exposer une méthode publique pour forcer le focus
-defineExpose({ focus: () => input.value.focus() });
+defineExpose({ focus: () => input.value?.focus() });
 </script>
 
 <template>
     <div class="relative">
         <input
+            :id="inputId"
             v-model="value"
             ref="input"
-            id="floating-input"
             :type="type"
+            :disabled="disabled"
+            :autocomplete="resolvedAutocomplete"
             class="peer p-4 block w-full border-gray-200 rounded-sm text-sm placeholder-transparent focus:border-green-600 focus:ring-green-600 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-400 dark:focus:ring-neutral-600
                 focus:pt-6
                 focus:pb-2
@@ -57,7 +81,7 @@ defineExpose({ focus: () => input.value.focus() });
             :placeholder="label"
         />
         <label
-            for="floating-input"
+            :for="inputId"
             class="absolute top-0 left-0 p-4 h-full text-sm truncate pointer-events-none transition ease-in-out duration-100 origin-[0_0] dark:text-white peer-disabled:opacity-50 peer-disabled:pointer-events-none
                 scale-90
                 translate-x-0.5
@@ -70,7 +94,8 @@ defineExpose({ focus: () => input.value.focus() });
                 peer-focus:scale-90
                 peer-focus:translate-x-0.5
                 peer-focus:-translate-y-1.5
-                peer-focus:text-gray-500 dark:peer-focus:text-neutral-500">
+                peer-focus:text-gray-500 dark:peer-focus:text-neutral-500"
+        >
             {{ label }}
         </label>
     </div>

@@ -35,12 +35,13 @@ return [
         ],
     ],
 
-    'stripe' => [
-        'key' => env('STRIPE_KEY'),
-        'secret' => env('STRIPE_SECRET'),
-        'webhook' => [
-            'secret' => env('STRIPE_WEBHOOK_SECRET'),
-        ],
+
+    'paddle' => [
+        'seller_id' => env('PADDLE_SELLER_ID'),
+        'client_side_token' => env('PADDLE_CLIENT_SIDE_TOKEN'),
+        'api_key' => env('PADDLE_AUTH_CODE') ?? env('PADDLE_API_KEY'),
+        'webhook_secret' => env('PADDLE_WEBHOOK_SECRET'),
+        'sandbox' => env('PADDLE_SANDBOX', false),
     ],
 
 ];

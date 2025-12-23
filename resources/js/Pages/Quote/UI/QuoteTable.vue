@@ -120,6 +120,8 @@ const displayCustomer = (customer) =>
 
 const statusClasses = (status) => {
     switch (status) {
+        case 'archived':
+            return 'bg-stone-100 text-stone-700 dark:bg-neutral-700 dark:text-neutral-300';
         case 'accepted':
             return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-400';
         case 'declined':
@@ -130,6 +132,9 @@ const statusClasses = (status) => {
             return 'bg-gray-100 text-gray-800 dark:bg-neutral-700 dark:text-neutral-200';
     }
 };
+
+const isArchived = (quote) => Boolean(quote?.archived_at);
+const displayStatus = (quote) => (isArchived(quote) ? 'archived' : (quote?.status || 'draft'));
 
 const toggleSort = (column) => {
     if (filterForm.sort === column) {
@@ -144,11 +149,15 @@ const sendEmail = (quote) => {
     router.post(route('quote.send.email', quote), {}, { preserveScroll: true });
 };
 
-const destroyQuote = (quote) => {
-    if (!confirm(`Delete quote ${quote.number || ''}?`)) {
+const archiveQuote = (quote) => {
+    if (!confirm(`Archive quote ${quote.number || ''}?`)) {
         return;
     }
     router.delete(route('customer.quote.destroy', quote), { preserveScroll: true });
+};
+
+const restoreQuote = (quote) => {
+    router.post(route('customer.quote.restore', quote), {}, { preserveScroll: true });
 };
 
 const convertToJob = (quote) => {
@@ -192,6 +201,7 @@ const startQuote = () => {
                         <option value="sent">Sent</option>
                         <option value="accepted">Accepted</option>
                         <option value="declined">Declined</option>
+                        <option value="archived">Archived</option>
                     </select>
 
                     <select v-model="filterForm.customer_id"
@@ -314,8 +324,8 @@ const startQuote = () => {
                         </td>
                         <td class="px-4 py-3">
                             <span class="py-1.5 px-2 inline-flex items-center text-xs font-medium rounded-full"
-                                :class="statusClasses(quote.status)">
-                                {{ quote.status || 'draft' }}
+                                :class="statusClasses(displayStatus(quote))">
+                                {{ displayStatus(quote) }}
                             </span>
                         </td>
                         <td class="px-4 py-3">
@@ -349,23 +359,28 @@ const startQuote = () => {
                                             class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-lg text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
                                             View
                                         </Link>
-                                        <Link :href="route('customer.quote.edit', quote)"
+                                        <Link v-if="!isArchived(quote) && quote.status !== 'accepted'"
+                                            :href="route('customer.quote.edit', quote)"
                                             class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-lg text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
                                             Edit
                                         </Link>
                                         <div class="my-1 border-t border-stone-200 dark:border-neutral-800"></div>
-                                        <button type="button" @click="sendEmail(quote)"
+                                        <button v-if="!isArchived(quote)" type="button" @click="sendEmail(quote)"
                                             class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-lg text-[13px] text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-neutral-800">
                                             Send email
                                         </button>
-                                        <button type="button" @click="convertToJob(quote)"
+                                        <button v-if="!isArchived(quote) && quote.status !== 'accepted'" type="button" @click="convertToJob(quote)"
                                             class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-lg text-[13px] text-emerald-600 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-neutral-800">
                                             Create job
                                         </button>
                                         <div class="my-1 border-t border-stone-200 dark:border-neutral-800"></div>
-                                        <button type="button" @click="destroyQuote(quote)"
+                                        <button v-if="!isArchived(quote)" type="button" @click="archiveQuote(quote)"
                                             class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-lg text-[13px] text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-neutral-800">
-                                            Delete
+                                            Archive
+                                        </button>
+                                        <button v-else type="button" @click="restoreQuote(quote)"
+                                            class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-lg text-[13px] text-emerald-600 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-neutral-800">
+                                            Restore
                                         </button>
                                     </div>
                                 </div>

@@ -11,6 +11,10 @@ const props = defineProps({
         type: [Number, String],
         default: 0, // Valeur par défaut pour le modèle
     },
+    disabled: {
+        type: Boolean,
+        default: false,
+    },
 });
 
 // Émettre l'événement pour synchroniser avec le parent
@@ -27,12 +31,18 @@ const input = ref(null);
 
 // Méthodes pour gérer l'incrémentation et la décrémentation
 const increment = () => {
-    value.value += 1; // Incrémente la valeur
+    if (props.disabled) {
+        return;
+    }
+    value.value += 1; // Incr‚mente la valeur
 };
 
 const decrement = () => {
+    if (props.disabled) {
+        return;
+    }
     if (value.value > 0) {
-        value.value -= 1; // Décrémente uniquement si la valeur est supérieure à 0
+        value.value -= 1; // D‚cr‚mente uniquement si la valeur est sup‚rieure … 0
     }
 };
 
@@ -52,6 +62,7 @@ defineExpose({ focus: () => input.value.focus() });
             <button
                 type="button"
                 @click="decrement"
+                :disabled="disabled"
                 class="size-6 inline-flex justify-center items-center gap-x-2 text-sm font-medium rounded-md border border-gray-200 bg-white text-gray-800 shadow-sm hover:bg-gray-50 focus:outline-none focus:bg-gray-50 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-900 dark:border-neutral-700 dark:text-white dark:hover:bg-neutral-800 dark:focus:bg-neutral-800"
                 tabindex="-1"
                 aria-label="Decrease"
@@ -77,6 +88,7 @@ defineExpose({ focus: () => input.value.focus() });
             <input
                 ref="input"
                 v-model="value"
+                :disabled="disabled"
                 class="p-0 w-6 bg-transparent border-0 text-gray-800 text-center focus:ring-0 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none dark:text-white"
                 style="-moz-appearance: textfield;"
                 type="number"
@@ -88,6 +100,7 @@ defineExpose({ focus: () => input.value.focus() });
             <button
                 type="button"
                 @click="increment"
+                :disabled="disabled"
                 class="size-6 inline-flex justify-center items-center gap-x-2 text-sm font-medium rounded-md border border-gray-200 bg-white text-gray-800 shadow-sm hover:bg-gray-50 focus:outline-none focus:bg-gray-50 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-900 dark:border-neutral-700 dark:text-white dark:hover:bg-neutral-800 dark:focus:bg-neutral-800"
                 tabindex="-1"
                 aria-label="Increase"

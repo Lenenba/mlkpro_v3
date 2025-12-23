@@ -12,7 +12,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use Laravel\Cashier\Billable;
+use Laravel\Paddle\Billable;
 
 class User extends Authenticatable
 {
@@ -42,6 +42,7 @@ class User extends Authenticatable
         'onboarding_completed_at',
         'payment_methods',
         'company_features',
+        'company_limits',
         'is_suspended',
         'suspended_at',
         'suspension_reason',
@@ -72,6 +73,7 @@ class User extends Authenticatable
             'trial_ends_at' => 'datetime',
             'must_change_password' => 'boolean',
             'company_features' => 'array',
+            'company_limits' => 'array',
             'is_suspended' => 'boolean',
             'suspended_at' => 'datetime',
         ];

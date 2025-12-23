@@ -23,6 +23,10 @@ const props = defineProps({
     customer: Object,
     lastWorkNumber: String,
     teamMembers: Array,
+    lockedFromQuote: {
+        type: Boolean,
+        default: false,
+    },
 });
 
 const Frequence = [
@@ -81,6 +85,8 @@ const form = useForm({
     total: props.work?.total ?? 0,
     team_member_ids: props.work?.team_members?.map(member => member.id) ?? [],
 });
+
+const isLockedFromQuote = computed(() => Boolean(props.lockedFromQuote));
 
 const primaryProperty = computed(() => {
     const properties = props.customer?.properties || [];
@@ -405,8 +411,11 @@ onBeforeUnmount(() => {
                         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                             <div class="col-span-2 space-x-2">
                                 <div class="mb-4" x-data="{ open: false }">
-                                    <FloatingInput v-model="form.job_title" label="Titre du job" />
-                                    <FloatingTextarea v-model="form.instructions" label="Instructions" />
+                                    <FloatingInput v-model="form.job_title" label="Titre du job" :disabled="isLockedFromQuote" />
+                                    <FloatingTextarea v-model="form.instructions" label="Instructions" :disabled="isLockedFromQuote" />
+                                </div>
+                                <div v-if="isLockedFromQuote" class="mb-2 text-xs text-amber-600">
+                                    Ce job est verrouille car il provient d'un devis accepte. Seule la planification peut etre modifiee.
                                 </div>
                                 <div class="flex flex-row space-x-6">
                                     <div class="lg:col-span-3">
@@ -853,7 +862,7 @@ onBeforeUnmount(() => {
                             </h3>
                         </div>
                         <div class="p-4 md:p-5">
-                            <ProductTableList v-model="form.products" @update:subtotal="updateSubtotal" />
+                            <ProductTableList v-model="form.products" :read-only="isLockedFromQuote" @update:subtotal="updateSubtotal" />
                         </div>
                         <div
                             class="p-5 grid grid-cols-2 gap-4 justify-between bg-white border-t-2 border-t-gray-100 rounded-sm  dark:bg-green-800 dark:border-green-700">

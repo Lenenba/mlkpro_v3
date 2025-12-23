@@ -15,6 +15,12 @@ class QuoteEmaillingController extends Controller
             abort(403);
         }
 
+        if ($quote->isArchived()) {
+            return redirect()->back()->withErrors([
+                'status' => 'Archived quotes cannot be sent.',
+            ]);
+        }
+
         $quote->load(['customer', 'property', 'products', 'taxes.tax']);
 
         if (!$quote->customer || !$quote->customer->email) {

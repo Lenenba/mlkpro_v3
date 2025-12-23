@@ -44,9 +44,11 @@ class DashboardController extends Controller
 
             $pendingQuotesQuery = Quote::query()
                 ->where('customer_id', $customerId)
+                ->whereNull('archived_at')
                 ->where('status', 'sent');
             $validatedQuotesQuery = Quote::query()
                 ->where('customer_id', $customerId)
+                ->whereNull('archived_at')
                 ->whereIn('status', ['accepted', 'declined']);
 
             $pendingWorksQuery = Work::query()
@@ -67,6 +69,7 @@ class DashboardController extends Controller
 
             $quoteRatingsQuery = Quote::query()
                 ->where('customer_id', $customerId)
+                ->whereNull('archived_at')
                 ->whereIn('status', ['accepted', 'declined'])
                 ->whereDoesntHave('ratings', function ($query) use ($user) {
                     $query->where('user_id', $user->id);

@@ -29,6 +29,7 @@ class Customer extends Model
         'email',
         'phone',
         'description',
+        'tags',
         'logo',
         'header_image',
         'refer_by',
@@ -47,6 +48,7 @@ class Customer extends Model
 
     protected $casts = [
         'billing_same_as_physical' => 'boolean',
+        'tags' => 'array',
     ];
 
     protected $appends = [
@@ -104,9 +106,16 @@ class Customer extends Model
         return $this->hasMany(Invoice::class);
     }
 
+    public function requests(): HasMany
+    {
+        return $this->hasMany(Request::class)->orderByDesc('created_at');
+    }
+
     public function quotes()
     {
-        return $this->hasMany(Quote::class)->with(['products','property']);
+        return $this->hasMany(Quote::class)
+            ->whereNull('archived_at')
+            ->with(['products', 'property']);
     }
     /**
      * Get the works for the customer.

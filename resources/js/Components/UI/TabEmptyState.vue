@@ -1,8 +1,45 @@
 <script setup>
 import { Link } from '@inertiajs/vue3';
+import { computed } from 'vue';
 const props = defineProps({
     type: String,
     customer: Object,
+});
+
+const action = computed(() => {
+    if (!props.customer) {
+        return null;
+    }
+
+    if (props.type === 'quotes') {
+        return {
+            href: route('customer.quote.create', props.customer),
+            label: 'Create quote',
+        };
+    }
+
+    if (props.type === 'works' || props.type === 'jobs') {
+        return {
+            href: route('work.create', props.customer),
+            label: 'Create job',
+        };
+    }
+
+    if (props.type === 'invoices') {
+        return {
+            href: route('invoice.index'),
+            label: 'View invoices',
+        };
+    }
+
+    if (props.type === 'requests') {
+        return {
+            href: route('request.index'),
+            label: 'Create request',
+        };
+    }
+
+    return null;
 });
 </script>
 <template>
@@ -67,7 +104,7 @@ const props = defineProps({
                 metrics
             </p>
         </div>
-        <Link :href="route('customer.quote.create', customer)">
+        <Link v-if="action" :href="action.href">
             <button type="button"
                 class="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-transparent bg-neutral-600 text-white hover:bg-neutral-700 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:ring-2 focus:ring-neutral-500"
                 data-hs-overlay="#hs-pro-atbetb">
@@ -76,7 +113,7 @@ const props = defineProps({
                     stroke-linejoin="round">
                     <path d="M5 12h14" />
                     <path d="M12 5v14" />
-                </svg>Create {{ type }}
+                </svg>{{ action.label }}
             </button>
         </Link>
     </div>

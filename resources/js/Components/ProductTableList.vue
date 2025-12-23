@@ -21,6 +21,10 @@ const props = defineProps({
     type: String,
     default: null,
   },
+  readOnly: {
+    type: Boolean,
+    default: false,
+  },
 });
 
 // Define events to emit
@@ -59,11 +63,17 @@ const searchResults = ref([]);
 
 // Function to add a new product line
 const addNewLine = () => {
+  if (props.readOnly) {
+    return;
+  }
   products.value.push({ id: null, name: '', quantity: 1, price: 0, total: 0 });
 };
 
 // Function to remove a product line
 const removeLine = index => {
+  if (props.readOnly) {
+    return;
+  }
   if (products.value.length > 1) {
     products.value.splice(index, 1);
   }
@@ -71,6 +81,9 @@ const removeLine = index => {
 
 // Function to search for products based on query and update search results for the given index
 const searchProducts = async (query, index) => {
+  if (props.readOnly) {
+    return;
+  }
   if (query.length > 0) {
     try {
       const response = await axios.get(route(props.searchEndpoint), {
@@ -90,6 +103,9 @@ const searchProducts = async (query, index) => {
 
 // Function to select a product from the search results and update the product line
 const selectProduct = (product, index) => {
+  if (props.readOnly) {
+    return;
+  }
   products.value[index] = {
     id: product.id,
     name: product.name,
@@ -141,7 +157,7 @@ const selectProduct = (product, index) => {
             <tr v-for="(product, index) in products" :key="index">
               <td class="size-px whitespace-nowrap px-4 py-3">
                 <div class="relative">
-                  <FloatingInput autofocus v-model="products[index].name" label="Nom"
+                  <FloatingInput autofocus v-model="products[index].name" label="Nom" :disabled="readOnly"
                     @input="searchProducts(products[index].name, index)" />
                 </div>
                 <div class="relative w-full">
@@ -156,16 +172,16 @@ const selectProduct = (product, index) => {
                 </div>
               </td>
               <td class="size-px whitespace-nowrap px-4 py-3">
-                <FloatingNumberMiniInput v-model="products[index].quantity" label="Quantite" />
+                <FloatingNumberMiniInput v-model="products[index].quantity" label="Quantite" :disabled="readOnly" />
               </td>
               <td class="size-px whitespace-nowrap px-4 py-3">
-                <FloatingNumberMiniInput v-model="products[index].price" aria-disabled="true" label="Prix unitaire" />
+                <FloatingNumberMiniInput v-model="products[index].price" aria-disabled="true" label="Prix unitaire" :disabled="readOnly" />
               </td>
               <td class="size-px whitespace-nowrap px-4 py-3">
-                <FloatingNumberMiniInput v-model="products[index].total" label="Total" />
+                <FloatingNumberMiniInput v-model="products[index].total" label="Total" :disabled="readOnly" />
               </td>
               <td>
-                <button type="button" v-if="products.length > 1" @click="removeLine(index)"
+                <button type="button" v-if="!readOnly && products.length > 1" @click="removeLine(index)"
                     class="px-4 py-4 inline-flex items-center gap-x-2 text-sm font-medium text-red-800 hover:text-red-600 disabled:opacity-50 disabled:pointer-events-none focus:outline-none dark:text-red-300">
                   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
                       fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
@@ -186,7 +202,7 @@ const selectProduct = (product, index) => {
     </div>
     <!-- End Table Section -->
     <div class="text-xs text-gray-600 flex justify-between mt-5">
-      <button type="button" @click="addNewLine"
+      <button v-if="!readOnly" type="button" @click="addNewLine"
           class="hs-tooltip-toggle ml-4 py-2 px-2.5 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:ring-2 focus:ring-green-500">
           Ajouter une ligne de {{ lineItemLabel.toLowerCase() }}
       </button>

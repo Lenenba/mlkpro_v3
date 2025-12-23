@@ -33,6 +33,23 @@ const formatBytes = (bytes) => {
 const newCompanies30 = computed(() => {
     return (props.metrics.acquisition_series || []).reduce((sum, row) => sum + (row.count || 0), 0);
 });
+
+const recentAcquisition = computed(() => {
+    const series = props.metrics.acquisition_series || [];
+    return series.slice(Math.max(series.length - 7, 0));
+});
+
+const serviceMix = computed(() => {
+    const services = props.metrics.services_total ?? 0;
+    const products = props.metrics.products_total ?? 0;
+    const total = services + products;
+    const servicePercent = total > 0 ? Math.round((services / total) * 100) : 0;
+    return {
+        services,
+        products,
+        servicePercent,
+    };
+});
 </script>
 
 <template>
@@ -77,6 +94,21 @@ const newCompanies30 = computed(() => {
                 </div>
             </div>
 
+            <div class="rounded-sm border border-gray-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-800">
+                <h2 class="text-sm font-semibold text-gray-800 dark:text-neutral-100">Acquisition (last 7 days)</h2>
+                <div class="mt-3 grid gap-2 sm:grid-cols-7 text-xs text-gray-600 dark:text-neutral-300">
+                    <div v-for="row in recentAcquisition" :key="row.date" class="rounded-sm border border-gray-200 p-2 text-center dark:border-neutral-700">
+                        <div class="text-gray-500">{{ row.date }}</div>
+                        <div class="mt-1 text-sm font-semibold text-gray-800 dark:text-neutral-100">
+                            {{ row.count }}
+                        </div>
+                    </div>
+                    <div v-if="recentAcquisition.length === 0" class="text-sm text-gray-500 dark:text-neutral-400">
+                        No acquisition data.
+                    </div>
+                </div>
+            </div>
+
             <div class="grid gap-3 lg:grid-cols-2">
                 <div class="rounded-sm border border-gray-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-800">
                     <h2 class="text-sm font-semibold text-gray-800 dark:text-neutral-100">Usage (last 30 days)</h2>
@@ -101,7 +133,11 @@ const newCompanies30 = computed(() => {
                         Avg days to first: Quote {{ metrics.avg_days_to_first?.quote ?? 'N/A' }},
                         Invoice {{ metrics.avg_days_to_first?.invoice ?? 'N/A' }},
                         Product {{ metrics.avg_days_to_first?.product ?? 'N/A' }},
+                        Service {{ metrics.avg_days_to_first?.service ?? 'N/A' }},
                         Job {{ metrics.avg_days_to_first?.work ?? 'N/A' }}
+                    </div>
+                    <div class="mt-2 text-xs text-gray-500 dark:text-neutral-400">
+                        Service mix: {{ formatNumber(serviceMix.services) }} services / {{ formatNumber(serviceMix.products) }} products ({{ serviceMix.servicePercent }}% services)
                     </div>
                 </div>
 
@@ -169,7 +205,9 @@ const newCompanies30 = computed(() => {
                     <div class="mt-4 space-y-2 text-sm text-gray-700 dark:text-neutral-200">
                         <div>Failed jobs 24h: <span class="font-semibold">{{ formatNumber(metrics.health?.failed_jobs_24h) }}</span></div>
                         <div>Failed jobs 7d: <span class="font-semibold">{{ formatNumber(metrics.health?.failed_jobs_7d) }}</span></div>
+                        <div>Email failures 24h: <span class="font-semibold">{{ formatNumber(metrics.health?.failed_mail_jobs_24h) }}</span></div>
                         <div>Pending jobs: <span class="font-semibold">{{ formatNumber(metrics.health?.pending_jobs) }}</span></div>
+                        <div>Oldest job age (min): <span class="font-semibold">{{ metrics.health?.oldest_job_minutes ?? 'N/A' }}</span></div>
                         <div>Public storage: <span class="font-semibold">{{ formatBytes(metrics.health?.storage_public_bytes) }}</span></div>
                     </div>
                 </div>

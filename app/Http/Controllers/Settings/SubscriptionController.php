@@ -3,12 +3,29 @@
 namespace App\Http\Controllers\Settings;
 
 use App\Http\Controllers\Controller;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Laravel\Paddle\Subscription;
 
 class SubscriptionController extends Controller
 {
-    public function checkout(Request $request)
+    public function portal(Request $request): RedirectResponse
+    {
+        $user = $request->user();
+        if (!$user || !$user->isAccountOwner()) {
+            abort(403);
+        }
+
+        $subscription = $user->subscription(Subscription::DEFAULT_TYPE);
+        if (!$subscription) {
+            return redirect()->back()->with('error', 'No active subscription found.');
+        }
+
+        return $subscription->redirectToUpdatePaymentMethod();
+    }
+
+    public function swap(Request $request): RedirectResponse
     {
         $user = $request->user();
         if (!$user || !$user->isAccountOwner()) {
@@ -16,6 +33,7 @@ class SubscriptionController extends Controller
         }
 
         $plans = collect(config('billing.plans', []))
+            ->map(fn(array $plan, string $key) => array_merge(['key' => $key], $plan))
             ->filter(fn(array $plan) => !empty($plan['price_id']))
             ->values();
 
@@ -30,23 +48,31 @@ class SubscriptionController extends Controller
             'price_id' => ['required', Rule::in($priceIds)],
         ]);
 
-        if ($user->subscribed('default')) {
-            return $user->redirectToBillingPortal(route('settings.billing.edit'));
+        $subscription = $user->subscription(Subscription::DEFAULT_TYPE);
+        if (!$subscription || !$subscription->active()) {
+            return redirect()->back()->withErrors([
+                'price_id' => 'You do not have an active subscription.',
+            ]);
         }
 
-        return $user->newSubscription('default', $validated['price_id'])->checkout([
-            'success_url' => route('settings.billing.edit', ['checkout' => 'success']),
-            'cancel_url' => route('settings.billing.edit', ['checkout' => 'cancel']),
-        ]);
-    }
-
-    public function portal(Request $request)
-    {
-        $user = $request->user();
-        if (!$user || !$user->isAccountOwner()) {
-            abort(403);
+        $currentPriceId = $subscription->items()->value('price_id');
+        if ($currentPriceId === $validated['price_id']) {
+            return redirect()->back()->with('info', 'You are already on this plan.');
         }
 
-        return $user->redirectToBillingPortal(route('settings.billing.edit'));
+        $plan = $plans->firstWhere('price_id', $validated['price_id']);
+        $planKey = $plan['key'] ?? null;
+
+        try {
+            $subscription->swap($validated['price_id']);
+        } catch (\Throwable $exception) {
+            return redirect()->back()->with('error', 'Unable to change plans right now.');
+        }
+
+        return redirect()->route('settings.billing.edit', array_filter([
+            'checkout' => 'swapped',
+            'plan' => $planKey,
+        ], fn($value) => $value !== null && $value !== ''));
     }
 }
+

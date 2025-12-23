@@ -34,6 +34,12 @@ class PortalQuoteController extends Controller
             abort(403);
         }
 
+        if ($quote->isArchived()) {
+            return redirect()->back()->withErrors([
+                'status' => 'Archived quotes cannot be accepted.',
+            ]);
+        }
+
         if ($quote->status === 'accepted') {
             return redirect()->back()->with('success', 'Quote already accepted.');
         }
@@ -74,6 +80,13 @@ class PortalQuoteController extends Controller
                     'subtotal' => $quote->subtotal,
                     'total' => $quote->total,
                 ]);
+            } else {
+                $work->update([
+                    'job_title' => $quote->job_title,
+                    'instructions' => $quote->notes ?: ($quote->messages ?: ''),
+                    'subtotal' => $quote->subtotal,
+                    'total' => $quote->total,
+                ]);
             }
 
             $quote->update([
@@ -104,6 +117,8 @@ class PortalQuoteController extends Controller
                     ]);
                 }
             }
+
+            $this->syncWorkProductsFromQuote($quote, $work);
 
             $items = QuoteProduct::query()
                 ->where('quote_id', $quote->id)
@@ -161,6 +176,12 @@ class PortalQuoteController extends Controller
             abort(403);
         }
 
+        if ($quote->isArchived()) {
+            return redirect()->back()->withErrors([
+                'status' => 'Archived quotes cannot be declined.',
+            ]);
+        }
+
         if ($quote->status === 'declined') {
             return redirect()->back()->with('success', 'Quote already declined.');
         }
@@ -201,5 +222,24 @@ class PortalQuoteController extends Controller
         }
 
         return redirect()->back()->with('success', 'Quote declined.');
+    }
+
+    private function syncWorkProductsFromQuote(Quote $quote, Work $work): void
+    {
+        $quote->loadMissing('products');
+
+        $pivotData = $quote->products->mapWithKeys(function ($product) use ($quote) {
+            return [
+                $product->id => [
+                    'quote_id' => $quote->id,
+                    'quantity' => (int) $product->pivot->quantity,
+                    'price' => (float) $product->pivot->price,
+                    'description' => $product->pivot->description,
+                    'total' => (float) $product->pivot->total,
+                ],
+            ];
+        });
+
+        $work->products()->sync($pivotData->toArray());
     }
 }

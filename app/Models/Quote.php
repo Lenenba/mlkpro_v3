@@ -31,6 +31,7 @@ class Quote extends Model
         'messages',
         'signed_at',
         'accepted_at',
+        'archived_at',
     ];
 
     protected $casts = [
@@ -40,6 +41,7 @@ class Quote extends Model
         'is_fixed' => 'boolean',
         'signed_at' => 'datetime',
         'accepted_at' => 'datetime',
+        'archived_at' => 'datetime',
     ];
 
     protected static function boot()
@@ -130,7 +132,32 @@ class Quote extends Model
      */
     public function scopeByUser(Builder $query, int $userId): Builder
     {
+        return $query->where('user_id', $userId)->whereNull('archived_at');
+    }
+
+    public function scopeByUserWithArchived(Builder $query, int $userId): Builder
+    {
         return $query->where('user_id', $userId);
+    }
+
+    public function scopeArchived(Builder $query): Builder
+    {
+        return $query->whereNotNull('archived_at');
+    }
+
+    public function isArchived(): bool
+    {
+        return $this->archived_at !== null;
+    }
+
+    public function isAccepted(): bool
+    {
+        return $this->status === 'accepted';
+    }
+
+    public function isLocked(): bool
+    {
+        return $this->isAccepted() || $this->isArchived();
     }
 
     /**

@@ -24,10 +24,23 @@ class PlatformSettingsController extends BaseSuperAdminController
             'quote_default' => '',
             'invoice_default' => '',
         ]);
+        $planLimits = PlatformSetting::getValue('plan_limits', []);
+        $plans = collect(config('billing.plans', []))
+            ->map(function (array $plan, string $key) {
+                return [
+                    'key' => $key,
+                    'name' => $plan['name'] ?? $key,
+                    'price_id' => $plan['price_id'] ?? null,
+                ];
+            })
+            ->values()
+            ->all();
 
         return Inertia::render('SuperAdmin/Settings/Edit', [
             'maintenance' => $maintenance,
             'templates' => $templates,
+            'plans' => $plans,
+            'plan_limits' => $planLimits,
         ]);
     }
 
@@ -41,6 +54,9 @@ class PlatformSettingsController extends BaseSuperAdminController
             'templates.email_default' => 'nullable|string|max:5000',
             'templates.quote_default' => 'nullable|string|max:5000',
             'templates.invoice_default' => 'nullable|string|max:5000',
+            'plan_limits' => 'nullable|array',
+            'plan_limits.*' => 'array',
+            'plan_limits.*.*' => 'nullable|numeric|min:0',
         ]);
 
         PlatformSetting::setValue('maintenance', [
@@ -53,6 +69,27 @@ class PlatformSettingsController extends BaseSuperAdminController
             'quote_default' => $validated['templates']['quote_default'] ?? '',
             'invoice_default' => $validated['templates']['invoice_default'] ?? '',
         ]);
+
+        $limitKeys = [
+            'quotes',
+            'invoices',
+            'jobs',
+            'products',
+            'services',
+            'tasks',
+            'team_members',
+        ];
+        $limitsPayload = [];
+        $inputLimits = $validated['plan_limits'] ?? [];
+        foreach (config('billing.plans', []) as $planKey => $plan) {
+            $planInput = $inputLimits[$planKey] ?? [];
+            foreach ($limitKeys as $limitKey) {
+                $value = $planInput[$limitKey] ?? null;
+                $limitsPayload[$planKey][$limitKey] = is_numeric($value) ? max(0, (int) $value) : null;
+            }
+        }
+
+        PlatformSetting::setValue('plan_limits', $limitsPayload);
 
         $this->logAudit($request, 'platform_settings.updated');
 

@@ -12,14 +12,14 @@ const props = defineProps({
         </dt>
         <dd
             class="py-1 inline-flex justify-end items-center gap-x-2 text-end font-medium text-sm text-gray-700 dark:text-neutral-200">
-            {{ item.number }}
+            {{ item.number || '-' }}
         </dd>
         <dt class="py-1 text-sm text-gray-500 dark:text-neutral-500">
             Name:
         </dt>
         <dd
             class="py-1 inline-flex justify-end items-center gap-x-2 text-end font-medium text-sm text-gray-700 dark:text-neutral-200">
-            {{ item.first_name }} {{ item.last_name }}
+            {{ `${item.first_name || ''} ${item.last_name || ''}`.trim() || '-' }}
         </dd>
 
         <dt class="py-1 text-sm text-gray-500 dark:text-neutral-500">
@@ -27,7 +27,7 @@ const props = defineProps({
         </dt>
         <dd
             class="py-1 inline-flex justify-end items-center gap-x-2 text-end font-medium text-sm text-gray-700 dark:text-neutral-200">
-            {{ item.phone }}
+            {{ item.phone || '-' }}
         </dd>
 
         <dt class="py-1 text-sm text-gray-500 dark:text-neutral-500">
@@ -35,7 +35,7 @@ const props = defineProps({
         </dt>
         <dd
             class="py-1 inline-flex justify-end items-center gap-x-2 text-end font-medium text-sm text-gray-700 dark:text-neutral-200">
-            {{ item.email }}
+            {{ item.email || '-' }}
         </dd>
     </dl>
     <!-- End List -->

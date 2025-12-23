@@ -54,6 +54,7 @@ const selectedProperty = computed(() => {
 });
 
 const availableTaxes = computed(() => props.taxes || []);
+const isLocked = computed(() => Boolean(props.quote?.archived_at) || props.quote?.status === 'accepted');
 
 
 const updateSubtotal = (newSubtotal) => {
@@ -117,6 +118,9 @@ const toggleDepositInput = () => {
 
 // Soumettre le formulaire
 const submit = () => {
+    if (isLocked.value) {
+        return;
+    }
     const routeName = props.quote?.id ? 'customer.quote.update' : 'customer.quote.store';
     const routeParams = props.quote?.id ? { quote: props.quote.id } : { customer: props.customer.id };
 
@@ -150,13 +154,17 @@ const submit = () => {
                                 Quote For {{ customer.company_name }}
                             </h1>
                         </div>
+                        <div v-if="isLocked" class="text-xs text-amber-600">
+                            This quote is locked because it has been accepted or archived.
+                        </div>
                         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                             <div class="col-span-2 space-x-2">
-                                <FloatingInput v-model="form.job_title" label="Job title" class="mb-2" />
+                                <FloatingInput v-model="form.job_title" label="Job title" class="mb-2" :disabled="isLocked" />
                                 <div class="mb-3">
                                     <label class="text-xs text-gray-500 dark:text-neutral-400">Property</label>
                                     <select v-model.number="form.property_id"
-                                        class="mt-1 w-full py-2 px-3 bg-white border border-gray-200 rounded-sm text-sm text-gray-700 focus:border-green-500 focus:ring-green-500 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
+                                        :disabled="isLocked"
+                                        class="mt-1 w-full py-2 px-3 bg-white border border-gray-200 rounded-sm text-sm text-gray-700 focus:border-green-500 focus:ring-green-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
                                         <option v-if="!customer.properties || !customer.properties.length" value="">No property</option>
                                         <option v-for="property in customer.properties" :key="property.id" :value="property.id">
                                             {{ property.street1 }}{{ property.city ? ', ' + property.city : '' }}
@@ -210,11 +218,12 @@ const submit = () => {
                                         <span>{{ lastQuotesNumber|| quote?.number }} </span>
                                     </div>
                                     <div class="text-xs text-gray-600 dark:text-neutral-400 flex justify-between mt-2">
-                                        <span>Status :</span>
-                                        <select v-model="form.status"
-                                            class="py-1 px-2 text-xs bg-white border border-gray-200 rounded-sm text-gray-700 focus:border-green-500 focus:ring-green-500 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
-                                            <option value="draft">Draft</option>
-                                            <option value="sent">Sent</option>
+                                    <span>Status :</span>
+                                    <select v-model="form.status"
+                                            :disabled="isLocked"
+                                            class="py-1 px-2 text-xs bg-white border border-gray-200 rounded-sm text-gray-700 focus:border-green-500 focus:ring-green-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
+                                        <option value="draft">Draft</option>
+                                        <option value="sent">Sent</option>
                                             <option value="accepted">Accepted</option>
                                             <option value="declined">Declined</option>
                                         </select>
@@ -241,13 +250,13 @@ const submit = () => {
                     </div>
                     <div
                         class="p-5 space-y-3 flex flex-col bg-white border border-gray-100 rounded-sm shadow-sm xl:shadow-none dark:bg-green-800 dark:border-green-700">
-                        <ProductTableList v-model="form.product" @update:subtotal="updateSubtotal" />
+                        <ProductTableList v-model="form.product" :read-only="isLocked" @update:subtotal="updateSubtotal" />
                     </div>
                     <div
                         class="p-5 grid grid-cols-2 gap-4 justify-between bg-white border border-gray-100 rounded-sm shadow-sm xl:shadow-none dark:bg-green-800 dark:border-green-700">
 
                         <div>
-                            <FloatingTextarea v-model="form.messages" label="Client message" />
+                            <FloatingTextarea v-model="form.messages" label="Client message" :disabled="isLocked" />
                         </div>
                         <div class="border-l border-gray-200 dark:border-neutral-700 rounded-sm p-4">
                             <!-- List Item -->
@@ -293,8 +302,8 @@ const submit = () => {
                                 </div>
                                 <div class="flex justify-end">
                                     <div class="flex items-center gap-x-2">
-                                        <button @click="toggleTaxDetails" type="button"
-                                            class="py-1.5 ps-1.5 pe-2.5 inline-flex items-center gap-x-1 text-xs font-medium border border-green-500 text-green-800 rounded-sm dark:bg-green-500/10 dark:text-green-500">
+                                        <button @click="toggleTaxDetails" type="button" :disabled="isLocked"
+                                            class="py-1.5 ps-1.5 pe-2.5 inline-flex items-center gap-x-1 text-xs font-medium border border-green-500 text-green-800 rounded-sm disabled:opacity-50 disabled:pointer-events-none dark:bg-green-500/10 dark:text-green-500">
                                             {{ showTaxDetails ? 'Hide taxes' : 'Add tax' }}
                                         </button>
                                     </div>
@@ -310,8 +319,8 @@ const submit = () => {
                                     <label v-for="tax in availableTaxes" :key="tax.id"
                                         class="flex items-center justify-between gap-3 text-sm text-gray-700 dark:text-neutral-200">
                                         <span class="flex items-center gap-2">
-                                            <input type="checkbox" :value="tax.id" v-model="form.taxes"
-                                                class="size-4 rounded border-gray-300 text-green-600 focus:ring-green-500 dark:bg-neutral-900 dark:border-neutral-600" />
+                                            <input type="checkbox" :value="tax.id" v-model="form.taxes" :disabled="isLocked"
+                                                class="size-4 rounded border-gray-300 text-green-600 focus:ring-green-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-900 dark:border-neutral-600" />
                                             {{ tax.name }} ({{ tax.rate }}%)
                                         </span>
                                         <span class="text-sm text-gray-800 dark:text-neutral-200">
@@ -355,8 +364,8 @@ const submit = () => {
                                 <div class="flex justify-end">
                                     <!-- Si le champ est affiché -->
                                     <div v-if="showDepositInput" class="flex items-center gap-x-2">
-                                        <input type="number" v-model="form.initial_deposit" @blur="validateDeposit"
-                                            class="w-20 p-1 text-sm border border-gray-300 rounded-sm focus:outline-none focus:ring focus:ring-green-500 dark:bg-neutral-900 dark:border-neutral-700 dark:text-white"
+                                        <input type="number" v-model="form.initial_deposit" @blur="validateDeposit" :disabled="isLocked"
+                                            class="w-20 p-1 text-sm border border-gray-300 rounded-sm focus:outline-none focus:ring focus:ring-green-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-900 dark:border-neutral-700 dark:text-white"
                                             :min="minimumDeposit" />
                                         <span class="text-xs text-gray-500 dark:text-neutral-500">
                                             (Min: ${{ minimumDeposit }})
@@ -364,7 +373,7 @@ const submit = () => {
                                     </div>
 
                                     <!-- Si le champ n'est pas affiché -->
-                                    <span v-else @click="toggleDepositInput"
+                                    <span v-else-if="!isLocked" @click="toggleDepositInput"
                                         class="py-1.5 ps-1.5 pe-2.5 inline-flex items-center gap-x-1 text-xs font-medium bg-green-100 text-green-800 rounded-sm cursor-pointer hover:bg-green-200 dark:bg-green-500/10 dark:text-green-500 dark:hover:bg-green-600">
                                         Add required deposit
                                     </span>
@@ -375,7 +384,7 @@ const submit = () => {
                     </div>
                     <div
                         class="p-5 grid grid-cols-1 gap-4 justify-between bg-white border border-gray-100 rounded-sm shadow-sm xl:shadow-none dark:bg-green-800 dark:border-green-700">
-                        <FloatingTextarea v-model="form.notes" label="Terms and conditions" />
+                        <FloatingTextarea v-model="form.notes" label="Terms and conditions" :disabled="isLocked" />
 
                         <div class="flex justify-between">
                             <button type="button"
@@ -388,6 +397,7 @@ const submit = () => {
                                     Save and create another
                                 </button>
                                 <button id="hs-pro-in1trsbgwmdid1" type="submit"
+                                    :disabled="isLocked || form.processing"
                                     class="hs-tooltip-toggle ml-4 py-2 px-2.5 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:ring-2 focus:ring-green-500">
                                     Save quote
                                 </button>

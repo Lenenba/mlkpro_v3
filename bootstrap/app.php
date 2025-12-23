@@ -20,6 +20,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->alias([
             'company.feature' => \App\Http\Middleware\EnsureCompanyFeature::class,
+            'impersonating' => \App\Http\Middleware\EnsureImpersonating::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

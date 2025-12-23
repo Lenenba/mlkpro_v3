@@ -3,9 +3,14 @@
 namespace App\Http\Controllers;
 
 use App\Models\Work;
+use App\Models\Quote;
+use App\Models\Task;
+use App\Models\Invoice;
+use App\Models\Payment;
 use Inertia\Inertia;
 use App\Models\Customer;
 use App\Models\Role;
+use App\Models\Request as LeadRequest;
 use App\Models\User;
 use App\Utils\FileHandler;
 use App\Models\ActivityLog;
@@ -177,28 +182,301 @@ class CustomerController extends Controller
     {
         $this->authorize('view', $customer);
 
+        $user = $request?->user();
+        $accountId = $user?->accountOwnerId() ?? Auth::id();
+
         // Valider les filtres uniquement si la requête contient des données
-        $filters = $request->only([
+        $filters = $request?->only([
             'name',
             'status',
             'month',
-        ]);
+        ]) ?? [];
 
         // Fetch works for the retrieved customers
         $works = Work::with(['products', 'ratings', 'customer'])
             ->byCustomer($customer->id)
-            ->byUser(Auth::user()->id)
+            ->byUser($accountId)
             ->filter($filters)
             ->latest()
             ->paginate(10) // Paginer avec 10 résultats par page
             ->withQueryString(); // Conserver les paramètres de requête dans l'URL
 
-        $customer->load(['properties', 'quotes', 'works']);
+        $customer->load([
+            'properties',
+            'quotes' => fn($query) => $query->latest()->limit(10),
+            'works' => fn($query) => $query->with('invoice')->latest()->limit(10),
+            'requests' => fn($query) => $query->latest()->limit(10)->with('quote:id,number,status,customer_id'),
+            'invoices' => fn($query) => $query->withSum('payments', 'amount')->latest()->limit(10),
+        ]);
+
+        $stats = [
+            'active_works' => Work::query()
+                ->where('customer_id', $customer->id)
+                ->where('user_id', $accountId)
+                ->whereDate('end_date', '>=', now()->toDateString())
+                ->count(),
+            'requests' => LeadRequest::query()
+                ->where('customer_id', $customer->id)
+                ->where('user_id', $accountId)
+                ->count(),
+            'quotes' => Quote::query()
+                ->where('customer_id', $customer->id)
+                ->where('user_id', $accountId)
+                ->whereNull('archived_at')
+                ->count(),
+            'jobs' => Work::query()
+                ->where('customer_id', $customer->id)
+                ->where('user_id', $accountId)
+                ->count(),
+            'invoices' => Invoice::query()
+                ->where('customer_id', $customer->id)
+                ->where('user_id', $accountId)
+                ->count(),
+        ];
+
+        $tasks = Task::query()
+            ->forAccount($accountId)
+            ->where('customer_id', $customer->id)
+            ->with(['assignee.user:id,name'])
+            ->orderByRaw('CASE WHEN due_date IS NULL THEN 1 ELSE 0 END')
+            ->orderBy('due_date')
+            ->orderByDesc('created_at')
+            ->limit(8)
+            ->get([
+                'id',
+                'title',
+                'status',
+                'due_date',
+                'completed_at',
+                'assigned_team_member_id',
+            ])
+            ->map(fn($task) => [
+                'id' => $task->id,
+                'title' => $task->title,
+                'status' => $task->status,
+                'due_date' => $task->due_date,
+                'completed_at' => $task->completed_at,
+                'assignee' => $task->assignee?->user?->name,
+            ])
+            ->values();
+
+        $upcomingJobs = Work::query()
+            ->where('customer_id', $customer->id)
+            ->where('user_id', $accountId)
+            ->whereDate('start_date', '>=', now()->toDateString())
+            ->orderBy('start_date')
+            ->limit(8)
+            ->get([
+                'id',
+                'job_title',
+                'status',
+                'start_date',
+                'end_date',
+                'created_at',
+            ])
+            ->map(fn($work) => [
+                'id' => $work->id,
+                'job_title' => $work->job_title,
+                'status' => $work->status,
+                'start_date' => $work->start_date,
+                'end_date' => $work->end_date,
+                'created_at' => $work->created_at,
+            ])
+            ->values();
+
+        $recentPayments = Payment::query()
+            ->where('customer_id', $customer->id)
+            ->where('user_id', $accountId)
+            ->with('invoice:id,number')
+            ->orderByRaw('CASE WHEN paid_at IS NULL THEN 1 ELSE 0 END')
+            ->orderByDesc('paid_at')
+            ->orderByDesc('created_at')
+            ->limit(8)
+            ->get([
+                'id',
+                'invoice_id',
+                'amount',
+                'method',
+                'status',
+                'reference',
+                'paid_at',
+                'created_at',
+            ])
+            ->map(fn($payment) => [
+                'id' => $payment->id,
+                'amount' => (float) $payment->amount,
+                'method' => $payment->method,
+                'status' => $payment->status,
+                'reference' => $payment->reference,
+                'paid_at' => $payment->paid_at,
+                'created_at' => $payment->created_at,
+                'invoice' => $payment->invoice ? [
+                    'id' => $payment->invoice_id,
+                    'number' => $payment->invoice->number,
+                ] : null,
+            ])
+            ->values();
+
+        $totalInvoiced = (float) Invoice::query()
+            ->where('customer_id', $customer->id)
+            ->where('user_id', $accountId)
+            ->whereNotIn('status', ['void'])
+            ->sum('total');
+        $totalPaid = (float) Payment::query()
+            ->where('customer_id', $customer->id)
+            ->where('user_id', $accountId)
+            ->sum('amount');
+
+        $billing = [
+            'total_invoiced' => $totalInvoiced,
+            'total_paid' => $totalPaid,
+            'balance_due' => max(0, round($totalInvoiced - $totalPaid, 2)),
+        ];
+
+        $subjectLabels = [
+            Quote::class => 'Quote',
+            Work::class => 'Job',
+            Invoice::class => 'Invoice',
+            Payment::class => 'Payment',
+            Customer::class => 'Customer',
+        ];
+
+        $quoteIds = Quote::query()
+            ->where('customer_id', $customer->id)
+            ->where('user_id', $accountId)
+            ->latest()
+            ->limit(250)
+            ->pluck('id');
+        $workIds = Work::query()
+            ->where('customer_id', $customer->id)
+            ->where('user_id', $accountId)
+            ->latest()
+            ->limit(250)
+            ->pluck('id');
+        $invoiceIds = Invoice::query()
+            ->where('customer_id', $customer->id)
+            ->where('user_id', $accountId)
+            ->latest()
+            ->limit(250)
+            ->pluck('id');
+        $paymentIds = Payment::query()
+            ->where('customer_id', $customer->id)
+            ->where('user_id', $accountId)
+            ->latest()
+            ->limit(250)
+            ->pluck('id');
+
+        $activity = ActivityLog::query()
+            ->where(function ($query) use ($customer, $quoteIds, $workIds, $invoiceIds, $paymentIds) {
+                $query->where(function ($sub) use ($customer) {
+                    $sub->where('subject_type', Customer::class)
+                        ->where('subject_id', $customer->id);
+                });
+
+                if ($quoteIds->isNotEmpty()) {
+                    $query->orWhere(function ($sub) use ($quoteIds) {
+                        $sub->where('subject_type', Quote::class)
+                            ->whereIn('subject_id', $quoteIds);
+                    });
+                }
+
+                if ($workIds->isNotEmpty()) {
+                    $query->orWhere(function ($sub) use ($workIds) {
+                        $sub->where('subject_type', Work::class)
+                            ->whereIn('subject_id', $workIds);
+                    });
+                }
+
+                if ($invoiceIds->isNotEmpty()) {
+                    $query->orWhere(function ($sub) use ($invoiceIds) {
+                        $sub->where('subject_type', Invoice::class)
+                            ->whereIn('subject_id', $invoiceIds);
+                    });
+                }
+
+                if ($paymentIds->isNotEmpty()) {
+                    $query->orWhere(function ($sub) use ($paymentIds) {
+                        $sub->where('subject_type', Payment::class)
+                            ->whereIn('subject_id', $paymentIds);
+                    });
+                }
+            })
+            ->latest()
+            ->limit(12)
+            ->get(['id', 'action', 'description', 'subject_type', 'subject_id', 'created_at'])
+            ->map(function ($log) use ($subjectLabels) {
+                return [
+                    'id' => $log->id,
+                    'action' => $log->action,
+                    'description' => $log->description,
+                    'subject_type' => $log->subject_type,
+                    'subject_id' => $log->subject_id,
+                    'subject' => $subjectLabels[$log->subject_type] ?? 'Item',
+                    'created_at' => $log->created_at,
+                ];
+            })
+            ->values();
+
         return Inertia::render('Customer/Show', [
             'customer' => $customer,
             'works' => $works,
             'filters' => $filters,
+            'stats' => $stats,
+            'schedule' => [
+                'tasks' => $tasks,
+                'upcomingJobs' => $upcomingJobs,
+            ],
+            'billing' => [
+                'summary' => $billing,
+                'recentPayments' => $recentPayments,
+            ],
+            'activity' => $activity,
+            'lastInteraction' => $activity->first(),
         ]);
+    }
+
+    public function updateNotes(Request $request, Customer $customer)
+    {
+        $this->authorize('update', $customer);
+
+        $validated = $request->validate([
+            'description' => 'nullable|string|max:255',
+        ]);
+
+        $customer->update([
+            'description' => $validated['description'] ?? null,
+        ]);
+
+        ActivityLog::record($request->user(), $customer, 'notes_updated', [
+            'description' => $customer->description,
+        ], 'Customer notes updated');
+
+        return redirect()->back()->with('success', 'Notes updated.');
+    }
+
+    public function updateTags(Request $request, Customer $customer)
+    {
+        $this->authorize('update', $customer);
+
+        $validated = $request->validate([
+            'tags' => 'nullable|string|max:500',
+        ]);
+
+        $raw = $validated['tags'] ?? '';
+        $tags = array_filter(array_map('trim', explode(',', $raw)));
+        $tags = array_values(array_unique($tags));
+        $tags = array_map(fn($tag) => mb_substr($tag, 0, 30), $tags);
+        $tags = array_slice($tags, 0, 20);
+
+        $customer->update([
+            'tags' => $tags ?: null,
+        ]);
+
+        ActivityLog::record($request->user(), $customer, 'tags_updated', [
+            'tags' => $tags,
+        ], 'Customer tags updated');
+
+        return redirect()->back()->with('success', 'Tags updated.');
     }
 
     /**

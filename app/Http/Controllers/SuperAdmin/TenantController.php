@@ -5,13 +5,17 @@ namespace App\Http\Controllers\SuperAdmin;
 use App\Models\Customer;
 use App\Models\Invoice;
 use App\Models\Product;
+use App\Models\PlatformSetting;
 use App\Models\Quote;
 use App\Models\Role;
+use App\Models\Task;
+use App\Models\TeamMember;
 use App\Models\User;
 use App\Models\Work;
 use App\Support\PlatformPermissions;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -64,9 +68,12 @@ class TenantController extends BaseSuperAdminController
         });
 
         $query->when($filters['plan'] ?? null, function ($builder, $plan) {
-            $userIds = DB::table('subscriptions')
-                ->where('stripe_price', $plan)
-                ->pluck('user_id');
+            $userIds = DB::table('paddle_subscriptions')
+                ->join('paddle_subscription_items', 'paddle_subscription_items.subscription_id', '=', 'paddle_subscriptions.id')
+                ->where('paddle_subscriptions.billable_type', User::class)
+                ->where('paddle_subscription_items.price_id', $plan)
+                ->distinct()
+                ->pluck('paddle_subscriptions.billable_id');
             $builder->whereIn('id', $userIds);
         });
 
@@ -77,7 +84,7 @@ class TenantController extends BaseSuperAdminController
 
         $tenants->through(function (User $tenant) use ($subscriptionMap, $planMap) {
             $subscription = $subscriptionMap[$tenant->id] ?? null;
-            $planName = $subscription?->stripe_price ? ($planMap[$subscription->stripe_price]['name'] ?? null) : null;
+            $planName = $subscription?->price_id ? ($planMap[$subscription->price_id]['name'] ?? null) : null;
 
             return [
                 'id' => $tenant->id,
@@ -89,8 +96,8 @@ class TenantController extends BaseSuperAdminController
                 'is_suspended' => (bool) $tenant->is_suspended,
                 'onboarding_completed_at' => $tenant->onboarding_completed_at,
                 'subscription' => $subscription ? [
-                    'stripe_status' => $subscription->stripe_status,
-                    'stripe_price' => $subscription->stripe_price,
+                    'status' => $subscription->status,
+                    'price_id' => $subscription->price_id,
                     'plan_name' => $planName,
                 ] : null,
             ];
@@ -111,7 +118,7 @@ class TenantController extends BaseSuperAdminController
 
         $subscription = $this->subscriptionMap(collect([$tenant->id]))[$tenant->id] ?? null;
         $planMap = $this->planMap();
-        $planName = $subscription?->stripe_price ? ($planMap[$subscription->stripe_price]['name'] ?? null) : null;
+        $planName = $subscription?->price_id ? ($planMap[$subscription->price_id]['name'] ?? null) : null;
 
         $stats = [
             'customers' => Customer::query()->where('user_id', $tenant->id)->count(),
@@ -120,9 +127,12 @@ class TenantController extends BaseSuperAdminController
             'works' => Work::query()->where('user_id', $tenant->id)->count(),
             'products' => Product::query()->where('user_id', $tenant->id)->where('item_type', Product::ITEM_TYPE_PRODUCT)->count(),
             'services' => Product::query()->where('user_id', $tenant->id)->where('item_type', Product::ITEM_TYPE_SERVICE)->count(),
+            'tasks' => Task::query()->where('account_id', $tenant->id)->count(),
+            'team_members' => TeamMember::query()->where('account_id', $tenant->id)->count(),
         ];
 
         $featureFlags = $this->buildFeatureFlags($tenant);
+        $usageLimits = $this->buildUsageLimits($tenant, $subscription, $stats);
 
         return Inertia::render('SuperAdmin/Tenants/Show', [
             'tenant' => [
@@ -139,8 +149,8 @@ class TenantController extends BaseSuperAdminController
                 'suspended_at' => $tenant->suspended_at,
                 'suspension_reason' => $tenant->suspension_reason,
                 'subscription' => $subscription ? [
-                    'stripe_status' => $subscription->stripe_status,
-                    'stripe_price' => $subscription->stripe_price,
+                    'status' => $subscription->status,
+                    'price_id' => $subscription->price_id,
                     'plan_name' => $planName,
                     'trial_ends_at' => $subscription->trial_ends_at ?? null,
                     'ends_at' => $subscription->ends_at ?? null,
@@ -148,6 +158,7 @@ class TenantController extends BaseSuperAdminController
             ],
             'stats' => $stats,
             'feature_flags' => $featureFlags,
+            'usage_limits' => $usageLimits,
         ]);
     }
 
@@ -222,6 +233,43 @@ class TenantController extends BaseSuperAdminController
         ]);
 
         return redirect()->back()->with('success', 'Feature flags updated.');
+    }
+
+    public function updateLimits(Request $request, User $tenant): RedirectResponse
+    {
+        $this->authorizePermission($request, PlatformPermissions::TENANTS_MANAGE);
+        $this->ensureOwner($tenant);
+
+        $validated = $request->validate([
+            'limits' => 'required|array',
+            'limits.*' => 'nullable|numeric|min:0',
+        ]);
+
+        $allowedKeys = [
+            'quotes',
+            'invoices',
+            'jobs',
+            'products',
+            'services',
+            'tasks',
+            'team_members',
+        ];
+
+        $limits = [];
+        foreach ($allowedKeys as $key) {
+            $value = $validated['limits'][$key] ?? null;
+            $limits[$key] = is_numeric($value) ? max(0, (int) $value) : null;
+        }
+
+        $tenant->update([
+            'company_limits' => $limits,
+        ]);
+
+        $this->logAudit($request, 'tenant.limits_updated', $tenant, [
+            'limits' => $limits,
+        ]);
+
+        return redirect()->back()->with('success', 'Usage limits updated.');
     }
 
     public function impersonate(Request $request, User $tenant): RedirectResponse
@@ -299,18 +347,35 @@ class TenantController extends BaseSuperAdminController
             return [];
         }
 
-        $subscriptions = DB::table('subscriptions')
-            ->whereIn('user_id', $tenantIds->all())
+        $subscriptions = DB::table('paddle_subscriptions')
+            ->where('billable_type', User::class)
+            ->whereIn('billable_id', $tenantIds->all())
             ->orderByDesc('created_at')
             ->get([
-                'user_id',
-                'stripe_status',
-                'stripe_price',
+                'id',
+                'billable_id',
+                'status',
                 'trial_ends_at',
                 'ends_at',
             ])
-            ->groupBy('user_id')
+            ->groupBy('billable_id')
             ->map(fn ($items) => $items->first());
+
+        if ($subscriptions->isEmpty()) {
+            return [];
+        }
+
+        $prices = DB::table('paddle_subscription_items')
+            ->whereIn('subscription_id', $subscriptions->pluck('id')->all())
+            ->orderBy('id')
+            ->get(['subscription_id', 'price_id'])
+            ->groupBy('subscription_id')
+            ->map(fn ($items) => $items->first()->price_id)
+            ->all();
+
+        $subscriptions->each(function ($subscription) use ($prices) {
+            $subscription->price_id = $prices[$subscription->id] ?? null;
+        });
 
         return $subscriptions->all();
     }
@@ -355,5 +420,75 @@ class TenantController extends BaseSuperAdminController
                 'enabled' => $enabled,
             ];
         })->values()->all();
+    }
+
+    private function buildUsageLimits(User $tenant, ?object $subscription, array $stats): array
+    {
+        $limitKeys = [
+            'quotes' => 'Quotes',
+            'invoices' => 'Invoices',
+            'jobs' => 'Jobs',
+            'products' => 'Products',
+            'services' => 'Services',
+            'tasks' => 'Tasks',
+            'team_members' => 'Team members',
+        ];
+
+        $planLimits = PlatformSetting::getValue('plan_limits', []);
+        $planKey = $this->resolvePlanKey($subscription?->price_id);
+        $planDefaults = $planKey ? ($planLimits[$planKey] ?? []) : [];
+        $overrides = $tenant->company_limits ?? [];
+
+        $results = [];
+        foreach ($limitKeys as $key => $label) {
+            $used = (int) ($stats[$key] ?? 0);
+            $override = $overrides[$key] ?? null;
+            $defaultLimit = $planDefaults[$key] ?? null;
+            $limit = is_numeric($override) ? (int) $override : (is_numeric($defaultLimit) ? (int) $defaultLimit : null);
+            $percent = null;
+            $status = 'ok';
+            if ($limit && $limit > 0) {
+                $percent = round(($used / $limit) * 100, 1);
+                if ($used > $limit) {
+                    $status = 'over';
+                } elseif ($percent >= 90) {
+                    $status = 'warning';
+                }
+            }
+
+            $results[] = [
+                'key' => $key,
+                'label' => $label,
+                'used' => $used,
+                'limit' => $limit,
+                'percent' => $percent,
+                'status' => $status,
+                'source' => is_numeric($override) ? 'override' : 'plan',
+                'override' => is_numeric($override) ? (int) $override : null,
+                'plan_limit' => is_numeric($defaultLimit) ? (int) $defaultLimit : null,
+            ];
+        }
+
+        return [
+            'plan_key' => $planKey,
+            'plan_limits' => $planDefaults,
+            'overrides' => $overrides,
+            'items' => $results,
+        ];
+    }
+
+    private function resolvePlanKey(?string $priceId): ?string
+    {
+        if (!$priceId) {
+            return null;
+        }
+
+        foreach (config('billing.plans', []) as $key => $plan) {
+            if (!empty($plan['price_id']) && $plan['price_id'] === $priceId) {
+                return $key;
+            }
+        }
+
+        return null;
     }
 }

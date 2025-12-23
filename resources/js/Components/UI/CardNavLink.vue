@@ -1,8 +1,17 @@
 <script setup>
 const props = defineProps({
     customer: Object,
-    ActiveWorks: Object,
+    activeWorks: {
+        type: Array,
+        default: () => [],
+    },
+    stats: {
+        type: Object,
+        default: () => ({}),
+    },
 });
+
+const stat = (key, fallback = 0) => props.stats?.[key] ?? fallback;
 </script>
 
 <template>
@@ -27,7 +36,7 @@ const props = defineProps({
                     </span>
                     <span class="hidden xl:mt-1 md:flex md:justify-between md:items-center md:gap-x-2">
                         <span class="block text-lg lg:text-xl xl:text-2xl text-gray-800 dark:text-neutral-200">
-                           {{ ActiveWorks.length }}
+                           {{ stat('active_works', activeWorks.length) }}
                         </span>
                     </span>
                 </span>
@@ -55,7 +64,7 @@ const props = defineProps({
                     </span>
                     <span class="hidden xl:mt-1 md:flex md:justify-between md:items-center md:gap-x-2">
                         <span class="block text-lg lg:text-xl xl:text-2xl text-gray-800 dark:text-neutral-200">
-                            0
+                            {{ stat('requests', customer?.requests?.length ?? 0) }}
                         </span>
                     </span>
                 </span>
@@ -83,7 +92,7 @@ const props = defineProps({
                     </span>
                     <span class="hidden xl:mt-1 md:flex md:justify-between md:items-center md:gap-x-2">
                         <span class="block text-lg lg:text-xl xl:text-2xl text-gray-800 dark:text-neutral-200">
-                            {{ customer.quotes.length }}
+                            {{ stat('quotes', customer?.quotes?.length ?? 0) }}
                         </span>
                     </span>
                 </span>
@@ -94,7 +103,7 @@ const props = defineProps({
         <!-- Nav Item -->
         <button type="button"
             class="hs-tab-active:border-t-neutral-600 relative flex-1 first:border-s-0 border-s border-t-[3px] md:border-t-4 border-t-transparent hover:border-t-gray-300 focus:outline-none focus:border-t-gray-300 p-3.5 xl:px-6 text-start focus:z-10 dark:hs-tab-active:border-t-neutral-500 dark:border-t-transparent dark:border-neutral-700 dark:hover:border-t-neutral-600 dark:focus:border-t-neutral-600"
-            id="bar-with-underline-item-5" aria-selected="false" data-hs-tab="#bar-with-underline-4"
+            id="bar-with-underline-item-4" aria-selected="false" data-hs-tab="#bar-with-underline-4"
             aria-controls="bar-with-underline-4" role="tab">
             <span class="flex gap-x-4">
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
@@ -119,7 +128,7 @@ const props = defineProps({
                     </span>
                     <span class="hidden xl:mt-1 md:flex md:justify-between md:items-center md:gap-x-2">
                         <span class="block text-lg lg:text-xl xl:text-2xl text-gray-800 dark:text-neutral-200">
-                           {{ customer.works.length }}
+                           {{ stat('jobs', customer?.works?.length ?? 0) }}
                         </span>
                     </span>
                 </span>
@@ -148,7 +157,7 @@ const props = defineProps({
                     </span>
                     <span class="hidden xl:mt-1 md:flex md:justify-between md:items-center md:gap-x-2">
                         <span class="block text-lg lg:text-xl xl:text-2xl text-gray-800 dark:text-neutral-200">
-                            0
+                            {{ stat('invoices', customer?.invoices?.length ?? 0) }}
                         </span>
                     </span>
                 </span>

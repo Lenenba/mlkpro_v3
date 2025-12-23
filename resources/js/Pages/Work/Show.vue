@@ -7,6 +7,10 @@ import { Head, Link, router } from '@inertiajs/vue3';
 const props = defineProps({
     work: Object,
     customer: Object,
+    lockedFromQuote: {
+        type: Boolean,
+        default: false,
+    },
 });
 
 const ratingValue = computed(() => {
@@ -99,6 +103,53 @@ const createInvoice = () => {
                             ({{ ratingCount }})
                         </span>
                     </div>
+                </div>
+            </div>
+
+            <div class="p-5 bg-white border border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
+                <div v-if="lockedFromQuote" class="mb-3 text-xs text-amber-600">
+                    Ce job est verrouille car il provient d'un devis accepte.
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-stone-200 dark:divide-neutral-700">
+                        <thead>
+                            <tr>
+                                <th class="px-4 py-3 text-start text-sm font-medium text-stone-800 dark:text-neutral-200">
+                                    Produit/Service
+                                </th>
+                                <th class="px-4 py-3 text-start text-sm font-medium text-stone-800 dark:text-neutral-200">
+                                    Qte
+                                </th>
+                                <th class="px-4 py-3 text-start text-sm font-medium text-stone-800 dark:text-neutral-200">
+                                    Prix unitaire
+                                </th>
+                                <th class="px-4 py-3 text-start text-sm font-medium text-stone-800 dark:text-neutral-200">
+                                    Total
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-stone-200 dark:divide-neutral-700">
+                            <tr v-for="product in work.products || []" :key="product.id">
+                                <td class="px-4 py-3 text-sm text-stone-700 dark:text-neutral-300">
+                                    {{ product.name }}
+                                </td>
+                                <td class="px-4 py-3 text-sm text-stone-700 dark:text-neutral-300">
+                                    {{ product.pivot?.quantity ?? 0 }}
+                                </td>
+                                <td class="px-4 py-3 text-sm text-stone-700 dark:text-neutral-300">
+                                    {{ Number(product.pivot?.price ?? 0).toFixed(2) }}
+                                </td>
+                                <td class="px-4 py-3 text-sm text-stone-700 dark:text-neutral-300">
+                                    {{ Number(product.pivot?.total ?? 0).toFixed(2) }}
+                                </td>
+                            </tr>
+                            <tr v-if="!work.products || work.products.length === 0">
+                                <td colspan="4" class="px-4 py-3 text-sm text-stone-500 dark:text-neutral-400">
+                                    Aucun produit/service associe.
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>

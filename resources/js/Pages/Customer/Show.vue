@@ -1,6 +1,6 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
-import { Head, router, useForm } from '@inertiajs/vue3';
+import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 import Header from './UI/Header.vue';
 import Card from '@/Components/UI/Card.vue';
@@ -9,13 +9,40 @@ import DescriptionList from '@/Components/UI/DescriptionList.vue';
 import CardNav from '@/Components/UI/CardNav.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
+import FloatingTextarea from '@/Components/FloatingTextarea.vue';
 import InputError from '@/Components/InputError.vue';
+import { humanizeDate } from '@/utils/date';
 
 const props = defineProps({
     customer: Object,
+    stats: {
+        type: Object,
+        default: () => ({}),
+    },
+    schedule: {
+        type: Object,
+        default: () => ({ tasks: [], upcomingJobs: [] }),
+    },
+    billing: {
+        type: Object,
+        default: () => ({ summary: {}, recentPayments: [] }),
+    },
+    activity: {
+        type: Array,
+        default: () => [],
+    },
+    lastInteraction: {
+        type: Object,
+        default: null,
+    },
 });
 
 const properties = computed(() => props.customer?.properties || []);
+const tags = computed(() => props.customer?.tags || []);
+
+const formatDate = (value) => humanizeDate(value);
+const formatCurrency = (value) =>
+    `$${Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 const propertyTypes = [
     { id: 'physical', name: 'Physical' },
@@ -28,6 +55,87 @@ const propertyTypeLabel = (type) => propertyTypes.find((option) => option.id ===
 const propertyHeading = (property) => {
     const chunks = [propertyTypeLabel(property.type), property.country].filter(Boolean);
     return chunks.join(' • ') || 'Property';
+};
+
+const editingTags = ref(false);
+const tagsForm = useForm({
+    tags: (props.customer?.tags || []).join(', '),
+});
+
+const startEditTags = () => {
+    tagsForm.tags = (props.customer?.tags || []).join(', ');
+    tagsForm.clearErrors();
+    editingTags.value = true;
+};
+
+const cancelEditTags = () => {
+    tagsForm.clearErrors();
+    editingTags.value = false;
+};
+
+const submitTags = () => {
+    if (tagsForm.processing) {
+        return;
+    }
+
+    tagsForm.patch(route('customer.tags.update', props.customer.id), {
+        preserveScroll: true,
+        onSuccess: () => cancelEditTags(),
+    });
+};
+
+const editingNotes = ref(false);
+const notesForm = useForm({
+    description: props.customer?.description || '',
+});
+
+const startEditNotes = () => {
+    notesForm.description = props.customer?.description || '';
+    notesForm.clearErrors();
+    editingNotes.value = true;
+};
+
+const cancelEditNotes = () => {
+    notesForm.clearErrors();
+    editingNotes.value = false;
+};
+
+const submitNotes = () => {
+    if (notesForm.processing) {
+        return;
+    }
+
+    notesForm.patch(route('customer.notes.update', props.customer.id), {
+        preserveScroll: true,
+        onSuccess: () => cancelEditNotes(),
+    });
+};
+
+const activityHref = (log) => {
+    const type = log?.subject_type || '';
+    const id = log?.subject_id;
+
+    if (!id) {
+        return null;
+    }
+
+    if (type.endsWith('Quote')) {
+        return route('customer.quote.show', id);
+    }
+
+    if (type.endsWith('Invoice')) {
+        return route('invoice.show', id);
+    }
+
+    if (type.endsWith('Work')) {
+        return route('work.show', id);
+    }
+
+    if (type.endsWith('Customer')) {
+        return route('customer.show', props.customer.id);
+    }
+
+    return null;
 };
 
 const showAddProperty = ref(false);
@@ -151,7 +259,7 @@ const deleteProperty = (property) => {
 </script>
 
 <template>
-    <Head title="Customers" />
+    <Head :title="customer.company_name || `${customer.first_name || ''} ${customer.last_name || ''}`.trim() || 'Customer'" />
     <AuthenticatedLayout>
         <div class="grid grid-cols-1 gap-5 md:grid-cols-3">
             <div class="md:col-span-2">
@@ -373,34 +481,287 @@ const deleteProperty = (property) => {
                     </ul>
                 </Card>
 
-                <CardNav class="mt-5" :customer="customer" />
+                <CardNav class="mt-5" :customer="customer" :stats="stats" />
 
-                <card class="mt-5">
+                <Card class="mt-5">
                     <template #title>Schedule</template>
-                </card>
-                <card class="mt-5">
+
+                    <div class="space-y-5">
+                        <div>
+                            <div class="flex items-center justify-between gap-3">
+                                <h3 class="text-sm font-semibold text-gray-800 dark:text-neutral-200">Upcoming jobs</h3>
+                                <Link
+                                    :href="route('jobs.index')"
+                                    class="text-xs font-medium text-green-700 hover:underline dark:text-green-400"
+                                >
+                                    View all
+                                </Link>
+                            </div>
+                            <div class="mt-3 space-y-2">
+                                <div
+                                    v-for="work in schedule?.upcomingJobs || []"
+                                    :key="work.id"
+                                    class="flex items-center justify-between gap-3 rounded-sm border border-gray-200 px-3 py-2 text-sm dark:border-neutral-700"
+                                >
+                                    <div>
+                                        <Link
+                                            :href="route('work.show', work.id)"
+                                            class="font-medium text-gray-800 hover:underline dark:text-neutral-200"
+                                        >
+                                            {{ work.job_title }}
+                                        </Link>
+                                        <div class="mt-0.5 text-xs text-gray-500 dark:text-neutral-400">
+                                            Starts {{ formatDate(work.start_date || work.created_at) }}
+                                        </div>
+                                    </div>
+                                    <div class="text-xs text-gray-500 dark:text-neutral-400">
+                                        {{ work.status }}
+                                    </div>
+                                </div>
+                                <div
+                                    v-if="!(schedule?.upcomingJobs || []).length"
+                                    class="text-sm text-gray-500 dark:text-neutral-400"
+                                >
+                                    No upcoming jobs.
+                                </div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <div class="flex items-center justify-between gap-3">
+                                <h3 class="text-sm font-semibold text-gray-800 dark:text-neutral-200">Tasks</h3>
+                                <Link
+                                    :href="route('task.index')"
+                                    class="text-xs font-medium text-green-700 hover:underline dark:text-green-400"
+                                >
+                                    View all
+                                </Link>
+                            </div>
+                            <div class="mt-3 space-y-2">
+                                <div
+                                    v-for="task in schedule?.tasks || []"
+                                    :key="task.id"
+                                    class="flex items-start justify-between gap-3 rounded-sm border border-gray-200 px-3 py-2 text-sm dark:border-neutral-700"
+                                >
+                                    <div>
+                                        <div class="font-medium text-gray-800 dark:text-neutral-200">
+                                            {{ task.title }}
+                                        </div>
+                                        <div class="mt-0.5 text-xs text-gray-500 dark:text-neutral-400">
+                                            <span v-if="task.due_date">Due {{ formatDate(task.due_date) }}</span>
+                                            <span v-else>No due date</span>
+                                        </div>
+                                    </div>
+                                    <div class="text-right text-xs text-gray-500 dark:text-neutral-400">
+                                        <div class="capitalize">{{ task.status }}</div>
+                                        <div v-if="task.assignee">{{ task.assignee }}</div>
+                                    </div>
+                                </div>
+                                <div v-if="!(schedule?.tasks || []).length" class="text-sm text-gray-500 dark:text-neutral-400">
+                                    No tasks yet.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </Card>
+
+                <Card class="mt-5">
                     <template #title>Recent activity for this client</template>
-                </card>
+
+                    <div class="space-y-3 text-sm">
+                        <div
+                            v-for="log in activity"
+                            :key="log.id"
+                            class="rounded-sm border border-gray-200 px-3 py-2 dark:border-neutral-700"
+                        >
+                            <div class="text-xs uppercase text-gray-500 dark:text-neutral-400">
+                                {{ log.subject }} • {{ formatDate(log.created_at) }}
+                            </div>
+                            <div class="mt-1 text-sm text-gray-800 dark:text-neutral-200">
+                                <Link v-if="activityHref(log)" :href="activityHref(log)" class="hover:underline">
+                                    {{ log.description || log.action }}
+                                </Link>
+                                <span v-else>{{ log.description || log.action }}</span>
+                            </div>
+                        </div>
+                        <div v-if="!activity.length" class="text-sm text-gray-500 dark:text-neutral-400">
+                            No recent activity yet.
+                        </div>
+                    </div>
+                </Card>
             </div>
             <div>
                 <CardNoHeader>
                     <template #title>Contact information</template>
                     <DescriptionList :item="customer" />
                 </CardNoHeader>
-                <CardNoHeader>
+                <CardNoHeader class="mt-5">
                     <template #title>Tags</template>
+
+                    <div v-if="!editingTags" class="space-y-3">
+                        <div v-if="tags.length" class="flex flex-wrap gap-2">
+                            <span
+                                v-for="tag in tags"
+                                :key="tag"
+                                class="inline-flex items-center rounded-sm bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-800 dark:bg-neutral-700 dark:text-neutral-200"
+                            >
+                                {{ tag }}
+                            </span>
+                        </div>
+                        <div v-else class="text-sm text-gray-500 dark:text-neutral-400">No tags yet.</div>
+
+                        <div class="flex justify-end">
+                            <button
+                                type="button"
+                                @click="startEditTags"
+                                class="py-2 px-2.5 inline-flex items-center gap-x-2 text-xs font-semibold rounded-sm border border-gray-200 bg-white text-gray-800 shadow-sm hover:bg-gray-50 focus:outline-none focus:bg-gray-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700"
+                            >
+                                Edit
+                            </button>
+                        </div>
+                    </div>
+
+                    <form v-else class="space-y-3" @submit.prevent="submitTags">
+                        <div>
+                            <FloatingInput v-model="tagsForm.tags" label="Tags (comma separated)" />
+                            <InputError class="mt-1" :message="tagsForm.errors.tags" />
+                        </div>
+                        <div class="flex items-center justify-end gap-2">
+                            <button
+                                type="button"
+                                @click="cancelEditTags"
+                                class="py-2 px-2.5 inline-flex items-center gap-x-2 text-xs font-semibold rounded-sm border border-gray-200 bg-white text-gray-800 shadow-sm hover:bg-gray-50 focus:outline-none focus:bg-gray-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="submit"
+                                :disabled="tagsForm.processing"
+                                class="py-2 px-2.5 inline-flex items-center gap-x-2 text-xs font-semibold rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-green-500"
+                            >
+                                Save
+                            </button>
+                        </div>
+                    </form>
                 </CardNoHeader>
-                <CardNoHeader>
+                <CardNoHeader class="mt-5">
                     <template #title>Last client interaction</template>
+
+                    <div v-if="lastInteraction" class="space-y-1 text-sm">
+                        <div class="text-xs uppercase text-gray-500 dark:text-neutral-400">
+                            {{ lastInteraction.subject }} • {{ formatDate(lastInteraction.created_at) }}
+                        </div>
+                        <div class="text-sm text-gray-800 dark:text-neutral-200">
+                            {{ lastInteraction.description || lastInteraction.action }}
+                        </div>
+                    </div>
+                    <div v-else class="text-sm text-gray-500 dark:text-neutral-400">No interactions yet.</div>
                 </CardNoHeader>
-                <card class="mt-5">
+                <Card class="mt-5">
                     <template #title>Billing history</template>
-                </card>
-                <card class="mt-5">
+
+                    <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                        <div class="rounded-sm border border-gray-200 p-3 dark:border-neutral-700">
+                            <div class="text-xs text-gray-500 dark:text-neutral-400">Invoiced</div>
+                            <div class="mt-1 text-sm font-semibold text-gray-800 dark:text-neutral-200">
+                                {{ formatCurrency(billing?.summary?.total_invoiced) }}
+                            </div>
+                        </div>
+                        <div class="rounded-sm border border-gray-200 p-3 dark:border-neutral-700">
+                            <div class="text-xs text-gray-500 dark:text-neutral-400">Paid</div>
+                            <div class="mt-1 text-sm font-semibold text-gray-800 dark:text-neutral-200">
+                                {{ formatCurrency(billing?.summary?.total_paid) }}
+                            </div>
+                        </div>
+                        <div class="rounded-sm border border-gray-200 p-3 dark:border-neutral-700">
+                            <div class="text-xs text-gray-500 dark:text-neutral-400">Balance due</div>
+                            <div class="mt-1 text-sm font-semibold text-gray-800 dark:text-neutral-200">
+                                {{ formatCurrency(billing?.summary?.balance_due) }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-5">
+                        <h3 class="text-sm font-semibold text-gray-800 dark:text-neutral-200">Recent payments</h3>
+                        <div class="mt-3 space-y-2 text-sm">
+                            <div
+                                v-for="payment in billing?.recentPayments || []"
+                                :key="payment.id"
+                                class="flex items-start justify-between gap-3 rounded-sm border border-gray-200 px-3 py-2 dark:border-neutral-700"
+                            >
+                                <div>
+                                    <Link
+                                        v-if="payment.invoice"
+                                        :href="route('invoice.show', payment.invoice.id)"
+                                        class="font-medium text-gray-800 hover:underline dark:text-neutral-200"
+                                    >
+                                        {{ payment.invoice.number || 'Invoice' }}
+                                    </Link>
+                                    <div v-else class="font-medium text-gray-800 dark:text-neutral-200">Payment</div>
+                                    <div class="mt-0.5 text-xs text-gray-500 dark:text-neutral-400">
+                                        Paid {{ formatDate(payment.paid_at || payment.created_at) }}
+                                    </div>
+                                </div>
+                                <div class="text-right">
+                                    <div class="text-sm font-semibold text-gray-800 dark:text-neutral-200">
+                                        {{ formatCurrency(payment.amount) }}
+                                    </div>
+                                    <div class="text-xs text-gray-500 dark:text-neutral-400">
+                                        {{ payment.method || payment.status || '' }}
+                                    </div>
+                                </div>
+                            </div>
+                            <div
+                                v-if="!(billing?.recentPayments || []).length"
+                                class="text-sm text-gray-500 dark:text-neutral-400"
+                            >
+                                No payments yet.
+                            </div>
+                        </div>
+                    </div>
+                </Card>
+                <Card class="mt-5">
                     <template #title>Internal notes</template>
-                </card>
+
+                    <div v-if="!editingNotes" class="space-y-3">
+                        <p class="text-sm text-gray-700 whitespace-pre-wrap dark:text-neutral-200">
+                            {{ customer.description || 'No notes yet.' }}
+                        </p>
+                        <div class="flex justify-end">
+                            <button
+                                type="button"
+                                @click="startEditNotes"
+                                class="py-2 px-2.5 inline-flex items-center gap-x-2 text-xs font-semibold rounded-sm border border-gray-200 bg-white text-gray-800 shadow-sm hover:bg-gray-50 focus:outline-none focus:bg-gray-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700"
+                            >
+                                Edit
+                            </button>
+                        </div>
+                    </div>
+
+                    <form v-else class="space-y-3" @submit.prevent="submitNotes">
+                        <div>
+                            <FloatingTextarea v-model="notesForm.description" label="Internal notes" />
+                            <InputError class="mt-1" :message="notesForm.errors.description" />
+                        </div>
+                        <div class="flex items-center justify-end gap-2">
+                            <button
+                                type="button"
+                                @click="cancelEditNotes"
+                                class="py-2 px-2.5 inline-flex items-center gap-x-2 text-xs font-semibold rounded-sm border border-gray-200 bg-white text-gray-800 shadow-sm hover:bg-gray-50 focus:outline-none focus:bg-gray-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="submit"
+                                :disabled="notesForm.processing"
+                                class="py-2 px-2.5 inline-flex items-center gap-x-2 text-xs font-semibold rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-green-500"
+                            >
+                                Save
+                            </button>
+                        </div>
+                    </form>
+                </Card>
             </div>
         </div>
     </AuthenticatedLayout>
 </template>
-

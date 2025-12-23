@@ -79,12 +79,12 @@ class DatabaseSeeder extends Seeder
         // // Admin users
         // User::factory()->count(2)->create();
 
-        // $this->call([
-        //     ProductModuleSeeder::class,
-        //     CustomerModuleSeeder::class,
-        //     TeamModuleSeeder::class,
-        //     QuoteModuleSeeder::class,
-        //     InvoiceModuleSeeder::class,
-        // ]);
+        $this->call([
+            ProductModuleSeeder::class,
+            CustomerModuleSeeder::class,
+            TeamModuleSeeder::class,
+            QuoteModuleSeeder::class,
+            InvoiceModuleSeeder::class,
+        ]);
     }
 }

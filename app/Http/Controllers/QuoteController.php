@@ -42,9 +42,20 @@ class QuoteController extends Controller
 
         $userId = Auth::id();
 
+        $statusFilter = $filters['status'] ?? null;
+        $showArchived = $statusFilter === 'archived';
+        $filtersForQuery = $filters;
+        if ($showArchived) {
+            $filtersForQuery['status'] = null;
+        }
+
         $baseQuery = Quote::query()
-            ->filter($filters)
-            ->byUser($userId);
+            ->filter($filtersForQuery)
+            ->when(
+                $showArchived,
+                fn($query) => $query->byUserWithArchived($userId)->archived(),
+                fn($query) => $query->byUser($userId)
+            );
 
         $sort = in_array($filters['sort'] ?? null, ['created_at', 'total', 'status', 'number', 'job_title'], true)
             ? $filters['sort']
@@ -388,7 +399,23 @@ class QuoteController extends Controller
 
     public function accept(Request $request, Quote $quote)
     {
-        $this->authorize('edit', $quote);
+        $this->authorize('show', $quote);
+
+        if ($quote->isArchived()) {
+            return redirect()->back()->withErrors([
+                'status' => 'Archived quotes cannot be accepted.',
+            ]);
+        }
+
+        if ($quote->status === 'accepted') {
+            return redirect()->back()->with('success', 'Quote already accepted.');
+        }
+
+        if ($quote->status === 'declined') {
+            return redirect()->back()->withErrors([
+                'status' => 'Quote already declined.',
+            ]);
+        }
 
         $validated = $request->validate([
             'deposit_amount' => 'nullable|numeric|min:0',
@@ -417,6 +444,13 @@ class QuoteController extends Controller
                     'job_title' => $quote->job_title,
                     'instructions' => $quote->notes ?: ($quote->messages ?: ''),
                     'status' => Work::STATUS_TO_SCHEDULE,
+                    'subtotal' => $quote->subtotal,
+                    'total' => $quote->total,
+                ]);
+            } else {
+                $work->update([
+                    'job_title' => $quote->job_title,
+                    'instructions' => $quote->notes ?: ($quote->messages ?: ''),
                     'subtotal' => $quote->subtotal,
                     'total' => $quote->total,
                 ]);
@@ -450,6 +484,8 @@ class QuoteController extends Controller
                     ]);
                 }
             }
+
+            $this->syncWorkProductsFromQuote($quote, $work);
 
             $items = QuoteProduct::query()
                 ->where('quote_id', $quote->id)
@@ -504,18 +540,39 @@ class QuoteController extends Controller
     {
         $this->authorize('destroy', $quote);
 
-        ActivityLog::record(Auth::user(), $quote, 'deleted', [
+        $quote->update(['archived_at' => now()]);
+
+        ActivityLog::record(Auth::user(), $quote, 'archived', [
             'status' => $quote->status,
             'total' => $quote->total,
-        ], 'Quote deleted');
-        $quote->delete();
+        ], 'Quote archived');
 
-        return redirect()->route('customer.show', $quote->customer)->with('success', 'Quote deleted successfully!');
+        return redirect()->route('customer.show', $quote->customer)->with('success', 'Quote archived successfully!');
+    }
+
+    public function restore(Quote $quote)
+    {
+        $this->authorize('restore', $quote);
+
+        $quote->update(['archived_at' => null]);
+
+        ActivityLog::record(Auth::user(), $quote, 'restored', [
+            'status' => $quote->status,
+            'total' => $quote->total,
+        ], 'Quote restored');
+
+        return redirect()->back()->with('success', 'Quote restored successfully!');
     }
 
     public function convertToWork(Quote $quote)
     {
-        $this->authorize('edit', $quote);
+        $this->authorize('show', $quote);
+
+        if ($quote->isArchived()) {
+            return redirect()->back()->withErrors([
+                'status' => 'Archived quotes cannot be converted.',
+            ]);
+        }
 
         $quote->load(['products', 'customer']);
 
@@ -537,20 +594,7 @@ class QuoteController extends Controller
                 'total' => $quote->total,
             ]);
 
-            if ($quote->products->isNotEmpty()) {
-                $pivotData = $quote->products->mapWithKeys(function ($product) use ($quote) {
-                    return [
-                        $product->id => [
-                            'quote_id' => $quote->id,
-                            'quantity' => (int) $product->pivot->quantity,
-                            'price' => (float) $product->pivot->price,
-                            'description' => $product->pivot->description,
-                            'total' => (float) $product->pivot->total,
-                        ],
-                    ];
-                });
-                $work->products()->sync($pivotData);
-            }
+            $this->syncWorkProductsFromQuote($quote, $work);
 
             if (in_array($quote->status, ['draft', 'sent'], true)) {
                 $quote->update([
@@ -597,5 +641,24 @@ class QuoteController extends Controller
         ], 'Quote converted to job');
 
         return redirect()->route('work.edit', $work)->with('success', 'Job created from quote.');
+    }
+
+    private function syncWorkProductsFromQuote(Quote $quote, Work $work): void
+    {
+        $quote->loadMissing('products');
+
+        $pivotData = $quote->products->mapWithKeys(function ($product) use ($quote) {
+            return [
+                $product->id => [
+                    'quote_id' => $quote->id,
+                    'quantity' => (int) $product->pivot->quantity,
+                    'price' => (float) $product->pivot->price,
+                    'description' => $product->pivot->description,
+                    'total' => (float) $product->pivot->total,
+                ],
+            ];
+        });
+
+        $work->products()->sync($pivotData->toArray());
     }
 }

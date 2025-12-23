@@ -17,6 +17,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
+use Laravel\Paddle\Subscription;
 
 class DashboardController extends BaseSuperAdminController
 {
@@ -56,7 +57,8 @@ class DashboardController extends BaseSuperAdminController
 
         $avgQuoteDays = $this->averageDaysToFirst($owners, 'quotes');
         $avgInvoiceDays = $this->averageDaysToFirst($owners, 'invoices');
-        $avgProductDays = $this->averageDaysToFirst($owners, 'products');
+        $avgProductDays = $this->averageDaysToFirstProductType($owners, Product::ITEM_TYPE_PRODUCT);
+        $avgServiceDays = $this->averageDaysToFirstProductType($owners, Product::ITEM_TYPE_SERVICE);
         $avgWorkDays = $this->averageDaysToFirst($owners, 'works');
 
         $wau = $this->countActiveUsersSince($ownerIds, now()->subDays(7));
@@ -100,6 +102,7 @@ class DashboardController extends BaseSuperAdminController
                     'quote' => $avgQuoteDays,
                     'invoice' => $avgInvoiceDays,
                     'product' => $avgProductDays,
+                    'service' => $avgServiceDays,
                     'work' => $avgWorkDays,
                 ],
                 'wau' => $wau,
@@ -145,6 +148,44 @@ class DashboardController extends BaseSuperAdminController
         $ownerIds = $owners->pluck('id')->all();
         $firstMap = DB::table($table)
             ->selectRaw('user_id, MIN(created_at) as first_created_at')
+            ->whereIn('user_id', $ownerIds)
+            ->groupBy('user_id')
+            ->pluck('first_created_at', 'user_id');
+
+        if ($firstMap->isEmpty()) {
+            return null;
+        }
+
+        $ownersById = $owners->keyBy('id');
+        $days = [];
+
+        foreach ($firstMap as $userId => $firstCreatedAt) {
+            $owner = $ownersById->get($userId);
+            if (!$owner || !$firstCreatedAt) {
+                continue;
+            }
+
+            $diffDays = Carbon::parse($firstCreatedAt)->diffInHours(Carbon::parse($owner->created_at)) / 24;
+            $days[] = $diffDays;
+        }
+
+        if (!$days) {
+            return null;
+        }
+
+        return round(array_sum($days) / count($days), 1);
+    }
+
+    private function averageDaysToFirstProductType(Collection $owners, string $itemType): ?float
+    {
+        if ($owners->isEmpty()) {
+            return null;
+        }
+
+        $ownerIds = $owners->pluck('id')->all();
+        $firstMap = DB::table('products')
+            ->selectRaw('user_id, MIN(created_at) as first_created_at')
+            ->where('item_type', $itemType)
             ->whereIn('user_id', $ownerIds)
             ->groupBy('user_id')
             ->pluck('first_created_at', 'user_id');
@@ -270,28 +311,42 @@ class DashboardController extends BaseSuperAdminController
             return [$priceId => $priceValue];
         });
 
-        $subscriptions = DB::table('subscriptions')->get([
-            'user_id',
-            'stripe_status',
-            'stripe_price',
-            'trial_ends_at',
-            'ends_at',
-        ]);
+        $subscriptions = DB::table('paddle_subscriptions')
+            ->where('billable_type', User::class)
+            ->get([
+                'id',
+                'billable_id',
+                'status',
+                'trial_ends_at',
+                'ends_at',
+            ]);
 
-        $activeSubs = $subscriptions->where('stripe_status', 'active');
-        $trialSubs = $subscriptions->where('stripe_status', 'trialing');
-        $pastDue = $subscriptions->whereIn('stripe_status', ['past_due', 'unpaid']);
+        $prices = DB::table('paddle_subscription_items')
+            ->whereIn('subscription_id', $subscriptions->pluck('id')->all())
+            ->orderBy('id')
+            ->get(['subscription_id', 'price_id'])
+            ->groupBy('subscription_id')
+            ->map(fn ($items) => $items->first()->price_id)
+            ->all();
+
+        $subscriptions->each(function ($subscription) use ($prices) {
+            $subscription->price_id = $prices[$subscription->id] ?? null;
+        });
+
+        $activeSubs = $subscriptions->where('status', Subscription::STATUS_ACTIVE);
+        $trialSubs = $subscriptions->where('status', Subscription::STATUS_TRIALING);
+        $pastDue = $subscriptions->where('status', Subscription::STATUS_PAST_DUE);
 
         $mrr = 0.0;
         foreach ($activeSubs as $sub) {
-            $mrr += (float) ($planMap[$sub->stripe_price] ?? 0);
+            $mrr += (float) ($planMap[$sub->price_id] ?? 0);
         }
 
-        $activeCustomers = $activeSubs->pluck('user_id')->unique()->count();
+        $activeCustomers = $activeSubs->pluck('billable_id')->unique()->count();
         $trialTotal = $subscriptions->whereNotNull('trial_ends_at')->count();
         $trialConverted = $subscriptions
             ->whereNotNull('trial_ends_at')
-            ->where('stripe_status', 'active')
+            ->where('status', Subscription::STATUS_ACTIVE)
             ->count();
 
         $churnedLast30 = $subscriptions
@@ -377,7 +432,22 @@ class DashboardController extends BaseSuperAdminController
             ->where('failed_at', '>=', now()->subDays(7))
             ->count();
 
+        $failedMailLast24 = DB::table('failed_jobs')
+            ->where('failed_at', '>=', now()->subDay())
+            ->where(function ($query) {
+                $query->where('payload', 'like', '%Mail%')
+                    ->orWhere('payload', 'like', '%mail%')
+                    ->orWhere('exception', 'like', '%SMTP%')
+                    ->orWhere('exception', 'like', '%Mail%');
+            })
+            ->count();
+
         $pendingJobs = DB::table('jobs')->count();
+        $oldestJobCreatedAt = DB::table('jobs')->min('created_at');
+        $oldestJobMinutes = null;
+        if ($oldestJobCreatedAt) {
+            $oldestJobMinutes = round((now()->timestamp - (int) $oldestJobCreatedAt) / 60, 1);
+        }
 
         $storageBytes = null;
         try {
@@ -395,7 +465,9 @@ class DashboardController extends BaseSuperAdminController
         return [
             'failed_jobs_24h' => $failedLast24,
             'failed_jobs_7d' => $failedLast7,
+            'failed_mail_jobs_24h' => $failedMailLast24,
             'pending_jobs' => $pendingJobs,
+            'oldest_job_minutes' => $oldestJobMinutes,
             'storage_public_bytes' => $storageBytes,
         ];
     }

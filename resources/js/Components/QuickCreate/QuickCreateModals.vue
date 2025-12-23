@@ -6,6 +6,7 @@ import ProductQuickForm from '@/Components/QuickCreate/ProductQuickForm.vue';
 import ServiceQuickForm from '@/Components/QuickCreate/ServiceQuickForm.vue';
 import CustomerQuickForm from '@/Components/QuickCreate/CustomerQuickForm.vue';
 import QuoteQuickDialog from '@/Components/QuickCreate/QuoteQuickDialog.vue';
+import RequestQuickForm from '@/Components/QuickCreate/RequestQuickForm.vue';
 
 const customers = ref([]);
 const categories = ref([]);
@@ -115,5 +116,12 @@ onMounted(() => {
             :overlay-id="'#hs-quick-create-quote'"
             @customer-created="handleCustomerCreated"
         />
+    </Modal>
+
+    <Modal :title="'New request'" :id="'hs-quick-create-request'">
+        <div v-if="customerError" class="mb-3 text-sm text-red-600">
+            {{ customerError }}
+        </div>
+        <RequestQuickForm :customers="customers" :overlay-id="'#hs-quick-create-request'" />
     </Modal>
 </template>

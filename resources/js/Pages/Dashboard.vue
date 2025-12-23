@@ -33,6 +33,9 @@ const props = defineProps({
 
 const page = usePage();
 const userName = computed(() => page.props.auth?.user?.name || 'there');
+const companyType = computed(() => page.props.auth?.account?.company?.type ?? null);
+const showServices = computed(() => companyType.value !== 'products');
+const isOwner = computed(() => Boolean(page.props.auth?.account?.is_owner));
 
 const stat = (key) => props.stats?.[key] ?? 0;
 
@@ -135,6 +138,10 @@ const invoiceStatusClass = (status) => {
                         <button type="button" data-hs-overlay="#hs-quick-create-quote"
                             class="py-2 px-3 inline-flex items-center gap-x-2 text-xs font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700">
                             New quote
+                        </button>
+                        <button v-if="showServices && isOwner" type="button" data-hs-overlay="#hs-quick-create-request"
+                            class="py-2 px-3 inline-flex items-center gap-x-2 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200">
+                            New request
                         </button>
                         <button type="button" data-hs-overlay="#hs-quick-create-customer"
                             class="py-2 px-3 inline-flex items-center gap-x-2 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200">
@@ -405,6 +412,10 @@ const invoiceStatusClass = (status) => {
                             <button type="button" data-hs-overlay="#hs-quick-create-quote"
                                 class="py-2 px-3 rounded-lg border border-stone-200 bg-stone-100 text-stone-700 hover:bg-stone-200 dark:bg-neutral-700 dark:border-neutral-600 dark:text-neutral-200">
                                 Create quote
+                            </button>
+                            <button v-if="showServices && isOwner" type="button" data-hs-overlay="#hs-quick-create-request"
+                                class="py-2 px-3 rounded-lg border border-stone-200 bg-stone-100 text-stone-700 hover:bg-stone-200 dark:bg-neutral-700 dark:border-neutral-600 dark:text-neutral-200">
+                                Create request
                             </button>
                             <button type="button" data-hs-overlay="#hs-quick-create-customer"
                                 class="py-2 px-3 rounded-lg border border-stone-200 bg-stone-100 text-stone-700 hover:bg-stone-200 dark:bg-neutral-700 dark:border-neutral-600 dark:text-neutral-200">
