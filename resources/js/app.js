@@ -3,7 +3,6 @@ import './bootstrap';
 import 'preline'; // Import de Preline.js
 import ApexCharts from 'apexcharts';
 import ClipboardJS from 'clipboard';
-import Dropzone from 'dropzone';
 import { createInertiaApp } from '@inertiajs/vue3';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { createApp, h } from 'vue';
