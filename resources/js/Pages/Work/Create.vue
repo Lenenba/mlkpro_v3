@@ -246,14 +246,18 @@ function formatWorksForFullCalendar(works) {
     let events = [];
 
     works.forEach(work => {
-        if (!work.start_date || !work.frequency || !work.repeatsOn) {
+        if (!work.start_date || !work.frequency) {
             return;
         }
+
+        const teamMemberIds = (work.team_members ?? work.teamMembers ?? [])
+            .map((member) => Number(member.id))
+            .filter((id) => Number.isFinite(id));
 
         let startDate = new Date(work.start_date);
         let totalVisits = work.totalVisits || 1;
         let frequency = work.frequency.toLowerCase();
-        let repeatsOn = work.repeatsOn ?? [];
+        let repeatsOn = Array.isArray(work.repeatsOn) ? work.repeatsOn : [];
 
         if (frequency === 'daily') {
             for (let i = 0; i < totalVisits; i++) {
@@ -263,9 +267,20 @@ function formatWorksForFullCalendar(works) {
                     start: dayjs(startDate).add(i, 'day').format('YYYY-MM-DD'),
                     end: dayjs(startDate).add(i, 'day').format('YYYY-MM-DD'),
                     allDay: true,
+                    extendedProps: { team_member_ids: teamMemberIds },
                 });
             }
         } else if (frequency === 'weekly') {
+            if (repeatsOn.length === 0) {
+                events.push({
+                    id: work.id,
+                    title: work.job_title + ' - ' + work.start_time,
+                    start: dayjs(startDate).format('YYYY-MM-DD'),
+                    allDay: true,
+                    extendedProps: { team_member_ids: teamMemberIds },
+                });
+                return;
+            }
             for (let i = 0; i < totalVisits; i++) {
                 repeatsOn.forEach(day => {
                     let dayIndex = dayMapping[day];
@@ -277,10 +292,21 @@ function formatWorksForFullCalendar(works) {
                         title: work.job_title + ' - ' + work.start_time,
                         start: newStartDate.format('YYYY-MM-DD'),
                         allDay: true,
+                        extendedProps: { team_member_ids: teamMemberIds },
                     });
                 });
             }
         } else if (frequency === 'monthly') {
+            if (repeatsOn.length === 0) {
+                events.push({
+                    id: work.id,
+                    title: work.job_title + ' - ' + work.start_time,
+                    start: dayjs(startDate).format('YYYY-MM-DD'),
+                    allDay: true,
+                    extendedProps: { team_member_ids: teamMemberIds },
+                });
+                return;
+            }
             for (let i = 0; i < totalVisits; i++) {
                 repeatsOn.forEach(day => {
                     let newStartDate = dayjs(startDate).add(i, 'month').date(day);
@@ -290,6 +316,7 @@ function formatWorksForFullCalendar(works) {
                         title: work.job_title + ' - ' + work.start_time,
                         start: newStartDate.format('YYYY-MM-DD'),
                         allDay: true,
+                        extendedProps: { team_member_ids: teamMemberIds },
                     });
                 });
             }
@@ -299,10 +326,30 @@ function formatWorksForFullCalendar(works) {
     return events;
 }
 
-// Exemple d'utilisation :
-const events = formatWorksForFullCalendar(props.works);
+const filteredEvents = computed(() => {
+    const events = formatWorksForFullCalendar(props.works);
+    const selectedIds = (form.team_member_ids ?? [])
+        .map((id) => Number(id))
+        .filter((id) => Number.isFinite(id));
 
-const calendarOptions = {
+    if (selectedIds.length === 0) {
+        return events;
+    }
+
+    return events.filter((event) => {
+        const eventMemberIds = (event.extendedProps?.team_member_ids ?? [])
+            .map((id) => Number(id))
+            .filter((id) => Number.isFinite(id));
+
+        if (eventMemberIds.length === 0) {
+            return false;
+        }
+
+        return eventMemberIds.some((id) => selectedIds.includes(id));
+    });
+});
+
+const calendarOptions = computed(() => ({
     plugins: [dayGridPlugin, timeGridPlugin, interactionPlugin],
     initialView: 'dayGridMonth', // Affiche la semaine en cours
     weekends: true, // initial value
@@ -311,13 +358,13 @@ const calendarOptions = {
         center: 'title',
         right: 'timeGridWeek,dayGridMonth', // Options de vue semaine/mois
     },
-    events: events, // Assignation des événements au calendrier
+    events: filteredEvents.value, // Assignation des events au calendrier
     eventClick(arg) {
-        // Redirection vers une page spécifique
+        // Redirection vers une page specifique
         const workId = arg.event.id;
         router.get(`/work/${workId}`); // Adaptez l'URL selon votre configuration
     },
-};
+}));
 
 // Handler to update the subtotal when the child component emits an update
 const updateSubtotal = (newSubtotal) => {
@@ -360,6 +407,40 @@ const loadCalendar = () => {
 
 const tabListeners = [];
 
+const getPlanningTabTarget = () => {
+    if (typeof window === 'undefined') {
+        return null;
+    }
+
+    const params = new URLSearchParams(window.location.search);
+    const tab = (params.get('tab') || '').toLowerCase();
+    if (!['planning', 'planification', 'planifier', 'schedule'].includes(tab)) {
+        return null;
+    }
+
+    const mode = (params.get('mode') || '').toLowerCase();
+    if (['recurring', 'recurrent', 'repeat'].includes(mode)) {
+        return '#bar-with-underline-2';
+    }
+
+    return '#bar-with-underline-1';
+};
+
+const openScheduleTab = (targetId) => {
+    const trigger = document.querySelector(`[data-hs-tab="${targetId}"]`);
+    if (!trigger) {
+        return;
+    }
+
+    trigger.click();
+    setTimeout(() => {
+        const panel = document.querySelector(targetId);
+        if (panel?.scrollIntoView) {
+            panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    }, 150);
+};
+
 const setupTabListeners = () => {
     document.querySelectorAll("[data-hs-tab]").forEach((tab) => {
         const handler = () => {
@@ -386,6 +467,10 @@ const teardownTabListeners = () => {
 onMounted(() => {
     loadCalendar(); // Charge FullCalendar au montage du composant
     setupTabListeners();
+    const targetTab = getPlanningTabTarget();
+    if (targetTab) {
+        openScheduleTab(targetTab);
+    }
 });
 
 onBeforeUnmount(() => {
@@ -632,6 +717,10 @@ onBeforeUnmount(() => {
                                                                     </div>
                                                                 </label>
                                                             </div>
+                                                            <div v-if="teamMembers?.length"
+                                                                class="text-xs text-gray-500 dark:text-neutral-500">
+                                                                Selectionner un membre pour filtrer le calendrier.
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -819,6 +908,10 @@ onBeforeUnmount(() => {
                                                                     </span>
                                                                 </div>
                                                             </label>
+                                                        </div>
+                                                        <div v-if="teamMembers?.length"
+                                                            class="text-xs text-gray-500 dark:text-neutral-500">
+                                                            Selectionner un membre pour filtrer le calendrier.
                                                         </div>
                                                     </div>
                                                 </div>

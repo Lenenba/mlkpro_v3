@@ -345,6 +345,11 @@ const createInvoice = (work) => {
                                                 class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-lg text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
                                                 Modifier
                                             </Link>
+                                            <Link v-if="['to_schedule', 'scheduled'].includes(work.status || 'scheduled')"
+                                                :href="route('work.edit', { work: work.id, tab: 'planning' })"
+                                                class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-lg text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
+                                                Planifier
+                                            </Link>
                                             <div class="my-1 border-t border-stone-200 dark:border-neutral-800"></div>
                                             <Link v-if="work.invoice" :href="route('invoice.show', work.invoice.id)"
                                                 class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-lg text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">

@@ -125,7 +125,10 @@ class WorkController extends Controller
             abort(403);
         }
 
-        $works = Work::where('user_id', $accountId)->latest()->get();
+        $works = Work::where('user_id', $accountId)
+            ->with('teamMembers')
+            ->latest()
+            ->get();
         $teamMembers = TeamMember::query()
             ->forAccount($accountId)
             ->active()
@@ -344,7 +347,10 @@ class WorkController extends Controller
             'filters' => $filters,
             'workProducts' => $workProducts,
             'products' => $products,
-            'works' => Work::byUser($accountId)->latest()->get(),
+            'works' => Work::byUser($accountId)
+                ->with('teamMembers')
+                ->latest()
+                ->get(),
             'teamMembers' => $teamMembers,
             'lockedFromQuote' => $lockedFromQuote,
         ]);
