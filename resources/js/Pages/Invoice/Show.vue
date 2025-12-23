@@ -28,7 +28,9 @@ const submitPayment = () => {
 
 const customer = computed(() => props.invoice.customer || null);
 const work = computed(() => props.invoice.work || null);
-const lineItems = computed(() => work.value?.products || []);
+const invoiceItems = computed(() => props.invoice.items || []);
+const isTaskBased = computed(() => invoiceItems.value.length > 0);
+const lineItems = computed(() => (isTaskBased.value ? invoiceItems.value : work.value?.products || []));
 
 const customerName = computed(() => {
     const data = customer.value;
@@ -73,6 +75,45 @@ const formatDate = (value) => humanizeDate(value) || '-';
 
 const formatCurrency = (value) =>
     `$${Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+const formatShortDate = (value) => {
+    if (!value) {
+        return '-';
+    }
+
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+        return '-';
+    }
+
+    return date.toLocaleDateString();
+};
+
+const formatTimeRange = (start, end) => {
+    const startLabel = start ? String(start).slice(0, 5) : '';
+    const endLabel = end ? String(end).slice(0, 5) : '';
+    if (!startLabel && !endLabel) {
+        return '-';
+    }
+    if (!endLabel) {
+        return startLabel;
+    }
+    return `${startLabel} - ${endLabel}`;
+};
+
+const invoiceSubtotal = computed(() => {
+    if (isTaskBased.value) {
+        return invoiceItems.value.reduce((sum, item) => sum + Number(item.total || 0), 0);
+    }
+
+    if (work.value?.subtotal !== undefined && work.value?.subtotal !== null) {
+        return Number(work.value.subtotal || 0);
+    }
+
+    return Number(props.invoice.total || 0);
+});
+
+const lineItemColspan = computed(() => (isTaskBased.value ? 5 : 4));
 </script>
 
 <template>
@@ -162,21 +203,36 @@ const formatCurrency = (value) =>
                     <table class="min-w-full divide-y divide-gray-200">
                         <thead>
                             <tr>
-                                <th class="min-w-[300px] text-left text-sm font-medium text-gray-800">Product/Services</th>
-                                <th class="text-left text-sm font-medium text-gray-800">Qty.</th>
-                                <th class="text-left text-sm font-medium text-gray-800">Unit cost</th>
-                                <th class="text-left text-sm font-medium text-gray-800">Total</th>
+                                <th class="min-w-[300px] text-left text-sm font-medium text-gray-800">
+                                    {{ isTaskBased ? 'Tasks' : 'Product/Services' }}
+                                </th>
+                                <th v-if="isTaskBased" class="text-left text-sm font-medium text-gray-800">Date</th>
+                                <th v-if="isTaskBased" class="text-left text-sm font-medium text-gray-800">Time</th>
+                                <th v-if="isTaskBased" class="text-left text-sm font-medium text-gray-800">Assignee</th>
+                                <th v-if="isTaskBased" class="text-left text-sm font-medium text-gray-800">Total</th>
+                                <th v-else class="text-left text-sm font-medium text-gray-800">Qty.</th>
+                                <th v-else class="text-left text-sm font-medium text-gray-800">Unit cost</th>
+                                <th v-else class="text-left text-sm font-medium text-gray-800">Total</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-gray-200">
-                            <tr v-for="product in lineItems" :key="product.id">
-                                <td class="px-4 py-3">{{ product.name }}</td>
-                                <td class="px-4 py-3">{{ product.pivot?.quantity ?? '-' }}</td>
-                                <td class="px-4 py-3">{{ formatCurrency(product.pivot?.price) }}</td>
-                                <td class="px-4 py-3">{{ formatCurrency(product.pivot?.total) }}</td>
+                            <tr v-for="item in lineItems" :key="item.id">
+                                <template v-if="isTaskBased">
+                                    <td class="px-4 py-3">{{ item.title }}</td>
+                                    <td class="px-4 py-3">{{ formatShortDate(item.scheduled_date) }}</td>
+                                    <td class="px-4 py-3">{{ formatTimeRange(item.start_time, item.end_time) }}</td>
+                                    <td class="px-4 py-3">{{ item.assignee_name || '-' }}</td>
+                                    <td class="px-4 py-3">{{ formatCurrency(item.total) }}</td>
+                                </template>
+                                <template v-else>
+                                    <td class="px-4 py-3">{{ item.name }}</td>
+                                    <td class="px-4 py-3">{{ item.pivot?.quantity ?? '-' }}</td>
+                                    <td class="px-4 py-3">{{ formatCurrency(item.pivot?.price) }}</td>
+                                    <td class="px-4 py-3">{{ formatCurrency(item.pivot?.total) }}</td>
+                                </template>
                             </tr>
                             <tr v-if="!lineItems.length">
-                                <td colspan="4" class="px-4 py-4 text-sm text-gray-500">
+                                <td :colspan="lineItemColspan" class="px-4 py-4 text-sm text-gray-500">
                                     No line items.
                                 </td>
                             </tr>
@@ -194,7 +250,7 @@ const formatCurrency = (value) =>
                         </div>
                         <div class="col-span-1 flex justify-end">
                             <p class="text-sm text-green-600">
-                                {{ formatCurrency(work?.subtotal ?? invoice.total) }}
+                                {{ formatCurrency(invoiceSubtotal) }}
                             </p>
                         </div>
                     </div>

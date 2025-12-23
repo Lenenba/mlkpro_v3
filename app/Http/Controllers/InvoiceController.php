@@ -91,6 +91,7 @@ class InvoiceController extends Controller
         return inertia('Invoice/Show', [
             'invoice' => $invoice->load([
                 'customer.properties',
+                'items',
                 'work.products',
                 'work.quote.property',
                 'work.ratings',

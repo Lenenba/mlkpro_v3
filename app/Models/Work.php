@@ -53,6 +53,11 @@ class Work extends Model
         'completed_at',
         'subtotal',
         'total',
+        'billing_mode',
+        'billing_cycle',
+        'billing_grouping',
+        'billing_delay_days',
+        'billing_date_rule',
     ];
 
     public const STATUSES = [
@@ -84,6 +89,7 @@ class Work extends Model
         'start_date' => 'date',
         'end_date' => 'date',
         'completed_at' => 'datetime',
+        'billing_delay_days' => 'integer',
     ];
 
     protected static function boot()
@@ -163,6 +169,16 @@ class Work extends Model
     public function media(): HasMany
     {
         return $this->hasMany(WorkMedia::class);
+    }
+
+    public function tasks(): HasMany
+    {
+        return $this->hasMany(Task::class);
+    }
+
+    public function invoiceItems(): HasMany
+    {
+        return $this->hasMany(InvoiceItem::class);
     }
 
     public function scopeCompleted(Builder $query): Builder

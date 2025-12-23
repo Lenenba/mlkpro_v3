@@ -19,6 +19,25 @@ const Salutation = [
     { id: 'Miss', name: 'Miss' },
 ];
 
+const billingModes = [
+    { id: 'per_task', name: 'Par tache' },
+    { id: 'per_segment', name: 'Par segment' },
+    { id: 'end_of_job', name: 'Fin de job' },
+    { id: 'deferred', name: 'Differe' },
+];
+
+const billingGroupings = [
+    { id: 'single', name: 'Une facture' },
+    { id: 'periodic', name: 'Regrouper' },
+];
+
+const billingCycles = [
+    { id: 'weekly', name: 'Chaque semaine' },
+    { id: 'biweekly', name: 'Toutes les 2 semaines' },
+    { id: 'monthly', name: 'Chaque mois' },
+    { id: 'every_n_tasks', name: 'Chaque N taches' },
+];
+
 const resolvePrimaryProperty = () => {
     const properties = props.customer?.properties;
     const primary = Array.isArray(properties)
@@ -48,6 +67,11 @@ const form = useForm({
     salutation: props.customer?.salutation || '',
     phone: props.customer?.phone || '',
     properties: resolvePrimaryProperty(),
+    billing_mode: props.customer?.billing_mode || 'end_of_job',
+    billing_cycle: props.customer?.billing_cycle || '',
+    billing_grouping: props.customer?.billing_grouping || 'single',
+    billing_delay_days: props.customer?.billing_delay_days ?? '',
+    billing_date_rule: props.customer?.billing_date_rule || '',
 });
 
 
@@ -247,6 +271,46 @@ const selectAddress = (details) => {
                         <!-- End Input Group -->
                     </div>
                 </div>
+                <div></div>
+            </div>
+            <div class="grid grid-cols-1 lg:grid-cols-4 gap-1 md:gap-3 lg:gap-1 mt-4">
+                <div></div>
+                <div
+                    class="flex flex-col bg-white border shadow-sm rounded-sm dark:bg-neutral-900 dark:border-neutral-700 dark:shadow-neutral-700/70">
+                    <div class="flex flex-row border-b rounded-t-sm py-3 px-4 md:px-5 dark:border-neutral-700">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                            class="lucide lucide-receipt">
+                            <path d="M4 2h16v20l-4-2-4 2-4-2-4 2V2z" />
+                            <path d="M16 8h-8" />
+                            <path d="M16 12h-8" />
+                            <path d="M10 16h-2" />
+                        </svg>
+                        <h3 class="text-lg  ml-2 font-bold text-gray-800 dark:text-white">
+                            Billing preferences
+                        </h3>
+                    </div>
+                    <div class="p-4 md:p-5 space-y-3">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <FloatingSelect v-model="form.billing_mode" label="Mode de facturation"
+                                :options="billingModes" />
+                            <FloatingSelect v-model="form.billing_grouping" label="Regroupement"
+                                :options="billingGroupings" />
+                        </div>
+                        <div v-if="form.billing_mode === 'per_segment' || form.billing_grouping === 'periodic' || form.billing_mode === 'deferred'"
+                            class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <FloatingSelect v-model="form.billing_cycle" label="Cycle"
+                                :options="billingCycles" />
+                            <FloatingInput v-if="form.billing_mode === 'deferred'"
+                                v-model="form.billing_delay_days" type="number" label="Delai (jours)" />
+                        </div>
+                        <div v-if="form.billing_mode === 'deferred'">
+                            <FloatingInput v-model="form.billing_date_rule"
+                                label="Regle de date (ex: 1er du mois)" />
+                        </div>
+                    </div>
+                </div>
+                <div></div>
                 <div></div>
             </div>
             <div class="grid grid-cols-1 lg:grid-cols-4 gap-1 md:gap-3 lg:gap-1 mt-4">

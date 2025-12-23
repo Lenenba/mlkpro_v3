@@ -41,6 +41,23 @@ class CustomerRequest extends FormRequest
             'logo' => 'nullable|image|mimes:jpg,jpeg,png,svg|max:2048',
             'header_image' => 'nullable|image|mimes:jpg,jpeg,png,svg|max:2048',
             'billing_same_as_physical' => 'nullable|boolean',
+            'billing_mode' => [
+                'nullable',
+                'string',
+                Rule::in(['per_task', 'per_segment', 'end_of_job', 'deferred']),
+            ],
+            'billing_cycle' => [
+                'nullable',
+                'string',
+                Rule::in(['weekly', 'biweekly', 'monthly', 'every_n_tasks']),
+            ],
+            'billing_grouping' => [
+                'nullable',
+                'string',
+                Rule::in(['single', 'periodic']),
+            ],
+            'billing_delay_days' => 'nullable|integer|min:0|max:365',
+            'billing_date_rule' => 'nullable|string|max:50',
             'refer_by' => 'nullable|string|max:255',
             'temporary_password' => [
                 $requiresPassword ? 'required' : 'nullable',

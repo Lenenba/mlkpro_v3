@@ -32,6 +32,7 @@ class DashboardController extends Controller
                     ],
                     'pendingQuotes' => [],
                     'validatedQuotes' => [],
+                    'pendingSchedules' => [],
                     'pendingWorks' => [],
                     'validatedWorks' => [],
                     'invoicesDue' => [],
@@ -54,6 +55,11 @@ class DashboardController extends Controller
             $pendingWorksQuery = Work::query()
                 ->where('customer_id', $customerId)
                 ->whereIn('status', [Work::STATUS_PENDING_REVIEW, Work::STATUS_TECH_COMPLETE]);
+            $pendingSchedulesQuery = Work::query()
+                ->where('customer_id', $customerId)
+                ->where('status', Work::STATUS_SCHEDULED)
+                ->whereDoesntHave('tasks')
+                ->with('teamMembers.user:id,name');
             $validatedWorksQuery = Work::query()
                 ->where('customer_id', $customerId)
                 ->whereIn('status', [
@@ -141,6 +147,42 @@ class DashboardController extends Controller
                     ];
                 });
 
+            $pendingSchedules = (clone $pendingSchedulesQuery)
+                ->orderBy('start_date')
+                ->limit(8)
+                ->get([
+                    'id',
+                    'job_title',
+                    'status',
+                    'start_date',
+                    'end_date',
+                    'start_time',
+                    'end_time',
+                    'frequency',
+                    'repeatsOn',
+                    'totalVisits',
+                ])
+                ->map(function ($work) {
+                    return [
+                        'id' => $work->id,
+                        'job_title' => $work->job_title,
+                        'status' => $work->status,
+                        'start_date' => $work->start_date,
+                        'end_date' => $work->end_date,
+                        'start_time' => $work->start_time,
+                        'end_time' => $work->end_time,
+                        'frequency' => $work->frequency,
+                        'repeatsOn' => $work->repeatsOn,
+                        'totalVisits' => $work->totalVisits,
+                        'team_members' => $work->teamMembers->map(function ($member) {
+                            return [
+                                'id' => $member->id,
+                                'name' => $member->user?->name ?? 'Membre equipe',
+                            ];
+                        })->values(),
+                    ];
+                });
+
             $validatedWorks = (clone $validatedWorksQuery)
                 ->orderByDesc('completed_at')
                 ->limit(6)
@@ -203,6 +245,7 @@ class DashboardController extends Controller
                 'profileMissing' => false,
                 'stats' => $stats,
                 'pendingQuotes' => $pendingQuotes,
+                'pendingSchedules' => $pendingSchedules,
                 'validatedQuotes' => $validatedQuotes,
                 'pendingWorks' => $pendingWorks,
                 'validatedWorks' => $validatedWorks,

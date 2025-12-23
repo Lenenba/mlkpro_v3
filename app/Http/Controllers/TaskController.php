@@ -202,13 +202,21 @@ class TaskController extends Controller
             $updates['product_id'] = $validated['product_id'] ?? null;
         }
 
-        if ($updates['status'] === 'done') {
+        $wasDone = $task->status === 'done';
+        $isDone = $updates['status'] === 'done';
+
+        if ($isDone) {
             $updates['completed_at'] = $task->completed_at ?? now();
         } else {
             $updates['completed_at'] = null;
         }
 
         $task->update($updates);
+
+        if (!$wasDone && $isDone) {
+            app(\App\Services\TaskBillingService::class)
+                ->handleTaskCompleted($task, $user);
+        }
 
         return redirect()->back()->with('success', 'Task updated.');
     }

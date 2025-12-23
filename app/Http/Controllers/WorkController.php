@@ -8,6 +8,7 @@ use App\Models\Product;
 use App\Models\Customer;
 use App\Models\Quote;
 use App\Models\QuoteProduct;
+use App\Models\Task;
 use App\Models\Tax;
 use App\Models\ActivityLog;
 use App\Models\TeamMember;
@@ -136,6 +137,27 @@ class WorkController extends Controller
             ->orderBy('created_at')
             ->get();
 
+        $tasks = Task::query()
+            ->forAccount($accountId)
+            ->whereNotNull('due_date')
+            ->with(['assignee.user:id,name'])
+            ->orderBy('due_date')
+            ->get(['id', 'work_id', 'title', 'due_date', 'start_time', 'end_time', 'assigned_team_member_id'])
+            ->map(function ($task) {
+                return [
+                    'id' => $task->id,
+                    'work_id' => $task->work_id,
+                    'title' => $task->title,
+                    'due_date' => $task->due_date,
+                    'start_time' => $task->start_time,
+                    'end_time' => $task->end_time,
+                    'assigned_team_member_id' => $task->assigned_team_member_id,
+                    'assignee' => $task->assignee?->user ? [
+                        'name' => $task->assignee->user->name,
+                    ] : null,
+                ];
+            });
+
         $itemType = $user->company_type === 'products'
             ? Product::ITEM_TYPE_PRODUCT
             : Product::ITEM_TYPE_SERVICE;
@@ -143,6 +165,7 @@ class WorkController extends Controller
         return inertia('Work/Create', [
             'lastWorkNumber' => $this->generateNextNumber($customer->works->last()->number ?? null),
             'works' => $works,
+            'tasks' => $tasks,
             'customer' => $customer->load('properties'),
             'products' => Product::byUser($accountId)->where('item_type', $itemType)->get(),
             'teamMembers' => $teamMembers,
@@ -209,6 +232,25 @@ class WorkController extends Controller
 
         $validated['user_id'] = $accountId;
         $validated['status'] = $validated['status'] ?? 'scheduled';
+
+        $billingFields = [
+            'billing_mode',
+            'billing_cycle',
+            'billing_grouping',
+            'billing_delay_days',
+            'billing_date_rule',
+        ];
+
+        foreach ($billingFields as $field) {
+            $value = $validated[$field] ?? null;
+            if ($value === '') {
+                $value = null;
+            }
+            if ($value === null) {
+                $value = $customer->{$field} ?? null;
+            }
+            $validated[$field] = $value;
+        }
 
         $selectedTeamMemberIds = collect($validated['team_member_ids'] ?? [])
             ->map(fn($id) => (int) $id)
@@ -340,6 +382,27 @@ class WorkController extends Controller
             ->orderBy('created_at')
             ->get();
 
+        $tasks = Task::query()
+            ->forAccount($accountId)
+            ->whereNotNull('due_date')
+            ->with(['assignee.user:id,name'])
+            ->orderBy('due_date')
+            ->get(['id', 'work_id', 'title', 'due_date', 'start_time', 'end_time', 'assigned_team_member_id'])
+            ->map(function ($task) {
+                return [
+                    'id' => $task->id,
+                    'work_id' => $task->work_id,
+                    'title' => $task->title,
+                    'due_date' => $task->due_date,
+                    'start_time' => $task->start_time,
+                    'end_time' => $task->end_time,
+                    'assigned_team_member_id' => $task->assigned_team_member_id,
+                    'assignee' => $task->assignee?->user ? [
+                        'name' => $task->assignee->user->name,
+                    ] : null,
+                ];
+            });
+
         return inertia('Work/Create', [
             'work' => $work,
             'lastWorkNumber' => $work->number,
@@ -351,6 +414,7 @@ class WorkController extends Controller
                 ->with('teamMembers')
                 ->latest()
                 ->get(),
+            'tasks' => $tasks,
             'teamMembers' => $teamMembers,
             'lockedFromQuote' => $lockedFromQuote,
         ]);
@@ -447,6 +511,24 @@ class WorkController extends Controller
             $validated['total'] = $subtotal;
         }
         $validated['status'] = $validated['status'] ?? $work->status ?? 'scheduled';
+
+        $billingFields = [
+            'billing_mode',
+            'billing_cycle',
+            'billing_grouping',
+            'billing_delay_days',
+            'billing_date_rule',
+        ];
+
+        foreach ($billingFields as $field) {
+            if (!array_key_exists($field, $validated)) {
+                continue;
+            }
+
+            if ($validated[$field] === '') {
+                $validated[$field] = null;
+            }
+        }
 
         $shouldSyncTeamMembers = $user && $user->id === $accountId && array_key_exists('team_member_ids', $validated);
 
@@ -583,7 +665,10 @@ class WorkController extends Controller
         }
 
         if (in_array($nextStatus, [Work::STATUS_VALIDATED, Work::STATUS_AUTO_VALIDATED], true)) {
-            $billingService->createInvoiceFromWork($work, $user);
+            $billingResolver = app(\App\Services\TaskBillingService::class);
+            if ($billingResolver->shouldInvoiceOnWorkValidation($work)) {
+                $billingService->createInvoiceFromWork($work, $user);
+            }
         }
 
         return redirect()->back()->with('success', 'Job status updated.');

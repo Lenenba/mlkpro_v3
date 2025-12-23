@@ -35,6 +35,11 @@ class Customer extends Model
         'refer_by',
         'salutation',
         'billing_same_as_physical',
+        'billing_mode',
+        'billing_cycle',
+        'billing_grouping',
+        'billing_delay_days',
+        'billing_date_rule',
     ];
 
     /**
@@ -49,6 +54,7 @@ class Customer extends Model
     protected $casts = [
         'billing_same_as_physical' => 'boolean',
         'tags' => 'array',
+        'billing_delay_days' => 'integer',
     ];
 
     protected $appends = [
