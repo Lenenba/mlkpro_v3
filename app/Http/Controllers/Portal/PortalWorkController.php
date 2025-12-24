@@ -8,9 +8,11 @@ use App\Models\Customer;
 use App\Models\TeamMember;
 use App\Models\User;
 use App\Models\Work;
+use App\Jobs\GenerateWorkTasks;
 use App\Services\WorkBillingService;
 use App\Services\TaskBillingService;
 use App\Services\WorkScheduleService;
+use App\Services\UsageLimitService;
 use App\Notifications\ActionEmailNotification;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
@@ -158,15 +160,42 @@ class PortalWorkController extends Controller
             ]);
         }
 
-        try {
-            $createdCount = $scheduleService->generateTasks($work, $request->user()?->id);
-        } catch (ValidationException $exception) {
-            return redirect()->back()->withErrors($exception->errors());
+        $pendingDates = $scheduleService->pendingDateStrings($work);
+        $pendingCount = count($pendingDates);
+        if ($pendingCount > 0) {
+            $owner = User::find($work->user_id);
+            if ($owner) {
+                app(UsageLimitService::class)->enforceLimit($owner, 'tasks', $pendingCount);
+            }
+        }
+
+        if ($pendingCount === 0) {
+            return redirect()->back()->with('success', 'Planning deja confirme.');
         }
 
         if ($work->status !== Work::STATUS_SCHEDULED) {
             $work->status = Work::STATUS_SCHEDULED;
             $work->save();
+        }
+
+        $queueDriver = config('queue.default');
+        if ($queueDriver && $queueDriver !== 'sync') {
+            $chunks = array_chunk($pendingDates, 100);
+            foreach ($chunks as $chunk) {
+                GenerateWorkTasks::dispatch($work->id, $request->user()?->id, $chunk);
+            }
+
+            ActivityLog::record($request->user(), $work, 'schedule_queued', [
+                'tasks_planned' => $pendingCount,
+            ], 'Schedule queued by client');
+
+            return redirect()->back()->with('success', 'Planning en cours. Les taches seront creees sous peu.');
+        }
+
+        try {
+            $createdCount = $scheduleService->generateTasksForDates($work, $pendingDates, $request->user()?->id);
+        } catch (ValidationException $exception) {
+            return redirect()->back()->withErrors($exception->errors());
         }
 
         ActivityLog::record($request->user(), $work, 'schedule_confirmed', [

@@ -318,8 +318,12 @@ class TenantController extends BaseSuperAdminController
         $this->authorizePermission($request, PlatformPermissions::TENANTS_MANAGE);
         $this->ensureOwner($tenant);
 
-        $data = [
-            'company' => $tenant->only([
+        $this->logAudit($request, 'tenant.export', $tenant);
+
+        $fileName = 'tenant-' . $tenant->id . '-export.json';
+
+        return response()->streamDownload(function () use ($tenant) {
+            $company = $tenant->only([
                 'id',
                 'name',
                 'email',
@@ -329,20 +333,36 @@ class TenantController extends BaseSuperAdminController
                 'company_city',
                 'created_at',
                 'onboarding_completed_at',
-            ]),
-            'customers' => Customer::query()->where('user_id', $tenant->id)->get(),
-            'products' => Product::query()->where('user_id', $tenant->id)->get(),
-            'quotes' => Quote::query()->where('user_id', $tenant->id)->get(),
-            'invoices' => Invoice::query()->where('user_id', $tenant->id)->get(),
-            'works' => Work::query()->where('user_id', $tenant->id)->get(),
-        ];
+            ]);
 
-        $this->logAudit($request, 'tenant.export', $tenant);
+            $streamCollection = function (string $key, $query) {
+                echo '"' . $key . '":[';
+                $first = true;
+                $query->orderBy('id')->chunk(200, function ($items) use (&$first) {
+                    foreach ($items as $item) {
+                        if (!$first) {
+                            echo ',';
+                        }
+                        $first = false;
+                        echo json_encode($item->toArray());
+                    }
+                });
+                echo ']';
+            };
 
-        $fileName = 'tenant-' . $tenant->id . '-export.json';
-
-        return response()->streamDownload(function () use ($data) {
-            echo json_encode($data, JSON_PRETTY_PRINT);
+            echo '{';
+            echo '"company":' . json_encode($company);
+            echo ',';
+            $streamCollection('customers', Customer::query()->where('user_id', $tenant->id));
+            echo ',';
+            $streamCollection('products', Product::query()->where('user_id', $tenant->id));
+            echo ',';
+            $streamCollection('quotes', Quote::query()->where('user_id', $tenant->id));
+            echo ',';
+            $streamCollection('invoices', Invoice::query()->where('user_id', $tenant->id));
+            echo ',';
+            $streamCollection('works', Work::query()->where('user_id', $tenant->id));
+            echo '}';
         }, $fileName, [
             'Content-Type' => 'application/json',
         ]);

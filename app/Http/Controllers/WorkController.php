@@ -127,10 +127,6 @@ class WorkController extends Controller
             abort(403);
         }
 
-        $works = Work::where('user_id', $accountId)
-            ->with('teamMembers')
-            ->latest()
-            ->get();
         $teamMembers = TeamMember::query()
             ->forAccount($accountId)
             ->active()
@@ -138,9 +134,12 @@ class WorkController extends Controller
             ->orderBy('created_at')
             ->get();
 
+        $calendarStart = Carbon::now()->subMonths(3)->toDateString();
+        $calendarEnd = Carbon::now()->addMonths(6)->toDateString();
         $tasks = Task::query()
             ->forAccount($accountId)
             ->whereNotNull('due_date')
+            ->whereBetween('due_date', [$calendarStart, $calendarEnd])
             ->with(['assignee.user:id,name'])
             ->orderBy('due_date')
             ->get(['id', 'work_id', 'title', 'due_date', 'start_time', 'end_time', 'assigned_team_member_id'])
@@ -165,10 +164,8 @@ class WorkController extends Controller
 
         return inertia('Work/Create', [
             'lastWorkNumber' => $this->generateNextNumber($customer->works->last()->number ?? null),
-            'works' => $works,
             'tasks' => $tasks,
             'customer' => $customer->load('properties'),
-            'products' => Product::byUser($accountId)->where('item_type', $itemType)->get(),
             'teamMembers' => $teamMembers,
             'lockedFromQuote' => false,
         ]);
@@ -385,9 +382,17 @@ class WorkController extends Controller
             ->orderBy('created_at')
             ->get();
 
+        $calendarStart = $work->start_date
+            ? Carbon::parse($work->start_date)->subMonths(1)->toDateString()
+            : Carbon::now()->subMonths(3)->toDateString();
+        $calendarEnd = $work->end_date
+            ? Carbon::parse($work->end_date)->addMonths(1)->toDateString()
+            : Carbon::now()->addMonths(6)->toDateString();
+
         $tasks = Task::query()
             ->forAccount($accountId)
             ->whereNotNull('due_date')
+            ->whereBetween('due_date', [$calendarStart, $calendarEnd])
             ->with(['assignee.user:id,name'])
             ->orderBy('due_date')
             ->get(['id', 'work_id', 'title', 'due_date', 'start_time', 'end_time', 'assigned_team_member_id'])
@@ -413,10 +418,6 @@ class WorkController extends Controller
             'filters' => $filters,
             'workProducts' => $workProducts,
             'products' => $products,
-            'works' => Work::byUser($accountId)
-                ->with('teamMembers')
-                ->latest()
-                ->get(),
             'tasks' => $tasks,
             'teamMembers' => $teamMembers,
             'lockedFromQuote' => $lockedFromQuote,

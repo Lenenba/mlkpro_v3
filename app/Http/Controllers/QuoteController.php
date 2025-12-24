@@ -128,7 +128,6 @@ class QuoteController extends Controller
                 $customer->quotes()->latest('created_at')->value('number')
             ),
             'customer' => $customer,
-            'products' => Product::byUser(Auth::id())->where('item_type', $itemType)->get(),
             'taxes' => Tax::all(),
             'selectedPropertyId' => $propertyId ? (int) $propertyId : null,
         ]);
@@ -150,7 +149,6 @@ class QuoteController extends Controller
 
         return Inertia::render('Quote/Create', [
             'quote' => $quote->load('products', 'taxes'),
-            'products' => Product::byUser(Auth::id())->where('item_type', $itemType)->get(),
             'customer' =>  $customer,
             'taxes' => Tax::all(),
         ]);

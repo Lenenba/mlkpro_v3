@@ -14,24 +14,12 @@ class WorkScheduleService
 {
     public function generateTasks(Work $work, ?int $createdByUserId = null): int
     {
-        if (!$work->start_date) {
-            return 0;
-        }
-
-        $dates = $this->buildOccurrenceDates($work);
-        if (!$dates) {
+        $pendingDates = $this->resolvePendingDates($work);
+        if (!$pendingDates) {
             return 0;
         }
 
         $accountId = $work->user_id;
-        $existingDates = Task::query()
-            ->where('work_id', $work->id)
-            ->whereNotNull('due_date')
-            ->pluck('due_date')
-            ->map(fn($date) => $date->toDateString())
-            ->all();
-        $existingDates = array_flip($existingDates);
-
         $assigneeIds = $work->teamMembers()->pluck('team_members.id')->all();
         if (!$assigneeIds) {
             $assigneeIds = TeamMember::query()
@@ -48,14 +36,7 @@ class WorkScheduleService
         $materialTemplate = $this->buildMaterialTemplate($work);
         $createdCount = 0;
 
-        $pendingCount = 0;
-        foreach ($dates as $date) {
-            $dateString = $date->toDateString();
-            if (!isset($existingDates[$dateString])) {
-                $pendingCount++;
-            }
-        }
-
+        $pendingCount = count($pendingDates);
         if ($pendingCount > 0) {
             $owner = User::query()->find($accountId);
             if ($owner) {
@@ -63,8 +44,63 @@ class WorkScheduleService
             }
         }
 
-        foreach ($dates as $index => $date) {
-            $dateString = $date->toDateString();
+        return $this->generateTasksForDates($work, $pendingDates, $createdByUserId, $assigneeIds, $materialTemplate);
+    }
+
+    public function generateTasksForDates(
+        Work $work,
+        array $dateInputs,
+        ?int $createdByUserId = null,
+        ?array $assigneeIds = null,
+        ?array $materialTemplate = null
+    ): int {
+        if (!$dateInputs) {
+            return 0;
+        }
+
+        $dateStrings = collect($dateInputs)
+            ->map(function ($date) {
+                if ($date instanceof Carbon) {
+                    return $date->toDateString();
+                }
+                return Carbon::parse($date)->toDateString();
+            })
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        if (!$dateStrings) {
+            return 0;
+        }
+
+        $existingDates = Task::query()
+            ->where('work_id', $work->id)
+            ->whereNotNull('due_date')
+            ->whereIn('due_date', $dateStrings)
+            ->pluck('due_date')
+            ->map(fn($date) => $date->toDateString())
+            ->all();
+        $existingDates = array_flip($existingDates);
+
+        $accountId = $work->user_id;
+        $assigneeIds = $assigneeIds ?? $work->teamMembers()->pluck('team_members.id')->all();
+        if (!$assigneeIds) {
+            $assigneeIds = TeamMember::query()
+                ->forAccount($accountId)
+                ->active()
+                ->pluck('id')
+                ->all();
+        }
+        $assigneeCount = count($assigneeIds);
+
+        $startTime = $work->start_time ? Carbon::parse($work->start_time)->format('H:i:s') : null;
+        $endTime = $work->end_time ? Carbon::parse($work->end_time)->format('H:i:s') : null;
+
+        $materialTemplate = $materialTemplate ?? $this->buildMaterialTemplate($work);
+        $createdCount = 0;
+
+        foreach ($dateStrings as $index => $dateString) {
             if (isset($existingDates[$dateString])) {
                 continue;
             }
@@ -95,6 +131,19 @@ class WorkScheduleService
         }
 
         return $createdCount;
+    }
+
+    public function countPendingTasks(Work $work): int
+    {
+        return count($this->resolvePendingDates($work));
+    }
+
+    public function pendingDateStrings(Work $work): array
+    {
+        return collect($this->resolvePendingDates($work))
+            ->map(fn($date) => $date->toDateString())
+            ->values()
+            ->all();
     }
 
     private function buildOccurrenceDates(Work $work): array
@@ -196,6 +245,36 @@ class WorkScheduleService
         }
 
         return $dates;
+    }
+
+    private function resolvePendingDates(Work $work): array
+    {
+        if (!$work->start_date) {
+            return [];
+        }
+
+        $dates = $this->buildOccurrenceDates($work);
+        if (!$dates) {
+            return [];
+        }
+
+        $existingDates = Task::query()
+            ->where('work_id', $work->id)
+            ->whereNotNull('due_date')
+            ->pluck('due_date')
+            ->map(fn($date) => $date->toDateString())
+            ->all();
+        $existingDates = array_flip($existingDates);
+
+        $pendingDates = [];
+        foreach ($dates as $date) {
+            $dateString = $date->toDateString();
+            if (!isset($existingDates[$dateString])) {
+                $pendingDates[] = $date;
+            }
+        }
+
+        return $pendingDates;
     }
 
     private function buildMaterialTemplate(Work $work): array
