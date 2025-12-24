@@ -319,30 +319,41 @@ const openQuickCreate = () => {
                             {{ formatDate(lead.created_at) }}
                         </td>
                         <td class="px-5 py-3">
-                            <div class="flex items-center justify-end gap-2">
-                                <Link
-                                    v-if="lead.quote"
-                                    :href="route('customer.quote.show', lead.quote.id)"
-                                    class="py-2 px-2.5 inline-flex items-center text-xs font-semibold rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700"
-                                >
-                                    View quote
-                                </Link>
-                                <button
-                                    v-else-if="lead.status === 'REQ_NEW'"
-                                    type="button"
-                                    class="py-2 px-2.5 inline-flex items-center text-xs font-semibold rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50"
-                                    @click="openConvert(lead)"
-                                >
-                                    Convert
-                                </button>
-                                <button
-                                    type="button"
-                                    class="py-2 px-2.5 inline-flex items-center text-xs font-semibold rounded-sm border border-stone-200 bg-white text-red-600 hover:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:hover:bg-neutral-700"
-                                    :disabled="processingId === lead.id"
-                                    @click="deleteLead(lead)"
-                                >
-                                    Delete
-                                </button>
+                            <div class="flex items-center justify-end">
+                                <div class="hs-dropdown [--auto-close:inside] [--placement:bottom-right] relative inline-flex">
+                                    <button type="button"
+                                        class="size-7 inline-flex justify-center items-center gap-x-2 rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700"
+                                        aria-haspopup="menu" aria-expanded="false" aria-label="Actions">
+                                        <svg class="shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" width="24"
+                                            height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <circle cx="12" cy="12" r="1" />
+                                            <circle cx="12" cy="5" r="1" />
+                                            <circle cx="12" cy="19" r="1" />
+                                        </svg>
+                                    </button>
+
+                                    <div class="hs-dropdown-menu hs-dropdown-open:opacity-100 w-40 transition-[opacity,margin] duration opacity-0 hidden z-10 bg-white rounded-sm shadow-[0_10px_40px_10px_rgba(0,0,0,0.08)] dark:shadow-[0_10px_40px_10px_rgba(0,0,0,0.2)] dark:bg-neutral-900"
+                                        role="menu" aria-orientation="vertical">
+                                        <div class="p-1">
+                                            <Link v-if="lead.quote"
+                                                :href="route('customer.quote.show', lead.quote.id)"
+                                                class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
+                                                View quote
+                                            </Link>
+                                            <button v-else-if="lead.status === 'REQ_NEW'" type="button" @click="openConvert(lead)"
+                                                class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-emerald-600 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-neutral-800">
+                                                Convert
+                                            </button>
+                                            <div class="my-1 border-t border-stone-200 dark:border-neutral-800"></div>
+                                            <button type="button" @click="deleteLead(lead)"
+                                                class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-neutral-800"
+                                                :disabled="processingId === lead.id">
+                                                Delete
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </td>
                     </tr>

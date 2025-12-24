@@ -53,6 +53,8 @@ class AnnouncementController extends BaseSuperAdminController
                     'status' => $announcement->status,
                     'audience' => $announcement->audience,
                     'placement' => $announcement->placement,
+                    'display_style' => $announcement->display_style,
+                    'background_color' => $announcement->background_color,
                     'new_tenant_days' => $announcement->new_tenant_days,
                     'media_type' => $announcement->media_type,
                     'media_url' => $announcement->media_url,
@@ -76,6 +78,7 @@ class AnnouncementController extends BaseSuperAdminController
             'placements' => PlatformAnnouncement::PLACEMENTS,
             'statuses' => PlatformAnnouncement::STATUSES,
             'media_types' => PlatformAnnouncement::MEDIA_TYPES,
+            'display_styles' => PlatformAnnouncement::DISPLAY_STYLES,
         ]);
     }
 
@@ -99,6 +102,8 @@ class AnnouncementController extends BaseSuperAdminController
                     'title' => $announcement->title,
                     'body' => $announcement->body,
                     'placement' => $announcement->placement,
+                    'display_style' => $announcement->display_style,
+                    'background_color' => $announcement->background_color,
                     'media_type' => $announcement->media_type,
                     'media_url' => $announcement->media_url,
                     'link_label' => $announcement->link_label,
@@ -133,6 +138,8 @@ class AnnouncementController extends BaseSuperAdminController
             'priority' => 'nullable|integer|min:0',
             'starts_at' => 'nullable|date',
             'ends_at' => 'nullable|date|after_or_equal:starts_at',
+            'display_style' => ['nullable', 'string', Rule::in(PlatformAnnouncement::DISPLAY_STYLES)],
+            'background_color' => ['nullable', 'string', 'max:20', 'regex:/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/'],
             'new_tenant_days' => [
                 'nullable',
                 'integer',
@@ -157,6 +164,8 @@ class AnnouncementController extends BaseSuperAdminController
         ]);
 
         $placement = $validated['placement'] ?? 'internal';
+        $displayStyle = $validated['display_style'] ?? 'standard';
+        $backgroundColor = ($validated['background_color'] ?? null) ?: null;
         $mediaType = $validated['media_type'] ?? 'none';
         $mediaUrl = $validated['media_url'] ?? null;
         $mediaPath = null;
@@ -179,6 +188,8 @@ class AnnouncementController extends BaseSuperAdminController
             'status' => $validated['status'],
             'audience' => $validated['audience'],
             'placement' => $placement,
+            'display_style' => $displayStyle,
+            'background_color' => $backgroundColor,
             'new_tenant_days' => $validated['new_tenant_days'] ?? null,
             'media_type' => $mediaType,
             'media_url' => $mediaUrl,
@@ -215,6 +226,8 @@ class AnnouncementController extends BaseSuperAdminController
             'priority' => 'nullable|integer|min:0',
             'starts_at' => 'nullable|date',
             'ends_at' => 'nullable|date|after_or_equal:starts_at',
+            'display_style' => ['nullable', 'string', Rule::in(PlatformAnnouncement::DISPLAY_STYLES)],
+            'background_color' => ['nullable', 'string', 'max:20', 'regex:/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/'],
             'new_tenant_days' => [
                 'nullable',
                 'integer',
@@ -240,6 +253,12 @@ class AnnouncementController extends BaseSuperAdminController
         ]);
 
         $placement = $validated['placement'] ?? 'internal';
+        $displayStyle = array_key_exists('display_style', $validated)
+            ? ($validated['display_style'] ?? 'standard')
+            : ($announcement->display_style ?? 'standard');
+        $backgroundColor = array_key_exists('background_color', $validated)
+            ? ($validated['background_color'] ?: null)
+            : $announcement->background_color;
         $mediaType = $announcement->media_type;
         $mediaUrl = $announcement->getRawOriginal('media_url');
         $mediaPath = $announcement->media_path;
@@ -277,6 +296,8 @@ class AnnouncementController extends BaseSuperAdminController
             'status' => $validated['status'],
             'audience' => $validated['audience'],
             'placement' => $placement,
+            'display_style' => $displayStyle,
+            'background_color' => $backgroundColor,
             'new_tenant_days' => $validated['new_tenant_days'] ?? null,
             'media_type' => $mediaType,
             'media_url' => $mediaUrl,

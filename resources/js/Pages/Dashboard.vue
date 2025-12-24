@@ -38,6 +38,10 @@ const props = defineProps({
         type: Array,
         default: () => [],
     },
+    billing: {
+        type: Object,
+        default: () => ({}),
+    },
 });
 
 const page = usePage();
@@ -47,6 +51,13 @@ const showServices = computed(() => companyType.value !== 'products');
 const isOwner = computed(() => Boolean(page.props.auth?.account?.is_owner));
 const hasTopAnnouncements = computed(() => (props.announcements || []).length > 0);
 const hasQuickAnnouncements = computed(() => (props.quickAnnouncements || []).length > 0);
+const billing = computed(() => props.billing || {});
+const billingPlans = computed(() => billing.value.plans || []);
+const billingSubscription = computed(() => billing.value.subscription || {});
+const hasPlanChoices = computed(() => isOwner.value && billingPlans.value.length > 0);
+
+const isPlanActive = (plan) =>
+    Boolean(billingSubscription.value?.price_id && plan?.price_id === billingSubscription.value.price_id);
 
 const stat = (key) => props.stats?.[key] ?? 0;
 
@@ -162,6 +173,73 @@ const invoiceStatusClass = (status) => {
                             class="py-2 px-3 inline-flex items-center gap-x-2 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200">
                             New product
                         </button>
+                    </div>
+                </div>
+            </section>
+
+            <section
+                v-if="hasPlanChoices"
+                class="rounded-sm border border-stone-200 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-900"
+            >
+                <div class="flex flex-wrap items-start justify-between gap-3">
+                    <div class="space-y-1">
+                        <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">Choisir un forfait</h2>
+                        <p class="text-xs text-stone-500 dark:text-neutral-400">
+                            Activez ou changez votre plan depuis le dashboard.
+                        </p>
+                    </div>
+                    <Link :href="route('settings.billing.edit')"
+                        class="py-2 px-3 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200">
+                        Gerer la facturation
+                    </Link>
+                </div>
+
+                <div class="mt-4 grid gap-3 md:grid-cols-3">
+                    <div v-for="plan in billingPlans" :key="plan.key"
+                        class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-800">
+                        <div class="flex items-start justify-between gap-3">
+                            <div>
+                                <h3 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                                    {{ plan.name }}
+                                </h3>
+                                <p class="text-[11px] uppercase tracking-wide text-stone-400">
+                                    Plan mensuel
+                                </p>
+                            </div>
+                            <span v-if="isPlanActive(plan)"
+                                class="rounded-sm border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300">
+                                Actif
+                            </span>
+                            <span v-else-if="plan.key === 'growth'"
+                                class="rounded-sm border border-stone-200 bg-stone-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-stone-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300">
+                                Populaire
+                            </span>
+                        </div>
+
+                        <div class="mt-3 flex items-baseline gap-2">
+                            <span class="text-2xl font-semibold text-stone-800 dark:text-neutral-100">
+                                {{ plan.display_price || plan.price || '--' }}
+                            </span>
+                            <span class="text-xs text-stone-500 dark:text-neutral-400">/mois</span>
+                        </div>
+
+                        <ul v-if="plan.features?.length" class="mt-3 space-y-1 text-xs text-stone-600 dark:text-neutral-300">
+                            <li v-for="feature in plan.features" :key="feature" class="flex items-start gap-2">
+                                <span class="mt-1 inline-flex size-1.5 rounded-full bg-stone-400 dark:bg-neutral-500"></span>
+                                <span>{{ feature }}</span>
+                            </li>
+                        </ul>
+
+                        <div class="mt-4">
+                            <span v-if="isPlanActive(plan)"
+                                class="inline-flex w-full items-center justify-center rounded-sm border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300">
+                                Plan actif
+                            </span>
+                            <Link v-else :href="route('settings.billing.edit', { plan: plan.key })"
+                                class="inline-flex w-full items-center justify-center rounded-sm border border-stone-200 bg-white px-3 py-2 text-xs font-medium text-stone-700 hover:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200">
+                                Choisir ce plan
+                            </Link>
+                        </div>
                     </div>
                 </div>
             </section>
@@ -429,6 +507,7 @@ const invoiceStatusClass = (status) => {
                         v-if="hasQuickAnnouncements"
                         :announcements="quickAnnouncements"
                         variant="side"
+                        :fill-height="false"
                         title="Announcements"
                         subtitle="Displayed in the quick actions slot."
                         :limit="3"

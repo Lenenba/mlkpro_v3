@@ -11,6 +11,7 @@ class PlatformAnnouncement extends Model
     public const STATUSES = ['draft', 'active'];
     public const AUDIENCES = ['all', 'tenants', 'new_tenants'];
     public const PLACEMENTS = ['internal', 'quick_actions'];
+    public const DISPLAY_STYLES = ['standard', 'media_only'];
     public const MEDIA_TYPES = ['none', 'image', 'video'];
 
     protected $fillable = [
@@ -19,6 +20,8 @@ class PlatformAnnouncement extends Model
         'status',
         'audience',
         'placement',
+        'display_style',
+        'background_color',
         'new_tenant_days',
         'media_type',
         'media_url',

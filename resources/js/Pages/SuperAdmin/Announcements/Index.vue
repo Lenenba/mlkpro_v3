@@ -30,6 +30,10 @@ const props = defineProps({
         type: Array,
         default: () => [],
     },
+    display_styles: {
+        type: Array,
+        default: () => [],
+    },
 });
 
 const showForm = ref(false);
@@ -87,12 +91,23 @@ const mediaTypeOptions = computed(() =>
     }))
 );
 
+const displayStyleOptions = computed(() => {
+    const styles = props.display_styles?.length ? props.display_styles : ['standard', 'media_only'];
+
+    return styles.map((style) => ({
+        value: style,
+        label: style === 'media_only' ? 'Media only' : 'Standard card',
+    }));
+});
+
 const form = useForm({
     title: '',
     body: '',
     status: statusOptions.value[0]?.value ?? 'draft',
     audience: audienceOptions.value[0]?.value ?? 'all',
     placement: placementOptions.value[0]?.value ?? 'internal',
+    display_style: displayStyleOptions.value[0]?.value ?? 'standard',
+    background_color: '',
     priority: 0,
     starts_at: '',
     ends_at: '',
@@ -220,6 +235,10 @@ const startEdit = (announcement) => {
     form.placement = placementOptions.value.some((option) => option.value === announcement.placement)
         ? announcement.placement
         : placementOptions.value[0]?.value || 'internal';
+    form.display_style = displayStyleOptions.value.some((option) => option.value === announcement.display_style)
+        ? announcement.display_style
+        : displayStyleOptions.value[0]?.value || 'standard';
+    form.background_color = announcement.background_color || '';
     form.priority = announcement.priority ?? 0;
     form.starts_at = announcement.starts_at || '';
     form.ends_at = announcement.ends_at || '';
@@ -250,6 +269,8 @@ const submit = () => {
         payload.media_url = payload.media_url || null;
         payload.link_label = payload.link_label || null;
         payload.link_url = payload.link_url || null;
+        payload.display_style = payload.display_style || 'standard';
+        payload.background_color = payload.background_color ? payload.background_color.trim() : null;
 
         if (payload.audience !== 'tenants') {
             payload.tenant_ids = [];
@@ -569,6 +590,37 @@ watch(
                         <textarea v-model="form.body" rows="3"
                             class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"></textarea>
                         <InputError class="mt-1" :message="form.errors.body" />
+                    </div>
+
+                    <div class="grid gap-3 md:grid-cols-2">
+                        <div>
+                            <label class="block text-xs text-stone-500 dark:text-neutral-400">Display style</label>
+                            <select v-model="form.display_style"
+                                class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
+                                <option v-for="option in displayStyleOptions" :key="option.value" :value="option.value">
+                                    {{ option.label }}
+                                </option>
+                            </select>
+                            <p class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
+                                Media only hides the title, message, and link.
+                            </p>
+                            <InputError class="mt-1" :message="form.errors.display_style" />
+                        </div>
+                        <div>
+                            <label class="block text-xs text-stone-500 dark:text-neutral-400">Card background</label>
+                            <div class="mt-1 flex items-center gap-2">
+                                <input v-model="form.background_color" type="text" placeholder="#F8FAFC"
+                                    class="block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200" />
+                                <input type="color" :value="form.background_color || '#ffffff'"
+                                    @input="form.background_color = $event.target.value"
+                                    class="h-9 w-10 rounded-sm border border-stone-200 bg-white p-1 dark:bg-neutral-900 dark:border-neutral-700" />
+                                <button type="button" @click="form.background_color = ''"
+                                    class="py-2 px-2.5 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
+                                    Clear
+                                </button>
+                            </div>
+                            <InputError class="mt-1" :message="form.errors.background_color" />
+                        </div>
                     </div>
 
                     <div class="grid gap-3 md:grid-cols-3">

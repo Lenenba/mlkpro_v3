@@ -74,6 +74,7 @@ const hasQuickAnnouncements = computed(() => props.quickAnnouncements.length > 0
                         v-if="hasQuickAnnouncements"
                         :announcements="quickAnnouncements"
                         variant="side"
+                        :fill-height="false"
                         title="Quick actions slot"
                         subtitle="Example view"
                         :limit="3"

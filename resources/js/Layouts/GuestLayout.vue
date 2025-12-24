@@ -1,6 +1,13 @@
 <script setup>
 import ApplicationLogo from '@/Components/ApplicationLogo.vue';
 import { Link } from '@inertiajs/vue3';
+
+const props = defineProps({
+    cardClass: {
+        type: String,
+        default: 'mt-6 w-full overflow-hidden rounded-sm border border-stone-200 bg-white px-6 py-4 shadow-md sm:max-w-md dark:border-neutral-700 dark:bg-neutral-900',
+    },
+});
 </script>
 
 <template>
@@ -13,9 +20,7 @@ import { Link } from '@inertiajs/vue3';
             </Link>
         </div>
 
-        <div
-            class="mt-6 w-full overflow-hidden rounded-sm border border-stone-200 bg-white px-6 py-4 shadow-md sm:max-w-md dark:border-neutral-700 dark:bg-neutral-900"
-        >
+        <div :class="props.cardClass">
             <slot />
         </div>
     </div>

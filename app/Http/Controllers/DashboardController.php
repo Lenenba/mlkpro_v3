@@ -15,6 +15,8 @@ use App\Models\PlatformAnnouncement;
 use App\Models\User;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Auth;
+use Laravel\Paddle\Cashier;
+use Laravel\Paddle\Subscription;
 
 class DashboardController extends Controller
 {
@@ -549,6 +551,23 @@ class DashboardController extends Controller
                 ->sum('amount');
         }
 
+        $plans = collect(config('billing.plans', []))
+            ->map(function (array $plan, string $key) {
+                return [
+                    'key' => $key,
+                    'name' => $plan['name'] ?? ucfirst($key),
+                    'price_id' => $plan['price_id'] ?? null,
+                    'price' => $plan['price'] ?? null,
+                    'display_price' => $this->resolvePlanDisplayPrice($plan),
+                    'features' => $plan['features'] ?? [],
+                ];
+            })
+            ->values()
+            ->all();
+
+        $subscription = $accountOwner?->subscription(Subscription::DEFAULT_TYPE);
+        $subscriptionPriceId = $subscription?->items()->value('price_id');
+
         return Inertia::render('Dashboard', [
             'stats' => $stats,
             'recentQuotes' => $recentQuotes,
@@ -561,6 +580,16 @@ class DashboardController extends Controller
             ],
             'announcements' => $internalAnnouncements,
             'quickAnnouncements' => $quickAnnouncements,
+            'billing' => [
+                'plans' => $plans,
+                'subscription' => [
+                    'active' => $accountOwner?->subscribed(Subscription::DEFAULT_TYPE) ?? false,
+                    'on_trial' => $accountOwner?->onTrial(Subscription::DEFAULT_TYPE) ?? false,
+                    'status' => $subscription?->status,
+                    'price_id' => $subscriptionPriceId,
+                    'paddle_id' => $subscription?->paddle_id,
+                ],
+            ],
         ]);
     }
 
@@ -614,6 +643,8 @@ class DashboardController extends Controller
                     'id' => $announcement->id,
                     'title' => $announcement->title,
                     'body' => $announcement->body,
+                    'display_style' => $announcement->display_style,
+                    'background_color' => $announcement->background_color,
                     'media_type' => $announcement->media_type,
                     'media_url' => $announcement->media_url,
                     'link_label' => $announcement->link_label,
@@ -625,5 +656,21 @@ class DashboardController extends Controller
             ->values();
 
         return $announcements->all();
+    }
+
+    private function resolvePlanDisplayPrice(array $plan): ?string
+    {
+        $raw = $plan['price'] ?? null;
+        $rawValue = is_string($raw) ? trim($raw) : $raw;
+
+        if (is_numeric($rawValue)) {
+            return Cashier::formatAmount((int) round((float) $rawValue * 100), config('cashier.currency', 'USD'));
+        }
+
+        if (is_string($rawValue) && $rawValue !== '') {
+            return $rawValue;
+        }
+
+        return null;
     }
 }
