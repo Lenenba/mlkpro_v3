@@ -1,6 +1,8 @@
 <script setup>
 import ApplicationLogo from '@/Components/ApplicationLogo.vue';
-import { Link } from '@inertiajs/vue3';
+import ValidationSummary from '@/Components/ValidationSummary.vue';
+import { computed } from 'vue';
+import { Link, usePage } from '@inertiajs/vue3';
 
 const props = defineProps({
     cardClass: {
@@ -8,6 +10,9 @@ const props = defineProps({
         default: 'mt-6 w-full overflow-hidden rounded-sm border border-stone-200 bg-white px-6 py-4 shadow-md sm:max-w-md dark:border-neutral-700 dark:bg-neutral-900',
     },
 });
+
+const page = usePage();
+const validationErrors = computed(() => page.props.errors || {});
 </script>
 
 <template>
@@ -21,6 +26,7 @@ const props = defineProps({
         </div>
 
         <div :class="props.cardClass">
+            <ValidationSummary :errors="validationErrors" />
             <slot />
         </div>
     </div>

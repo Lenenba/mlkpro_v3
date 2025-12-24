@@ -13,6 +13,7 @@ use App\Models\Task;
 use App\Models\TeamMember;
 use App\Models\PlatformAnnouncement;
 use App\Models\User;
+use App\Services\UsageLimitService;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Auth;
 use Laravel\Paddle\Cashier;
@@ -567,6 +568,9 @@ class DashboardController extends Controller
 
         $subscription = $accountOwner?->subscription(Subscription::DEFAULT_TYPE);
         $subscriptionPriceId = $subscription?->items()->value('price_id');
+        $usageLimits = $accountOwner
+            ? app(UsageLimitService::class)->buildForUser($accountOwner)
+            : ['items' => []];
 
         return Inertia::render('Dashboard', [
             'stats' => $stats,
@@ -580,6 +584,7 @@ class DashboardController extends Controller
             ],
             'announcements' => $internalAnnouncements,
             'quickAnnouncements' => $quickAnnouncements,
+            'usage_limits' => $usageLimits,
             'billing' => [
                 'plans' => $plans,
                 'subscription' => [

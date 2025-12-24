@@ -2,6 +2,7 @@
 import { computed } from 'vue';
 import Header from '@/Layouts/UI/Header.vue';
 import Sidebar from '@/Layouts/UI/Sidebar.vue';
+import ValidationSummary from '@/Components/ValidationSummary.vue';
 import { Link, usePage } from '@inertiajs/vue3';
 
 const page = usePage()
@@ -15,6 +16,7 @@ const flashError = computed(
 const flashWarning = computed(
     () => page.props.flash?.warning
 )
+const validationErrors = computed(() => page.props.errors || {});
 const maintenance = computed(() => page.props.platform?.maintenance || { enabled: false, message: '' });
 const impersonator = computed(() => page.props.auth?.impersonator || null);
 const isSuperadmin = computed(() => Boolean(page.props.auth?.account?.is_superadmin));
@@ -65,6 +67,9 @@ const isSuperadmin = computed(() => Boolean(page.props.auth?.account?.is_superad
                     </Link>
                 </div>
             </div>
+
+            <ValidationSummary :errors="validationErrors" />
+
             <div v-if="flashSuccess" class="bg-teal-50 border-t-4 border-teal-500 rounded-sm p-4 dark:bg-teal-800/30"
                 role="alert" tabindex="-1" aria-labelledby="hs-bordered-success-style-label">
                 <div class="flex">

@@ -9,6 +9,7 @@ import FloatingTextarea from '@/Components/FloatingTextarea.vue';
 import DropzoneInput from '@/Components/DropzoneInput.vue';
 import Checkbox from '@/Components/Checkbox.vue';
 import MultiImageInput from '@/Components/MultiImageInput.vue';
+import ValidationSummary from '@/Components/ValidationSummary.vue';
 
 const props = defineProps({
     categories: {
@@ -84,9 +85,11 @@ const isValid = computed(() => {
 // Function to handle form submission
 const submit = () => {
     if (!isValid.value) {
-        console.error('Form is invalid');
+        form.setError('form', 'Please fill all required fields.');
         return;
     }
+
+    form.clearErrors('form');
 
     const routeName = props.product?.id ? 'product.update' : 'product.store';
     const routeParams = props.product?.id ? props.product.id : undefined;
@@ -106,9 +109,6 @@ const submit = () => {
                     window.HSOverlay.close(overlayTarget.value);
                 }
             },
-            onError: (errors) => {
-                console.error('Validation errors:', errors);
-            },
         });
 };
 
@@ -122,6 +122,7 @@ const buttonLabel = computed(() => (props.product ? 'Update Product' : 'Create P
 
 <template>
     <form @submit.prevent="submit">
+        <ValidationSummary :errors="form.errors" />
         <!-- Products Grid -->
         <div class="grid grid-cols-1 lg:grid-cols-6 gap-5">
             <div class="lg:col-span-4 space-y-4">
@@ -175,7 +176,7 @@ const buttonLabel = computed(() => (props.product ? 'Update Product' : 'Create P
                     Cancel
                 </button>
 
-                <button type="submit" :disabled="!isValid"
+                <button type="submit" :disabled="form.processing"
                     class="py-2 px-3 text-nowrap inline-flex justify-center items-center gap-x-2 text-start bg-green-600 border border-green-600 text-white text-sm font-medium rounded-sm shadow-sm align-middle hover:bg-green-700 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:ring-2 focus:ring-green-500">
                     {{ buttonLabel }}
                 </button>

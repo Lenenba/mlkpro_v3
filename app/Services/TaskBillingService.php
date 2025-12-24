@@ -8,6 +8,7 @@ use App\Models\Task;
 use App\Models\User;
 use App\Models\Work;
 use App\Models\ActivityLog;
+use App\Services\UsageLimitService;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -119,6 +120,11 @@ class TaskBillingService
                 : null;
 
             if (!$invoice) {
+                $limitUser = $actor ?: User::find($work->user_id);
+                if ($limitUser) {
+                    app(UsageLimitService::class)->enforceLimit($limitUser, 'invoices');
+                }
+
                 $invoice = Invoice::create([
                     'user_id' => $work->user_id,
                     'customer_id' => $work->customer_id,

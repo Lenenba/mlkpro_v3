@@ -6,6 +6,7 @@ use App\Models\ActivityLog;
 use App\Models\Customer;
 use App\Models\Quote;
 use App\Models\Request as LeadRequest;
+use App\Services\UsageLimitService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -196,6 +197,10 @@ class RequestController extends Controller
             return redirect()->back()->withErrors(['property_id' => 'Invalid property for this customer.']);
         }
         $jobTitle = $validated['job_title'] ?? $lead->title ?? $lead->service_type ?? 'New Quote';
+
+        if ($user) {
+            app(UsageLimitService::class)->enforceLimit($user, 'quotes');
+        }
 
         $quote = Quote::create([
             'user_id' => $accountId,

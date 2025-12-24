@@ -15,6 +15,7 @@ use App\Models\TeamMember;
 use App\Models\WorkChecklistItem;
 use App\Models\User;
 use App\Services\WorkBillingService;
+use App\Services\UsageLimitService;
 use App\Notifications\ActionEmailNotification;
 use Illuminate\Http\Request;
 use App\Http\Requests\WorkRequest;
@@ -207,6 +208,8 @@ class WorkController extends Controller
         if (!$user || $user->id !== $accountId) {
             abort(403);
         }
+
+        app(UsageLimitService::class)->enforceLimit($user, 'jobs');
 
         $itemType = $user->company_type === 'products'
             ? Product::ITEM_TYPE_PRODUCT
@@ -706,6 +709,8 @@ class WorkController extends Controller
         if ($work->user_id !== $accountId) {
             abort(403);
         }
+
+        app(UsageLimitService::class)->enforceLimit($user, 'quotes');
 
         $itemType = $user->company_type === 'products'
             ? Product::ITEM_TYPE_PRODUCT

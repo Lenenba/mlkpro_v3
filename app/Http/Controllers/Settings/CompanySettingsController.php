@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Settings;
 
 use App\Http\Controllers\Controller;
 use App\Models\ProductCategory;
+use App\Services\UsageLimitService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -27,6 +28,8 @@ class CompanySettingsController extends Controller
                 : Storage::disk('public')->url($path);
         }
 
+        $usageLimits = app(UsageLimitService::class)->buildForUser($user);
+
         return Inertia::render('Settings/Company', [
             'company' => [
                 'company_name' => $user->company_name,
@@ -38,6 +41,7 @@ class CompanySettingsController extends Controller
                 'company_type' => $user->company_type,
             ],
             'categories' => ProductCategory::orderBy('name')->get(['id', 'name']),
+            'usage_limits' => $usageLimits,
         ]);
     }
 

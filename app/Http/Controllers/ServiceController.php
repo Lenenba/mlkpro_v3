@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\ServiceRequest;
 use App\Models\Product;
 use App\Models\ProductCategory;
+use App\Services\UsageLimitService;
 use App\Utils\FileHandler;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\RedirectResponse;
@@ -83,6 +84,7 @@ class ServiceController extends Controller
     public function store(ServiceRequest $request): RedirectResponse
     {
         $this->ensureServiceAccess();
+        app(UsageLimitService::class)->enforceLimit($request->user(), 'services');
 
         $validated = $request->validated();
         $validated['item_type'] = Product::ITEM_TYPE_SERVICE;
@@ -102,6 +104,7 @@ class ServiceController extends Controller
     public function storeQuick(ServiceRequest $request)
     {
         $this->ensureServiceAccess();
+        app(UsageLimitService::class)->enforceLimit($request->user(), 'services');
 
         $validated = $request->validated();
         $validated['item_type'] = Product::ITEM_TYPE_SERVICE;

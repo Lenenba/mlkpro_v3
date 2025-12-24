@@ -12,6 +12,7 @@ use App\Models\ActivityLog;
 use App\Models\QuoteProduct;
 use App\Models\Transaction;
 use App\Models\WorkChecklistItem;
+use App\Services\UsageLimitService;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Auth;
@@ -163,6 +164,8 @@ class QuoteController extends Controller
      */
     public function store(Request $request)
     {
+        app(UsageLimitService::class)->enforceLimit($request->user(), 'quotes');
+
         $itemType = Auth::user()?->company_type === 'products'
             ? Product::ITEM_TYPE_PRODUCT
             : Product::ITEM_TYPE_SERVICE;
@@ -433,9 +436,14 @@ class QuoteController extends Controller
             ]);
         }
 
+        $existingWork = Work::where('quote_id', $quote->id)->first();
+        if (!$existingWork) {
+            app(UsageLimitService::class)->enforceLimit(Auth::user(), 'jobs');
+        }
+
         $work = null;
-        DB::transaction(function () use ($quote, $validated, $depositAmount, &$work) {
-            $work = Work::where('quote_id', $quote->id)->first();
+        DB::transaction(function () use ($quote, $validated, $depositAmount, $existingWork, &$work) {
+            $work = $existingWork;
             if (!$work) {
                 $work = Work::create([
                     'user_id' => $quote->user_id,
@@ -580,6 +588,8 @@ class QuoteController extends Controller
         if ($existingWork) {
             return redirect()->route('work.edit', $existingWork)->with('success', 'Job already created for this quote.');
         }
+
+        app(UsageLimitService::class)->enforceLimit(Auth::user(), 'jobs');
 
         $work = DB::transaction(function () use ($quote) {
             $work = Work::create([

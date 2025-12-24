@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use App\Models\ProductCategory;
 use App\Models\ActivityLog;
 use App\Http\Requests\ProductRequest;
+use App\Services\UsageLimitService;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
@@ -165,6 +166,8 @@ class ProductController extends Controller
      */
     public function store(ProductRequest $request)
     {
+        app(UsageLimitService::class)->enforceLimit($request->user(), 'products');
+
         $validated = $request->validated();
         $validated['item_type'] = Product::ITEM_TYPE_PRODUCT;
         $validated['image'] = FileHandler::handleImageUpload('products', $request, 'image', 'products/product.jpg');
@@ -193,6 +196,8 @@ class ProductController extends Controller
      */
     public function storeQuick(ProductRequest $request)
     {
+        app(UsageLimitService::class)->enforceLimit($request->user(), 'products');
+
         $validated = $request->validated();
         $validated['item_type'] = Product::ITEM_TYPE_PRODUCT;
         $validated['image'] = FileHandler::handleImageUpload('products', $request, 'image', 'products/product.jpg');

@@ -13,6 +13,7 @@ use App\Services\TaskBillingService;
 use App\Services\WorkScheduleService;
 use App\Notifications\ActionEmailNotification;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 
 class PortalWorkController extends Controller
 {
@@ -157,12 +158,16 @@ class PortalWorkController extends Controller
             ]);
         }
 
+        try {
+            $createdCount = $scheduleService->generateTasks($work, $request->user()?->id);
+        } catch (ValidationException $exception) {
+            return redirect()->back()->withErrors($exception->errors());
+        }
+
         if ($work->status !== Work::STATUS_SCHEDULED) {
             $work->status = Work::STATUS_SCHEDULED;
             $work->save();
         }
-
-        $createdCount = $scheduleService->generateTasks($work, $request->user()?->id);
 
         ActivityLog::record($request->user(), $work, 'schedule_confirmed', [
             'tasks_created' => $createdCount,

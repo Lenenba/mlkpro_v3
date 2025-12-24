@@ -38,6 +38,10 @@ const props = defineProps({
         type: Array,
         default: () => [],
     },
+    usage_limits: {
+        type: Object,
+        default: () => ({ items: [] }),
+    },
     billing: {
         type: Object,
         default: () => ({}),
@@ -55,6 +59,19 @@ const billing = computed(() => props.billing || {});
 const billingPlans = computed(() => billing.value.plans || []);
 const billingSubscription = computed(() => billing.value.subscription || {});
 const hasPlanChoices = computed(() => isOwner.value && billingPlans.value.length > 0);
+const usageItems = computed(() => props.usage_limits?.items || []);
+const usageAlerts = computed(() => usageItems.value.filter((item) => item.status !== 'ok'));
+const hasUsageAlerts = computed(() => usageAlerts.value.length > 0);
+const planName = computed(() => props.usage_limits?.plan_name || props.usage_limits?.plan_key || '');
+const limitLabelMap = {
+    quotes: 'Quotes',
+    invoices: 'Invoices',
+    jobs: 'Jobs',
+    products: 'Products',
+    services: 'Services',
+    tasks: 'Tasks',
+    team_members: 'Team members',
+};
 
 const isPlanActive = (plan) =>
     Boolean(billingSubscription.value?.price_id && plan?.price_id === billingSubscription.value.price_id);
@@ -134,6 +151,17 @@ const invoiceStatusClass = (status) => {
             return 'bg-stone-100 text-stone-700 dark:bg-neutral-700 dark:text-neutral-200';
     }
 };
+
+const displayLimitLabel = (item) => limitLabelMap[item.key] || item.label || item.key;
+const displayLimitValue = (item) => {
+    if (item.limit === null || item.limit === undefined) {
+        return 'Unlimited';
+    }
+    if (Number(item.limit) <= 0) {
+        return 'Not available';
+    }
+    return item.limit;
+};
 </script>
 
 <template>
@@ -174,6 +202,29 @@ const invoiceStatusClass = (status) => {
                             New product
                         </button>
                     </div> -->
+                </div>
+            </section>
+
+            <section v-if="hasUsageAlerts" class="rounded-sm border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-200">
+                <div class="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                        <div class="font-semibold">Usage alerts</div>
+                        <p class="text-xs text-amber-700 dark:text-amber-200">
+                            Some modules are close to their limits{{ planName ? ` for plan ${planName}` : '' }}.
+                        </p>
+                    </div>
+                    <Link :href="route('settings.company.edit')" class="text-xs font-semibold text-amber-800 hover:underline dark:text-amber-200">
+                        View limits
+                    </Link>
+                </div>
+                <div class="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                    <div v-for="item in usageAlerts" :key="item.key" class="rounded-sm border border-amber-200 bg-white px-3 py-2 text-xs text-amber-800 dark:border-amber-500/30 dark:bg-neutral-900 dark:text-amber-200">
+                        <div class="font-semibold">{{ displayLimitLabel(item) }}</div>
+                        <div class="mt-1 text-[11px] text-amber-700 dark:text-amber-200">
+                            {{ item.used }} / {{ displayLimitValue(item) }}
+                            <span v-if="item.percent !== null">({{ item.percent }}%)</span>
+                        </div>
+                    </div>
                 </div>
             </section>
 

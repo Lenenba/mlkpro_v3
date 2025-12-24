@@ -7,6 +7,7 @@ use App\Models\ProductStockMovement;
 use App\Models\Task;
 use App\Models\TaskMaterial;
 use App\Models\TeamMember;
+use App\Services\UsageLimitService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -116,6 +117,10 @@ class TaskController extends Controller
 
         $user = Auth::user();
         $accountId = $user?->accountOwnerId() ?? Auth::id();
+
+        if ($user) {
+            app(UsageLimitService::class)->enforceLimit($user, 'tasks');
+        }
 
         $validated = $request->validate([
             'title' => 'required|string|max:255',

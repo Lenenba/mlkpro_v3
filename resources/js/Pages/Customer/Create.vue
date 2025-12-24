@@ -3,6 +3,7 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingTextarea from '@/Components/FloatingTextarea.vue';
+import ValidationSummary from '@/Components/ValidationSummary.vue';
 import { Link, useForm, Head } from '@inertiajs/vue3';
 import ListInput from '@/Components/ListInput.vue';
 import { ref } from 'vue';
@@ -83,9 +84,6 @@ const submit = () => {
         onSuccess: () => {
             console.log('Customer saved successfully!');
         },
-        onError: (errors) => {
-            console.error('Validation errors:', errors);
-        },
     });
 };
 
@@ -148,6 +146,13 @@ const selectAddress = (details) => {
 
         </div>
         <form @submit.prevent="submit">
+            <div class="grid grid-cols-1 lg:grid-cols-4 gap-1 md:gap-3 lg:gap-1">
+                <div></div>
+                <div class="lg:col-span-2">
+                    <ValidationSummary :errors="form.errors" />
+                </div>
+                <div></div>
+            </div>
             <div class="grid grid-cols-1 lg:grid-cols-4 gap-1 md:gap-3 lg:gap-1 ">
                 <div></div>
                 <div

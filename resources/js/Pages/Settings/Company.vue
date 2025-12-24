@@ -15,6 +15,10 @@ const props = defineProps({
         type: Array,
         default: () => [],
     },
+    usage_limits: {
+        type: Object,
+        default: () => ({ items: [] }),
+    },
 });
 
 const COUNTRY_OPTIONS = [
@@ -239,6 +243,40 @@ const addCategory = () => {
         onSuccess: () => categoryForm.reset('name'),
     });
 };
+
+const usageItems = computed(() => props.usage_limits?.items || []);
+const planName = computed(() => props.usage_limits?.plan_name || props.usage_limits?.plan_key || 'Plan');
+const hasUsageAlert = computed(() => usageItems.value.some((item) => item.status !== 'ok'));
+const limitLabelMap = {
+    quotes: 'Devis',
+    invoices: 'Factures',
+    jobs: 'Jobs',
+    products: 'Produits',
+    services: 'Services',
+    tasks: 'Taches',
+    team_members: "Membres d'equipe",
+};
+
+const displayLimitLabel = (item) => limitLabelMap[item.key] || item.label || item.key;
+const displayLimitValue = (item) => {
+    if (item.limit === null || item.limit === undefined) {
+        return 'Illimite';
+    }
+    if (Number(item.limit) <= 0) {
+        return 'Indisponible';
+    }
+    return item.limit;
+};
+
+const usageStatusClass = (status) => {
+    if (status === 'over') {
+        return 'text-red-600';
+    }
+    if (status === 'warning') {
+        return 'text-amber-600';
+    }
+    return 'text-emerald-600';
+};
 </script>
 
 <template>
@@ -372,6 +410,59 @@ const addCategory = () => {
                             class="w-full md:w-auto py-2 px-3 text-sm font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:pointer-events-none">
                             Ajouter
                         </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex flex-col bg-white border border-stone-200 shadow-sm rounded-sm overflow-hidden dark:bg-neutral-800 dark:border-neutral-700">
+                <div class="p-4 space-y-4">
+                    <div>
+                        <h2 class="text-lg font-semibold text-stone-800 dark:text-neutral-100">Limites du forfait</h2>
+                        <p class="mt-1 text-sm text-stone-600 dark:text-neutral-400">
+                            Plan actuel : {{ planName }}
+                        </p>
+                    </div>
+
+                    <div
+                        class="overflow-x-auto [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-stone-100 [&::-webkit-scrollbar-thumb]:bg-stone-300 dark:[&::-webkit-scrollbar-track]:bg-neutral-700 dark:[&::-webkit-scrollbar-thumb]:bg-neutral-500">
+                        <table class="min-w-full divide-y divide-stone-200 text-sm text-left text-stone-600 dark:divide-neutral-700 dark:text-neutral-300">
+                            <thead class="text-xs uppercase text-stone-500 dark:text-neutral-400">
+                                <tr>
+                                    <th class="py-2">Module</th>
+                                    <th class="py-2">Utilise</th>
+                                    <th class="py-2">Limite</th>
+                                    <th class="py-2">Reste</th>
+                                    <th class="py-2">Usage</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-stone-200 dark:divide-neutral-700">
+                                <tr v-for="item in usageItems" :key="item.key">
+                                    <td class="py-2">{{ displayLimitLabel(item) }}</td>
+                                    <td class="py-2">{{ item.used }}</td>
+                                    <td class="py-2">{{ displayLimitValue(item) }}</td>
+                                    <td class="py-2">
+                                        <span v-if="item.remaining !== null">{{ item.remaining }}</span>
+                                        <span v-else class="text-stone-400">--</span>
+                                    </td>
+                                    <td class="py-2">
+                                        <span v-if="item.percent !== null" :class="usageStatusClass(item.status)">
+                                            {{ item.percent }}%
+                                        </span>
+                                        <span v-else class="text-stone-400">--</span>
+                                    </td>
+                                </tr>
+                                <tr v-if="!usageItems.length">
+                                    <td colspan="5" class="py-3 text-center text-sm text-stone-500 dark:text-neutral-400">
+                                        Aucune donnee de limite disponible.
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div v-if="hasUsageAlert"
+                        class="rounded-sm border border-amber-200 bg-amber-50 p-3 text-xs text-amber-700">
+                        Certaines limites sont proches ou depassees. Pensez a mettre a jour votre forfait.
                     </div>
                 </div>
             </div>

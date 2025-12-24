@@ -4,6 +4,7 @@ import { Head, useForm, usePage } from '@inertiajs/vue3';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingTextarea from '@/Components/FloatingTextarea.vue';
 import ProductTableList from '@/Components/ProductTableList.vue';
+import ValidationSummary from '@/Components/ValidationSummary.vue';
 import { ref, watch, computed } from 'vue';
 
 const props = defineProps({
@@ -135,9 +136,6 @@ const submit = () => {
         onSuccess: () => {
             console.log('Quote saved successfully!');
         },
-        onError: (errors) => {
-            console.error('Validation errors:', errors);
-        },
     });
 };
 
@@ -150,6 +148,7 @@ const submit = () => {
     <AuthenticatedLayout>
         <div class="mx-auto w-full max-w-6xl">
             <form class="space-y-5" @submit.prevent="submit">
+                    <ValidationSummary :errors="form.errors" />
                     <div
                         class="p-5 space-y-3 flex flex-col bg-white border border-stone-200 rounded-sm shadow-sm xl:shadow-none dark:bg-neutral-900 dark:border-neutral-700">
                         <!-- Header -->

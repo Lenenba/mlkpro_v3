@@ -11,6 +11,7 @@ use App\Models\Transaction;
 use App\Models\User;
 use App\Models\Work;
 use App\Models\WorkChecklistItem;
+use App\Services\UsageLimitService;
 use App\Notifications\ActionEmailNotification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -66,9 +67,17 @@ class PortalQuoteController extends Controller
             ]);
         }
 
+        $existingWork = Work::where('quote_id', $quote->id)->first();
+        if (!$existingWork) {
+            $owner = User::find($quote->user_id);
+            if ($owner) {
+                app(UsageLimitService::class)->enforceLimit($owner, 'jobs');
+            }
+        }
+
         $work = null;
-        DB::transaction(function () use ($quote, $validated, $depositAmount, &$work) {
-            $work = Work::where('quote_id', $quote->id)->first();
+        DB::transaction(function () use ($quote, $validated, $depositAmount, $existingWork, &$work) {
+            $work = $existingWork;
             if (!$work) {
                 $work = Work::create([
                     'user_id' => $quote->user_id,

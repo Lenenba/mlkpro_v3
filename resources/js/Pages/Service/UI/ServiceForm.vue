@@ -126,8 +126,11 @@ const closeOverlay = () => {
 
 const submit = () => {
     if (!isValid.value) {
+        form.setError('form', 'Please fill all required fields.');
         return;
     }
+
+    form.clearErrors('form');
 
     normalizeMaterials();
 
@@ -218,7 +221,7 @@ const submit = () => {
                 class="py-2 px-3 inline-flex items-center text-sm font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200">
                 Cancel
             </button>
-            <button type="submit" :disabled="!isValid || form.processing"
+            <button type="submit" :disabled="form.processing"
                 class="py-2 px-3 inline-flex items-center text-sm font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50">
                 {{ props.service ? 'Update service' : 'Create service' }}
             </button>

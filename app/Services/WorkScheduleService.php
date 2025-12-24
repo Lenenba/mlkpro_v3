@@ -6,7 +6,9 @@ use App\Models\Task;
 use App\Models\TeamMember;
 use App\Models\Work;
 use App\Models\Product;
+use App\Models\User;
 use Illuminate\Support\Carbon;
+use App\Services\UsageLimitService;
 
 class WorkScheduleService
 {
@@ -45,6 +47,21 @@ class WorkScheduleService
 
         $materialTemplate = $this->buildMaterialTemplate($work);
         $createdCount = 0;
+
+        $pendingCount = 0;
+        foreach ($dates as $date) {
+            $dateString = $date->toDateString();
+            if (!isset($existingDates[$dateString])) {
+                $pendingCount++;
+            }
+        }
+
+        if ($pendingCount > 0) {
+            $owner = User::query()->find($accountId);
+            if ($owner) {
+                app(UsageLimitService::class)->enforceLimit($owner, 'tasks', $pendingCount);
+            }
+        }
 
         foreach ($dates as $index => $date) {
             $dateString = $date->toDateString();
