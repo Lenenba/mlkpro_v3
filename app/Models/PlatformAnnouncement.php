@@ -10,7 +10,7 @@ class PlatformAnnouncement extends Model
 {
     public const STATUSES = ['draft', 'active'];
     public const AUDIENCES = ['all', 'tenants', 'new_tenants'];
-    public const PLACEMENTS = ['internal'];
+    public const PLACEMENTS = ['internal', 'quick_actions'];
     public const MEDIA_TYPES = ['none', 'image', 'video'];
 
     protected $fillable = [

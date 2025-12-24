@@ -137,7 +137,7 @@ const submit = async () => {
 
         <FloatingTextarea v-model="form.description" label="Description" />
 
-        <div v-if="errorMessages.length" class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+        <div v-if="errorMessages.length" class="rounded-sm border border-red-200 bg-red-50 p-3 text-sm text-red-700">
             <div v-for="(message, index) in errorMessages" :key="index">
                 {{ message }}
             </div>
@@ -145,11 +145,11 @@ const submit = async () => {
 
         <div class="flex justify-end gap-2">
             <button type="button" :data-hs-overlay="overlayId || undefined"
-                class="py-2 px-3 inline-flex items-center text-sm font-medium rounded-lg border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200">
+                class="py-2 px-3 inline-flex items-center text-sm font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200">
                 Cancel
             </button>
             <button type="submit" :disabled="!isValid || isSubmitting"
-                class="py-2 px-3 inline-flex items-center text-sm font-medium rounded-lg border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50">
+                class="py-2 px-3 inline-flex items-center text-sm font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50">
                 Create service
             </button>
         </div>

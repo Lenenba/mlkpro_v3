@@ -16,11 +16,11 @@ const stat = (key, fallback = 0) => props.stats?.[key] ?? fallback;
 
 <template>
     <!-- Tab Nav -->
-    <nav class="relative z-0 flex border-b border-gray-200 dark:border-neutral-700 bg-gray-100" aria-label="Tabs"
+    <nav class="relative z-0 flex border-b border-stone-200 dark:border-neutral-700 bg-white" aria-label="Tabs"
         role="tablist" aria-orientation="horizontal">
         <!-- Nav Item -->
         <button type="button"
-            class="hs-tab-active:border-t-neutral-600 relative flex-1 first:border-s-0 border-s border-t-[3px] md:border-t-4 border-t-transparent hover:border-t-gray-300 focus:outline-none focus:border-t-gray-300 p-3.5 xl:px-6 text-start focus:z-10 dark:hs-tab-active:border-t-neutral-500 dark:border-t-transparent dark:border-neutral-700 dark:hover:border-t-neutral-600 dark:focus:border-t-neutral-600 active"
+            class="hs-tab-active:border-t-neutral-600 relative flex-1 first:border-s-0 border-s border-t-[3px] md:border-t-4 border-t-transparent hover:border-t-stone-300 focus:outline-none focus:border-t-stone-300 p-3.5 xl:px-6 text-start focus:z-10 dark:hs-tab-active:border-t-neutral-500 dark:border-t-transparent dark:border-neutral-700 dark:hover:border-t-neutral-600 dark:focus:border-t-neutral-600 active"
             id="bar-with-underline-item-1" aria-selected="true" data-hs-tab="#bar-with-underline-1"
             aria-controls="bar-with-underline-1" role="tab">
             <span class="flex gap-x-4">
@@ -31,11 +31,11 @@ const stat = (key, fallback = 0) => props.stats?.[key] ?? fallback;
                     <rect width="20" height="14" x="2" y="6" rx="2" />
                 </svg>
                 <span class="grow text-center md:text-start">
-                    <span class="block text-xs md:text-sm text-gray-500 dark:text-neutral-500">
+                    <span class="block text-xs md:text-sm text-stone-500 dark:text-neutral-500">
                         Active works
                     </span>
                     <span class="hidden xl:mt-1 md:flex md:justify-between md:items-center md:gap-x-2">
-                        <span class="block text-lg lg:text-xl xl:text-2xl text-gray-800 dark:text-neutral-200">
+                        <span class="block text-lg lg:text-xl xl:text-2xl text-stone-800 dark:text-neutral-200">
                            {{ stat('active_works', activeWorks.length) }}
                         </span>
                     </span>
@@ -46,7 +46,7 @@ const stat = (key, fallback = 0) => props.stats?.[key] ?? fallback;
 
         <!-- Nav Item -->
         <button type="button"
-            class="hs-tab-active:border-t-neutral-600 relative flex-1 first:border-s-0 border-s border-t-[3px] md:border-t-4 border-t-transparent hover:border-t-gray-300 focus:outline-none focus:border-t-gray-300 p-3.5 xl:px-6 text-start focus:z-10 dark:hs-tab-active:border-t-neutral-500 dark:border-t-transparent dark:border-neutral-700 dark:hover:border-t-neutral-600 dark:focus:border-t-neutral-600"
+            class="hs-tab-active:border-t-neutral-600 relative flex-1 first:border-s-0 border-s border-t-[3px] md:border-t-4 border-t-transparent hover:border-t-stone-300 focus:outline-none focus:border-t-stone-300 p-3.5 xl:px-6 text-start focus:z-10 dark:hs-tab-active:border-t-neutral-500 dark:border-t-transparent dark:border-neutral-700 dark:hover:border-t-neutral-600 dark:focus:border-t-neutral-600"
             id="bar-with-underline-item-2" aria-selected="false" data-hs-tab="#bar-with-underline-2"
             aria-controls="bar-with-underline-2" role="tab">
             <span class="flex gap-x-4">
@@ -59,11 +59,11 @@ const stat = (key, fallback = 0) => props.stats?.[key] ?? fallback;
                     <line x1="6" x2="6" y1="9" y2="21" />
                 </svg>
                 <span class="grow text-center md:text-start">
-                    <span class="block text-xs md:text-sm text-gray-500 dark:text-neutral-500">
+                    <span class="block text-xs md:text-sm text-stone-500 dark:text-neutral-500">
                         Requests
                     </span>
                     <span class="hidden xl:mt-1 md:flex md:justify-between md:items-center md:gap-x-2">
-                        <span class="block text-lg lg:text-xl xl:text-2xl text-gray-800 dark:text-neutral-200">
+                        <span class="block text-lg lg:text-xl xl:text-2xl text-stone-800 dark:text-neutral-200">
                             {{ stat('requests', customer?.requests?.length ?? 0) }}
                         </span>
                     </span>
@@ -74,7 +74,7 @@ const stat = (key, fallback = 0) => props.stats?.[key] ?? fallback;
 
         <!-- Nav Item -->
         <button type="button"
-            class="hs-tab-active:border-t-neutral-600 relative flex-1 first:border-s-0 border-s border-t-[3px] md:border-t-4 border-t-transparent hover:border-t-gray-300 focus:outline-none focus:border-t-gray-300 p-3.5 xl:px-6 text-start focus:z-10 dark:hs-tab-active:border-t-neutral-500 dark:border-t-transparent dark:border-neutral-700 dark:hover:border-t-neutral-600 dark:focus:border-t-neutral-600"
+            class="hs-tab-active:border-t-neutral-600 relative flex-1 first:border-s-0 border-s border-t-[3px] md:border-t-4 border-t-transparent hover:border-t-stone-300 focus:outline-none focus:border-t-stone-300 p-3.5 xl:px-6 text-start focus:z-10 dark:hs-tab-active:border-t-neutral-500 dark:border-t-transparent dark:border-neutral-700 dark:hover:border-t-neutral-600 dark:focus:border-t-neutral-600"
             id="bar-with-underline-item-3" aria-selected="false" data-hs-tab="#bar-with-underline-3"
             aria-controls="bar-with-underline-3" role="tab">
             <span class="flex gap-x-4">
@@ -87,11 +87,11 @@ const stat = (key, fallback = 0) => props.stats?.[key] ?? fallback;
                     <path d="M3 12v6" />
                 </svg>
                 <span class="grow text-center md:text-start">
-                    <span class="block text-xs md:text-sm text-gray-500 dark:text-neutral-500">
+                    <span class="block text-xs md:text-sm text-stone-500 dark:text-neutral-500">
                         Quotes
                     </span>
                     <span class="hidden xl:mt-1 md:flex md:justify-between md:items-center md:gap-x-2">
-                        <span class="block text-lg lg:text-xl xl:text-2xl text-gray-800 dark:text-neutral-200">
+                        <span class="block text-lg lg:text-xl xl:text-2xl text-stone-800 dark:text-neutral-200">
                             {{ stat('quotes', customer?.quotes?.length ?? 0) }}
                         </span>
                     </span>
@@ -102,7 +102,7 @@ const stat = (key, fallback = 0) => props.stats?.[key] ?? fallback;
 
         <!-- Nav Item -->
         <button type="button"
-            class="hs-tab-active:border-t-neutral-600 relative flex-1 first:border-s-0 border-s border-t-[3px] md:border-t-4 border-t-transparent hover:border-t-gray-300 focus:outline-none focus:border-t-gray-300 p-3.5 xl:px-6 text-start focus:z-10 dark:hs-tab-active:border-t-neutral-500 dark:border-t-transparent dark:border-neutral-700 dark:hover:border-t-neutral-600 dark:focus:border-t-neutral-600"
+            class="hs-tab-active:border-t-neutral-600 relative flex-1 first:border-s-0 border-s border-t-[3px] md:border-t-4 border-t-transparent hover:border-t-stone-300 focus:outline-none focus:border-t-stone-300 p-3.5 xl:px-6 text-start focus:z-10 dark:hs-tab-active:border-t-neutral-500 dark:border-t-transparent dark:border-neutral-700 dark:hover:border-t-neutral-600 dark:focus:border-t-neutral-600"
             id="bar-with-underline-item-4" aria-selected="false" data-hs-tab="#bar-with-underline-4"
             aria-controls="bar-with-underline-4" role="tab">
             <span class="flex gap-x-4">
@@ -123,11 +123,11 @@ const stat = (key, fallback = 0) => props.stats?.[key] ?? fallback;
                     <circle cx="18" cy="6" r="3" />
                 </svg>
                 <span class="grow text-center md:text-start">
-                    <span class="block text-xs md:text-sm text-gray-500 dark:text-neutral-500">
+                    <span class="block text-xs md:text-sm text-stone-500 dark:text-neutral-500">
                         Jobs
                     </span>
                     <span class="hidden xl:mt-1 md:flex md:justify-between md:items-center md:gap-x-2">
-                        <span class="block text-lg lg:text-xl xl:text-2xl text-gray-800 dark:text-neutral-200">
+                        <span class="block text-lg lg:text-xl xl:text-2xl text-stone-800 dark:text-neutral-200">
                            {{ stat('jobs', customer?.works?.length ?? 0) }}
                         </span>
                     </span>
@@ -138,7 +138,7 @@ const stat = (key, fallback = 0) => props.stats?.[key] ?? fallback;
 
         <!-- Nav Item -->
         <button type="button"
-            class="hs-tab-active:border-t-neutral-600 relative flex-1 first:border-s-0 border-s border-t-[3px] md:border-t-4 border-t-transparent hover:border-t-gray-300 focus:outline-none focus:border-t-gray-300 p-3.5 xl:px-6 text-start focus:z-10 dark:hs-tab-active:border-t-neutral-500 dark:border-t-transparent dark:border-neutral-700 dark:hover:border-t-neutral-600 dark:focus:border-t-neutral-600"
+            class="hs-tab-active:border-t-neutral-600 relative flex-1 first:border-s-0 border-s border-t-[3px] md:border-t-4 border-t-transparent hover:border-t-stone-300 focus:outline-none focus:border-t-stone-300 p-3.5 xl:px-6 text-start focus:z-10 dark:hs-tab-active:border-t-neutral-500 dark:border-t-transparent dark:border-neutral-700 dark:hover:border-t-neutral-600 dark:focus:border-t-neutral-600"
             id="bar-with-underline-item-5" aria-selected="false" data-hs-tab="#bar-with-underline-5"
             aria-controls="bar-with-underline-5" role="tab">
             <span class="flex gap-x-4">
@@ -152,11 +152,11 @@ const stat = (key, fallback = 0) => props.stats?.[key] ?? fallback;
                     <path d="M16 17H8" />
                 </svg>
                 <span class="grow text-center md:text-start">
-                    <span class="block text-xs md:text-sm text-gray-500 dark:text-neutral-500">
+                    <span class="block text-xs md:text-sm text-stone-500 dark:text-neutral-500">
                         Invoices
                     </span>
                     <span class="hidden xl:mt-1 md:flex md:justify-between md:items-center md:gap-x-2">
-                        <span class="block text-lg lg:text-xl xl:text-2xl text-gray-800 dark:text-neutral-200">
+                        <span class="block text-lg lg:text-xl xl:text-2xl text-stone-800 dark:text-neutral-200">
                             {{ stat('invoices', customer?.invoices?.length ?? 0) }}
                         </span>
                     </span>

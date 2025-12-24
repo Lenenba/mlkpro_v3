@@ -15,7 +15,7 @@ const props = defineProps({
 <template>
     <li class="px-2 lg:px-5">
         <Link
-            class="flex gap-x-3 py-2 px-3 text-sm text-gray-800 rounded-lg hover:bg-gray-100 focus:outline-none focus:bg-gray-100 dark:hover:bg-neutral-700 dark:text-neutral-300 dark:focus:bg-neutral-700 "
+            class="flex gap-x-3 py-2 px-3 text-sm text-stone-800 rounded-sm hover:bg-stone-100 focus:outline-none focus:bg-stone-100 dark:hover:bg-neutral-700 dark:text-neutral-300 dark:focus:bg-neutral-700 "
             :href="menuItems[0].href">
         <slot name="icon">
             <!-- Icône par défaut -->

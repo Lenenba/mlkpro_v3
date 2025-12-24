@@ -296,6 +296,11 @@ class DashboardController extends Controller
             $accountOwner,
             'internal'
         );
+        $quickAnnouncements = $this->resolveAnnouncements(
+            $accountId,
+            $accountOwner,
+            'quick_actions'
+        );
         $isAccountOwner = ($user?->id ?? Auth::id()) === $accountId;
 
         $membership = null;
@@ -341,6 +346,7 @@ class DashboardController extends Controller
                     'stats' => $stats,
                     'tasks' => $tasks,
                     'announcements' => $internalAnnouncements,
+                    'quickAnnouncements' => $quickAnnouncements,
                 ]);
             }
 
@@ -378,6 +384,7 @@ class DashboardController extends Controller
                 'stats' => $stats,
                 'tasks' => $tasks,
                 'announcements' => $internalAnnouncements,
+                'quickAnnouncements' => $quickAnnouncements,
             ]);
         }
 
@@ -553,6 +560,7 @@ class DashboardController extends Controller
                 'values' => $values,
             ],
             'announcements' => $internalAnnouncements,
+            'quickAnnouncements' => $quickAnnouncements,
         ]);
     }
 

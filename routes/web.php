@@ -240,6 +240,7 @@ require __DIR__ . '/auth.php';
             Route::put('/notifications', [SuperAdminNotificationController::class, 'update'])->name('notifications.update');
 
             Route::get('/announcements', [SuperAdminAnnouncementController::class, 'index'])->name('announcements.index');
+            Route::get('/announcements/preview', [SuperAdminAnnouncementController::class, 'preview'])->name('announcements.preview');
             Route::post('/announcements', [SuperAdminAnnouncementController::class, 'store'])->name('announcements.store');
             Route::put('/announcements/{announcement}', [SuperAdminAnnouncementController::class, 'update'])->name('announcements.update');
             Route::delete('/announcements/{announcement}', [SuperAdminAnnouncementController::class, 'destroy'])->name('announcements.destroy');

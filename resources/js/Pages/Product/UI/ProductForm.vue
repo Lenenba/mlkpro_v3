@@ -139,7 +139,7 @@ const buttonLabel = computed(() => (props.product ? 'Update Product' : 'Create P
                         <FloatingNumberInput v-model="form.tax_rate" label="Tax rate (%)" />
                         <div class="flex items-center gap-x-2">
                             <Checkbox v-model:checked="form.is_active" />
-                            <span class="text-sm text-gray-600 dark:text-neutral-400">Active</span>
+                            <span class="text-sm text-stone-600 dark:text-neutral-400">Active</span>
                         </div>
                     </div>
                     <FloatingTextarea v-model="form.description" label="Description" />
@@ -171,12 +171,12 @@ const buttonLabel = computed(() => (props.product ? 'Update Product' : 'Create P
         <div class="p-4 flex justify-end gap-x-2">
             <div class="flex justify-end items-center gap-2">
                 <button :data-hs-overlay="overlayTarget || undefined" type="button" @click="cancel"
-                    class="py-2 px-3 text-nowrap inline-flex justify-center items-center text-start bg-white border border-gray-200 text-gray-800 text-sm font-medium rounded-lg shadow-sm align-middle hover:bg-gray-50 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700">
+                    class="py-2 px-3 text-nowrap inline-flex justify-center items-center text-start bg-white border border-stone-200 text-stone-700 text-sm font-medium rounded-sm shadow-sm align-middle hover:bg-stone-50 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-800 dark:focus:bg-neutral-800">
                     Cancel
                 </button>
 
                 <button type="submit" :disabled="!isValid"
-                    class="py-2 px-3 text-nowrap inline-flex justify-center items-center gap-x-2 text-start bg-green-600 border border-green-600 text-white text-sm font-medium rounded-lg shadow-sm align-middle hover:bg-green-700 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:ring-1 focus:ring-green-300 dark:focus:ring-green-500">
+                    class="py-2 px-3 text-nowrap inline-flex justify-center items-center gap-x-2 text-start bg-green-600 border border-green-600 text-white text-sm font-medium rounded-sm shadow-sm align-middle hover:bg-green-700 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:ring-2 focus:ring-green-500">
                     {{ buttonLabel }}
                 </button>
             </div>

@@ -593,9 +593,9 @@ const submitProof = () => {
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
-                    <label class="block text-xs text-gray-500 dark:text-neutral-400">Status</label>
+                    <label class="block text-xs text-stone-500 dark:text-neutral-400">Status</label>
                     <select v-model="createForm.status"
-                        class="mt-1 block w-full rounded-sm border-gray-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
+                        class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
                         <option v-for="status in statuses" :key="status" :value="status">
                             {{ statusLabel(status) }}
                         </option>
@@ -603,15 +603,15 @@ const submitProof = () => {
                     <InputError class="mt-1" :message="createForm.errors.status" />
                 </div>
                 <div>
-                    <label class="block text-xs text-gray-500 dark:text-neutral-400">Due date</label>
+                    <label class="block text-xs text-stone-500 dark:text-neutral-400">Due date</label>
                     <input type="date" v-model="createForm.due_date"
-                        class="mt-1 block w-full rounded-sm border-gray-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200" />
+                        class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200" />
                     <InputError class="mt-1" :message="createForm.errors.due_date" />
                 </div>
                 <div v-if="teamMembers.length" class="md:col-span-2">
-                    <label class="block text-xs text-gray-500 dark:text-neutral-400">Assignee</label>
+                    <label class="block text-xs text-stone-500 dark:text-neutral-400">Assignee</label>
                     <select v-model="createForm.assigned_team_member_id"
-                        class="mt-1 block w-full rounded-sm border-gray-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
+                        class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
                         <option value="">Unassigned</option>
                         <option v-for="member in teamMembers" :key="member.id" :value="member.id">
                             {{ member.user?.name || `Member #${member.id}` }} ({{ member.role }})
@@ -689,9 +689,9 @@ const submitProof = () => {
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
-                    <label class="block text-xs text-gray-500 dark:text-neutral-400">Status</label>
+                    <label class="block text-xs text-stone-500 dark:text-neutral-400">Status</label>
                     <select v-model="editForm.status"
-                        class="mt-1 block w-full rounded-sm border-gray-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
+                        class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
                         <option v-for="status in statuses" :key="status" :value="status">
                             {{ statusLabel(status) }}
                         </option>
@@ -699,15 +699,15 @@ const submitProof = () => {
                     <InputError class="mt-1" :message="editForm.errors.status" />
                 </div>
                 <div>
-                    <label class="block text-xs text-gray-500 dark:text-neutral-400">Due date</label>
+                    <label class="block text-xs text-stone-500 dark:text-neutral-400">Due date</label>
                     <input type="date" v-model="editForm.due_date"
-                        class="mt-1 block w-full rounded-sm border-gray-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200" />
+                        class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200" />
                     <InputError class="mt-1" :message="editForm.errors.due_date" />
                 </div>
                 <div v-if="teamMembers.length" class="md:col-span-2">
-                    <label class="block text-xs text-gray-500 dark:text-neutral-400">Assignee</label>
+                    <label class="block text-xs text-stone-500 dark:text-neutral-400">Assignee</label>
                     <select v-model="editForm.assigned_team_member_id"
-                        class="mt-1 block w-full rounded-sm border-gray-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
+                        class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
                         <option value="">Unassigned</option>
                         <option v-for="member in teamMembers" :key="member.id" :value="member.id">
                             {{ member.user?.name || `Member #${member.id}` }} ({{ member.role }})
@@ -774,9 +774,9 @@ const submitProof = () => {
     <Modal v-if="canChangeStatus" :title="'Add task proof'" :id="'hs-task-proof'">
         <form class="space-y-4" @submit.prevent="submitProof">
             <div>
-                <label class="block text-xs text-gray-500 dark:text-neutral-400">Type</label>
+                <label class="block text-xs text-stone-500 dark:text-neutral-400">Type</label>
                 <select v-model="proofForm.type"
-                    class="mt-1 block w-full rounded-sm border-gray-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
+                    class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
                     <option value="execution">Execution</option>
                     <option value="completion">Completion</option>
                     <option value="other">Other</option>
@@ -785,7 +785,7 @@ const submitProof = () => {
             </div>
 
             <div>
-                <label class="block text-xs text-gray-500 dark:text-neutral-400">File (photo or video)</label>
+                <label class="block text-xs text-stone-500 dark:text-neutral-400">File (photo or video)</label>
                 <input type="file" @change="handleProofFile" accept="image/*,video/*"
                     class="mt-1 block w-full text-sm text-stone-600 file:mr-4 file:py-2 file:px-3 file:rounded-sm file:border-0 file:text-sm file:font-medium file:bg-stone-100 file:text-stone-700 hover:file:bg-stone-200 dark:text-neutral-300 dark:file:bg-neutral-800 dark:file:text-neutral-200" />
                 <InputError class="mt-1" :message="proofForm.errors.file" />

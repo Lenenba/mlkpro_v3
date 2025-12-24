@@ -443,7 +443,7 @@ const submitWorkRating = (workId) => {
                     </div>
                     <div class="mt-4 space-y-3">
                         <div v-for="quote in pendingQuotes" :key="quote.id"
-                            class="flex flex-col gap-3 rounded-lg border border-stone-200 p-3 text-sm dark:border-neutral-700">
+                            class="flex flex-col gap-3 rounded-sm border border-stone-200 p-3 text-sm dark:border-neutral-700">
                             <div class="flex flex-wrap items-center justify-between gap-2">
                                 <div>
                                     <div class="font-medium text-stone-800 dark:text-neutral-100">
@@ -491,7 +491,7 @@ const submitWorkRating = (workId) => {
                     </div>
                     <div class="mt-4 space-y-3">
                         <div v-for="work in pendingSchedules" :key="`schedule-${work.id}`"
-                            class="flex flex-col gap-3 rounded-lg border border-stone-200 p-3 text-sm dark:border-neutral-700">
+                            class="flex flex-col gap-3 rounded-sm border border-stone-200 p-3 text-sm dark:border-neutral-700">
                             <div class="flex flex-wrap items-center justify-between gap-2">
                                 <div>
                                     <div class="font-medium text-stone-800 dark:text-neutral-100">
@@ -530,7 +530,7 @@ const submitWorkRating = (workId) => {
                     </div>
                     <div class="mt-4 space-y-3">
                         <div v-for="work in pendingWorks" :key="work.id"
-                            class="flex flex-col gap-3 rounded-lg border border-stone-200 p-3 text-sm dark:border-neutral-700">
+                            class="flex flex-col gap-3 rounded-sm border border-stone-200 p-3 text-sm dark:border-neutral-700">
                             <div class="flex flex-wrap items-center justify-between gap-2">
                                 <div>
                                     <div class="font-medium text-stone-800 dark:text-neutral-100">
@@ -572,7 +572,7 @@ const submitWorkRating = (workId) => {
                 </div>
                 <div class="mt-4 space-y-3">
                     <div v-for="task in taskProofs" :key="`proof-${task.id}`"
-                        class="flex flex-col gap-3 rounded-lg border border-stone-200 p-3 text-sm dark:border-neutral-700">
+                        class="flex flex-col gap-3 rounded-sm border border-stone-200 p-3 text-sm dark:border-neutral-700">
                         <div class="flex flex-wrap items-center justify-between gap-2">
                             <div>
                                 <div class="font-medium text-stone-800 dark:text-neutral-100">
@@ -616,7 +616,7 @@ const submitWorkRating = (workId) => {
                     </div>
                     <div class="mt-4 space-y-3">
                         <div v-for="invoice in invoicesDue" :key="invoice.id"
-                            class="flex flex-col gap-3 rounded-lg border border-stone-200 p-3 text-sm dark:border-neutral-700">
+                            class="flex flex-col gap-3 rounded-sm border border-stone-200 p-3 text-sm dark:border-neutral-700">
                             <div class="flex flex-wrap items-center justify-between gap-2">
                                 <div>
                                     <div class="font-medium text-stone-800 dark:text-neutral-100">
@@ -668,7 +668,7 @@ const submitWorkRating = (workId) => {
                             </h3>
                             <div class="mt-2 space-y-3">
                                 <form v-for="quote in quoteRatingsDue" :key="`quote-${quote.id}`"
-                                    class="rounded-lg border border-stone-200 p-3 text-sm dark:border-neutral-700"
+                                    class="rounded-sm border border-stone-200 p-3 text-sm dark:border-neutral-700"
                                     @submit.prevent="submitQuoteRating(quote.id)">
                                     <div class="flex flex-wrap items-center justify-between gap-2">
                                         <div class="font-medium text-stone-800 dark:text-neutral-100">
@@ -706,7 +706,7 @@ const submitWorkRating = (workId) => {
                             </h3>
                             <div class="mt-2 space-y-3">
                                 <form v-for="work in workRatingsDue" :key="`work-${work.id}`"
-                                    class="rounded-lg border border-stone-200 p-3 text-sm dark:border-neutral-700"
+                                    class="rounded-sm border border-stone-200 p-3 text-sm dark:border-neutral-700"
                                     @submit.prevent="submitWorkRating(work.id)">
                                     <div class="flex flex-wrap items-center justify-between gap-2">
                                         <div class="font-medium text-stone-800 dark:text-neutral-100">
@@ -753,7 +753,7 @@ const submitWorkRating = (workId) => {
                         <h3 class="text-xs font-semibold uppercase text-stone-500 dark:text-neutral-400">Quotes</h3>
                         <div class="mt-2 space-y-2">
                             <div v-for="quote in validatedQuotes" :key="`validated-quote-${quote.id}`"
-                                class="flex items-center justify-between rounded-lg border border-stone-200 px-3 py-2 dark:border-neutral-700">
+                                class="flex items-center justify-between rounded-sm border border-stone-200 px-3 py-2 dark:border-neutral-700">
                                 <div>
                                     <div class="font-medium text-stone-800 dark:text-neutral-100">
                                         {{ quote.number || 'Quote' }} - {{ quote.job_title || 'Job' }}
@@ -776,7 +776,7 @@ const submitWorkRating = (workId) => {
                         <h3 class="text-xs font-semibold uppercase text-stone-500 dark:text-neutral-400">Jobs</h3>
                         <div class="mt-2 space-y-2">
                             <div v-for="work in validatedWorks" :key="`validated-work-${work.id}`"
-                                class="flex items-center justify-between rounded-lg border border-stone-200 px-3 py-2 dark:border-neutral-700">
+                                class="flex items-center justify-between rounded-sm border border-stone-200 px-3 py-2 dark:border-neutral-700">
                                 <div>
                                     <div class="font-medium text-stone-800 dark:text-neutral-100">
                                         {{ work.job_title || 'Job' }}

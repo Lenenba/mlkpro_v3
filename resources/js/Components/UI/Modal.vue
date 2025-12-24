@@ -46,14 +46,14 @@ onUnmounted(() => {
         <div
             class="hs-overlay-open:mt-7 hs-overlay-open:opacity-100 hs-overlay-open:duration-500 mt-0 opacity-0 ease-out transition-all sm:max-w-7xl sm:w-full m-3 sm:mx-auto h-[calc(100%-3.5rem)] min-h-[calc(100%-3.5rem)] flex items-center">
             <div
-                class="w-full max-h-full flex flex-col bg-white rounded-xl pointer-events-auto shadow-[0_10px_40px_10px_rgba(0,0,0,0.08)] dark:shadow-[0_10px_40px_10px_rgba(0,0,0,0.2)] dark:bg-neutral-800">
+                class="w-full max-h-full flex flex-col bg-white rounded-sm pointer-events-auto shadow-[0_10px_40px_10px_rgba(0,0,0,0.08)] dark:shadow-[0_10px_40px_10px_rgba(0,0,0,0.2)] dark:bg-neutral-900">
                 <!-- Header -->
-                <div class="py-2.5 px-4 flex justify-between items-center border-b dark:border-neutral-700">
-                    <h3 id="hs-pro-dasadpm-label" class="font-medium text-gray-800 dark:text-neutral-200">
+                <div class="py-2.5 px-4 flex justify-between items-center border-b border-stone-200 dark:border-neutral-700">
+                    <h3 id="hs-pro-dasadpm-label" class="font-medium text-stone-700 dark:text-neutral-200">
                         {{ title }}
                     </h3>
                     <button type="button"
-                        class="size-8 inline-flex justify-center items-center gap-x-2 rounded-full border border-transparent bg-gray-100 text-gray-800 hover:bg-gray-200 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-gray-200 dark:bg-neutral-700 dark:hover:bg-neutral-600 dark:text-neutral-400 dark:focus:bg-neutral-600"
+                        class="size-8 inline-flex justify-center items-center gap-x-2 rounded-sm border border-transparent bg-stone-100 text-stone-700 hover:bg-stone-200 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-200 dark:bg-neutral-900 dark:hover:bg-neutral-700 dark:text-neutral-300 dark:focus:bg-neutral-700"
                         aria-label="Close" :data-hs-overlay="'#'+id">
                         <span class="sr-only">Close</span>
                         <svg class="shrink-0 size-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24"

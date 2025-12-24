@@ -20,7 +20,7 @@ const statusClasses = (status) => {
         case 'sent':
             return 'bg-blue-100 text-blue-800 dark:bg-blue-500/10 dark:text-blue-400';
         default:
-            return 'bg-gray-100 text-gray-800 dark:bg-neutral-700 dark:text-neutral-200';
+            return 'bg-stone-100 text-stone-800 dark:bg-neutral-700 dark:text-neutral-200';
     }
 };
 
@@ -58,11 +58,11 @@ const sendEmail = async (quote) => {
     <div v-for="quote in quotes" :key="quote.id">
         <!-- quote List Card -->
         <div
-            class="p-4 relative flex flex-col bg-white border border-gray-200 rounded-sm dark:bg-neutral-800 dark:border-neutral-700">
+            class="p-4 relative flex flex-col bg-white border border-stone-200 rounded-sm dark:bg-neutral-800 dark:border-neutral-700">
             <div class="grid lg:grid-cols-12 gap-y-2 lg:gap-y-0 gap-x-4">
                 <div class="lg:col-span-3">
                     <p>
-                        <a class="inline-flex items-center gap-x-1 text-gray-800 decoration-2 hover:underline font-semibold hover:text-blue-600 focus:outline-none focus:underline focus:text-blue-600 dark:text-neutral-200 dark:hover:text-blue-500 dark:focus:outline-none dark:focus:text-blue-500"
+                        <a class="inline-flex items-center gap-x-1 text-stone-800 decoration-2 hover:underline font-semibold hover:text-blue-600 focus:outline-none focus:underline focus:text-blue-600 dark:text-neutral-200 dark:hover:text-blue-500 dark:focus:outline-none dark:focus:text-blue-500"
                             href="#">
                             {{ quote.number }}
                         </a>
@@ -71,7 +71,7 @@ const sendEmail = async (quote) => {
                     <!-- Badge Group -->
                     <div class="mt-1 lg:mt-2 -mx-0.5 sm:-mx-1">
                         <span
-                            class="m-0.5 sm:m-1 p-1.5 sm:p-2 inline-block bg-gray-100 text-gray-800 text-xs rounded-sm dark:bg-neutral-700 dark:text-neutral-200">{{
+                            class="m-0.5 sm:m-1 p-1.5 sm:p-2 inline-block bg-stone-100 text-stone-800 text-xs rounded-sm dark:bg-neutral-700 dark:text-neutral-200">{{
                                 formatDate(quote.created_at) }}</span>
                         <span
                             class="m-0.5 sm:m-1 p-1.5 sm:p-2 inline-block text-xs rounded-sm"
@@ -82,13 +82,13 @@ const sendEmail = async (quote) => {
                 <!-- End Col -->
 
                 <div class="lg:col-span-3">
-                    <p class="mt-1 text-sm text-gray-500 dark:text-neutral-500">
+                    <p class="mt-1 text-sm text-stone-500 dark:text-neutral-500">
                         {{ quote.notes }}
                     </p>
 
                     <!-- Avatar Group -->
                     <div class="mt-2 flex items-center gap-x-3">
-                        <h4 class="text-xs uppercase text-gray-500 dark:text-neutral-200">
+                        <h4 class="text-xs uppercase text-stone-500 dark:text-neutral-200">
                             Products:
                         </h4>
                         <div class="flex items-center -space-x-2">
@@ -114,13 +114,13 @@ const sendEmail = async (quote) => {
                         <!-- Body -->
                         <div class="grow flex flex-col sm:flex-row sm:justify-between gap-y-2 sm:gap-x-3">
                             <div>
-                                <p v-if="propertyForQuote(quote)" class="text-sm font-medium text-gray-800 dark:text-neutral-200">
+                                <p v-if="propertyForQuote(quote)" class="text-sm font-medium text-stone-800 dark:text-neutral-200">
                                     {{ propertyForQuote(quote).country }}
                                 </p>
-                                <p v-if="propertyForQuote(quote)" class="text-xs text-gray-500 dark:text-neutral-500">
+                                <p v-if="propertyForQuote(quote)" class="text-xs text-stone-500 dark:text-neutral-500">
                                     {{ propertyForQuote(quote).street1 }}
                                 </p>
-                                <p v-else class="text-xs text-gray-500 dark:text-neutral-500">
+                                <p v-else class="text-xs text-stone-500 dark:text-neutral-500">
                                     No property
                                 </p>
                             </div>
@@ -134,10 +134,10 @@ const sendEmail = async (quote) => {
                 <div class="lg:col-span-3">
                     <!-- Button Group -->
                     <div
-                        class="flex lg:flex-col justify-end items-center gap-2 border-t border-gray-200 lg:border-t-0 pt-3 lg:pt-0 dark:border-neutral-700">
+                        class="flex lg:flex-col justify-end items-center gap-2 border-t border-stone-200 lg:border-t-0 pt-3 lg:pt-0 dark:border-neutral-700">
                         <div class="lg:order-2 lg:ms-auto hidden">
                             <button type="button"
-                                class="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-sm border border-gray-200 bg-white text-gray-800 shadow-sm hover:bg-gray-50 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-gray-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700"
+                                class="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700"
                                 data-hs-overlay="#hs-pro-chhdl">
                                 More details
                             </button>
@@ -148,7 +148,7 @@ const sendEmail = async (quote) => {
                             <!-- More Dropdown -->
                             <div class="hs-dropdown [--placement:bottom-right] relative inline-flex">
                                 <button id="hs-pro-dupc1" type="button"
-                                    class="size-7 inline-flex justify-center items-center gap-x-2 rounded-sm border border-transparent text-gray-500 hover:bg-gray-100 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-gray-200 dark:text-neutral-400 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700"
+                                    class="size-7 inline-flex justify-center items-center gap-x-2 rounded-sm border border-transparent text-stone-500 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-200 dark:text-neutral-400 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700"
                                     aria-haspopup="menu" aria-expanded="false" aria-label="Dropdown">
                                     <svg class="shrink-0 size-4" xmlns="http://www.w3.org/2000/svg" width="24"
                                         height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -164,7 +164,7 @@ const sendEmail = async (quote) => {
                                     <div class="p-1">
                                         <Link :href="route('customer.quote.edit', quote)">
                                         <button type="button"
-                                            class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] font-normal text-gray-800 hover:bg-gray-100 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-gray-100 dark:text-neutral-300 dark:hover:bg-neutral-800 dark:focus:bg-neutral-800">
+                                            class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] font-normal text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800 dark:focus:bg-neutral-800">
                                             <svg class="shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" width="24"
                                                 height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                                                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -176,7 +176,7 @@ const sendEmail = async (quote) => {
                                         </Link>
                                         <Link :href="route('customer.quote.show', quote)">
                                         <button type="button"
-                                            class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] font-normal text-gray-800 hover:bg-gray-100 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-gray-100 dark:text-neutral-300 dark:hover:bg-neutral-800 dark:focus:bg-neutral-800">
+                                            class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] font-normal text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800 dark:focus:bg-neutral-800">
                                             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
                                                 viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                                                 stroke-linecap="round" stroke-linejoin="round"
@@ -189,7 +189,7 @@ const sendEmail = async (quote) => {
                                         </button>
                                         </Link>
                                         <button type="button" @click="sendEmail(quote)"
-                                            class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] font-normal text-gray-800 hover:bg-gray-100 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-gray-100 dark:text-neutral-300 dark:hover:bg-neutral-800 dark:focus:bg-neutral-800">
+                                            class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] font-normal text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800 dark:focus:bg-neutral-800">
                                             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
                                                 viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                                                 stroke-linecap="round" stroke-linejoin="round"
@@ -201,11 +201,11 @@ const sendEmail = async (quote) => {
                                             Send to client
                                         </button>
 
-                                        <div class="my-1 border-t border-gray-200 dark:border-neutral-700">
+                                        <div class="my-1 border-t border-stone-200 dark:border-neutral-700">
                                         </div>
 
                                         <button type="button"
-                                            class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] font-normal text-red-600 hover:bg-gray-100 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-gray-100 dark:text-red-500 dark:hover:bg-neutral-800 dark:focus:bg-neutral-700"
+                                            class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] font-normal text-red-600 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-100 dark:text-red-500 dark:hover:bg-neutral-800 dark:focus:bg-neutral-700"
                                             aria-haspopup="dialog" aria-expanded="false"
                                             :aria-controls="'hs-pro-pycdpdcm-' + quote.id"
                                             :data-hs-overlay="'#hs-pro-pycdpdcm-' + quote.id">
@@ -248,7 +248,7 @@ const sendEmail = async (quote) => {
                     <!-- Close Button -->
                     <div class="absolute top-3 end-3">
                         <button type="button"
-                            class="size-8 inline-flex justify-center items-center gap-x-2 rounded-sm border border-transparent bg-gray-100 text-gray-800 hover:bg-gray-200 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-gray-200 dark:bg-neutral-700 dark:hover:bg-neutral-600 dark:text-neutral-400 dark:focus:bg-neutral-600"
+                            class="size-8 inline-flex justify-center items-center gap-x-2 rounded-sm border border-transparent bg-stone-100 text-stone-800 hover:bg-stone-200 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-200 dark:bg-neutral-700 dark:hover:bg-neutral-600 dark:text-neutral-400 dark:focus:bg-neutral-600"
                             aria-label="Close" :data-hs-overlay="'#hs-pro-pycdpdcm-' + quote.id">
                             <span class="sr-only">Close</span>
                             <svg class="shrink-0 size-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
@@ -263,10 +263,10 @@ const sendEmail = async (quote) => {
 
                     <!-- Body -->
                     <div class="p-5 sm:p-10">
-                        <h3 id="hs-pro-pycdpdcm-label" class="text-lg font-medium text-gray-800 dark:text-neutral-200">
+                        <h3 id="hs-pro-pycdpdcm-label" class="text-lg font-medium text-stone-800 dark:text-neutral-200">
                             Are you sure you want to delete this quote?
                         </h3>
-                        <p class="mt-2 text-sm text-gray-500 dark:text-neutral-500">
+                        <p class="mt-2 text-sm text-stone-500 dark:text-neutral-500">
                             This action is irreversible. If you want to just temporarily
                             disable this card, you
                             can freeze it in settings.
@@ -277,7 +277,7 @@ const sendEmail = async (quote) => {
                     <!-- Footer -->
                     <div class="pb-5 px-5 sm:px-10 flex justify-center items-center gap-x-3">
                         <button type="button"
-                            class="py-2.5 px-3 w-full inline-flex justify-center items-center gap-x-1.5 text-sm font-medium rounded-sm border border-gray-200 bg-white text-gray-800 shadow-sm hover:bg-gray-50 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-gray-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700"
+                            class="py-2.5 px-3 w-full inline-flex justify-center items-center gap-x-1.5 text-sm font-medium rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700"
                             :data-hs-overlay="'#hs-pro-pycdpdcm-' + quote.id">
                             Cancel
                         </button>

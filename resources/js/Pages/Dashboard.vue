@@ -34,6 +34,10 @@ const props = defineProps({
         type: Array,
         default: () => [],
     },
+    quickAnnouncements: {
+        type: Array,
+        default: () => [],
+    },
 });
 
 const page = usePage();
@@ -41,7 +45,8 @@ const userName = computed(() => page.props.auth?.user?.name || 'there');
 const companyType = computed(() => page.props.auth?.account?.company?.type ?? null);
 const showServices = computed(() => companyType.value !== 'products');
 const isOwner = computed(() => Boolean(page.props.auth?.account?.is_owner));
-const hasAnnouncements = computed(() => (props.announcements || []).length > 0);
+const hasTopAnnouncements = computed(() => (props.announcements || []).length > 0);
+const hasQuickAnnouncements = computed(() => (props.quickAnnouncements || []).length > 0);
 
 const stat = (key) => props.stats?.[key] ?? 0;
 
@@ -161,7 +166,7 @@ const invoiceStatusClass = (status) => {
                 </div>
             </section>
 
-            <div :class="['grid gap-4', hasAnnouncements ? 'xl:grid-cols-[minmax(0,1fr)_320px]' : 'grid-cols-1']">
+            <div :class="['grid gap-4', hasTopAnnouncements ? 'xl:grid-cols-[minmax(0,1fr)_320px]' : 'grid-cols-1']">
                 <section class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
                 <div
                     class="p-4 bg-white border border-t-4 border-t-emerald-600 border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
@@ -261,7 +266,7 @@ const invoiceStatusClass = (status) => {
                 </div>
                 </section>
                 <AnnouncementsPanel
-                    v-if="hasAnnouncements"
+                    v-if="hasTopAnnouncements"
                     :announcements="announcements"
                     variant="side"
                     title="Announcements"
@@ -393,7 +398,7 @@ const invoiceStatusClass = (status) => {
                         </div>
                         <div class="mt-3 space-y-3">
                             <div v-for="job in upcomingJobs" :key="job.id"
-                                class="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-stone-200 px-3 py-2 text-sm dark:border-neutral-700">
+                                class="flex flex-wrap items-center justify-between gap-3 rounded-sm border border-stone-200 px-3 py-2 text-sm dark:border-neutral-700">
                                 <div>
                                     <Link :href="route('work.show', job.id)" class="font-medium text-stone-800 hover:underline dark:text-neutral-200">
                                         {{ job.job_title }}
@@ -420,29 +425,37 @@ const invoiceStatusClass = (status) => {
                 </div>
 
                 <div class="space-y-4">
-                    <div class="bg-white border border-stone-200 rounded-sm p-5 shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
+                    <AnnouncementsPanel
+                        v-if="hasQuickAnnouncements"
+                        :announcements="quickAnnouncements"
+                        variant="side"
+                        title="Announcements"
+                        subtitle="Displayed in the quick actions slot."
+                        :limit="3"
+                    />
+                    <div v-else class="bg-white border border-stone-200 rounded-sm p-5 shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
                         <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
                             Quick actions
                         </h2>
                         <div class="mt-4 grid grid-cols-1 gap-2 text-sm">
                             <button type="button" data-hs-overlay="#hs-quick-create-quote"
-                                class="py-2 px-3 rounded-lg border border-stone-200 bg-stone-100 text-stone-700 hover:bg-stone-200 dark:bg-neutral-700 dark:border-neutral-600 dark:text-neutral-200">
+                                class="py-2 px-3 rounded-sm border border-stone-200 bg-stone-100 text-stone-700 hover:bg-stone-200 dark:bg-neutral-700 dark:border-neutral-600 dark:text-neutral-200">
                                 Create quote
                             </button>
                             <button v-if="showServices && isOwner" type="button" data-hs-overlay="#hs-quick-create-request"
-                                class="py-2 px-3 rounded-lg border border-stone-200 bg-stone-100 text-stone-700 hover:bg-stone-200 dark:bg-neutral-700 dark:border-neutral-600 dark:text-neutral-200">
+                                class="py-2 px-3 rounded-sm border border-stone-200 bg-stone-100 text-stone-700 hover:bg-stone-200 dark:bg-neutral-700 dark:border-neutral-600 dark:text-neutral-200">
                                 Create request
                             </button>
                             <button type="button" data-hs-overlay="#hs-quick-create-customer"
-                                class="py-2 px-3 rounded-lg border border-stone-200 bg-stone-100 text-stone-700 hover:bg-stone-200 dark:bg-neutral-700 dark:border-neutral-600 dark:text-neutral-200">
+                                class="py-2 px-3 rounded-sm border border-stone-200 bg-stone-100 text-stone-700 hover:bg-stone-200 dark:bg-neutral-700 dark:border-neutral-600 dark:text-neutral-200">
                                 Add customer
                             </button>
                             <button type="button" data-hs-overlay="#hs-quick-create-product"
-                                class="py-2 px-3 rounded-lg border border-stone-200 bg-stone-100 text-stone-700 hover:bg-stone-200 dark:bg-neutral-700 dark:border-neutral-600 dark:text-neutral-200">
+                                class="py-2 px-3 rounded-sm border border-stone-200 bg-stone-100 text-stone-700 hover:bg-stone-200 dark:bg-neutral-700 dark:border-neutral-600 dark:text-neutral-200">
                                 Add product
                             </button>
                             <Link :href="route('jobs.index')"
-                                class="py-2 px-3 rounded-lg border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200">
+                                class="py-2 px-3 rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200">
                                 Review jobs
                             </Link>
                         </div>
@@ -459,7 +472,7 @@ const invoiceStatusClass = (status) => {
                         </div>
                         <div class="mt-3 space-y-3">
                             <div v-for="invoice in outstandingInvoices" :key="invoice.id"
-                                class="flex items-center justify-between gap-3 rounded-lg border border-stone-200 px-3 py-2 text-sm dark:border-neutral-700">
+                                class="flex items-center justify-between gap-3 rounded-sm border border-stone-200 px-3 py-2 text-sm dark:border-neutral-700">
                                 <div>
                                     <Link :href="route('invoice.show', invoice.id)" class="font-medium text-stone-800 hover:underline dark:text-neutral-200">
                                         {{ invoice.number || 'Invoice' }}
@@ -492,7 +505,7 @@ const invoiceStatusClass = (status) => {
                         </div>
                         <div class="mt-3 space-y-3 text-sm">
                             <div v-for="log in activity" :key="log.id"
-                                class="rounded-lg border border-stone-200 px-3 py-2 dark:border-neutral-700">
+                                class="rounded-sm border border-stone-200 px-3 py-2 dark:border-neutral-700">
                                 <div class="text-xs uppercase text-stone-500 dark:text-neutral-400">
                                     {{ log.subject }} · {{ formatDate(log.created_at) }}
                                 </div>

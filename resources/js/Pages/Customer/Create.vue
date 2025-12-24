@@ -141,7 +141,7 @@ const selectAddress = (details) => {
         <div class="grid grid-cols-1 lg:grid-cols-4 gap-1 md:gap-3 lg:gap-1 ">
             <div></div>
             <div>
-                <h1 class="text-xl font-bold text-gray-800 dark:text-white">New Client</h1>
+                <h1 class="text-xl font-bold text-stone-800 dark:text-white">New Client</h1>
             </div>
             <div></div>
             <div></div>
@@ -159,7 +159,7 @@ const selectAddress = (details) => {
                             <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
                             <circle cx="12" cy="7" r="4" />
                         </svg>
-                        <h3 class="text-lg  ml-2 font-bold text-gray-800 dark:text-white">
+                        <h3 class="text-lg  ml-2 font-bold text-stone-800 dark:text-white">
                             Client details
                         </h3>
                     </div>
@@ -171,24 +171,24 @@ const selectAddress = (details) => {
                             <FloatingInput v-model="form.last_name" label="Last name" class="w-2/5" />
                         </div>
                         <FloatingInput v-model="form.company_name" label="Company name" />
-                        <h2 class="pt-4 text-sm  my-2 font-bold text-gray-800 dark:text-white"> Contact details</h2>
+                        <h2 class="pt-4 text-sm  my-2 font-bold text-stone-800 dark:text-white"> Contact details</h2>
                         <FloatingInput v-model="form.phone" label="Phone" />
                         <FloatingInput v-model="form.email" label="Email address" />
                         <FloatingInput v-model="form.temporary_password" label="Mot de passe temporaire" type="password" />
-                        <p class="text-xs text-gray-500 dark:text-neutral-400">
+                        <p class="text-xs text-stone-500 dark:text-neutral-400">
                             Le client pourra le changer lors de la premiere connexion.
                         </p>
-                        <h2 class="pt-4 text-sm  my-2 font-bold text-gray-800 dark:text-white"> Additional notifications
+                        <h2 class="pt-4 text-sm  my-2 font-bold text-stone-800 dark:text-white"> Additional notifications
                         </h2>
                         <ListInput />
-                        <h2 class="pt-4 text-sm  my-2 font-bold text-gray-800 dark:text-white"> Additional client detail
+                        <h2 class="pt-4 text-sm  my-2 font-bold text-stone-800 dark:text-white"> Additional client detail
                         </h2>
                         <FloatingTextarea v-model="form.description" label="Description" />
                         <FloatingInput v-model="form.refer_by" label="Referred by" />
                     </div>
                 </div>
                 <div
-                    class="flex flex-col bg-gray-100 border shadow-sm rounded-sm dark:bg-neutral-900 dark:border-neutral-700 dark:shadow-neutral-700/70">
+                    class="flex flex-col bg-white border border-stone-200 shadow-sm rounded-sm dark:bg-neutral-900 dark:border-neutral-700 dark:shadow-neutral-700/70">
                     <div class="flex flex-row border-b rounded-t-sm py-3 px-4 md:px-5 dark:border-neutral-700">
                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
                             stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
@@ -197,7 +197,7 @@ const selectAddress = (details) => {
                             <path
                                 d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
                         </svg>
-                        <h3 class="text-lg  ml-2 font-bold text-gray-800 dark:text-white">
+                        <h3 class="text-lg  ml-2 font-bold text-stone-800 dark:text-white">
                             Properties
                         </h3>
                     </div>
@@ -214,7 +214,7 @@ const selectAddress = (details) => {
                                 <div class="relative">
                                     <div
                                         class="absolute inset-y-0 start-0 flex items-center pointer-events-none z-20 ps-3.5">
-                                        <svg class="shrink-0 size-4 text-gray-400 dark:text-white/60"
+                                        <svg class="shrink-0 size-4 text-stone-400 dark:text-white/60"
                                             xmlns="http://www.w3.org/2000/svg" width="24" height="24"
                                             viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                                             stroke-linecap="round" stroke-linejoin="round">
@@ -223,20 +223,20 @@ const selectAddress = (details) => {
                                         </svg>
                                     </div>
                                     <input v-model="query" @input="searchAddress"
-                                        class="py-3 ps-10 pe-4 block w-full border-gray-200 rounded-sm text-sm focus:border-blue-500 focus:ring-blue-500"
+                                        class="py-3 ps-10 pe-4 block w-full border-stone-200 rounded-sm text-sm focus:border-green-600 focus:ring-green-600"
                                         type="text" role="combobox" aria-expanded="false"
                                         placeholder="Search for an address" data-hs-combo-box-input="" />
                                 </div>
 
                                 <!-- Suggestions Dropdown -->
                                 <div v-if="suggestions.length"
-                                    class="absolute z-50 w-full bg-white rounded-xl shadow-[0_10px_40px_10px_rgba(0,0,0,0.08)] dark:bg-neutral-800">
+                                    class="absolute z-50 w-full bg-white rounded-sm shadow-[0_10px_40px_10px_rgba(0,0,0,0.08)] dark:bg-neutral-800">
                                     <div
-                                        class="max-h-[300px] p-2 overflow-y-auto overflow-hidden [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-gray-100 [&::-webkit-scrollbar-thumb]:bg-gray-300 dark:[&::-webkit-scrollbar-track]:bg-neutral-700 dark:[&::-webkit-scrollbar-thumb]:bg-neutral-500">
+                                        class="max-h-[300px] p-2 overflow-y-auto overflow-hidden [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-stone-100 [&::-webkit-scrollbar-thumb]:bg-stone-300 dark:[&::-webkit-scrollbar-track]:bg-neutral-700 dark:[&::-webkit-scrollbar-thumb]:bg-neutral-500">
                                         <div v-for="suggestion in suggestions" :key="suggestion.id"
-                                            class="py-2 px-3 flex items-center gap-x-3 hover:bg-gray-100 rounded-lg dark:hover:bg-neutral-700 cursor-pointer"
+                                            class="py-2 px-3 flex items-center gap-x-3 hover:bg-stone-100 rounded-sm dark:hover:bg-neutral-700 cursor-pointer"
                                             @click="selectAddress(suggestion.details)">
-                                            <span class="text-sm text-gray-800 dark:text-neutral-200">{{
+                                            <span class="text-sm text-stone-800 dark:text-neutral-200">{{
                                                 suggestion.label
                                                 }}</span>
                                         </div>
@@ -261,9 +261,9 @@ const selectAddress = (details) => {
                         <div class="flex flex-col sm:flex-row sm:items-center gap-2 mt-4">
                             <div class="flex items-center">
                                 <input type="checkbox" v-model="form.billing_same_as_physical"
-                                    class="shrink-0 size-3.5 border-gray-300 rounded text-green-600 focus:ring-green-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-800 dark:border-neutral-600 dark:checked:bg-green-500 dark:checked:border-green-500 dark:focus:ring-offset-gray-800"
+                                    class="shrink-0 size-3.5 border-stone-300 rounded text-green-600 focus:ring-green-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-800 dark:border-neutral-600 dark:checked:bg-green-500 dark:checked:border-green-500 dark:focus:ring-offset-stone-800"
                                     id="hs-pro-danscch">
-                                <label for="hs-pro-danscch" class="text-sm text-gray-500 ms-2 dark:text-neutral-500">
+                                <label for="hs-pro-danscch" class="text-sm text-stone-500 ms-2 dark:text-neutral-500">
                                     Billing address is the same as the property address
                                 </label>
                             </div>
@@ -286,7 +286,7 @@ const selectAddress = (details) => {
                             <path d="M16 12h-8" />
                             <path d="M10 16h-2" />
                         </svg>
-                        <h3 class="text-lg  ml-2 font-bold text-gray-800 dark:text-white">
+                        <h3 class="text-lg  ml-2 font-bold text-stone-800 dark:text-white">
                             Billing preferences
                         </h3>
                     </div>
@@ -317,7 +317,7 @@ const selectAddress = (details) => {
                 <div></div>
                 <div>
                     <button type="button"
-                        class="py-1.5 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-sm border border-gray-200 bg-white text-gray-800 shadow-sm hover:bg-gray-50 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-800 focus:outline-none focus:bg-gray-100 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700">
+                        class="py-1.5 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-800 focus:outline-none focus:bg-stone-100 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700">
                         Cancel
                     </button>
                 </div>

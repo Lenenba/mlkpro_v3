@@ -30,17 +30,17 @@ const isSuperadmin = computed(() => Boolean(page.props.auth?.account?.is_superad
     <!-- ========== END MAIN SIDEBAR ========== -->
 
     <!-- ========== MAIN CONTENT ========== -->
-    <main id="content" class="lg:ps-16 pt-[59px] lg:pt-0 min-h-screen bg-gray-50 dark:bg-neutral-900">
+    <main id="content" class="lg:ps-16 pt-[59px] lg:pt-0 min-h-screen bg-stone-50 dark:bg-neutral-950">
         <div class="p-2 sm:p-5 sm:py-0 md:pt-5 space-y-5">
             <div v-if="maintenance.enabled && !isSuperadmin"
                 class="bg-amber-50 border-s-4 border-amber-500 p-4 dark:bg-amber-800/30" role="alert" tabindex="-1"
                 aria-labelledby="hs-platform-maintenance-label">
                 <div class="flex items-start justify-between gap-3">
                     <div>
-                        <h3 id="hs-platform-maintenance-label" class="text-gray-800 font-semibold dark:text-white">
+                        <h3 id="hs-platform-maintenance-label" class="text-stone-800 font-semibold dark:text-white">
                             {{ $t('alerts.maintenance.title') }}
                         </h3>
-                        <p class="text-sm text-gray-700 dark:text-neutral-400">
+                        <p class="text-sm text-stone-700 dark:text-neutral-400">
                             {{ maintenance.message || $t('alerts.maintenance.message') }}
                         </p>
                     </div>
@@ -52,10 +52,10 @@ const isSuperadmin = computed(() => Boolean(page.props.auth?.account?.is_superad
                 aria-labelledby="hs-platform-impersonation-label">
                 <div class="flex flex-wrap items-center justify-between gap-3">
                     <div>
-                        <h3 id="hs-platform-impersonation-label" class="text-gray-800 font-semibold dark:text-white">
+                        <h3 id="hs-platform-impersonation-label" class="text-stone-800 font-semibold dark:text-white">
                             {{ $t('alerts.impersonation.title') }}
                         </h3>
-                        <p class="text-sm text-gray-700 dark:text-neutral-400">
+                        <p class="text-sm text-stone-700 dark:text-neutral-400">
                             {{ $t('alerts.impersonation.message', { name: impersonator.name || impersonator.email }) }}
                         </p>
                     </div>
@@ -83,10 +83,10 @@ const isSuperadmin = computed(() => Boolean(page.props.auth?.account?.is_superad
                         <!-- End Icon -->
                     </div>
                     <div class="ms-3">
-                        <h3 id="hs-bordered-success-style-label" class="text-gray-800 font-semibold dark:text-white">
+                        <h3 id="hs-bordered-success-style-label" class="text-stone-800 font-semibold dark:text-white">
                             {{ $t('alerts.success.title') }}
                         </h3>
-                        <p class="text-sm text-gray-700 dark:text-neutral-400">
+                        <p class="text-sm text-stone-700 dark:text-neutral-400">
                             {{ flashSuccess }}
                         </p>
                     </div>
@@ -110,10 +110,10 @@ const isSuperadmin = computed(() => Boolean(page.props.auth?.account?.is_superad
                         <!-- End Icon -->
                     </div>
                     <div class="ms-3">
-                        <h3 id="hs-bordered-red-style-label" class="text-gray-800 font-semibold dark:text-white">
+                        <h3 id="hs-bordered-red-style-label" class="text-stone-800 font-semibold dark:text-white">
                             {{ $t('alerts.error.title') }}
                         </h3>
-                        <p class="text-sm text-gray-700 dark:text-neutral-400">
+                        <p class="text-sm text-stone-700 dark:text-neutral-400">
                             {{ flashError }}
                         </p>
                     </div>
@@ -136,10 +136,10 @@ const isSuperadmin = computed(() => Boolean(page.props.auth?.account?.is_superad
                         </span>
                     </div>
                     <div class="ms-3">
-                        <h3 id="hs-bordered-warning-style-label" class="text-gray-800 font-semibold dark:text-white">
+                        <h3 id="hs-bordered-warning-style-label" class="text-stone-800 font-semibold dark:text-white">
                             {{ $t('alerts.warning.title') }}
                         </h3>
-                        <p class="text-sm text-gray-700 dark:text-neutral-400">
+                        <p class="text-sm text-stone-700 dark:text-neutral-400">
                             {{ flashWarning }}
                         </p>
                     </div>

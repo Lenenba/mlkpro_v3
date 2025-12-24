@@ -1,11 +1,11 @@
 <template>
     <!-- Import Data Card -->
     <div
-        class="size-full flex flex-col bg-white border border-gray-200 shadow-sm rounded-sm border-t-4 border-t-indigo-700 dark:bg-neutral-800 dark:border-neutral-700">
+        class="size-full flex flex-col bg-white border border-stone-200 shadow-sm rounded-sm border-t-4 border-t-indigo-700 dark:bg-neutral-800 dark:border-neutral-700">
         <!-- Header -->
         <div class="p-5 pb-4 grid grid-cols-2 items-center gap-x-4">
             <div>
-                <h2 class="inline-block font-semibold text-gray-800 dark:text-neutral-200">
+                <h2 class="inline-block font-semibold text-stone-800 dark:text-neutral-200">
                     Referral Traffic
                 </h2>
             </div>
@@ -15,7 +15,7 @@
                 <!-- Download Dropdown -->
                 <div class="hs-dropdown [--auto-close:inside] [--placement:bottom-right] relative inline-flex">
                     <button id="hs-pro-dbrrtchdd" type="button"
-                        class="size-[34px] inline-flex justify-center items-center gap-x-2 rounded-lg border border-transparent text-gray-500 hover:bg-gray-100 focus:outline-none focus:bg-gray-100 disabled:opacity-50 disabled:pointer-events-none dark:text-neutral-400 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700"
+                        class="size-[34px] inline-flex justify-center items-center gap-x-2 rounded-sm border border-transparent text-stone-500 hover:bg-stone-100 focus:outline-none focus:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none dark:text-neutral-400 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700"
                         aria-haspopup="menu" aria-expanded="false" aria-label="Dropdown">
                         <svg class="shrink-0 size-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
                             viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
@@ -27,24 +27,24 @@
                     </button>
 
                     <!-- Download Dropdown -->
-                    <div class="hs-dropdown-menu hs-dropdown-open:opacity-100 w-60 transition-[opacity,margin] duration opacity-0 hidden z-20 bg-white rounded-xl shadow-[0_10px_40px_10px_rgba(0,0,0,0.08)] dark:shadow-[0_10px_40px_10px_rgba(0,0,0,0.2)] dark:bg-neutral-900"
+                    <div class="hs-dropdown-menu hs-dropdown-open:opacity-100 w-60 transition-[opacity,margin] duration opacity-0 hidden z-20 bg-white rounded-sm shadow-[0_10px_40px_10px_rgba(0,0,0,0.08)] dark:shadow-[0_10px_40px_10px_rgba(0,0,0,0.2)] dark:bg-neutral-900"
                         role="menu" aria-orientation="vertical" aria-labelledby="hs-pro-dbrrtchdd">
                         <div class="p-1">
                             <div class="py-2 px-3">
-                                <span class="block font-semibold text-gray-800 dark:text-neutral-200">
+                                <span class="block font-semibold text-stone-800 dark:text-neutral-200">
                                     Download Report
                                 </span>
-                                <span class="block text-xs text-gray-500 dark:text-neutral-500">
+                                <span class="block text-xs text-stone-500 dark:text-neutral-500">
                                     Select Options
                                 </span>
                             </div>
 
-                            <div class="m-2 border-t border-gray-200 dark:border-neutral-700"></div>
+                            <div class="m-2 border-t border-stone-200 dark:border-neutral-700"></div>
 
                             <div class="py-1 px-2">
-                                <div class="flex items-center bg-gray-100 rounded-xl p-1 dark:bg-neutral-800">
+                                <div class="flex items-center bg-stone-100 rounded-sm p-1 dark:bg-neutral-800">
                                     <label for="hs-pro-dbrrtchddts1"
-                                        class="relative py-1.5 px-3 w-full cursor-pointer text-center text-sm text-gray-800 rounded-lg has-[:checked]:bg-white has-[:checked]:shadow-sm dark:text-neutral-200 dark:has-[:checked]:bg-neutral-600">
+                                        class="relative py-1.5 px-3 w-full cursor-pointer text-center text-sm text-stone-800 rounded-sm has-[:checked]:bg-white has-[:checked]:shadow-sm dark:text-neutral-200 dark:has-[:checked]:bg-neutral-600">
                                         <svg class="relative z-10 me-1.5 inline-block align-middle shrink-0 size-4"
                                             width="32" height="32" viewBox="0 0 32 32" fill="none"
                                             xmlns="http://www.w3.org/2000/svg">
@@ -85,7 +85,7 @@
                                     </label>
 
                                     <label for="hs-pro-dbrrtchddts2"
-                                        class="relative py-1.5 px-3 w-full cursor-pointer text-center text-sm text-gray-800 rounded-lg has-[:checked]:bg-white has-[:checked]:shadow-sm dark:text-neutral-200 dark:has-[:checked]:bg-neutral-600">
+                                        class="relative py-1.5 px-3 w-full cursor-pointer text-center text-sm text-stone-800 rounded-sm has-[:checked]:bg-white has-[:checked]:shadow-sm dark:text-neutral-200 dark:has-[:checked]:bg-neutral-600">
                                         <svg class="relative z-10 me-1.5 inline-block align-middle shrink-0 size-4"
                                             width="32" height="32" viewBox="0 0 32 32" fill="none"
                                             xmlns="http://www.w3.org/2000/svg">
@@ -126,12 +126,12 @@
                                 </div>
                             </div>
 
-                            <div class="m-2 border-t border-gray-200 dark:border-neutral-700"></div>
+                            <div class="m-2 border-t border-stone-200 dark:border-neutral-700"></div>
 
                             <div
-                                class="flex justify-between items-center py-2 px-3 cursor-pointer rounded-lg hover:bg-gray-100 dark:hover:bg-neutral-800 dark:focus:bg-neutral-700">
+                                class="flex justify-between items-center py-2 px-3 cursor-pointer rounded-sm hover:bg-stone-100 dark:hover:bg-neutral-800 dark:focus:bg-neutral-700">
                                 <label for="hs-pro-dbrrtchdds1"
-                                    class="flex flex-1 items-center gap-x-3 cursor-pointer text-sm text-gray-800 dark:text-neutral-300">
+                                    class="flex flex-1 items-center gap-x-3 cursor-pointer text-sm text-stone-800 dark:text-neutral-300">
                                     <svg class="shrink-0 size-4" xmlns="http://www.w3.org/2000/svg" width="24"
                                         height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                                         stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -140,13 +140,13 @@
                                     </svg>Section name
                                 </label>
                                 <input type="checkbox"
-                                    class="shrink-0 size-3.5 border-gray-300 rounded text-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-800 dark:border-neutral-600 dark:checked:bg-blue-500 dark:checked:border-blue-500 dark:focus:ring-offset-gray-800"
+                                    class="shrink-0 size-3.5 border-stone-300 rounded text-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-800 dark:border-neutral-600 dark:checked:bg-blue-500 dark:checked:border-blue-500 dark:focus:ring-offset-stone-800"
                                     id="hs-pro-dbrrtchdds1" checked>
                             </div>
                             <div
-                                class="flex justify-between items-center py-2 px-3 cursor-pointer rounded-lg hover:bg-gray-100 dark:hover:bg-neutral-800 dark:focus:bg-neutral-700">
+                                class="flex justify-between items-center py-2 px-3 cursor-pointer rounded-sm hover:bg-stone-100 dark:hover:bg-neutral-800 dark:focus:bg-neutral-700">
                                 <label for="hs-pro-dbrrtchdds2"
-                                    class="flex flex-1 items-center gap-x-3 cursor-pointer text-sm text-gray-800 dark:text-neutral-300">
+                                    class="flex flex-1 items-center gap-x-3 cursor-pointer text-sm text-stone-800 dark:text-neutral-300">
                                     <svg class="shrink-0 size-4" xmlns="http://www.w3.org/2000/svg" width="24"
                                         height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                                         stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -157,13 +157,13 @@
                                     </svg>Comparison stats
                                 </label>
                                 <input type="checkbox"
-                                    class="shrink-0 size-3.5 border-gray-300 rounded text-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-800 dark:border-neutral-600 dark:checked:bg-blue-500 dark:checked:border-blue-500 dark:focus:ring-offset-gray-800"
+                                    class="shrink-0 size-3.5 border-stone-300 rounded text-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-800 dark:border-neutral-600 dark:checked:bg-blue-500 dark:checked:border-blue-500 dark:focus:ring-offset-stone-800"
                                     id="hs-pro-dbrrtchdds2" checked>
                             </div>
                             <div
-                                class="flex justify-between items-center py-2 px-3 cursor-pointer rounded-lg hover:bg-gray-100 dark:hover:bg-neutral-800 dark:focus:bg-neutral-700">
+                                class="flex justify-between items-center py-2 px-3 cursor-pointer rounded-sm hover:bg-stone-100 dark:hover:bg-neutral-800 dark:focus:bg-neutral-700">
                                 <label for="hs-pro-dbrrtchdds3"
-                                    class="flex flex-1 items-center gap-x-3 cursor-pointer text-sm text-gray-800 dark:text-neutral-300">
+                                    class="flex flex-1 items-center gap-x-3 cursor-pointer text-sm text-stone-800 dark:text-neutral-300">
                                     <svg class="shrink-0 size-4" xmlns="http://www.w3.org/2000/svg" width="24"
                                         height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                                         stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -171,14 +171,14 @@
                                     </svg>Legend indicator
                                 </label>
                                 <input type="checkbox"
-                                    class="shrink-0 size-3.5 border-gray-300 rounded text-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-800 dark:border-neutral-600 dark:checked:bg-blue-500 dark:checked:border-blue-500 dark:focus:ring-offset-gray-800"
+                                    class="shrink-0 size-3.5 border-stone-300 rounded text-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-800 dark:border-neutral-600 dark:checked:bg-blue-500 dark:checked:border-blue-500 dark:focus:ring-offset-stone-800"
                                     id="hs-pro-dbrrtchdds3" checked>
                             </div>
 
-                            <div class="my-1 border-t border-gray-200 dark:border-neutral-700"></div>
+                            <div class="my-1 border-t border-stone-200 dark:border-neutral-700"></div>
 
                             <button type="button"
-                                class="w-full py-2 px-3 inline-flex justify-center items-center gap-x-2 text-sm font-medium rounded-lg border border-transparent bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                class="w-full py-2 px-3 inline-flex justify-center items-center gap-x-2 text-sm font-medium rounded-sm border border-transparent bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:ring-2 focus:ring-blue-500">
                                 Download
                             </button>
                         </div>
@@ -190,7 +190,7 @@
                 <!-- Download Dropdown -->
                 <div class="hs-dropdown [--auto-close:inside] [--placement:bottom-right] relative inline-flex">
                     <button id="hs-pro-dbrrtchmd" type="button"
-                        class="size-[34px] inline-flex justify-center items-center gap-x-2 rounded-lg border border-transparent text-gray-500 hover:bg-gray-100 focus:outline-none focus:bg-gray-100 disabled:opacity-50 disabled:pointer-events-none dark:text-neutral-400 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700"
+                        class="size-[34px] inline-flex justify-center items-center gap-x-2 rounded-sm border border-transparent text-stone-500 hover:bg-stone-100 focus:outline-none focus:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none dark:text-neutral-400 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700"
                         aria-haspopup="menu" aria-expanded="false" aria-label="Dropdown">
                         <svg class="shrink-0 size-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
                             viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
@@ -202,11 +202,11 @@
                     </button>
 
                     <!-- Download Dropdown -->
-                    <div class="hs-dropdown-menu hs-dropdown-open:opacity-100 w-48 transition-[opacity,margin] duration opacity-0 hidden z-10 bg-white rounded-xl shadow-[0_10px_40px_10px_rgba(0,0,0,0.08)] dark:shadow-[0_10px_40px_10px_rgba(0,0,0,0.2)] dark:bg-neutral-900"
+                    <div class="hs-dropdown-menu hs-dropdown-open:opacity-100 w-48 transition-[opacity,margin] duration opacity-0 hidden z-10 bg-white rounded-sm shadow-[0_10px_40px_10px_rgba(0,0,0,0.08)] dark:shadow-[0_10px_40px_10px_rgba(0,0,0,0.2)] dark:bg-neutral-900"
                         role="menu" aria-orientation="vertical" aria-labelledby="hs-pro-dbrrtchmd">
                         <div class="p-1">
                             <button type="button"
-                                class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-lg text-[13px] text-gray-800 hover:bg-gray-100 disabled:opacity-50 focus:outline-none focus:bg-gray-100 disabled:pointer-events-none dark:text-neutral-300 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700">
+                                class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 disabled:opacity-50 focus:outline-none focus:bg-stone-100 disabled:pointer-events-none dark:text-neutral-300 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700">
                                 <svg class="shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
                                     viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                                     stroke-linecap="round" stroke-linejoin="round">
@@ -219,7 +219,7 @@
                                 Share reports
                             </button>
                             <button type="button"
-                                class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-lg text-[13px] text-gray-800 hover:bg-gray-100 disabled:opacity-50 focus:outline-none focus:bg-gray-100 disabled:pointer-events-none dark:text-neutral-300 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700">
+                                class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 disabled:opacity-50 focus:outline-none focus:bg-stone-100 disabled:pointer-events-none dark:text-neutral-300 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700">
                                 <svg class="shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
                                     viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                                     stroke-linecap="round" stroke-linejoin="round">
@@ -231,7 +231,7 @@
                                 View in fullscreen
                             </button>
                             <button type="button"
-                                class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-lg text-[13px] text-gray-800 hover:bg-gray-100 disabled:opacity-50 focus:outline-none focus:bg-gray-100 disabled:pointer-events-none dark:text-neutral-300 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700">
+                                class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 disabled:opacity-50 focus:outline-none focus:bg-stone-100 disabled:pointer-events-none dark:text-neutral-300 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700">
                                 <svg class="shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
                                     viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                                     stroke-linecap="round" stroke-linejoin="round">
@@ -241,10 +241,10 @@
                                 Connect other apps
                             </button>
 
-                            <div class="my-1 border-t border-gray-200 dark:border-neutral-700"></div>
+                            <div class="my-1 border-t border-stone-200 dark:border-neutral-700"></div>
 
                             <button type="button"
-                                class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-lg text-[13px] text-gray-800 hover:bg-gray-100 disabled:opacity-50 focus:outline-none focus:bg-gray-100 disabled:pointer-events-none dark:text-neutral-300 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700">
+                                class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 disabled:opacity-50 focus:outline-none focus:bg-stone-100 disabled:pointer-events-none dark:text-neutral-300 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700">
                                 <svg class="shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
                                     viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                                     stroke-linecap="round" stroke-linejoin="round">
@@ -282,7 +282,7 @@
                         <div class="flex flex-col justify-center overflow-hidden bg-blue-400 text-xs text-white text-center whitespace-nowrap"
                             style="width: 6%" role="progressbar" aria-valuenow="6" aria-valuemin="0"
                             aria-valuemax="100"></div>
-                        <div class="flex flex-col justify-center overflow-hidden bg-gray-200 text-xs text-white text-center whitespace-nowrap dark:bg-neutral-500"
+                        <div class="flex flex-col justify-center overflow-hidden bg-stone-200 text-xs text-white text-center whitespace-nowrap dark:bg-neutral-500"
                             style="width: 9%" role="progressbar" aria-valuenow="9" aria-valuemin="0"
                             aria-valuemax="100"></div>
                     </div>
@@ -294,12 +294,12 @@
                         <li class="py-2 grid grid-cols-2 justify-between items-center gap-x-4">
                             <div class="flex items-center">
                                 <span class="shrink-0 size-2.5 inline-block bg-blue-600 rounded-sm me-2.5"></span>
-                                <span class="text-sm text-gray-800 dark:text-neutral-200">
+                                <span class="text-sm text-stone-800 dark:text-neutral-200">
                                     github.com
                                 </span>
                             </div>
                             <div class="text-end">
-                                <span class="text-sm text-gray-500 dark:text-neutral-500">
+                                <span class="text-sm text-stone-500 dark:text-neutral-500">
                                     164k
                                 </span>
                             </div>
@@ -310,12 +310,12 @@
                         <li class="py-2 grid grid-cols-2 justify-between items-center gap-x-4">
                             <div class="flex items-center">
                                 <span class="shrink-0 size-2.5 inline-block bg-violet-500 rounded-sm me-2.5"></span>
-                                <span class="text-sm text-gray-800 dark:text-neutral-200">
+                                <span class="text-sm text-stone-800 dark:text-neutral-200">
                                     accounts.google.com
                                 </span>
                             </div>
                             <div class="text-end">
-                                <span class="text-sm text-gray-500 dark:text-neutral-500">
+                                <span class="text-sm text-stone-500 dark:text-neutral-500">
                                     49k
                                 </span>
                             </div>
@@ -326,12 +326,12 @@
                         <li class="py-2 grid grid-cols-2 justify-between items-center gap-x-4">
                             <div class="flex items-center">
                                 <span class="shrink-0 size-2.5 inline-block bg-teal-400 rounded-sm me-2.5"></span>
-                                <span class="text-sm text-gray-800 dark:text-neutral-200">
+                                <span class="text-sm text-stone-800 dark:text-neutral-200">
                                     themes.getbootstrap.com
                                 </span>
                             </div>
                             <div class="text-end">
-                                <span class="text-sm text-gray-500 dark:text-neutral-500">
+                                <span class="text-sm text-stone-500 dark:text-neutral-500">
                                     26k
                                 </span>
                             </div>
@@ -342,12 +342,12 @@
                         <li class="py-2 grid grid-cols-2 justify-between items-center gap-x-4">
                             <div class="flex items-center">
                                 <span class="shrink-0 size-2.5 inline-block bg-blue-400 rounded-sm me-2.5"></span>
-                                <span class="text-sm text-gray-800 dark:text-neutral-200">
+                                <span class="text-sm text-stone-800 dark:text-neutral-200">
                                     htmlstream.com
                                 </span>
                             </div>
                             <div class="text-end">
-                                <span class="text-sm text-gray-500 dark:text-neutral-500">
+                                <span class="text-sm text-stone-500 dark:text-neutral-500">
                                     8k
                                 </span>
                             </div>
@@ -358,13 +358,13 @@
                         <li class="py-2 grid grid-cols-2 justify-between items-center gap-x-4">
                             <div class="flex items-center">
                                 <span
-                                    class="shrink-0 size-2.5 inline-block bg-gray-200 rounded-sm me-2 dark:bg-neutral-500"></span>
-                                <span class="text-sm text-gray-800 dark:text-neutral-200">
+                                    class="shrink-0 size-2.5 inline-block bg-stone-200 rounded-sm me-2 dark:bg-neutral-500"></span>
+                                <span class="text-sm text-stone-800 dark:text-neutral-200">
                                     Others
                                 </span>
                             </div>
                             <div class="text-end">
-                                <span class="text-sm text-gray-500 dark:text-neutral-500">
+                                <span class="text-sm text-stone-500 dark:text-neutral-500">
                                     12k
                                 </span>
                             </div>
@@ -381,18 +381,18 @@
                             src="https://images.unsplash.com/photo-1659482633369-9fe69af50bfb?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=facearea&facepad=2.5&w=320&h=320&q=80"
                             alt="Avatar">
                         <span
-                            class="hs-tooltip-content hs-tooltip-shown:opacity-100 hs-tooltip-shown:visible opacity-0 transition-opacity hidden invisible z-10 py-1 px-2 bg-gray-900 text-xs font-medium text-white rounded-lg shadow-sm dark:bg-neutral-700"
+                            class="hs-tooltip-content hs-tooltip-shown:opacity-100 hs-tooltip-shown:visible opacity-0 transition-opacity hidden invisible z-10 py-1 px-2 bg-stone-900 text-xs font-medium text-white rounded-sm shadow-sm dark:bg-neutral-700"
                             role="tooltip">
                             James Collins
                         </span>
                     </div>
                     <div class="hs-tooltip hover:z-10">
                         <span
-                            class="flex shrink-0 justify-center items-center size-7 lg:size-[38px] bg-white border border-gray-200 text-gray-700 text-xs lg:text-sm font-medium uppercase rounded-full dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300">
+                            class="flex shrink-0 justify-center items-center size-7 lg:size-[38px] bg-white border border-stone-200 text-stone-700 text-xs lg:text-sm font-medium uppercase rounded-full dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300">
                             E
                         </span>
                         <span
-                            class="hs-tooltip-content hs-tooltip-shown:opacity-100 hs-tooltip-shown:visible opacity-0 transition-opacity hidden invisible z-10 py-1 px-2 bg-gray-900 text-xs font-medium text-white rounded-lg shadow-sm dark:bg-neutral-700"
+                            class="hs-tooltip-content hs-tooltip-shown:opacity-100 hs-tooltip-shown:visible opacity-0 transition-opacity hidden invisible z-10 py-1 px-2 bg-stone-900 text-xs font-medium text-white rounded-sm shadow-sm dark:bg-neutral-700"
                             role="tooltip">
                             Ella Lauda
                         </span>
@@ -402,7 +402,7 @@
                             src="https://images.unsplash.com/photo-1601935111741-ae98b2b230b0?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=facearea&facepad=2.5&w=320&h=320&q=80"
                             alt="Avatar">
                         <span
-                            class="hs-tooltip-content hs-tooltip-shown:opacity-100 hs-tooltip-shown:visible opacity-0 transition-opacity hidden invisible z-10 py-1 px-2 bg-gray-900 text-xs font-medium text-white rounded-lg shadow-sm dark:bg-neutral-700"
+                            class="hs-tooltip-content hs-tooltip-shown:opacity-100 hs-tooltip-shown:visible opacity-0 transition-opacity hidden invisible z-10 py-1 px-2 bg-stone-900 text-xs font-medium text-white rounded-sm shadow-sm dark:bg-neutral-700"
                             role="tooltip">
                             Costa Quinn
                         </span>
@@ -412,7 +412,7 @@
                             src="https://images.unsplash.com/photo-1541101767792-f9b2b1c4f127?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=facearea&facepad=2.5&w=320&h=320&q=80"
                             alt="Avatar">
                         <span
-                            class="hs-tooltip-content hs-tooltip-shown:opacity-100 hs-tooltip-shown:visible opacity-0 transition-opacity hidden invisible z-10 py-1 px-2 bg-gray-900 text-xs font-medium text-white rounded-lg shadow-sm dark:bg-neutral-700"
+                            class="hs-tooltip-content hs-tooltip-shown:opacity-100 hs-tooltip-shown:visible opacity-0 transition-opacity hidden invisible z-10 py-1 px-2 bg-stone-900 text-xs font-medium text-white rounded-sm shadow-sm dark:bg-neutral-700"
                             role="tooltip">
                             Amanda Harvey
                         </span>
@@ -422,24 +422,24 @@
                             src="https://images.unsplash.com/photo-1568048689711-5e0325cea8c0?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=facearea&facepad=2.5&w=320&h=320&q=80"
                             alt="Avatar">
                         <span
-                            class="hs-tooltip-content hs-tooltip-shown:opacity-100 hs-tooltip-shown:visible opacity-0 transition-opacity hidden invisible z-10 py-1 px-2 bg-gray-900 text-xs font-medium text-white rounded-lg shadow-sm dark:bg-neutral-700"
+                            class="hs-tooltip-content hs-tooltip-shown:opacity-100 hs-tooltip-shown:visible opacity-0 transition-opacity hidden invisible z-10 py-1 px-2 bg-stone-900 text-xs font-medium text-white rounded-sm shadow-sm dark:bg-neutral-700"
                             role="tooltip">
                             Alisa Grasso
                         </span>
                     </div>
                     <div class="hs-tooltip hover:z-10">
                         <span
-                            class="flex shrink-0 justify-center items-center size-7 lg:size-[38px] bg-white border border-gray-200 text-gray-700 text-xs lg:text-sm font-medium uppercase rounded-full dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300">
+                            class="flex shrink-0 justify-center items-center size-7 lg:size-[38px] bg-white border border-stone-200 text-stone-700 text-xs lg:text-sm font-medium uppercase rounded-full dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300">
                             O
                         </span>
                         <span
-                            class="hs-tooltip-content hs-tooltip-shown:opacity-100 hs-tooltip-shown:visible opacity-0 transition-opacity hidden invisible z-10 py-1 px-2 bg-gray-900 text-xs font-medium text-white rounded-lg shadow-sm dark:bg-neutral-700"
+                            class="hs-tooltip-content hs-tooltip-shown:opacity-100 hs-tooltip-shown:visible opacity-0 transition-opacity hidden invisible z-10 py-1 px-2 bg-stone-900 text-xs font-medium text-white rounded-sm shadow-sm dark:bg-neutral-700"
                             role="tooltip">
                             Ols Schols
                         </span>
                     </div>
                     <div>
-                        <span class="ms-4 lg:ms-5 text-sm text-gray-500 dark:text-neutral-500">
+                        <span class="ms-4 lg:ms-5 text-sm text-stone-500 dark:text-neutral-500">
                             215k more
                         </span>
                     </div>
@@ -450,7 +450,7 @@
         <!-- End Body -->
 
         <!-- Footer -->
-        <div class="text-center border-t border-gray-200 dark:border-neutral-700">
+        <div class="text-center border-t border-stone-200 dark:border-neutral-700">
             <a class="p-3 flex justify-center items-center gap-x-2 text-sm text-blue-600 rounded-b-lg hover:text-blue-700 focus:outline-none focus:decoration-2 focus:underline focus:text-blue-700 dark:text-blue-500 dark:hover:text-blue-600 dark:focus:text-blue-600"
                 href="#">
                 View full reports

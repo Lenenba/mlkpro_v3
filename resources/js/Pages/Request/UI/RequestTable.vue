@@ -190,7 +190,7 @@ const statusClass = (status) => {
         case 'REQ_CONVERTED':
             return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-400';
         default:
-            return 'bg-gray-100 text-gray-800 dark:bg-neutral-700 dark:text-neutral-200';
+            return 'bg-stone-100 text-stone-800 dark:bg-neutral-700 dark:text-neutral-200';
     }
 };
 
@@ -228,14 +228,14 @@ const openQuickCreate = () => {
                     <input
                         v-model="filterForm.search"
                         type="text"
-                        class="py-2 ps-10 pe-3 block w-full border-transparent rounded-lg bg-stone-100 text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-700 dark:text-neutral-200"
+                        class="py-2 ps-10 pe-3 block w-full border-transparent rounded-sm bg-stone-100 text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-700 dark:text-neutral-200"
                         placeholder="Search requests..."
                     />
                 </div>
 
                 <select
                     v-model="filterForm.status"
-                    class="py-2 px-3 border-transparent rounded-lg bg-stone-100 text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-700 dark:text-neutral-200"
+                    class="py-2 px-3 border-transparent rounded-sm bg-stone-100 text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-700 dark:text-neutral-200"
                 >
                     <option value="">All statuses</option>
                     <option v-for="status in statuses" :key="status.id" :value="status.id">
@@ -245,7 +245,7 @@ const openQuickCreate = () => {
 
                 <select
                     v-model="filterForm.customer_id"
-                    class="py-2 px-3 border-transparent rounded-lg bg-stone-100 text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-700 dark:text-neutral-200"
+                    class="py-2 px-3 border-transparent rounded-sm bg-stone-100 text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-700 dark:text-neutral-200"
                 >
                     <option value="">All customers</option>
                     <option v-for="customer in customers" :key="customer.id" :value="customer.id">
@@ -255,7 +255,7 @@ const openQuickCreate = () => {
 
                 <button
                     type="button"
-                    class="py-2 px-3 rounded-lg border border-stone-200 bg-white text-sm text-stone-700 hover:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200"
+                    class="py-2 px-3 rounded-sm border border-stone-200 bg-white text-sm text-stone-700 hover:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200"
                     @click="clearFilters"
                 >
                     Clear
@@ -264,7 +264,7 @@ const openQuickCreate = () => {
 
             <button
                 type="button"
-                class="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-transparent bg-green-600 text-white hover:bg-green-700"
+                class="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700"
                 @click="openQuickCreate"
             >
                 New request
@@ -360,7 +360,7 @@ const openQuickCreate = () => {
             <Link
                 v-if="requests.prev_page_url"
                 :href="requests.prev_page_url"
-                class="py-2 px-3 rounded-lg border border-stone-200 bg-white text-sm text-stone-700 hover:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200"
+                class="py-2 px-3 rounded-sm border border-stone-200 bg-white text-sm text-stone-700 hover:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200"
             >
                 Previous
             </Link>
@@ -370,7 +370,7 @@ const openQuickCreate = () => {
             <Link
                 v-if="requests.next_page_url"
                 :href="requests.next_page_url"
-                class="py-2 px-3 rounded-lg border border-stone-200 bg-white text-sm text-stone-700 hover:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200"
+                class="py-2 px-3 rounded-sm border border-stone-200 bg-white text-sm text-stone-700 hover:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200"
             >
                 Next
             </Link>
@@ -379,7 +379,7 @@ const openQuickCreate = () => {
 
     <Modal :title="'Convert request to quote'" :id="convertModalId">
         <div class="space-y-4">
-            <div v-if="selectedLead" class="rounded-lg border border-stone-200 p-3 text-sm text-stone-600 dark:border-neutral-700 dark:text-neutral-400">
+            <div v-if="selectedLead" class="rounded-sm border border-stone-200 p-3 text-sm text-stone-600 dark:border-neutral-700 dark:text-neutral-400">
                 <div class="font-medium text-stone-800 dark:text-neutral-200">
                     {{ selectedLead.title || selectedLead.service_type || `Request #${selectedLead.id}` }}
                 </div>
@@ -392,7 +392,7 @@ const openQuickCreate = () => {
                     <label class="text-sm text-stone-600 dark:text-neutral-400">Customer</label>
                     <select
                         v-model="convertForm.customer_id"
-                        class="mt-1 w-full rounded-lg border border-stone-200 bg-stone-100 py-2 px-3 text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200"
+                        class="mt-1 w-full rounded-sm border border-stone-200 bg-stone-100 py-2 px-3 text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200"
                     >
                         <option value="">Select customer</option>
                         <option v-for="customer in customers" :key="customer.id" :value="String(customer.id)">
@@ -406,7 +406,7 @@ const openQuickCreate = () => {
                     <select
                         v-model="convertForm.property_id"
                         :disabled="!propertyOptions.length"
-                        class="mt-1 w-full rounded-lg border border-stone-200 bg-stone-100 py-2 px-3 text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 disabled:opacity-60 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200"
+                        class="mt-1 w-full rounded-sm border border-stone-200 bg-stone-100 py-2 px-3 text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 disabled:opacity-60 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200"
                     >
                         <option value="">No location</option>
                         <option v-for="property in propertyOptions" :key="property.id" :value="String(property.id)">
@@ -430,7 +430,7 @@ const openQuickCreate = () => {
                 <button
                     type="button"
                     :data-hs-overlay="`#${convertModalId}`"
-                    class="py-2 px-3 inline-flex items-center text-sm font-medium rounded-lg border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200"
+                    class="py-2 px-3 inline-flex items-center text-sm font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200"
                     @click="closeConvert"
                 >
                     Cancel
@@ -438,7 +438,7 @@ const openQuickCreate = () => {
                 <button
                     type="button"
                     :disabled="convertForm.processing || !convertForm.customer_id"
-                    class="py-2 px-3 inline-flex items-center text-sm font-medium rounded-lg border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50"
+                    class="py-2 px-3 inline-flex items-center text-sm font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50"
                     @click="submitConvert"
                 >
                     Convert

@@ -287,7 +287,7 @@ const formatDate = (value) => humanizeDate(value);
                             <td class="size-px whitespace-nowrap px-4 py-2 text-start">
                                 <Link :href="route('customer.show', customer)">
                                     <div class="w-full flex items-center gap-x-3">
-                                        <img class="shrink-0 size-10 rounded-md" :src="customer.logo_url || customer.logo"
+                                        <img class="shrink-0 size-10 rounded-sm" :src="customer.logo_url || customer.logo"
                                             alt="Customer logo">
                                         <div class="flex flex-col">
                                             <span class="text-sm text-stone-600 dark:text-neutral-300">

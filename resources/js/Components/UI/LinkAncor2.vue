@@ -71,10 +71,10 @@ const openItem = (item) => {
 <template>
     <div v-if="hasItems" class="relative">
         <button
-            class="p-2 group-hover:bg-gray-300 dark:bg-neutral-800 rounded-lg focus:outline-none hover:bg-gray-300 dark:hover:bg-neutral-700 transition"
+            class="p-2 rounded-sm hover:bg-stone-100 dark:bg-neutral-900 dark:hover:bg-neutral-800 transition"
             @click="toggleMenu">
             <slot name="toggle-icon">
-                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 text-gray-400 dark:text-neutral-400"
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 text-stone-400 dark:text-neutral-400"
                     viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                     stroke-linejoin="round">
                     <path d="M4 6h16M4 12h16M4 18h16" />
@@ -83,13 +83,13 @@ const openItem = (item) => {
         </button>
 
         <div v-if="isOpen"
-            class="absolute left-full top-0 ml-4 bg-white dark:bg-neutral-900 shadow-lg border border-gray-200 dark:border-neutral-700 rounded-lg z-10 flex">
+            class="absolute left-full top-0 ml-4 bg-white dark:bg-neutral-900 shadow-lg border border-stone-200 dark:border-neutral-700 rounded-sm z-10 flex">
             <ul class="flex">
                 <li v-for="item in menuItems" :key="item.label"
-                    class="p-4 flex flex-col justify-center items-center hover:bg-gray-100 dark:hover:bg-neutral-800 transition cursor-pointer">
+                    class="p-4 flex flex-col justify-center items-center hover:bg-stone-100 dark:hover:bg-neutral-800 transition cursor-pointer">
                     <button type="button" class="flex flex-col items-center w-full" @click="openItem(item)">
-                        <span class="mb-2 text-gray-500 dark:text-neutral-400" v-html="item.icon"></span>
-                        <span class="text-sm text-gray-800 dark:text-neutral-200">{{ item.label }}</span>
+                        <span class="mb-2 text-stone-500 dark:text-neutral-400" v-html="item.icon"></span>
+                        <span class="text-sm text-stone-800 dark:text-neutral-200">{{ item.label }}</span>
                     </button>
                 </li>
             </ul>

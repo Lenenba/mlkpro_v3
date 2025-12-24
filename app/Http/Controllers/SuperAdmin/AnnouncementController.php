@@ -79,6 +79,45 @@ class AnnouncementController extends BaseSuperAdminController
         ]);
     }
 
+    public function preview(Request $request): Response
+    {
+        $this->authorizePermission($request, PlatformPermissions::ANNOUNCEMENTS_MANAGE);
+
+        $topPlacements = ['internal', 'client', 'both'];
+        $quickPlacements = ['quick_actions', 'both'];
+
+        $announcements = PlatformAnnouncement::query()
+            ->active()
+            ->orderByDesc('priority')
+            ->orderByDesc('starts_at')
+            ->orderByDesc('created_at')
+            ->limit(8)
+            ->get()
+            ->map(function (PlatformAnnouncement $announcement) {
+                return [
+                    'id' => $announcement->id,
+                    'title' => $announcement->title,
+                    'body' => $announcement->body,
+                    'placement' => $announcement->placement,
+                    'media_type' => $announcement->media_type,
+                    'media_url' => $announcement->media_url,
+                    'link_label' => $announcement->link_label,
+                    'link_url' => $announcement->link_url,
+                    'starts_at' => $announcement->starts_at?->toDateString(),
+                    'ends_at' => $announcement->ends_at?->toDateString(),
+                ];
+            });
+
+        return Inertia::render('SuperAdmin/Announcements/Preview', [
+            'topAnnouncements' => $announcements->filter(
+                fn ($item) => in_array($item['placement'], $topPlacements, true)
+            )->values(),
+            'quickAnnouncements' => $announcements->filter(
+                fn ($item) => in_array($item['placement'], $quickPlacements, true)
+            )->values(),
+        ]);
+    }
+
     public function store(Request $request): RedirectResponse
     {
         $this->authorizePermission($request, PlatformPermissions::ANNOUNCEMENTS_MANAGE);
@@ -117,7 +156,7 @@ class AnnouncementController extends BaseSuperAdminController
             ],
         ]);
 
-        $placement = 'internal';
+        $placement = $validated['placement'] ?? 'internal';
         $mediaType = $validated['media_type'] ?? 'none';
         $mediaUrl = $validated['media_url'] ?? null;
         $mediaPath = null;
@@ -200,7 +239,7 @@ class AnnouncementController extends BaseSuperAdminController
             ],
         ]);
 
-        $placement = 'internal';
+        $placement = $validated['placement'] ?? 'internal';
         $mediaType = $announcement->media_type;
         $mediaUrl = $announcement->getRawOriginal('media_url');
         $mediaPath = $announcement->media_path;

@@ -55,14 +55,14 @@ const previewUrl = (file) => {
 
 <template>
     <div class="space-y-3">
-        <div class="text-sm font-medium text-gray-700 dark:text-neutral-300">
+        <div class="text-sm font-medium text-stone-700 dark:text-neutral-300">
             {{ label }}
         </div>
         <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
             <div
                 v-for="image in visibleExisting"
                 :key="image.id"
-                class="relative group border border-gray-200 rounded-lg overflow-hidden bg-white dark:bg-neutral-900 dark:border-neutral-700"
+                class="relative group border border-stone-200 rounded-sm overflow-hidden bg-white dark:bg-neutral-900 dark:border-neutral-700"
             >
                 <img :src="image.url || image.image_url || image.path" :alt="image.id" class="w-full h-24 object-cover" />
                 <button
@@ -77,7 +77,7 @@ const previewUrl = (file) => {
             <div
                 v-for="(file, index) in files"
                 :key="`file-${index}`"
-                class="relative group border border-gray-200 rounded-lg overflow-hidden bg-white dark:bg-neutral-900 dark:border-neutral-700"
+                class="relative group border border-stone-200 rounded-sm overflow-hidden bg-white dark:bg-neutral-900 dark:border-neutral-700"
             >
                 <img :src="previewUrl(file)" alt="New image" class="w-full h-24 object-cover" />
                 <button
@@ -90,7 +90,7 @@ const previewUrl = (file) => {
             </div>
 
             <label
-                class="flex items-center justify-center h-24 border border-dashed border-gray-300 rounded-lg text-sm text-gray-500 cursor-pointer hover:border-gray-400 dark:border-neutral-600 dark:text-neutral-400"
+                class="flex items-center justify-center h-24 border border-dashed border-stone-300 rounded-sm text-sm text-stone-500 cursor-pointer hover:border-stone-400 dark:border-neutral-600 dark:text-neutral-400"
             >
                 Add images
                 <input type="file" class="hidden" multiple accept="image/*" @change="addFiles" />

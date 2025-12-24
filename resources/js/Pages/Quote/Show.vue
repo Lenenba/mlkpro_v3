@@ -48,7 +48,7 @@ const ratingCount = computed(() => {
     <AuthenticatedLayout>
         <div class="mx-auto w-full max-w-6xl space-y-5">
                 <div
-                    class="p-5 space-y-3 flex flex-col bg-gray-100 border border-gray-100 rounded-sm shadow-sm xl:shadow-none dark:bg-green-800 dark:border-green-700">
+                    class="p-5 space-y-3 flex flex-col bg-white border border-stone-200 rounded-sm shadow-sm xl:shadow-none dark:bg-neutral-900 dark:border-neutral-700">
                     <!-- Header -->
                     <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
                         <div class="flex items-center gap-3">
@@ -57,10 +57,10 @@ const ratingCount = computed(() => {
                                 :alt="companyName"
                                 class="h-12 w-12 rounded-sm border border-stone-200 object-cover dark:border-neutral-700" />
                             <div>
-                                <p class="text-xs uppercase text-gray-500 dark:text-neutral-400">
+                                <p class="text-xs uppercase text-stone-500 dark:text-neutral-400">
                                     {{ companyName }}
                                 </p>
-                                <h1 class="text-xl inline-block font-semibold text-gray-800 dark:text-green-100">
+                                <h1 class="text-xl inline-block font-semibold text-stone-800 dark:text-green-100">
                                     Quote For {{ quote.customer.company_name }}
                                 </h1>
                             </div>
@@ -68,7 +68,7 @@ const ratingCount = computed(() => {
                     </div>
                     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                         <div class="col-span-2 space-x-2">
-                            <div class="bg-white rounded-sm border border-gray-100 p-4 mb-4 dark:bg-neutral-900 dark:border-neutral-700">
+                            <div class="bg-white rounded-sm border border-stone-200 p-4 mb-4 dark:bg-neutral-900 dark:border-neutral-700">
                                 {{ quote.job_title }}
                             </div>
                                 <div class="flex flex-row space-x-6">
@@ -77,17 +77,17 @@ const ratingCount = computed(() => {
                                             Property address
                                         </p>
                                         <div v-if="property" class="space-y-1">
-                                            <div class="text-xs text-gray-600 dark:text-neutral-400">
+                                            <div class="text-xs text-stone-600 dark:text-neutral-400">
                                                 {{ property.country }}
                                             </div>
-                                            <div class="text-xs text-gray-600 dark:text-neutral-400">
+                                            <div class="text-xs text-stone-600 dark:text-neutral-400">
                                                 {{ property.street1 }}
                                             </div>
-                                            <div class="text-xs text-gray-600 dark:text-neutral-400">
+                                            <div class="text-xs text-stone-600 dark:text-neutral-400">
                                                 {{ property.state }} - {{ property.zip }}
                                             </div>
                                         </div>
-                                        <div v-else class="text-xs text-gray-600 dark:text-neutral-400">
+                                        <div v-else class="text-xs text-stone-600 dark:text-neutral-400">
                                             No property selected.
                                         </div>
                                     </div>
@@ -95,40 +95,40 @@ const ratingCount = computed(() => {
                                         <p>
                                             Contact details
                                         </p>
-                                        <div class="text-xs text-gray-600 dark:text-neutral-400">
+                                        <div class="text-xs text-stone-600 dark:text-neutral-400">
                                             {{ quote.customer.first_name }} {{ quote.customer.last_name }}
                                         </div>
-                                        <div class="text-xs text-gray-600 dark:text-neutral-400">
+                                        <div class="text-xs text-stone-600 dark:text-neutral-400">
                                             {{ quote.customer.email }}
                                         </div>
-                                        <div class="text-xs text-gray-600 dark:text-neutral-400">
+                                        <div class="text-xs text-stone-600 dark:text-neutral-400">
                                             {{ quote.customer.phone }}
                                         </div>
                                     </div>
                                 </div>
 
                             </div>
-                            <div class="bg-white p-4 rounded-sm border border-gray-100 dark:bg-neutral-900 dark:border-neutral-700">
+                            <div class="bg-white p-4 rounded-sm border border-stone-200 dark:bg-neutral-900 dark:border-neutral-700">
                                 <div class="lg:col-span-3">
                                     <p>
                                         Quote details
                                     </p>
-                                <div class="text-xs text-gray-600 dark:text-neutral-400 flex justify-between">
+                                <div class="text-xs text-stone-600 dark:text-neutral-400 flex justify-between">
                                     <span> Quote :</span>
                                     <span>{{ quote?.number }} </span>
                                 </div>
-                                <div class="text-xs text-gray-600 dark:text-neutral-400 flex justify-between">
+                                <div class="text-xs text-stone-600 dark:text-neutral-400 flex justify-between">
                                     <span> Rate opportunity :</span>
                                     <span class="flex items-center gap-2">
                                         <StarRating :value="ratingValue" show-value empty-label="No rating yet" />
-                                        <span v-if="ratingCount" class="text-xs text-gray-500 dark:text-neutral-400">
+                                        <span v-if="ratingCount" class="text-xs text-stone-500 dark:text-neutral-400">
                                             ({{ ratingCount }})
                                         </span>
                                     </span>
                                 </div>
-                                <div class="text-xs text-gray-600 dark:text-neutral-400 flex justify-between mt-5">
+                                <div class="text-xs text-stone-600 dark:text-neutral-400 flex justify-between mt-5">
                                     <button type="button" disabled
-                                        class="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-sm border border-green-200 bg-white text-green-800 shadow-sm hover:bg-green-50 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-green-50 dark:bg-green-800 dark:border-green-700 dark:text-green-300 dark:hover:bg-green-700 dark:focus:bg-green-700">
+                                        class="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-sm border border-green-200 bg-white text-green-800 shadow-sm hover:bg-green-50 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-green-50 dark:bg-neutral-900 dark:border-neutral-700 dark:text-green-300 dark:hover:bg-green-700 dark:focus:bg-green-700">
                                         Add custom fields</button>
                                 </div>
                             </div>
@@ -136,46 +136,46 @@ const ratingCount = computed(() => {
                     </div>
                 </div>
                 <div
-                    class="p-5 space-y-3 flex flex-col bg-white border border-gray-100 rounded-sm shadow-sm xl:shadow-none dark:bg-green-800 dark:border-green-700">
+                    class="p-5 space-y-3 flex flex-col bg-white border border-stone-200 rounded-sm shadow-sm xl:shadow-none dark:bg-neutral-900 dark:border-neutral-700">
                     <!-- Table Section -->
                     <div
-                        class="overflow-x-auto [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-gray-100 [&::-webkit-scrollbar-thumb]:bg-gray-300 dark:[&::-webkit-scrollbar-track]:bg-neutral-700 dark:[&::-webkit-scrollbar-thumb]:bg-neutral-500">
+                        class="overflow-x-auto [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-stone-100 [&::-webkit-scrollbar-thumb]:bg-stone-300 dark:[&::-webkit-scrollbar-track]:bg-neutral-700 dark:[&::-webkit-scrollbar-thumb]:bg-neutral-500">
                         <div class="min-w-full inline-block align-middle">
                             <!-- Table -->
-                            <table class="min-w-full divide-y divide-gray-200 dark:divide-neutral-700">
+                            <table class="min-w-full divide-y divide-stone-200 dark:divide-neutral-700">
                                 <thead>
                                     <tr>
                                         <th scope="col" class="min-w-[450px] ">
                                             <div
-                                                class="pe-4 py-3 text-start flex items-center gap-x-1 text-sm font-medium text-gray-800 dark:text-neutral-200">
+                                                class="pe-4 py-3 text-start flex items-center gap-x-1 text-sm font-medium text-stone-800 dark:text-neutral-200">
                                                 Product/Services
                                             </div>
                                         </th>
 
                                         <th scope="col">
                                             <div
-                                                class="px-4 py-3 text-start flex items-center gap-x-1 text-sm font-medium text-gray-800 dark:text-neutral-200">
+                                                class="px-4 py-3 text-start flex items-center gap-x-1 text-sm font-medium text-stone-800 dark:text-neutral-200">
                                                 Qty.
                                             </div>
                                         </th>
 
                                         <th scope="col">
                                             <div
-                                                class="px-4 py-3 text-start flex items-center gap-x-1 text-sm font-medium text-gray-800 dark:text-neutral-200">
+                                                class="px-4 py-3 text-start flex items-center gap-x-1 text-sm font-medium text-stone-800 dark:text-neutral-200">
                                                 Unit cost
                                             </div>
                                         </th>
 
                                         <th scope="col">
                                             <div
-                                                class="px-4 py-3 text-start flex items-center gap-x-1 text-sm font-medium text-gray-800 dark:text-neutral-200">
+                                                class="px-4 py-3 text-start flex items-center gap-x-1 text-sm font-medium text-stone-800 dark:text-neutral-200">
                                                 Total
                                             </div>
                                         </th>
                                     </tr>
                                 </thead>
 
-                                <tbody class="divide-y divide-gray-200 dark:divide-neutral-700">
+                                <tbody class="divide-y divide-stone-200 dark:divide-neutral-700">
                                     <tr v-for="product in quote.products" :key="product.id">
                                         <td class="size-px whitespace-nowrap px-4 py-3">
                                             {{ product.name }}
@@ -197,15 +197,15 @@ const ratingCount = computed(() => {
                     </div>
                 </div>
                 <div
-                    class="p-5 grid grid-cols-2 gap-4 justify-between bg-white border border-gray-100 rounded-sm shadow-sm xl:shadow-none dark:bg-green-800 dark:border-green-700">
+                    class="p-5 grid grid-cols-2 gap-4 justify-between bg-white border border-stone-200 rounded-sm shadow-sm xl:shadow-none dark:bg-neutral-900 dark:border-neutral-700">
 
                     <div>
                     </div>
-                    <div class="border-l border-gray-200 dark:border-neutral-700 rounded-sm p-4">
+                    <div class="border-l border-stone-200 dark:border-neutral-700 rounded-sm p-4">
                         <!-- List Item -->
                         <div class="py-4 grid grid-cols-2 gap-x-4  dark:border-neutral-700">
                             <div class="col-span-1">
-                                <p class="text-sm text-gray-500 dark:text-neutral-500">
+                                <p class="text-sm text-stone-500 dark:text-neutral-500">
                                     Subtotal:
                                 </p>
                             </div>
@@ -221,14 +221,14 @@ const ratingCount = computed(() => {
                         <!-- End List Item -->
 
                         <!-- List Item -->
-                        <div class="py-4 grid grid-cols-2 gap-x-4 border-t border-gray-200 dark:border-neutral-700">
+                        <div class="py-4 grid grid-cols-2 gap-x-4 border-t border-stone-200 dark:border-neutral-700">
                             <div class="col-span-1">
-                                <p class="text-sm text-gray-500 dark:text-neutral-500">
+                                <p class="text-sm text-stone-500 dark:text-neutral-500">
                                     Discount (%):
                                 </p>
                             </div>
                             <div class="flex justify-end">
-                                <p class="text-sm text-gray-800 dark:text-neutral-200">
+                                <p class="text-sm text-stone-800 dark:text-neutral-200">
                                     Add discount
                                 </p>
                             </div>
@@ -237,31 +237,31 @@ const ratingCount = computed(() => {
 
                         <!-- Section des details des taxes -->
                         <div v-if="quote.taxes && quote.taxes.length"
-                            class="space-y-2 py-4 border-t border-gray-200 dark:border-neutral-700">
+                            class="space-y-2 py-4 border-t border-stone-200 dark:border-neutral-700">
                             <div v-for="tax in quote.taxes" :key="tax.id" class="flex justify-between">
-                                <p class="text-sm text-gray-500 dark:text-neutral-500">
+                                <p class="text-sm text-stone-500 dark:text-neutral-500">
                                     {{ tax.tax?.name || 'Tax' }} ({{ Number(tax.rate || 0).toFixed(2) }}%) :
                                 </p>
-                                <p class="text-sm text-gray-800 dark:text-neutral-200">
+                                <p class="text-sm text-stone-800 dark:text-neutral-200">
                                     ${{ Number(tax.amount || 0).toFixed(2) }}
                                 </p>
                             </div>
                             <div class="flex justify-between font-bold">
-                                <p class="text-sm text-gray-800 dark:text-neutral-200">Total taxes :</p>
-                                <p class="text-sm text-gray-800 dark:text-neutral-200">${{ taxTotal.toFixed(2) }}</p>
+                                <p class="text-sm text-stone-800 dark:text-neutral-200">Total taxes :</p>
+                                <p class="text-sm text-stone-800 dark:text-neutral-200">${{ taxTotal.toFixed(2) }}</p>
                             </div>
                         </div>
                         <!-- End List Item -->
 
                         <!-- List Item -->
-                        <div class="py-4 grid grid-cols-2 gap-x-4 border-t border-gray-200 dark:border-neutral-700">
+                        <div class="py-4 grid grid-cols-2 gap-x-4 border-t border-stone-200 dark:border-neutral-700">
                             <div class="col-span-1">
-                                <p class="text-sm text-gray-800 font-bold dark:text-neutral-500">
+                                <p class="text-sm text-stone-800 font-bold dark:text-neutral-500">
                                     Total amount:
                                 </p>
                             </div>
                             <div class="flex justify-end">
-                                <p class="text-sm text-gray-800 font-bold dark:text-neutral-200">
+                                <p class="text-sm text-stone-800 font-bold dark:text-neutral-200">
                                     $ {{ quote.total }}
                                 </p>
                             </div>
@@ -272,17 +272,17 @@ const ratingCount = computed(() => {
 
                         <!-- List Item -->
                         <div v-if="quote.initial_deposit > 0"
-                            class="py-4 grid grid-cols-2 items-center gap-x-4 border-t border-gray-600 dark:border-neutral-700">
+                            class="py-4 grid grid-cols-2 items-center gap-x-4 border-t border-stone-600 dark:border-neutral-700">
                             <!-- Label -->
                             <div class="col-span-1">
-                                <p class="text-sm text-gray-500 dark:text-neutral-500">Required deposit:</p>
+                                <p class="text-sm text-stone-500 dark:text-neutral-500">Required deposit:</p>
                             </div>
 
                             <!-- Contenu dynamique -->
                             <div class="flex justify-end">
                                 <!-- Si le champ est affiché -->
                                 <div class="flex items-center gap-x-2">
-                                    <span class="text-xs text-gray-500 dark:text-neutral-500">
+                                    <span class="text-xs text-stone-500 dark:text-neutral-500">
                                         (Min: ${{ quote.initial_deposit }})
                                     </span>
                                 </div>

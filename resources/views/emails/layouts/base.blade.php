@@ -29,7 +29,7 @@
         @vite('resources/css/app.css')
     @endif
 </head>
-<body class="bg-gray-50 text-gray-900">
+<body class="bg-stone-50 text-stone-900">
     <main class="min-h-screen">
         <div class="p-4 sm:p-6 lg:p-8">
             @php
@@ -40,7 +40,7 @@
                 @if ($companyLogo)
                     <img src="{{ $companyLogo }}" alt="{{ $companyName }} logo" class="h-10 w-auto">
                 @else
-                    <div class="text-lg font-semibold text-gray-800">
+                    <div class="text-lg font-semibold text-stone-800">
                         {{ $companyName }}
                     </div>
                 @endif

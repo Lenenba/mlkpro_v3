@@ -521,7 +521,7 @@ onBeforeUnmount(() => {
         <div class="mx-auto w-full max-w-6xl">
             <form @submit.prevent="submit">
                     <div
-                        class="p-5 space-y-3 flex flex-col bg-gray-100 border border-gray-100 rounded-sm shadow-sm xl:shadow-none dark:bg-green-800 dark:border-green-700">
+                        class="p-5 space-y-3 flex flex-col bg-white border border-stone-200 rounded-sm shadow-sm xl:shadow-none dark:bg-neutral-900 dark:border-neutral-700">
                         <!-- Header -->
                         <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
                             <div class="flex items-center gap-3">
@@ -530,10 +530,10 @@ onBeforeUnmount(() => {
                                     :alt="companyName"
                                     class="h-12 w-12 rounded-sm border border-stone-200 object-cover dark:border-neutral-700" />
                                 <div>
-                                    <p class="text-xs uppercase text-gray-500 dark:text-neutral-400">
+                                    <p class="text-xs uppercase text-stone-500 dark:text-neutral-400">
                                         {{ companyName }}
                                     </p>
-                                    <h1 class="text-xl inline-block font-semibold text-gray-800 dark:text-green-100">
+                                    <h1 class="text-xl inline-block font-semibold text-stone-800 dark:text-green-100">
                                         Job pour : {{ customer.company_name }}
                                     </h1>
                                 </div>
@@ -553,13 +553,13 @@ onBeforeUnmount(() => {
                                         <p>
                                             Adresse du bien
                                         </p>
-                                        <div class="text-xs text-gray-600 dark:text-neutral-400">
+                                        <div class="text-xs text-stone-600 dark:text-neutral-400">
                                             {{ primaryProperty?.country ?? '-' }}
                                         </div>
-                                        <div class="text-xs text-gray-600 dark:text-neutral-400">
+                                        <div class="text-xs text-stone-600 dark:text-neutral-400">
                                             {{ primaryProperty?.street1 ?? '-' }}
                                         </div>
-                                        <div class="text-xs text-gray-600 dark:text-neutral-400">
+                                        <div class="text-xs text-stone-600 dark:text-neutral-400">
                                             {{ primaryProperty?.state ?? '-' }} - {{ primaryProperty?.zip ?? '-' }}
                                         </div>
                                     </div>
@@ -567,29 +567,29 @@ onBeforeUnmount(() => {
                                         <p>
                                             Coordonnees
                                         </p>
-                                        <div class="text-xs text-gray-600 dark:text-neutral-400">
+                                        <div class="text-xs text-stone-600 dark:text-neutral-400">
                                             {{ customer.first_name }} {{ customer.last_name }}
                                         </div>
-                                        <div class="text-xs text-gray-600 dark:text-neutral-400">
+                                        <div class="text-xs text-stone-600 dark:text-neutral-400">
                                             {{ customer.email }}
                                         </div>
-                                        <div class="text-xs text-gray-600 dark:text-neutral-400">
+                                        <div class="text-xs text-stone-600 dark:text-neutral-400">
                                             {{ customer.phone }}
                                         </div>
                                     </div>
                                 </div>
 
                             </div>
-                            <div class="bg-white p-4 rounded-sm border border-gray-100 dark:bg-neutral-900 dark:border-neutral-700">
+                            <div class="bg-white p-4 rounded-sm border border-stone-100 dark:bg-neutral-900 dark:border-neutral-700">
                                 <div class="lg:col-span-3">
                                     <p>
                                         Details du job
                                     </p>
-                                    <div class="text-xs text-gray-600 dark:text-neutral-400 flex justify-between">
+                                    <div class="text-xs text-stone-600 dark:text-neutral-400 flex justify-between">
                                         <span> Job :</span>
                                         <span>{{ lastWorkNumber }} </span>
                                     </div>
-                                    <div class="text-xs text-gray-600 dark:text-neutral-400 flex justify-between">
+                                    <div class="text-xs text-stone-600 dark:text-neutral-400 flex justify-between">
                                         <span> Note :</span>
                                         <span class="flex flex-row space-x-1">
                                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
@@ -603,9 +603,9 @@ onBeforeUnmount(() => {
                                     <div class="mt-4">
                                         <FloatingSelect v-model="form.status" label="Statut" :options="statusOptions" />
                                     </div>
-                                    <div class="text-xs text-gray-600 dark:text-neutral-400 flex justify-between mt-5">
+                                    <div class="text-xs text-stone-600 dark:text-neutral-400 flex justify-between mt-5">
                                         <button type="button" disabled
-                                            class="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-sm border border-green-200 bg-white text-green-800 shadow-sm hover:bg-green-50 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-green-50 dark:bg-green-800 dark:border-green-700 dark:text-green-300 dark:hover:bg-green-700 dark:focus:bg-green-700">
+                                            class="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-sm border border-green-200 bg-white text-green-800 shadow-sm hover:bg-green-50 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-green-50 dark:bg-neutral-900 dark:border-neutral-700 dark:text-green-300 dark:hover:bg-green-700 dark:focus:bg-green-700">
                                             Ajouter des champs</button>
                                     </div>
                                 </div>
@@ -616,13 +616,13 @@ onBeforeUnmount(() => {
 
                         <!-- Audience -->
                         <div
-                            class="flex flex-col bg-white border border-gray-200 shadow-sm rounded-sm overflow-hidden dark:bg-neutral-800 dark:border-neutral-700">
+                            class="flex flex-col bg-white border border-stone-200 shadow-sm rounded-sm overflow-hidden dark:bg-neutral-800 dark:border-neutral-700">
                             <!-- Tab Nav -->
-                            <nav class="relative z-0 flex border-b border-gray-200 dark:border-neutral-700"
+                            <nav class="relative z-0 flex border-b border-stone-200 dark:border-neutral-700"
                                 aria-label="Tabs" role="tablist" aria-orientation="horizontal">
                                 <!-- Nav Item -->
                                 <button type="button"
-                                    class="hs-tab-active:border-t-green-600 relative flex-1 first:border-s-0 border-s border-t-[3px] md:border-t-4 border-t-transparent hover:border-t-gray-300 focus:outline-none focus:border-t-gray-300 p-3.5 xl:px-6 text-start focus:z-10 dark:hs-tab-active:border-t-green-500 dark:border-t-transparent dark:border-neutral-700 dark:hover:border-t-neutral-600 dark:focus:border-t-neutral-600 active"
+                                    class="hs-tab-active:border-t-green-600 relative flex-1 first:border-s-0 border-s border-t-[3px] md:border-t-4 border-t-transparent hover:border-t-stone-300 focus:outline-none focus:border-t-stone-300 p-3.5 xl:px-6 text-start focus:z-10 dark:hs-tab-active:border-t-green-500 dark:border-t-transparent dark:border-neutral-700 dark:hover:border-t-neutral-600 dark:focus:border-t-neutral-600 active"
                                     id="bar-with-underline-item-1" aria-selected="true"
                                     data-hs-tab="#bar-with-underline-1" aria-controls="bar-with-underline-1" role="tab">
                                     <span class="flex gap-x-4">
@@ -636,13 +636,13 @@ onBeforeUnmount(() => {
                                             <path d="M3 10h18" />
                                         </svg>
                                             <span class="grow text-center md:text-start">
-                                                <span class="block text-xs md:text-sm text-gray-700 dark:text-neutral-300">
+                                                <span class="block text-xs md:text-sm text-stone-700 dark:text-neutral-300">
                                                 JOB UNIQUE
                                             </span>
                                             <span
                                                 class="hidden xl:mt-1 md:flex md:justify-between md:items-center md:gap-x-2">
                                                 <span
-                                                    class="block text-xs md:text-sm text-gray-500 dark:text-neutral-500">
+                                                    class="block text-xs md:text-sm text-stone-500 dark:text-neutral-500">
                                                     Un job unique avec une ou plusieurs visites
                                                 </span>
                                             </span>
@@ -653,7 +653,7 @@ onBeforeUnmount(() => {
 
                                 <!-- Nav Item -->
                                 <button type="button"
-                                    class="hs-tab-active:border-t-green-600 relative flex-1 first:border-s-0 border-s border-t-[3px] md:border-t-4 border-t-transparent hover:border-t-gray-300 focus:outline-none focus:border-t-gray-300 p-3.5 xl:px-6 text-start focus:z-10 dark:hs-tab-active:border-t-green-500 dark:border-t-transparent dark:border-neutral-700 dark:hover:border-t-neutral-600 dark:focus:border-t-neutral-600"
+                                    class="hs-tab-active:border-t-green-600 relative flex-1 first:border-s-0 border-s border-t-[3px] md:border-t-4 border-t-transparent hover:border-t-stone-300 focus:outline-none focus:border-t-stone-300 p-3.5 xl:px-6 text-start focus:z-10 dark:hs-tab-active:border-t-green-500 dark:border-t-transparent dark:border-neutral-700 dark:hover:border-t-neutral-600 dark:focus:border-t-neutral-600"
                                     id="bar-with-underline-item-2" aria-selected="false"
                                     data-hs-tab="#bar-with-underline-2" aria-controls="bar-with-underline-2" role="tab">
                                     <span class="flex gap-x-4">
@@ -671,13 +671,13 @@ onBeforeUnmount(() => {
                                             <path d="M8 2v4" />
                                         </svg>
                                         <span class="grow text-center md:text-start">
-                                            <span class="block text-xs md:text-sm text-gray-700 dark:text-neutral-300">
+                                            <span class="block text-xs md:text-sm text-stone-700 dark:text-neutral-300">
                                                 JOB RECURRENT
                                             </span>
                                             <span
                                                 class="hidden xl:mt-1 md:flex md:justify-between md:items-center md:gap-x-2">
                                                 <span
-                                                    class="block text-xs md:text-sm text-gray-500 dark:text-neutral-500">
+                                                    class="block text-xs md:text-sm text-stone-500 dark:text-neutral-500">
                                                     Un job contractuel avec des visites repetees
                                                 </span>
                                             </span>
@@ -700,9 +700,9 @@ onBeforeUnmount(() => {
                                                 <div
                                                     class="flex flex-col bg-white border shadow-sm rounded-sm dark:bg-neutral-900 dark:border-neutral-700 dark:shadow-neutral-700/70">
                                                     <div
-                                                        class="flex flex-row bg-gray-100 dark:bg-gray-600 border-b rounded-t-sm py-3 px-4 md:px-5 dark:border-neutral-700">
+                                                        class="flex flex-row bg-white dark:bg-neutral-900 border-b border-stone-200 rounded-t-sm py-3 px-4 md:px-5 dark:border-neutral-700">
                                                         <h3
-                                                            class="text-lg  ml-2 font-bold text-gray-800 dark:text-white">
+                                                            class="text-lg  ml-2 font-bold text-stone-800 dark:text-white">
                                                             PLANIFICATION
                                                         </h3>
                                                     </div>
@@ -744,7 +744,7 @@ onBeforeUnmount(() => {
                                                             <label class="flex items-center">
                                                                 <Checkbox name="remember"
                                                                     v-model:checked="form.later" />
-                                                                <span class="ms-2 text-sm text-gray-600 dark:text-neutral-400">Planifier plus tard</span>
+                                                                <span class="ms-2 text-sm text-stone-600 dark:text-neutral-400">Planifier plus tard</span>
                                                             </label>
                                                         </div>
                                                     </div>
@@ -752,16 +752,16 @@ onBeforeUnmount(() => {
                                                 <div
                                                     class="flex flex-col bg-white border shadow-sm rounded-sm dark:bg-neutral-900 dark:border-neutral-700 dark:shadow-neutral-700/70 mt-4">
                                                     <div
-                                                        class="flex flex-row bg-gray-100 dark:bg-gray-600 border-b rounded-t-sm py-3 px-4 md:px-5 dark:border-neutral-700">
+                                                        class="flex flex-row bg-white dark:bg-neutral-900 border-b border-stone-200 rounded-t-sm py-3 px-4 md:px-5 dark:border-neutral-700">
                                                         <h3
-                                                            class="text-lg  ml-2 font-bold text-gray-800 dark:text-white">
+                                                            class="text-lg  ml-2 font-bold text-stone-800 dark:text-white">
                                                             EQUIPE
                                                         </h3>
                                                     </div>
                                                     <div class="p-4 md:p-5">
                                                         <div class="space-y-3">
                                                             <div v-if="!teamMembers?.length"
-                                                                class="text-sm text-gray-600 dark:text-neutral-400">
+                                                                class="text-sm text-stone-600 dark:text-neutral-400">
                                                                 Aucun membre pour l'instant.
                                                             </div>
                                                             <div v-else class="space-y-2">
@@ -771,22 +771,22 @@ onBeforeUnmount(() => {
                                                                         :value="member.id" />
                                                                     <div class="flex flex-col">
                                                                         <span
-                                                                            class="text-sm text-gray-800 dark:text-neutral-200">
+                                                                            class="text-sm text-stone-800 dark:text-neutral-200">
                                                                             {{ member.user?.name ?? 'Membre equipe' }}
                                                                         </span>
                                                                         <span
-                                                                            class="text-xs text-gray-500 dark:text-neutral-500">
+                                                                            class="text-xs text-stone-500 dark:text-neutral-500">
                                                                             {{ member.user?.email ?? '-' }}
                                                                         </span>
                                                                         <span v-if="member.title"
-                                                                            class="text-xs text-gray-500 dark:text-neutral-500">
+                                                                            class="text-xs text-stone-500 dark:text-neutral-500">
                                                                             {{ member.title }}
                                                                         </span>
                                                                     </div>
                                                                 </label>
                                                             </div>
                                                             <div v-if="teamMembers?.length"
-                                                                class="text-xs text-gray-500 dark:text-neutral-500">
+                                                                class="text-xs text-stone-500 dark:text-neutral-500">
                                                                 Selectionner un membre pour filtrer le calendrier.
                                                             </div>
                                                         </div>
@@ -797,16 +797,16 @@ onBeforeUnmount(() => {
                                             <div class="col-span-2 order-2">
                                                 <div class="flex items-center justify-between mb-2">
                                                     <div>
-                                                        <div class="text-sm font-semibold text-gray-700 dark:text-neutral-300">
+                                                        <div class="text-sm font-semibold text-stone-700 dark:text-neutral-300">
                                                             Calendrier
                                                         </div>
-                                                        <p class="text-xs text-gray-500 dark:text-neutral-500">
+                                                        <p class="text-xs text-stone-500 dark:text-neutral-500">
                                                             Le calendrier affiche les interventions deja planifiees.
                                                         </p>
                                                     </div>
                                                     <div>
                                                         <select v-model="calendarTeamFilter"
-                                                            class="py-1.5 ps-2 pe-8 bg-stone-100 border-transparent rounded-sm text-xs text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-700 dark:text-neutral-200">
+                                                            class="py-1.5 ps-2 pe-8 bg-white border border-stone-200 rounded-sm text-xs text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-700 dark:text-neutral-200">
                                                             <option value="">Tous les membres</option>
                                                             <option v-for="member in teamMembers" :key="member.id"
                                                                 :value="member.id">
@@ -835,8 +835,8 @@ onBeforeUnmount(() => {
                                             <div
                                                 class="flex flex-col bg-white border shadow-sm rounded-sm dark:bg-neutral-900 dark:border-neutral-700 dark:shadow-neutral-700/70">
                                                 <div
-                                                    class="flex flex-row bg-gray-100 dark:bg-gray-600 border-b rounded-t-sm py-3 px-4 md:px-5 dark:border-neutral-700">
-                                                    <h3 class="text-lg  ml-2 font-bold text-gray-800 dark:text-white">
+                                                    class="flex flex-row bg-white dark:bg-neutral-900 border-b border-stone-200 rounded-t-sm py-3 px-4 md:px-5 dark:border-neutral-700">
+                                                    <h3 class="text-lg  ml-2 font-bold text-stone-800 dark:text-white">
                                                         PLANIFICATION
                                                     </h3>
                                                 </div>
@@ -877,19 +877,19 @@ onBeforeUnmount(() => {
                                             <div
                                                 class="flex flex-col bg-white border shadow-sm rounded-sm dark:bg-neutral-900 dark:border-neutral-700 dark:shadow-neutral-700/70 mt-4">
                                                 <div
-                                                    class="flex flex-row bg-gray-100 dark:bg-gray-600 border-b rounded-t-sm py-3 px-4 md:px-5 dark:border-neutral-700">
-                                                    <h3 class="text-lg  ml-2 font-bold text-gray-800 dark:text-white">
+                                                    class="flex flex-row bg-white dark:bg-neutral-900 border-b border-stone-200 rounded-t-sm py-3 px-4 md:px-5 dark:border-neutral-700">
+                                                    <h3 class="text-lg  ml-2 font-bold text-stone-800 dark:text-white">
                                                         RECURRENCE
                                                     </h3>
                                                 </div>
                                                 <div class="p-4 md:p-5">
-                                                    <p class="text-xs text-gray-500 dark:text-neutral-500">
+                                                    <p class="text-xs text-stone-500 dark:text-neutral-500">
                                                         Definis la cadence des visites recurrentes.
                                                     </p>
                                                     <div id="hs-modal-custom-recurrence-event" class="mt-4 space-y-4">
                                                         <div>
                                                             <label for="hs-pro-ccremre"
-                                                                class="mb-1.5 block text-[13px] text-gray-400 dark:text-neutral-500">
+                                                                class="mb-1.5 block text-[13px] text-stone-400 dark:text-neutral-500">
                                                                 Repeter chaque :
                                                             </label>
                                                             <FloatingSelect v-model="form.frequency"
@@ -898,10 +898,10 @@ onBeforeUnmount(() => {
 
                                                         <div v-if="form.frequency !== 'Daily'">
                                                             <label
-                                                                class="mb-1.5 block text-[13px] text-gray-400 dark:text-neutral-500">
+                                                                class="mb-1.5 block text-[13px] text-stone-400 dark:text-neutral-500">
                                                                 Repete le :
                                                             </label>
-                                                            <p class="mb-2 text-[11px] text-gray-400 dark:text-neutral-500">
+                                                            <p class="mb-2 text-[11px] text-stone-400 dark:text-neutral-500">
                                                                 Choisis les jours ou les visites se repetent.
                                                             </p>
                                                             <div v-if="form.frequency === 'Weekly'"
@@ -926,7 +926,7 @@ onBeforeUnmount(() => {
                                                                 <FloatingNumberMiniInput v-model="form.frequencyNumber"
                                                                     label="Nombre" />
                                                                 <span
-                                                                    class="text-xs text-gray-400 dark:text-neutral-500">fois</span>
+                                                                    class="text-xs text-stone-400 dark:text-neutral-500">fois</span>
                                                             </div>
                                                         </div>
                                                     </div>
@@ -974,15 +974,15 @@ onBeforeUnmount(() => {
                                             <div
                                                 class="flex flex-col bg-white border shadow-sm rounded-sm dark:bg-neutral-900 dark:border-neutral-700 dark:shadow-neutral-700/70 mt-4">
                                                 <div
-                                                    class="flex flex-row bg-gray-100 dark:bg-gray-600 border-b rounded-t-sm py-3 px-4 md:px-5 dark:border-neutral-700">
-                                                    <h3 class="text-lg  ml-2 font-bold text-gray-800 dark:text-white">
+                                                    class="flex flex-row bg-white dark:bg-neutral-900 border-b border-stone-200 rounded-t-sm py-3 px-4 md:px-5 dark:border-neutral-700">
+                                                    <h3 class="text-lg  ml-2 font-bold text-stone-800 dark:text-white">
                                                         EQUIPE
                                                     </h3>
                                                 </div>
                                                 <div class="p-4 md:p-5">
                                                     <div class="space-y-3">
                                                         <div v-if="!teamMembers?.length"
-                                                            class="text-sm text-gray-600 dark:text-neutral-400">
+                                                            class="text-sm text-stone-600 dark:text-neutral-400">
                                                             Aucun membre pour l'instant.
                                                         </div>
                                                         <div v-else class="space-y-2">
@@ -992,22 +992,22 @@ onBeforeUnmount(() => {
                                                                     :value="member.id" />
                                                                 <div class="flex flex-col">
                                                                     <span
-                                                                        class="text-sm text-gray-800 dark:text-neutral-200">
+                                                                        class="text-sm text-stone-800 dark:text-neutral-200">
                                                                         {{ member.user?.name ?? 'Membre equipe' }}
                                                                     </span>
                                                                     <span
-                                                                        class="text-xs text-gray-500 dark:text-neutral-500">
+                                                                        class="text-xs text-stone-500 dark:text-neutral-500">
                                                                         {{ member.user?.email ?? '-' }}
                                                                     </span>
                                                                     <span v-if="member.title"
-                                                                        class="text-xs text-gray-500 dark:text-neutral-500">
+                                                                        class="text-xs text-stone-500 dark:text-neutral-500">
                                                                         {{ member.title }}
                                                                     </span>
                                                                 </div>
                                                             </label>
                                                         </div>
                                                         <div v-if="teamMembers?.length"
-                                                            class="text-xs text-gray-500 dark:text-neutral-500">
+                                                            class="text-xs text-stone-500 dark:text-neutral-500">
                                                             Selectionner un membre pour filtrer le calendrier.
                                                         </div>
                                                     </div>
@@ -1018,16 +1018,16 @@ onBeforeUnmount(() => {
                                         <div class="col-span-2 order-2">
                                             <div class="flex items-center justify-between mb-2">
                                                 <div>
-                                                    <div class="text-sm font-semibold text-gray-700 dark:text-neutral-300">
+                                                    <div class="text-sm font-semibold text-stone-700 dark:text-neutral-300">
                                                         Calendrier
                                                     </div>
-                                                    <p class="text-xs text-gray-500 dark:text-neutral-500">
+                                                    <p class="text-xs text-stone-500 dark:text-neutral-500">
                                                         Le calendrier affiche les interventions deja planifiees.
                                                     </p>
                                                 </div>
                                                 <div>
                                                     <select v-model="calendarTeamFilter"
-                                                        class="py-1.5 ps-2 pe-8 bg-stone-100 border-transparent rounded-sm text-xs text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-700 dark:text-neutral-200">
+                                                        class="py-1.5 ps-2 pe-8 bg-white border border-stone-200 rounded-sm text-xs text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-700 dark:text-neutral-200">
                                                         <option value="">Tous les membres</option>
                                                         <option v-for="member in teamMembers" :key="member.id"
                                                             :value="member.id">
@@ -1053,8 +1053,8 @@ onBeforeUnmount(() => {
                     <div
                         class="flex flex-col bg-white border shadow-sm rounded-sm dark:bg-neutral-900 dark:border-neutral-700 dark:shadow-neutral-700/70 mt-4">
                         <div
-                            class="flex flex-row bg-gray-100 dark:bg-gray-600 border-b rounded-t-sm py-3 px-4 md:px-5 dark:border-neutral-700">
-                            <h3 class="text-lg  ml-2 font-bold text-gray-800 dark:text-white">
+                            class="flex flex-row bg-white dark:bg-neutral-900 border-b border-stone-200 rounded-t-sm py-3 px-4 md:px-5 dark:border-neutral-700">
+                            <h3 class="text-lg  ml-2 font-bold text-stone-800 dark:text-white">
                                 FACTURATION
                             </h3>
                         </div>
@@ -1081,22 +1081,22 @@ onBeforeUnmount(() => {
 
                             <label v-if="form.billing_mode === 'end_of_job'" class="mt-4 flex items-center">
                                 <Checkbox name="remember" v-model:checked="form.later" />
-                                <span class="ms-2 text-sm text-gray-600 dark:text-neutral-400">Me rappeler de facturer a la fermeture du
+                                <span class="ms-2 text-sm text-stone-600 dark:text-neutral-400">Me rappeler de facturer a la fermeture du
                                     job</span>
                             </label>
                         </div>
                     </div>
                     <div
-                        class="mt-4 mb-4 grid grid-cols-1 gap-4 justify-between bg-white  dark:bg-green-800 dark:border-green-700">
+                        class="mt-4 mb-4 grid grid-cols-1 gap-4 justify-between bg-white  dark:bg-neutral-900 dark:border-neutral-700">
 
                         <div class="flex justify-between">
                             <button type="button"
-                                class="py-1.5 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-sm border border-gray-200 bg-white text-gray-800 shadow-sm hover:bg-gray-50 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-800 focus:outline-none focus:bg-gray-100 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700">
+                                class="py-1.5 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-800 focus:outline-none focus:bg-stone-100 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700">
                                 Annuler
                             </button>
                             <div>
                                 <button type="button" disabled
-                                    class="py-1.5 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-sm border border-green-600 text-green-600 hover:border-gray-700 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:ring-2 focus:ring-gray-500">
+                                    class="py-1.5 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-sm border border-green-600 text-green-600 hover:border-stone-700 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:ring-2 focus:ring-stone-500">
                                     Sauvegarder et creer un autre
                                 </button>
                                 <button id="hs-pro-in1trsbgwmdid1" type="submit"

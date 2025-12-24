@@ -248,14 +248,14 @@ const addCategory = () => {
         <div class="w-full max-w-4xl space-y-5">
             <div class="flex items-center justify-between">
                 <div>
-                    <h1 class="text-xl font-semibold text-gray-800 dark:text-neutral-100">Parametres entreprise</h1>
-                    <p class="mt-1 text-sm text-gray-600 dark:text-neutral-400">
+                    <h1 class="text-xl font-semibold text-stone-800 dark:text-neutral-100">Parametres entreprise</h1>
+                    <p class="mt-1 text-sm text-stone-600 dark:text-neutral-400">
                         Mettez a jour les informations de votre entreprise.
                     </p>
                 </div>
             </div>
 
-            <div class="flex flex-col bg-white border border-gray-200 shadow-sm rounded-sm overflow-hidden dark:bg-neutral-800 dark:border-neutral-700">
+            <div class="flex flex-col bg-white border border-stone-200 shadow-sm rounded-sm overflow-hidden dark:bg-neutral-800 dark:border-neutral-700">
                 <div class="p-4 space-y-4">
                     <div>
                         <FloatingInput v-model="form.company_name" label="Nom de l'entreprise" />
@@ -263,24 +263,24 @@ const addCategory = () => {
                     </div>
 
                     <div class="space-y-2">
-                        <p class="text-xs text-gray-500 dark:text-neutral-400">Logo (optionnel)</p>
+                        <p class="text-xs text-stone-500 dark:text-neutral-400">Logo (optionnel)</p>
                         <DropzoneInput v-model="form.company_logo" label="Telecharger votre logo" />
                         <InputError class="mt-1" :message="form.errors.company_logo" />
                     </div>
 
                     <div>
-                        <label class="block text-xs text-gray-500 dark:text-neutral-400">Description (optionnel)</label>
+                        <label class="block text-xs text-stone-500 dark:text-neutral-400">Description (optionnel)</label>
                         <textarea v-model="form.company_description"
-                            class="mt-1 block w-full rounded-sm border-gray-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
+                            class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
                             rows="3" />
                         <InputError class="mt-1" :message="form.errors.company_description" />
                     </div>
 
                     <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
                         <div>
-                            <label class="block text-xs text-gray-500 dark:text-neutral-400">Pays (optionnel)</label>
+                            <label class="block text-xs text-stone-500 dark:text-neutral-400">Pays (optionnel)</label>
                             <select v-model="form.company_country"
-                                class="mt-1 block w-full rounded-sm border-gray-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
+                                class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
                                 <option v-for="option in COUNTRY_OPTIONS" :key="option.id" :value="option.id">
                                     {{ option.name }}
                                 </option>
@@ -292,9 +292,9 @@ const addCategory = () => {
                         </div>
 
                         <div>
-                            <label class="block text-xs text-gray-500 dark:text-neutral-400">Province / Etat (optionnel)</label>
+                            <label class="block text-xs text-stone-500 dark:text-neutral-400">Province / Etat (optionnel)</label>
                             <select v-model="form.company_province"
-                                class="mt-1 block w-full rounded-sm border-gray-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
+                                class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
                                 <option v-for="option in provinceOptions" :key="option.id" :value="option.id">
                                     {{ option.name }}
                                 </option>
@@ -306,9 +306,9 @@ const addCategory = () => {
                         </div>
 
                         <div class="md:col-span-2">
-                            <label class="block text-xs text-gray-500 dark:text-neutral-400">Ville (optionnel)</label>
+                            <label class="block text-xs text-stone-500 dark:text-neutral-400">Ville (optionnel)</label>
                             <select v-model="form.company_city"
-                                class="mt-1 block w-full rounded-sm border-gray-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
+                                class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
                                 <option v-for="option in cityOptions" :key="option.id" :value="option.id">
                                     {{ option.name }}
                                 </option>
@@ -321,13 +321,13 @@ const addCategory = () => {
                     </div>
 
                     <div>
-                        <p class="text-xs text-gray-500 dark:text-neutral-400">Type d'entreprise</p>
+                        <p class="text-xs text-stone-500 dark:text-neutral-400">Type d'entreprise</p>
                         <div class="mt-2 space-y-2">
-                            <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-neutral-200">
+                            <label class="flex items-center gap-2 text-sm text-stone-700 dark:text-neutral-200">
                                 <input type="radio" name="company_type" value="services" v-model="form.company_type" />
                                 <span>Entreprise de services</span>
                             </label>
-                            <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-neutral-200">
+                            <label class="flex items-center gap-2 text-sm text-stone-700 dark:text-neutral-200">
                                 <input type="radio" name="company_type" value="products" v-model="form.company_type" />
                                 <span>Entreprise de produits</span>
                             </label>
@@ -344,21 +344,21 @@ const addCategory = () => {
                 </div>
             </div>
 
-            <div class="flex flex-col bg-white border border-gray-200 shadow-sm rounded-sm overflow-hidden dark:bg-neutral-800 dark:border-neutral-700">
+            <div class="flex flex-col bg-white border border-stone-200 shadow-sm rounded-sm overflow-hidden dark:bg-neutral-800 dark:border-neutral-700">
                 <div class="p-4 space-y-4">
                     <div>
-                        <h2 class="text-lg font-semibold text-gray-800 dark:text-neutral-100">Categories de services / produits</h2>
-                        <p class="mt-1 text-sm text-gray-600 dark:text-neutral-400">
+                        <h2 class="text-lg font-semibold text-stone-800 dark:text-neutral-100">Categories de services / produits</h2>
+                        <p class="mt-1 text-sm text-stone-600 dark:text-neutral-400">
                             Ajoutez des categories pour organiser vos services et produits.
                         </p>
                     </div>
 
                     <div class="flex flex-wrap gap-2">
                         <span v-for="category in props.categories" :key="category.id"
-                            class="rounded-full bg-gray-100 px-3 py-1 text-xs text-gray-700 dark:bg-neutral-900 dark:text-neutral-200">
+                            class="rounded-full bg-stone-100 px-3 py-1 text-xs text-stone-700 dark:bg-neutral-900 dark:text-neutral-200">
                             {{ category.name }}
                         </span>
-                        <span v-if="!props.categories.length" class="text-sm text-gray-500 dark:text-neutral-400">
+                        <span v-if="!props.categories.length" class="text-sm text-stone-500 dark:text-neutral-400">
                             Aucune categorie pour le moment.
                         </span>
                     </div>

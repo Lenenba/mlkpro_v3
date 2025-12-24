@@ -77,20 +77,20 @@ onMounted(() => {
     <!-- Prévisualisation de l'image -->
     <template v-if="preview">
       <div
-        class="p-3 bg-white border border-solid border-gray-300 rounded-xl dark:bg-neutral-800 dark:border-neutral-600"
+        class="p-3 bg-white border border-solid border-stone-300 rounded-sm dark:bg-neutral-800 dark:border-neutral-600"
       >
         <div class="mb-1 flex justify-between items-center">
           <div class="flex items-center gap-x-3">
             <img
               :src="preview"
               alt="Preview"
-              class="size-10 rounded-lg border border-gray-200 dark:border-neutral-700"
+              class="size-10 rounded-sm border border-stone-200 dark:border-neutral-700"
             />
             <div>
-              <p class="text-sm font-medium text-gray-800 dark:text-white">
+              <p class="text-sm font-medium text-stone-800 dark:text-white">
                 {{ file.value?.name || "Image preview" }}
               </p>
-              <p class="text-xs text-gray-500 dark:text-neutral-500">
+              <p class="text-xs text-stone-500 dark:text-neutral-500">
                 {{ (file.value?.size / 1024).toFixed(2) }} KB
               </p>
             </div>
@@ -98,7 +98,7 @@ onMounted(() => {
           <button
             type="button"
             @click="removeFile"
-            class="text-gray-500 hover:text-gray-800 dark:text-neutral-500 dark:hover:text-neutral-200"
+            class="text-stone-500 hover:text-stone-800 dark:text-neutral-500 dark:hover:text-neutral-200"
           >
             <svg
               class="shrink-0 size-4"
@@ -124,7 +124,7 @@ onMounted(() => {
         <!-- Barre de progression -->
         <div class="flex items-center gap-x-3">
           <div
-            class="flex w-full h-2 bg-gray-200 rounded-full overflow-hidden dark:bg-neutral-700"
+            class="flex w-full h-2 bg-stone-200 rounded-full overflow-hidden dark:bg-neutral-700"
           >
             <div
               class="flex flex-col justify-center rounded-full bg-blue-600 text-xs text-white text-center transition-all duration-500"
@@ -132,7 +132,7 @@ onMounted(() => {
             ></div>
           </div>
           <div class="w-10 text-end">
-            <span class="text-sm text-gray-800 dark:text-white">
+            <span class="text-sm text-stone-800 dark:text-white">
               {{ progress }}%
             </span>
           </div>
@@ -143,12 +143,12 @@ onMounted(() => {
     <!-- Bouton pour ajouter un fichier -->
     <div
       v-else
-      class="cursor-pointer p-12 flex justify-center bg-white border border-dashed border-gray-300 rounded-xl dark:bg-neutral-800 dark:border-neutral-600"
+      class="cursor-pointer p-12 flex justify-center bg-white border border-dashed border-stone-300 rounded-sm dark:bg-neutral-800 dark:border-neutral-600"
       @click="triggerFileInput"
     >
       <div class="text-center">
         <span
-          class="inline-flex justify-center items-center size-16 bg-gray-100 text-gray-800 rounded-full dark:bg-neutral-700 dark:text-neutral-200"
+          class="inline-flex justify-center items-center size-16 bg-stone-100 text-stone-800 rounded-full dark:bg-neutral-700 dark:text-neutral-200"
         >
           <svg
             class="shrink-0 size-6"
@@ -167,15 +167,15 @@ onMounted(() => {
             <line x1="12" x2="12" y1="3" y2="15"></line>
           </svg>
         </span>
-        <div class="mt-4 flex flex-wrap justify-center text-sm leading-6 text-gray-600">
-          <span class="pe-1 font-medium text-gray-800 dark:text-neutral-200">
+        <div class="mt-4 flex flex-wrap justify-center text-sm leading-6 text-stone-600">
+          <span class="pe-1 font-medium text-stone-800 dark:text-neutral-200">
             Drop your file here or
           </span>
           <span class="bg-white font-semibold text-blue-600 hover:text-blue-700 dark:bg-neutral-800 dark:text-blue-500">
             browse
           </span>
         </div>
-        <p class="mt-1 text-xs text-gray-400 dark:text-neutral-400">
+        <p class="mt-1 text-xs text-stone-400 dark:text-neutral-400">
           Pick a file up to 2MB.
         </p>
       </div>

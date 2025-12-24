@@ -77,6 +77,13 @@ class TenantController extends BaseSuperAdminController
             $builder->whereIn('id', $userIds);
         });
 
+        $recentThreshold = now()->subDays(30);
+        $totalCount = (clone $query)->count();
+        $activeCount = (clone $query)->where('is_suspended', false)->count();
+        $suspendedCount = (clone $query)->where('is_suspended', true)->count();
+        $newCount = (clone $query)->whereDate('created_at', '>=', $recentThreshold)->count();
+        $onboardedCount = (clone $query)->whereNotNull('onboarding_completed_at')->count();
+
         $tenants = $query->orderByDesc('created_at')->paginate(15)->withQueryString();
 
         $subscriptionMap = $this->subscriptionMap($tenants->pluck('id'));
@@ -107,6 +114,13 @@ class TenantController extends BaseSuperAdminController
             'filters' => $filters,
             'tenants' => $tenants,
             'plans' => array_values($this->planMap()),
+            'stats' => [
+                'total' => $totalCount,
+                'active' => $activeCount,
+                'suspended' => $suspendedCount,
+                'new_30d' => $newCount,
+                'onboarded' => $onboardedCount,
+            ],
         ]);
     }
 

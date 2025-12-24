@@ -38,13 +38,13 @@ const defaultPropertyId = computed(() => {
     <div
         class="flex flex-col bg-white border shadow-sm rounded-sm dark:bg-neutral-900 dark:border-neutral-700 dark:shadow-neutral-700/70">
         <div
-            class="bg-gray-100 border-b rounded-t-sm py-3 px-4 md:py-4 md:px-5 dark:bg-neutral-900 dark:border-neutral-700">
-            <p class="mt-1 text-sm text-gray-800 dark:text-neutral-800">
+            class="bg-white border-b border-stone-200 rounded-t-sm py-3 px-4 md:py-4 md:px-5 dark:bg-neutral-900 dark:border-neutral-700">
+            <p class="mt-1 text-sm text-stone-700 dark:text-neutral-200">
                 Overview
             </p>
         </div>
         <!-- Audience -->
-        <div class="flex flex-col bg-white  rounded-sm overflow-hidden dark:bg-neutral-800 dark:border-neutral-700">
+        <div class="flex flex-col bg-white rounded-sm overflow-hidden dark:bg-neutral-900 dark:border-neutral-700">
             <!-- Tab Nav -->
             <CardNavLink :customer="customer" :activeWorks="activeWorks" :stats="stats" />
             <!-- End Tab Nav -->

@@ -9,7 +9,7 @@
         :value="selectedDate || ''"
         @click="togglePicker"
         placeholder=" "
-        class="peer p-4 block w-full border border-gray-300 rounded-sm text-sm text-gray-700 bg-white shadow-sm
+        class="peer p-4 block w-full border border-stone-300 rounded-sm text-sm text-stone-700 bg-white shadow-sm
                focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500
                dark:bg-neutral-800 dark:border-neutral-700 dark:text-white dark:focus:ring-green-500
                placeholder-transparent
@@ -23,15 +23,15 @@
                scale-90
                translate-x-0.5
                -translate-y-1.5
-               text-gray-500 dark:text-neutral-500
+               text-stone-500 dark:text-neutral-500
                peer-placeholder-shown:scale-100
                peer-placeholder-shown:translate-x-0
                peer-placeholder-shown:translate-y-0
-               peer-placeholder-shown:text-gray-500 dark:peer-placeholder-shown:text-neutral-500
+               peer-placeholder-shown:text-stone-500 dark:peer-placeholder-shown:text-neutral-500
                peer-focus:scale-90
                peer-focus:translate-x-0.5
                peer-focus:-translate-y-1.5
-               peer-focus:text-gray-500 dark:peer-focus:text-neutral-500"
+               peer-focus:text-stone-500 dark:peer-focus:text-neutral-500"
       >
         {{ label }}
       </label>
@@ -39,14 +39,14 @@
       <!-- Calendar Dropdown -->
       <div
         v-if="showPicker"
-        class="absolute left-0 mt-2 w-80 bg-white border border-gray-200 rounded-sm shadow-lg dark:bg-neutral-900 dark:border-neutral-700 z-50"
+        class="absolute left-0 mt-2 w-80 bg-white border border-stone-200 rounded-sm shadow-lg dark:bg-neutral-900 dark:border-neutral-700 z-50"
       >
         <!-- Calendar Header with Month Navigation -->
-        <div class="flex justify-between items-center p-3 border-b border-gray-200 dark:border-neutral-700">
+        <div class="flex justify-between items-center p-3 border-b border-stone-200 dark:border-neutral-700">
           <button
             @click="prevMonth"
             type="button"
-            class="p-2 text-gray-700 hover:bg-gray-100 rounded-full dark:text-neutral-200 dark:hover:bg-neutral-800"
+            class="p-2 text-stone-700 hover:bg-stone-100 rounded-full dark:text-neutral-200 dark:hover:bg-neutral-800"
             aria-label="Previous Month"
           >
             <svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -54,14 +54,14 @@
             </svg>
           </button>
           <div class="flex items-center gap-2">
-            <span class="text-sm font-medium text-gray-700 dark:text-neutral-200">
+            <span class="text-sm font-medium text-stone-700 dark:text-neutral-200">
               {{ monthNames[currentMonth] }} {{ currentYear }}
             </span>
           </div>
           <button
             @click="nextMonth"
             type="button"
-            class="p-2 text-gray-700 hover:bg-gray-100 rounded-full dark:text-neutral-200 dark:hover:bg-neutral-800"
+            class="p-2 text-stone-700 hover:bg-stone-100 rounded-full dark:text-neutral-200 dark:hover:bg-neutral-800"
             aria-label="Next Month"
           >
             <svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -71,7 +71,7 @@
         </div>
 
         <!-- Days of the Week Header -->
-        <div class="grid grid-cols-7 gap-1 p-3 text-center text-xs text-gray-500 dark:text-neutral-400">
+        <div class="grid grid-cols-7 gap-1 p-3 text-center text-xs text-stone-500 dark:text-neutral-400">
           <div>Mo</div>
           <div>Tu</div>
           <div>We</div>
@@ -94,7 +94,7 @@
                   'w-full h-8 rounded-sm text-sm focus:outline-none',
                   formatDate(new Date(currentYear, currentMonth, day)) === selectedDate
                     ? 'bg-green-600 text-white'
-                    : 'text-gray-800 hover:bg-green-100 dark:text-neutral-200 dark:hover:bg-neutral-800'
+                    : 'text-stone-800 hover:bg-green-100 dark:text-neutral-200 dark:hover:bg-neutral-800'
                 ]"
               >
                 {{ day }}

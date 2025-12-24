@@ -8,7 +8,7 @@ return new class extends Migration
     public function up(): void
     {
         DB::table('platform_announcements')
-            ->where('placement', '!=', 'internal')
+            ->whereNotIn('placement', ['internal', 'quick_actions'])
             ->update(['placement' => 'internal']);
     }
 

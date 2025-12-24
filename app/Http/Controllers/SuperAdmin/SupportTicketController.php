@@ -49,6 +49,12 @@ class SupportTicketController extends BaseSuperAdminController
             $builder->where('account_id', $accountId);
         });
 
+        $totalCount = (clone $query)->count();
+        $openCount = (clone $query)->where('status', 'open')->count();
+        $pendingCount = (clone $query)->where('status', 'pending')->count();
+        $resolvedCount = (clone $query)->where('status', 'resolved')->count();
+        $closedCount = (clone $query)->where('status', 'closed')->count();
+
         $tickets = $query->latest()->paginate(15)->withQueryString();
 
         $ownerRoleId = Role::query()->where('name', 'owner')->value('id');
@@ -64,6 +70,13 @@ class SupportTicketController extends BaseSuperAdminController
             'statuses' => self::STATUSES,
             'priorities' => self::PRIORITIES,
             'tenants' => $tenants,
+            'stats' => [
+                'total' => $totalCount,
+                'open' => $openCount,
+                'pending' => $pendingCount,
+                'resolved' => $resolvedCount,
+                'closed' => $closedCount,
+            ],
         ]);
     }
 

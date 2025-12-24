@@ -94,14 +94,14 @@ const handleCustomerCreated = (payload) => {
                 :class="mode === 'existing'
                     ? 'bg-green-600 text-white border-green-600'
                     : 'bg-white text-stone-700 border-stone-200 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200'"
-                class="py-2 px-3 text-sm font-medium rounded-lg border">
+                class="py-2 px-3 text-sm font-medium rounded-sm border">
                 Existing customer
             </button>
             <button type="button" @click="mode = 'new'"
                 :class="mode === 'new'
                     ? 'bg-green-600 text-white border-green-600'
                     : 'bg-white text-stone-700 border-stone-200 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200'"
-                class="py-2 px-3 text-sm font-medium rounded-lg border">
+                class="py-2 px-3 text-sm font-medium rounded-sm border">
                 New customer
             </button>
         </div>
@@ -114,7 +114,7 @@ const handleCustomerCreated = (payload) => {
                 <div>
                     <label class="text-sm text-stone-600 dark:text-neutral-400">Customer</label>
                     <select v-model="selectedCustomerId"
-                        class="mt-1 w-full rounded-lg border border-stone-200 bg-stone-100 py-2 px-3 text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200">
+                        class="mt-1 w-full rounded-sm border border-stone-200 bg-stone-100 py-2 px-3 text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200">
                         <option value="">Select customer</option>
                         <option v-for="customer in customers" :key="customer.id" :value="customer.id">
                             {{ displayCustomer(customer) }}
@@ -124,7 +124,7 @@ const handleCustomerCreated = (payload) => {
                 <div>
                     <label class="text-sm text-stone-600 dark:text-neutral-400">Location</label>
                     <select v-model="selectedPropertyId" :disabled="!propertyOptions.length"
-                        class="mt-1 w-full rounded-lg border border-stone-200 bg-stone-100 py-2 px-3 text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 disabled:opacity-60 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200">
+                        class="mt-1 w-full rounded-sm border border-stone-200 bg-stone-100 py-2 px-3 text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 disabled:opacity-60 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200">
                         <option value="">No location</option>
                         <option v-for="property in propertyOptions" :key="property.id" :value="property.id">
                             {{ property.street1 || 'Location' }}{{ property.city ? ', ' + property.city : '' }}
@@ -136,7 +136,7 @@ const handleCustomerCreated = (payload) => {
                 No saved locations for this customer yet.
             </div>
 
-            <div v-if="selectedCustomer" class="rounded-lg border border-stone-200 p-3 text-sm text-stone-600 dark:border-neutral-700 dark:text-neutral-400">
+            <div v-if="selectedCustomer" class="rounded-sm border border-stone-200 p-3 text-sm text-stone-600 dark:border-neutral-700 dark:text-neutral-400">
                 <div class="font-medium text-stone-700 dark:text-neutral-200">
                     {{ displayCustomer(selectedCustomer) }}
                 </div>
@@ -146,11 +146,11 @@ const handleCustomerCreated = (payload) => {
 
             <div class="flex justify-end gap-2">
                 <button type="button" :data-hs-overlay="overlayId || undefined"
-                    class="py-2 px-3 inline-flex items-center text-sm font-medium rounded-lg border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200">
+                    class="py-2 px-3 inline-flex items-center text-sm font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200">
                     Cancel
                 </button>
                 <button type="button" @click="startQuote" :disabled="!selectedCustomerId"
-                    class="py-2 px-3 inline-flex items-center text-sm font-medium rounded-lg border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50">
+                    class="py-2 px-3 inline-flex items-center text-sm font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50">
                     Continue
                 </button>
             </div>

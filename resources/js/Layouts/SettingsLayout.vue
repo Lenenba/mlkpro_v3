@@ -186,8 +186,6 @@ const navGroups = computed(() => {
 </template>
 
 <style scoped>
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap');
-
 .settings-shell {
     display: grid;
     gap: 18px;
@@ -214,13 +212,13 @@ const navGroups = computed(() => {
     --panel-link: rgba(15, 23, 42, 0.04);
     --panel-link-hover: rgba(15, 23, 42, 0.08);
     --panel-link-border: rgba(15, 23, 42, 0.1);
-    --panel-shadow: 0 20px 40px rgba(15, 23, 42, 0.08);
+    --panel-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
     padding: 18px;
     border-radius: 2px;
     border: 1px solid var(--panel-border);
     background: var(--panel-bg);
     box-shadow: var(--panel-shadow);
-    font-family: "Space Grotesk", "IBM Plex Sans", sans-serif;
+    font-family: inherit;
 }
 
 :global(.dark) .settings-panel {
@@ -234,7 +232,7 @@ const navGroups = computed(() => {
     --panel-link: rgba(15, 23, 42, 0.7);
     --panel-link-hover: rgba(15, 23, 42, 0.9);
     --panel-link-border: rgba(255, 255, 255, 0.08);
-    --panel-shadow: 0 24px 60px rgba(5, 8, 12, 0.5);
+    --panel-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
     background: var(--panel-bg);
 }
 
@@ -308,7 +306,7 @@ const navGroups = computed(() => {
 }
 
 .settings-link:hover {
-    transform: translateY(-1px);
+    transform: none;
     background: var(--panel-link-hover);
 }
 

@@ -21,13 +21,13 @@ defineProps({
     <SettingsLayout active="profile">
         <div class="w-full max-w-4xl space-y-5">
             <div>
-                <h1 class="text-xl font-semibold text-gray-800 dark:text-neutral-100">Profil</h1>
-                <p class="mt-1 text-sm text-gray-600 dark:text-neutral-400">
+                <h1 class="text-xl font-semibold text-stone-800 dark:text-neutral-100">Profil</h1>
+                <p class="mt-1 text-sm text-stone-600 dark:text-neutral-400">
                     Gere vos informations de compte et la securite.
                 </p>
             </div>
 
-            <div class="flex flex-col bg-white border border-gray-200 shadow-sm rounded-sm overflow-hidden dark:bg-neutral-800 dark:border-neutral-700">
+            <div class="flex flex-col bg-white border border-stone-200 shadow-sm rounded-sm overflow-hidden dark:bg-neutral-800 dark:border-neutral-700">
                 <div class="p-4">
                     <UpdateProfileInformationForm
                         :must-verify-email="mustVerifyEmail"
@@ -37,13 +37,13 @@ defineProps({
                 </div>
             </div>
 
-            <div class="flex flex-col bg-white border border-gray-200 shadow-sm rounded-sm overflow-hidden dark:bg-neutral-800 dark:border-neutral-700">
+            <div class="flex flex-col bg-white border border-stone-200 shadow-sm rounded-sm overflow-hidden dark:bg-neutral-800 dark:border-neutral-700">
                 <div class="p-4">
                     <UpdatePasswordForm class="max-w-xl" />
                 </div>
             </div>
 
-            <div class="flex flex-col bg-white border border-gray-200 shadow-sm rounded-sm overflow-hidden dark:bg-neutral-800 dark:border-neutral-700">
+            <div class="flex flex-col bg-white border border-stone-200 shadow-sm rounded-sm overflow-hidden dark:bg-neutral-800 dark:border-neutral-700">
                 <div class="p-4">
                     <DeleteUserForm class="max-w-xl" />
                 </div>

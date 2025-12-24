@@ -129,7 +129,7 @@ const statusClasses = (status) => {
         case 'sent':
             return 'bg-blue-100 text-blue-800 dark:bg-blue-500/10 dark:text-blue-400';
         default:
-            return 'bg-gray-100 text-gray-800 dark:bg-neutral-700 dark:text-neutral-200';
+            return 'bg-stone-100 text-stone-800 dark:bg-neutral-700 dark:text-neutral-200';
     }
 };
 
