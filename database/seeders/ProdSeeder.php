@@ -45,7 +45,7 @@ class ProdSeeder extends Seeder
                 'name' => 'Super Admin',
                 'role_id' => $superadminRole->id,
                 'phone_number' => '+1234567890',
-                'password' => $plainPassword,
+                'password' => Hash::make($plainPassword),
             ]
         );
     }

@@ -1,6 +1,7 @@
 <script setup>
 import { computed } from 'vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import AnnouncementsPanel from '@/Components/Dashboard/AnnouncementsPanel.vue';
 import { Head, Link, usePage } from '@inertiajs/vue3';
 import { humanizeDate } from '@/utils/date';
 
@@ -29,6 +30,10 @@ const props = defineProps({
         type: Object,
         default: () => ({ labels: [], values: [] }),
     },
+    announcements: {
+        type: Array,
+        default: () => [],
+    },
 });
 
 const page = usePage();
@@ -36,6 +41,7 @@ const userName = computed(() => page.props.auth?.user?.name || 'there');
 const companyType = computed(() => page.props.auth?.account?.company?.type ?? null);
 const showServices = computed(() => companyType.value !== 'products');
 const isOwner = computed(() => Boolean(page.props.auth?.account?.is_owner));
+const hasAnnouncements = computed(() => (props.announcements || []).length > 0);
 
 const stat = (key) => props.stats?.[key] ?? 0;
 
@@ -155,7 +161,8 @@ const invoiceStatusClass = (status) => {
                 </div>
             </section>
 
-            <section class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+            <div :class="['grid gap-4', hasAnnouncements ? 'xl:grid-cols-[minmax(0,1fr)_320px]' : 'grid-cols-1']">
+                <section class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
                 <div
                     class="p-4 bg-white border border-t-4 border-t-emerald-600 border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
                     <div class="space-y-1">
@@ -252,7 +259,16 @@ const invoiceStatusClass = (status) => {
                         </p>
                     </div>
                 </div>
-            </section>
+                </section>
+                <AnnouncementsPanel
+                    v-if="hasAnnouncements"
+                    :announcements="announcements"
+                    variant="side"
+                    title="Announcements"
+                    subtitle="Active notices for your team."
+                    :limit="3"
+                />
+            </div>
 
             <section class="grid grid-cols-1 xl:grid-cols-3 gap-4">
                 <div class="xl:col-span-2 space-y-4">

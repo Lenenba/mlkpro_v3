@@ -11,6 +11,8 @@ use App\Models\Customer;
 use App\Models\ActivityLog;
 use App\Models\Task;
 use App\Models\TeamMember;
+use App\Models\PlatformAnnouncement;
+use App\Models\User;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Auth;
 
@@ -288,6 +290,12 @@ class DashboardController extends Controller
         }
 
         $accountId = $user?->accountOwnerId() ?? Auth::id();
+        $accountOwner = User::query()->find($accountId);
+        $internalAnnouncements = $this->resolveAnnouncements(
+            $accountId,
+            $accountOwner,
+            'internal'
+        );
         $isAccountOwner = ($user?->id ?? Auth::id()) === $accountId;
 
         $membership = null;
@@ -332,6 +340,7 @@ class DashboardController extends Controller
                 return Inertia::render('DashboardAdmin', [
                     'stats' => $stats,
                     'tasks' => $tasks,
+                    'announcements' => $internalAnnouncements,
                 ]);
             }
 
@@ -368,6 +377,7 @@ class DashboardController extends Controller
             return Inertia::render('DashboardMember', [
                 'stats' => $stats,
                 'tasks' => $tasks,
+                'announcements' => $internalAnnouncements,
             ]);
         }
 
@@ -542,6 +552,70 @@ class DashboardController extends Controller
                 'labels' => $labels,
                 'values' => $values,
             ],
+            'announcements' => $internalAnnouncements,
         ]);
+    }
+
+    private function resolveAnnouncements(int $tenantId, ?User $tenant, string $placement): array
+    {
+        $now = now();
+
+        $placements = $placement === 'internal'
+            ? ['internal', 'client', 'both']
+            : [$placement, 'both'];
+
+        $announcements = PlatformAnnouncement::query()
+            ->active()
+            ->whereIn('placement', $placements)
+            ->where(function ($query) use ($now) {
+                $query->whereNull('starts_at')
+                    ->orWhere('starts_at', '<=', $now);
+            })
+            ->where(function ($query) use ($now) {
+                $query->whereNull('ends_at')
+                    ->orWhere('ends_at', '>=', $now);
+            })
+            ->where(function ($query) use ($tenantId) {
+                $query->where('audience', 'all')
+                    ->orWhere(function ($sub) use ($tenantId) {
+                        $sub->where('audience', 'tenants')
+                            ->whereHas('tenants', function ($tenantQuery) use ($tenantId) {
+                                $tenantQuery->where('users.id', $tenantId);
+                            });
+                    })
+                    ->orWhere('audience', 'new_tenants');
+            })
+            ->orderByDesc('priority')
+            ->orderByDesc('starts_at')
+            ->limit(6)
+            ->get()
+            ->filter(function (PlatformAnnouncement $announcement) use ($tenant, $now) {
+                if ($announcement->audience !== 'new_tenants') {
+                    return true;
+                }
+
+                if (!$tenant?->created_at) {
+                    return false;
+                }
+
+                $days = $announcement->new_tenant_days ?: 30;
+                return $tenant->created_at->gte($now->copy()->subDays($days));
+            })
+            ->map(function (PlatformAnnouncement $announcement) {
+                return [
+                    'id' => $announcement->id,
+                    'title' => $announcement->title,
+                    'body' => $announcement->body,
+                    'media_type' => $announcement->media_type,
+                    'media_url' => $announcement->media_url,
+                    'link_label' => $announcement->link_label,
+                    'link_url' => $announcement->link_url,
+                    'starts_at' => $announcement->starts_at?->toDateString(),
+                    'ends_at' => $announcement->ends_at?->toDateString(),
+                ];
+            })
+            ->values();
+
+        return $announcements->all();
     }
 }

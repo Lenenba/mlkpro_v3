@@ -374,14 +374,14 @@ const submitProof = () => {
                             </svg>
                         </div>
                         <input type="text" v-model="filterForm.search"
-                            class="py-[7px] ps-10 pe-8 block w-full bg-stone-100 border-transparent rounded-lg text-sm placeholder:text-stone-500 focus:border-green-500 focus:ring-green-600 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-700 dark:border-transparent dark:text-neutral-200 dark:placeholder:text-neutral-400 dark:focus:ring-neutral-600"
+                            class="py-[7px] ps-10 pe-8 block w-full bg-white border border-stone-200 rounded-sm text-sm placeholder:text-stone-500 focus:border-green-500 focus:ring-green-600 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 dark:placeholder:text-neutral-400 dark:focus:ring-neutral-600"
                             placeholder="Search tasks">
                     </div>
                 </div>
 
                 <div class="flex flex-wrap items-center gap-2 justify-end">
                     <select v-model="filterForm.status"
-                        class="py-2 ps-3 pe-8 bg-stone-100 border-transparent rounded-lg text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-700 dark:text-neutral-200 dark:focus:ring-neutral-600">
+                        class="py-2 ps-3 pe-8 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 dark:focus:ring-neutral-600">
                         <option value="">All statuses</option>
                         <option v-for="status in statuses" :key="status" :value="status">
                             {{ statusLabel(status) }}
@@ -473,7 +473,7 @@ const submitProof = () => {
                                 <div
                                     class="hs-dropdown [--auto-close:inside] [--placement:bottom-right] relative inline-flex">
                                     <button type="button"
-                                        class="size-7 inline-flex justify-center items-center gap-x-2 rounded-lg border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700"
+                                        class="size-7 inline-flex justify-center items-center gap-x-2 rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700"
                                         aria-haspopup="menu" aria-expanded="false" aria-label="Dropdown">
                                         <svg class="shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" width="24"
                                             height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -484,7 +484,7 @@ const submitProof = () => {
                                         </svg>
                                     </button>
 
-                                    <div class="hs-dropdown-menu hs-dropdown-open:opacity-100 w-44 transition-[opacity,margin] duration opacity-0 hidden z-10 bg-white rounded-xl shadow-[0_10px_40px_10px_rgba(0,0,0,0.08)] dark:shadow-[0_10px_40px_10px_rgba(0,0,0,0.2)] dark:bg-neutral-900"
+                                    <div class="hs-dropdown-menu hs-dropdown-open:opacity-100 w-44 transition-[opacity,margin] duration opacity-0 hidden z-10 bg-white rounded-sm shadow-[0_10px_40px_10px_rgba(0,0,0,0.08)] dark:shadow-[0_10px_40px_10px_rgba(0,0,0,0.2)] dark:bg-neutral-900"
                                         role="menu" aria-orientation="vertical">
                                         <div class="p-1">
                                             <div class="px-2 py-1 text-[11px] uppercase tracking-wide text-stone-400 dark:text-neutral-500">
@@ -492,17 +492,17 @@ const submitProof = () => {
                                             </div>
                                             <button type="button" :disabled="!canChangeStatus || task.status === 'todo' || isTaskLocked(task)"
                                                 @click="setTaskStatus(task, 'todo')"
-                                                class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-lg text-[13px] text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none dark:text-neutral-300 dark:hover:bg-neutral-800">
+                                                class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none dark:text-neutral-300 dark:hover:bg-neutral-800">
                                                 To do
                                             </button>
                                             <button type="button" :disabled="!canChangeStatus || task.status === 'in_progress' || isTaskLocked(task)"
                                                 @click="setTaskStatus(task, 'in_progress')"
-                                                class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-lg text-[13px] text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none dark:text-neutral-300 dark:hover:bg-neutral-800">
+                                                class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none dark:text-neutral-300 dark:hover:bg-neutral-800">
                                                 In progress
                                             </button>
                                             <button type="button" :disabled="!canChangeStatus || task.status === 'done' || isTaskLocked(task)"
                                                 @click="setTaskStatus(task, 'done')"
-                                                class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-lg text-[13px] text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none dark:text-neutral-300 dark:hover:bg-neutral-800">
+                                                class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none dark:text-neutral-300 dark:hover:bg-neutral-800">
                                                 Done
                                             </button>
 
@@ -512,15 +512,15 @@ const submitProof = () => {
 
                                             <button v-if="canManage" type="button" @click="openEditTask(task)"
                                                 :disabled="isTaskLocked(task)"
-                                                class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-lg text-[13px] text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none dark:text-neutral-300 dark:hover:bg-neutral-800">
+                                                class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none dark:text-neutral-300 dark:hover:bg-neutral-800">
                                                 Edit
                                             </button>
                                             <button v-if="canChangeStatus" type="button" @click="openProofUpload(task)"
-                                                class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-lg text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
+                                                class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
                                                 Add proof
                                             </button>
                                             <button v-if="canDelete" type="button" @click="deleteTask(task)"
-                                                class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-lg text-[13px] text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-neutral-800">
+                                                class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-neutral-800">
                                                 Delete
                                             </button>
                                         </div>
@@ -542,7 +542,7 @@ const submitProof = () => {
             <nav class="flex justify-end items-center gap-x-1" aria-label="Pagination">
                 <Link :href="tasks.prev_page_url" v-if="tasks.prev_page_url">
                     <button type="button"
-                        class="min-h-[38px] min-w-[38px] py-2 px-2.5 inline-flex justify-center items-center gap-x-2 text-sm rounded-lg text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-100 dark:text-white dark:hover:bg-white/10 dark:focus:bg-neutral-700"
+                        class="min-h-[38px] min-w-[38px] py-2 px-2.5 inline-flex justify-center items-center gap-x-2 text-sm rounded-sm text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-100 dark:text-white dark:hover:bg-white/10 dark:focus:bg-neutral-700"
                         aria-label="Previous">
                         <svg class="shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
                             viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
@@ -809,3 +809,5 @@ const submitProof = () => {
         </form>
     </Modal>
 </template>
+
+

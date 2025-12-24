@@ -31,6 +31,7 @@ use App\Http\Controllers\SuperAdmin\AdminController as SuperAdminAdminController
 use App\Http\Controllers\SuperAdmin\NotificationController as SuperAdminNotificationController;
 use App\Http\Controllers\SuperAdmin\PlatformSettingsController as SuperAdminPlatformSettingsController;
 use App\Http\Controllers\SuperAdmin\SupportTicketController as SuperAdminSupportTicketController;
+use App\Http\Controllers\SuperAdmin\AnnouncementController as SuperAdminAnnouncementController;
 use App\Http\Controllers\CustomerPropertyController;
 use App\Http\Controllers\Portal\PortalInvoiceController;
 use App\Http\Controllers\Portal\PortalQuoteController;
@@ -237,6 +238,11 @@ require __DIR__ . '/auth.php';
 
             Route::get('/notifications', [SuperAdminNotificationController::class, 'edit'])->name('notifications.edit');
             Route::put('/notifications', [SuperAdminNotificationController::class, 'update'])->name('notifications.update');
+
+            Route::get('/announcements', [SuperAdminAnnouncementController::class, 'index'])->name('announcements.index');
+            Route::post('/announcements', [SuperAdminAnnouncementController::class, 'store'])->name('announcements.store');
+            Route::put('/announcements/{announcement}', [SuperAdminAnnouncementController::class, 'update'])->name('announcements.update');
+            Route::delete('/announcements/{announcement}', [SuperAdminAnnouncementController::class, 'destroy'])->name('announcements.destroy');
 
             Route::get('/support', [SuperAdminSupportTicketController::class, 'index'])->name('support.index');
             Route::post('/support', [SuperAdminSupportTicketController::class, 'store'])->name('support.store');

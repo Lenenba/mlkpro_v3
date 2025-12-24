@@ -1,16 +1,22 @@
 <script setup>
 import { computed } from 'vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import AnnouncementsPanel from '@/Components/Dashboard/AnnouncementsPanel.vue';
 import { Head, Link, usePage } from '@inertiajs/vue3';
 import { humanizeDate } from '@/utils/date';
 
 const props = defineProps({
     stats: Object,
     tasks: Array,
+    announcements: {
+        type: Array,
+        default: () => [],
+    },
 });
 
 const page = usePage();
 const userName = computed(() => page.props.auth?.user?.name || 'there');
+const hasAnnouncements = computed(() => (props.announcements || []).length > 0);
 
 const stat = (key) => props.stats?.[key] ?? 0;
 const formatDate = (value) => humanizeDate(value) || '-';
@@ -28,19 +34,29 @@ const formatDate = (value) => humanizeDate(value) || '-';
                 </p>
             </div>
 
-            <div class="grid grid-cols-1 gap-3 md:grid-cols-3">
-                <div class="rounded-sm border border-gray-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-800">
-                    <p class="text-xs text-gray-500 dark:text-neutral-400">To do</p>
-                    <p class="mt-1 text-2xl font-semibold text-gray-900 dark:text-neutral-100">{{ stat('tasks_todo') }}</p>
+            <div :class="['grid gap-4', hasAnnouncements ? 'xl:grid-cols-[minmax(0,1fr)_320px]' : 'grid-cols-1']">
+                <div class="grid grid-cols-1 gap-3 md:grid-cols-3">
+                    <div class="rounded-sm border border-gray-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-800">
+                        <p class="text-xs text-gray-500 dark:text-neutral-400">To do</p>
+                        <p class="mt-1 text-2xl font-semibold text-gray-900 dark:text-neutral-100">{{ stat('tasks_todo') }}</p>
+                    </div>
+                    <div class="rounded-sm border border-gray-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-800">
+                        <p class="text-xs text-gray-500 dark:text-neutral-400">In progress</p>
+                        <p class="mt-1 text-2xl font-semibold text-gray-900 dark:text-neutral-100">{{ stat('tasks_in_progress') }}</p>
+                    </div>
+                    <div class="rounded-sm border border-gray-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-800">
+                        <p class="text-xs text-gray-500 dark:text-neutral-400">Done</p>
+                        <p class="mt-1 text-2xl font-semibold text-gray-900 dark:text-neutral-100">{{ stat('tasks_done') }}</p>
+                    </div>
                 </div>
-                <div class="rounded-sm border border-gray-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-800">
-                    <p class="text-xs text-gray-500 dark:text-neutral-400">In progress</p>
-                    <p class="mt-1 text-2xl font-semibold text-gray-900 dark:text-neutral-100">{{ stat('tasks_in_progress') }}</p>
-                </div>
-                <div class="rounded-sm border border-gray-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-800">
-                    <p class="text-xs text-gray-500 dark:text-neutral-400">Done</p>
-                    <p class="mt-1 text-2xl font-semibold text-gray-900 dark:text-neutral-100">{{ stat('tasks_done') }}</p>
-                </div>
+                <AnnouncementsPanel
+                    v-if="hasAnnouncements"
+                    :announcements="announcements"
+                    variant="side"
+                    title="Announcements"
+                    subtitle="Active notices for your team."
+                    :limit="2"
+                />
             </div>
 
             <div class="flex flex-col bg-white border border-gray-200 shadow-sm rounded-sm overflow-hidden dark:bg-neutral-800 dark:border-neutral-700">
