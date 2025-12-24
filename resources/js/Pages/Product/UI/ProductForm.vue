@@ -136,7 +136,7 @@ const buttonLabel = computed(() => (props.product ? 'Update Product' : 'Create P
                         <FloatingInput v-model="form.barcode" label="Barcode" />
                         <FloatingSelect v-model="form.unit" label="Unit" :options="unitOptions" />
                         <FloatingInput v-model="form.supplier_name" label="Supplier" />
-                        <FloatingNumberInput v-model="form.tax_rate" label="Tax rate (%)" />
+                        <FloatingNumberInput v-model="form.tax_rate" label="Tax rate (%)" :step="0.01" />
                         <div class="flex items-center gap-x-2">
                             <Checkbox v-model:checked="form.is_active" />
                             <span class="text-sm text-stone-600 dark:text-neutral-400">Active</span>
@@ -158,9 +158,9 @@ const buttonLabel = computed(() => (props.product ? 'Update Product' : 'Create P
                     </template>
 
                     <div class="grid grid-cols-1 gap-4 gap-y-4">
-                        <FloatingNumberInput v-model="form.price" label="Price" />
-                        <FloatingNumberInput v-model="form.cost_price" label="Cost price" />
-                        <FloatingNumberInput v-model="form.margin_percent" label="Margin (%)" />
+                        <FloatingNumberInput v-model="form.price" label="Price" :step="0.01" />
+                        <FloatingNumberInput v-model="form.cost_price" label="Cost price" :step="0.01" />
+                        <FloatingNumberInput v-model="form.margin_percent" label="Margin (%)" :step="0.01" />
                         <FloatingNumberInput v-model="form.stock" label="Stock" />
                         <FloatingNumberInput v-model="form.minimum_stock" label="Minimum stock" />
                     </div>

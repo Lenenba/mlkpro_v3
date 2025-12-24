@@ -161,13 +161,13 @@ const submit = async () => {
             <FloatingInput v-model="form.sku" label="SKU" />
             <FloatingSelect v-model="form.unit" label="Unit" :options="unitOptions" />
             <FloatingInput v-model="form.supplier_name" label="Supplier" />
-            <FloatingNumberInput v-model="form.tax_rate" label="Tax rate (%)" />
+            <FloatingNumberInput v-model="form.tax_rate" label="Tax rate (%)" :step="0.01" />
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <FloatingNumberInput v-model="form.price" label="Price" />
-            <FloatingNumberInput v-model="form.cost_price" label="Cost price" />
-            <FloatingNumberInput v-model="form.margin_percent" label="Margin (%)" />
+            <FloatingNumberInput v-model="form.price" label="Price" :step="0.01" />
+            <FloatingNumberInput v-model="form.cost_price" label="Cost price" :step="0.01" />
+            <FloatingNumberInput v-model="form.margin_percent" label="Margin (%)" :step="0.01" />
             <FloatingNumberInput v-model="form.stock" label="Stock" />
             <FloatingNumberInput v-model="form.minimum_stock" label="Minimum stock" />
         </div>

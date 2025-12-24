@@ -9,7 +9,7 @@ import QuickCreateModals from "@/Components/QuickCreate/QuickCreateModals.vue";
 const page = usePage()
 const companyType = computed(() => page.props.auth?.account?.company?.type ?? null);
 const showServices = computed(() => companyType.value !== 'products');
-const showProducts = computed(() => companyType.value !== 'services');
+const showProducts = computed(() => true);
 const isOwner = computed(() => Boolean(page.props.auth?.account?.is_owner));
 const isClient = computed(() => Boolean(page.props.auth?.account?.is_client));
 const isSuperadmin = computed(() => Boolean(page.props.auth?.account?.is_superadmin));

@@ -124,11 +124,11 @@ const submit = async () => {
             <FloatingInput v-model="form.name" label="Name" />
             <FloatingSelect v-model="form.category_id" label="Category" :options="categories" />
             <FloatingSelect v-model="form.unit" label="Unit" :options="unitOptions" />
-            <FloatingNumberInput v-model="form.tax_rate" label="Tax rate (%)" />
+            <FloatingNumberInput v-model="form.tax_rate" label="Tax rate (%)" :step="0.01" />
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <FloatingNumberInput v-model="form.price" label="Price" />
+            <FloatingNumberInput v-model="form.price" label="Price" :step="0.01" />
             <div class="flex items-center gap-2">
                 <Checkbox v-model:checked="form.is_active" />
                 <span class="text-sm text-stone-600 dark:text-neutral-400">Active</span>

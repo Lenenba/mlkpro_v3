@@ -9,7 +9,7 @@ const { t, locale } = useI18n();
 const page = usePage();
 const companyType = computed(() => page.props.auth?.account?.company?.type ?? null);
 const showServices = computed(() => companyType.value !== 'products');
-const showProducts = computed(() => companyType.value !== 'services');
+const showProducts = computed(() => true);
 const isOwner = computed(() => Boolean(page.props.auth?.account?.is_owner));
 
 const menuItems = computed(() => {

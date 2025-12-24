@@ -4,7 +4,13 @@ namespace Database\Seeders;
 
 use App\Models\Customer;
 use App\Models\Invoice;
+use App\Models\InvoiceItem;
 use App\Models\Payment;
+use App\Models\PlatformAdmin;
+use App\Models\PlatformAnnouncement;
+use App\Models\PlatformNotificationSetting;
+use App\Models\PlatformSetting;
+use App\Models\PlatformSupportTicket;
 use App\Models\Product;
 use App\Models\ProductCategory;
 use App\Models\Property;
@@ -13,7 +19,10 @@ use App\Models\QuoteProduct;
 use App\Models\QuoteRating;
 use App\Models\Request as LeadRequest;
 use App\Models\Role;
+use App\Models\ServiceMaterial;
 use App\Models\Task;
+use App\Models\TaskMaterial;
+use App\Models\TaskMedia;
 use App\Models\TeamMember;
 use App\Models\Transaction;
 use App\Models\User;
@@ -43,9 +52,112 @@ class LaunchSeeder extends Seeder
             Role::firstOrCreate(['name' => $name], ['description' => $description]);
         }
 
+        $superadminRoleId = Role::where('name', 'superadmin')->value('id');
+        $adminRoleId = Role::where('name', 'admin')->value('id');
         $ownerRoleId = Role::where('name', 'owner')->value('id');
         $clientRoleId = Role::where('name', 'client')->value('id');
         $employeeRoleId = Role::where('name', 'employee')->value('id');
+
+        $superadmin = User::updateOrCreate(
+            ['email' => 'superadmin@example.com'],
+            [
+                'name' => 'Super Admin',
+                'password' => Hash::make('password'),
+                'role_id' => $superadminRoleId,
+                'email_verified_at' => $now,
+            ]
+        );
+
+        $platformAdmin = User::updateOrCreate(
+            ['email' => 'platform.admin@example.com'],
+            [
+                'name' => 'Platform Admin',
+                'password' => Hash::make('password'),
+                'role_id' => $adminRoleId,
+                'email_verified_at' => $now,
+                'must_change_password' => true,
+            ]
+        );
+
+        PlatformAdmin::updateOrCreate(
+            ['user_id' => $platformAdmin->id],
+            [
+                'role' => 'ops',
+                'permissions' => [
+                    'tenants.view',
+                    'tenants.manage',
+                    'settings.manage',
+                    'audit.view',
+                    'announcements.manage',
+                ],
+                'is_active' => true,
+                'require_2fa' => false,
+            ]
+        );
+
+        PlatformNotificationSetting::updateOrCreate(
+            ['user_id' => $superadmin->id],
+            [
+                'channels' => ['email'],
+                'categories' => ['payment_failed', 'error_spike'],
+                'rules' => [
+                    'error_spike' => 10,
+                    'payment_failed' => 3,
+                    'churn_risk' => 5,
+                ],
+                'digest_frequency' => 'daily',
+            ]
+        );
+
+        PlatformSetting::setValue('maintenance', [
+            'enabled' => false,
+            'message' => '',
+        ]);
+
+        PlatformSetting::setValue('templates', [
+            'email_default' => 'Merci pour votre confiance.',
+            'quote_default' => 'Veuillez trouver votre devis ci-joint.',
+            'invoice_default' => 'Votre facture est disponible.',
+        ]);
+
+        PlatformSetting::setValue('plan_limits', [
+            'free' => [
+                'quotes' => 10,
+                'invoices' => 10,
+                'jobs' => 10,
+                'products' => 25,
+                'services' => 25,
+                'tasks' => 25,
+                'team_members' => 1,
+            ],
+            'starter' => [
+                'quotes' => 100,
+                'invoices' => 100,
+                'jobs' => 100,
+                'products' => 200,
+                'services' => 200,
+                'tasks' => 200,
+                'team_members' => 5,
+            ],
+            'growth' => [
+                'quotes' => 300,
+                'invoices' => 300,
+                'jobs' => 300,
+                'products' => 500,
+                'services' => 500,
+                'tasks' => 600,
+                'team_members' => 15,
+            ],
+            'scale' => [
+                'quotes' => 1000,
+                'invoices' => 1000,
+                'jobs' => 1000,
+                'products' => 2000,
+                'services' => 2000,
+                'tasks' => 2500,
+                'team_members' => 50,
+            ],
+        ]);
 
         $serviceOwner = User::updateOrCreate(
             ['email' => 'owner.services@example.com'],

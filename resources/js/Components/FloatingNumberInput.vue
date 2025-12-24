@@ -7,6 +7,10 @@ const props = defineProps({
         type: String,
         default: 'Select quantity',
     },
+    step: {
+        type: [Number, String],
+        default: 1,
+    },
 });
 
 // Modèle réactif pour la valeur de l'entrée
@@ -51,6 +55,7 @@ defineExpose({ focus: () => input.value.focus() });
                 <input ref="input" v-model="model"
                     class="p-0 bg-transparent border-0 text-stone-800 focus:ring-0 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none dark:text-white"
                     style="-moz-appearance: textfield;" type="number" aria-roledescription="Number field"
+                    :step="props.step"
                     data-hs-input-number-input="" />
             </div>
             <!-- Buttons -->

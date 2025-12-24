@@ -640,8 +640,8 @@ const submitProof = () => {
                                 @update:modelValue="applyMaterialDefaults(material)"
                             />
                             <FloatingInput v-model="material.label" label="Label" />
-                            <FloatingNumberInput v-model="material.quantity" label="Quantity" />
-                            <FloatingNumberInput v-model="material.unit_price" label="Unit price" />
+                            <FloatingNumberInput v-model="material.quantity" label="Quantity" :step="0.01" />
+                            <FloatingNumberInput v-model="material.unit_price" label="Unit price" :step="0.01" />
                             <FloatingInput v-model="material.unit" label="Unit" />
                             <div class="flex items-center gap-2 p-2 rounded-sm border border-stone-200 bg-white dark:bg-neutral-900 dark:border-neutral-700">
                                 <Checkbox v-model:checked="material.billable" />
@@ -736,8 +736,8 @@ const submitProof = () => {
                                 @update:modelValue="applyMaterialDefaults(material)"
                             />
                             <FloatingInput v-model="material.label" label="Label" />
-                            <FloatingNumberInput v-model="material.quantity" label="Quantity" />
-                            <FloatingNumberInput v-model="material.unit_price" label="Unit price" />
+                            <FloatingNumberInput v-model="material.quantity" label="Quantity" :step="0.01" />
+                            <FloatingNumberInput v-model="material.unit_price" label="Unit price" :step="0.01" />
                             <FloatingInput v-model="material.unit" label="Unit" />
                             <div class="flex items-center gap-2 p-2 rounded-sm border border-stone-200 bg-white dark:bg-neutral-900 dark:border-neutral-700">
                                 <Checkbox v-model:checked="material.billable" />
