@@ -31,6 +31,11 @@ class ProductImage extends Model
 
     public function getUrlAttribute(): string
     {
-        return Storage::url($this->path);
+        $path = (string) $this->path;
+        if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
+            return $path;
+        }
+
+        return Storage::url($path);
     }
 }

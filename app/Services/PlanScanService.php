@@ -13,6 +13,8 @@ class PlanScanService
     public const STATUS_PROCESSING = 'processing';
     public const STATUS_READY = 'ready';
     public const STATUS_FAILED = 'failed';
+    private const LIVE_LOOKUP_LIMIT = 3;
+    private const LIVE_LOOKUP_BUDGET_SECONDS = 18;
 
     public function __construct(
         private PriceLookupService $priceLookupService,
@@ -234,13 +236,46 @@ class PlanScanService
         $city = $pricingContext['city'] ?? null;
         $enabledKeys = $pricingContext['enabled_keys'] ?? [];
         $tradeLabel = $this->tradeLabel($trade);
+        $limit = $pricingContext['live_lookup_limit'] ?? self::LIVE_LOOKUP_LIMIT;
+        $budgetSeconds = $pricingContext['live_lookup_budget'] ?? self::LIVE_LOOKUP_BUDGET_SECONDS;
+        $lookupIndexes = $this->selectLookupIndexes($items, $limit);
+        $startedAt = microtime(true);
 
-        return collect($items)->map(function (array $item) use ($country, $province, $city, $enabledKeys, $tradeLabel) {
+        return collect($items)->map(function (array $item, int $index) use (
+            $country,
+            $province,
+            $city,
+            $enabledKeys,
+            $tradeLabel,
+            $lookupIndexes,
+            $limit,
+            $budgetSeconds,
+            $startedAt
+        ) {
             if (!empty($item['is_labor'])) {
                 return [
                     ...$item,
                     'sources' => [],
                     'source_query' => null,
+                    'source_status' => 'labor',
+                ];
+            }
+
+            if ($limit <= 0 || !in_array($index, $lookupIndexes, true)) {
+                return [
+                    ...$item,
+                    'sources' => [],
+                    'source_query' => null,
+                    'source_status' => 'skipped',
+                ];
+            }
+
+            if ($budgetSeconds > 0 && (microtime(true) - $startedAt) >= $budgetSeconds) {
+                return [
+                    ...$item,
+                    'sources' => [],
+                    'source_query' => null,
+                    'source_status' => 'skipped',
                 ];
             }
 
@@ -250,11 +285,13 @@ class PlanScanService
                 'province' => $province,
                 'city' => $city,
             ]);
+            $status = $sources ? 'live' : 'missing';
 
             return [
                 ...$item,
                 'sources' => $sources,
                 'source_query' => $query,
+                'source_status' => $status,
             ];
         })->values()->all();
     }
@@ -339,12 +376,16 @@ class PlanScanService
                 $isPreferred = is_array($selected) && in_array($selected['supplier_key'] ?? null, $preferredSupplierKeys, true);
                 $selectionReason = $hasSources
                     ? $this->buildSelectionReason($selectionBasis, $selected, $detail, $key, $bestSource, $isPreferred)
-                    : 'No live price found; using baseline cost.';
+                    : (($item['source_status'] ?? null) === 'skipped'
+                        ? 'Live pricing skipped to keep scan fast; using baseline cost.'
+                        : 'No live price found; using baseline cost.');
 
                 $medianSource = $sortedSources[1] ?? $selected;
                 $medianPrice = is_array($medianSource) ? ($medianSource['price'] ?? null) : null;
                 $referenceUnit = (float) ($medianPrice ?? $unitCost);
                 $referenceTotal += round($referenceUnit * $item['quantity'], 2);
+
+                $sourceStatus = $item['source_status'] ?? ($sources ? 'live' : ($item['is_labor'] ? 'labor' : 'missing'));
 
                 $lines[] = [
                     'name' => $item['name'],
@@ -363,7 +404,7 @@ class PlanScanService
                     'best_source' => $bestSource,
                     'preferred_source' => $preferredBestSource,
                     'preferred_suppliers' => $preferredSupplierKeys,
-                    'source_status' => $sources ? 'live' : ($item['is_labor'] ? 'labor' : 'missing'),
+                    'source_status' => $sourceStatus,
                     'source_benchmarks' => [
                         'min' => round($minPrice, 2),
                         'median' => round($medianPrice, 2),
@@ -489,8 +530,15 @@ class PlanScanService
         $provider = $pricingContext['provider'] ?? 'unknown';
         $providerReady = (bool) ($pricingContext['provider_ready'] ?? false);
         $missingSources = collect($items)->filter(function (array $item) {
-            return empty($item['sources']) && empty($item['is_labor']);
+            return ($item['source_status'] ?? null) === 'missing';
         })->count();
+        $skippedSources = collect($items)->filter(function (array $item) {
+            return ($item['source_status'] ?? null) === 'skipped';
+        })->count();
+        $lookupsAttempted = collect($items)->filter(function (array $item) {
+            return in_array(($item['source_status'] ?? null), ['live', 'missing'], true);
+        })->count();
+        $lookupLimit = (int) ($pricingContext['live_lookup_limit'] ?? self::LIVE_LOOKUP_LIMIT);
 
         return [
             'trade' => $trade,
@@ -504,6 +552,9 @@ class PlanScanService
                 'Quantites deduites du nombre de pieces et de la surface.',
                 'Prix compares sur plusieurs sources.',
                 'Marges ajustees par niveau de devis.',
+                $lookupLimit > 0
+                    ? 'Live pricing limited to ' . $lookupLimit . ' items for faster scans.'
+                    : 'Live pricing disabled for scans.',
                 $providerReady
                     ? 'Sources live via ' . $provider . '.'
                     : 'Aucune source live configuree pour le moment.',
@@ -513,7 +564,10 @@ class PlanScanService
                 'provider_ready' => $providerReady,
                 'enabled_suppliers' => $this->resolveSupplierNames($suppliers, $enabledKeys),
                 'preferred_suppliers' => $this->resolveSupplierNames($suppliers, $preferredKeys),
+                'live_lookup_limit' => $lookupLimit,
+                'lookups_attempted' => $lookupsAttempted,
                 'missing_sources' => $missingSources,
+                'skipped_sources' => $skippedSources,
             ],
         ];
     }
@@ -554,7 +608,35 @@ class PlanScanService
             'preferred_keys' => $preferences['preferred'],
             'provider' => $this->priceLookupService->providerName(),
             'provider_ready' => $this->priceLookupService->isConfigured(),
+            'live_lookup_limit' => self::LIVE_LOOKUP_LIMIT,
+            'live_lookup_budget' => self::LIVE_LOOKUP_BUDGET_SECONDS,
         ];
+    }
+
+    private function selectLookupIndexes(array $items, int $limit): array
+    {
+        if ($limit <= 0) {
+            return [];
+        }
+
+        $candidates = [];
+        foreach ($items as $index => $item) {
+            if (!empty($item['is_labor'])) {
+                continue;
+            }
+            $quantity = (float) ($item['quantity'] ?? 1);
+            $base = (float) ($item['base_cost'] ?? 0);
+            $score = $quantity * $base;
+            $candidates[] = [
+                'index' => $index,
+                'score' => $score,
+            ];
+        }
+
+        usort($candidates, fn ($a, $b) => $b['score'] <=> $a['score']);
+        $selected = array_slice($candidates, 0, $limit);
+
+        return array_values(array_map(fn ($item) => $item['index'], $selected));
     }
 
     private function resolveSupplierPreferences(?array $preferences, array $suppliers): array

@@ -126,8 +126,14 @@ const convert = (variantKey) => {
                             <div v-if="pricing.enabled_suppliers?.length">
                                 Enabled: {{ pricing.enabled_suppliers.join(', ') }}
                             </div>
+                            <div v-if="pricing.live_lookup_limit">
+                                Live lookups: {{ pricing.lookups_attempted || 0 }}/{{ pricing.live_lookup_limit }}
+                            </div>
                             <div v-if="pricing.missing_sources">
                                 Missing live sources: {{ pricing.missing_sources }}
+                            </div>
+                            <div v-if="pricing.skipped_sources">
+                                Skipped live pricing: {{ pricing.skipped_sources }}
                             </div>
                         </div>
                     </div>
@@ -248,8 +254,20 @@ const convert = (variantKey) => {
                                     <span>Unit: ${{ item.unit_price }}</span>
                                     <span>Total: ${{ item.total }}</span>
                                 </div>
+                                <div v-if="item.selected_source" class="mt-1 text-[11px] text-stone-500 dark:text-neutral-400">
+                                    Selected: {{ item.selected_source.name }} ${{ item.selected_source.price }}
+                                </div>
+                                <div v-if="item.selected_source?.title" class="text-[10px] text-stone-400 dark:text-neutral-500">
+                                    {{ item.selected_source.title }}
+                                </div>
                                 <div v-if="item.source_status === 'missing'" class="mt-1 text-[11px] text-amber-600 dark:text-amber-300">
                                     No live price found for this line.
+                                </div>
+                                <div v-if="item.source_status === 'skipped'" class="mt-1 text-[11px] text-amber-600 dark:text-amber-300">
+                                    Live pricing skipped to keep scan fast.
+                                </div>
+                                <div v-if="item.source_status === 'labor'" class="mt-1 text-[11px] text-stone-400 dark:text-neutral-500">
+                                    Labor line: no supplier pricing required.
                                 </div>
                                 <div v-if="item.source_query" class="mt-1 text-[11px] text-stone-500 dark:text-neutral-400">
                                     Query: {{ item.source_query }}
@@ -261,21 +279,27 @@ const convert = (variantKey) => {
                                     Preferred: {{ item.preferred_source.name }} ${{ item.preferred_source.price }}
                                 </div>
                                 <div v-if="item.sources?.length" class="mt-2 text-[11px] text-stone-500 dark:text-neutral-400">
-                                    Sources:
-                                    <span v-for="(source, index) in item.sources" :key="source.name" class="inline-flex items-center gap-1">
-                                        <a
-                                            v-if="source.url"
-                                            :href="source.url"
-                                            target="_blank"
-                                            rel="noopener"
-                                            class="text-green-700 hover:underline dark:text-green-400"
-                                        >
-                                            {{ source.name }}
-                                        </a>
-                                        <span v-else>{{ source.name }}</span>
-                                        <span>${{ source.price }}</span>
-                                        <span v-if="index < item.sources.length - 1">,</span>
-                                    </span>
+                                    <div class="font-semibold text-stone-600 dark:text-neutral-300">Sources:</div>
+                                    <div class="mt-1 space-y-1">
+                                        <div v-for="source in item.sources" :key="source.name" class="space-y-0.5">
+                                            <div class="inline-flex items-center gap-1">
+                                                <a
+                                                    v-if="source.url"
+                                                    :href="source.url"
+                                                    target="_blank"
+                                                    rel="noopener"
+                                                    class="text-green-700 hover:underline dark:text-green-400"
+                                                >
+                                                    {{ source.name }}
+                                                </a>
+                                                <span v-else>{{ source.name }}</span>
+                                                <span>${{ source.price }}</span>
+                                            </div>
+                                            <div v-if="source.title" class="text-[10px] text-stone-400 dark:text-neutral-500">
+                                                {{ source.title }}
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>

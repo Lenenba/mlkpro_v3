@@ -37,6 +37,7 @@ class ProductRequest extends FormRequest
             'tax_rate' => 'nullable|numeric|min:0|max:100',
             'is_active' => 'nullable|boolean',
             'image' => 'nullable|image|mimes:jpg,png,jpeg,webp|max:5000',
+            'image_url' => 'nullable|url|max:2048',
             'images' => 'nullable|array',
             'images.*' => 'image|mimes:jpg,png,jpeg,webp|max:5000',
             'remove_image_ids' => 'nullable|array',

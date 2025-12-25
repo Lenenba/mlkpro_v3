@@ -28,21 +28,24 @@ class ProductsSearchController extends Controller
             ? Product::ITEM_TYPE_PRODUCT
             : Product::ITEM_TYPE_SERVICE;
 
-        $itemType = $defaultItemType;
         $requestedItemType = $request->input('item_type');
-        if (!$accountCompanyType && in_array($requestedItemType, [Product::ITEM_TYPE_PRODUCT, Product::ITEM_TYPE_SERVICE], true)) {
-            $itemType = $requestedItemType;
-        }
+        $allowedItemTypes = [Product::ITEM_TYPE_PRODUCT, Product::ITEM_TYPE_SERVICE, 'all'];
+        $itemType = in_array($requestedItemType, $allowedItemTypes, true)
+            ? $requestedItemType
+            : $defaultItemType;
 
-        $products = Product::query()
+        $productsQuery = Product::query()
             ->where('name', 'like', "%{$query}%")
             ->byUser($accountId)
-            ->where('item_type', $itemType)
             ->where('is_active', true)
-            ->limit(10)
-            ->get(['id', 'name', 'price', 'image', 'unit']);
+            ->limit(10);
+
+        if ($itemType !== 'all') {
+            $productsQuery->where('item_type', $itemType);
+        }
+
+        $products = $productsQuery->get(['id', 'name', 'price', 'image', 'unit', 'item_type']);
 
         return response()->json($products);
     }
 }
-

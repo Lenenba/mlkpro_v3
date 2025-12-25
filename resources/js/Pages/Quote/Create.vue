@@ -19,6 +19,20 @@ const page = usePage();
 const companyName = computed(() => page.props.auth?.account?.company?.name || 'Entreprise');
 const companyLogo = computed(() => page.props.auth?.account?.company?.logo_url || null);
 
+const parseSourceDetails = (value) => {
+    if (!value) {
+        return null;
+    }
+    if (typeof value === 'string') {
+        try {
+            return JSON.parse(value);
+        } catch (error) {
+            return null;
+        }
+    }
+    return value;
+};
+
 const resolveDefaultPropertyId = (customer) => {
     const properties = customer?.properties || [];
     return properties.find((property) => property.is_default)?.id || properties[0]?.id || null;
@@ -43,7 +57,9 @@ const form = useForm({
         quantity: Number(product.pivot?.quantity ?? 1),
         price: Number(product.pivot?.price ?? product.price ?? 0),
         total: Number(product.pivot?.total ?? 0),
-    })) || [{ id: null, name: '', quantity: 1, price: 0, total: 0 }],
+        item_type: product.item_type ?? null,
+        source_details: parseSourceDetails(product.pivot?.source_details),
+    })) || [{ id: null, name: '', quantity: 1, price: 0, total: 0, item_type: null }],
     subtotal: Number(props.quote?.subtotal || 0),
     total: Number(props.quote?.total || 0),
     initial_deposit: Number(props.quote?.initial_deposit || 0),
@@ -264,7 +280,13 @@ const submit = () => {
                     </div>
                     <div
                         class="p-5 space-y-3 flex flex-col bg-white border border-stone-200 rounded-sm shadow-sm xl:shadow-none dark:bg-neutral-900 dark:border-neutral-700">
-                        <ProductTableList v-model="form.product" :read-only="isLocked" @update:subtotal="updateSubtotal" />
+                        <ProductTableList
+                            v-model="form.product"
+                            :read-only="isLocked"
+                            :allow-mixed-types="true"
+                            :enable-price-lookup="true"
+                            @update:subtotal="updateSubtotal"
+                        />
                     </div>
                     <div
                         class="p-5 grid grid-cols-2 gap-4 justify-between bg-white border border-stone-200 rounded-sm shadow-sm xl:shadow-none dark:bg-neutral-900 dark:border-neutral-700">

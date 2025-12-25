@@ -6,6 +6,7 @@ use App\Http\Controllers\QuoteController;
 use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\ProductController;
+use App\Http\Controllers\ProductPriceLookupController;
 use App\Http\Controllers\ServiceController;
 use App\Http\Controllers\TaskController;
 use App\Http\Controllers\TaskMediaController;
@@ -113,8 +114,10 @@ Route::middleware(['auth', EnsureInternalUser::class])->group(function () {
     // Product custom search
     Route::middleware('company.feature:products')->group(function () {
         Route::get('/product/search', ProductsSearchController::class)->name('product.search');
+        Route::get('/product/price-lookup', ProductPriceLookupController::class)->name('product.price-lookup');
         Route::get('/products/options', [ProductController::class, 'options'])->name('product.options');
         Route::post('/products/quick', [ProductController::class, 'storeQuick'])->name('product.quick.store');
+        Route::post('/products/draft', [ProductController::class, 'storeDraft'])->name('product.draft.store');
     });
 
     Route::middleware('company.feature:services')->group(function () {

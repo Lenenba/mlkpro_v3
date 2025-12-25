@@ -6,6 +6,7 @@ use App\Models\Tax;
 use Inertia\Inertia;
 use App\Models\Quote;
 use App\Models\Product;
+use App\Models\ProductCategory;
 use App\Models\Customer;
 use App\Models\Work;
 use App\Models\ActivityLog;
@@ -175,13 +176,16 @@ class QuoteController extends Controller
             'status' => ['nullable', Rule::in(['draft', 'sent', 'accepted', 'declined'])],
             'product' => 'required|array|min:1',
             'product.*.id' => [
-                'required',
+                'nullable',
                 Rule::exists('products', 'id')
-                    ->where('user_id', Auth::id())
-                    ->where('item_type', $itemType),
+                    ->where('user_id', Auth::id()),
             ],
+            'product.*.item_type' => ['nullable', Rule::in([Product::ITEM_TYPE_PRODUCT, Product::ITEM_TYPE_SERVICE])],
+            'product.*.name' => 'required_without:product.*.id|string',
+            'product.*.description' => 'nullable|string',
             'product.*.quantity' => 'required|integer|min:1',
             'product.*.price' => 'required|numeric|min:0',
+            'product.*.source_details' => 'nullable',
             'notes' => 'nullable|string',
             'messages' => 'nullable|string',
             'initial_deposit' => 'nullable|numeric|min:0',
@@ -196,27 +200,7 @@ class QuoteController extends Controller
             return back()->withErrors(['property_id' => 'Invalid property for this customer.']);
         }
 
-        $productIds = collect($validated['product'])->pluck('id')->map(fn($id) => (int) $id)->unique()->values();
-        $productMap = $productIds->isNotEmpty()
-            ? Product::byUser(Auth::id())
-                ->where('item_type', $itemType)
-                ->whereIn('id', $productIds)
-                ->get()
-                ->keyBy('id')
-            : collect();
-
-        $items = collect($validated['product'])->map(function ($product) use ($productMap) {
-            $quantity = (int) $product['quantity'];
-            $price = (float) $product['price'];
-            $model = $productMap->get((int) $product['id']);
-            return [
-                'id' => (int) $product['id'],
-                'quantity' => $quantity,
-                'price' => $price,
-                'total' => round($quantity * $price, 2),
-                'description' => $product['description'] ?? $model?->description,
-            ];
-        });
+        $items = collect($this->buildQuoteItems($validated['product'], $itemType, Auth::id()));
 
         $subtotal = $items->sum('total');
         $selectedTaxes = Tax::whereIn('id', $validated['taxes'] ?? [])->get();
@@ -257,6 +241,7 @@ class QuoteController extends Controller
                         'price' => $item['price'],
                         'total' => $item['total'],
                         'description' => $item['description'],
+                        'source_details' => $item['source_details'] ? json_encode($item['source_details']) : null,
                     ],
                 ];
             });
@@ -294,13 +279,16 @@ class QuoteController extends Controller
             'status' => ['nullable', Rule::in(['draft', 'sent', 'accepted', 'declined'])],
             'product' => 'required|array|min:1',
             'product.*.id' => [
-                'required',
+                'nullable',
                 Rule::exists('products', 'id')
-                    ->where('user_id', Auth::id())
-                    ->where('item_type', $itemType),
+                    ->where('user_id', Auth::id()),
             ],
+            'product.*.item_type' => ['nullable', Rule::in([Product::ITEM_TYPE_PRODUCT, Product::ITEM_TYPE_SERVICE])],
+            'product.*.name' => 'required_without:product.*.id|string',
+            'product.*.description' => 'nullable|string',
             'product.*.quantity' => 'required|integer|min:1',
             'product.*.price' => 'required|numeric|min:0',
+            'product.*.source_details' => 'nullable',
             'notes' => 'nullable|string',
             'messages' => 'nullable|string',
             'initial_deposit' => 'nullable|numeric|min:0',
@@ -316,27 +304,7 @@ class QuoteController extends Controller
             return back()->withErrors(['property_id' => 'Invalid property for this customer.']);
         }
 
-        $productIds = collect($validated['product'])->pluck('id')->map(fn($id) => (int) $id)->unique()->values();
-        $productMap = $productIds->isNotEmpty()
-            ? Product::byUser(Auth::id())
-                ->where('item_type', $itemType)
-                ->whereIn('id', $productIds)
-                ->get()
-                ->keyBy('id')
-            : collect();
-
-        $items = collect($validated['product'])->map(function ($product) use ($productMap) {
-            $quantity = (int) $product['quantity'];
-            $price = (float) $product['price'];
-            $model = $productMap->get((int) $product['id']);
-            return [
-                'id' => (int) $product['id'],
-                'quantity' => $quantity,
-                'price' => $price,
-                'total' => round($quantity * $price, 2),
-                'description' => $product['description'] ?? $model?->description,
-            ];
-        });
+        $items = collect($this->buildQuoteItems($validated['product'], $itemType, Auth::id()));
 
         $subtotal = $items->sum('total');
         $selectedTaxes = Tax::whereIn('id', $validated['taxes'] ?? [])->get();
@@ -377,6 +345,7 @@ class QuoteController extends Controller
                         'price' => $item['price'],
                         'total' => $item['total'],
                         'description' => $item['description'],
+                        'source_details' => $item['source_details'] ? json_encode($item['source_details']) : null,
                     ],
                 ];
             });
@@ -667,6 +636,126 @@ class QuoteController extends Controller
         ], 'Quote converted to job');
 
         return redirect()->route('work.edit', $work)->with('success', 'Job created from quote.');
+    }
+
+    private function buildQuoteItems(array $lines, string $itemType, int $userId): array
+    {
+        $lines = collect($lines);
+        $productIds = $lines->pluck('id')->filter()->map(fn ($id) => (int) $id)->unique()->values();
+        $productMap = $productIds->isNotEmpty()
+            ? Product::byUser($userId)
+                ->whereIn('id', $productIds)
+                ->get()
+                ->keyBy('id')
+            : collect();
+
+        return $lines->map(function (array $line) use ($productMap, $itemType, $userId) {
+            $quantity = (int) ($line['quantity'] ?? 1);
+            $price = (float) ($line['price'] ?? 0);
+            $description = $line['description'] ?? null;
+            $sourceDetails = $this->normalizeSourceDetails($line['source_details'] ?? null);
+            $productId = isset($line['id']) && $line['id'] !== null ? (int) $line['id'] : null;
+            $lineItemType = $line['item_type'] ?? $itemType;
+
+            if (!$productId) {
+                $product = $this->createProductFromLine($userId, $lineItemType, $line, $sourceDetails);
+                $productId = $product->id;
+                if (!$description) {
+                    $description = $product->description;
+                }
+            } else {
+                $model = $productMap->get($productId);
+                $lineItemType = $model?->item_type ?? $lineItemType;
+                if (!$description) {
+                    $description = $model?->description;
+                }
+            }
+
+            return [
+                'id' => $productId,
+                'quantity' => $quantity,
+                'price' => $price,
+                'total' => round($quantity * $price, 2),
+                'description' => $description,
+                'source_details' => $sourceDetails,
+            ];
+        })->values()->all();
+    }
+
+    private function normalizeSourceDetails($details): ?array
+    {
+        if (!$details) {
+            return null;
+        }
+
+        if (is_string($details)) {
+            $decoded = json_decode($details, true);
+            return is_array($decoded) ? $decoded : null;
+        }
+
+        if (is_object($details)) {
+            $details = json_decode(json_encode($details), true);
+        }
+
+        return is_array($details) ? $details : null;
+    }
+
+    private function createProductFromLine(int $userId, string $itemType, array $line, ?array $sourceDetails): Product
+    {
+        $name = trim((string) ($line['name'] ?? ''));
+        $query = Product::byUser($userId)
+            ->where('item_type', $itemType)
+            ->whereRaw('LOWER(name) = ?', [strtolower($name)]);
+
+        $existing = $query->first();
+        if ($existing) {
+            return $existing;
+        }
+
+        $category = $this->resolveCategory($itemType);
+
+        $selected = $sourceDetails['selected_source'] ?? null;
+        $best = $sourceDetails['best_source'] ?? null;
+        $source = is_array($selected) ? $selected : (is_array($best) ? $best : null);
+        $supplierName = is_array($source) ? ($source['name'] ?? null) : null;
+        $imageUrl = is_array($source) ? ($source['image_url'] ?? null) : null;
+        $sourcePrice = is_array($source) && isset($source['price']) ? (float) $source['price'] : null;
+
+        $price = (float) ($line['price'] ?? 0);
+        $costPrice = $sourcePrice ?? $price;
+        $marginPercent = 0.0;
+        if ($price > 0 && $costPrice > 0) {
+            $marginPercent = round((($price - $costPrice) / $price) * 100, 2);
+        }
+
+        $description = $line['description'] ?? null;
+        if (!$description && is_array($source)) {
+            $description = $source['title'] ?? null;
+        }
+
+        return Product::create([
+            'user_id' => $userId,
+            'name' => $name ?: 'Quote line',
+            'description' => $description ?: 'Auto-generated from quote line.',
+            'category_id' => $category->id,
+            'price' => $price,
+            'cost_price' => $costPrice,
+            'margin_percent' => $marginPercent,
+            'unit' => $line['unit'] ?? null,
+            'supplier_name' => $supplierName,
+            'stock' => 0,
+            'minimum_stock' => 0,
+            'is_active' => true,
+            'item_type' => $itemType,
+            'image' => $imageUrl,
+        ]);
+    }
+
+    private function resolveCategory(string $itemType): ProductCategory
+    {
+        $name = $itemType === 'product' ? 'Products' : 'Services';
+
+        return ProductCategory::firstOrCreate(['name' => $name]);
     }
 
     private function syncWorkProductsFromQuote(Quote $quote, Work $work): void

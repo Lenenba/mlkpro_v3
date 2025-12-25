@@ -463,6 +463,7 @@ const submitImport = () => {
             </div>
         </div>
 
+        <div class="overflow-x-auto">
         <table class="min-w-full divide-y divide-stone-200 dark:divide-neutral-700">
             <thead>
                 <tr class="border-t border-stone-200 dark:border-neutral-700">
@@ -668,6 +669,7 @@ const submitImport = () => {
                 </tr>
             </tbody>
         </table>
+        </div>
 
         <div class="mt-5 flex flex-wrap justify-between items-center gap-2">
             <p class="text-sm text-stone-800 dark:text-neutral-200">

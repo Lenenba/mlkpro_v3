@@ -277,6 +277,9 @@ const sourceLines = computed(() => {
                                         class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
                                         Supplier unit cost: ${{ line.details.selected_source.price }}
                                     </div>
+                                    <div v-if="line.details.selected_source?.title" class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
+                                        Product: {{ line.details.selected_source.title }}
+                                    </div>
                                     <div class="text-xs text-stone-500 dark:text-neutral-400">
                                         Quote unit price: ${{ line.product.pivot.price }}
                                     </div>
@@ -288,6 +291,9 @@ const sourceLines = computed(() => {
                                     </div>
                                     <div v-if="line.details.source_status === 'missing'" class="mt-2 text-xs text-amber-600 dark:text-amber-300">
                                         No live price found for this line.
+                                    </div>
+                                    <div v-if="line.details.source_status === 'skipped'" class="mt-2 text-xs text-amber-600 dark:text-amber-300">
+                                        Live pricing skipped to keep scan fast.
                                     </div>
                                     <a v-if="line.details.selected_source?.url"
                                         :href="line.details.selected_source.url"
@@ -322,7 +328,10 @@ const sourceLines = computed(() => {
                                     <div v-for="source in line.details.sources" :key="source.name"
                                         class="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                                         <div class="text-xs text-stone-700 dark:text-neutral-200">
-                                            {{ source.name }}
+                                            <div>{{ source.name }}</div>
+                                            <div v-if="source.title" class="text-[10px] text-stone-400 dark:text-neutral-500">
+                                                {{ source.title }}
+                                            </div>
                                         </div>
                                         <div class="flex items-center gap-3 text-xs text-stone-500 dark:text-neutral-400">
                                             <span>${{ source.price }}</span>

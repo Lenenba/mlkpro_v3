@@ -7,6 +7,11 @@ use Illuminate\Support\Facades\Http;
 
 class PriceLookupService
 {
+    private const SEARCH_TIMEOUT_SECONDS = 4;
+    private const STORE_TIMEOUT_SECONDS = 4;
+    private const SEARCH_RESULTS = 6;
+    private const MAX_PRODUCT_CHECKS = 1;
+
     public function __construct(private SupplierDirectory $supplierDirectory)
     {
     }
@@ -39,78 +44,114 @@ class PriceLookupService
         $location = trim(implode(', ', array_filter([$city, $province, $country])));
         $cacheKey = 'price_lookup:' . md5($query . '|' . implode(',', $supplierKeys) . '|' . $location);
 
-        return Cache::remember($cacheKey, now()->addHours(12), function () use ($query, $supplierKeys, $location) {
-            try {
-                $response = Http::timeout(12)->get('https://serpapi.com/search.json', [
-                    'engine' => 'google_shopping',
-                    'q' => $query,
-                    'gl' => 'ca',
-                    'hl' => 'fr',
-                    'location' => $location ?: 'Canada',
-                    'num' => 10,
-                    'api_key' => config('services.serpapi.key'),
-                ]);
-            } catch (\Throwable $exception) {
-                return [];
-            }
+        $cached = Cache::get($cacheKey);
+        if ($cached !== null) {
+            return $cached;
+        }
 
-            if (!$response->ok()) {
-                return [];
-            }
+        $results = $this->fetchShoppingResults($query);
+        if (!$results) {
+            return [];
+        }
 
-            $results = $response->json('shopping_results', []);
-            if (!is_array($results)) {
-                return [];
-            }
+        $normalized = $this->normalizeResults($results, $supplierKeys);
+        if ($normalized) {
+            Cache::put($cacheKey, $normalized, now()->addHours(12));
+        }
 
-            return $this->normalizeResults($results, $supplierKeys);
-        });
+        return $normalized;
+    }
+
+    private function fetchShoppingResults(string $query): array
+    {
+        try {
+            $response = Http::timeout(self::SEARCH_TIMEOUT_SECONDS)->get('https://serpapi.com/search.json', [
+                'engine' => 'google_shopping',
+                'q' => $query,
+                'gl' => 'ca',
+                'hl' => 'fr',
+                'num' => self::SEARCH_RESULTS,
+                'api_key' => config('services.serpapi.key'),
+            ]);
+        } catch (\Throwable $exception) {
+            return [];
+        }
+
+        if (!$response->ok()) {
+            return [];
+        }
+
+        $results = $response->json('shopping_results', []);
+        if (!is_array($results)) {
+            return [];
+        }
+
+        return $results;
     }
 
     private function normalizeResults(array $results, array $supplierKeys): array
     {
         $entries = [];
 
+        $checked = 0;
         foreach ($results as $result) {
             if (!is_array($result)) {
                 continue;
             }
 
-            $link = $result['link'] ?? null;
-            if (!$link) {
+            if ($checked >= self::MAX_PRODUCT_CHECKS) {
+                break;
+            }
+
+            $stores = $this->fetchStores($result);
+            if (!$stores) {
+                $checked++;
                 continue;
             }
 
-            $domain = parse_url($link, PHP_URL_HOST);
-            if (!$domain) {
-                continue;
+            foreach ($stores as $store) {
+                if (!is_array($store)) {
+                    continue;
+                }
+
+                $link = $store['link'] ?? null;
+                if (!$link) {
+                    continue;
+                }
+
+                $domain = parse_url($link, PHP_URL_HOST);
+                $supplier = $domain ? $this->supplierDirectory->findByDomain($domain) : null;
+                if (!$supplier) {
+                    $supplier = $this->findSupplierByName($store['name'] ?? null, $supplierKeys);
+                }
+                if (!$supplier) {
+                    continue;
+                }
+
+                $supplierKey = $supplier['key'] ?? null;
+                if (!$supplierKey || !in_array($supplierKey, $supplierKeys, true)) {
+                    continue;
+                }
+
+                $price = $this->extractPrice($store);
+                if ($price === null) {
+                    continue;
+                }
+
+                $entries[] = [
+                    'supplier_key' => $supplierKey,
+                    'name' => $supplier['name'] ?? ($store['name'] ?? $domain),
+                    'url' => $link,
+                    'price' => $price,
+                    'currency' => 'CAD',
+                    'title' => $store['title'] ?? ($result['title'] ?? null),
+                    'image_url' => $store['image_url'] ?? null,
+                    'domain' => $domain,
+                    'source_label' => $store['name'] ?? null,
+                ];
             }
 
-            $supplier = $this->supplierDirectory->findByDomain($domain);
-            if (!$supplier) {
-                continue;
-            }
-
-            $supplierKey = $supplier['key'] ?? null;
-            if (!$supplierKey || !in_array($supplierKey, $supplierKeys, true)) {
-                continue;
-            }
-
-            $price = $this->extractPrice($result);
-            if ($price === null) {
-                continue;
-            }
-
-            $entries[] = [
-                'supplier_key' => $supplierKey,
-                'name' => $supplier['name'] ?? ($result['source'] ?? $domain),
-                'url' => $link,
-                'price' => $price,
-                'currency' => 'CAD',
-                'title' => $result['title'] ?? null,
-                'domain' => $domain,
-                'source_label' => $result['source'] ?? null,
-            ];
+            $checked++;
         }
 
         $bySupplier = [];
@@ -125,6 +166,78 @@ class PriceLookupService
         usort($filtered, fn ($a, $b) => $a['price'] <=> $b['price']);
 
         return $filtered;
+    }
+
+    private function fetchStores(array $result): array
+    {
+        $apiUrl = $result['serpapi_immersive_product_api'] ?? null;
+        if (!$apiUrl) {
+            return [];
+        }
+
+        $apiUrl = $this->appendApiKey($apiUrl);
+
+        try {
+            $response = Http::timeout(self::STORE_TIMEOUT_SECONDS)->get($apiUrl);
+        } catch (\Throwable $exception) {
+            return [];
+        }
+
+        if (!$response->ok()) {
+            return [];
+        }
+
+        $stores = $response->json('product_results.stores', []);
+        if (!is_array($stores)) {
+            return [];
+        }
+
+        $thumbnails = $response->json('product_results.thumbnails', []);
+        $imageUrl = is_array($thumbnails) ? ($thumbnails[0] ?? null) : null;
+        if (!$imageUrl) {
+            $imageUrl = $result['thumbnail'] ?? $result['serpapi_thumbnail'] ?? null;
+        }
+
+        return array_map(function ($store) use ($imageUrl) {
+            if (!is_array($store)) {
+                return $store;
+            }
+            if ($imageUrl && !isset($store['image_url'])) {
+                $store['image_url'] = $imageUrl;
+            }
+            return $store;
+        }, $stores);
+    }
+
+    private function appendApiKey(string $url): string
+    {
+        $separator = str_contains($url, '?') ? '&' : '?';
+
+        return $url . $separator . 'api_key=' . urlencode((string) config('services.serpapi.key'));
+    }
+
+    private function findSupplierByName(?string $name, array $supplierKeys): ?array
+    {
+        if (!$name) {
+            return null;
+        }
+
+        $needle = strtolower($name);
+        foreach (config('suppliers.suppliers', []) as $supplier) {
+            $key = $supplier['key'] ?? null;
+            $supplierName = strtolower((string) ($supplier['name'] ?? ''));
+            if (!$key || !$supplierName) {
+                continue;
+            }
+            if (!in_array($key, $supplierKeys, true)) {
+                continue;
+            }
+            if (str_contains($needle, $supplierName) || str_contains($supplierName, $needle)) {
+                return $supplier;
+            }
+        }
+
+        return null;
     }
 
     private function extractPrice(array $result): ?float
