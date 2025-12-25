@@ -33,6 +33,10 @@ const form = reactive({
     description: '',
     refer_by: '',
     billing_same_as_physical: true,
+    auto_accept_quotes: false,
+    auto_validate_jobs: false,
+    auto_validate_tasks: false,
+    auto_validate_invoices: false,
     properties: {
         type: 'physical',
         street1: '',
@@ -105,6 +109,10 @@ const resetForm = () => {
     form.description = '';
     form.refer_by = '';
     form.billing_same_as_physical = true;
+    form.auto_accept_quotes = false;
+    form.auto_validate_jobs = false;
+    form.auto_validate_tasks = false;
+    form.auto_validate_invoices = false;
     form.properties = {
         type: 'physical',
         street1: '',
@@ -147,6 +155,10 @@ const submit = async () => {
         description: form.description,
         refer_by: form.refer_by,
         billing_same_as_physical: form.billing_same_as_physical,
+        auto_accept_quotes: form.auto_accept_quotes,
+        auto_validate_jobs: form.auto_validate_jobs,
+        auto_validate_tasks: form.auto_validate_tasks,
+        auto_validate_invoices: form.auto_validate_invoices,
     };
 
     if (hasPropertyInput.value && propertyValid.value) {
@@ -209,6 +221,34 @@ const submit = async () => {
                     class="size-3.5 rounded border-stone-300 text-green-600 focus:ring-green-500 dark:bg-neutral-900 dark:border-neutral-700">
                 <span class="text-sm text-stone-600 dark:text-neutral-400">
                     Billing address matches the property address
+                </span>
+            </div>
+            <div class="mt-3 flex items-start gap-2">
+                <input type="checkbox" v-model="form.auto_accept_quotes"
+                    class="mt-0.5 size-3.5 rounded border-stone-300 text-green-600 focus:ring-green-500 dark:bg-neutral-900 dark:border-neutral-700">
+                <span class="text-sm text-stone-600 dark:text-neutral-400">
+                    Auto-accept quotes for this customer
+                </span>
+            </div>
+            <div class="mt-2 flex items-start gap-2">
+                <input type="checkbox" v-model="form.auto_validate_jobs"
+                    class="mt-0.5 size-3.5 rounded border-stone-300 text-green-600 focus:ring-green-500 dark:bg-neutral-900 dark:border-neutral-700">
+                <span class="text-sm text-stone-600 dark:text-neutral-400">
+                    Auto-validate jobs
+                </span>
+            </div>
+            <div class="mt-2 flex items-start gap-2">
+                <input type="checkbox" v-model="form.auto_validate_tasks"
+                    class="mt-0.5 size-3.5 rounded border-stone-300 text-green-600 focus:ring-green-500 dark:bg-neutral-900 dark:border-neutral-700">
+                <span class="text-sm text-stone-600 dark:text-neutral-400">
+                    Auto-validate tasks
+                </span>
+            </div>
+            <div class="mt-2 flex items-start gap-2">
+                <input type="checkbox" v-model="form.auto_validate_invoices"
+                    class="mt-0.5 size-3.5 rounded border-stone-300 text-green-600 focus:ring-green-500 dark:bg-neutral-900 dark:border-neutral-700">
+                <span class="text-sm text-stone-600 dark:text-neutral-400">
+                    Auto-validate invoices
                 </span>
             </div>
         </div>

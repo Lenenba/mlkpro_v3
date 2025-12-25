@@ -274,6 +274,10 @@ class QuoteController extends Controller
             ], 'Quote created');
         }
 
+        if ($quote && $customer->auto_accept_quotes && $quote->status !== 'declined') {
+            $this->autoAcceptQuote($quote);
+        }
+
         return redirect()->route('customer.show', $customer)->with('success', 'Quote created successfully!');
     }
 
@@ -394,6 +398,10 @@ class QuoteController extends Controller
         ActivityLog::record(Auth::user(), $quote, 'updated', [
             'total' => $quote->total,
         ], 'Quote updated');
+
+        if ($customer->auto_accept_quotes && $quote->status !== 'declined') {
+            $this->autoAcceptQuote($quote);
+        }
 
         return redirect()->route('customer.show', $quote->customer)->with('success', 'Quote updated successfully!');
     }
@@ -668,5 +676,88 @@ class QuoteController extends Controller
         });
 
         $work->products()->sync($pivotData->toArray());
+    }
+
+    private function autoAcceptQuote(Quote $quote): ?Work
+    {
+        if ($quote->isArchived() || $quote->status === 'declined') {
+            return null;
+        }
+
+        $previousStatus = $quote->status;
+        $existingWork = Work::where('quote_id', $quote->id)->first();
+        if (!$existingWork) {
+            app(UsageLimitService::class)->enforceLimit(Auth::user(), 'jobs');
+        }
+
+        $work = null;
+        DB::transaction(function () use ($quote, $existingWork, &$work) {
+            $work = $existingWork;
+            if (!$work) {
+                $work = Work::create([
+                    'user_id' => $quote->user_id,
+                    'customer_id' => $quote->customer_id,
+                    'quote_id' => $quote->id,
+                    'job_title' => $quote->job_title,
+                    'instructions' => $quote->notes ?: ($quote->messages ?: ''),
+                    'status' => Work::STATUS_TO_SCHEDULE,
+                    'subtotal' => $quote->subtotal,
+                    'total' => $quote->total,
+                ]);
+            } else {
+                $work->update([
+                    'job_title' => $quote->job_title,
+                    'instructions' => $quote->notes ?: ($quote->messages ?: ''),
+                    'subtotal' => $quote->subtotal,
+                    'total' => $quote->total,
+                ]);
+            }
+
+            $quote->update([
+                'status' => 'accepted',
+                'accepted_at' => $quote->accepted_at ?? now(),
+                'signed_at' => $quote->signed_at ?? now(),
+                'work_id' => $work->id,
+            ]);
+
+            $this->syncWorkProductsFromQuote($quote, $work);
+
+            $items = QuoteProduct::query()
+                ->where('quote_id', $quote->id)
+                ->with('product')
+                ->orderBy('id')
+                ->get();
+
+            foreach ($items as $index => $item) {
+                WorkChecklistItem::firstOrCreate(
+                    [
+                        'work_id' => $work->id,
+                        'quote_product_id' => $item->id,
+                    ],
+                    [
+                        'quote_id' => $quote->id,
+                        'title' => $item->product?->name ?? 'Line item',
+                        'description' => $item->description ?: $item->product?->description,
+                        'status' => 'pending',
+                        'sort_order' => $index,
+                    ]
+                );
+            }
+        });
+
+        if ($previousStatus !== 'accepted') {
+            ActivityLog::record(Auth::user(), $quote, 'auto_accepted', [
+                'total' => $quote->total,
+            ], 'Quote auto-accepted');
+        }
+
+        if (!$existingWork && $work) {
+            ActivityLog::record(Auth::user(), $work, 'created', [
+                'from_quote_id' => $quote->id,
+                'total' => $work->total,
+            ], 'Job created from auto-accepted quote');
+        }
+
+        return $work;
     }
 }

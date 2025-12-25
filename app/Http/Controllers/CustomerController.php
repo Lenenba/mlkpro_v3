@@ -479,6 +479,34 @@ class CustomerController extends Controller
         return redirect()->back()->with('success', 'Tags updated.');
     }
 
+    public function updateAutoValidation(Request $request, Customer $customer)
+    {
+        $this->authorize('update', $customer);
+
+        $validated = $request->validate([
+            'auto_accept_quotes' => 'nullable|boolean',
+            'auto_validate_jobs' => 'nullable|boolean',
+            'auto_validate_tasks' => 'nullable|boolean',
+            'auto_validate_invoices' => 'nullable|boolean',
+        ]);
+
+        $customer->update([
+            'auto_accept_quotes' => (bool) ($validated['auto_accept_quotes'] ?? $customer->auto_accept_quotes ?? false),
+            'auto_validate_jobs' => (bool) ($validated['auto_validate_jobs'] ?? $customer->auto_validate_jobs ?? false),
+            'auto_validate_tasks' => (bool) ($validated['auto_validate_tasks'] ?? $customer->auto_validate_tasks ?? false),
+            'auto_validate_invoices' => (bool) ($validated['auto_validate_invoices'] ?? $customer->auto_validate_invoices ?? false),
+        ]);
+
+        ActivityLog::record($request->user(), $customer, 'auto_validation_updated', [
+            'auto_accept_quotes' => $customer->auto_accept_quotes,
+            'auto_validate_jobs' => $customer->auto_validate_jobs,
+            'auto_validate_tasks' => $customer->auto_validate_tasks,
+            'auto_validate_invoices' => $customer->auto_validate_invoices,
+        ], 'Customer auto validation updated');
+
+        return redirect()->back()->with('success', 'Auto validation preferences updated.');
+    }
+
     /**
      * Store a newly created customer in storage.
      *

@@ -300,15 +300,23 @@ class TaskBillingService
             return;
         }
 
+        $work->loadMissing('customer');
+        $autoValidateJobs = (bool) ($work->customer?->auto_validate_jobs ?? false);
+        $nextStatus = $autoValidateJobs ? Work::STATUS_AUTO_VALIDATED : Work::STATUS_TECH_COMPLETE;
+
         $previous = $work->status;
-        $work->status = Work::STATUS_TECH_COMPLETE;
+        $work->status = $nextStatus;
         $work->save();
 
         if ($actor) {
             ActivityLog::record($actor, $work, 'status_changed', [
                 'from' => $previous,
-                'to' => $work->status,
-            ], 'Job marked as completed after tasks');
+                'to' => $nextStatus,
+            ], $autoValidateJobs ? 'Job auto-validated after tasks' : 'Job marked as completed after tasks');
+        }
+
+        if ($autoValidateJobs && $this->shouldInvoiceOnWorkValidation($work)) {
+            app(WorkBillingService::class)->createInvoiceFromWork($work, $actor);
         }
     }
 }

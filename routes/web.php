@@ -150,6 +150,8 @@ Route::middleware(['auth', EnsureInternalUser::class])->group(function () {
         ->name('customer.notes.update');
     Route::patch('/customer/{customer}/tags', [CustomerController::class, 'updateTags'])
         ->name('customer.tags.update');
+    Route::patch('/customer/{customer}/auto-validation', [CustomerController::class, 'updateAutoValidation'])
+        ->name('customer.auto-validation.update');
 
     Route::resource('customer', CustomerController::class)
         ->only(['index', 'store', 'update', 'create', 'show', 'destroy']);

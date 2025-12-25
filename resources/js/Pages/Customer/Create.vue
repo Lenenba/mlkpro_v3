@@ -5,7 +5,6 @@ import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingTextarea from '@/Components/FloatingTextarea.vue';
 import ValidationSummary from '@/Components/ValidationSummary.vue';
 import { Link, useForm, Head } from '@inertiajs/vue3';
-import ListInput from '@/Components/ListInput.vue';
 import { ref } from 'vue';
 import axios from 'axios';
 
@@ -73,6 +72,10 @@ const form = useForm({
     billing_grouping: props.customer?.billing_grouping || 'single',
     billing_delay_days: props.customer?.billing_delay_days ?? '',
     billing_date_rule: props.customer?.billing_date_rule || '',
+    auto_accept_quotes: props.customer?.auto_accept_quotes ?? false,
+    auto_validate_jobs: props.customer?.auto_validate_jobs ?? false,
+    auto_validate_tasks: props.customer?.auto_validate_tasks ?? false,
+    auto_validate_invoices: props.customer?.auto_validate_invoices ?? false,
 });
 
 
@@ -183,9 +186,119 @@ const selectAddress = (details) => {
                         <p class="text-xs text-stone-500 dark:text-neutral-400">
                             Le client pourra le changer lors de la premiere connexion.
                         </p>
-                        <h2 class="pt-4 text-sm  my-2 font-bold text-stone-800 dark:text-white"> Additional notifications
+                        <h2 class="pt-4 text-sm  my-2 font-bold text-stone-800 dark:text-white"> Client auto validation
                         </h2>
-                        <ListInput />
+                        <div class="-mx-3 flex flex-col gap-y-1">
+                            <label for="customer-auto-accept-quotes"
+                                class="py-2 px-3 group flex justify-between items-center gap-x-3 cursor-pointer hover:bg-stone-100 rounded-sm dark:hover:bg-neutral-800 dark:focus:bg-neutral-800">
+                                <span class="grow">
+                                    <span class="flex items-center gap-x-3">
+                                        <span
+                                            class="shrink-0 size-11 inline-flex justify-center items-center bg-stone-100 text-stone-800 rounded-full group-hover:bg-stone-200 group-focus:bg-stone-200 dark:bg-neutral-700 dark:text-neutral-300 dark:bg-neutral-800 dark:group-hover:bg-neutral-700 dark:group-focus:bg-neutral-700">
+                                            <svg class="shrink-0 size-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                                stroke-linecap="round" stroke-linejoin="round">
+                                                <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2Z" />
+                                                <path d="M14 2v6h6" />
+                                                <path d="M8 13h8" />
+                                                <path d="M8 17h5" />
+                                            </svg>
+                                        </span>
+                                        <span class="grow">
+                                            <span class="block text-sm text-stone-800 dark:text-neutral-200">
+                                                Auto validation devis (quotes)
+                                            </span>
+                                        </span>
+                                    </span>
+                                </span>
+
+                                <input type="checkbox" id="customer-auto-accept-quotes" v-model="form.auto_accept_quotes"
+                                    class="relative w-11 h-6 p-px bg-stone-100 border-transparent text-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:ring-green-600 disabled:opacity-50 disabled:pointer-events-none checked:bg-none checked:text-green-600 checked:border-green-600 focus:checked:border-green-600 dark:bg-neutral-800 dark:border-neutral-700 dark:checked:bg-green-500 dark:checked:border-green-500 dark:focus:ring-offset-neutral-900
+
+                                before:inline-block before:size-5 before:bg-white checked:before:bg-white before:translate-x-0 checked:before:translate-x-full before:rounded-full before:shadow before:transform before:ring-0 before:transition before:ease-in-out before:duration-200 dark:before:bg-neutral-400 dark:checked:before:bg-white">
+                            </label>
+                            <label for="customer-auto-validate-jobs"
+                                class="py-2 px-3 group flex justify-between items-center gap-x-3 cursor-pointer hover:bg-stone-100 rounded-sm dark:hover:bg-neutral-800 dark:focus:bg-neutral-800">
+                                <span class="grow">
+                                    <span class="flex items-center gap-x-3">
+                                        <span
+                                            class="shrink-0 size-11 inline-flex justify-center items-center bg-stone-100 text-stone-800 rounded-full group-hover:bg-stone-200 group-focus:bg-stone-200 dark:bg-neutral-700 dark:text-neutral-300 dark:bg-neutral-800 dark:group-hover:bg-neutral-700 dark:group-focus:bg-neutral-700">
+                                            <svg class="shrink-0 size-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                                stroke-linecap="round" stroke-linejoin="round">
+                                                <rect width="20" height="14" x="2" y="7" rx="2" />
+                                                <path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2" />
+                                                <path d="M2 13h20" />
+                                            </svg>
+                                        </span>
+                                        <span class="grow">
+                                            <span class="block text-sm text-stone-800 dark:text-neutral-200">
+                                                Auto validation jobs
+                                            </span>
+                                        </span>
+                                    </span>
+                                </span>
+
+                                <input type="checkbox" id="customer-auto-validate-jobs" v-model="form.auto_validate_jobs"
+                                    class="relative w-11 h-6 p-px bg-stone-100 border-transparent text-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:ring-green-600 disabled:opacity-50 disabled:pointer-events-none checked:bg-none checked:text-green-600 checked:border-green-600 focus:checked:border-green-600 dark:bg-neutral-800 dark:border-neutral-700 dark:checked:bg-green-500 dark:checked:border-green-500 dark:focus:ring-offset-neutral-900
+
+                                before:inline-block before:size-5 before:bg-white checked:before:bg-white before:translate-x-0 checked:before:translate-x-full before:rounded-full before:shadow before:transform before:ring-0 before:transition before:ease-in-out before:duration-200 dark:before:bg-neutral-400 dark:checked:before:bg-white">
+                            </label>
+                            <label for="customer-auto-validate-tasks"
+                                class="py-2 px-3 group flex justify-between items-center gap-x-3 cursor-pointer hover:bg-stone-100 rounded-sm dark:hover:bg-neutral-800 dark:focus:bg-neutral-800">
+                                <span class="grow">
+                                    <span class="flex items-center gap-x-3">
+                                        <span
+                                            class="shrink-0 size-11 inline-flex justify-center items-center bg-stone-100 text-stone-800 rounded-full group-hover:bg-stone-200 group-focus:bg-stone-200 dark:bg-neutral-700 dark:text-neutral-300 dark:bg-neutral-800 dark:group-hover:bg-neutral-700 dark:group-focus:bg-neutral-700">
+                                            <svg class="shrink-0 size-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                                stroke-linecap="round" stroke-linejoin="round">
+                                                <path d="M9 11l3 3L22 4" />
+                                                <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+                                            </svg>
+                                        </span>
+                                        <span class="grow">
+                                            <span class="block text-sm text-stone-800 dark:text-neutral-200">
+                                                Auto validation taches
+                                            </span>
+                                        </span>
+                                    </span>
+                                </span>
+
+                                <input type="checkbox" id="customer-auto-validate-tasks" v-model="form.auto_validate_tasks"
+                                    class="relative w-11 h-6 p-px bg-stone-100 border-transparent text-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:ring-green-600 disabled:opacity-50 disabled:pointer-events-none checked:bg-none checked:text-green-600 checked:border-green-600 focus:checked:border-green-600 dark:bg-neutral-800 dark:border-neutral-700 dark:checked:bg-green-500 dark:checked:border-green-500 dark:focus:ring-offset-neutral-900
+
+                                before:inline-block before:size-5 before:bg-white checked:before:bg-white before:translate-x-0 checked:before:translate-x-full before:rounded-full before:shadow before:transform before:ring-0 before:transition before:ease-in-out before:duration-200 dark:before:bg-neutral-400 dark:checked:before:bg-white">
+                            </label>
+                            <label for="customer-auto-validate-invoices"
+                                class="py-2 px-3 group flex justify-between items-center gap-x-3 cursor-pointer hover:bg-stone-100 rounded-sm dark:hover:bg-neutral-800 dark:focus:bg-neutral-800">
+                                <span class="grow">
+                                    <span class="flex items-center gap-x-3">
+                                        <span
+                                            class="shrink-0 size-11 inline-flex justify-center items-center bg-stone-100 text-stone-800 rounded-full group-hover:bg-stone-200 group-focus:bg-stone-200 dark:bg-neutral-700 dark:text-neutral-300 dark:bg-neutral-800 dark:group-hover:bg-neutral-700 dark:group-focus:bg-neutral-700">
+                                            <svg class="shrink-0 size-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                                stroke-linecap="round" stroke-linejoin="round">
+                                                <path d="M4 2h16v20l-4-2-4 2-4-2-4 2V2z" />
+                                                <path d="M8 6h8" />
+                                                <path d="M8 10h8" />
+                                                <path d="M8 14h6" />
+                                            </svg>
+                                        </span>
+                                        <span class="grow">
+                                            <span class="block text-sm text-stone-800 dark:text-neutral-200">
+                                                Auto validation factures
+                                            </span>
+                                        </span>
+                                    </span>
+                                </span>
+
+                                <input type="checkbox" id="customer-auto-validate-invoices" v-model="form.auto_validate_invoices"
+                                    class="relative w-11 h-6 p-px bg-stone-100 border-transparent text-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:ring-green-600 disabled:opacity-50 disabled:pointer-events-none checked:bg-none checked:text-green-600 checked:border-green-600 focus:checked:border-green-600 dark:bg-neutral-800 dark:border-neutral-700 dark:checked:bg-green-500 dark:checked:border-green-500 dark:focus:ring-offset-neutral-900
+
+                                before:inline-block before:size-5 before:bg-white checked:before:bg-white before:translate-x-0 checked:before:translate-x-full before:rounded-full before:shadow before:transform before:ring-0 before:transition before:ease-in-out before:duration-200 dark:before:bg-neutral-400 dark:checked:before:bg-white">
+                            </label>
+                        </div>
                         <h2 class="pt-4 text-sm  my-2 font-bold text-stone-800 dark:text-white"> Additional client detail
                         </h2>
                         <FloatingTextarea v-model="form.description" label="Description" />

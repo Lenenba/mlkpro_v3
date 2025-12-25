@@ -53,10 +53,18 @@ const props = defineProps({
         type: Boolean,
         default: false,
     },
+    autoValidation: {
+        type: Object,
+        default: () => ({ tasks: false, invoices: false }),
+    },
 });
 
 const page = usePage();
 const userName = computed(() => page.props.auth?.user?.name || 'there');
+const autoValidation = computed(() => ({
+    tasks: Boolean(props.autoValidation?.tasks),
+    invoices: Boolean(props.autoValidation?.invoices),
+}));
 
 const stat = (key) => props.stats?.[key] ?? 0;
 
@@ -263,6 +271,10 @@ const closeSchedulePreview = () => {
 };
 
 const openTaskProof = (task) => {
+    if (autoValidation.value.tasks) {
+        return;
+    }
+
     taskProofTask.value = task;
     taskProofForm.reset();
     taskProofForm.clearErrors();
@@ -280,6 +292,10 @@ const handleTaskProofFile = (event) => {
 };
 
 const submitTaskProof = () => {
+    if (autoValidation.value.tasks) {
+        return;
+    }
+
     const taskId = taskProofTask.value?.id;
     if (!taskId || taskProofForm.processing) {
         return;
@@ -339,6 +355,10 @@ const disputeWork = (workId) => {
 };
 
 const submitPayment = (invoiceId) => {
+    if (autoValidation.value.invoices) {
+        return;
+    }
+
     const amount = Number(paymentAmounts[invoiceId] || 0);
     router.post(
         route('portal.invoices.payments.store', invoiceId),
@@ -414,7 +434,8 @@ const submitWorkRating = (workId) => {
                             {{ stat('works_pending') }}
                         </p>
                     </div>
-                    <div class="p-4 bg-white border border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
+                    <div v-if="!autoValidation.invoices"
+                        class="p-4 bg-white border border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
                         <p class="text-xs text-stone-500 dark:text-neutral-400">Invoices to pay</p>
                         <p class="mt-1 text-2xl font-semibold text-stone-800 dark:text-neutral-100">
                             {{ stat('invoices_due') }}
@@ -563,7 +584,7 @@ const submitWorkRating = (workId) => {
                 </div>
             </section>
 
-            <section v-if="!profileMissing"
+            <section v-if="!profileMissing && !autoValidation.tasks"
                 class="bg-white border border-stone-200 rounded-sm p-5 shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
                 <div class="flex items-center justify-between">
                     <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
@@ -607,8 +628,10 @@ const submitWorkRating = (workId) => {
                 </div>
             </section>
 
-            <section v-if="!profileMissing" class="grid grid-cols-1 xl:grid-cols-2 gap-4">
-                <div class="bg-white border border-stone-200 rounded-sm p-5 shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
+            <section v-if="!profileMissing"
+                :class="['grid grid-cols-1 gap-4', autoValidation.invoices ? 'xl:grid-cols-1' : 'xl:grid-cols-2']">
+                <div v-if="!autoValidation.invoices"
+                    class="bg-white border border-stone-200 rounded-sm p-5 shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
                     <div class="flex items-center justify-between">
                         <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
                             Invoices awaiting payment

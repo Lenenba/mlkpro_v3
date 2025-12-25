@@ -26,6 +26,12 @@ class PortalTaskMediaController extends Controller
     public function store(Request $request, Task $task): RedirectResponse
     {
         $customer = $this->portalCustomer($request);
+        if ($customer->auto_validate_tasks) {
+            return redirect()->back()->withErrors([
+                'status' => 'Task actions are handled by the company.',
+            ]);
+        }
+
         $task->loadMissing('work');
 
         $workCustomerId = $task->work?->customer_id;

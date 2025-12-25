@@ -40,6 +40,10 @@ class Customer extends Model
         'billing_grouping',
         'billing_delay_days',
         'billing_date_rule',
+        'auto_accept_quotes',
+        'auto_validate_jobs',
+        'auto_validate_tasks',
+        'auto_validate_invoices',
     ];
 
     /**
@@ -53,6 +57,10 @@ class Customer extends Model
 
     protected $casts = [
         'billing_same_as_physical' => 'boolean',
+        'auto_accept_quotes' => 'boolean',
+        'auto_validate_jobs' => 'boolean',
+        'auto_validate_tasks' => 'boolean',
+        'auto_validate_invoices' => 'boolean',
         'tags' => 'array',
         'billing_delay_days' => 'integer',
     ];

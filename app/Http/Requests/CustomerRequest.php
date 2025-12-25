@@ -58,6 +58,10 @@ class CustomerRequest extends FormRequest
             ],
             'billing_delay_days' => 'nullable|integer|min:0|max:365',
             'billing_date_rule' => 'nullable|string|max:50',
+            'auto_accept_quotes' => 'nullable|boolean',
+            'auto_validate_jobs' => 'nullable|boolean',
+            'auto_validate_tasks' => 'nullable|boolean',
+            'auto_validate_invoices' => 'nullable|boolean',
             'refer_by' => 'nullable|string|max:255',
             'temporary_password' => [
                 $requiresPassword ? 'required' : 'nullable',

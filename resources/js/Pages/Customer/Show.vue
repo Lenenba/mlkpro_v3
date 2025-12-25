@@ -111,6 +111,23 @@ const submitNotes = () => {
     });
 };
 
+const autoValidationForm = useForm({
+    auto_accept_quotes: props.customer?.auto_accept_quotes ?? false,
+    auto_validate_jobs: props.customer?.auto_validate_jobs ?? false,
+    auto_validate_tasks: props.customer?.auto_validate_tasks ?? false,
+    auto_validate_invoices: props.customer?.auto_validate_invoices ?? false,
+});
+
+const submitAutoValidation = () => {
+    if (autoValidationForm.processing) {
+        return;
+    }
+
+    autoValidationForm.patch(route('customer.auto-validation.update', props.customer.id), {
+        preserveScroll: true,
+    });
+};
+
 const activityHref = (log) => {
     const type = log?.subject_type || '';
     const id = log?.subject_id;
@@ -637,6 +654,80 @@ const deleteProperty = (property) => {
                             <button
                                 type="submit"
                                 :disabled="tagsForm.processing"
+                                class="py-2 px-2.5 inline-flex items-center gap-x-2 text-xs font-semibold rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-green-500"
+                            >
+                                Save
+                            </button>
+                        </div>
+                    </form>
+                </CardNoHeader>
+                <CardNoHeader class="mt-5">
+                    <template #title>Auto validation</template>
+
+                    <form class="space-y-3" @submit.prevent="submitAutoValidation">
+                        <div class="space-y-2">
+                            <label
+                                for="customer-auto-accept-quotes"
+                                class="flex items-center justify-between gap-3 text-sm text-stone-700 dark:text-neutral-200"
+                            >
+                                <span>Auto validate quotes</span>
+                                <input
+                                    id="customer-auto-accept-quotes"
+                                    type="checkbox"
+                                    v-model="autoValidationForm.auto_accept_quotes"
+                                    class="relative w-11 h-6 p-px bg-stone-100 border-transparent text-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:ring-green-600 disabled:opacity-50 disabled:pointer-events-none checked:bg-none checked:text-green-600 checked:border-green-600 focus:checked:border-green-600 dark:bg-neutral-800 dark:border-neutral-700 dark:checked:bg-green-500 dark:checked:border-green-500 dark:focus:ring-offset-neutral-900
+
+                                    before:inline-block before:size-5 before:bg-white checked:before:bg-white before:translate-x-0 checked:before:translate-x-full before:rounded-full before:shadow before:transform before:ring-0 before:transition before:ease-in-out before:duration-200 dark:before:bg-neutral-400 dark:checked:before:bg-white"
+                                />
+                            </label>
+                            <label
+                                for="customer-auto-validate-jobs"
+                                class="flex items-center justify-between gap-3 text-sm text-stone-700 dark:text-neutral-200"
+                            >
+                                <span>Auto validate jobs</span>
+                                <input
+                                    id="customer-auto-validate-jobs"
+                                    type="checkbox"
+                                    v-model="autoValidationForm.auto_validate_jobs"
+                                    class="relative w-11 h-6 p-px bg-stone-100 border-transparent text-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:ring-green-600 disabled:opacity-50 disabled:pointer-events-none checked:bg-none checked:text-green-600 checked:border-green-600 focus:checked:border-green-600 dark:bg-neutral-800 dark:border-neutral-700 dark:checked:bg-green-500 dark:checked:border-green-500 dark:focus:ring-offset-neutral-900
+
+                                    before:inline-block before:size-5 before:bg-white checked:before:bg-white before:translate-x-0 checked:before:translate-x-full before:rounded-full before:shadow before:transform before:ring-0 before:transition before:ease-in-out before:duration-200 dark:before:bg-neutral-400 dark:checked:before:bg-white"
+                                />
+                            </label>
+                            <label
+                                for="customer-auto-validate-tasks"
+                                class="flex items-center justify-between gap-3 text-sm text-stone-700 dark:text-neutral-200"
+                            >
+                                <span>Auto validate tasks</span>
+                                <input
+                                    id="customer-auto-validate-tasks"
+                                    type="checkbox"
+                                    v-model="autoValidationForm.auto_validate_tasks"
+                                    class="relative w-11 h-6 p-px bg-stone-100 border-transparent text-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:ring-green-600 disabled:opacity-50 disabled:pointer-events-none checked:bg-none checked:text-green-600 checked:border-green-600 focus:checked:border-green-600 dark:bg-neutral-800 dark:border-neutral-700 dark:checked:bg-green-500 dark:checked:border-green-500 dark:focus:ring-offset-neutral-900
+
+                                    before:inline-block before:size-5 before:bg-white checked:before:bg-white before:translate-x-0 checked:before:translate-x-full before:rounded-full before:shadow before:transform before:ring-0 before:transition before:ease-in-out before:duration-200 dark:before:bg-neutral-400 dark:checked:before:bg-white"
+                                />
+                            </label>
+                            <label
+                                for="customer-auto-validate-invoices"
+                                class="flex items-center justify-between gap-3 text-sm text-stone-700 dark:text-neutral-200"
+                            >
+                                <span>Auto validate invoices</span>
+                                <input
+                                    id="customer-auto-validate-invoices"
+                                    type="checkbox"
+                                    v-model="autoValidationForm.auto_validate_invoices"
+                                    class="relative w-11 h-6 p-px bg-stone-100 border-transparent text-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:ring-green-600 disabled:opacity-50 disabled:pointer-events-none checked:bg-none checked:text-green-600 checked:border-green-600 focus:checked:border-green-600 dark:bg-neutral-800 dark:border-neutral-700 dark:checked:bg-green-500 dark:checked:border-green-500 dark:focus:ring-offset-neutral-900
+
+                                    before:inline-block before:size-5 before:bg-white checked:before:bg-white before:translate-x-0 checked:before:translate-x-full before:rounded-full before:shadow before:transform before:ring-0 before:transition before:ease-in-out before:duration-200 dark:before:bg-neutral-400 dark:checked:before:bg-white"
+                                />
+                            </label>
+                        </div>
+
+                        <div class="flex justify-end">
+                            <button
+                                type="submit"
+                                :disabled="autoValidationForm.processing"
                                 class="py-2 px-2.5 inline-flex items-center gap-x-2 text-xs font-semibold rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-green-500"
                             >
                                 Save

@@ -637,6 +637,11 @@ class WorkController extends Controller
             }
         }
 
+        $autoValidateJobs = (bool) ($work->customer?->auto_validate_jobs ?? false);
+        if ($autoValidateJobs && in_array($nextStatus, [Work::STATUS_TECH_COMPLETE, Work::STATUS_PENDING_REVIEW], true)) {
+            $nextStatus = Work::STATUS_AUTO_VALIDATED;
+        }
+
         $previousStatus = $work->status;
         $work->status = $nextStatus;
         $work->save();

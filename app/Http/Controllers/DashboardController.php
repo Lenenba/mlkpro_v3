@@ -35,6 +35,10 @@ class DashboardController extends Controller
                         'invoices_due' => 0,
                         'ratings_due' => 0,
                     ],
+                    'autoValidation' => [
+                        'tasks' => false,
+                        'invoices' => false,
+                    ],
                     'pendingQuotes' => [],
                     'validatedQuotes' => [],
                     'pendingSchedules' => [],
@@ -48,6 +52,8 @@ class DashboardController extends Controller
             }
 
             $customerId = $customer->id;
+            $autoValidateTasks = (bool) ($customer->auto_validate_tasks ?? false);
+            $autoValidateInvoices = (bool) ($customer->auto_validate_invoices ?? false);
 
             $pendingQuotesQuery = Quote::query()
                 ->where('customer_id', $customerId)
@@ -75,9 +81,11 @@ class DashboardController extends Controller
                     Work::STATUS_COMPLETED,
                 ]);
 
-            $invoicesDueQuery = Invoice::query()
-                ->where('customer_id', $customerId)
-                ->whereIn('status', ['sent', 'partial', 'overdue']);
+            $invoicesDueQuery = $autoValidateInvoices
+                ? null
+                : Invoice::query()
+                    ->where('customer_id', $customerId)
+                    ->whereIn('status', ['sent', 'partial', 'overdue']);
 
             $quoteRatingsQuery = Quote::query()
                 ->where('customer_id', $customerId)
@@ -102,7 +110,7 @@ class DashboardController extends Controller
             $stats = [
                 'quotes_pending' => (clone $pendingQuotesQuery)->count(),
                 'works_pending' => (clone $pendingWorksQuery)->count(),
-                'invoices_due' => (clone $invoicesDueQuery)->count(),
+                'invoices_due' => $autoValidateInvoices ? 0 : (clone $invoicesDueQuery)->count(),
                 'ratings_due' => (clone $quoteRatingsQuery)->count()
                     + (clone $workRatingsQuery)->count(),
             ];
@@ -189,35 +197,37 @@ class DashboardController extends Controller
                     ];
                 });
 
-            $taskProofs = Task::query()
-                ->where('customer_id', $customerId)
-                ->whereNotNull('work_id')
-                ->whereIn('status', ['in_progress', 'done'])
-                ->with(['work:id,job_title'])
-                ->orderByDesc('due_date')
-                ->orderByDesc('created_at')
-                ->limit(8)
-                ->get([
-                    'id',
-                    'title',
-                    'status',
-                    'due_date',
-                    'start_time',
-                    'end_time',
-                    'work_id',
-                ])
-                ->map(function ($task) {
-                    return [
-                        'id' => $task->id,
-                        'title' => $task->title,
-                        'status' => $task->status,
-                        'due_date' => $task->due_date,
-                        'start_time' => $task->start_time,
-                        'end_time' => $task->end_time,
-                        'work_id' => $task->work_id,
-                        'work_title' => $task->work?->job_title,
-                    ];
-                });
+            $taskProofs = $autoValidateTasks
+                ? collect()
+                : Task::query()
+                    ->where('customer_id', $customerId)
+                    ->whereNotNull('work_id')
+                    ->whereIn('status', ['in_progress', 'done'])
+                    ->with(['work:id,job_title'])
+                    ->orderByDesc('due_date')
+                    ->orderByDesc('created_at')
+                    ->limit(8)
+                    ->get([
+                        'id',
+                        'title',
+                        'status',
+                        'due_date',
+                        'start_time',
+                        'end_time',
+                        'work_id',
+                    ])
+                    ->map(function ($task) {
+                        return [
+                            'id' => $task->id,
+                            'title' => $task->title,
+                            'status' => $task->status,
+                            'due_date' => $task->due_date,
+                            'start_time' => $task->start_time,
+                            'end_time' => $task->end_time,
+                            'work_id' => $task->work_id,
+                            'work_title' => $task->work?->job_title,
+                        ];
+                    });
 
             $validatedWorks = (clone $validatedWorksQuery)
                 ->orderByDesc('completed_at')
@@ -232,22 +242,24 @@ class DashboardController extends Controller
                     ];
                 });
 
-            $invoicesDue = (clone $invoicesDueQuery)
-                ->withSum('payments', 'amount')
-                ->orderByDesc('created_at')
-                ->limit(8)
-                ->get(['id', 'number', 'status', 'total', 'created_at'])
-                ->map(function ($invoice) {
-                    return [
-                        'id' => $invoice->id,
-                        'number' => $invoice->number,
-                        'status' => $invoice->status,
-                        'total' => (float) $invoice->total,
-                        'amount_paid' => (float) ($invoice->payments_sum_amount ?? 0),
-                        'balance_due' => $invoice->balance_due,
-                        'created_at' => $invoice->created_at,
-                    ];
-                });
+            $invoicesDue = $autoValidateInvoices
+                ? collect()
+                : (clone $invoicesDueQuery)
+                    ->withSum('payments', 'amount')
+                    ->orderByDesc('created_at')
+                    ->limit(8)
+                    ->get(['id', 'number', 'status', 'total', 'created_at'])
+                    ->map(function ($invoice) {
+                        return [
+                            'id' => $invoice->id,
+                            'number' => $invoice->number,
+                            'status' => $invoice->status,
+                            'total' => (float) $invoice->total,
+                            'amount_paid' => (float) ($invoice->payments_sum_amount ?? 0),
+                            'balance_due' => $invoice->balance_due,
+                            'created_at' => $invoice->created_at,
+                        ];
+                    });
 
             $quoteRatingsDue = (clone $quoteRatingsQuery)
                 ->orderByDesc('updated_at')
@@ -280,6 +292,10 @@ class DashboardController extends Controller
             return Inertia::render('DashboardClient', [
                 'profileMissing' => false,
                 'stats' => $stats,
+                'autoValidation' => [
+                    'tasks' => $autoValidateTasks,
+                    'invoices' => $autoValidateInvoices,
+                ],
                 'pendingQuotes' => $pendingQuotes,
                 'pendingSchedules' => $pendingSchedules,
                 'validatedQuotes' => $validatedQuotes,
