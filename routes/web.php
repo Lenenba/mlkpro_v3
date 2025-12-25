@@ -17,6 +17,7 @@ use App\Http\Controllers\ProductsSearchController;
 use App\Http\Controllers\QuoteEmaillingController;
 use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\RequestController;
+use App\Http\Controllers\PlanScanController;
 use App\Http\Controllers\WorkMediaController;
 use App\Http\Controllers\WorkChecklistController;
 use App\Http\Controllers\WelcomeController;
@@ -101,6 +102,12 @@ Route::middleware(['auth', EnsureInternalUser::class])->group(function () {
         Route::post('/quote/{quote}/accept', [QuoteController::class, 'accept'])->name('quote.accept');
         Route::post('/quote/{quote}/send-email', QuoteEmaillingController::class)->name('quote.send.email');
         Route::post('/quote/{quote}/convert', [QuoteController::class, 'convertToWork'])->name('quote.convert');
+
+        Route::get('/plan-scans', [PlanScanController::class, 'index'])->name('plan-scans.index');
+        Route::get('/plan-scans/create', [PlanScanController::class, 'create'])->name('plan-scans.create');
+        Route::post('/plan-scans', [PlanScanController::class, 'store'])->name('plan-scans.store');
+        Route::get('/plan-scans/{planScan}', [PlanScanController::class, 'show'])->name('plan-scans.show');
+        Route::post('/plan-scans/{planScan}/convert', [PlanScanController::class, 'convert'])->name('plan-scans.convert');
     });
 
     // Product custom search

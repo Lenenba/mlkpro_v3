@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Invoice;
+use App\Models\PlanScan;
 use App\Models\PlatformSetting;
 use App\Models\Product;
 use App\Models\Quote;
@@ -17,6 +18,7 @@ class UsageLimitService
 {
     public const LIMIT_KEYS = [
         'quotes' => 'Quotes',
+        'plan_scan_quotes' => 'Plan scan quotes',
         'invoices' => 'Invoices',
         'jobs' => 'Jobs',
         'products' => 'Products',
@@ -158,6 +160,7 @@ class UsageLimitService
 
         return [
             'quotes' => Quote::query()->where('user_id', $accountId)->count(),
+            'plan_scan_quotes' => (int) PlanScan::query()->where('user_id', $accountId)->sum('quotes_generated'),
             'invoices' => Invoice::query()->where('user_id', $accountId)->count(),
             'jobs' => Work::query()->where('user_id', $accountId)->count(),
             'products' => Product::query()

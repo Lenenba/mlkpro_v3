@@ -15,6 +15,14 @@ const props = defineProps({
         type: Array,
         default: () => [],
     },
+    suppliers: {
+        type: Array,
+        default: () => [],
+    },
+    supplier_preferences: {
+        type: Object,
+        default: () => ({ enabled: [], preferred: [] }),
+    },
     usage_limits: {
         type: Object,
         default: () => ({ items: [] }),
@@ -121,6 +129,14 @@ const resolveSelectValue = (value, options) => {
     return { select: '__other__', other: trimmed };
 };
 
+const supplierKeys = (props.suppliers || []).map((supplier) => supplier.key);
+const initialEnabledSuppliers = props.supplier_preferences?.enabled?.length
+    ? props.supplier_preferences.enabled
+    : supplierKeys;
+const initialPreferredSuppliers = props.supplier_preferences?.preferred?.length
+    ? props.supplier_preferences.preferred
+    : initialEnabledSuppliers.slice(0, 2);
+
 const form = useForm({
     company_name: props.company.company_name || '',
     company_logo: props.company.company_logo || null,
@@ -132,6 +148,8 @@ const form = useForm({
     company_city: '',
     company_city_other: '',
     company_type: props.company.company_type || 'services',
+    supplier_enabled: initialEnabledSuppliers,
+    supplier_preferred: initialPreferredSuppliers,
 });
 
 const categoryForm = useForm({
@@ -201,6 +219,14 @@ watch(
     }
 );
 
+watch(
+    () => form.supplier_enabled,
+    (enabled) => {
+        form.supplier_preferred = (form.supplier_preferred || []).filter((key) => enabled.includes(key));
+    },
+    { deep: true }
+);
+
 const submit = () => {
     const normalizeText = (value) => {
         const trimmed = String(value || '').trim();
@@ -249,6 +275,7 @@ const planName = computed(() => props.usage_limits?.plan_name || props.usage_lim
 const hasUsageAlert = computed(() => usageItems.value.some((item) => item.status !== 'ok'));
 const limitLabelMap = {
     quotes: 'Devis',
+    plan_scan_quotes: 'Devis plan scan',
     invoices: 'Factures',
     jobs: 'Jobs',
     products: 'Produits',
@@ -276,6 +303,14 @@ const usageStatusClass = (status) => {
         return 'text-amber-600';
     }
     return 'text-emerald-600';
+};
+
+const preferredLimit = 2;
+const isPreferredDisabled = (key) => {
+    if (form.supplier_preferred.includes(key)) {
+        return false;
+    }
+    return form.supplier_preferred.length >= preferredLimit;
 };
 </script>
 
@@ -411,6 +446,55 @@ const usageStatusClass = (status) => {
                             Ajouter
                         </button>
                     </div>
+                </div>
+            </div>
+
+            <div class="flex flex-col bg-white border border-stone-200 shadow-sm rounded-sm overflow-hidden dark:bg-neutral-800 dark:border-neutral-700">
+                <div class="p-4 space-y-4">
+                    <div>
+                        <h2 class="text-lg font-semibold text-stone-800 dark:text-neutral-100">Fournisseurs (Canada)</h2>
+                        <p class="mt-1 text-sm text-stone-600 dark:text-neutral-400">
+                            Choisissez vos plateformes actives et jusqu a 2 fournisseurs preferes.
+                        </p>
+                    </div>
+
+                    <div v-if="!suppliers.length" class="text-sm text-stone-500 dark:text-neutral-400">
+                        Aucun fournisseur disponible pour le moment.
+                    </div>
+                    <div v-else class="space-y-3">
+                        <div v-for="supplier in suppliers" :key="supplier.key"
+                            class="flex flex-col gap-2 rounded-sm border border-stone-200 p-3 text-sm text-stone-700 dark:border-neutral-700 dark:text-neutral-200">
+                            <div class="flex flex-wrap items-center justify-between gap-3">
+                                <div class="flex items-center gap-2">
+                                    <input
+                                        type="checkbox"
+                                        :value="supplier.key"
+                                        v-model="form.supplier_enabled"
+                                    />
+                                    <span class="font-medium">{{ supplier.name }}</span>
+                                </div>
+                                <a v-if="supplier.url" :href="supplier.url" target="_blank" rel="noopener"
+                                    class="text-xs text-green-700 hover:underline dark:text-green-400">
+                                    Visiter le site
+                                </a>
+                            </div>
+                            <div class="flex flex-wrap items-center gap-3 text-xs text-stone-500 dark:text-neutral-400">
+                                <label class="flex items-center gap-2">
+                                    <input
+                                        type="checkbox"
+                                        :value="supplier.key"
+                                        v-model="form.supplier_preferred"
+                                        :disabled="isPreferredDisabled(supplier.key) || !form.supplier_enabled.includes(supplier.key)"
+                                    />
+                                    <span>Preferer</span>
+                                </label>
+                                <span v-if="!form.supplier_enabled.includes(supplier.key)">
+                                    Activez ce fournisseur pour le proposer.
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    <InputError class="mt-1" :message="form.errors.supplier_preferred" />
                 </div>
             </div>
 

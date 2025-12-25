@@ -1,0 +1,71 @@
+<?php
+
+return [
+    'default_country' => 'Canada',
+    'suppliers' => [
+        [
+            'key' => 'home_depot_ca',
+            'name' => 'Home Depot Canada',
+            'country' => 'Canada',
+            'domains' => ['homedepot.ca'],
+            'url' => 'https://www.homedepot.ca',
+            'default_enabled' => true,
+        ],
+        [
+            'key' => 'rona_ca',
+            'name' => 'RONA',
+            'country' => 'Canada',
+            'domains' => ['rona.ca'],
+            'url' => 'https://www.rona.ca',
+            'default_enabled' => true,
+        ],
+        [
+            'key' => 'reno_depot_ca',
+            'name' => 'Reno-Depot',
+            'country' => 'Canada',
+            'domains' => ['renodepot.com'],
+            'url' => 'https://www.renodepot.com',
+            'default_enabled' => true,
+        ],
+        [
+            'key' => 'home_hardware_ca',
+            'name' => 'Home Hardware',
+            'country' => 'Canada',
+            'domains' => ['homehardware.ca'],
+            'url' => 'https://www.homehardware.ca',
+            'default_enabled' => true,
+        ],
+        [
+            'key' => 'canadian_tire_ca',
+            'name' => 'Canadian Tire',
+            'country' => 'Canada',
+            'domains' => ['canadiantire.ca'],
+            'url' => 'https://www.canadiantire.ca',
+            'default_enabled' => true,
+        ],
+        [
+            'key' => 'bmr_ca',
+            'name' => 'BMR',
+            'country' => 'Canada',
+            'domains' => ['bmr.ca'],
+            'url' => 'https://www.bmr.ca',
+            'default_enabled' => true,
+        ],
+        [
+            'key' => 'timbermart_ca',
+            'name' => 'TIMBER MART',
+            'country' => 'Canada',
+            'domains' => ['timbermart.ca'],
+            'url' => 'https://www.timbermart.ca',
+            'default_enabled' => false,
+        ],
+        [
+            'key' => 'amazon_ca',
+            'name' => 'Amazon.ca',
+            'country' => 'Canada',
+            'domains' => ['amazon.ca'],
+            'url' => 'https://www.amazon.ca',
+            'default_enabled' => false,
+        ],
+    ],
+];

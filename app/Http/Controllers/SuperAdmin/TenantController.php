@@ -4,6 +4,7 @@ namespace App\Http\Controllers\SuperAdmin;
 
 use App\Models\Customer;
 use App\Models\Invoice;
+use App\Models\PlanScan;
 use App\Models\Product;
 use App\Models\PlatformSetting;
 use App\Models\Quote;
@@ -137,6 +138,7 @@ class TenantController extends BaseSuperAdminController
         $stats = [
             'customers' => Customer::query()->where('user_id', $tenant->id)->count(),
             'quotes' => Quote::query()->where('user_id', $tenant->id)->count(),
+            'plan_scan_quotes' => (int) PlanScan::query()->where('user_id', $tenant->id)->sum('quotes_generated'),
             'invoices' => Invoice::query()->where('user_id', $tenant->id)->count(),
             'works' => Work::query()->where('user_id', $tenant->id)->count(),
             'products' => Product::query()->where('user_id', $tenant->id)->where('item_type', Product::ITEM_TYPE_PRODUCT)->count(),
@@ -261,6 +263,7 @@ class TenantController extends BaseSuperAdminController
 
         $allowedKeys = [
             'quotes',
+            'plan_scan_quotes',
             'invoices',
             'jobs',
             'products',
@@ -460,6 +463,7 @@ class TenantController extends BaseSuperAdminController
     {
         $limitKeys = [
             'quotes' => 'Quotes',
+            'plan_scan_quotes' => 'Plan scan quotes',
             'invoices' => 'Invoices',
             'jobs' => 'Jobs',
             'products' => 'Products',

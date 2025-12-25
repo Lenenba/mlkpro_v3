@@ -15,7 +15,12 @@ class QuoteProduct extends Model
         'quantity',
         'price',
         'description',
+        'source_details',
         'total',
+    ];
+
+    protected $casts = [
+        'source_details' => 'array',
     ];
 
     /**

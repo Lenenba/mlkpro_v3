@@ -45,6 +45,7 @@ class User extends Authenticatable
         'payment_methods',
         'company_features',
         'company_limits',
+        'company_supplier_preferences',
         'is_suspended',
         'suspended_at',
         'suspension_reason',
@@ -76,6 +77,7 @@ class User extends Authenticatable
             'must_change_password' => 'boolean',
             'company_features' => 'array',
             'company_limits' => 'array',
+            'company_supplier_preferences' => 'array',
             'is_suspended' => 'boolean',
             'suspended_at' => 'datetime',
         ];

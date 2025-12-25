@@ -123,6 +123,7 @@ class LaunchSeeder extends Seeder
         PlatformSetting::setValue('plan_limits', [
             'free' => [
                 'quotes' => 10,
+                'plan_scan_quotes' => 10,
                 'invoices' => 10,
                 'jobs' => 10,
                 'products' => 25,
@@ -132,6 +133,7 @@ class LaunchSeeder extends Seeder
             ],
             'starter' => [
                 'quotes' => 100,
+                'plan_scan_quotes' => 100,
                 'invoices' => 100,
                 'jobs' => 100,
                 'products' => 200,
@@ -141,6 +143,7 @@ class LaunchSeeder extends Seeder
             ],
             'growth' => [
                 'quotes' => 300,
+                'plan_scan_quotes' => 300,
                 'invoices' => 300,
                 'jobs' => 300,
                 'products' => 500,
@@ -150,6 +153,7 @@ class LaunchSeeder extends Seeder
             ],
             'scale' => [
                 'quotes' => 1000,
+                'plan_scan_quotes' => 1000,
                 'invoices' => 1000,
                 'jobs' => 1000,
                 'products' => 2000,

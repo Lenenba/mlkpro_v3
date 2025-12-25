@@ -28,6 +28,7 @@ const props = defineProps({
 
 const limitKeys = [
     { key: 'quotes', label: 'Quotes' },
+    { key: 'plan_scan_quotes', label: 'Plan scan quotes' },
     { key: 'invoices', label: 'Invoices' },
     { key: 'jobs', label: 'Jobs' },
     { key: 'products', label: 'Products' },

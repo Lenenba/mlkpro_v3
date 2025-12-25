@@ -535,16 +535,26 @@ class QuoteController extends Controller
             ? Product::ITEM_TYPE_PRODUCT
             : Product::ITEM_TYPE_SERVICE;
 
+        $quote->load([
+            'products',
+            'taxes.tax',
+            'customer',
+            'property',
+            'customer.properties',
+            'ratings',
+        ])->loadAvg('ratings', 'rating')
+            ->loadCount('ratings');
+
+        foreach ($quote->products as $product) {
+            $details = $product->pivot?->source_details;
+            if (is_string($details)) {
+                $decoded = json_decode($details, true);
+                $product->pivot->source_details = is_array($decoded) ? $decoded : null;
+            }
+        }
+
         return Inertia::render('Quote/Show', [
-            'quote' =>$quote->load([
-                'products',
-                'taxes.tax',
-                'customer',
-                'property',
-                'customer.properties',
-                'ratings',
-            ])->loadAvg('ratings', 'rating')
-              ->loadCount('ratings'),
+            'quote' => $quote,
             'products' => Product::byUser(Auth::id())->where('item_type', $itemType)->get(),
             'taxes' => Tax::all(),
         ]);

@@ -161,11 +161,12 @@ const impersonate = () => {
 
                 <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-800">
                     <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">Usage</h2>
-                    <div class="mt-3 space-y-2 text-sm text-stone-700 dark:text-neutral-200">
-                        <div>Customers: <span class="font-semibold">{{ stats.customers }}</span></div>
-                        <div>Quotes: <span class="font-semibold">{{ stats.quotes }}</span></div>
-                        <div>Invoices: <span class="font-semibold">{{ stats.invoices }}</span></div>
-                        <div>Jobs: <span class="font-semibold">{{ stats.works }}</span></div>
+                        <div class="mt-3 space-y-2 text-sm text-stone-700 dark:text-neutral-200">
+                            <div>Customers: <span class="font-semibold">{{ stats.customers }}</span></div>
+                            <div>Quotes: <span class="font-semibold">{{ stats.quotes }}</span></div>
+                            <div>Plan scan quotes: <span class="font-semibold">{{ stats.plan_scan_quotes }}</span></div>
+                            <div>Invoices: <span class="font-semibold">{{ stats.invoices }}</span></div>
+                            <div>Jobs: <span class="font-semibold">{{ stats.works }}</span></div>
                         <div>Products: <span class="font-semibold">{{ stats.products }}</span></div>
                         <div>Services: <span class="font-semibold">{{ stats.services }}</span></div>
                         <div>Tasks: <span class="font-semibold">{{ stats.tasks }}</span></div>

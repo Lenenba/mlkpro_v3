@@ -44,4 +44,8 @@ return [
         'sandbox' => env('PADDLE_SANDBOX', false),
     ],
 
+    'serpapi' => [
+        'key' => env('SERPAPI_API_KEY'),
+    ],
+
 ];
