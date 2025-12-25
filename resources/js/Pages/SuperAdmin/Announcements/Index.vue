@@ -4,6 +4,7 @@ import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import InputError from '@/Components/InputError.vue';
 import Modal from '@/Components/Modal.vue';
+import { prepareMediaFile, MEDIA_LIMITS } from '@/utils/media';
 
 const props = defineProps({
     announcements: {
@@ -120,6 +121,25 @@ const form = useForm({
     link_url: '',
     tenant_ids: [],
 });
+
+const handleMediaFile = async (event) => {
+    const file = event.target.files?.[0] || null;
+    form.clearErrors('media_file');
+    if (!file) {
+        form.media_file = null;
+        return;
+    }
+    const result = await prepareMediaFile(file, {
+        maxImageBytes: MEDIA_LIMITS.maxImageBytes,
+        maxVideoBytes: MEDIA_LIMITS.maxVideoBytes,
+    });
+    if (result.error) {
+        form.setError('media_file', result.error);
+        form.media_file = null;
+        return;
+    }
+    form.media_file = result.file;
+};
 
 const isEditing = computed(() => editingId.value !== null);
 const editingAnnouncement = computed(
@@ -706,7 +726,7 @@ watch(
                             </div>
                             <div>
                                 <label class="block text-xs text-stone-500 dark:text-neutral-400">Upload file</label>
-                                <input :key="fileInputKey" type="file" @change="form.media_file = $event.target.files?.[0] || null"
+                                <input :key="fileInputKey" type="file" @change="handleMediaFile"
                                     class="mt-1 block w-full text-xs text-stone-600 dark:text-neutral-200"
                                     accept="image/*,video/*" />
                                 <InputError class="mt-1" :message="form.errors.media_file" />

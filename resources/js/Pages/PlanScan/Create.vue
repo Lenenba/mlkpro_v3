@@ -6,6 +6,7 @@ import FloatingNumberInput from '@/Components/FloatingNumberInput.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
 import { Head, useForm } from '@inertiajs/vue3';
 import { computed, watch } from 'vue';
+import { resizeImageFile, MEDIA_LIMITS } from '@/utils/media';
 
 const props = defineProps({
     customers: Array,
@@ -45,11 +46,27 @@ watch(
     }
 );
 
-const handleFileChange = (event) => {
+const handleFileChange = async (event) => {
     const file = event.target.files[0];
-    if (file) {
-        form.plan_file = file;
+    form.clearErrors('plan_file');
+    if (!file) {
+        form.plan_file = null;
+        return;
     }
+    if (file.type?.startsWith('image/')) {
+        const result = await resizeImageFile(file, {
+            maxDimension: MEDIA_LIMITS.maxImageDimension,
+            maxBytes: MEDIA_LIMITS.maxImageBytes,
+        });
+        if (result.error) {
+            form.setError('plan_file', result.error);
+            form.plan_file = null;
+            return;
+        }
+        form.plan_file = result.file;
+        return;
+    }
+    form.plan_file = file;
 };
 
 const submit = () => {

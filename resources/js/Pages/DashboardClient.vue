@@ -7,6 +7,7 @@ import FullCalendar from '@fullcalendar/vue3';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import { buildPreviewEvents } from '@/utils/schedule';
+import { prepareMediaFile, MEDIA_LIMITS } from '@/utils/media';
 
 const props = defineProps({
     stats: {
@@ -286,9 +287,23 @@ const closeTaskProof = () => {
     taskProofTask.value = null;
 };
 
-const handleTaskProofFile = (event) => {
+const handleTaskProofFile = async (event) => {
     const file = event.target.files?.[0] || null;
-    taskProofForm.file = file;
+    taskProofForm.clearErrors('file');
+    if (!file) {
+        taskProofForm.file = null;
+        return;
+    }
+    const result = await prepareMediaFile(file, {
+        maxImageBytes: MEDIA_LIMITS.maxImageBytes,
+        maxVideoBytes: MEDIA_LIMITS.maxVideoBytes,
+    });
+    if (result.error) {
+        taskProofForm.setError('file', result.error);
+        taskProofForm.file = null;
+        return;
+    }
+    taskProofForm.file = result.file;
 };
 
 const submitTaskProof = () => {

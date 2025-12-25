@@ -1,5 +1,6 @@
 <script setup>
 import { computed, ref, watch } from 'vue';
+import { prepareMediaFile, MEDIA_LIMITS } from '@/utils/media';
 import { Link, router, useForm } from '@inertiajs/vue3';
 import Modal from '@/Components/UI/Modal.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
@@ -337,9 +338,23 @@ const openProofUpload = (task) => {
     }
 };
 
-const handleProofFile = (event) => {
+const handleProofFile = async (event) => {
     const file = event.target.files?.[0] || null;
-    proofForm.file = file;
+    proofForm.clearErrors('file');
+    if (!file) {
+        proofForm.file = null;
+        return;
+    }
+    const result = await prepareMediaFile(file, {
+        maxImageBytes: MEDIA_LIMITS.maxImageBytes,
+        maxVideoBytes: MEDIA_LIMITS.maxVideoBytes,
+    });
+    if (result.error) {
+        proofForm.setError('file', result.error);
+        proofForm.file = null;
+        return;
+    }
+    proofForm.file = result.file;
 };
 
 const submitProof = () => {

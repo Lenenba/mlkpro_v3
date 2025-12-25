@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
+import { resizeImageFile, MEDIA_LIMITS } from '@/utils/media';
 
 // Props
 const props = defineProps({
@@ -24,22 +25,36 @@ const file = computed({
 const input = ref(null); // Référence pour l'élément input de fichier
 const preview = ref(null); // Référence pour l'aperçu de l'image
 const progress = ref(0); // Progression fictive (par exemple pour l'upload)
+const errorMessage = ref('');
 
 // Fonction pour gérer le changement de fichier
-const handleFileChange = (event) => {
+const handleFileChange = async (event) => {
   const selectedFile = event.target.files[0];
   if (selectedFile) {
-    file.value = selectedFile; // Met à jour v-model
-    progress.value = 0; // Réinitialiser la barre de progression
+    errorMessage.value = '';
+    progress.value = 0; // R‚initialiser la barre de progression
 
-    // Générer un aperçu de l'image
+    const result = await resizeImageFile(selectedFile, {
+      maxDimension: MEDIA_LIMITS.maxImageDimension,
+      maxBytes: MEDIA_LIMITS.maxImageBytes,
+    });
+    if (result.error) {
+      errorMessage.value = result.error;
+      event.target.value = '';
+      return;
+    }
+    const processedFile = result.file;
+
+    file.value = processedFile; // Met … jour v-model
+
+    // G‚n‚rer un aper‡u de l'image
     const reader = new FileReader();
     reader.onload = (e) => {
       preview.value = e.target.result;
     };
-    reader.readAsDataURL(selectedFile);
+    reader.readAsDataURL(processedFile);
 
-    // Simuler la progression (remplacez par une vraie logique d'upload si nécessaire)
+    // Simuler la progression (remplacez par une vraie logique d'upload si n‚cessaire)
     const interval = setInterval(() => {
       if (progress.value >= 100) {
         clearInterval(interval);
@@ -60,9 +75,11 @@ const triggerFileInput = () => {
 // Fonction pour supprimer le fichier
 const removeFile = () => {
   file.value = null; // Supprimer le fichier
-  preview.value = null; // Supprimer l'aperçu
-  progress.value = 0; // Réinitialiser la progression
+  preview.value = null; // Supprimer l'aper‡u
+  progress.value = 0; // R‚initialiser la progression
+  errorMessage.value = '';
 };
+
 
 // Initialiser l'aperçu si une image est déjà définie dans le modèle
 onMounted(() => {
@@ -176,7 +193,7 @@ onMounted(() => {
           </span>
         </div>
         <p class="mt-1 text-xs text-stone-400 dark:text-neutral-400">
-          Pick a file up to 2MB.
+          Large images are optimized automatically.
         </p>
       </div>
     </div>
@@ -189,5 +206,8 @@ onMounted(() => {
       @change="handleFileChange"
       ref="input"
     />
+    <p v-if="errorMessage" class="mt-2 text-xs text-rose-600">
+      {{ errorMessage }}
+    </p>
   </div>
 </template>

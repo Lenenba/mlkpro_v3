@@ -1,5 +1,6 @@
 <script setup>
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
+import { resizeImageFile, MEDIA_LIMITS } from '@/utils/media';
 
 const props = defineProps({
     files: {
@@ -21,17 +22,33 @@ const props = defineProps({
 });
 
 const emit = defineEmits(['update:files', 'update:removedIds']);
+const errorMessage = ref('');
 
 const visibleExisting = computed(() =>
     props.existing.filter((image) => !props.removedIds.includes(image.id)),
 );
 
-const addFiles = (event) => {
+const addFiles = async (event) => {
     const selected = Array.from(event.target.files || []);
     if (!selected.length) {
         return;
     }
-    emit('update:files', [...props.files, ...selected]);
+    errorMessage.value = '';
+    const processed = [];
+    for (const file of selected) {
+        const result = await resizeImageFile(file, {
+            maxDimension: MEDIA_LIMITS.maxImageDimension,
+            maxBytes: MEDIA_LIMITS.maxImageBytes,
+        });
+        if (result.error) {
+            errorMessage.value = result.error;
+            continue;
+        }
+        processed.push(result.file);
+    }
+    if (processed.length) {
+        emit('update:files', [...props.files, ...processed]);
+    }
     event.target.value = '';
 };
 
@@ -55,9 +72,12 @@ const previewUrl = (file) => {
 
 <template>
     <div class="space-y-3">
-        <div class="text-sm font-medium text-stone-700 dark:text-neutral-300">
-            {{ label }}
-        </div>
+    <div class="text-sm font-medium text-stone-700 dark:text-neutral-300">
+        {{ label }}
+    </div>
+    <div v-if="errorMessage" class="text-xs text-rose-600">
+        {{ errorMessage }}
+    </div>
         <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
             <div
                 v-for="image in visibleExisting"
