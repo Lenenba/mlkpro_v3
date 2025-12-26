@@ -20,7 +20,7 @@ defineProps({
     <div class="min-h-screen bg-stone-50 text-stone-900 dark:bg-neutral-900 dark:text-neutral-100">
         <header class="mx-auto flex w-full max-w-6xl items-center justify-between px-4 py-6">
             <Link :href="route('welcome')" class="flex items-center gap-3">
-                <ApplicationLogo class="h-10 w-10" />
+                <ApplicationLogo class="h-8 w-28 sm:h-10 sm:w-32" />
                 <div class="leading-tight">
                     <div class="text-sm font-semibold">MLK Pro</div>
                     <div class="text-xs text-stone-500 dark:text-neutral-400">Business management suite</div>

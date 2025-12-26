@@ -1,95 +1,222 @@
 {
-    "nav": {
-        "admin": "Admin",
-        "tenants": "Tenants",
-        "support": "Support",
-        "admins": "Admins",
-        "notifications": "Notifications",
-        "announcements": "Annonces",
-        "settings": "Parametres",
-        "dashboard": "Tableau de bord",
-        "customers": "Clients",
-        "products": "Produits",
-        "services": "Services",
-        "quotes": "Devis",
-        "plan_scans": "Plan scanner",
-        "requests": "Demandes",
-        "jobs": "Jobs",
-        "tasks": "Taches",
-        "team": "Equipe",
-        "invoices": "Factures"
+  "nav": {
+    "admin": "Administration",
+    "tenants": "Espaces",
+    "support": "Support",
+    "admins": "Administrateurs",
+    "notifications": "Notifications",
+    "announcements": "Annonces",
+    "settings": "Paramètres",
+    "dashboard": "Tableau de bord",
+    "customers": "Clients",
+    "products": "Produits",
+    "services": "Services",
+    "quotes": "Devis",
+    "plan_scans": "Scan de plan",
+    "requests": "Demandes",
+    "jobs": "Chantiers",
+    "tasks": "Tâches",
+    "team": "Équipe",
+    "invoices": "Factures"
+  },
+  "account": {
+    "default_name": "Compte",
+    "company_label": "Entreprise",
+    "settings": "Paramètres",
+    "billing": "Facturation",
+    "profile": "Mon compte",
+    "dark_mode": "Mode sombre",
+    "logout": "Se déconnecter",
+    "language": "Langue"
+  },
+  "language": {
+    "fr": "Français",
+    "en": "Anglais"
+  },
+  "alerts": {
+    "maintenance": {
+      "title": "Maintenance en cours",
+      "message": "La plateforme est actuellement en maintenance. Merci de réessayer un peu plus tard."
     },
-    "account": {
-        "default_name": "Compte",
-        "company_label": "Entreprise",
-        "settings": "Parametres",
-        "billing": "Paiements",
-        "profile": "Mon compte",
-        "dark_mode": "Mode sombre",
-        "logout": "Se deconnecter",
-        "language": "Langue"
+    "impersonation": {
+      "title": "Impersonation",
+      "message": "Vous utilisez ce compte en mode impersonation. Administrateur d’origine : {name}."
     },
-    "language": {
-        "fr": "Francais",
-        "en": "English"
+    "success": {
+      "title": "Succès"
     },
-    "alerts": {
-        "maintenance": {
-            "title": "Mode maintenance",
-            "message": "La plateforme est actuellement en maintenance."
-        },
-        "impersonation": {
-            "title": "Impersonation",
-            "message": "Vous impersonifiez ce compte. Admin original : {name}."
-        },
-        "success": {
-            "title": "Succes."
-        },
-        "error": {
-            "title": "Erreur."
-        },
-        "warning": {
-            "title": "Attention."
-        }
+    "error": {
+      "title": "Erreur"
     },
-    "actions": {
-        "stop_impersonation": "Arreter l'impersonation"
-    },
-    "quick_create": {
-        "customer": "Client",
-        "service": "Service",
-        "request": "Demande",
-        "quote": "Devis",
-        "product": "Produit"
-    },
-    "settings": {
-        "groups": {
-            "account": "Compte",
-            "platform": "Plateforme"
-        },
-        "items": {
-            "profile": {
-                "label": "Profil",
-                "description": "Identite et acces"
-            },
-            "security": {
-                "label": "Securite",
-                "description": "Mot de passe et 2FA",
-                "badge": "Bientot"
-            },
-            "company": {
-                "label": "Entreprise",
-                "description": "Infos et categories"
-            },
-            "billing": {
-                "label": "Facturation",
-                "description": "Plan et paiements"
-            },
-            "notifications": {
-                "label": "Notifications",
-                "description": "Emails et alertes",
-                "badge": "Bientot"
-            }
-        }
+    "warning": {
+      "title": "Attention"
     }
+  },
+  "actions": {
+    "stop_impersonation": "Arrêter l’impersonation"
+  },
+  "quick_create": {
+    "customer": "Client",
+    "service": "Service",
+    "request": "Demande",
+    "quote": "Devis",
+    "product": "Produit"
+  },
+  "settings": {
+    "groups": {
+      "account": "Compte",
+      "platform": "Plateforme"
+    },
+    "items": {
+      "profile": {
+        "label": "Profil",
+        "description": "Identité, accès et préférences"
+      },
+      "security": {
+        "label": "Sécurité",
+        "description": "Mot de passe et authentification à deux facteurs",
+        "badge": "Bientôt"
+      },
+      "company": {
+        "label": "Entreprise",
+        "description": "Informations, catégories et paramètres"
+      },
+      "billing": {
+        "label": "Facturation",
+        "description": "Plan, paiements et historique"
+      },
+      "notifications": {
+        "label": "Notifications",
+        "description": "Emails, alertes et préférences",
+        "badge": "Bientôt"
+      }
+    }
+  },
+    "welcome": {
+    "meta": {
+      "title": "Bienvenue"
+    },
+    "nav": {
+      "tagline": "Suite de gestion"
+    },
+    "hero": {
+      "eyebrow": "Concu pour equipes terrain",
+      "title": "Gerez tout le cycle du job dans un espace clair.",
+      "subtitle": "MLK Pro relie devis, plan scans, catalogue, jobs, taches et factures avec une vision claire.",
+      "primary_cta": "Demarrer l onboarding",
+      "secondary_cta": "Se connecter",
+      "note": "Passez du mode services au mode produits sans perte de donnees.",
+      "highlights": {
+        "one": "Devis rapides avec marge",
+        "two": "Plan scan vers prix en minutes",
+        "three": "Portail client pour validation"
+      },
+      "stats": {
+        "one_label": "Modules cle",
+        "two_label": "Modes de travail",
+        "three_label": "Tableaux live"
+      },
+      "preview": {
+        "one": "Devis prets",
+        "one_desc": "Marges, sources, validation en un ecran.",
+        "two": "Signaux plan scan",
+        "two_desc": "Benchmarks avec liens fournisseurs."
+      }
+    },
+    "trust": {
+      "title": "Equipes au Canada",
+      "items": {
+        "one": "Plomberie",
+        "two": "Electricite",
+        "three": "Menuiserie",
+        "four": "Nettoyage",
+        "five": "HVAC",
+        "six": "Entrepreneurs generaux"
+      }
+    },
+    "features": {
+      "kicker": "Plateforme",
+      "title": "Tout pour vendre, planifier, livrer",
+      "subtitle": "Devis rapides, suivi jobs, equipe alignee.",
+      "items": {
+        "quotes": {
+          "title": "Devis intelligents",
+          "desc": "Mixez services et produits, suivez marges et sources."
+        },
+        "plans": {
+          "title": "Plan scanner",
+          "desc": "Transformez un plan en lignes avec benchmarks."
+        },
+        "catalog": {
+          "title": "Catalogue unique",
+          "desc": "Une base commune pour produits, services et prix."
+        },
+        "ops": {
+          "title": "Operations terrain",
+          "desc": "Assignez, suivez les jobs et la preuve terrain."
+        },
+        "portal": {
+          "title": "Portail client",
+          "desc": "Clients acceptent, planifient et paient."
+        },
+        "multi": {
+          "title": "Multi entreprise",
+          "desc": "Gerez plusieurs societes depuis un seul compte."
+        }
+      }
+    },
+    "workflow": {
+      "kicker": "Workflow",
+      "title": "De la demande au paiement",
+      "subtitle": "Un flux simple pour garder l equipe alignee.",
+      "steps": {
+        "one": {
+          "title": "Creez l entreprise",
+          "desc": "Logo, roles, permissions et parametres."
+        },
+        "two": {
+          "title": "Construisez le catalogue",
+          "desc": "Services et produits en quelques minutes."
+        },
+        "three": {
+          "title": "Envoyez les devis",
+          "desc": "Partagez les estimations et suivez la validation."
+        },
+        "four": {
+          "title": "Planifiez les jobs",
+          "desc": "Suivi des statuts, checklists et preuves."
+        },
+        "five": {
+          "title": "Facturez et encaissez",
+          "desc": "Convertissez le travail approuve en factures."
+        }
+      }
+    },
+    "field": {
+      "kicker": "Ops terrain",
+      "title": "Flux mobile terrain",
+      "subtitle": "Des outils simples pour les equipes sur place.",
+      "items": {
+        "one": "Liste quotidienne avec priorites",
+        "two": "Checklists et preuves",
+        "three": "Photos et documents sur site",
+        "four": "Validations et signatures client"
+      }
+    },
+    "cta": {
+      "title": "Pret a creer votre espace ?",
+      "subtitle": "Creez votre espace en quelques minutes et invitez votre equipe.",
+      "primary": "Creer un espace",
+      "secondary": "Se connecter"
+    },
+    "images": {
+      "hero_alt": "Apercu tableau de bord",
+      "workflow_alt": "Apercu tableau workflow",
+      "mobile_alt": "Apercu checklist mobile"
+    },
+    "footer": {
+      "terms": "Conditions d utilisation",
+      "copy": "MLK Pro. Tous droits reserves."
+    }
+  }
 }
