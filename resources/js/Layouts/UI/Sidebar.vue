@@ -52,7 +52,7 @@ const setLocale = (locale) => {
                     <header class="w-16 py-2.5 flex justify-center shrink-0">
                         <a class="flex-none rounded-sm text-xl inline-block font-semibold focus:outline-none focus:opacity-80"
                             :href="route('dashboard')" aria-label="Preline">
-                            <ApplicationLogo class="w-12 h-12 p-1" />
+                            <ApplicationLogo class="w-[4rem] h-[4rem] p-1" />
                         </a>
                     </header>
 

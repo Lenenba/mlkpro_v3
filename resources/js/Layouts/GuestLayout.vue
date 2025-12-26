@@ -21,7 +21,7 @@ const validationErrors = computed(() => page.props.errors || {});
     >
         <div>
             <Link href="/">
-                <ApplicationLogo class="h-20 w-20 fill-current text-stone-500 dark:text-neutral-400" />
+                <ApplicationLogo class="h-14 w-44 sm:h-16 sm:w-52" />
             </Link>
         </div>
 
