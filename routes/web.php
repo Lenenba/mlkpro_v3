@@ -22,6 +22,7 @@ use App\Http\Controllers\PlanScanController;
 use App\Http\Controllers\WorkMediaController;
 use App\Http\Controllers\WorkChecklistController;
 use App\Http\Controllers\WelcomeController;
+use App\Http\Controllers\LegalController;
 use App\Http\Controllers\LocaleController;
 use App\Http\Controllers\Settings\CompanySettingsController;
 use App\Http\Controllers\Settings\BillingSettingsController;
@@ -54,6 +55,7 @@ Route::get('/favicon.ico', function () {
 
 // Guest Routes
 Route::get('/', [WelcomeController::class, 'index'])->name('welcome');
+Route::get('/terms', [LegalController::class, 'terms'])->name('terms');
 
 // Dashboard Route
 Route::get('/dashboard', [DashboardController::class, 'index'])->middleware(['auth', 'verified'])->name('dashboard');

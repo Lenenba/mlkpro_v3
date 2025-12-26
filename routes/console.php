@@ -77,3 +77,30 @@ Artisan::command('superadmin:create {email} {password}', function () {
 
     $this->info('Superadmin user created.');
 })->purpose('Create or update a superadmin user');
+
+
+Artisan::command('mail:test {to} {--subject=Test} {--body=}', function (): int {
+    /** @var string $to */
+    $to = (string) $this->argument('to');
+    $subject = (string) $this->option('subject');
+    $body = (string) $this->option('body');
+
+    if (trim($to) === '') {
+        $this->error('Destinataire manquant.');
+        return 1;
+    }
+
+    if (trim($body) === '') {
+        $body = implode("\n", [
+            'Test email',
+            'App: ' . (string) config('app.name'),
+            'Date: ' . now()->toDateTimeString(),
+        ]);
+    }
+
+    Mail::raw($body, fn($m) => $m->to($to)->subject($subject));
+
+    $this->info("OK: email envoye a {$to}");
+
+    return 0;
+})->purpose('Send a test email using current mailer');
