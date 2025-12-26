@@ -7,7 +7,7 @@
         <link rel="icon" href="{{ asset('favicon-app.ico') }}">
         <link rel="shortcut icon" href="{{ asset('favicon-app.ico') }}">
 
-        <title inertia>{{ config('app.name', 'Laravel') }}</title>
+        <title inertia>{{ config('app.name', 'Malikia pro') }}</title>
 
         <!-- Fonts -->
         <link rel="preconnect" href="https://fonts.bunny.net">
