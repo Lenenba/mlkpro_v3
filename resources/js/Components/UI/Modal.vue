@@ -44,9 +44,9 @@ onUnmounted(() => {
         class="hs-overlay hidden size-full fixed top-0 start-0 z-[80] overflow-x-hidden overflow-y-auto [--close-when-click-inside:true] pointer-events-none"
         role="dialog" tabindex="-1" aria-labelledby="hs-pro-dasadpm-label">
         <div
-            class="hs-overlay-open:mt-7 hs-overlay-open:opacity-100 hs-overlay-open:duration-500 mt-0 opacity-0 ease-out transition-all sm:max-w-7xl sm:w-full m-3 sm:mx-auto h-[calc(100%-3.5rem)] min-h-[calc(100%-3.5rem)] flex items-center">
+            class="hs-overlay-open:mt-7 hs-overlay-open:opacity-100 hs-overlay-open:duration-500 mt-0 opacity-0 ease-out transition-all w-full max-w-[calc(100vw-1.5rem)] lg:max-w-6xl xl:max-w-7xl mx-auto my-3 h-[calc(100%-3.5rem)] min-h-[calc(100%-3.5rem)] flex items-center">
             <div
-                class="w-full max-h-full flex flex-col bg-white rounded-sm pointer-events-auto shadow-[0_10px_40px_10px_rgba(0,0,0,0.08)] dark:shadow-[0_10px_40px_10px_rgba(0,0,0,0.2)] dark:bg-neutral-900">
+                class="w-full max-h-[calc(100vh-4rem)] min-w-0 flex flex-col bg-white rounded-sm pointer-events-auto shadow-[0_10px_40px_10px_rgba(0,0,0,0.08)] dark:shadow-[0_10px_40px_10px_rgba(0,0,0,0.2)] dark:bg-neutral-900">
                 <!-- Header -->
                 <div class="py-2.5 px-4 flex justify-between items-center border-b border-stone-200 dark:border-neutral-700">
                     <h3 id="hs-pro-dasadpm-label" class="font-medium text-stone-700 dark:text-neutral-200">
@@ -65,7 +65,7 @@ onUnmounted(() => {
                     </button>
                 </div>
                 <!-- End Header -->
-                <div class="p-4">
+                <div class="p-4 flex-1 min-h-0 overflow-y-auto">
                     <slot />
                 </div>
             </div>

@@ -235,7 +235,7 @@ const buttonLabel = computed(() => (props.product ? 'Update Product' : 'Create P
         <ValidationSummary :errors="form.errors" />
         <!-- Products Grid -->
         <div class="grid grid-cols-1 lg:grid-cols-6 gap-5">
-            <div class="lg:col-span-4 space-y-4">
+            <div class="lg:col-span-4 space-y-4 min-w-0">
                 <productCard>
                     <template #title>
                         Details
@@ -262,7 +262,7 @@ const buttonLabel = computed(() => (props.product ? 'Update Product' : 'Create P
                     />
                 </productCard>
             </div>
-            <div class="lg:col-span-2 space-y-4">
+            <div class="lg:col-span-2 space-y-4 min-w-0">
                 <productCard>
                     <template #title>
                         Pricing

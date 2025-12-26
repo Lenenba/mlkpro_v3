@@ -32,8 +32,8 @@ const isSuperadmin = computed(() => Boolean(page.props.auth?.account?.is_superad
     <!-- ========== END MAIN SIDEBAR ========== -->
 
     <!-- ========== MAIN CONTENT ========== -->
-    <main id="content" class="lg:ps-16 pt-[59px] lg:pt-0 min-h-screen bg-stone-50 dark:bg-neutral-950">
-        <div class="p-2 sm:p-5 sm:py-0 md:pt-5 space-y-5">
+    <main id="content" class="lg:ps-16 pt-[59px] lg:pt-0 min-h-screen w-full min-w-0 overflow-x-hidden bg-stone-50 dark:bg-neutral-950">
+        <div class="p-2 sm:p-5 sm:py-0 md:pt-5 space-y-5 min-w-0">
             <div v-if="maintenance.enabled && !isSuperadmin"
                 class="bg-amber-50 border-s-4 border-amber-500 p-4 dark:bg-amber-800/30" role="alert" tabindex="-1"
                 aria-labelledby="hs-platform-maintenance-label">
