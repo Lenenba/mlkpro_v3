@@ -49,7 +49,7 @@ const setLocale = (locale) => {
             dark:bg-neutral-950 dark:border-neutral-800" tabindex="-1" aria-label="Compact Sidebar">
             <div class="h-full flex">
                 <div class="relative z-10 w-16 flex flex-col h-full max-h-full pb-5">
-                    <header class="w-16 py-2.5 flex justify-center">
+                    <header class="w-16 py-2.5 flex justify-center shrink-0">
                         <a class="flex-none rounded-sm text-xl inline-block font-semibold focus:outline-none focus:opacity-80"
                             :href="route('dashboard')" aria-label="Preline">
                             <ApplicationLogo class="w-12 h-12 p-1" />
@@ -57,10 +57,10 @@ const setLocale = (locale) => {
                     </header>
 
                     <!-- Content -->
-                    <div class="w-16 h-full flex flex-col">
+                    <div class="w-16 flex-1 min-h-0 flex flex-col">
                         <!-- Nav -->
-                        <nav class="mt-2">
-                            <ul class="text-center space-y-4">
+                        <nav class="mt-2 flex-1 overflow-y-auto">
+                            <ul class="text-center space-y-3 pb-2">
                                 <template v-if="showPlatformNav">
                                     <LinkAncor v-if="canPlatform('analytics.view')" :label="$t('nav.admin')" :href="'superadmin.dashboard'"
                                         :active="route().current('superadmin.dashboard')">

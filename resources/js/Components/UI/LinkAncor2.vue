@@ -1,10 +1,14 @@
 <script setup>
-import { computed, ref } from 'vue';
+import { computed, nextTick, onBeforeUnmount, ref } from 'vue';
 import { usePage } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
 
 const isOpen = ref(false);
 const { t, locale } = useI18n();
+const toggleRef = ref(null);
+const menuRef = ref(null);
+const menuStyle = ref({});
+let listenersBound = false;
 
 const page = usePage();
 const companyType = computed(() => page.props.auth?.account?.company?.type ?? null);
@@ -54,10 +58,19 @@ const hasItems = computed(() => menuItems.value.length > 0);
 
 const toggleMenu = () => {
     isOpen.value = !isOpen.value;
+    if (isOpen.value) {
+        nextTick(() => {
+            updatePosition();
+            addListeners();
+        });
+    } else {
+        removeListeners();
+    }
 };
 
 const closeMenu = () => {
     isOpen.value = false;
+    removeListeners();
 };
 
 const openItem = (item) => {
@@ -66,11 +79,68 @@ const openItem = (item) => {
     }
     closeMenu();
 };
+
+const updatePosition = () => {
+    const button = toggleRef.value;
+    if (!button) {
+        return;
+    }
+    const rect = button.getBoundingClientRect();
+    let top = rect.top;
+    if (menuRef.value) {
+        const menuRect = menuRef.value.getBoundingClientRect();
+        const maxTop = window.innerHeight - menuRect.height - 12;
+        top = Math.max(12, Math.min(top, maxTop));
+    }
+    menuStyle.value = {
+        left: `${rect.right + 12}px`,
+        top: `${top}px`,
+    };
+};
+
+const handleOutsideClick = (event) => {
+    if (!isOpen.value) {
+        return;
+    }
+    const target = event.target;
+    if (toggleRef.value && toggleRef.value.contains(target)) {
+        return;
+    }
+    if (menuRef.value && menuRef.value.contains(target)) {
+        return;
+    }
+    closeMenu();
+};
+
+const addListeners = () => {
+    if (listenersBound) {
+        return;
+    }
+    window.addEventListener('resize', updatePosition);
+    window.addEventListener('scroll', updatePosition, true);
+    document.addEventListener('click', handleOutsideClick, true);
+    listenersBound = true;
+};
+
+const removeListeners = () => {
+    if (!listenersBound) {
+        return;
+    }
+    window.removeEventListener('resize', updatePosition);
+    window.removeEventListener('scroll', updatePosition, true);
+    document.removeEventListener('click', handleOutsideClick, true);
+    listenersBound = false;
+};
+
+onBeforeUnmount(() => {
+    removeListeners();
+});
 </script>
 
 <template>
     <div v-if="hasItems" class="relative">
         <button
+            ref="toggleRef"
             class="p-2 rounded-sm hover:bg-stone-100 dark:bg-neutral-900 dark:hover:bg-neutral-800 transition"
             @click="toggleMenu">
             <slot name="toggle-icon">
@@ -81,18 +151,21 @@ const openItem = (item) => {
                 </svg>
             </slot>
         </button>
-
-        <div v-if="isOpen"
-            class="absolute left-full top-0 ml-4 bg-white dark:bg-neutral-900 shadow-lg border border-stone-200 dark:border-neutral-700 rounded-sm z-10 flex">
-            <ul class="flex">
-                <li v-for="item in menuItems" :key="item.label"
-                    class="p-4 flex flex-col justify-center items-center hover:bg-stone-100 dark:hover:bg-neutral-800 transition cursor-pointer">
-                    <button type="button" class="flex flex-col items-center w-full" @click="openItem(item)">
-                        <span class="mb-2 text-stone-500 dark:text-neutral-400" v-html="item.icon"></span>
-                        <span class="text-sm text-stone-800 dark:text-neutral-200">{{ item.label }}</span>
-                    </button>
-                </li>
-            </ul>
-        </div>
+        <Teleport to="body">
+            <div v-if="isOpen"
+                ref="menuRef"
+                class="fixed bg-white dark:bg-neutral-900 shadow-lg border border-stone-200 dark:border-neutral-700 rounded-sm z-[90] flex"
+                :style="menuStyle">
+                <ul class="flex">
+                    <li v-for="item in menuItems" :key="item.label"
+                        class="p-4 flex flex-col justify-center items-center hover:bg-stone-100 dark:hover:bg-neutral-800 transition cursor-pointer">
+                        <button type="button" class="flex flex-col items-center w-full" @click="openItem(item)">
+                            <span class="mb-2 text-stone-500 dark:text-neutral-400" v-html="item.icon"></span>
+                            <span class="text-sm text-stone-800 dark:text-neutral-200">{{ item.label }}</span>
+                        </button>
+                    </li>
+                </ul>
+            </div>
+        </Teleport>
     </div>
 </template>
