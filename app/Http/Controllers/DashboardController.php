@@ -11,8 +11,13 @@ use App\Models\Customer;
 use App\Models\ActivityLog;
 use App\Models\Task;
 use App\Models\TeamMember;
+use App\Models\PlatformAnnouncement;
+use App\Models\User;
+use App\Services\UsageLimitService;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Auth;
+use Laravel\Paddle\Cashier;
+use Laravel\Paddle\Subscription;
 
 class DashboardController extends Controller
 {
@@ -30,17 +35,25 @@ class DashboardController extends Controller
                         'invoices_due' => 0,
                         'ratings_due' => 0,
                     ],
+                    'autoValidation' => [
+                        'tasks' => false,
+                        'invoices' => false,
+                    ],
                     'pendingQuotes' => [],
                     'validatedQuotes' => [],
+                    'pendingSchedules' => [],
                     'pendingWorks' => [],
                     'validatedWorks' => [],
                     'invoicesDue' => [],
+                    'taskProofs' => [],
                     'quoteRatingsDue' => [],
                     'workRatingsDue' => [],
                 ]);
             }
 
             $customerId = $customer->id;
+            $autoValidateTasks = (bool) ($customer->auto_validate_tasks ?? false);
+            $autoValidateInvoices = (bool) ($customer->auto_validate_invoices ?? false);
 
             $pendingQuotesQuery = Quote::query()
                 ->where('customer_id', $customerId)
@@ -54,6 +67,11 @@ class DashboardController extends Controller
             $pendingWorksQuery = Work::query()
                 ->where('customer_id', $customerId)
                 ->whereIn('status', [Work::STATUS_PENDING_REVIEW, Work::STATUS_TECH_COMPLETE]);
+            $pendingSchedulesQuery = Work::query()
+                ->where('customer_id', $customerId)
+                ->where('status', Work::STATUS_SCHEDULED)
+                ->whereDoesntHave('tasks')
+                ->with('teamMembers.user:id,name');
             $validatedWorksQuery = Work::query()
                 ->where('customer_id', $customerId)
                 ->whereIn('status', [
@@ -63,9 +81,11 @@ class DashboardController extends Controller
                     Work::STATUS_COMPLETED,
                 ]);
 
-            $invoicesDueQuery = Invoice::query()
-                ->where('customer_id', $customerId)
-                ->whereIn('status', ['sent', 'partial', 'overdue']);
+            $invoicesDueQuery = $autoValidateInvoices
+                ? null
+                : Invoice::query()
+                    ->where('customer_id', $customerId)
+                    ->whereIn('status', ['sent', 'partial', 'overdue']);
 
             $quoteRatingsQuery = Quote::query()
                 ->where('customer_id', $customerId)
@@ -90,7 +110,7 @@ class DashboardController extends Controller
             $stats = [
                 'quotes_pending' => (clone $pendingQuotesQuery)->count(),
                 'works_pending' => (clone $pendingWorksQuery)->count(),
-                'invoices_due' => (clone $invoicesDueQuery)->count(),
+                'invoices_due' => $autoValidateInvoices ? 0 : (clone $invoicesDueQuery)->count(),
                 'ratings_due' => (clone $quoteRatingsQuery)->count()
                     + (clone $workRatingsQuery)->count(),
             ];
@@ -141,6 +161,74 @@ class DashboardController extends Controller
                     ];
                 });
 
+            $pendingSchedules = (clone $pendingSchedulesQuery)
+                ->orderBy('start_date')
+                ->limit(8)
+                ->get([
+                    'id',
+                    'job_title',
+                    'status',
+                    'start_date',
+                    'end_date',
+                    'start_time',
+                    'end_time',
+                    'frequency',
+                    'repeatsOn',
+                    'totalVisits',
+                ])
+                ->map(function ($work) {
+                    return [
+                        'id' => $work->id,
+                        'job_title' => $work->job_title,
+                        'status' => $work->status,
+                        'start_date' => $work->start_date,
+                        'end_date' => $work->end_date,
+                        'start_time' => $work->start_time,
+                        'end_time' => $work->end_time,
+                        'frequency' => $work->frequency,
+                        'repeatsOn' => $work->repeatsOn,
+                        'totalVisits' => $work->totalVisits,
+                        'team_members' => $work->teamMembers->map(function ($member) {
+                            return [
+                                'id' => $member->id,
+                                'name' => $member->user?->name ?? 'Membre equipe',
+                            ];
+                        })->values(),
+                    ];
+                });
+
+            $taskProofs = $autoValidateTasks
+                ? collect()
+                : Task::query()
+                    ->where('customer_id', $customerId)
+                    ->whereNotNull('work_id')
+                    ->whereIn('status', ['in_progress', 'done'])
+                    ->with(['work:id,job_title'])
+                    ->orderByDesc('due_date')
+                    ->orderByDesc('created_at')
+                    ->limit(8)
+                    ->get([
+                        'id',
+                        'title',
+                        'status',
+                        'due_date',
+                        'start_time',
+                        'end_time',
+                        'work_id',
+                    ])
+                    ->map(function ($task) {
+                        return [
+                            'id' => $task->id,
+                            'title' => $task->title,
+                            'status' => $task->status,
+                            'due_date' => $task->due_date,
+                            'start_time' => $task->start_time,
+                            'end_time' => $task->end_time,
+                            'work_id' => $task->work_id,
+                            'work_title' => $task->work?->job_title,
+                        ];
+                    });
+
             $validatedWorks = (clone $validatedWorksQuery)
                 ->orderByDesc('completed_at')
                 ->limit(6)
@@ -154,22 +242,24 @@ class DashboardController extends Controller
                     ];
                 });
 
-            $invoicesDue = (clone $invoicesDueQuery)
-                ->withSum('payments', 'amount')
-                ->orderByDesc('created_at')
-                ->limit(8)
-                ->get(['id', 'number', 'status', 'total', 'created_at'])
-                ->map(function ($invoice) {
-                    return [
-                        'id' => $invoice->id,
-                        'number' => $invoice->number,
-                        'status' => $invoice->status,
-                        'total' => (float) $invoice->total,
-                        'amount_paid' => (float) ($invoice->payments_sum_amount ?? 0),
-                        'balance_due' => $invoice->balance_due,
-                        'created_at' => $invoice->created_at,
-                    ];
-                });
+            $invoicesDue = $autoValidateInvoices
+                ? collect()
+                : (clone $invoicesDueQuery)
+                    ->withSum('payments', 'amount')
+                    ->orderByDesc('created_at')
+                    ->limit(8)
+                    ->get(['id', 'number', 'status', 'total', 'created_at'])
+                    ->map(function ($invoice) {
+                        return [
+                            'id' => $invoice->id,
+                            'number' => $invoice->number,
+                            'status' => $invoice->status,
+                            'total' => (float) $invoice->total,
+                            'amount_paid' => (float) ($invoice->payments_sum_amount ?? 0),
+                            'balance_due' => $invoice->balance_due,
+                            'created_at' => $invoice->created_at,
+                        ];
+                    });
 
             $quoteRatingsDue = (clone $quoteRatingsQuery)
                 ->orderByDesc('updated_at')
@@ -202,9 +292,15 @@ class DashboardController extends Controller
             return Inertia::render('DashboardClient', [
                 'profileMissing' => false,
                 'stats' => $stats,
+                'autoValidation' => [
+                    'tasks' => $autoValidateTasks,
+                    'invoices' => $autoValidateInvoices,
+                ],
                 'pendingQuotes' => $pendingQuotes,
+                'pendingSchedules' => $pendingSchedules,
                 'validatedQuotes' => $validatedQuotes,
                 'pendingWorks' => $pendingWorks,
+                'taskProofs' => $taskProofs,
                 'validatedWorks' => $validatedWorks,
                 'invoicesDue' => $invoicesDue,
                 'quoteRatingsDue' => $quoteRatingsDue,
@@ -213,6 +309,17 @@ class DashboardController extends Controller
         }
 
         $accountId = $user?->accountOwnerId() ?? Auth::id();
+        $accountOwner = User::query()->find($accountId);
+        $internalAnnouncements = $this->resolveAnnouncements(
+            $accountId,
+            $accountOwner,
+            'internal'
+        );
+        $quickAnnouncements = $this->resolveAnnouncements(
+            $accountId,
+            $accountOwner,
+            'quick_actions'
+        );
         $isAccountOwner = ($user?->id ?? Auth::id()) === $accountId;
 
         $membership = null;
@@ -257,6 +364,8 @@ class DashboardController extends Controller
                 return Inertia::render('DashboardAdmin', [
                     'stats' => $stats,
                     'tasks' => $tasks,
+                    'announcements' => $internalAnnouncements,
+                    'quickAnnouncements' => $quickAnnouncements,
                 ]);
             }
 
@@ -293,6 +402,8 @@ class DashboardController extends Controller
             return Inertia::render('DashboardMember', [
                 'stats' => $stats,
                 'tasks' => $tasks,
+                'announcements' => $internalAnnouncements,
+                'quickAnnouncements' => $quickAnnouncements,
             ]);
         }
 
@@ -457,6 +568,26 @@ class DashboardController extends Controller
                 ->sum('amount');
         }
 
+        $plans = collect(config('billing.plans', []))
+            ->map(function (array $plan, string $key) {
+                return [
+                    'key' => $key,
+                    'name' => $plan['name'] ?? ucfirst($key),
+                    'price_id' => $plan['price_id'] ?? null,
+                    'price' => $plan['price'] ?? null,
+                    'display_price' => $this->resolvePlanDisplayPrice($plan),
+                    'features' => $plan['features'] ?? [],
+                ];
+            })
+            ->values()
+            ->all();
+
+        $subscription = $accountOwner?->subscription(Subscription::DEFAULT_TYPE);
+        $subscriptionPriceId = $subscription?->items()->value('price_id');
+        $usageLimits = $accountOwner
+            ? app(UsageLimitService::class)->buildForUser($accountOwner)
+            : ['items' => []];
+
         return Inertia::render('Dashboard', [
             'stats' => $stats,
             'recentQuotes' => $recentQuotes,
@@ -467,6 +598,100 @@ class DashboardController extends Controller
                 'labels' => $labels,
                 'values' => $values,
             ],
+            'announcements' => $internalAnnouncements,
+            'quickAnnouncements' => $quickAnnouncements,
+            'usage_limits' => $usageLimits,
+            'billing' => [
+                'plans' => $plans,
+                'subscription' => [
+                    'active' => $accountOwner?->subscribed(Subscription::DEFAULT_TYPE) ?? false,
+                    'on_trial' => $accountOwner?->onTrial(Subscription::DEFAULT_TYPE) ?? false,
+                    'status' => $subscription?->status,
+                    'price_id' => $subscriptionPriceId,
+                    'paddle_id' => $subscription?->paddle_id,
+                ],
+            ],
         ]);
+    }
+
+    private function resolveAnnouncements(int $tenantId, ?User $tenant, string $placement): array
+    {
+        $now = now();
+
+        $placements = $placement === 'internal'
+            ? ['internal', 'client', 'both']
+            : [$placement, 'both'];
+
+        $announcements = PlatformAnnouncement::query()
+            ->active()
+            ->whereIn('placement', $placements)
+            ->where(function ($query) use ($now) {
+                $query->whereNull('starts_at')
+                    ->orWhere('starts_at', '<=', $now);
+            })
+            ->where(function ($query) use ($now) {
+                $query->whereNull('ends_at')
+                    ->orWhere('ends_at', '>=', $now);
+            })
+            ->where(function ($query) use ($tenantId) {
+                $query->where('audience', 'all')
+                    ->orWhere(function ($sub) use ($tenantId) {
+                        $sub->where('audience', 'tenants')
+                            ->whereHas('tenants', function ($tenantQuery) use ($tenantId) {
+                                $tenantQuery->where('users.id', $tenantId);
+                            });
+                    })
+                    ->orWhere('audience', 'new_tenants');
+            })
+            ->orderByDesc('priority')
+            ->orderByDesc('starts_at')
+            ->limit(6)
+            ->get()
+            ->filter(function (PlatformAnnouncement $announcement) use ($tenant, $now) {
+                if ($announcement->audience !== 'new_tenants') {
+                    return true;
+                }
+
+                if (!$tenant?->created_at) {
+                    return false;
+                }
+
+                $days = $announcement->new_tenant_days ?: 30;
+                return $tenant->created_at->gte($now->copy()->subDays($days));
+            })
+            ->map(function (PlatformAnnouncement $announcement) {
+                return [
+                    'id' => $announcement->id,
+                    'title' => $announcement->title,
+                    'body' => $announcement->body,
+                    'display_style' => $announcement->display_style,
+                    'background_color' => $announcement->background_color,
+                    'media_type' => $announcement->media_type,
+                    'media_url' => $announcement->media_url,
+                    'link_label' => $announcement->link_label,
+                    'link_url' => $announcement->link_url,
+                    'starts_at' => $announcement->starts_at?->toDateString(),
+                    'ends_at' => $announcement->ends_at?->toDateString(),
+                ];
+            })
+            ->values();
+
+        return $announcements->all();
+    }
+
+    private function resolvePlanDisplayPrice(array $plan): ?string
+    {
+        $raw = $plan['price'] ?? null;
+        $rawValue = is_string($raw) ? trim($raw) : $raw;
+
+        if (is_numeric($rawValue)) {
+            return Cashier::formatAmount((int) round((float) $rawValue * 100), config('cashier.currency', 'USD'));
+        }
+
+        if (is_string($rawValue) && $rawValue !== '') {
+            return $rawValue;
+        }
+
+        return null;
     }
 }

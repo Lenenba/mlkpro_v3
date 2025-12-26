@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Paddle\Billable;
+use Illuminate\Support\Facades\Storage;
 
 class User extends Authenticatable
 {
@@ -27,6 +28,7 @@ class User extends Authenticatable
     protected $fillable = [
         'name',
         'email',
+        'locale',
         'password',
         'must_change_password',
         'role_id',
@@ -43,6 +45,7 @@ class User extends Authenticatable
         'payment_methods',
         'company_features',
         'company_limits',
+        'company_supplier_preferences',
         'is_suspended',
         'suspended_at',
         'suspension_reason',
@@ -74,6 +77,7 @@ class User extends Authenticatable
             'must_change_password' => 'boolean',
             'company_features' => 'array',
             'company_limits' => 'array',
+            'company_supplier_preferences' => 'array',
             'is_suspended' => 'boolean',
             'suspended_at' => 'datetime',
         ];
@@ -208,5 +212,16 @@ class User extends Authenticatable
         }
 
         return false;
+    }
+
+    public function getCompanyLogoUrlAttribute(): ?string
+    {
+        $path = $this->company_logo ?: 'customers/customer.png';
+
+        if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
+            return $path;
+        }
+
+        return Storage::disk('public')->url($path);
     }
 }

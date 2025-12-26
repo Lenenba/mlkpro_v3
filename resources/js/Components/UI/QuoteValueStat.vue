@@ -34,23 +34,23 @@ const getPercent = (value) => {
 
 <template>
     <div
-        class="size-full flex flex-col bg-white border border-gray-200 shadow-sm rounded-sm border-t-4 border-t-sky-700 dark:bg-neutral-800 dark:border-neutral-700">
+        class="size-full flex flex-col bg-white border border-stone-200 shadow-sm rounded-sm border-t-4 border-t-sky-700 dark:bg-neutral-800 dark:border-neutral-700">
         <div class="p-5 pb-4 flex items-center justify-between gap-x-4">
             <div>
-                <h2 class="inline-block font-semibold text-gray-800 dark:text-neutral-200">
+                <h2 class="inline-block font-semibold text-stone-800 dark:text-neutral-200">
                     {{ title }}
                 </h2>
-                <p class="text-xs text-gray-500 dark:text-neutral-500">
+                <p class="text-xs text-stone-500 dark:text-neutral-500">
                     Based on current filters
                 </p>
             </div>
-            <div class="text-sm text-gray-500 dark:text-neutral-400">
+            <div class="text-sm text-stone-500 dark:text-neutral-400">
                 {{ formatCurrency(total) }}
             </div>
         </div>
 
         <div class="h-full p-5 pt-0">
-            <div v-if="!items.length" class="text-sm text-gray-500 dark:text-neutral-400">
+            <div v-if="!items.length" class="text-sm text-stone-500 dark:text-neutral-400">
                 No quote data yet.
             </div>
             <div v-else class="space-y-4">
@@ -72,21 +72,21 @@ const getPercent = (value) => {
                         class="py-2 grid grid-cols-2 justify-between items-center gap-x-4">
                         <div class="flex items-center gap-x-2">
                             <span
-                                class="size-6 rounded-full bg-gray-100 text-gray-700 text-xs font-medium flex items-center justify-center dark:bg-neutral-700 dark:text-neutral-200"
+                                class="size-6 rounded-full bg-stone-100 text-stone-700 text-xs font-medium flex items-center justify-center dark:bg-neutral-700 dark:text-neutral-200"
                             >
                                 {{ item.number?.[0] || 'Q' }}
                             </span>
                             <div class="flex flex-col">
-                                <span class="text-sm text-gray-800 dark:text-neutral-200">
+                                <span class="text-sm text-stone-800 dark:text-neutral-200">
                                     {{ item.number || 'Quote' }}
                                 </span>
-                                <span class="text-xs text-gray-500 dark:text-neutral-500">
+                                <span class="text-xs text-stone-500 dark:text-neutral-500">
                                     {{ displayCustomer(item) }}
                                 </span>
                             </div>
                         </div>
                         <div class="text-end">
-                            <span class="text-sm text-gray-500 dark:text-neutral-500">
+                            <span class="text-sm text-stone-500 dark:text-neutral-500">
                                 {{ formatCurrency(item.total) }}
                             </span>
                         </div>

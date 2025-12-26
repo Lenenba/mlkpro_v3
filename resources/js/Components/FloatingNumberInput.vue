@@ -7,6 +7,10 @@ const props = defineProps({
         type: String,
         default: 'Select quantity',
     },
+    step: {
+        type: [Number, String],
+        default: 1,
+    },
 });
 
 // Modèle réactif pour la valeur de l'entrée
@@ -41,23 +45,24 @@ defineExpose({ focus: () => input.value.focus() });
 
 <template>
     <div
-        class="py-2 px-3 w-full bg-white border border-gray-200 rounded-lg dark:bg-neutral-900 dark:border-neutral-700">
+        class="py-2 px-3 w-full bg-white border border-stone-200 rounded-sm dark:bg-neutral-900 dark:border-neutral-700">
         <div class="w-full flex justify-between items-center gap-x-3" data-hs-input-number="">
             <div>
-                <span class="block text-xs text-gray-500 dark:text-neutral-400">
+                <span class="block text-xs text-stone-500 dark:text-neutral-400">
                     {{ label }}
                 </span>
                 <!-- Input -->
                 <input ref="input" v-model="model"
-                    class="p-0 bg-transparent border-0 text-gray-800 focus:ring-0 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none dark:text-white"
+                    class="p-0 bg-transparent border-0 text-stone-800 focus:ring-0 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none dark:text-white"
                     style="-moz-appearance: textfield;" type="number" aria-roledescription="Number field"
+                    :step="props.step"
                     data-hs-input-number-input="" />
             </div>
             <!-- Buttons -->
             <div class="flex justify-end items-center gap-x-1.5">
                 <!-- Decrement Button -->
                 <button type="button" @click="decrement"
-                    class="size-6 inline-flex justify-center items-center gap-x-2 text-sm font-medium rounded-full border border-gray-200 bg-white text-gray-800 shadow-sm hover:bg-gray-50 focus:outline-none focus:bg-gray-50 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-900 dark:border-neutral-700 dark:text-white dark:hover:bg-neutral-800 dark:focus:bg-neutral-800"
+                    class="size-6 inline-flex justify-center items-center gap-x-2 text-sm font-medium rounded-full border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 focus:outline-none focus:bg-stone-50 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-900 dark:border-neutral-700 dark:text-white dark:hover:bg-neutral-800 dark:focus:bg-neutral-800"
                     tabindex="-1" aria-label="Decrease">
                     <svg class="shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
                         viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
@@ -68,7 +73,7 @@ defineExpose({ focus: () => input.value.focus() });
 
                 <!-- Increment Button -->
                 <button type="button" @click="increment"
-                    class="size-6 inline-flex justify-center items-center gap-x-2 text-sm font-medium rounded-full border border-gray-200 bg-white text-gray-800 shadow-sm hover:bg-gray-50 focus:outline-none focus:bg-gray-50 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-900 dark:border-neutral-700 dark:text-white dark:hover:bg-neutral-800 dark:focus:bg-neutral-800"
+                    class="size-6 inline-flex justify-center items-center gap-x-2 text-sm font-medium rounded-full border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 focus:outline-none focus:bg-stone-50 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-900 dark:border-neutral-700 dark:text-white dark:hover:bg-neutral-800 dark:focus:bg-neutral-800"
                     tabindex="-1" aria-label="Increase">
                     <svg class="shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
                         viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"

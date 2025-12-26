@@ -8,11 +8,13 @@ use Illuminate\Http\Request;
 use App\Models\ProductCategory;
 use App\Models\ActivityLog;
 use App\Http\Requests\ProductRequest;
+use App\Services\UsageLimitService;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 
 class ProductController extends Controller
 {
@@ -165,9 +167,16 @@ class ProductController extends Controller
      */
     public function store(ProductRequest $request)
     {
+        app(UsageLimitService::class)->enforceLimit($request->user(), 'products');
+
         $validated = $request->validated();
         $validated['item_type'] = Product::ITEM_TYPE_PRODUCT;
         $validated['image'] = FileHandler::handleImageUpload('products', $request, 'image', 'products/product.jpg');
+        $imageUrl = $request->input('image_url');
+        if (!$request->hasFile('image') && is_string($imageUrl) && $imageUrl !== '') {
+            $validated['image'] = $imageUrl;
+        }
+        unset($validated['image_url']);
         $extraImages = FileHandler::handleMultipleImageUpload('products', $request, 'images');
 
         $product = $request->user()->products()->create($validated);
@@ -193,9 +202,16 @@ class ProductController extends Controller
      */
     public function storeQuick(ProductRequest $request)
     {
+        app(UsageLimitService::class)->enforceLimit($request->user(), 'products');
+
         $validated = $request->validated();
         $validated['item_type'] = Product::ITEM_TYPE_PRODUCT;
         $validated['image'] = FileHandler::handleImageUpload('products', $request, 'image', 'products/product.jpg');
+        $imageUrl = $request->input('image_url');
+        if (!$request->hasFile('image') && is_string($imageUrl) && $imageUrl !== '') {
+            $validated['image'] = $imageUrl;
+        }
+        unset($validated['image_url']);
         $extraImages = FileHandler::handleMultipleImageUpload('products', $request, 'images');
 
         $product = $request->user()->products()->create($validated);
@@ -220,6 +236,96 @@ class ProductController extends Controller
                 'price' => $product->price,
                 'stock' => $product->stock,
             ],
+        ], 201);
+    }
+
+    /**
+     * Store a draft product from a price lookup line.
+     */
+    public function storeDraft(Request $request)
+    {
+        $user = $request->user();
+        if (!$user) {
+            abort(403);
+        }
+
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'price' => 'required|numeric|min:0',
+            'description' => 'nullable|string',
+            'unit' => 'nullable|string|max:50',
+            'item_type' => ['nullable', Rule::in([Product::ITEM_TYPE_PRODUCT, Product::ITEM_TYPE_SERVICE])],
+            'source_details' => 'nullable',
+        ]);
+
+        $itemType = $validated['item_type']
+            ?? ($user->company_type === 'products' ? Product::ITEM_TYPE_PRODUCT : Product::ITEM_TYPE_SERVICE);
+        $limitKey = $itemType === Product::ITEM_TYPE_SERVICE ? 'services' : 'products';
+        app(UsageLimitService::class)->enforceLimit($user, $limitKey);
+
+        $name = trim($validated['name']);
+        $existing = Product::query()
+            ->byUser(Auth::id())
+            ->where('item_type', $itemType)
+            ->whereRaw('LOWER(name) = ?', [strtolower($name)])
+            ->first();
+
+        if ($existing) {
+            return response()->json([
+                'product' => [
+                    'id' => $existing->id,
+                    'name' => $existing->name,
+                    'price' => $existing->price,
+                    'image_url' => $existing->image_url,
+                    'is_active' => $existing->is_active,
+                ],
+                'created' => false,
+            ]);
+        }
+
+        $sourceDetails = $this->normalizeSourceDetails($validated['source_details'] ?? null);
+        $selected = $sourceDetails['selected_source'] ?? null;
+        $best = $sourceDetails['best_source'] ?? null;
+        $source = is_array($selected) ? $selected : (is_array($best) ? $best : null);
+
+        $price = (float) $validated['price'];
+        $costPrice = is_array($source) && isset($source['price']) ? (float) $source['price'] : $price;
+        $marginPercent = 0.0;
+        if ($price > 0 && $costPrice > 0) {
+            $marginPercent = round((($price - $costPrice) / $price) * 100, 2);
+        }
+
+        $description = $validated['description'] ?? null;
+        if (!$description && is_array($source)) {
+            $description = $source['title'] ?? null;
+        }
+
+        $product = Product::create([
+            'user_id' => Auth::id(),
+            'name' => $name ?: 'Draft product',
+            'description' => $description ?: 'Auto-generated from price lookup.',
+            'category_id' => $this->resolveCategory($itemType)->id,
+            'price' => $price,
+            'cost_price' => $costPrice,
+            'margin_percent' => $marginPercent,
+            'unit' => $validated['unit'] ?? null,
+            'supplier_name' => is_array($source) ? ($source['name'] ?? null) : null,
+            'stock' => 0,
+            'minimum_stock' => 0,
+            'is_active' => false,
+            'item_type' => $itemType,
+            'image' => is_array($source) ? ($source['image_url'] ?? null) : null,
+        ]);
+
+        return response()->json([
+            'product' => [
+                'id' => $product->id,
+                'name' => $product->name,
+                'price' => $product->price,
+                'image_url' => $product->image_url,
+                'is_active' => $product->is_active,
+            ],
+            'created' => true,
         ], 201);
     }
 
@@ -583,6 +689,11 @@ class ProductController extends Controller
         $validated = $request->validated();
         $validated['item_type'] = Product::ITEM_TYPE_PRODUCT;
         $validated['image'] = FileHandler::handleImageUpload('products', $request, 'image', 'products/product.jpg', $product->image);
+        $imageUrl = $request->input('image_url');
+        if (!$request->hasFile('image') && is_string($imageUrl) && $imageUrl !== '') {
+            $validated['image'] = $imageUrl;
+        }
+        unset($validated['image_url']);
         $extraImages = FileHandler::handleMultipleImageUpload('products', $request, 'images');
         $removeImageIds = $request->input('remove_image_ids', []);
 
@@ -596,7 +707,7 @@ class ProductController extends Controller
             }
         }
 
-        if ($request->hasFile('image') || $product->images()->where('is_primary', true)->doesntExist()) {
+        if ($request->hasFile('image') || $request->filled('image_url') || $product->images()->where('is_primary', true)->doesntExist()) {
             $product->images()->updateOrCreate(
                 ['is_primary' => true],
                 ['path' => $product->image, 'is_primary' => true, 'sort_order' => 0]
@@ -636,6 +747,31 @@ class ProductController extends Controller
         if ($product->item_type !== Product::ITEM_TYPE_PRODUCT) {
             abort(404);
         }
+    }
+
+    private function resolveCategory(string $itemType): ProductCategory
+    {
+        $name = $itemType === Product::ITEM_TYPE_PRODUCT ? 'Products' : 'Services';
+
+        return ProductCategory::firstOrCreate(['name' => $name]);
+    }
+
+    private function normalizeSourceDetails($details): ?array
+    {
+        if (!$details) {
+            return null;
+        }
+
+        if (is_string($details)) {
+            $decoded = json_decode($details, true);
+            return is_array($decoded) ? $decoded : null;
+        }
+
+        if (is_object($details)) {
+            $details = json_decode(json_encode($details), true);
+        }
+
+        return is_array($details) ? $details : null;
     }
 
 }

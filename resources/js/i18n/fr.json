@@ -1,0 +1,95 @@
+{
+    "nav": {
+        "admin": "Admin",
+        "tenants": "Tenants",
+        "support": "Support",
+        "admins": "Admins",
+        "notifications": "Notifications",
+        "announcements": "Annonces",
+        "settings": "Parametres",
+        "dashboard": "Tableau de bord",
+        "customers": "Clients",
+        "products": "Produits",
+        "services": "Services",
+        "quotes": "Devis",
+        "plan_scans": "Plan scanner",
+        "requests": "Demandes",
+        "jobs": "Jobs",
+        "tasks": "Taches",
+        "team": "Equipe",
+        "invoices": "Factures"
+    },
+    "account": {
+        "default_name": "Compte",
+        "company_label": "Entreprise",
+        "settings": "Parametres",
+        "billing": "Paiements",
+        "profile": "Mon compte",
+        "dark_mode": "Mode sombre",
+        "logout": "Se deconnecter",
+        "language": "Langue"
+    },
+    "language": {
+        "fr": "Francais",
+        "en": "English"
+    },
+    "alerts": {
+        "maintenance": {
+            "title": "Mode maintenance",
+            "message": "La plateforme est actuellement en maintenance."
+        },
+        "impersonation": {
+            "title": "Impersonation",
+            "message": "Vous impersonifiez ce compte. Admin original : {name}."
+        },
+        "success": {
+            "title": "Succes."
+        },
+        "error": {
+            "title": "Erreur."
+        },
+        "warning": {
+            "title": "Attention."
+        }
+    },
+    "actions": {
+        "stop_impersonation": "Arreter l'impersonation"
+    },
+    "quick_create": {
+        "customer": "Client",
+        "service": "Service",
+        "request": "Demande",
+        "quote": "Devis",
+        "product": "Produit"
+    },
+    "settings": {
+        "groups": {
+            "account": "Compte",
+            "platform": "Plateforme"
+        },
+        "items": {
+            "profile": {
+                "label": "Profil",
+                "description": "Identite et acces"
+            },
+            "security": {
+                "label": "Securite",
+                "description": "Mot de passe et 2FA",
+                "badge": "Bientot"
+            },
+            "company": {
+                "label": "Entreprise",
+                "description": "Infos et categories"
+            },
+            "billing": {
+                "label": "Facturation",
+                "description": "Plan et paiements"
+            },
+            "notifications": {
+                "label": "Notifications",
+                "description": "Emails et alertes",
+                "badge": "Bientot"
+            }
+        }
+    }
+}

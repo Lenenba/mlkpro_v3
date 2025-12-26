@@ -6,6 +6,7 @@ use App\Models\Work;
 use App\Models\Invoice;
 use App\Models\Customer;
 use App\Services\WorkBillingService;
+use App\Services\UsageLimitService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -91,6 +92,7 @@ class InvoiceController extends Controller
         return inertia('Invoice/Show', [
             'invoice' => $invoice->load([
                 'customer.properties',
+                'items',
                 'work.products',
                 'work.quote.property',
                 'work.ratings',
@@ -107,6 +109,8 @@ class InvoiceController extends Controller
         if ($work->user_id !== Auth::id()) {
             abort(403);
         }
+
+        app(UsageLimitService::class)->enforceLimit($request->user(), 'invoices');
 
         if ($work->invoice) {
             return redirect()->back()->with('error', 'This job already has an invoice.');

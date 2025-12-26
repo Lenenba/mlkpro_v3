@@ -9,6 +9,7 @@ use App\Models\Transaction;
 use App\Models\User;
 use App\Models\Work;
 use App\Notifications\ActionEmailNotification;
+use App\Services\UsageLimitService;
 
 class WorkBillingService
 {
@@ -16,6 +17,11 @@ class WorkBillingService
     {
         if ($work->invoice) {
             return $work->invoice;
+        }
+
+        $limitUser = $actor ?: User::find($work->user_id);
+        if ($limitUser) {
+            app(UsageLimitService::class)->enforceLimit($limitUser, 'invoices');
         }
 
         $quoteQuery = Quote::query()

@@ -46,21 +46,23 @@ const submit = () => {
     <Head title="Notification Preferences" />
 
     <AuthenticatedLayout>
-        <div class="mx-auto w-full max-w-4xl space-y-6">
-            <div>
-                <h1 class="text-xl font-semibold text-gray-800 dark:text-neutral-100">Notification preferences</h1>
-                <p class="mt-1 text-sm text-gray-600 dark:text-neutral-400">
-                    Choose what alerts you receive and how you receive them.
-                </p>
-            </div>
+        <div class="space-y-6">
+            <section class="rounded-sm border border-stone-200 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                <div class="space-y-1">
+                    <h1 class="text-xl font-semibold text-stone-800 dark:text-neutral-100">Notification preferences</h1>
+                    <p class="text-sm text-stone-600 dark:text-neutral-400">
+                        Choose what alerts you receive and how you receive them.
+                    </p>
+                </div>
+            </section>
 
-            <div class="rounded-sm border border-gray-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-800">
+            <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-800">
                 <form class="space-y-4" @submit.prevent="submit">
                     <div>
-                        <p class="text-xs text-gray-500 dark:text-neutral-400">Channels</p>
+                        <p class="text-xs text-stone-500 dark:text-neutral-400">Channels</p>
                         <div class="mt-2 grid gap-2 sm:grid-cols-2">
                             <label v-for="channel in available_channels" :key="channel"
-                                class="flex items-center gap-2 text-sm text-gray-700 dark:text-neutral-200">
+                                class="flex items-center gap-2 text-sm text-stone-700 dark:text-neutral-200">
                                 <Checkbox v-model:checked="form.channels" :value="channel" />
                                 <span>{{ channel }}</span>
                             </label>
@@ -69,10 +71,10 @@ const submit = () => {
                     </div>
 
                     <div>
-                        <p class="text-xs text-gray-500 dark:text-neutral-400">Categories</p>
+                        <p class="text-xs text-stone-500 dark:text-neutral-400">Categories</p>
                         <div class="mt-2 grid gap-2 sm:grid-cols-2">
                             <label v-for="category in available_categories" :key="category"
-                                class="flex items-center gap-2 text-sm text-gray-700 dark:text-neutral-200">
+                                class="flex items-center gap-2 text-sm text-stone-700 dark:text-neutral-200">
                                 <Checkbox v-model:checked="form.categories" :value="category" />
                                 <span>{{ category }}</span>
                             </label>
@@ -81,9 +83,9 @@ const submit = () => {
                     </div>
 
                     <div>
-                        <label class="block text-xs text-gray-500 dark:text-neutral-400">Digest frequency</label>
+                        <label class="block text-xs text-stone-500 dark:text-neutral-400">Digest frequency</label>
                         <select v-model="form.digest_frequency"
-                            class="mt-1 block w-full rounded-sm border-gray-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
+                            class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
                             <option v-for="option in digest_options" :key="option" :value="option">{{ option }}</option>
                         </select>
                         <InputError class="mt-1" :message="form.errors.digest_frequency" />
@@ -101,7 +103,7 @@ const submit = () => {
                     </div>
 
                     <div>
-                        <p class="text-xs text-gray-500 dark:text-neutral-400">Alert thresholds</p>
+                        <p class="text-xs text-stone-500 dark:text-neutral-400">Alert thresholds</p>
                         <div class="mt-2 grid gap-3 md:grid-cols-3">
                             <div>
                                 <FloatingInput v-model="form.rules.error_spike" label="Error spike" type="number" />

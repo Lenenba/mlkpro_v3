@@ -41,7 +41,7 @@ const statusClass = (status) => {
         case 'REQ_CONVERTED':
             return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-400';
         default:
-            return 'bg-gray-100 text-gray-800 dark:bg-neutral-700 dark:text-neutral-200';
+            return 'bg-stone-100 text-stone-800 dark:bg-neutral-700 dark:text-neutral-200';
     }
 };
 
@@ -74,14 +74,14 @@ const convertToQuote = (lead) => {
         <div
             v-for="lead in requests"
             :key="lead.id"
-            class="rounded-sm border border-gray-200 bg-white p-4 shadow-sm dark:bg-neutral-900 dark:border-neutral-700"
+            class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:bg-neutral-900 dark:border-neutral-700"
         >
             <div class="flex items-start justify-between gap-3">
                 <div>
-                    <div class="text-sm font-semibold text-gray-800 dark:text-neutral-200">
+                    <div class="text-sm font-semibold text-stone-800 dark:text-neutral-200">
                         {{ titleForRequest(lead) }}
                     </div>
-                    <div class="mt-1 text-xs text-gray-500 dark:text-neutral-400">
+                    <div class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
                         Created {{ formatDate(lead.created_at) }}
                     </div>
                 </div>
@@ -95,7 +95,7 @@ const convertToQuote = (lead) => {
                 <Link
                     v-if="lead.quote"
                     :href="route('customer.quote.show', lead.quote.id)"
-                    class="py-2 px-2.5 inline-flex items-center gap-x-2 text-xs font-semibold rounded-sm border border-gray-200 bg-white text-gray-800 shadow-sm hover:bg-gray-50 focus:outline-none focus:bg-gray-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700"
+                    class="py-2 px-2.5 inline-flex items-center gap-x-2 text-xs font-semibold rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 focus:outline-none focus:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700"
                 >
                     View quote
                 </Link>

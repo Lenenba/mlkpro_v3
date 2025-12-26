@@ -1,9 +1,10 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
-import { Head, useForm } from '@inertiajs/vue3';
+import { Head, useForm, usePage } from '@inertiajs/vue3';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingTextarea from '@/Components/FloatingTextarea.vue';
 import ProductTableList from '@/Components/ProductTableList.vue';
+import ValidationSummary from '@/Components/ValidationSummary.vue';
 import { ref, watch, computed } from 'vue';
 
 const props = defineProps({
@@ -13,6 +14,24 @@ const props = defineProps({
     taxes: Array,
     selectedPropertyId: Number,
 });
+
+const page = usePage();
+const companyName = computed(() => page.props.auth?.account?.company?.name || 'Entreprise');
+const companyLogo = computed(() => page.props.auth?.account?.company?.logo_url || null);
+
+const parseSourceDetails = (value) => {
+    if (!value) {
+        return null;
+    }
+    if (typeof value === 'string') {
+        try {
+            return JSON.parse(value);
+        } catch (error) {
+            return null;
+        }
+    }
+    return value;
+};
 
 const resolveDefaultPropertyId = (customer) => {
     const properties = customer?.properties || [];
@@ -38,7 +57,9 @@ const form = useForm({
         quantity: Number(product.pivot?.quantity ?? 1),
         price: Number(product.pivot?.price ?? product.price ?? 0),
         total: Number(product.pivot?.total ?? 0),
-    })) || [{ id: null, name: '', quantity: 1, price: 0, total: 0 }],
+        item_type: product.item_type ?? null,
+        source_details: parseSourceDetails(product.pivot?.source_details),
+    })) || [{ id: null, name: '', quantity: 1, price: 0, total: 0, item_type: null }],
     subtotal: Number(props.quote?.subtotal || 0),
     total: Number(props.quote?.total || 0),
     initial_deposit: Number(props.quote?.initial_deposit || 0),
@@ -131,9 +152,6 @@ const submit = () => {
         onSuccess: () => {
             console.log('Quote saved successfully!');
         },
-        onError: (errors) => {
-            console.error('Validation errors:', errors);
-        },
     });
 };
 
@@ -146,13 +164,25 @@ const submit = () => {
     <AuthenticatedLayout>
         <div class="mx-auto w-full max-w-6xl">
             <form class="space-y-5" @submit.prevent="submit">
+                    <ValidationSummary :errors="form.errors" />
                     <div
-                        class="p-5 space-y-3 flex flex-col bg-gray-100 border border-gray-100 rounded-sm shadow-sm xl:shadow-none dark:bg-green-800 dark:border-green-700">
+                        class="p-5 space-y-3 flex flex-col bg-white border border-stone-200 rounded-sm shadow-sm xl:shadow-none dark:bg-neutral-900 dark:border-neutral-700">
                         <!-- Header -->
-                        <div class="flex justify-between items-center mb-4">
-                            <h1 class="text-xl inline-block font-semibold text-gray-800 dark:text-green-100">
-                                Quote For {{ customer.company_name }}
-                            </h1>
+                        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
+                            <div class="flex items-center gap-3">
+                                <img v-if="companyLogo"
+                                    :src="companyLogo"
+                                    :alt="companyName"
+                                    class="h-12 w-12 rounded-sm border border-stone-200 object-cover dark:border-neutral-700" />
+                                <div>
+                                    <p class="text-xs uppercase text-stone-500 dark:text-neutral-400">
+                                        {{ companyName }}
+                                    </p>
+                                    <h1 class="text-xl inline-block font-semibold text-stone-800 dark:text-green-100">
+                                        Quote For {{ customer.company_name }}
+                                    </h1>
+                                </div>
+                            </div>
                         </div>
                         <div v-if="isLocked" class="text-xs text-amber-600">
                             This quote is locked because it has been accepted or archived.
@@ -161,10 +191,10 @@ const submit = () => {
                             <div class="col-span-2 space-x-2">
                                 <FloatingInput v-model="form.job_title" label="Job title" class="mb-2" :disabled="isLocked" />
                                 <div class="mb-3">
-                                    <label class="text-xs text-gray-500 dark:text-neutral-400">Property</label>
+                                    <label class="text-xs text-stone-500 dark:text-neutral-400">Property</label>
                                     <select v-model.number="form.property_id"
                                         :disabled="isLocked"
-                                        class="mt-1 w-full py-2 px-3 bg-white border border-gray-200 rounded-sm text-sm text-gray-700 focus:border-green-500 focus:ring-green-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
+                                        class="mt-1 w-full py-2 px-3 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-500 focus:ring-green-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
                                         <option v-if="!customer.properties || !customer.properties.length" value="">No property</option>
                                         <option v-for="property in customer.properties" :key="property.id" :value="property.id">
                                             {{ property.street1 }}{{ property.city ? ', ' + property.city : '' }}
@@ -177,17 +207,17 @@ const submit = () => {
                                             Property address
                                         </p>
                                         <div v-if="selectedProperty" class="space-y-1">
-                                            <div class="text-xs text-gray-600 dark:text-neutral-400">
+                                            <div class="text-xs text-stone-600 dark:text-neutral-400">
                                                 {{ selectedProperty.country }}
                                             </div>
-                                            <div class="text-xs text-gray-600 dark:text-neutral-400">
+                                            <div class="text-xs text-stone-600 dark:text-neutral-400">
                                                 {{ selectedProperty.street1 }}
                                             </div>
-                                            <div class="text-xs text-gray-600 dark:text-neutral-400">
+                                            <div class="text-xs text-stone-600 dark:text-neutral-400">
                                                 {{ selectedProperty.state }} - {{ selectedProperty.zip }}
                                             </div>
                                         </div>
-                                        <div v-else class="text-xs text-gray-600 dark:text-neutral-400">
+                                        <div v-else class="text-xs text-stone-600 dark:text-neutral-400">
                                             No property selected.
                                         </div>
                                     </div>
@@ -195,40 +225,40 @@ const submit = () => {
                                         <p>
                                             Contact details
                                         </p>
-                                        <div class="text-xs text-gray-600 dark:text-neutral-400">
+                                        <div class="text-xs text-stone-600 dark:text-neutral-400">
                                             {{ customer.first_name }} {{ customer.last_name }}
                                         </div>
-                                        <div class="text-xs text-gray-600 dark:text-neutral-400">
+                                        <div class="text-xs text-stone-600 dark:text-neutral-400">
                                             {{ customer.email }}
                                         </div>
-                                        <div class="text-xs text-gray-600 dark:text-neutral-400">
+                                        <div class="text-xs text-stone-600 dark:text-neutral-400">
                                             {{ customer.phone }}
                                         </div>
                                     </div>
                                 </div>
 
                             </div>
-                            <div class="bg-white p-4 rounded-sm border border-gray-100 dark:bg-neutral-900 dark:border-neutral-700">
+                            <div class="bg-white p-4 rounded-sm border border-stone-200 dark:bg-neutral-900 dark:border-neutral-700">
                                 <div class="lg:col-span-3">
                                     <p>
                                         Quote details
                                     </p>
-                                    <div class="text-xs text-gray-600 dark:text-neutral-400 flex justify-between">
+                                    <div class="text-xs text-stone-600 dark:text-neutral-400 flex justify-between">
                                         <span> Quote :</span>
                                         <span>{{ lastQuotesNumber|| quote?.number }} </span>
                                     </div>
-                                    <div class="text-xs text-gray-600 dark:text-neutral-400 flex justify-between mt-2">
+                                    <div class="text-xs text-stone-600 dark:text-neutral-400 flex justify-between mt-2">
                                     <span>Status :</span>
                                     <select v-model="form.status"
                                             :disabled="isLocked"
-                                            class="py-1 px-2 text-xs bg-white border border-gray-200 rounded-sm text-gray-700 focus:border-green-500 focus:ring-green-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
+                                            class="py-1 px-2 text-xs bg-white border border-stone-200 rounded-sm text-stone-700 focus:border-green-500 focus:ring-green-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
                                         <option value="draft">Draft</option>
                                         <option value="sent">Sent</option>
                                             <option value="accepted">Accepted</option>
                                             <option value="declined">Declined</option>
                                         </select>
                                     </div>
-                                    <div class="text-xs text-gray-600 dark:text-neutral-400 flex justify-between">
+                                    <div class="text-xs text-stone-600 dark:text-neutral-400 flex justify-between">
                                         <span> Rate opportunity :</span>
                                         <span class="flex flex-row space-x-1">
                                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
@@ -239,9 +269,9 @@ const submit = () => {
                                             </svg>
                                         </span>
                                     </div>
-                                    <div class="text-xs text-gray-600 dark:text-neutral-400 flex justify-between mt-5">
+                                    <div class="text-xs text-stone-600 dark:text-neutral-400 flex justify-between mt-5">
                                         <button type="button" disabled
-                                            class="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-sm border border-green-200 bg-white text-green-800 shadow-sm hover:bg-green-50 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-green-50 dark:bg-green-800 dark:border-green-700 dark:text-green-300 dark:hover:bg-green-700 dark:focus:bg-green-700">
+                                            class="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-sm border border-green-200 bg-white text-green-800 shadow-sm hover:bg-green-50 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-green-50 dark:bg-neutral-900 dark:border-neutral-700 dark:text-green-300 dark:hover:bg-green-700 dark:focus:bg-green-700">
                                             Add custom fields</button>
                                     </div>
                                 </div>
@@ -249,20 +279,26 @@ const submit = () => {
                         </div>
                     </div>
                     <div
-                        class="p-5 space-y-3 flex flex-col bg-white border border-gray-100 rounded-sm shadow-sm xl:shadow-none dark:bg-green-800 dark:border-green-700">
-                        <ProductTableList v-model="form.product" :read-only="isLocked" @update:subtotal="updateSubtotal" />
+                        class="p-5 space-y-3 flex flex-col bg-white border border-stone-200 rounded-sm shadow-sm xl:shadow-none dark:bg-neutral-900 dark:border-neutral-700">
+                        <ProductTableList
+                            v-model="form.product"
+                            :read-only="isLocked"
+                            :allow-mixed-types="true"
+                            :enable-price-lookup="true"
+                            @update:subtotal="updateSubtotal"
+                        />
                     </div>
                     <div
-                        class="p-5 grid grid-cols-2 gap-4 justify-between bg-white border border-gray-100 rounded-sm shadow-sm xl:shadow-none dark:bg-green-800 dark:border-green-700">
+                        class="p-5 grid grid-cols-2 gap-4 justify-between bg-white border border-stone-200 rounded-sm shadow-sm xl:shadow-none dark:bg-neutral-900 dark:border-neutral-700">
 
                         <div>
                             <FloatingTextarea v-model="form.messages" label="Client message" :disabled="isLocked" />
                         </div>
-                        <div class="border-l border-gray-200 dark:border-neutral-700 rounded-sm p-4">
+                        <div class="border-l border-stone-200 dark:border-neutral-700 rounded-sm p-4">
                             <!-- List Item -->
                             <div class="py-4 grid grid-cols-2 gap-x-4  dark:border-neutral-700">
                                 <div class="col-span-1">
-                                    <p class="text-sm text-gray-500 dark:text-neutral-500">
+                                    <p class="text-sm text-stone-500 dark:text-neutral-500">
                                         Subtotal:
                                     </p>
                                 </div>
@@ -278,14 +314,14 @@ const submit = () => {
                             <!-- End List Item -->
 
                             <!-- List Item -->
-                            <div class="py-4 grid grid-cols-2 gap-x-4 border-t border-gray-200 dark:border-neutral-700">
+                            <div class="py-4 grid grid-cols-2 gap-x-4 border-t border-stone-200 dark:border-neutral-700">
                                 <div class="col-span-1">
-                                    <p class="text-sm text-gray-500 dark:text-neutral-500">
+                                    <p class="text-sm text-stone-500 dark:text-neutral-500">
                                         Discount (%):
                                     </p>
                                 </div>
                                 <div class="flex justify-end">
-                                    <p class="text-sm text-gray-800 dark:text-neutral-200">
+                                    <p class="text-sm text-stone-800 dark:text-neutral-200">
                                         Add discount
                                     </p>
                                 </div>
@@ -293,10 +329,10 @@ const submit = () => {
                             <!-- End List Item -->
 
                             <!-- List Item -->
-                            <div class="py-4 grid grid-cols-2 gap-x-4 border-t border-gray-200 dark:border-neutral-700">
+                            <div class="py-4 grid grid-cols-2 gap-x-4 border-t border-stone-200 dark:border-neutral-700">
                                 <!-- Label pour la ligne des taxes -->
                                 <div class="col-span-1">
-                                    <p class="text-sm text-gray-500 dark:text-neutral-500">
+                                    <p class="text-sm text-stone-500 dark:text-neutral-500">
                                         Tax:
                                     </p>
                                 </div>
@@ -311,39 +347,39 @@ const submit = () => {
                             </div>
                             <!-- Section des details des taxes (affichee ou masquee) -->
                             <div v-if="showTaxDetails"
-                                class="space-y-3 py-4 border-t border-gray-200 dark:border-neutral-700">
-                                <div v-if="!availableTaxes.length" class="text-xs text-gray-500 dark:text-neutral-500">
+                                class="space-y-3 py-4 border-t border-stone-200 dark:border-neutral-700">
+                                <div v-if="!availableTaxes.length" class="text-xs text-stone-500 dark:text-neutral-500">
                                     No taxes configured.
                                 </div>
                                 <div v-else class="space-y-2">
                                     <label v-for="tax in availableTaxes" :key="tax.id"
-                                        class="flex items-center justify-between gap-3 text-sm text-gray-700 dark:text-neutral-200">
+                                        class="flex items-center justify-between gap-3 text-sm text-stone-700 dark:text-neutral-200">
                                         <span class="flex items-center gap-2">
                                             <input type="checkbox" :value="tax.id" v-model="form.taxes" :disabled="isLocked"
-                                                class="size-4 rounded border-gray-300 text-green-600 focus:ring-green-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-900 dark:border-neutral-600" />
+                                                class="size-4 rounded border-stone-300 text-green-600 focus:ring-green-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-900 dark:border-neutral-600" />
                                             {{ tax.name }} ({{ tax.rate }}%)
                                         </span>
-                                        <span class="text-sm text-gray-800 dark:text-neutral-200">
+                                        <span class="text-sm text-stone-800 dark:text-neutral-200">
                                             ${{ taxAmount(tax).toFixed(2) }}
                                         </span>
                                     </label>
                                 </div>
                                 <div class="flex justify-between font-bold">
-                                    <p class="text-sm text-gray-800 dark:text-neutral-200">Total taxes :</p>
-                                    <p class="text-sm text-gray-800 dark:text-neutral-200">${{ totalTaxAmount.toFixed(2) }}</p>
+                                    <p class="text-sm text-stone-800 dark:text-neutral-200">Total taxes :</p>
+                                    <p class="text-sm text-stone-800 dark:text-neutral-200">${{ totalTaxAmount.toFixed(2) }}</p>
                                 </div>
                             </div>
                             <!-- End List Item -->
 
                             <!-- List Item -->
-                            <div class="py-4 grid grid-cols-2 gap-x-4 border-t border-gray-200 dark:border-neutral-700">
+                            <div class="py-4 grid grid-cols-2 gap-x-4 border-t border-stone-200 dark:border-neutral-700">
                                 <div class="col-span-1">
-                                    <p class="text-sm text-gray-800 font-bold dark:text-neutral-500">
+                                    <p class="text-sm text-stone-800 font-bold dark:text-neutral-500">
                                         Total amount:
                                     </p>
                                 </div>
                                 <div class="flex justify-end">
-                                    <p class="text-sm text-gray-800 font-bold dark:text-neutral-200">
+                                    <p class="text-sm text-stone-800 font-bold dark:text-neutral-200">
                                         $ {{ totalWithTaxes?.toFixed(2) }}
                                     </p>
                                 </div>
@@ -354,10 +390,10 @@ const submit = () => {
 
                             <!-- List Item -->
                             <div
-                                class="py-4 grid grid-cols-2 items-center gap-x-4 border-t border-gray-600 dark:border-neutral-700">
+                                class="py-4 grid grid-cols-2 items-center gap-x-4 border-t border-stone-600 dark:border-neutral-700">
                                 <!-- Label -->
                                 <div class="col-span-1">
-                                    <p class="text-sm text-gray-500 dark:text-neutral-500">Required deposit:</p>
+                                    <p class="text-sm text-stone-500 dark:text-neutral-500">Required deposit:</p>
                                 </div>
 
                                 <!-- Contenu dynamique -->
@@ -365,9 +401,9 @@ const submit = () => {
                                     <!-- Si le champ est affiché -->
                                     <div v-if="showDepositInput" class="flex items-center gap-x-2">
                                         <input type="number" v-model="form.initial_deposit" @blur="validateDeposit" :disabled="isLocked"
-                                            class="w-20 p-1 text-sm border border-gray-300 rounded-sm focus:outline-none focus:ring focus:ring-green-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-900 dark:border-neutral-700 dark:text-white"
+                                            class="w-20 p-1 text-sm border border-stone-300 rounded-sm focus:outline-none focus:ring focus:ring-green-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-900 dark:border-neutral-700 dark:text-white"
                                             :min="minimumDeposit" />
-                                        <span class="text-xs text-gray-500 dark:text-neutral-500">
+                                        <span class="text-xs text-stone-500 dark:text-neutral-500">
                                             (Min: ${{ minimumDeposit }})
                                         </span>
                                     </div>
@@ -383,17 +419,17 @@ const submit = () => {
                         </div>
                     </div>
                     <div
-                        class="p-5 grid grid-cols-1 gap-4 justify-between bg-white border border-gray-100 rounded-sm shadow-sm xl:shadow-none dark:bg-green-800 dark:border-green-700">
+                        class="p-5 grid grid-cols-1 gap-4 justify-between bg-white border border-stone-200 rounded-sm shadow-sm xl:shadow-none dark:bg-neutral-900 dark:border-neutral-700">
                         <FloatingTextarea v-model="form.notes" label="Terms and conditions" :disabled="isLocked" />
 
                         <div class="flex justify-between">
                             <button type="button"
-                                class="py-1.5 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-sm border border-gray-200 bg-white text-gray-800 shadow-sm hover:bg-gray-50 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-800 focus:outline-none focus:bg-gray-100 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700">
+                                class="py-1.5 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-800 focus:outline-none focus:bg-stone-100 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700">
                                 Cancel
                             </button>
                             <div>
                                 <button type="button" disabled
-                                    class="py-1.5 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-sm border border-green-600 text-green-600 hover:border-gray-700 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:ring-2 focus:ring-gray-500">
+                                    class="py-1.5 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-sm border border-green-600 text-green-600 hover:border-stone-700 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:ring-2 focus:ring-stone-500">
                                     Save and create another
                                 </button>
                                 <button id="hs-pro-in1trsbgwmdid1" type="submit"

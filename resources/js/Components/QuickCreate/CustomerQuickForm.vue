@@ -33,6 +33,10 @@ const form = reactive({
     description: '',
     refer_by: '',
     billing_same_as_physical: true,
+    auto_accept_quotes: false,
+    auto_validate_jobs: false,
+    auto_validate_tasks: false,
+    auto_validate_invoices: false,
     properties: {
         type: 'physical',
         street1: '',
@@ -105,6 +109,10 @@ const resetForm = () => {
     form.description = '';
     form.refer_by = '';
     form.billing_same_as_physical = true;
+    form.auto_accept_quotes = false;
+    form.auto_validate_jobs = false;
+    form.auto_validate_tasks = false;
+    form.auto_validate_invoices = false;
     form.properties = {
         type: 'physical',
         street1: '',
@@ -123,7 +131,12 @@ const closeOverlay = () => {
 };
 
 const submit = async () => {
-    if (!isValid.value || isSubmitting.value) {
+    if (isSubmitting.value) {
+        return;
+    }
+
+    if (!isValid.value) {
+        formError.value = 'Please fill all required fields.';
         return;
     }
 
@@ -142,6 +155,10 @@ const submit = async () => {
         description: form.description,
         refer_by: form.refer_by,
         billing_same_as_physical: form.billing_same_as_physical,
+        auto_accept_quotes: form.auto_accept_quotes,
+        auto_validate_jobs: form.auto_validate_jobs,
+        auto_validate_tasks: form.auto_validate_tasks,
+        auto_validate_invoices: form.auto_validate_invoices,
     };
 
     if (hasPropertyInput.value && propertyValid.value) {
@@ -189,7 +206,7 @@ const submit = async () => {
 
         <FloatingTextarea v-model="form.description" label="Notes" />
 
-        <div class="rounded-lg border border-stone-200 p-4 dark:border-neutral-700">
+        <div class="rounded-sm border border-stone-200 p-4 dark:border-neutral-700">
             <div class="text-sm font-medium text-stone-700 dark:text-neutral-200">Location</div>
             <div class="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
                 <FloatingInput v-model="form.properties.street1" label="Street" />
@@ -206,9 +223,37 @@ const submit = async () => {
                     Billing address matches the property address
                 </span>
             </div>
+            <div class="mt-3 flex items-start gap-2">
+                <input type="checkbox" v-model="form.auto_accept_quotes"
+                    class="mt-0.5 size-3.5 rounded border-stone-300 text-green-600 focus:ring-green-500 dark:bg-neutral-900 dark:border-neutral-700">
+                <span class="text-sm text-stone-600 dark:text-neutral-400">
+                    Auto-accept quotes for this customer
+                </span>
+            </div>
+            <div class="mt-2 flex items-start gap-2">
+                <input type="checkbox" v-model="form.auto_validate_jobs"
+                    class="mt-0.5 size-3.5 rounded border-stone-300 text-green-600 focus:ring-green-500 dark:bg-neutral-900 dark:border-neutral-700">
+                <span class="text-sm text-stone-600 dark:text-neutral-400">
+                    Auto-validate jobs
+                </span>
+            </div>
+            <div class="mt-2 flex items-start gap-2">
+                <input type="checkbox" v-model="form.auto_validate_tasks"
+                    class="mt-0.5 size-3.5 rounded border-stone-300 text-green-600 focus:ring-green-500 dark:bg-neutral-900 dark:border-neutral-700">
+                <span class="text-sm text-stone-600 dark:text-neutral-400">
+                    Auto-validate tasks
+                </span>
+            </div>
+            <div class="mt-2 flex items-start gap-2">
+                <input type="checkbox" v-model="form.auto_validate_invoices"
+                    class="mt-0.5 size-3.5 rounded border-stone-300 text-green-600 focus:ring-green-500 dark:bg-neutral-900 dark:border-neutral-700">
+                <span class="text-sm text-stone-600 dark:text-neutral-400">
+                    Auto-validate invoices
+                </span>
+            </div>
         </div>
 
-        <div v-if="errorMessages.length" class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+        <div v-if="errorMessages.length" class="rounded-sm border border-red-200 bg-red-50 p-3 text-sm text-red-700">
             <div v-for="(message, index) in errorMessages" :key="index">
                 {{ message }}
             </div>
@@ -216,11 +261,11 @@ const submit = async () => {
 
         <div class="flex justify-end gap-2">
             <button type="button" :data-hs-overlay="overlayId || undefined"
-                class="py-2 px-3 inline-flex items-center text-sm font-medium rounded-lg border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200">
+                class="py-2 px-3 inline-flex items-center text-sm font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200">
                 Cancel
             </button>
-            <button type="submit" :disabled="!isValid || isSubmitting"
-                class="py-2 px-3 inline-flex items-center text-sm font-medium rounded-lg border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50">
+            <button type="submit" :disabled="isSubmitting"
+                class="py-2 px-3 inline-flex items-center text-sm font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50">
                 {{ submitLabel }}
             </button>
         </div>

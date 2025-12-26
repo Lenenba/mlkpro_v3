@@ -1,6 +1,7 @@
 <script setup>
 import { computed } from 'vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import AnnouncementsPanel from '@/Components/Dashboard/AnnouncementsPanel.vue';
 import { Head, Link, usePage } from '@inertiajs/vue3';
 import { humanizeDate } from '@/utils/date';
 
@@ -29,6 +30,22 @@ const props = defineProps({
         type: Object,
         default: () => ({ labels: [], values: [] }),
     },
+    announcements: {
+        type: Array,
+        default: () => [],
+    },
+    quickAnnouncements: {
+        type: Array,
+        default: () => [],
+    },
+    usage_limits: {
+        type: Object,
+        default: () => ({ items: [] }),
+    },
+    billing: {
+        type: Object,
+        default: () => ({}),
+    },
 });
 
 const page = usePage();
@@ -36,6 +53,28 @@ const userName = computed(() => page.props.auth?.user?.name || 'there');
 const companyType = computed(() => page.props.auth?.account?.company?.type ?? null);
 const showServices = computed(() => companyType.value !== 'products');
 const isOwner = computed(() => Boolean(page.props.auth?.account?.is_owner));
+const hasTopAnnouncements = computed(() => (props.announcements || []).length > 0);
+const hasQuickAnnouncements = computed(() => (props.quickAnnouncements || []).length > 0);
+const billing = computed(() => props.billing || {});
+const billingPlans = computed(() => billing.value.plans || []);
+const billingSubscription = computed(() => billing.value.subscription || {});
+const hasPlanChoices = computed(() => isOwner.value && billingPlans.value.length > 0);
+const usageItems = computed(() => props.usage_limits?.items || []);
+const usageAlerts = computed(() => usageItems.value.filter((item) => item.status !== 'ok'));
+const hasUsageAlerts = computed(() => usageAlerts.value.length > 0);
+const planName = computed(() => props.usage_limits?.plan_name || props.usage_limits?.plan_key || '');
+const limitLabelMap = {
+    quotes: 'Quotes',
+    invoices: 'Invoices',
+    jobs: 'Jobs',
+    products: 'Products',
+    services: 'Services',
+    tasks: 'Tasks',
+    team_members: 'Team members',
+};
+
+const isPlanActive = (plan) =>
+    Boolean(billingSubscription.value?.price_id && plan?.price_id === billingSubscription.value.price_id);
 
 const stat = (key) => props.stats?.[key] ?? 0;
 
@@ -112,6 +151,17 @@ const invoiceStatusClass = (status) => {
             return 'bg-stone-100 text-stone-700 dark:bg-neutral-700 dark:text-neutral-200';
     }
 };
+
+const displayLimitLabel = (item) => limitLabelMap[item.key] || item.label || item.key;
+const displayLimitValue = (item) => {
+    if (item.limit === null || item.limit === undefined) {
+        return 'Unlimited';
+    }
+    if (Number(item.limit) <= 0) {
+        return 'Not available';
+    }
+    return item.limit;
+};
 </script>
 
 <template>
@@ -134,7 +184,7 @@ const invoiceStatusClass = (status) => {
                             <span>Payments this month: {{ formatCurrency(stat('payments_month')) }}</span>
                         </div>
                     </div>
-                    <div class="flex flex-wrap items-center gap-2">
+                    <!-- <div class="flex flex-wrap items-center gap-2">
                         <button type="button" data-hs-overlay="#hs-quick-create-quote"
                             class="py-2 px-3 inline-flex items-center gap-x-2 text-xs font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700">
                             New quote
@@ -151,11 +201,35 @@ const invoiceStatusClass = (status) => {
                             class="py-2 px-3 inline-flex items-center gap-x-2 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200">
                             New product
                         </button>
+                    </div> -->
+                </div>
+            </section>
+
+            <section v-if="hasUsageAlerts" class="rounded-sm border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-200">
+                <div class="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                        <div class="font-semibold">Usage alerts</div>
+                        <p class="text-xs text-amber-700 dark:text-amber-200">
+                            Some modules are close to their limits{{ planName ? ` for plan ${planName}` : '' }}.
+                        </p>
+                    </div>
+                    <Link :href="route('settings.company.edit')" class="text-xs font-semibold text-amber-800 hover:underline dark:text-amber-200">
+                        View limits
+                    </Link>
+                </div>
+                <div class="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                    <div v-for="item in usageAlerts" :key="item.key" class="rounded-sm border border-amber-200 bg-white px-3 py-2 text-xs text-amber-800 dark:border-amber-500/30 dark:bg-neutral-900 dark:text-amber-200">
+                        <div class="font-semibold">{{ displayLimitLabel(item) }}</div>
+                        <div class="mt-1 text-[11px] text-amber-700 dark:text-amber-200">
+                            {{ item.used }} / {{ displayLimitValue(item) }}
+                            <span v-if="item.percent !== null">({{ item.percent }}%)</span>
+                        </div>
                     </div>
                 </div>
             </section>
 
-            <section class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+            <div :class="['grid gap-4', hasTopAnnouncements ? 'xl:grid-cols-[minmax(0,1fr)_320px]' : 'grid-cols-1']">
+                <section class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
                 <div
                     class="p-4 bg-white border border-t-4 border-t-emerald-600 border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
                     <div class="space-y-1">
@@ -252,7 +326,16 @@ const invoiceStatusClass = (status) => {
                         </p>
                     </div>
                 </div>
-            </section>
+                </section>
+                <AnnouncementsPanel
+                    v-if="hasTopAnnouncements"
+                    :announcements="announcements"
+                    variant="side"
+                    title="Announcements"
+                    subtitle="Active notices for your team."
+                    :limit="3"
+                />
+            </div>
 
             <section class="grid grid-cols-1 xl:grid-cols-3 gap-4">
                 <div class="xl:col-span-2 space-y-4">
@@ -377,7 +460,7 @@ const invoiceStatusClass = (status) => {
                         </div>
                         <div class="mt-3 space-y-3">
                             <div v-for="job in upcomingJobs" :key="job.id"
-                                class="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-stone-200 px-3 py-2 text-sm dark:border-neutral-700">
+                                class="flex flex-wrap items-center justify-between gap-3 rounded-sm border border-stone-200 px-3 py-2 text-sm dark:border-neutral-700">
                                 <div>
                                     <Link :href="route('work.show', job.id)" class="font-medium text-stone-800 hover:underline dark:text-neutral-200">
                                         {{ job.job_title }}
@@ -404,29 +487,38 @@ const invoiceStatusClass = (status) => {
                 </div>
 
                 <div class="space-y-4">
-                    <div class="bg-white border border-stone-200 rounded-sm p-5 shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
+                    <AnnouncementsPanel
+                        v-if="hasQuickAnnouncements"
+                        :announcements="quickAnnouncements"
+                        variant="side"
+                        :fill-height="false"
+                        title="Announcements"
+                        subtitle="Displayed in the quick actions slot."
+                        :limit="3"
+                    />
+                    <div v-else class="bg-white border border-stone-200 rounded-sm p-5 shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
                         <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
                             Quick actions
                         </h2>
                         <div class="mt-4 grid grid-cols-1 gap-2 text-sm">
                             <button type="button" data-hs-overlay="#hs-quick-create-quote"
-                                class="py-2 px-3 rounded-lg border border-stone-200 bg-stone-100 text-stone-700 hover:bg-stone-200 dark:bg-neutral-700 dark:border-neutral-600 dark:text-neutral-200">
+                                class="py-2 px-3 rounded-sm border border-stone-200 bg-stone-100 text-stone-700 hover:bg-stone-200 dark:bg-neutral-700 dark:border-neutral-600 dark:text-neutral-200">
                                 Create quote
                             </button>
                             <button v-if="showServices && isOwner" type="button" data-hs-overlay="#hs-quick-create-request"
-                                class="py-2 px-3 rounded-lg border border-stone-200 bg-stone-100 text-stone-700 hover:bg-stone-200 dark:bg-neutral-700 dark:border-neutral-600 dark:text-neutral-200">
+                                class="py-2 px-3 rounded-sm border border-stone-200 bg-stone-100 text-stone-700 hover:bg-stone-200 dark:bg-neutral-700 dark:border-neutral-600 dark:text-neutral-200">
                                 Create request
                             </button>
                             <button type="button" data-hs-overlay="#hs-quick-create-customer"
-                                class="py-2 px-3 rounded-lg border border-stone-200 bg-stone-100 text-stone-700 hover:bg-stone-200 dark:bg-neutral-700 dark:border-neutral-600 dark:text-neutral-200">
+                                class="py-2 px-3 rounded-sm border border-stone-200 bg-stone-100 text-stone-700 hover:bg-stone-200 dark:bg-neutral-700 dark:border-neutral-600 dark:text-neutral-200">
                                 Add customer
                             </button>
                             <button type="button" data-hs-overlay="#hs-quick-create-product"
-                                class="py-2 px-3 rounded-lg border border-stone-200 bg-stone-100 text-stone-700 hover:bg-stone-200 dark:bg-neutral-700 dark:border-neutral-600 dark:text-neutral-200">
+                                class="py-2 px-3 rounded-sm border border-stone-200 bg-stone-100 text-stone-700 hover:bg-stone-200 dark:bg-neutral-700 dark:border-neutral-600 dark:text-neutral-200">
                                 Add product
                             </button>
                             <Link :href="route('jobs.index')"
-                                class="py-2 px-3 rounded-lg border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200">
+                                class="py-2 px-3 rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200">
                                 Review jobs
                             </Link>
                         </div>
@@ -443,7 +535,7 @@ const invoiceStatusClass = (status) => {
                         </div>
                         <div class="mt-3 space-y-3">
                             <div v-for="invoice in outstandingInvoices" :key="invoice.id"
-                                class="flex items-center justify-between gap-3 rounded-lg border border-stone-200 px-3 py-2 text-sm dark:border-neutral-700">
+                                class="flex items-center justify-between gap-3 rounded-sm border border-stone-200 px-3 py-2 text-sm dark:border-neutral-700">
                                 <div>
                                     <Link :href="route('invoice.show', invoice.id)" class="font-medium text-stone-800 hover:underline dark:text-neutral-200">
                                         {{ invoice.number || 'Invoice' }}
@@ -476,7 +568,7 @@ const invoiceStatusClass = (status) => {
                         </div>
                         <div class="mt-3 space-y-3 text-sm">
                             <div v-for="log in activity" :key="log.id"
-                                class="rounded-lg border border-stone-200 px-3 py-2 dark:border-neutral-700">
+                                class="rounded-sm border border-stone-200 px-3 py-2 dark:border-neutral-700">
                                 <div class="text-xs uppercase text-stone-500 dark:text-neutral-400">
                                     {{ log.subject }} · {{ formatDate(log.created_at) }}
                                 </div>

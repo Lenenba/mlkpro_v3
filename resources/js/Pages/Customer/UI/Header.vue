@@ -34,7 +34,7 @@ const openRequestModal = () => {
                     <img :src="customer.logo_url || customer.logo" :alt="customer.company_name"
                         class="absolute inset-0 object-cover w-full h-full rounded-sm">
                     <span
-                        class="absolute flex shrink-0 justify-center items-center size-6 overflow-hidden -bottom-1 -end-1 bg-white border border-transparent text-gray-800 dark:bg-neutral-700 dark:border-neutral-900 dark:text-neutral-200 rounded-sm">
+                        class="absolute flex shrink-0 justify-center items-center size-6 overflow-hidden -bottom-1 -end-1 bg-white border border-transparent text-stone-800 dark:bg-neutral-700 dark:border-neutral-900 dark:text-neutral-200 rounded-sm">
                         <svg class="shrink-0 size-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
                             viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                             stroke-linecap="round" stroke-linejoin="round">
@@ -45,10 +45,10 @@ const openRequestModal = () => {
                 </span>
 
                 <div class="grow">
-                    <p class="text-2xl md:text-3xl font-semibold text-gray-600 dark:text-white">
+                    <p class="text-2xl md:text-3xl font-semibold text-stone-600 dark:text-white">
                         {{ customer.company_name || `${customer.first_name} ${customer.last_name}` }}
                     </p>
-                    <p class="text-sm text-gray-500 dark:text-neutral-400">
+                    <p class="text-sm text-stone-500 dark:text-neutral-400">
                         {{ customer.email }} | {{ customer.phone || 'No phone' }}
                     </p>
                 </div>
@@ -60,7 +60,7 @@ const openRequestModal = () => {
 
                 <!-- Button -->
                 <Link :href="route('customer.index')"
-                    class="py-1 px-3 inline-flex items-center gap-x-1.5 text-sm font-medium rounded-sm border border-gray-100 bg-white text-gray-800 hover:bg-gray-50 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-gray-50 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800 dark:focus:bg-neutral-800">
+                    class="py-1 px-3 inline-flex items-center gap-x-1.5 text-sm font-medium rounded-sm border border-stone-100 bg-white text-stone-800 hover:bg-stone-50 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-50 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800 dark:focus:bg-neutral-800">
                     Back to list
                 </Link>
                 <!-- End Button -->
@@ -79,7 +79,7 @@ const openRequestModal = () => {
                                 <span class="sr-only">More send options</span>
                             </button>
                             <span
-                                class="hs-tooltip-content hs-tooltip-shown:opacity-100 hs-tooltip-shown:visible opacity-0 inline-block absolute invisible z-[60] py-1.5 px-2.5 bg-gray-900 text-xs text-white rounded-sm whitespace-nowrap dark:bg-neutral-700"
+                                class="hs-tooltip-content hs-tooltip-shown:opacity-100 hs-tooltip-shown:visible opacity-0 inline-block absolute invisible z-[60] py-1.5 px-2.5 bg-stone-900 text-xs text-white rounded-sm whitespace-nowrap dark:bg-neutral-700"
                                 role="tooltip">
                                 More send options
                             </span>
@@ -92,7 +92,7 @@ const openRequestModal = () => {
                             <div class="p-1">
                                 <Link :href="route('customer.quote.create', customer)">
                                     <button type="button"
-                                        class="w-full flex items-center gap-x-3 py-2 px-3 rounded-sm text-sm text-gray-800 hover:bg-gray-100 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-gray-100 dark:text-neutral-300 dark:hover:bg-neutral-800 dark:focus:bg-neutral-800">
+                                        class="w-full flex items-center gap-x-3 py-2 px-3 rounded-sm text-sm text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800 dark:focus:bg-neutral-800">
                                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
                                             fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                                             stroke-linejoin="round" class="lucide lucide-text-quote">
@@ -106,7 +106,7 @@ const openRequestModal = () => {
                                 </Link>
 
                                 <button type="button" @click="openRequestModal"
-                                    class="w-full flex items-center gap-x-3 py-2 px-3 rounded-sm text-sm text-gray-800 hover:bg-gray-100 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-gray-100 dark:text-neutral-300 dark:hover:bg-neutral-800 dark:focus:bg-neutral-800">
+                                    class="w-full flex items-center gap-x-3 py-2 px-3 rounded-sm text-sm text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800 dark:focus:bg-neutral-800">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
                                         fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                                         stroke-linejoin="round" class="lucide lucide-git-pull-request">
@@ -119,7 +119,7 @@ const openRequestModal = () => {
                                 </button>
                                 <Link :href="route('work.create', customer)">
                                     <button type="button"
-                                        class="w-full flex items-center gap-x-3 py-2 px-3 rounded-sm text-sm text-gray-800 hover:bg-gray-100 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-gray-100 dark:text-neutral-300 dark:hover:bg-neutral-800 dark:focus:bg-neutral-800">
+                                        class="w-full flex items-center gap-x-3 py-2 px-3 rounded-sm text-sm text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800 dark:focus:bg-neutral-800">
                                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
                                             fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                                             stroke-linejoin="round" class="lucide lucide-monitor-cog">
@@ -140,7 +140,7 @@ const openRequestModal = () => {
                                     </button>
                                 </Link>
                                 <button type="button"
-                                    class="w-full flex items-center gap-x-3 py-2 px-3 rounded-sm text-sm text-gray-800 hover:bg-gray-100 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-gray-100 dark:text-neutral-300 dark:hover:bg-neutral-800 dark:focus:bg-neutral-800">
+                                    class="w-full flex items-center gap-x-3 py-2 px-3 rounded-sm text-sm text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800 dark:focus:bg-neutral-800">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
                                         fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                                         stroke-linejoin="round" class="lucide lucide-file-text">

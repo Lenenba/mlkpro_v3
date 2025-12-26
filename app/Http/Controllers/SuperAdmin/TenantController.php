@@ -4,6 +4,7 @@ namespace App\Http\Controllers\SuperAdmin;
 
 use App\Models\Customer;
 use App\Models\Invoice;
+use App\Models\PlanScan;
 use App\Models\Product;
 use App\Models\PlatformSetting;
 use App\Models\Quote;
@@ -77,6 +78,13 @@ class TenantController extends BaseSuperAdminController
             $builder->whereIn('id', $userIds);
         });
 
+        $recentThreshold = now()->subDays(30);
+        $totalCount = (clone $query)->count();
+        $activeCount = (clone $query)->where('is_suspended', false)->count();
+        $suspendedCount = (clone $query)->where('is_suspended', true)->count();
+        $newCount = (clone $query)->whereDate('created_at', '>=', $recentThreshold)->count();
+        $onboardedCount = (clone $query)->whereNotNull('onboarding_completed_at')->count();
+
         $tenants = $query->orderByDesc('created_at')->paginate(15)->withQueryString();
 
         $subscriptionMap = $this->subscriptionMap($tenants->pluck('id'));
@@ -107,6 +115,13 @@ class TenantController extends BaseSuperAdminController
             'filters' => $filters,
             'tenants' => $tenants,
             'plans' => array_values($this->planMap()),
+            'stats' => [
+                'total' => $totalCount,
+                'active' => $activeCount,
+                'suspended' => $suspendedCount,
+                'new_30d' => $newCount,
+                'onboarded' => $onboardedCount,
+            ],
         ]);
     }
 
@@ -123,6 +138,7 @@ class TenantController extends BaseSuperAdminController
         $stats = [
             'customers' => Customer::query()->where('user_id', $tenant->id)->count(),
             'quotes' => Quote::query()->where('user_id', $tenant->id)->count(),
+            'plan_scan_quotes' => (int) PlanScan::query()->where('user_id', $tenant->id)->sum('quotes_generated'),
             'invoices' => Invoice::query()->where('user_id', $tenant->id)->count(),
             'works' => Work::query()->where('user_id', $tenant->id)->count(),
             'products' => Product::query()->where('user_id', $tenant->id)->where('item_type', Product::ITEM_TYPE_PRODUCT)->count(),
@@ -247,6 +263,7 @@ class TenantController extends BaseSuperAdminController
 
         $allowedKeys = [
             'quotes',
+            'plan_scan_quotes',
             'invoices',
             'jobs',
             'products',
@@ -304,8 +321,12 @@ class TenantController extends BaseSuperAdminController
         $this->authorizePermission($request, PlatformPermissions::TENANTS_MANAGE);
         $this->ensureOwner($tenant);
 
-        $data = [
-            'company' => $tenant->only([
+        $this->logAudit($request, 'tenant.export', $tenant);
+
+        $fileName = 'tenant-' . $tenant->id . '-export.json';
+
+        return response()->streamDownload(function () use ($tenant) {
+            $company = $tenant->only([
                 'id',
                 'name',
                 'email',
@@ -315,20 +336,36 @@ class TenantController extends BaseSuperAdminController
                 'company_city',
                 'created_at',
                 'onboarding_completed_at',
-            ]),
-            'customers' => Customer::query()->where('user_id', $tenant->id)->get(),
-            'products' => Product::query()->where('user_id', $tenant->id)->get(),
-            'quotes' => Quote::query()->where('user_id', $tenant->id)->get(),
-            'invoices' => Invoice::query()->where('user_id', $tenant->id)->get(),
-            'works' => Work::query()->where('user_id', $tenant->id)->get(),
-        ];
+            ]);
 
-        $this->logAudit($request, 'tenant.export', $tenant);
+            $streamCollection = function (string $key, $query) {
+                echo '"' . $key . '":[';
+                $first = true;
+                $query->orderBy('id')->chunk(200, function ($items) use (&$first) {
+                    foreach ($items as $item) {
+                        if (!$first) {
+                            echo ',';
+                        }
+                        $first = false;
+                        echo json_encode($item->toArray());
+                    }
+                });
+                echo ']';
+            };
 
-        $fileName = 'tenant-' . $tenant->id . '-export.json';
-
-        return response()->streamDownload(function () use ($data) {
-            echo json_encode($data, JSON_PRETTY_PRINT);
+            echo '{';
+            echo '"company":' . json_encode($company);
+            echo ',';
+            $streamCollection('customers', Customer::query()->where('user_id', $tenant->id));
+            echo ',';
+            $streamCollection('products', Product::query()->where('user_id', $tenant->id));
+            echo ',';
+            $streamCollection('quotes', Quote::query()->where('user_id', $tenant->id));
+            echo ',';
+            $streamCollection('invoices', Invoice::query()->where('user_id', $tenant->id));
+            echo ',';
+            $streamCollection('works', Work::query()->where('user_id', $tenant->id));
+            echo '}';
         }, $fileName, [
             'Content-Type' => 'application/json',
         ]);
@@ -426,6 +463,7 @@ class TenantController extends BaseSuperAdminController
     {
         $limitKeys = [
             'quotes' => 'Quotes',
+            'plan_scan_quotes' => 'Plan scan quotes',
             'invoices' => 'Invoices',
             'jobs' => 'Jobs',
             'products' => 'Products',

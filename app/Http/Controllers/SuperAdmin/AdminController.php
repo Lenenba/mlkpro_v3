@@ -40,10 +40,20 @@ class AdminController extends BaseSuperAdminController
                 ];
             });
 
+        $activeCount = $admins->filter(fn(array $admin) => (bool) ($admin['platform']['is_active'] ?? false))->count();
+        $inactiveCount = $admins->filter(fn(array $admin) => !($admin['platform']['is_active'] ?? false))->count();
+        $twoFactorCount = $admins->filter(fn(array $admin) => (bool) ($admin['platform']['require_2fa'] ?? false))->count();
+
         return Inertia::render('SuperAdmin/Admins/Index', [
             'admins' => $admins,
             'roles' => PlatformPermissions::roles(),
             'permissions' => PlatformPermissions::labels(),
+            'stats' => [
+                'total' => $admins->count(),
+                'active' => $activeCount,
+                'inactive' => $inactiveCount,
+                'require_2fa' => $twoFactorCount,
+            ],
         ]);
     }
 

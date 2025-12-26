@@ -6,8 +6,10 @@ use App\Http\Controllers\QuoteController;
 use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\ProductController;
+use App\Http\Controllers\ProductPriceLookupController;
 use App\Http\Controllers\ServiceController;
 use App\Http\Controllers\TaskController;
+use App\Http\Controllers\TaskMediaController;
 use App\Http\Controllers\TeamMemberController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\CustomerController;
@@ -16,9 +18,11 @@ use App\Http\Controllers\ProductsSearchController;
 use App\Http\Controllers\QuoteEmaillingController;
 use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\RequestController;
+use App\Http\Controllers\PlanScanController;
 use App\Http\Controllers\WorkMediaController;
 use App\Http\Controllers\WorkChecklistController;
 use App\Http\Controllers\WelcomeController;
+use App\Http\Controllers\LocaleController;
 use App\Http\Controllers\Settings\CompanySettingsController;
 use App\Http\Controllers\Settings\BillingSettingsController;
 use App\Http\Controllers\Settings\ProductCategoryController;
@@ -29,11 +33,15 @@ use App\Http\Controllers\SuperAdmin\AdminController as SuperAdminAdminController
 use App\Http\Controllers\SuperAdmin\NotificationController as SuperAdminNotificationController;
 use App\Http\Controllers\SuperAdmin\PlatformSettingsController as SuperAdminPlatformSettingsController;
 use App\Http\Controllers\SuperAdmin\SupportTicketController as SuperAdminSupportTicketController;
+use App\Http\Controllers\SuperAdmin\AnnouncementController as SuperAdminAnnouncementController;
 use App\Http\Controllers\CustomerPropertyController;
 use App\Http\Controllers\Portal\PortalInvoiceController;
 use App\Http\Controllers\Portal\PortalQuoteController;
 use App\Http\Controllers\Portal\PortalRatingController;
+use App\Http\Controllers\Portal\PortalTaskMediaController;
+use App\Http\Controllers\Portal\PortalWorkProofController;
 use App\Http\Controllers\Portal\PortalWorkController;
+use App\Http\Controllers\WorkProofController;
 use App\Http\Middleware\EnsureClientUser;
 use App\Http\Middleware\EnsureInternalUser;
 use App\Http\Middleware\EnsurePlatformAdmin;
@@ -49,6 +57,7 @@ Route::get('/', [WelcomeController::class, 'index'])->name('welcome');
 
 // Dashboard Route
 Route::get('/dashboard', [DashboardController::class, 'index'])->middleware(['auth', 'verified'])->name('dashboard');
+Route::post('/locale', [LocaleController::class, 'update'])->name('locale.update');
 
 // Authenticated User Routes
 Route::middleware('auth')->group(function () {
@@ -94,13 +103,21 @@ Route::middleware(['auth', EnsureInternalUser::class])->group(function () {
         Route::post('/quote/{quote}/accept', [QuoteController::class, 'accept'])->name('quote.accept');
         Route::post('/quote/{quote}/send-email', QuoteEmaillingController::class)->name('quote.send.email');
         Route::post('/quote/{quote}/convert', [QuoteController::class, 'convertToWork'])->name('quote.convert');
+
+        Route::get('/plan-scans', [PlanScanController::class, 'index'])->name('plan-scans.index');
+        Route::get('/plan-scans/create', [PlanScanController::class, 'create'])->name('plan-scans.create');
+        Route::post('/plan-scans', [PlanScanController::class, 'store'])->name('plan-scans.store');
+        Route::get('/plan-scans/{planScan}', [PlanScanController::class, 'show'])->name('plan-scans.show');
+        Route::post('/plan-scans/{planScan}/convert', [PlanScanController::class, 'convert'])->name('plan-scans.convert');
     });
 
     // Product custom search
     Route::middleware('company.feature:products')->group(function () {
         Route::get('/product/search', ProductsSearchController::class)->name('product.search');
+        Route::get('/product/price-lookup', ProductPriceLookupController::class)->name('product.price-lookup');
         Route::get('/products/options', [ProductController::class, 'options'])->name('product.options');
         Route::post('/products/quick', [ProductController::class, 'storeQuick'])->name('product.quick.store');
+        Route::post('/products/draft', [ProductController::class, 'storeDraft'])->name('product.draft.store');
     });
 
     Route::middleware('company.feature:services')->group(function () {
@@ -143,6 +160,8 @@ Route::middleware(['auth', EnsureInternalUser::class])->group(function () {
         ->name('customer.notes.update');
     Route::patch('/customer/{customer}/tags', [CustomerController::class, 'updateTags'])
         ->name('customer.tags.update');
+    Route::patch('/customer/{customer}/auto-validation', [CustomerController::class, 'updateAutoValidation'])
+        ->name('customer.auto-validation.update');
 
     Route::resource('customer', CustomerController::class)
         ->only(['index', 'store', 'update', 'create', 'show', 'destroy']);
@@ -155,6 +174,7 @@ Route::middleware(['auth', EnsureInternalUser::class])->group(function () {
 
         Route::resource('work', WorkController::class)
             ->except(['create']);
+        Route::get('/work/{work}/proofs', [WorkProofController::class, 'show'])->name('work.proofs');
         Route::post('/work/{work}/status', [WorkController::class, 'updateStatus'])->name('work.status');
         Route::post('/work/{work}/extras', [WorkController::class, 'addExtraQuote'])->name('work.extras');
         Route::post('/work/{work}/media', [WorkMediaController::class, 'store'])->name('work.media.store');
@@ -173,6 +193,7 @@ Route::middleware(['auth', EnsureInternalUser::class])->group(function () {
         Route::post('/tasks', [TaskController::class, 'store'])->name('task.store');
         Route::put('/tasks/{task}', [TaskController::class, 'update'])->name('task.update');
         Route::delete('/tasks/{task}', [TaskController::class, 'destroy'])->name('task.destroy');
+        Route::post('/tasks/{task}/media', [TaskMediaController::class, 'store'])->name('task.media.store');
     });
 
     // Invoice Management
@@ -194,7 +215,11 @@ Route::middleware(['auth', EnsureClientUser::class])
         Route::post('/quotes/{quote}/accept', [PortalQuoteController::class, 'accept'])->name('quotes.accept');
         Route::post('/quotes/{quote}/decline', [PortalQuoteController::class, 'decline'])->name('quotes.decline');
         Route::post('/works/{work}/validate', [PortalWorkController::class, 'validateWork'])->name('works.validate');
+        Route::get('/works/{work}/proofs', [PortalWorkProofController::class, 'show'])->name('works.proofs');
+        Route::post('/works/{work}/schedule/confirm', [PortalWorkController::class, 'confirmSchedule'])->name('works.schedule.confirm');
+        Route::post('/works/{work}/schedule/reject', [PortalWorkController::class, 'rejectSchedule'])->name('works.schedule.reject');
         Route::post('/works/{work}/dispute', [PortalWorkController::class, 'dispute'])->name('works.dispute');
+        Route::post('/tasks/{task}/media', [PortalTaskMediaController::class, 'store'])->name('tasks.media.store');
         Route::post('/invoices/{invoice}/payments', [PortalInvoiceController::class, 'storePayment'])->name('invoices.payments.store');
         Route::post('/quotes/{quote}/ratings', [PortalRatingController::class, 'storeQuote'])->name('quotes.ratings.store');
         Route::post('/works/{work}/ratings', [PortalRatingController::class, 'storeWork'])->name('works.ratings.store');
@@ -225,6 +250,12 @@ require __DIR__ . '/auth.php';
 
             Route::get('/notifications', [SuperAdminNotificationController::class, 'edit'])->name('notifications.edit');
             Route::put('/notifications', [SuperAdminNotificationController::class, 'update'])->name('notifications.update');
+
+            Route::get('/announcements', [SuperAdminAnnouncementController::class, 'index'])->name('announcements.index');
+            Route::get('/announcements/preview', [SuperAdminAnnouncementController::class, 'preview'])->name('announcements.preview');
+            Route::post('/announcements', [SuperAdminAnnouncementController::class, 'store'])->name('announcements.store');
+            Route::put('/announcements/{announcement}', [SuperAdminAnnouncementController::class, 'update'])->name('announcements.update');
+            Route::delete('/announcements/{announcement}', [SuperAdminAnnouncementController::class, 'destroy'])->name('announcements.destroy');
 
             Route::get('/support', [SuperAdminSupportTicketController::class, 'index'])->name('support.index');
             Route::post('/support', [SuperAdminSupportTicketController::class, 'store'])->name('support.store');

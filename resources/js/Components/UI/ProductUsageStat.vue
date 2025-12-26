@@ -12,7 +12,7 @@ const props = defineProps({
     },
 });
 
-const colors = ['bg-blue-500', 'bg-violet-500', 'bg-teal-400', 'bg-amber-400', 'bg-gray-300'];
+const colors = ['bg-blue-500', 'bg-violet-500', 'bg-teal-400', 'bg-amber-400', 'bg-stone-300'];
 
 const total = computed(() =>
     props.items.reduce((sum, item) => sum + Number(item.quantity || 0), 0)
@@ -32,23 +32,23 @@ const getPercent = (value) => {
 
 <template>
     <div
-        class="size-full flex flex-col bg-white border border-gray-200 shadow-sm rounded-sm border-t-4 border-t-indigo-700 dark:bg-neutral-800 dark:border-neutral-700">
+        class="size-full flex flex-col bg-white border border-stone-200 shadow-sm rounded-sm border-t-4 border-t-indigo-700 dark:bg-neutral-800 dark:border-neutral-700">
         <div class="p-5 pb-4 flex items-center justify-between gap-x-4">
             <div>
-                <h2 class="inline-block font-semibold text-gray-800 dark:text-neutral-200">
+                <h2 class="inline-block font-semibold text-stone-800 dark:text-neutral-200">
                     {{ title }}
                 </h2>
-                <p class="text-xs text-gray-500 dark:text-neutral-500">
+                <p class="text-xs text-stone-500 dark:text-neutral-500">
                     Based on quotes and jobs
                 </p>
             </div>
-            <div class="text-sm text-gray-500 dark:text-neutral-400">
+            <div class="text-sm text-stone-500 dark:text-neutral-400">
                 {{ formatNumber(total) }} used
             </div>
         </div>
 
         <div class="h-full p-5 pt-0">
-            <div v-if="!items.length" class="text-sm text-gray-500 dark:text-neutral-400">
+            <div v-if="!items.length" class="text-sm text-stone-500 dark:text-neutral-400">
                 No usage data yet.
             </div>
             <div v-else class="h-full flex flex-col justify-between space-y-4">
@@ -78,21 +78,21 @@ const getPercent = (value) => {
                                         v-if="item.image_url"
                                         :src="item.image_url"
                                         :alt="item.name"
-                                        class="size-6 rounded-full border border-gray-200 dark:border-neutral-700 object-cover"
+                                        class="size-6 rounded-full border border-stone-200 dark:border-neutral-700 object-cover"
                                     />
                                     <span
                                         v-else
-                                        class="size-6 rounded-full bg-gray-100 text-gray-700 text-xs font-medium flex items-center justify-center dark:bg-neutral-700 dark:text-neutral-200"
+                                        class="size-6 rounded-full bg-stone-100 text-stone-700 text-xs font-medium flex items-center justify-center dark:bg-neutral-700 dark:text-neutral-200"
                                     >
                                         {{ item.name?.[0] || '?' }}
                                     </span>
-                                    <span class="text-sm text-gray-800 dark:text-neutral-200">
+                                    <span class="text-sm text-stone-800 dark:text-neutral-200">
                                         {{ item.name }}
                                     </span>
                                 </div>
                             </div>
                             <div class="text-end">
-                                <span class="text-sm text-gray-500 dark:text-neutral-500">
+                                <span class="text-sm text-stone-500 dark:text-neutral-500">
                                     {{ formatNumber(item.quantity) }}
                                 </span>
                             </div>

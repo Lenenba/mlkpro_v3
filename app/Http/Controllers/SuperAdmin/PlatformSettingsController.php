@@ -72,6 +72,7 @@ class PlatformSettingsController extends BaseSuperAdminController
 
         $limitKeys = [
             'quotes',
+            'plan_scan_quotes',
             'invoices',
             'jobs',
             'products',

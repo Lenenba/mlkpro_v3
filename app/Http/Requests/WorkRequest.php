@@ -61,6 +61,23 @@ class WorkRequest extends FormRequest
             'is_completed' => 'nullable|boolean',
             'subtotal' => 'nullable|numeric',
             'total' => 'nullable|numeric',
+            'billing_mode' => [
+                'nullable',
+                'string',
+                Rule::in(['per_task', 'per_segment', 'end_of_job', 'deferred']),
+            ],
+            'billing_cycle' => [
+                'nullable',
+                'string',
+                Rule::in(['weekly', 'biweekly', 'monthly', 'every_n_tasks']),
+            ],
+            'billing_grouping' => [
+                'nullable',
+                'string',
+                Rule::in(['single', 'periodic']),
+            ],
+            'billing_delay_days' => 'nullable|integer|min:0|max:365',
+            'billing_date_rule' => 'nullable|string|max:50',
             'products' => 'nullable|array',
             'products.*.id' => [
                 'required_with:products',

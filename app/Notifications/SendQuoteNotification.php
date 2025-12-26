@@ -39,10 +39,16 @@ class SendQuoteNotification extends Notification
      */
     public function toMail(object $notifiable): MailMessage
     {
+        $companyUser = $this->quote?->customer?->user;
+        $companyName = $companyUser?->company_name ?: config('app.name');
+        $companyLogo = $companyUser?->company_logo_url;
+
         return (new MailMessage)
-        ->subject('Your Quote from ' . config('app.name'))
+        ->subject('Your Quote from ' . $companyName)
         ->view('emails.quotes.send', [
             'quote' => $this->quote,
+            'companyName' => $companyName,
+            'companyLogo' => $companyLogo,
         ]);
     }
 

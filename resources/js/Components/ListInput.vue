@@ -3,11 +3,11 @@
     <div class="-mx-3 flex flex-col gap-y-1">
         <!-- Switch/Toggle -->
         <label for="hs-pro-pysw1"
-            class="py-2 px-3 group flex justify-between items-center gap-x-3 cursor-pointer hover:bg-gray-100 rounded-2xl dark:hover:bg-neutral-800 dark:focus:bg-neutral-800">
+            class="py-2 px-3 group flex justify-between items-center gap-x-3 cursor-pointer hover:bg-stone-100 rounded-sm dark:hover:bg-neutral-800 dark:focus:bg-neutral-800">
             <span class="grow">
                 <span class="flex items-center gap-x-3">
                     <span
-                        class="shrink-0 size-11 inline-flex justify-center items-center bg-gray-100 text-gray-800 rounded-full group-hover:bg-gray-200 group-focus:bg-gray-200 dark:bg-neutral-700 dark:text-neutral-300 dark:bg-neutral-800 dark:group-hover:bg-neutral-700 dark:group-focus:bg-neutral-700">
+                        class="shrink-0 size-11 inline-flex justify-center items-center bg-stone-100 text-stone-800 rounded-full group-hover:bg-stone-200 group-focus:bg-stone-200 dark:bg-neutral-700 dark:text-neutral-300 dark:bg-neutral-800 dark:group-hover:bg-neutral-700 dark:group-focus:bg-neutral-700">
                         <svg class="shrink-0 size-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
                             viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                             stroke-linecap="round" stroke-linejoin="round">
@@ -18,7 +18,7 @@
                         </svg>
                     </span>
                     <span class="grow">
-                        <span class="block text-sm text-gray-800 dark:text-neutral-200">
+                        <span class="block text-sm text-stone-800 dark:text-neutral-200">
                             ATM withdrawals
                         </span>
                     </span>
@@ -26,7 +26,7 @@
             </span>
 
             <input type="checkbox" id="hs-pro-pysw1"
-                class="relative w-11 h-6 p-px bg-gray-100 border-transparent text-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:ring-green-600 disabled:opacity-50 disabled:pointer-events-none checked:bg-none checked:text-green-600 checked:border-green-600 focus:checked:border-green-600 dark:bg-neutral-800 dark:border-neutral-700 dark:checked:bg-green-500 dark:checked:border-green-500 dark:focus:ring-offset-neutral-900
+                class="relative w-11 h-6 p-px bg-stone-100 border-transparent text-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:ring-green-600 disabled:opacity-50 disabled:pointer-events-none checked:bg-none checked:text-green-600 checked:border-green-600 focus:checked:border-green-600 dark:bg-neutral-800 dark:border-neutral-700 dark:checked:bg-green-500 dark:checked:border-green-500 dark:focus:ring-offset-neutral-900
 
     before:inline-block before:size-5 before:bg-white checked:before:bg-white before:translate-x-0 checked:before:translate-x-full before:rounded-full before:shadow before:transform before:ring-0 before:transition before:ease-in-out before:duration-200 dark:before:bg-neutral-400 dark:checked:before:bg-white"
                 checked>
@@ -35,11 +35,11 @@
 
         <!-- Switch/Toggle -->
         <label for="hs-pro-pysw2"
-            class="py-2 px-3 group flex justify-between items-center gap-x-3 cursor-pointer hover:bg-gray-100 rounded-2xl dark:hover:bg-neutral-800 dark:focus:bg-neutral-800">
+            class="py-2 px-3 group flex justify-between items-center gap-x-3 cursor-pointer hover:bg-stone-100 rounded-sm dark:hover:bg-neutral-800 dark:focus:bg-neutral-800">
             <span class="grow">
                 <span class="flex items-center gap-x-3">
                     <span
-                        class="shrink-0 size-11 inline-flex justify-center items-center bg-gray-100 text-gray-800 rounded-full group-hover:bg-gray-200 group-focus:bg-gray-200 dark:bg-neutral-700 dark:text-neutral-300 dark:bg-neutral-800 dark:group-hover:bg-neutral-700 dark:group-focus:bg-neutral-700">
+                        class="shrink-0 size-11 inline-flex justify-center items-center bg-stone-100 text-stone-800 rounded-full group-hover:bg-stone-200 group-focus:bg-stone-200 dark:bg-neutral-700 dark:text-neutral-300 dark:bg-neutral-800 dark:group-hover:bg-neutral-700 dark:group-focus:bg-neutral-700">
                         <svg class="shrink-0 size-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
                             viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                             stroke-linecap="round" stroke-linejoin="round">
@@ -51,7 +51,7 @@
                         </svg>
                     </span>
                     <span class="grow">
-                        <span class="block text-sm text-gray-800 dark:text-neutral-200">
+                        <span class="block text-sm text-stone-800 dark:text-neutral-200">
                             Online transactions
                         </span>
                     </span>
@@ -59,7 +59,7 @@
             </span>
 
             <input type="checkbox" id="hs-pro-pysw2"
-                class="relative w-11 h-6 p-px bg-gray-100 border-transparent text-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:ring-green-600 disabled:opacity-50 disabled:pointer-events-none checked:bg-none checked:text-green-600 checked:border-green-600 focus:checked:border-green-600 dark:bg-neutral-800 dark:border-neutral-700 dark:checked:bg-green-500 dark:checked:border-green-500 dark:focus:ring-offset-neutral-900
+                class="relative w-11 h-6 p-px bg-stone-100 border-transparent text-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:ring-green-600 disabled:opacity-50 disabled:pointer-events-none checked:bg-none checked:text-green-600 checked:border-green-600 focus:checked:border-green-600 dark:bg-neutral-800 dark:border-neutral-700 dark:checked:bg-green-500 dark:checked:border-green-500 dark:focus:ring-offset-neutral-900
 
     before:inline-block before:size-5 before:bg-white checked:before:bg-white before:translate-x-0 checked:before:translate-x-full before:rounded-full before:shadow before:transform before:ring-0 before:transition before:ease-in-out before:duration-200 dark:before:bg-neutral-400 dark:checked:before:bg-white"
                 checked>
@@ -68,11 +68,11 @@
 
         <!-- Switch/Toggle -->
         <label for="hs-pro-pysw3"
-            class="py-2 px-3 group flex justify-between items-center gap-x-3 cursor-pointer hover:bg-gray-100 rounded-2xl dark:hover:bg-neutral-800 dark:focus:bg-neutral-800">
+            class="py-2 px-3 group flex justify-between items-center gap-x-3 cursor-pointer hover:bg-stone-100 rounded-sm dark:hover:bg-neutral-800 dark:focus:bg-neutral-800">
             <span class="grow">
                 <span class="flex items-center gap-x-3">
                     <span
-                        class="shrink-0 size-11 inline-flex justify-center items-center bg-gray-100 text-gray-800 rounded-full group-hover:bg-gray-200 group-focus:bg-gray-200 dark:bg-neutral-700 dark:text-neutral-300 dark:bg-neutral-800 dark:group-hover:bg-neutral-700 dark:group-focus:bg-neutral-700">
+                        class="shrink-0 size-11 inline-flex justify-center items-center bg-stone-100 text-stone-800 rounded-full group-hover:bg-stone-200 group-focus:bg-stone-200 dark:bg-neutral-700 dark:text-neutral-300 dark:bg-neutral-800 dark:group-hover:bg-neutral-700 dark:group-focus:bg-neutral-700">
                         <svg class="shrink-0 size-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
                             viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                             stroke-linecap="round" stroke-linejoin="round">
@@ -81,7 +81,7 @@
                         </svg>
                     </span>
                     <span class="grow">
-                        <span class="block text-sm text-gray-800 dark:text-neutral-200">
+                        <span class="block text-sm text-stone-800 dark:text-neutral-200">
                             Swipe payments
                         </span>
                     </span>
@@ -89,7 +89,7 @@
             </span>
 
             <input type="checkbox" id="hs-pro-pysw3"
-                class="relative w-11 h-6 p-px bg-gray-100 border-transparent text-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:ring-green-600 disabled:opacity-50 disabled:pointer-events-none checked:bg-none checked:text-green-600 checked:border-green-600 focus:checked:border-green-600 dark:bg-neutral-800 dark:border-neutral-700 dark:checked:bg-green-500 dark:checked:border-green-500 dark:focus:ring-offset-neutral-900
+                class="relative w-11 h-6 p-px bg-stone-100 border-transparent text-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:ring-green-600 disabled:opacity-50 disabled:pointer-events-none checked:bg-none checked:text-green-600 checked:border-green-600 focus:checked:border-green-600 dark:bg-neutral-800 dark:border-neutral-700 dark:checked:bg-green-500 dark:checked:border-green-500 dark:focus:ring-offset-neutral-900
 
     before:inline-block before:size-5 before:bg-white checked:before:bg-white before:translate-x-0 checked:before:translate-x-full before:rounded-full before:shadow before:transform before:ring-0 before:transition before:ease-in-out before:duration-200 dark:before:bg-neutral-400 dark:checked:before:bg-white"
                 checked>
@@ -98,11 +98,11 @@
 
         <!-- Switch/Toggle -->
         <label for="hs-pro-pysw4"
-            class="py-2 px-3 group flex justify-between items-center gap-x-3 cursor-pointer hover:bg-gray-100 rounded-2xl dark:hover:bg-neutral-800 dark:focus:bg-neutral-800">
+            class="py-2 px-3 group flex justify-between items-center gap-x-3 cursor-pointer hover:bg-stone-100 rounded-sm dark:hover:bg-neutral-800 dark:focus:bg-neutral-800">
             <span class="grow">
                 <span class="flex items-center gap-x-3">
                     <span
-                        class="shrink-0 size-11 inline-flex justify-center items-center bg-gray-100 text-gray-800 rounded-full group-hover:bg-gray-200 group-focus:bg-gray-200 dark:bg-neutral-700 dark:text-neutral-300 dark:bg-neutral-800 dark:group-hover:bg-neutral-700 dark:group-focus:bg-neutral-700">
+                        class="shrink-0 size-11 inline-flex justify-center items-center bg-stone-100 text-stone-800 rounded-full group-hover:bg-stone-200 group-focus:bg-stone-200 dark:bg-neutral-700 dark:text-neutral-300 dark:bg-neutral-800 dark:group-hover:bg-neutral-700 dark:group-focus:bg-neutral-700">
                         <svg class="shrink-0 size-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
                             viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                             stroke-linecap="round" stroke-linejoin="round">
@@ -112,7 +112,7 @@
                         </svg>
                     </span>
                     <span class="grow">
-                        <span class="block text-sm text-gray-800 dark:text-neutral-200">
+                        <span class="block text-sm text-stone-800 dark:text-neutral-200">
                             Location-based security
                         </span>
                     </span>
@@ -120,7 +120,7 @@
             </span>
 
             <input type="checkbox" id="hs-pro-pysw4"
-                class="relative w-11 h-6 p-px bg-gray-100 border-transparent text-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:ring-green-600 disabled:opacity-50 disabled:pointer-events-none checked:bg-none checked:text-green-600 checked:border-green-600 focus:checked:border-green-600 dark:bg-neutral-800 dark:border-neutral-700 dark:checked:bg-green-500 dark:checked:border-green-500 dark:focus:ring-offset-neutral-900
+                class="relative w-11 h-6 p-px bg-stone-100 border-transparent text-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:ring-green-600 disabled:opacity-50 disabled:pointer-events-none checked:bg-none checked:text-green-600 checked:border-green-600 focus:checked:border-green-600 dark:bg-neutral-800 dark:border-neutral-700 dark:checked:bg-green-500 dark:checked:border-green-500 dark:focus:ring-offset-neutral-900
 
     before:inline-block before:size-5 before:bg-white checked:before:bg-white before:translate-x-0 checked:before:translate-x-full before:rounded-full before:shadow before:transform before:ring-0 before:transition before:ease-in-out before:duration-200 dark:before:bg-neutral-400 dark:checked:before:bg-white">
         </label>

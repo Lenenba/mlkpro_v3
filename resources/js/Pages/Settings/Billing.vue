@@ -277,18 +277,18 @@ watch(
 
     <SettingsLayout active="billing">
         <div class="w-full max-w-4xl space-y-5">
-            <div class="flex flex-col bg-white border border-gray-200 shadow-sm rounded-sm overflow-hidden dark:bg-neutral-800 dark:border-neutral-700">
+            <div class="flex flex-col bg-white border border-stone-200 shadow-sm rounded-sm overflow-hidden dark:bg-neutral-800 dark:border-neutral-700">
                 <div class="p-4 space-y-4">
                     <div class="flex flex-wrap items-start justify-between gap-4">
                         <div>
-                            <h2 class="text-lg font-semibold text-gray-800 dark:text-neutral-100">Abonnement plateforme</h2>
-                            <p class="mt-1 text-sm text-gray-600 dark:text-neutral-400">
+                            <h2 class="text-lg font-semibold text-stone-800 dark:text-neutral-100">Abonnement plateforme</h2>
+                            <p class="mt-1 text-sm text-stone-600 dark:text-neutral-400">
                                 Choisissez un plan mensuel pour activer toutes les fonctionnalites.
                             </p>
                         </div>
                         <button v-if="hasSubscription" type="button" @click="startPaymentMethodUpdate"
                             :disabled="paymentMethodIsLoading"
-                            class="py-2 px-3 text-sm font-medium rounded-sm border border-gray-200 text-gray-700 hover:bg-gray-50 disabled:opacity-60 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700">
+                            class="py-2 px-3 text-sm font-medium rounded-sm border border-stone-200 text-stone-700 hover:bg-stone-50 disabled:opacity-60 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700">
                             Mettre a jour la carte
                         </button>
                     </div>
@@ -327,7 +327,7 @@ watch(
                     </div>
 
                     <div
-                        class="rounded-sm border border-gray-100 bg-gray-50 px-3 py-2 text-sm text-gray-600 dark:border-neutral-700 dark:bg-neutral-900/40 dark:text-neutral-200">
+                        class="rounded-sm border border-stone-100 bg-stone-50 px-3 py-2 text-sm text-stone-600 dark:border-neutral-700 dark:bg-neutral-900/40 dark:text-neutral-200">
                         <p v-if="activePlan">
                             Vous êtes sur <strong>{{ activePlan.name }}</strong> (Statut: {{ subscriptionStatusLabel }})
                             <span v-if="subscription?.on_trial" class="text-emerald-700 dark:text-emerald-300">· Essai en cours</span>
@@ -387,10 +387,8 @@ watch(
 </template>
 
 <style scoped>
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap');
-
 .billing-plans {
-    --plan-bg: #f8fafc;
+    --plan-bg: #ffffff;
     --plan-card: #ffffff;
     --plan-border: rgba(15, 23, 42, 0.08);
     --plan-border-hover: rgba(15, 23, 42, 0.18);
@@ -398,9 +396,9 @@ watch(
     --plan-muted: rgba(15, 23, 42, 0.6);
     --plan-accent: rgba(16, 185, 129, 0.85);
     --plan-status: rgba(15, 118, 110, 0.85);
-    --plan-shadow: 0 18px 40px rgba(15, 23, 42, 0.12);
-    --plan-shadow-hover: 0 24px 50px rgba(15, 23, 42, 0.16);
-    --plan-active-shadow: 0 0 0 1px rgba(16, 185, 129, 0.25), 0 22px 40px rgba(16, 185, 129, 0.15);
+    --plan-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+    --plan-shadow-hover: 0 2px 6px rgba(15, 23, 42, 0.12);
+    --plan-active-shadow: 0 0 0 1px rgba(16, 185, 129, 0.35);
     --plan-badge-bg: rgba(15, 23, 42, 0.06);
     --plan-badge-border: rgba(15, 23, 42, 0.14);
     --plan-badge-text: #0f172a;
@@ -409,34 +407,34 @@ watch(
     --plan-badge-active-text: #0f766e;
     --plan-dot: rgba(148, 163, 184, 0.9);
     --plan-dot-ring: rgba(148, 163, 184, 0.18);
-    --plan-cta-bg: rgba(15, 23, 42, 0.04);
+    --plan-cta-bg: #ffffff;
     --plan-cta-border: rgba(15, 23, 42, 0.14);
     --plan-cta-text: #0f172a;
-    --plan-cta-hover-bg: rgba(15, 23, 42, 0.08);
+    --plan-cta-hover-bg: rgba(15, 23, 42, 0.04);
     --plan-cta-hover-border: rgba(15, 23, 42, 0.3);
     --plan-cta-disabled: rgba(15, 23, 42, 0.35);
-    --plan-cta-disabled-bg: rgba(15, 23, 42, 0.06);
+    --plan-cta-disabled-bg: rgba(15, 23, 42, 0.03);
     --plan-cta-disabled-border: rgba(15, 23, 42, 0.1);
     margin-top: 16px;
     padding: 20px;
     border-radius: 2px;
     border: 1px solid var(--plan-border);
     background: var(--plan-bg);
-    font-family: "Space Grotesk", "IBM Plex Sans", sans-serif;
+    font-family: inherit;
 }
 
 :global(.dark) .billing-plans {
     --plan-bg: #0b0f14;
-    --plan-card: rgba(255, 255, 255, 0.04);
+    --plan-card: #0f1116;
     --plan-border: rgba(255, 255, 255, 0.08);
     --plan-border-hover: rgba(255, 255, 255, 0.18);
     --plan-text: #e2e8f0;
     --plan-muted: rgba(226, 232, 240, 0.7);
     --plan-accent: rgba(16, 185, 129, 0.8);
     --plan-status: rgba(167, 243, 208, 0.85);
-    --plan-shadow: 0 18px 40px rgba(5, 8, 12, 0.45);
-    --plan-shadow-hover: 0 24px 50px rgba(5, 8, 12, 0.55);
-    --plan-active-shadow: 0 0 0 1px rgba(16, 185, 129, 0.35), 0 26px 60px rgba(16, 185, 129, 0.18);
+    --plan-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+    --plan-shadow-hover: 0 2px 6px rgba(0, 0, 0, 0.6);
+    --plan-active-shadow: 0 0 0 1px rgba(16, 185, 129, 0.45);
     --plan-badge-bg: rgba(15, 23, 42, 0.5);
     --plan-badge-border: rgba(255, 255, 255, 0.16);
     --plan-badge-text: #e2e8f0;
@@ -478,8 +476,7 @@ watch(
     background: var(--plan-card);
     color: var(--plan-text);
     box-shadow: var(--plan-shadow);
-    backdrop-filter: blur(10px);
-    transition: transform 150ms ease, box-shadow 150ms ease, border-color 150ms ease;
+        transition: transform 150ms ease, box-shadow 150ms ease, border-color 150ms ease;
 }
 
 .plan-card:hover {

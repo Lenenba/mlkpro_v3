@@ -156,7 +156,7 @@ const formatDate = (value) => humanizeDate(value) || String(value || '');
                             </svg>
                         </div>
                         <input type="text" v-model="query"
-                            class="py-[7px] ps-10 pe-8 block w-full bg-stone-100 border-transparent rounded-lg text-sm placeholder:text-stone-500 focus:border-green-500 focus:ring-green-600 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-700 dark:border-transparent dark:text-neutral-200 dark:placeholder:text-neutral-400 dark:focus:ring-neutral-600"
+                            class="py-[7px] ps-10 pe-8 block w-full bg-white border border-stone-200 rounded-sm text-sm placeholder:text-stone-500 focus:border-green-600 focus:ring-green-600 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 dark:placeholder:text-neutral-400"
                             placeholder="Search team members">
                     </div>
                 </div>
@@ -261,7 +261,7 @@ const formatDate = (value) => humanizeDate(value) || String(value || '');
                             <td class="size-px whitespace-nowrap px-4 py-2 text-end">
                                 <div class="hs-dropdown [--auto-close:inside] [--placement:bottom-right] relative inline-flex">
                                     <button type="button"
-                                        class="size-7 inline-flex justify-center items-center gap-x-2 rounded-lg border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700"
+                                        class="size-7 inline-flex justify-center items-center gap-x-2 rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700"
                                         aria-haspopup="menu" aria-expanded="false" aria-label="Dropdown">
                                         <svg class="shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" width="24"
                                             height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -272,20 +272,20 @@ const formatDate = (value) => humanizeDate(value) || String(value || '');
                                         </svg>
                                     </button>
 
-                                    <div class="hs-dropdown-menu hs-dropdown-open:opacity-100 w-40 transition-[opacity,margin] duration opacity-0 hidden z-10 bg-white rounded-xl shadow-[0_10px_40px_10px_rgba(0,0,0,0.08)] dark:shadow-[0_10px_40px_10px_rgba(0,0,0,0.2)] dark:bg-neutral-900"
+                                    <div class="hs-dropdown-menu hs-dropdown-open:opacity-100 w-40 transition-[opacity,margin] duration opacity-0 hidden z-10 bg-white rounded-sm shadow-[0_10px_40px_10px_rgba(0,0,0,0.08)] dark:shadow-[0_10px_40px_10px_rgba(0,0,0,0.2)] dark:bg-neutral-900"
                                         role="menu" aria-orientation="vertical">
                                         <div class="p-1">
                                             <button type="button" @click="openEditMember(member)"
-                                                class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-lg text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
+                                                class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
                                                 Edit
                                             </button>
                                             <div class="my-1 border-t border-stone-200 dark:border-neutral-800"></div>
                                             <button v-if="member.is_active" type="button" @click="deactivateMember(member)"
-                                                class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-lg text-[13px] text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-neutral-800">
+                                                class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-neutral-800">
                                                 Deactivate
                                             </button>
                                             <button v-else type="button" @click="activateMember(member)"
-                                                class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-lg text-[13px] text-emerald-600 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-neutral-800">
+                                                class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-emerald-600 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-neutral-800">
                                                 Activate
                                             </button>
                                         </div>
@@ -322,9 +322,9 @@ const formatDate = (value) => humanizeDate(value) || String(value || '');
                     <InputError class="mt-1" :message="createForm.errors.password" />
                 </div>
                 <div>
-                    <label class="block text-xs text-gray-500 dark:text-neutral-400">Role</label>
+                    <label class="block text-xs text-stone-500 dark:text-neutral-400">Role</label>
                     <select v-model="createForm.role"
-                        class="mt-1 block w-full rounded-sm border-gray-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
+                        class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
                         <option value="admin">Administrator</option>
                         <option value="member">Team member</option>
                     </select>
@@ -341,10 +341,10 @@ const formatDate = (value) => humanizeDate(value) || String(value || '');
             </div>
 
             <div>
-                <p class="text-xs text-gray-500 dark:text-neutral-400">Permissions</p>
+                <p class="text-xs text-stone-500 dark:text-neutral-400">Permissions</p>
                 <div class="mt-2 grid grid-cols-1 md:grid-cols-2 gap-2">
                     <label v-for="permission in availablePermissions" :key="permission.id"
-                        class="flex items-center gap-2 text-sm text-gray-700 dark:text-neutral-200">
+                        class="flex items-center gap-2 text-sm text-stone-700 dark:text-neutral-200">
                         <Checkbox v-model:checked="createForm.permissions" :value="permission.id" />
                         <span>{{ permission.name }}</span>
                     </label>
@@ -380,9 +380,9 @@ const formatDate = (value) => humanizeDate(value) || String(value || '');
                     <InputError class="mt-1" :message="editForm.errors.password" />
                 </div>
                 <div>
-                    <label class="block text-xs text-gray-500 dark:text-neutral-400">Role</label>
+                    <label class="block text-xs text-stone-500 dark:text-neutral-400">Role</label>
                     <select v-model="editForm.role"
-                        class="mt-1 block w-full rounded-sm border-gray-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
+                        class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
                         <option value="admin">Administrator</option>
                         <option value="member">Team member</option>
                     </select>
@@ -397,7 +397,7 @@ const formatDate = (value) => humanizeDate(value) || String(value || '');
                     <InputError class="mt-1" :message="editForm.errors.phone" />
                 </div>
                 <div class="md:col-span-2">
-                    <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-neutral-200">
+                    <label class="flex items-center gap-2 text-sm text-stone-700 dark:text-neutral-200">
                         <Checkbox v-model:checked="editForm.is_active" />
                         <span>Active</span>
                     </label>
@@ -406,10 +406,10 @@ const formatDate = (value) => humanizeDate(value) || String(value || '');
             </div>
 
             <div>
-                <p class="text-xs text-gray-500 dark:text-neutral-400">Permissions</p>
+                <p class="text-xs text-stone-500 dark:text-neutral-400">Permissions</p>
                 <div class="mt-2 grid grid-cols-1 md:grid-cols-2 gap-2">
                     <label v-for="permission in availablePermissions" :key="permission.id"
-                        class="flex items-center gap-2 text-sm text-gray-700 dark:text-neutral-200">
+                        class="flex items-center gap-2 text-sm text-stone-700 dark:text-neutral-200">
                         <Checkbox v-model:checked="editForm.permissions" :value="permission.id" />
                         <span>{{ permission.name }}</span>
                     </label>

@@ -1,9 +1,13 @@
 <script setup>
 import { computed, ref, watch } from 'vue';
+import { prepareMediaFile, MEDIA_LIMITS } from '@/utils/media';
 import { Link, router, useForm } from '@inertiajs/vue3';
 import Modal from '@/Components/UI/Modal.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
+import FloatingNumberInput from '@/Components/FloatingNumberInput.vue';
+import FloatingSelect from '@/Components/FloatingSelect.vue';
 import FloatingTextarea from '@/Components/FloatingTextarea.vue';
+import Checkbox from '@/Components/Checkbox.vue';
 import InputError from '@/Components/InputError.vue';
 import { humanizeDate } from '@/utils/date';
 
@@ -21,6 +25,10 @@ const props = defineProps({
         default: () => [],
     },
     teamMembers: {
+        type: Array,
+        default: () => [],
+    },
+    materialProducts: {
         type: Array,
         default: () => [],
     },
@@ -112,12 +120,83 @@ const formatDate = (value) => humanizeDate(value) || String(value || '');
 
 const canChangeStatus = computed(() => props.canManage || props.canEditStatus);
 
+const materialOptions = computed(() => [
+    { id: '', name: 'Custom' },
+    ...props.materialProducts.map((product) => ({
+        id: product.id,
+        name: product.name,
+    })),
+]);
+
+const materialProductMap = computed(() => {
+    const map = new Map();
+    props.materialProducts.forEach((product) => {
+        map.set(product.id, product);
+    });
+    return map;
+});
+
+const buildMaterial = (material = {}, index = 0) => ({
+    id: material.id ?? null,
+    product_id: material.product_id ?? '',
+    label: material.label ?? '',
+    description: material.description ?? '',
+    unit: material.unit ?? '',
+    quantity: material.quantity ?? 1,
+    unit_price: material.unit_price ?? 0,
+    billable: material.billable ?? true,
+    sort_order: material.sort_order ?? index,
+    source_service_id: material.source_service_id ?? null,
+});
+
+const mapTaskMaterials = (materials = []) =>
+    materials.map((material, index) => buildMaterial(material, index));
+
+const addMaterial = (form) => {
+    form.materials.push(buildMaterial({}, form.materials.length));
+};
+
+const removeMaterial = (form, index) => {
+    form.materials.splice(index, 1);
+};
+
+const applyMaterialDefaults = (material) => {
+    if (!material.product_id) {
+        return;
+    }
+    const product = materialProductMap.value.get(Number(material.product_id));
+    if (!product) {
+        return;
+    }
+    if (!material.label) {
+        material.label = product.name;
+    }
+    if (!material.unit) {
+        material.unit = product.unit || '';
+    }
+    if (!material.unit_price) {
+        material.unit_price = product.price || 0;
+    }
+};
+
+const normalizeMaterials = (materials) =>
+    materials
+        .map((material, index) => ({
+            ...material,
+            product_id: material.product_id || null,
+            sort_order: index,
+        }))
+        .filter((material) => material.label || material.product_id);
+
+const isTaskLocked = (task) => task?.status === 'done';
+
 const createForm = useForm({
     title: '',
     description: '',
     status: 'todo',
     due_date: '',
     assigned_team_member_id: '',
+    materials: [],
 });
 
 const closeOverlay = (overlayId) => {
@@ -131,11 +210,14 @@ const submitCreate = () => {
         return;
     }
 
+    createForm.materials = normalizeMaterials(createForm.materials);
+
     createForm.post(route('task.store'), {
         preserveScroll: true,
         onSuccess: () => {
             createForm.reset('title', 'description', 'due_date', 'assigned_team_member_id');
             createForm.status = 'todo';
+            createForm.materials = [];
             closeOverlay('#hs-task-create');
         },
     });
@@ -150,10 +232,14 @@ const editForm = useForm({
     assigned_team_member_id: '',
     customer_id: null,
     product_id: null,
+    materials: [],
 });
 
 const openEditTask = (task) => {
     if (!props.canManage) {
+        return;
+    }
+    if (isTaskLocked(task)) {
         return;
     }
 
@@ -167,6 +253,7 @@ const openEditTask = (task) => {
     editForm.assigned_team_member_id = task.assigned_team_member_id || '';
     editForm.customer_id = task.customer_id ?? null;
     editForm.product_id = task.product_id ?? null;
+    editForm.materials = mapTaskMaterials(task.materials || []);
 
     if (window.HSOverlay) {
         window.HSOverlay.open('#hs-task-edit');
@@ -178,6 +265,8 @@ const submitEdit = () => {
         return;
     }
 
+    editForm.materials = normalizeMaterials(editForm.materials);
+
     editForm.put(route('task.update', editingTaskId.value), {
         preserveScroll: true,
         onSuccess: () => {
@@ -187,7 +276,7 @@ const submitEdit = () => {
 };
 
 const setTaskStatus = (task, status) => {
-    if (!canChangeStatus.value || task.status === status) {
+    if (!canChangeStatus.value || task.status === status || isTaskLocked(task)) {
         return;
     }
 
@@ -227,6 +316,60 @@ const deleteTask = (task) => {
 };
 
 const displayAssignee = (task) => task?.assignee?.user?.name || '-';
+
+const proofTaskId = ref(null);
+const proofForm = useForm({
+    type: 'execution',
+    file: null,
+    note: '',
+});
+
+const openProofUpload = (task) => {
+    if (!canChangeStatus.value) {
+        return;
+    }
+
+    proofTaskId.value = task.id;
+    proofForm.reset();
+    proofForm.clearErrors();
+
+    if (window.HSOverlay) {
+        window.HSOverlay.open('#hs-task-proof');
+    }
+};
+
+const handleProofFile = async (event) => {
+    const file = event.target.files?.[0] || null;
+    proofForm.clearErrors('file');
+    if (!file) {
+        proofForm.file = null;
+        return;
+    }
+    const result = await prepareMediaFile(file, {
+        maxImageBytes: MEDIA_LIMITS.maxImageBytes,
+        maxVideoBytes: MEDIA_LIMITS.maxVideoBytes,
+    });
+    if (result.error) {
+        proofForm.setError('file', result.error);
+        proofForm.file = null;
+        return;
+    }
+    proofForm.file = result.file;
+};
+
+const submitProof = () => {
+    if (!proofTaskId.value || proofForm.processing) {
+        return;
+    }
+
+    proofForm.post(route('task.media.store', proofTaskId.value), {
+        preserveScroll: true,
+        forceFormData: true,
+        onSuccess: () => {
+            closeOverlay('#hs-task-proof');
+        },
+    });
+};
 </script>
 
 <template>
@@ -246,14 +389,14 @@ const displayAssignee = (task) => task?.assignee?.user?.name || '-';
                             </svg>
                         </div>
                         <input type="text" v-model="filterForm.search"
-                            class="py-[7px] ps-10 pe-8 block w-full bg-stone-100 border-transparent rounded-lg text-sm placeholder:text-stone-500 focus:border-green-500 focus:ring-green-600 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-700 dark:border-transparent dark:text-neutral-200 dark:placeholder:text-neutral-400 dark:focus:ring-neutral-600"
+                            class="py-[7px] ps-10 pe-8 block w-full bg-white border border-stone-200 rounded-sm text-sm placeholder:text-stone-500 focus:border-green-500 focus:ring-green-600 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 dark:placeholder:text-neutral-400 dark:focus:ring-neutral-600"
                             placeholder="Search tasks">
                     </div>
                 </div>
 
                 <div class="flex flex-wrap items-center gap-2 justify-end">
                     <select v-model="filterForm.status"
-                        class="py-2 ps-3 pe-8 bg-stone-100 border-transparent rounded-lg text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-700 dark:text-neutral-200 dark:focus:ring-neutral-600">
+                        class="py-2 ps-3 pe-8 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 dark:focus:ring-neutral-600">
                         <option value="">All statuses</option>
                         <option v-for="status in statuses" :key="status" :value="status">
                             {{ statusLabel(status) }}
@@ -345,7 +488,7 @@ const displayAssignee = (task) => task?.assignee?.user?.name || '-';
                                 <div
                                     class="hs-dropdown [--auto-close:inside] [--placement:bottom-right] relative inline-flex">
                                     <button type="button"
-                                        class="size-7 inline-flex justify-center items-center gap-x-2 rounded-lg border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700"
+                                        class="size-7 inline-flex justify-center items-center gap-x-2 rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700"
                                         aria-haspopup="menu" aria-expanded="false" aria-label="Dropdown">
                                         <svg class="shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" width="24"
                                             height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -356,25 +499,25 @@ const displayAssignee = (task) => task?.assignee?.user?.name || '-';
                                         </svg>
                                     </button>
 
-                                    <div class="hs-dropdown-menu hs-dropdown-open:opacity-100 w-44 transition-[opacity,margin] duration opacity-0 hidden z-10 bg-white rounded-xl shadow-[0_10px_40px_10px_rgba(0,0,0,0.08)] dark:shadow-[0_10px_40px_10px_rgba(0,0,0,0.2)] dark:bg-neutral-900"
+                                    <div class="hs-dropdown-menu hs-dropdown-open:opacity-100 w-44 transition-[opacity,margin] duration opacity-0 hidden z-10 bg-white rounded-sm shadow-[0_10px_40px_10px_rgba(0,0,0,0.08)] dark:shadow-[0_10px_40px_10px_rgba(0,0,0,0.2)] dark:bg-neutral-900"
                                         role="menu" aria-orientation="vertical">
                                         <div class="p-1">
                                             <div class="px-2 py-1 text-[11px] uppercase tracking-wide text-stone-400 dark:text-neutral-500">
                                                 Set status
                                             </div>
-                                            <button type="button" :disabled="!canChangeStatus || task.status === 'todo'"
+                                            <button type="button" :disabled="!canChangeStatus || task.status === 'todo' || isTaskLocked(task)"
                                                 @click="setTaskStatus(task, 'todo')"
-                                                class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-lg text-[13px] text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none dark:text-neutral-300 dark:hover:bg-neutral-800">
+                                                class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none dark:text-neutral-300 dark:hover:bg-neutral-800">
                                                 To do
                                             </button>
-                                            <button type="button" :disabled="!canChangeStatus || task.status === 'in_progress'"
+                                            <button type="button" :disabled="!canChangeStatus || task.status === 'in_progress' || isTaskLocked(task)"
                                                 @click="setTaskStatus(task, 'in_progress')"
-                                                class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-lg text-[13px] text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none dark:text-neutral-300 dark:hover:bg-neutral-800">
+                                                class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none dark:text-neutral-300 dark:hover:bg-neutral-800">
                                                 In progress
                                             </button>
-                                            <button type="button" :disabled="!canChangeStatus || task.status === 'done'"
+                                            <button type="button" :disabled="!canChangeStatus || task.status === 'done' || isTaskLocked(task)"
                                                 @click="setTaskStatus(task, 'done')"
-                                                class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-lg text-[13px] text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none dark:text-neutral-300 dark:hover:bg-neutral-800">
+                                                class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none dark:text-neutral-300 dark:hover:bg-neutral-800">
                                                 Done
                                             </button>
 
@@ -383,11 +526,16 @@ const displayAssignee = (task) => task?.assignee?.user?.name || '-';
                                             </template>
 
                                             <button v-if="canManage" type="button" @click="openEditTask(task)"
-                                                class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-lg text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
+                                                :disabled="isTaskLocked(task)"
+                                                class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none dark:text-neutral-300 dark:hover:bg-neutral-800">
                                                 Edit
                                             </button>
+                                            <button v-if="canChangeStatus" type="button" @click="openProofUpload(task)"
+                                                class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
+                                                Add proof
+                                            </button>
                                             <button v-if="canDelete" type="button" @click="deleteTask(task)"
-                                                class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-lg text-[13px] text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-neutral-800">
+                                                class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-neutral-800">
                                                 Delete
                                             </button>
                                         </div>
@@ -409,7 +557,7 @@ const displayAssignee = (task) => task?.assignee?.user?.name || '-';
             <nav class="flex justify-end items-center gap-x-1" aria-label="Pagination">
                 <Link :href="tasks.prev_page_url" v-if="tasks.prev_page_url">
                     <button type="button"
-                        class="min-h-[38px] min-w-[38px] py-2 px-2.5 inline-flex justify-center items-center gap-x-2 text-sm rounded-lg text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-100 dark:text-white dark:hover:bg-white/10 dark:focus:bg-neutral-700"
+                        class="min-h-[38px] min-w-[38px] py-2 px-2.5 inline-flex justify-center items-center gap-x-2 text-sm rounded-sm text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-100 dark:text-white dark:hover:bg-white/10 dark:focus:bg-neutral-700"
                         aria-label="Previous">
                         <svg class="shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
                             viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
@@ -460,9 +608,9 @@ const displayAssignee = (task) => task?.assignee?.user?.name || '-';
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
-                    <label class="block text-xs text-gray-500 dark:text-neutral-400">Status</label>
+                    <label class="block text-xs text-stone-500 dark:text-neutral-400">Status</label>
                     <select v-model="createForm.status"
-                        class="mt-1 block w-full rounded-sm border-gray-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
+                        class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
                         <option v-for="status in statuses" :key="status" :value="status">
                             {{ statusLabel(status) }}
                         </option>
@@ -470,15 +618,15 @@ const displayAssignee = (task) => task?.assignee?.user?.name || '-';
                     <InputError class="mt-1" :message="createForm.errors.status" />
                 </div>
                 <div>
-                    <label class="block text-xs text-gray-500 dark:text-neutral-400">Due date</label>
+                    <label class="block text-xs text-stone-500 dark:text-neutral-400">Due date</label>
                     <input type="date" v-model="createForm.due_date"
-                        class="mt-1 block w-full rounded-sm border-gray-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200" />
+                        class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200" />
                     <InputError class="mt-1" :message="createForm.errors.due_date" />
                 </div>
                 <div v-if="teamMembers.length" class="md:col-span-2">
-                    <label class="block text-xs text-gray-500 dark:text-neutral-400">Assignee</label>
+                    <label class="block text-xs text-stone-500 dark:text-neutral-400">Assignee</label>
                     <select v-model="createForm.assigned_team_member_id"
-                        class="mt-1 block w-full rounded-sm border-gray-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
+                        class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
                         <option value="">Unassigned</option>
                         <option v-for="member in teamMembers" :key="member.id" :value="member.id">
                             {{ member.user?.name || `Member #${member.id}` }} ({{ member.role }})
@@ -486,6 +634,47 @@ const displayAssignee = (task) => task?.assignee?.user?.name || '-';
                     </select>
                     <InputError class="mt-1" :message="createForm.errors.assigned_team_member_id" />
                 </div>
+            </div>
+
+            <div class="space-y-3">
+                <div class="flex items-center justify-between">
+                    <p class="text-xs uppercase tracking-wide text-stone-500 dark:text-neutral-500">Materials</p>
+                    <button type="button" @click="addMaterial(createForm)"
+                        class="py-1.5 px-2.5 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200">
+                        Add material
+                    </button>
+                </div>
+                <div v-if="createForm.materials.length" class="space-y-3">
+                    <div v-for="(material, index) in createForm.materials" :key="material.id || index"
+                        class="rounded-sm border border-stone-200 bg-stone-50 p-3 space-y-3 dark:border-neutral-700 dark:bg-neutral-900">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <FloatingSelect
+                                v-model="material.product_id"
+                                :options="materialOptions"
+                                label="Product"
+                                @update:modelValue="applyMaterialDefaults(material)"
+                            />
+                            <FloatingInput v-model="material.label" label="Label" />
+                            <FloatingNumberInput v-model="material.quantity" label="Quantity" :step="0.01" />
+                            <FloatingNumberInput v-model="material.unit_price" label="Unit price" :step="0.01" />
+                            <FloatingInput v-model="material.unit" label="Unit" />
+                            <div class="flex items-center gap-2 p-2 rounded-sm border border-stone-200 bg-white dark:bg-neutral-900 dark:border-neutral-700">
+                                <Checkbox v-model:checked="material.billable" />
+                                <span class="text-sm text-stone-600 dark:text-neutral-400">Billable</span>
+                            </div>
+                        </div>
+                        <FloatingTextarea v-model="material.description" label="Description (optional)" />
+                        <div class="flex justify-end">
+                            <button type="button" @click="removeMaterial(createForm, index)"
+                                class="py-1.5 px-2.5 text-xs font-medium rounded-sm border border-red-200 bg-white text-red-600 hover:bg-red-50 dark:bg-neutral-800 dark:border-red-500/40 dark:text-red-400">
+                                Remove
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <p v-else class="text-xs text-stone-500 dark:text-neutral-500">
+                    No materials yet.
+                </p>
             </div>
 
             <div class="flex justify-end gap-2">
@@ -515,9 +704,9 @@ const displayAssignee = (task) => task?.assignee?.user?.name || '-';
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
-                    <label class="block text-xs text-gray-500 dark:text-neutral-400">Status</label>
+                    <label class="block text-xs text-stone-500 dark:text-neutral-400">Status</label>
                     <select v-model="editForm.status"
-                        class="mt-1 block w-full rounded-sm border-gray-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
+                        class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
                         <option v-for="status in statuses" :key="status" :value="status">
                             {{ statusLabel(status) }}
                         </option>
@@ -525,15 +714,15 @@ const displayAssignee = (task) => task?.assignee?.user?.name || '-';
                     <InputError class="mt-1" :message="editForm.errors.status" />
                 </div>
                 <div>
-                    <label class="block text-xs text-gray-500 dark:text-neutral-400">Due date</label>
+                    <label class="block text-xs text-stone-500 dark:text-neutral-400">Due date</label>
                     <input type="date" v-model="editForm.due_date"
-                        class="mt-1 block w-full rounded-sm border-gray-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200" />
+                        class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200" />
                     <InputError class="mt-1" :message="editForm.errors.due_date" />
                 </div>
                 <div v-if="teamMembers.length" class="md:col-span-2">
-                    <label class="block text-xs text-gray-500 dark:text-neutral-400">Assignee</label>
+                    <label class="block text-xs text-stone-500 dark:text-neutral-400">Assignee</label>
                     <select v-model="editForm.assigned_team_member_id"
-                        class="mt-1 block w-full rounded-sm border-gray-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
+                        class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
                         <option value="">Unassigned</option>
                         <option v-for="member in teamMembers" :key="member.id" :value="member.id">
                             {{ member.user?.name || `Member #${member.id}` }} ({{ member.role }})
@@ -541,6 +730,47 @@ const displayAssignee = (task) => task?.assignee?.user?.name || '-';
                     </select>
                     <InputError class="mt-1" :message="editForm.errors.assigned_team_member_id" />
                 </div>
+            </div>
+
+            <div class="space-y-3">
+                <div class="flex items-center justify-between">
+                    <p class="text-xs uppercase tracking-wide text-stone-500 dark:text-neutral-500">Materials</p>
+                    <button type="button" @click="addMaterial(editForm)"
+                        class="py-1.5 px-2.5 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200">
+                        Add material
+                    </button>
+                </div>
+                <div v-if="editForm.materials.length" class="space-y-3">
+                    <div v-for="(material, index) in editForm.materials" :key="material.id || index"
+                        class="rounded-sm border border-stone-200 bg-stone-50 p-3 space-y-3 dark:border-neutral-700 dark:bg-neutral-900">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <FloatingSelect
+                                v-model="material.product_id"
+                                :options="materialOptions"
+                                label="Product"
+                                @update:modelValue="applyMaterialDefaults(material)"
+                            />
+                            <FloatingInput v-model="material.label" label="Label" />
+                            <FloatingNumberInput v-model="material.quantity" label="Quantity" :step="0.01" />
+                            <FloatingNumberInput v-model="material.unit_price" label="Unit price" :step="0.01" />
+                            <FloatingInput v-model="material.unit" label="Unit" />
+                            <div class="flex items-center gap-2 p-2 rounded-sm border border-stone-200 bg-white dark:bg-neutral-900 dark:border-neutral-700">
+                                <Checkbox v-model:checked="material.billable" />
+                                <span class="text-sm text-stone-600 dark:text-neutral-400">Billable</span>
+                            </div>
+                        </div>
+                        <FloatingTextarea v-model="material.description" label="Description (optional)" />
+                        <div class="flex justify-end">
+                            <button type="button" @click="removeMaterial(editForm, index)"
+                                class="py-1.5 px-2.5 text-xs font-medium rounded-sm border border-red-200 bg-white text-red-600 hover:bg-red-50 dark:bg-neutral-800 dark:border-red-500/40 dark:text-red-400">
+                                Remove
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <p v-else class="text-xs text-stone-500 dark:text-neutral-500">
+                    No materials yet.
+                </p>
             </div>
 
             <div class="flex justify-end gap-2">
@@ -555,4 +785,44 @@ const displayAssignee = (task) => task?.assignee?.user?.name || '-';
             </div>
         </form>
     </Modal>
+
+    <Modal v-if="canChangeStatus" :title="'Add task proof'" :id="'hs-task-proof'">
+        <form class="space-y-4" @submit.prevent="submitProof">
+            <div>
+                <label class="block text-xs text-stone-500 dark:text-neutral-400">Type</label>
+                <select v-model="proofForm.type"
+                    class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
+                    <option value="execution">Execution</option>
+                    <option value="completion">Completion</option>
+                    <option value="other">Other</option>
+                </select>
+                <InputError class="mt-1" :message="proofForm.errors.type" />
+            </div>
+
+            <div>
+                <label class="block text-xs text-stone-500 dark:text-neutral-400">File (photo or video)</label>
+                <input type="file" @change="handleProofFile" accept="image/*,video/*"
+                    class="mt-1 block w-full text-sm text-stone-600 file:mr-4 file:py-2 file:px-3 file:rounded-sm file:border-0 file:text-sm file:font-medium file:bg-stone-100 file:text-stone-700 hover:file:bg-stone-200 dark:text-neutral-300 dark:file:bg-neutral-800 dark:file:text-neutral-200" />
+                <InputError class="mt-1" :message="proofForm.errors.file" />
+            </div>
+
+            <div>
+                <FloatingInput v-model="proofForm.note" label="Note (optional)" />
+                <InputError class="mt-1" :message="proofForm.errors.note" />
+            </div>
+
+            <div class="flex justify-end gap-2">
+                <button type="button" data-hs-overlay="#hs-task-proof"
+                    class="py-2 px-3 inline-flex items-center text-sm font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200">
+                    Cancel
+                </button>
+                <button type="submit" :disabled="proofForm.processing"
+                    class="py-2 px-3 inline-flex items-center text-sm font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50">
+                    Upload
+                </button>
+            </div>
+        </form>
+    </Modal>
 </template>
+
+

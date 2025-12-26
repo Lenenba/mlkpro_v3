@@ -9,7 +9,7 @@
         :value="timeValue"
         @click="togglePicker"
         placeholder=" "
-        class="peer p-4 block w-full border border-gray-300 rounded-sm text-sm text-gray-700 bg-white shadow-sm
+        class="peer p-4 block w-full border border-stone-300 rounded-sm text-sm text-stone-700 bg-white shadow-sm
                focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500
                dark:bg-neutral-800 dark:border-neutral-700 dark:text-white dark:focus:ring-green-500
                placeholder-transparent
@@ -23,27 +23,27 @@
                 scale-90
                 translate-x-0.5
                 -translate-y-1.5
-                text-gray-500 dark:text-neutral-500
+                text-stone-500 dark:text-neutral-500
                 peer-placeholder-shown:scale-100
                 peer-placeholder-shown:translate-x-0
                 peer-placeholder-shown:translate-y-0
-                peer-placeholder-shown:text-gray-500 dark:peer-placeholder-shown:text-neutral-500
+                peer-placeholder-shown:text-stone-500 dark:peer-placeholder-shown:text-neutral-500
                 peer-focus:scale-90
                 peer-focus:translate-x-0.5
                 peer-focus:-translate-y-1.5
-                peer-focus:text-gray-500 dark:peer-focus:text-neutral-500">
+                peer-focus:text-stone-500 dark:peer-focus:text-neutral-500">
             {{ label }}
         </label>
 
       <!-- Time Picker Dropdown -->
       <div
         v-if="showPicker"
-        class="absolute left-0 mt-2 w-80 bg-white border border-gray-200 rounded-sm shadow-lg dark:bg-neutral-900 dark:border-neutral-700 z-50"
+        class="absolute left-0 mt-2 w-80 bg-white border border-stone-200 rounded-sm shadow-lg dark:bg-neutral-900 dark:border-neutral-700 z-50"
       >
         <div class="p-3">
           <!-- Hours Section -->
           <div>
-            <span class="block text-sm font-medium text-gray-700 dark:text-neutral-200 mb-2">Hour</span>
+            <span class="block text-sm font-medium text-stone-700 dark:text-neutral-200 mb-2">Hour</span>
             <div class="grid grid-cols-6 gap-2">
               <button
                 v-for="h in hours"
@@ -52,7 +52,7 @@
                 type="button"
                 :class="[
                   'w-full py-2 rounded-sm text-sm focus:outline-none',
-                  selectedHour === h ? 'bg-green-600 text-white' : 'text-gray-800 hover:bg-green-100 dark:text-neutral-200 dark:hover:bg-neutral-800'
+                  selectedHour === h ? 'bg-green-600 text-white' : 'text-stone-800 hover:bg-green-100 dark:text-neutral-200 dark:hover:bg-neutral-800'
                 ]"
               >
                 {{ h }}
@@ -61,7 +61,7 @@
           </div>
           <!-- Minutes Section -->
           <div class="mt-4">
-            <span class="block text-sm font-medium text-gray-700 dark:text-neutral-200 mb-2">Minute</span>
+            <span class="block text-sm font-medium text-stone-700 dark:text-neutral-200 mb-2">Minute</span>
             <div class="grid grid-cols-6 gap-2">
               <button
                 v-for="m in minutes"
@@ -70,7 +70,7 @@
                 type="button"
                 :class="[
                   'w-full py-2 rounded-sm text-sm focus:outline-none',
-                  selectedMinute === m ? 'bg-green-600 text-white' : 'text-gray-800 hover:bg-green-100 dark:text-neutral-200 dark:hover:bg-neutral-800'
+                  selectedMinute === m ? 'bg-green-600 text-white' : 'text-stone-800 hover:bg-green-100 dark:text-neutral-200 dark:hover:bg-neutral-800'
                 ]"
               >
                 {{ m }}

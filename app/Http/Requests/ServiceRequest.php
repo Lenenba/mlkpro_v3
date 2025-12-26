@@ -27,7 +27,16 @@ class ServiceRequest extends FormRequest
             'tax_rate' => 'nullable|numeric|min:0|max:100',
             'is_active' => 'nullable|boolean',
             'image' => 'nullable|image|mimes:jpg,png,jpeg,webp|max:5000',
+            'materials' => 'nullable|array',
+            'materials.*.id' => 'nullable|integer',
+            'materials.*.product_id' => 'nullable|integer|exists:products,id',
+            'materials.*.label' => 'nullable|string|max:255',
+            'materials.*.description' => 'nullable|string|max:2000',
+            'materials.*.unit' => 'nullable|string|max:50',
+            'materials.*.quantity' => 'nullable|numeric|min:0',
+            'materials.*.unit_price' => 'nullable|numeric|min:0',
+            'materials.*.billable' => 'nullable|boolean',
+            'materials.*.sort_order' => 'nullable|integer|min:0',
         ];
     }
 }
-

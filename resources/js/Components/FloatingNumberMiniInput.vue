@@ -53,7 +53,7 @@ defineExpose({ focus: () => input.value.focus() });
 <template>
     <!-- Input Number -->
     <div
-        class="py-3.5 px-3 inline-block bg-white border border-gray-200 rounded-sm dark:bg-neutral-900 dark:border-neutral-700"
+        class="py-3.5 px-3 inline-block bg-white border border-stone-200 rounded-sm dark:bg-neutral-900 dark:border-neutral-700"
         data-hs-input-number="{}"
     >
         <div class="flex items-center gap-x-1.5">
@@ -63,7 +63,7 @@ defineExpose({ focus: () => input.value.focus() });
                 type="button"
                 @click="decrement"
                 :disabled="disabled"
-                class="size-6 inline-flex justify-center items-center gap-x-2 text-sm font-medium rounded-md border border-gray-200 bg-white text-gray-800 shadow-sm hover:bg-gray-50 focus:outline-none focus:bg-gray-50 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-900 dark:border-neutral-700 dark:text-white dark:hover:bg-neutral-800 dark:focus:bg-neutral-800"
+                class="size-6 inline-flex justify-center items-center gap-x-2 text-sm font-medium rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 focus:outline-none focus:bg-stone-50 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-900 dark:border-neutral-700 dark:text-white dark:hover:bg-neutral-800 dark:focus:bg-neutral-800"
                 tabindex="-1"
                 aria-label="Decrease"
                 data-hs-input-number-decrement="true"
@@ -89,7 +89,7 @@ defineExpose({ focus: () => input.value.focus() });
                 ref="input"
                 v-model="value"
                 :disabled="disabled"
-                class="p-0 w-6 bg-transparent border-0 text-gray-800 text-center focus:ring-0 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none dark:text-white"
+                class="p-0 w-6 bg-transparent border-0 text-stone-800 text-center focus:ring-0 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none dark:text-white"
                 style="-moz-appearance: textfield;"
                 type="number"
                 aria-roledescription="Number field"
@@ -101,7 +101,7 @@ defineExpose({ focus: () => input.value.focus() });
                 type="button"
                 @click="increment"
                 :disabled="disabled"
-                class="size-6 inline-flex justify-center items-center gap-x-2 text-sm font-medium rounded-md border border-gray-200 bg-white text-gray-800 shadow-sm hover:bg-gray-50 focus:outline-none focus:bg-gray-50 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-900 dark:border-neutral-700 dark:text-white dark:hover:bg-neutral-800 dark:focus:bg-neutral-800"
+                class="size-6 inline-flex justify-center items-center gap-x-2 text-sm font-medium rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 focus:outline-none focus:bg-stone-50 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-900 dark:border-neutral-700 dark:text-white dark:hover:bg-neutral-800 dark:focus:bg-neutral-800"
                 tabindex="-1"
                 aria-label="Increase"
                 data-hs-input-number-increment="true"

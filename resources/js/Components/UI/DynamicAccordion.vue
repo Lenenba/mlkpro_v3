@@ -26,7 +26,7 @@ const toggleAccordion = () => {
     <li class="hs-accordion px-2 lg:px-5">
         <!-- Header du menu -->
         <button type="button"
-            class="hs-accordion-toggle hs-accordion-active:bg-gray-100 w-full text-start flex gap-x-3 py-2 px-3 text-sm text-gray-800 rounded-lg hover:bg-gray-100 disabled:opacity-50 disabled:pointer-events-none dark:hs-accordion-active:bg-neutral-700 focus:outline-none focus:bg-gray-100 dark:hover:bg-neutral-700 dark:text-neutral-300 dark:focus:bg-neutral-700"
+            class="hs-accordion-toggle hs-accordion-active:bg-stone-100 w-full text-start flex gap-x-3 py-2 px-3 text-sm text-stone-800 rounded-sm hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none dark:hs-accordion-active:bg-neutral-700 focus:outline-none focus:bg-stone-100 dark:hover:bg-neutral-700 dark:text-neutral-300 dark:focus:bg-neutral-700"
             aria-expanded="false" aria-controls="accordion-content" @click="toggleAccordion">
             <!-- Slot pour l'icône -->
             <slot name="icon">
@@ -55,12 +55,12 @@ const toggleAccordion = () => {
         <!-- Contenu -->
         <div id="accordion-content" class="hs-accordion-content w-full overflow-hidden transition-[height] duration-300"
             role="region" aria-labelledby="accordion-title" :style="{ display: isExpanded ? 'block' : 'none' }">
-            <ul class="hs-accordion-group ps-7 mt-1.5 space-y-1.5 relative before:absolute before:top-0 before:start-[18px] before:w-0.5 before:h-full before:bg-gray-100 dark:before:bg-neutral-700"
+            <ul class="hs-accordion-group ps-7 mt-1.5 space-y-1.5 relative before:absolute before:top-0 before:start-[18px] before:w-0.5 before:h-full before:bg-stone-100 dark:before:bg-neutral-700"
                 data-hs-accordion-always-open>
                 <!-- Génération dynamique des sous-menus -->
                 <li v-for="(item, index) in menuItems" :key="index">
                     <Link
-                        class="flex gap-x-4 py-2 px-3 text-sm text-gray-800 rounded-lg hover:bg-gray-100 focus:outline-none focus:bg-gray-100 dark:hover:bg-neutral-700 dark:text-neutral-300 dark:focus:bg-neutral-700"
+                        class="flex gap-x-4 py-2 px-3 text-sm text-stone-800 rounded-sm hover:bg-stone-100 focus:outline-none focus:bg-stone-100 dark:hover:bg-neutral-700 dark:text-neutral-300 dark:focus:bg-neutral-700"
                         :href="route(item.href)">
                     {{ item.label }}
                     </Link>

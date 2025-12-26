@@ -16,6 +16,9 @@ class Invoice extends Model
     public const STATUSES = [
         'draft',
         'sent',
+        'awaiting_acceptance',
+        'accepted',
+        'rejected',
         'partial',
         'paid',
         'overdue',
@@ -78,6 +81,11 @@ class Invoice extends Model
     public function payments(): HasMany
     {
         return $this->hasMany(Payment::class);
+    }
+
+    public function items(): HasMany
+    {
+        return $this->hasMany(InvoiceItem::class);
     }
 
     /* Scope a query to filter products based on given criteria.

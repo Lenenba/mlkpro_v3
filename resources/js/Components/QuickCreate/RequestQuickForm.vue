@@ -107,7 +107,7 @@ const submit = () => {
             <label class="text-sm text-stone-600 dark:text-neutral-400">Customer (optional)</label>
             <select
                 v-model="form.customer_id"
-                class="mt-1 w-full rounded-lg border border-stone-200 bg-stone-100 py-2 px-3 text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200"
+                class="mt-1 w-full rounded-sm border border-stone-200 bg-stone-100 py-2 px-3 text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200"
             >
                 <option value="">No customer yet</option>
                 <option v-for="customer in customers" :key="customer.id" :value="String(customer.id)">
@@ -153,14 +153,14 @@ const submit = () => {
             <button
                 type="button"
                 :data-hs-overlay="overlayId || undefined"
-                class="py-2 px-3 inline-flex items-center text-sm font-medium rounded-lg border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200"
+                class="py-2 px-3 inline-flex items-center text-sm font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200"
             >
                 Cancel
             </button>
             <button
                 type="submit"
                 :disabled="form.processing"
-                class="py-2 px-3 inline-flex items-center text-sm font-medium rounded-lg border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50"
+                class="py-2 px-3 inline-flex items-center text-sm font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50"
             >
                 Create request
             </button>

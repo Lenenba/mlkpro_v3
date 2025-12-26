@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -29,9 +29,22 @@
         @vite('resources/css/app.css')
     @endif
 </head>
-<body class="bg-gray-50 text-gray-900">
+<body class="bg-stone-50 text-stone-900">
     <main class="min-h-screen">
         <div class="p-4 sm:p-6 lg:p-8">
+            @php
+                $companyName = $companyName ?? config('app.name');
+                $companyLogo = $companyLogo ?? null;
+            @endphp
+            <div class="mb-6 flex items-center gap-3">
+                @if ($companyLogo)
+                    <img src="{{ $companyLogo }}" alt="{{ $companyName }} logo" class="h-10 w-auto">
+                @else
+                    <div class="text-lg font-semibold text-stone-800">
+                        {{ $companyName }}
+                    </div>
+                @endif
+            </div>
             @yield('content')
         </div>
     </main>

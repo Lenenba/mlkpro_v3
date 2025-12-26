@@ -10,6 +10,10 @@ defineProps({
     count: Number,
     stats: Object,
     categories: Array,
+    materialProducts: {
+        type: Array,
+        default: () => [],
+    },
 });
 </script>
 
@@ -18,8 +22,13 @@ defineProps({
     <AuthenticatedLayout>
         <ServiceStats :stats="stats" />
         <div class="grid grid-cols-1 gap-5">
-            <ServiceTable :services="services" :filters="filters" :count="count" :categories="categories" />
+            <ServiceTable
+                :services="services"
+                :filters="filters"
+                :count="count"
+                :categories="categories"
+                :materialProducts="materialProducts"
+            />
         </div>
     </AuthenticatedLayout>
 </template>
-

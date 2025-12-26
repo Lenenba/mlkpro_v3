@@ -27,6 +27,12 @@ class PortalInvoiceController extends Controller
     public function storePayment(Request $request, Invoice $invoice)
     {
         $customer = $this->portalCustomer($request);
+        if ($customer->auto_validate_invoices) {
+            return redirect()->back()->withErrors([
+                'status' => 'Invoice actions are handled by the company.',
+            ]);
+        }
+
         if ($invoice->customer_id !== $customer->id) {
             abort(403);
         }

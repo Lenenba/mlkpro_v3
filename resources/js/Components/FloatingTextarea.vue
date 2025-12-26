@@ -41,7 +41,7 @@ defineExpose({ focus: () => input.value?.focus() });
             :disabled="disabled"
             v-model="model"
             ref="input"
-            class="peer p-4 block w-full border-gray-200 rounded-sm text-sm placeholder:text-transparent focus:border-green-500 focus:ring-green-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-400 dark:focus:ring-neutral-600
+            class="peer p-4 block w-full border-stone-200 rounded-sm text-sm placeholder:text-transparent focus:border-green-500 focus:ring-green-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-400 dark:focus:ring-neutral-600
                 focus:pt-6
                 focus:pb-2
                 [&:not(:placeholder-shown)]:pt-6
@@ -57,15 +57,15 @@ defineExpose({ focus: () => input.value?.focus() });
                 scale-90
                 translate-x-0.5
                 -translate-y-1.5
-                text-gray-500 dark:text-neutral-500
+                text-stone-500 dark:text-neutral-500
                 peer-placeholder-shown:scale-100
                 peer-placeholder-shown:translate-x-0
                 peer-placeholder-shown:translate-y-0
-                peer-placeholder-shown:text-gray-500 dark:peer-placeholder-shown:text-neutral-500
+                peer-placeholder-shown:text-stone-500 dark:peer-placeholder-shown:text-neutral-500
                 peer-focus:scale-90
                 peer-focus:translate-x-0.5
                 peer-focus:-translate-y-1.5
-                peer-focus:text-gray-500 dark:peer-focus:text-neutral-500"
+                peer-focus:text-stone-500 dark:peer-focus:text-neutral-500"
         >
             {{ label }}
         </label>

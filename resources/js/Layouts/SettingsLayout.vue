@@ -2,6 +2,7 @@
 import { computed } from 'vue';
 import { Link, usePage } from '@inertiajs/vue3';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import { useI18n } from 'vue-i18n';
 
 const props = defineProps({
     active: {
@@ -11,7 +12,11 @@ const props = defineProps({
 });
 
 const page = usePage();
-const userName = computed(() => page.props.auth?.user?.name || 'Compte');
+const { t, locale } = useI18n();
+const userName = computed(() => {
+    locale.value;
+    return page.props.auth?.user?.name || t('account.default_name');
+});
 const userEmail = computed(() => page.props.auth?.user?.email || '');
 const avatarUrl = computed(() => page.props.auth?.user?.profile_picture || '');
 const avatarInitial = computed(() => {
@@ -22,52 +27,53 @@ const avatarInitial = computed(() => {
 const isOwner = computed(() => Boolean(page.props.auth?.account?.is_owner));
 
 const navGroups = computed(() => {
+    locale.value;
     const groups = [
         {
-            label: 'Compte',
+            label: t('settings.groups.account'),
             items: [
                 {
                     id: 'profile',
-                    label: 'Profil',
-                    description: 'Identite et acces',
+                    label: t('settings.items.profile.label'),
+                    description: t('settings.items.profile.description'),
                     route: 'profile.edit',
                     icon: 'user',
                 },
                 {
                     id: 'security',
-                    label: 'Securite',
-                    description: 'Mot de passe & 2FA',
+                    label: t('settings.items.security.label'),
+                    description: t('settings.items.security.description'),
                     disabled: true,
-                    badge: 'Bientot',
+                    badge: t('settings.items.security.badge'),
                     icon: 'shield',
                 },
             ],
         },
         {
-            label: 'Plateforme',
+            label: t('settings.groups.platform'),
             items: [
                 {
                     id: 'company',
-                    label: 'Entreprise',
-                    description: 'Infos et categories',
+                    label: t('settings.items.company.label'),
+                    description: t('settings.items.company.description'),
                     route: 'settings.company.edit',
                     icon: 'building',
                     ownerOnly: true,
                 },
                 {
                     id: 'billing',
-                    label: 'Facturation',
-                    description: 'Plan et paiements',
+                    label: t('settings.items.billing.label'),
+                    description: t('settings.items.billing.description'),
                     route: 'settings.billing.edit',
                     icon: 'card',
                     ownerOnly: true,
                 },
                 {
                     id: 'notifications',
-                    label: 'Notifications',
-                    description: 'Emails & alertes',
+                    label: t('settings.items.notifications.label'),
+                    description: t('settings.items.notifications.description'),
                     disabled: true,
-                    badge: 'Bientot',
+                    badge: t('settings.items.notifications.badge'),
                     icon: 'bell',
                     ownerOnly: true,
                 },
@@ -180,8 +186,6 @@ const navGroups = computed(() => {
 </template>
 
 <style scoped>
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap');
-
 .settings-shell {
     display: grid;
     gap: 18px;
@@ -208,13 +212,13 @@ const navGroups = computed(() => {
     --panel-link: rgba(15, 23, 42, 0.04);
     --panel-link-hover: rgba(15, 23, 42, 0.08);
     --panel-link-border: rgba(15, 23, 42, 0.1);
-    --panel-shadow: 0 20px 40px rgba(15, 23, 42, 0.08);
+    --panel-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
     padding: 18px;
     border-radius: 2px;
     border: 1px solid var(--panel-border);
     background: var(--panel-bg);
     box-shadow: var(--panel-shadow);
-    font-family: "Space Grotesk", "IBM Plex Sans", sans-serif;
+    font-family: inherit;
 }
 
 :global(.dark) .settings-panel {
@@ -228,7 +232,7 @@ const navGroups = computed(() => {
     --panel-link: rgba(15, 23, 42, 0.7);
     --panel-link-hover: rgba(15, 23, 42, 0.9);
     --panel-link-border: rgba(255, 255, 255, 0.08);
-    --panel-shadow: 0 24px 60px rgba(5, 8, 12, 0.5);
+    --panel-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
     background: var(--panel-bg);
 }
 
@@ -302,7 +306,7 @@ const navGroups = computed(() => {
 }
 
 .settings-link:hover {
-    transform: translateY(-1px);
+    transform: none;
     background: var(--panel-link-hover);
 }
 

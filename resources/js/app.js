@@ -3,14 +3,22 @@ import './bootstrap';
 import 'preline'; // Import de Preline.js
 import ApexCharts from 'apexcharts';
 import ClipboardJS from 'clipboard';
-import Dropzone from 'dropzone';
-import { createInertiaApp } from '@inertiajs/vue3';
+import { createInertiaApp, router } from '@inertiajs/vue3';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { createApp, h } from 'vue';
 import { ZiggyVue } from '../../vendor/tightenco/ziggy';
+import { createI18nInstance } from './i18n';
+
+let i18nInstance = null;
 
 // Initialisation du nom de l'application
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
+
+const setDocumentLang = (locale) => {
+    if (typeof document !== 'undefined' && locale) {
+        document.documentElement.lang = locale;
+    }
+};
 
 // Fonction pour initialiser Preline.js après chaque navigation
 const initializePreline = () => {
@@ -30,10 +38,15 @@ createInertiaApp({
             import.meta.glob('./Pages/**/*.vue'),
         ),
     setup({ el, App, props, plugin }) {
+        const initialLocale = props.initialPage?.props?.locale || 'fr';
+        i18nInstance = createI18nInstance(initialLocale);
+        setDocumentLang(initialLocale);
+
         // Création de l'application Vue
         const vueApp = createApp({ render: () => h(App, props) })
             .use(plugin)
-            .use(ZiggyVue);
+            .use(ZiggyVue)
+            .use(i18nInstance);
 
         // Initialisation de Preline.js après le montage de l'application
         vueApp.mixin({
@@ -50,7 +63,16 @@ createInertiaApp({
 });
 
 // Réinitialiser Preline.js après chaque navigation Inertia
-import { router } from '@inertiajs/vue3';
 router.on('navigate', () => {
     initializePreline();
 });
+
+router.on('success', (event) => {
+    const locale = event?.detail?.page?.props?.locale;
+    if (i18nInstance && locale && i18nInstance.global.locale.value !== locale) {
+        i18nInstance.global.locale.value = locale;
+        setDocumentLang(locale);
+    }
+});
+
+

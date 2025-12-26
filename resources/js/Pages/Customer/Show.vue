@@ -111,6 +111,23 @@ const submitNotes = () => {
     });
 };
 
+const autoValidationForm = useForm({
+    auto_accept_quotes: props.customer?.auto_accept_quotes ?? false,
+    auto_validate_jobs: props.customer?.auto_validate_jobs ?? false,
+    auto_validate_tasks: props.customer?.auto_validate_tasks ?? false,
+    auto_validate_invoices: props.customer?.auto_validate_invoices ?? false,
+});
+
+const submitAutoValidation = () => {
+    if (autoValidationForm.processing) {
+        return;
+    }
+
+    autoValidationForm.patch(route('customer.auto-validation.update', props.customer.id), {
+        preserveScroll: true,
+    });
+};
+
 const activityHref = (log) => {
     const type = log?.subject_type || '';
     const id = log?.subject_id;
@@ -281,7 +298,7 @@ const deleteProperty = (property) => {
 
                     <div
                         v-if="showAddProperty"
-                        class="mb-6 rounded-sm border border-gray-200 bg-gray-50 p-4 dark:bg-neutral-900 dark:border-neutral-700"
+                        class="mb-6 rounded-sm border border-stone-200 bg-stone-50 p-4 dark:bg-neutral-900 dark:border-neutral-700"
                     >
                         <form class="space-y-3" @submit.prevent="submitNewProperty">
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -289,11 +306,11 @@ const deleteProperty = (property) => {
                                     <FloatingSelect v-model="newPropertyForm.type" label="Type" :options="propertyTypes" />
                                     <InputError class="mt-1" :message="newPropertyForm.errors.type" />
                                 </div>
-                                <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-neutral-200">
+                                <label class="flex items-center gap-2 text-sm text-stone-700 dark:text-neutral-200">
                                     <input
                                         type="checkbox"
                                         v-model="newPropertyForm.is_default"
-                                        class="size-3.5 rounded border-gray-300 text-green-600 focus:ring-green-500 dark:bg-neutral-900 dark:border-neutral-700"
+                                        class="size-3.5 rounded border-stone-300 text-green-600 focus:ring-green-500 dark:bg-neutral-900 dark:border-neutral-700"
                                     />
                                     Set as default
                                 </label>
@@ -329,7 +346,7 @@ const deleteProperty = (property) => {
                                 <button
                                     type="button"
                                     @click="cancelAddProperty"
-                                    class="py-2 px-2.5 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-gray-200 bg-white text-gray-800 shadow-sm hover:bg-gray-50 focus:outline-none focus:bg-gray-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700"
+                                    class="py-2 px-2.5 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 focus:outline-none focus:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700"
                                 >
                                     Cancel
                                 </button>
@@ -344,11 +361,11 @@ const deleteProperty = (property) => {
                         </form>
                     </div>
 
-                    <div v-if="!properties.length" class="text-sm text-gray-500 dark:text-neutral-400">
+                    <div v-if="!properties.length" class="text-sm text-stone-500 dark:text-neutral-400">
                         No properties yet.
                     </div>
 
-                    <ul v-else class="flex flex-col divide-y divide-gray-200 dark:divide-neutral-700">
+                    <ul v-else class="flex flex-col divide-y divide-stone-200 dark:divide-neutral-700">
                         <li v-for="property in properties" :key="property.id" class="py-4 first:pt-0 last:pb-0">
                             <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                                 <div class="flex gap-x-3">
@@ -373,7 +390,7 @@ const deleteProperty = (property) => {
                                     </div>
                                     <div>
                                         <div class="flex items-center gap-2">
-                                            <p class="text-sm font-medium text-gray-800 dark:text-neutral-200">
+                                            <p class="text-sm font-medium text-stone-800 dark:text-neutral-200">
                                                 {{ propertyHeading(property) }}
                                             </p>
                                             <span
@@ -383,11 +400,11 @@ const deleteProperty = (property) => {
                                                 Default
                                             </span>
                                         </div>
-                                        <p class="text-xs text-gray-500 dark:text-neutral-500">
+                                        <p class="text-xs text-stone-500 dark:text-neutral-500">
                                             {{ property.street1
                                             }}<span v-if="property.street2">, {{ property.street2 }}</span>
                                         </p>
-                                        <p class="text-xs text-gray-500 dark:text-neutral-500">
+                                        <p class="text-xs text-stone-500 dark:text-neutral-500">
                                             {{ property.city }}<span v-if="property.state"> - {{ property.state }}</span
                                             ><span v-if="property.zip"> - {{ property.zip }}</span>
                                         </p>
@@ -399,14 +416,14 @@ const deleteProperty = (property) => {
                                         type="button"
                                         :disabled="property.is_default"
                                         @click="setDefaultProperty(property)"
-                                        class="py-2 px-2.5 inline-flex items-center gap-x-2 text-xs font-medium rounded-sm border border-gray-200 bg-white text-gray-800 shadow-sm hover:bg-gray-50 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-gray-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700"
+                                        class="py-2 px-2.5 inline-flex items-center gap-x-2 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700"
                                     >
                                         Set as default
                                     </button>
                                     <button
                                         type="button"
                                         @click="startEditProperty(property)"
-                                        class="py-2 px-2.5 inline-flex items-center gap-x-2 text-xs font-semibold rounded-sm border border-transparent bg-gray-200 text-gray-800 hover:bg-gray-300 focus:outline-none focus:bg-gray-300 dark:bg-neutral-600 dark:text-neutral-200 dark:hover:bg-neutral-500"
+                                        class="py-2 px-2.5 inline-flex items-center gap-x-2 text-xs font-semibold rounded-sm border border-transparent bg-stone-200 text-stone-800 hover:bg-stone-300 focus:outline-none focus:bg-stone-300 dark:bg-neutral-600 dark:text-neutral-200 dark:hover:bg-neutral-500"
                                     >
                                         Edit
                                     </button>
@@ -422,7 +439,7 @@ const deleteProperty = (property) => {
 
                             <div
                                 v-if="editingPropertyId === property.id"
-                                class="mt-4 rounded-sm border border-gray-200 bg-gray-50 p-4 dark:bg-neutral-900 dark:border-neutral-700"
+                                class="mt-4 rounded-sm border border-stone-200 bg-stone-50 p-4 dark:bg-neutral-900 dark:border-neutral-700"
                             >
                                 <form class="space-y-3" @submit.prevent="submitEditProperty">
                                     <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -463,7 +480,7 @@ const deleteProperty = (property) => {
                                         <button
                                             type="button"
                                             @click="cancelEditProperty"
-                                            class="py-2 px-2.5 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-gray-200 bg-white text-gray-800 shadow-sm hover:bg-gray-50 focus:outline-none focus:bg-gray-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700"
+                                            class="py-2 px-2.5 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 focus:outline-none focus:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700"
                                         >
                                             Cancel
                                         </button>
@@ -489,7 +506,7 @@ const deleteProperty = (property) => {
                     <div class="space-y-5">
                         <div>
                             <div class="flex items-center justify-between gap-3">
-                                <h3 class="text-sm font-semibold text-gray-800 dark:text-neutral-200">Upcoming jobs</h3>
+                                <h3 class="text-sm font-semibold text-stone-800 dark:text-neutral-200">Upcoming jobs</h3>
                                 <Link
                                     :href="route('jobs.index')"
                                     class="text-xs font-medium text-green-700 hover:underline dark:text-green-400"
@@ -501,26 +518,26 @@ const deleteProperty = (property) => {
                                 <div
                                     v-for="work in schedule?.upcomingJobs || []"
                                     :key="work.id"
-                                    class="flex items-center justify-between gap-3 rounded-sm border border-gray-200 px-3 py-2 text-sm dark:border-neutral-700"
+                                    class="flex items-center justify-between gap-3 rounded-sm border border-stone-200 px-3 py-2 text-sm dark:border-neutral-700"
                                 >
                                     <div>
                                         <Link
                                             :href="route('work.show', work.id)"
-                                            class="font-medium text-gray-800 hover:underline dark:text-neutral-200"
+                                            class="font-medium text-stone-800 hover:underline dark:text-neutral-200"
                                         >
                                             {{ work.job_title }}
                                         </Link>
-                                        <div class="mt-0.5 text-xs text-gray-500 dark:text-neutral-400">
+                                        <div class="mt-0.5 text-xs text-stone-500 dark:text-neutral-400">
                                             Starts {{ formatDate(work.start_date || work.created_at) }}
                                         </div>
                                     </div>
-                                    <div class="text-xs text-gray-500 dark:text-neutral-400">
+                                    <div class="text-xs text-stone-500 dark:text-neutral-400">
                                         {{ work.status }}
                                     </div>
                                 </div>
                                 <div
                                     v-if="!(schedule?.upcomingJobs || []).length"
-                                    class="text-sm text-gray-500 dark:text-neutral-400"
+                                    class="text-sm text-stone-500 dark:text-neutral-400"
                                 >
                                     No upcoming jobs.
                                 </div>
@@ -529,7 +546,7 @@ const deleteProperty = (property) => {
 
                         <div>
                             <div class="flex items-center justify-between gap-3">
-                                <h3 class="text-sm font-semibold text-gray-800 dark:text-neutral-200">Tasks</h3>
+                                <h3 class="text-sm font-semibold text-stone-800 dark:text-neutral-200">Tasks</h3>
                                 <Link
                                     :href="route('task.index')"
                                     class="text-xs font-medium text-green-700 hover:underline dark:text-green-400"
@@ -541,23 +558,23 @@ const deleteProperty = (property) => {
                                 <div
                                     v-for="task in schedule?.tasks || []"
                                     :key="task.id"
-                                    class="flex items-start justify-between gap-3 rounded-sm border border-gray-200 px-3 py-2 text-sm dark:border-neutral-700"
+                                    class="flex items-start justify-between gap-3 rounded-sm border border-stone-200 px-3 py-2 text-sm dark:border-neutral-700"
                                 >
                                     <div>
-                                        <div class="font-medium text-gray-800 dark:text-neutral-200">
+                                        <div class="font-medium text-stone-800 dark:text-neutral-200">
                                             {{ task.title }}
                                         </div>
-                                        <div class="mt-0.5 text-xs text-gray-500 dark:text-neutral-400">
+                                        <div class="mt-0.5 text-xs text-stone-500 dark:text-neutral-400">
                                             <span v-if="task.due_date">Due {{ formatDate(task.due_date) }}</span>
                                             <span v-else>No due date</span>
                                         </div>
                                     </div>
-                                    <div class="text-right text-xs text-gray-500 dark:text-neutral-400">
+                                    <div class="text-right text-xs text-stone-500 dark:text-neutral-400">
                                         <div class="capitalize">{{ task.status }}</div>
                                         <div v-if="task.assignee">{{ task.assignee }}</div>
                                     </div>
                                 </div>
-                                <div v-if="!(schedule?.tasks || []).length" class="text-sm text-gray-500 dark:text-neutral-400">
+                                <div v-if="!(schedule?.tasks || []).length" class="text-sm text-stone-500 dark:text-neutral-400">
                                     No tasks yet.
                                 </div>
                             </div>
@@ -572,19 +589,19 @@ const deleteProperty = (property) => {
                         <div
                             v-for="log in activity"
                             :key="log.id"
-                            class="rounded-sm border border-gray-200 px-3 py-2 dark:border-neutral-700"
+                            class="rounded-sm border border-stone-200 px-3 py-2 dark:border-neutral-700"
                         >
-                            <div class="text-xs uppercase text-gray-500 dark:text-neutral-400">
+                            <div class="text-xs uppercase text-stone-500 dark:text-neutral-400">
                                 {{ log.subject }} • {{ formatDate(log.created_at) }}
                             </div>
-                            <div class="mt-1 text-sm text-gray-800 dark:text-neutral-200">
+                            <div class="mt-1 text-sm text-stone-800 dark:text-neutral-200">
                                 <Link v-if="activityHref(log)" :href="activityHref(log)" class="hover:underline">
                                     {{ log.description || log.action }}
                                 </Link>
                                 <span v-else>{{ log.description || log.action }}</span>
                             </div>
                         </div>
-                        <div v-if="!activity.length" class="text-sm text-gray-500 dark:text-neutral-400">
+                        <div v-if="!activity.length" class="text-sm text-stone-500 dark:text-neutral-400">
                             No recent activity yet.
                         </div>
                     </div>
@@ -603,18 +620,18 @@ const deleteProperty = (property) => {
                             <span
                                 v-for="tag in tags"
                                 :key="tag"
-                                class="inline-flex items-center rounded-sm bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-800 dark:bg-neutral-700 dark:text-neutral-200"
+                                class="inline-flex items-center rounded-sm bg-stone-100 px-2 py-0.5 text-xs font-medium text-stone-800 dark:bg-neutral-700 dark:text-neutral-200"
                             >
                                 {{ tag }}
                             </span>
                         </div>
-                        <div v-else class="text-sm text-gray-500 dark:text-neutral-400">No tags yet.</div>
+                        <div v-else class="text-sm text-stone-500 dark:text-neutral-400">No tags yet.</div>
 
                         <div class="flex justify-end">
                             <button
                                 type="button"
                                 @click="startEditTags"
-                                class="py-2 px-2.5 inline-flex items-center gap-x-2 text-xs font-semibold rounded-sm border border-gray-200 bg-white text-gray-800 shadow-sm hover:bg-gray-50 focus:outline-none focus:bg-gray-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700"
+                                class="py-2 px-2.5 inline-flex items-center gap-x-2 text-xs font-semibold rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 focus:outline-none focus:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700"
                             >
                                 Edit
                             </button>
@@ -630,7 +647,7 @@ const deleteProperty = (property) => {
                             <button
                                 type="button"
                                 @click="cancelEditTags"
-                                class="py-2 px-2.5 inline-flex items-center gap-x-2 text-xs font-semibold rounded-sm border border-gray-200 bg-white text-gray-800 shadow-sm hover:bg-gray-50 focus:outline-none focus:bg-gray-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700"
+                                class="py-2 px-2.5 inline-flex items-center gap-x-2 text-xs font-semibold rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 focus:outline-none focus:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700"
                             >
                                 Cancel
                             </button>
@@ -645,75 +662,149 @@ const deleteProperty = (property) => {
                     </form>
                 </CardNoHeader>
                 <CardNoHeader class="mt-5">
+                    <template #title>Auto validation</template>
+
+                    <form class="space-y-3" @submit.prevent="submitAutoValidation">
+                        <div class="space-y-2">
+                            <label
+                                for="customer-auto-accept-quotes"
+                                class="flex items-center justify-between gap-3 text-sm text-stone-700 dark:text-neutral-200"
+                            >
+                                <span>Auto validate quotes</span>
+                                <input
+                                    id="customer-auto-accept-quotes"
+                                    type="checkbox"
+                                    v-model="autoValidationForm.auto_accept_quotes"
+                                    class="relative w-11 h-6 p-px bg-stone-100 border-transparent text-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:ring-green-600 disabled:opacity-50 disabled:pointer-events-none checked:bg-none checked:text-green-600 checked:border-green-600 focus:checked:border-green-600 dark:bg-neutral-800 dark:border-neutral-700 dark:checked:bg-green-500 dark:checked:border-green-500 dark:focus:ring-offset-neutral-900
+
+                                    before:inline-block before:size-5 before:bg-white checked:before:bg-white before:translate-x-0 checked:before:translate-x-full before:rounded-full before:shadow before:transform before:ring-0 before:transition before:ease-in-out before:duration-200 dark:before:bg-neutral-400 dark:checked:before:bg-white"
+                                />
+                            </label>
+                            <label
+                                for="customer-auto-validate-jobs"
+                                class="flex items-center justify-between gap-3 text-sm text-stone-700 dark:text-neutral-200"
+                            >
+                                <span>Auto validate jobs</span>
+                                <input
+                                    id="customer-auto-validate-jobs"
+                                    type="checkbox"
+                                    v-model="autoValidationForm.auto_validate_jobs"
+                                    class="relative w-11 h-6 p-px bg-stone-100 border-transparent text-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:ring-green-600 disabled:opacity-50 disabled:pointer-events-none checked:bg-none checked:text-green-600 checked:border-green-600 focus:checked:border-green-600 dark:bg-neutral-800 dark:border-neutral-700 dark:checked:bg-green-500 dark:checked:border-green-500 dark:focus:ring-offset-neutral-900
+
+                                    before:inline-block before:size-5 before:bg-white checked:before:bg-white before:translate-x-0 checked:before:translate-x-full before:rounded-full before:shadow before:transform before:ring-0 before:transition before:ease-in-out before:duration-200 dark:before:bg-neutral-400 dark:checked:before:bg-white"
+                                />
+                            </label>
+                            <label
+                                for="customer-auto-validate-tasks"
+                                class="flex items-center justify-between gap-3 text-sm text-stone-700 dark:text-neutral-200"
+                            >
+                                <span>Auto validate tasks</span>
+                                <input
+                                    id="customer-auto-validate-tasks"
+                                    type="checkbox"
+                                    v-model="autoValidationForm.auto_validate_tasks"
+                                    class="relative w-11 h-6 p-px bg-stone-100 border-transparent text-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:ring-green-600 disabled:opacity-50 disabled:pointer-events-none checked:bg-none checked:text-green-600 checked:border-green-600 focus:checked:border-green-600 dark:bg-neutral-800 dark:border-neutral-700 dark:checked:bg-green-500 dark:checked:border-green-500 dark:focus:ring-offset-neutral-900
+
+                                    before:inline-block before:size-5 before:bg-white checked:before:bg-white before:translate-x-0 checked:before:translate-x-full before:rounded-full before:shadow before:transform before:ring-0 before:transition before:ease-in-out before:duration-200 dark:before:bg-neutral-400 dark:checked:before:bg-white"
+                                />
+                            </label>
+                            <label
+                                for="customer-auto-validate-invoices"
+                                class="flex items-center justify-between gap-3 text-sm text-stone-700 dark:text-neutral-200"
+                            >
+                                <span>Auto validate invoices</span>
+                                <input
+                                    id="customer-auto-validate-invoices"
+                                    type="checkbox"
+                                    v-model="autoValidationForm.auto_validate_invoices"
+                                    class="relative w-11 h-6 p-px bg-stone-100 border-transparent text-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:ring-green-600 disabled:opacity-50 disabled:pointer-events-none checked:bg-none checked:text-green-600 checked:border-green-600 focus:checked:border-green-600 dark:bg-neutral-800 dark:border-neutral-700 dark:checked:bg-green-500 dark:checked:border-green-500 dark:focus:ring-offset-neutral-900
+
+                                    before:inline-block before:size-5 before:bg-white checked:before:bg-white before:translate-x-0 checked:before:translate-x-full before:rounded-full before:shadow before:transform before:ring-0 before:transition before:ease-in-out before:duration-200 dark:before:bg-neutral-400 dark:checked:before:bg-white"
+                                />
+                            </label>
+                        </div>
+
+                        <div class="flex justify-end">
+                            <button
+                                type="submit"
+                                :disabled="autoValidationForm.processing"
+                                class="py-2 px-2.5 inline-flex items-center gap-x-2 text-xs font-semibold rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-green-500"
+                            >
+                                Save
+                            </button>
+                        </div>
+                    </form>
+                </CardNoHeader>
+                <CardNoHeader class="mt-5">
                     <template #title>Last client interaction</template>
 
                     <div v-if="lastInteraction" class="space-y-1 text-sm">
-                        <div class="text-xs uppercase text-gray-500 dark:text-neutral-400">
+                        <div class="text-xs uppercase text-stone-500 dark:text-neutral-400">
                             {{ lastInteraction.subject }} • {{ formatDate(lastInteraction.created_at) }}
                         </div>
-                        <div class="text-sm text-gray-800 dark:text-neutral-200">
+                        <div class="text-sm text-stone-800 dark:text-neutral-200">
                             {{ lastInteraction.description || lastInteraction.action }}
                         </div>
                     </div>
-                    <div v-else class="text-sm text-gray-500 dark:text-neutral-400">No interactions yet.</div>
+                    <div v-else class="text-sm text-stone-500 dark:text-neutral-400">No interactions yet.</div>
                 </CardNoHeader>
                 <Card class="mt-5">
                     <template #title>Billing history</template>
 
                     <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                        <div class="rounded-sm border border-gray-200 p-3 dark:border-neutral-700">
-                            <div class="text-xs text-gray-500 dark:text-neutral-400">Invoiced</div>
-                            <div class="mt-1 text-sm font-semibold text-gray-800 dark:text-neutral-200">
+                        <div class="rounded-sm border border-stone-200 p-3 dark:border-neutral-700">
+                            <div class="text-xs text-stone-500 dark:text-neutral-400">Invoiced</div>
+                            <div class="mt-1 text-sm font-semibold text-stone-800 dark:text-neutral-200">
                                 {{ formatCurrency(billing?.summary?.total_invoiced) }}
                             </div>
                         </div>
-                        <div class="rounded-sm border border-gray-200 p-3 dark:border-neutral-700">
-                            <div class="text-xs text-gray-500 dark:text-neutral-400">Paid</div>
-                            <div class="mt-1 text-sm font-semibold text-gray-800 dark:text-neutral-200">
+                        <div class="rounded-sm border border-stone-200 p-3 dark:border-neutral-700">
+                            <div class="text-xs text-stone-500 dark:text-neutral-400">Paid</div>
+                            <div class="mt-1 text-sm font-semibold text-stone-800 dark:text-neutral-200">
                                 {{ formatCurrency(billing?.summary?.total_paid) }}
                             </div>
                         </div>
-                        <div class="rounded-sm border border-gray-200 p-3 dark:border-neutral-700">
-                            <div class="text-xs text-gray-500 dark:text-neutral-400">Balance due</div>
-                            <div class="mt-1 text-sm font-semibold text-gray-800 dark:text-neutral-200">
+                        <div class="rounded-sm border border-stone-200 p-3 dark:border-neutral-700">
+                            <div class="text-xs text-stone-500 dark:text-neutral-400">Balance due</div>
+                            <div class="mt-1 text-sm font-semibold text-stone-800 dark:text-neutral-200">
                                 {{ formatCurrency(billing?.summary?.balance_due) }}
                             </div>
                         </div>
                     </div>
 
                     <div class="mt-5">
-                        <h3 class="text-sm font-semibold text-gray-800 dark:text-neutral-200">Recent payments</h3>
+                        <h3 class="text-sm font-semibold text-stone-800 dark:text-neutral-200">Recent payments</h3>
                         <div class="mt-3 space-y-2 text-sm">
                             <div
                                 v-for="payment in billing?.recentPayments || []"
                                 :key="payment.id"
-                                class="flex items-start justify-between gap-3 rounded-sm border border-gray-200 px-3 py-2 dark:border-neutral-700"
+                                class="flex items-start justify-between gap-3 rounded-sm border border-stone-200 px-3 py-2 dark:border-neutral-700"
                             >
                                 <div>
                                     <Link
                                         v-if="payment.invoice"
                                         :href="route('invoice.show', payment.invoice.id)"
-                                        class="font-medium text-gray-800 hover:underline dark:text-neutral-200"
+                                        class="font-medium text-stone-800 hover:underline dark:text-neutral-200"
                                     >
                                         {{ payment.invoice.number || 'Invoice' }}
                                     </Link>
-                                    <div v-else class="font-medium text-gray-800 dark:text-neutral-200">Payment</div>
-                                    <div class="mt-0.5 text-xs text-gray-500 dark:text-neutral-400">
+                                    <div v-else class="font-medium text-stone-800 dark:text-neutral-200">Payment</div>
+                                    <div class="mt-0.5 text-xs text-stone-500 dark:text-neutral-400">
                                         Paid {{ formatDate(payment.paid_at || payment.created_at) }}
                                     </div>
                                 </div>
                                 <div class="text-right">
-                                    <div class="text-sm font-semibold text-gray-800 dark:text-neutral-200">
+                                    <div class="text-sm font-semibold text-stone-800 dark:text-neutral-200">
                                         {{ formatCurrency(payment.amount) }}
                                     </div>
-                                    <div class="text-xs text-gray-500 dark:text-neutral-400">
+                                    <div class="text-xs text-stone-500 dark:text-neutral-400">
                                         {{ payment.method || payment.status || '' }}
                                     </div>
                                 </div>
                             </div>
                             <div
                                 v-if="!(billing?.recentPayments || []).length"
-                                class="text-sm text-gray-500 dark:text-neutral-400"
+                                class="text-sm text-stone-500 dark:text-neutral-400"
                             >
                                 No payments yet.
                             </div>
@@ -724,14 +815,14 @@ const deleteProperty = (property) => {
                     <template #title>Internal notes</template>
 
                     <div v-if="!editingNotes" class="space-y-3">
-                        <p class="text-sm text-gray-700 whitespace-pre-wrap dark:text-neutral-200">
+                        <p class="text-sm text-stone-700 whitespace-pre-wrap dark:text-neutral-200">
                             {{ customer.description || 'No notes yet.' }}
                         </p>
                         <div class="flex justify-end">
                             <button
                                 type="button"
                                 @click="startEditNotes"
-                                class="py-2 px-2.5 inline-flex items-center gap-x-2 text-xs font-semibold rounded-sm border border-gray-200 bg-white text-gray-800 shadow-sm hover:bg-gray-50 focus:outline-none focus:bg-gray-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700"
+                                class="py-2 px-2.5 inline-flex items-center gap-x-2 text-xs font-semibold rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 focus:outline-none focus:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700"
                             >
                                 Edit
                             </button>
@@ -747,7 +838,7 @@ const deleteProperty = (property) => {
                             <button
                                 type="button"
                                 @click="cancelEditNotes"
-                                class="py-2 px-2.5 inline-flex items-center gap-x-2 text-xs font-semibold rounded-sm border border-gray-200 bg-white text-gray-800 shadow-sm hover:bg-gray-50 focus:outline-none focus:bg-gray-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700"
+                                class="py-2 px-2.5 inline-flex items-center gap-x-2 text-xs font-semibold rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 focus:outline-none focus:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700"
                             >
                                 Cancel
                             </button>

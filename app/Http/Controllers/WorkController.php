@@ -8,12 +8,14 @@ use App\Models\Product;
 use App\Models\Customer;
 use App\Models\Quote;
 use App\Models\QuoteProduct;
+use App\Models\Task;
 use App\Models\Tax;
 use App\Models\ActivityLog;
 use App\Models\TeamMember;
 use App\Models\WorkChecklistItem;
 use App\Models\User;
 use App\Services\WorkBillingService;
+use App\Services\UsageLimitService;
 use App\Notifications\ActionEmailNotification;
 use Illuminate\Http\Request;
 use App\Http\Requests\WorkRequest;
@@ -125,10 +127,6 @@ class WorkController extends Controller
             abort(403);
         }
 
-        $works = Work::where('user_id', $accountId)
-            ->with('teamMembers')
-            ->latest()
-            ->get();
         $teamMembers = TeamMember::query()
             ->forAccount($accountId)
             ->active()
@@ -136,15 +134,38 @@ class WorkController extends Controller
             ->orderBy('created_at')
             ->get();
 
+        $calendarStart = Carbon::now()->subMonths(3)->toDateString();
+        $calendarEnd = Carbon::now()->addMonths(6)->toDateString();
+        $tasks = Task::query()
+            ->forAccount($accountId)
+            ->whereNotNull('due_date')
+            ->whereBetween('due_date', [$calendarStart, $calendarEnd])
+            ->with(['assignee.user:id,name'])
+            ->orderBy('due_date')
+            ->get(['id', 'work_id', 'title', 'due_date', 'start_time', 'end_time', 'assigned_team_member_id'])
+            ->map(function ($task) {
+                return [
+                    'id' => $task->id,
+                    'work_id' => $task->work_id,
+                    'title' => $task->title,
+                    'due_date' => $task->due_date,
+                    'start_time' => $task->start_time,
+                    'end_time' => $task->end_time,
+                    'assigned_team_member_id' => $task->assigned_team_member_id,
+                    'assignee' => $task->assignee?->user ? [
+                        'name' => $task->assignee->user->name,
+                    ] : null,
+                ];
+            });
+
         $itemType = $user->company_type === 'products'
             ? Product::ITEM_TYPE_PRODUCT
             : Product::ITEM_TYPE_SERVICE;
 
         return inertia('Work/Create', [
             'lastWorkNumber' => $this->generateNextNumber($customer->works->last()->number ?? null),
-            'works' => $works,
+            'tasks' => $tasks,
             'customer' => $customer->load('properties'),
-            'products' => Product::byUser($accountId)->where('item_type', $itemType)->get(),
             'teamMembers' => $teamMembers,
             'lockedFromQuote' => false,
         ]);
@@ -185,6 +206,8 @@ class WorkController extends Controller
             abort(403);
         }
 
+        app(UsageLimitService::class)->enforceLimit($user, 'jobs');
+
         $itemType = $user->company_type === 'products'
             ? Product::ITEM_TYPE_PRODUCT
             : Product::ITEM_TYPE_SERVICE;
@@ -209,6 +232,25 @@ class WorkController extends Controller
 
         $validated['user_id'] = $accountId;
         $validated['status'] = $validated['status'] ?? 'scheduled';
+
+        $billingFields = [
+            'billing_mode',
+            'billing_cycle',
+            'billing_grouping',
+            'billing_delay_days',
+            'billing_date_rule',
+        ];
+
+        foreach ($billingFields as $field) {
+            $value = $validated[$field] ?? null;
+            if ($value === '') {
+                $value = null;
+            }
+            if ($value === null) {
+                $value = $customer->{$field} ?? null;
+            }
+            $validated[$field] = $value;
+        }
 
         $selectedTeamMemberIds = collect($validated['team_member_ids'] ?? [])
             ->map(fn($id) => (int) $id)
@@ -340,6 +382,35 @@ class WorkController extends Controller
             ->orderBy('created_at')
             ->get();
 
+        $calendarStart = $work->start_date
+            ? Carbon::parse($work->start_date)->subMonths(1)->toDateString()
+            : Carbon::now()->subMonths(3)->toDateString();
+        $calendarEnd = $work->end_date
+            ? Carbon::parse($work->end_date)->addMonths(1)->toDateString()
+            : Carbon::now()->addMonths(6)->toDateString();
+
+        $tasks = Task::query()
+            ->forAccount($accountId)
+            ->whereNotNull('due_date')
+            ->whereBetween('due_date', [$calendarStart, $calendarEnd])
+            ->with(['assignee.user:id,name'])
+            ->orderBy('due_date')
+            ->get(['id', 'work_id', 'title', 'due_date', 'start_time', 'end_time', 'assigned_team_member_id'])
+            ->map(function ($task) {
+                return [
+                    'id' => $task->id,
+                    'work_id' => $task->work_id,
+                    'title' => $task->title,
+                    'due_date' => $task->due_date,
+                    'start_time' => $task->start_time,
+                    'end_time' => $task->end_time,
+                    'assigned_team_member_id' => $task->assigned_team_member_id,
+                    'assignee' => $task->assignee?->user ? [
+                        'name' => $task->assignee->user->name,
+                    ] : null,
+                ];
+            });
+
         return inertia('Work/Create', [
             'work' => $work,
             'lastWorkNumber' => $work->number,
@@ -347,10 +418,7 @@ class WorkController extends Controller
             'filters' => $filters,
             'workProducts' => $workProducts,
             'products' => $products,
-            'works' => Work::byUser($accountId)
-                ->with('teamMembers')
-                ->latest()
-                ->get(),
+            'tasks' => $tasks,
             'teamMembers' => $teamMembers,
             'lockedFromQuote' => $lockedFromQuote,
         ]);
@@ -447,6 +515,24 @@ class WorkController extends Controller
             $validated['total'] = $subtotal;
         }
         $validated['status'] = $validated['status'] ?? $work->status ?? 'scheduled';
+
+        $billingFields = [
+            'billing_mode',
+            'billing_cycle',
+            'billing_grouping',
+            'billing_delay_days',
+            'billing_date_rule',
+        ];
+
+        foreach ($billingFields as $field) {
+            if (!array_key_exists($field, $validated)) {
+                continue;
+            }
+
+            if ($validated[$field] === '') {
+                $validated[$field] = null;
+            }
+        }
 
         $shouldSyncTeamMembers = $user && $user->id === $accountId && array_key_exists('team_member_ids', $validated);
 
@@ -551,6 +637,11 @@ class WorkController extends Controller
             }
         }
 
+        $autoValidateJobs = (bool) ($work->customer?->auto_validate_jobs ?? false);
+        if ($autoValidateJobs && in_array($nextStatus, [Work::STATUS_TECH_COMPLETE, Work::STATUS_PENDING_REVIEW], true)) {
+            $nextStatus = Work::STATUS_AUTO_VALIDATED;
+        }
+
         $previousStatus = $work->status;
         $work->status = $nextStatus;
         $work->save();
@@ -583,7 +674,10 @@ class WorkController extends Controller
         }
 
         if (in_array($nextStatus, [Work::STATUS_VALIDATED, Work::STATUS_AUTO_VALIDATED], true)) {
-            $billingService->createInvoiceFromWork($work, $user);
+            $billingResolver = app(\App\Services\TaskBillingService::class);
+            if ($billingResolver->shouldInvoiceOnWorkValidation($work)) {
+                $billingService->createInvoiceFromWork($work, $user);
+            }
         }
 
         return redirect()->back()->with('success', 'Job status updated.');
@@ -621,6 +715,8 @@ class WorkController extends Controller
         if ($work->user_id !== $accountId) {
             abort(403);
         }
+
+        app(UsageLimitService::class)->enforceLimit($user, 'quotes');
 
         $itemType = $user->company_type === 'products'
             ? Product::ITEM_TYPE_PRODUCT

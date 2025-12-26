@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Role;
 use App\Models\TeamMember;
 use App\Models\User;
+use App\Services\UsageLimitService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -52,6 +53,8 @@ class TeamMemberController extends Controller
         if (!$user || !$user->isAccountOwner()) {
             abort(403);
         }
+
+        app(UsageLimitService::class)->enforceLimit($user, 'team_members');
 
         $allowedPermissions = collect(self::AVAILABLE_PERMISSIONS)->pluck('id')->all();
 

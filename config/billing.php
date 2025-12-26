@@ -2,6 +2,16 @@
 
 return [
     'plans' => [
+        'free' => [
+            'name' => 'Gratuit',
+            'price_id' => env('PADDLE_PRICE_FREE'),
+            'price' => env('PADDLE_PRICE_FREE_AMOUNT', 0),
+            'features' => [
+                'Core scheduling',
+                'Basic quotes and invoices',
+                'Email support',
+            ],
+        ],
         'starter' => [
             'name' => 'Starter',
             'price_id' => env('PADDLE_PRICE_STARTER'),
