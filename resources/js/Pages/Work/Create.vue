@@ -541,7 +541,7 @@ onBeforeUnmount(() => {
                         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                             <div class="col-span-2 space-x-2">
                                 <div class="mb-4" x-data="{ open: false }">
-                                    <FloatingInput v-model="form.job_title" label="Titre du job" :disabled="isLockedFromQuote" />
+                                    <FloatingInput v-model="form.job_title" label="Titre du job" :required="true" :disabled="isLockedFromQuote" />
                                     <FloatingTextarea v-model="form.instructions" label="Instructions" :disabled="isLockedFromQuote" />
                                 </div>
                                 <div v-if="isLockedFromQuote" class="mb-2 text-xs text-amber-600">
@@ -707,7 +707,7 @@ onBeforeUnmount(() => {
                                                     </div>
                                                     <div class="p-4 md:p-5">
                                                         <div class="flex flex-row space-x-1 mb-4">
-                                                            <DatePicker v-model="form.start_date" label="Date de debut"
+                                                            <DatePicker v-model="form.start_date" label="Date de debut" :required="true"
                                                                 placeholder="Choisir une date" />
                                                         </div>
                                                         <div class="flex flex-row space-x-1">
@@ -840,7 +840,7 @@ onBeforeUnmount(() => {
                                                     </h3>
                                                 </div>
                                                 <div class="p-4 md:p-5">
-                                                    <DatePicker v-model="form.start_date" label="Date de debut"
+                                                    <DatePicker v-model="form.start_date" label="Date de debut" :required="true"
                                                         placeholder="Choisir une date" />
                                                     <div class="flex flex-row space-x-1 my-4">
                                                         <TimePicker v-model="form.start_time" label="Heure de debut"

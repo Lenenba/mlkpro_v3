@@ -257,8 +257,8 @@ const buttonLabel = computed(() => (props.product ? 'Update Product' : 'Create P
                         Details
                     </template>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 gap-y-4">
-                        <FloatingInput v-model="form.name" label="Name" />
-            <FloatingSelect v-model="form.category_id" label="Category" :options="selectableCategories" />
+                        <FloatingInput v-model="form.name" label="Name" :required="true" />
+            <FloatingSelect v-model="form.category_id" label="Category" :options="selectableCategories" :required="true" />
                         <FloatingInput v-model="form.sku" label="SKU" />
                         <FloatingInput v-model="form.barcode" label="Barcode" />
                         <FloatingSelect v-model="form.unit" label="Unit" :options="unitOptions" />
@@ -285,11 +285,11 @@ const buttonLabel = computed(() => (props.product ? 'Update Product' : 'Create P
                     </template>
 
                     <div class="grid grid-cols-1 gap-4 gap-y-4">
-                        <FloatingNumberInput v-model="form.price" label="Price" :step="0.01" />
+                        <FloatingNumberInput v-model="form.price" label="Price" :step="0.01" :required="true" />
                         <FloatingNumberInput v-model="form.cost_price" label="Cost price" :step="0.01" />
                         <FloatingNumberInput v-model="form.margin_percent" label="Margin (%)" :step="0.01" />
-                        <FloatingNumberInput v-model="form.stock" label="Stock" />
-                        <FloatingNumberInput v-model="form.minimum_stock" label="Minimum stock" />
+                        <FloatingNumberInput v-model="form.stock" label="Stock" :required="true" />
+                        <FloatingNumberInput v-model="form.minimum_stock" label="Minimum stock" :required="true" />
                     </div>
                 </productCard>
 

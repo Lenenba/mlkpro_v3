@@ -280,7 +280,7 @@ const restoreCategory = (category) => {
                     </div>
                     <div class="flex w-full flex-col gap-2 sm:flex-row lg:w-auto">
                         <div class="flex-1 min-w-[220px]">
-                            <FloatingInput v-model="categoryForm.name" label="Nouvelle categorie" />
+                            <FloatingInput v-model="categoryForm.name" label="Nouvelle categorie" :required="true" />
                             <InputError class="mt-1" :message="categoryForm.errors.name" />
                         </div>
                         <button type="button" @click="addCategory" :disabled="!canAddCategory || categoryForm.processing"
