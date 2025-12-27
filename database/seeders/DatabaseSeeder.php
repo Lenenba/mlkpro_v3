@@ -41,7 +41,18 @@ class DatabaseSeeder extends Seeder
             ['user_id' => $superadmin->id],
             [
                 'channels' => ['email'],
-                'categories' => ['payment_failed', 'error_spike'],
+                'categories' => [
+                    'new_account',
+                    'onboarding_completed',
+                    'subscription_started',
+                    'plan_changed',
+                    'subscription_paused',
+                    'subscription_resumed',
+                    'subscription_canceled',
+                    'payment_succeeded',
+                    'payment_failed',
+                    'churn_risk',
+                ],
                 'rules' => [
                     'error_spike' => 10,
                     'payment_failed' => 3,
