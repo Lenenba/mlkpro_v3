@@ -5,9 +5,11 @@ use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Schedule;
 use App\Models\Role;
 use App\Models\User;
 use App\Models\Work;
+use App\Services\PlatformAdminNotifier;
 use App\Services\WorkBillingService;
 
 Artisan::command('inspire', function () {
@@ -178,3 +180,24 @@ Artisan::command('mailgun:test {to}
 
     return 1;
 })->purpose('Send a test email using Mailgun API');
+
+Artisan::command('platform:notifications-digest {--frequency=daily}', function (PlatformAdminNotifier $notifier): int {
+    $frequency = (string) $this->option('frequency');
+    $count = $notifier->sendDigest($frequency);
+
+    $this->info("Sent {$count} {$frequency} notifications.");
+
+    return 0;
+})->purpose('Send admin notification digests');
+
+Artisan::command('platform:notifications-scan', function (PlatformAdminNotifier $notifier): int {
+    $count = $notifier->scanTrialEnding();
+
+    $this->info("Logged {$count} churn risk notifications.");
+
+    return 0;
+})->purpose('Scan for churn risk and log notifications');
+
+Schedule::command('platform:notifications-digest --frequency=daily')->dailyAt('08:00');
+Schedule::command('platform:notifications-digest --frequency=weekly')->weeklyOn(1, '08:00');
+Schedule::command('platform:notifications-scan')->dailyAt('07:30');

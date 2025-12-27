@@ -83,6 +83,8 @@ Route::middleware(['auth', EnsureInternalUser::class])->group(function () {
     Route::get('/settings/company', [CompanySettingsController::class, 'edit'])->name('settings.company.edit');
     Route::put('/settings/company', [CompanySettingsController::class, 'update'])->name('settings.company.update');
     Route::post('/settings/categories', [ProductCategoryController::class, 'store'])->name('settings.categories.store');
+    Route::patch('/settings/categories/{category}', [ProductCategoryController::class, 'update'])
+        ->name('settings.categories.update');
     Route::patch('/settings/categories/{category}/archive', [ProductCategoryController::class, 'archive'])
         ->name('settings.categories.archive');
     Route::patch('/settings/categories/{category}/restore', [ProductCategoryController::class, 'restore'])

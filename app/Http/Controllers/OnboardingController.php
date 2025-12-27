@@ -7,6 +7,7 @@ use App\Models\TeamMember;
 use App\Models\User;
 use App\Models\ProductCategory;
 use App\Notifications\WelcomeEmailNotification;
+use App\Services\PlatformAdminNotifier;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -192,6 +193,26 @@ class OnboardingController extends Controller
 
         if (!$wasOnboarded && $accountOwner->email) {
             $accountOwner->notify(new WelcomeEmailNotification($accountOwner));
+        }
+
+        if (!$wasOnboarded) {
+            $notifier = app(PlatformAdminNotifier::class);
+            $inviteCount = count($validated['invites'] ?? []);
+
+            $notifier->notify('onboarding_completed', 'Onboarding completed', [
+                'intro' => ($accountOwner->company_name ?: $accountOwner->email) . ' finished onboarding.',
+                'details' => [
+                    ['label' => 'Company', 'value' => $accountOwner->company_name ?: 'Not set'],
+                    ['label' => 'Owner', 'value' => $accountOwner->email ?: 'Unknown'],
+                    ['label' => 'Type', 'value' => $accountOwner->company_type ?: 'Not set'],
+                    ['label' => 'Sector', 'value' => $accountOwner->company_sector ?: 'Not set'],
+                    ['label' => 'Team invites', 'value' => (string) $inviteCount],
+                ],
+                'actionUrl' => route('superadmin.tenants.show', $accountOwner->id),
+                'actionLabel' => 'View tenant',
+                'reference' => 'onboarding:' . $accountOwner->id,
+                'severity' => 'success',
+            ]);
         }
 
         return redirect()->route('dashboard')->with('success', implode(' ', $messageParts));

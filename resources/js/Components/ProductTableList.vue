@@ -435,10 +435,10 @@ const handleItemTypeChange = (index) => {
                 <FloatingNumberMiniInput v-model="products[index].quantity" label="Quantite" :disabled="readOnly" />
               </td>
               <td class="size-px whitespace-nowrap px-4 py-3">
-                <FloatingNumberMiniInput v-model="products[index].price" aria-disabled="true" label="Prix unitaire" :disabled="readOnly" />
+                <FloatingNumberMiniInput v-model="products[index].price" aria-disabled="true" label="Prix unitaire" :step="0.01" :disabled="readOnly" />
               </td>
               <td class="size-px whitespace-nowrap px-4 py-3">
-                <FloatingNumberMiniInput v-model="products[index].total" label="Total" :disabled="readOnly" />
+                <FloatingNumberMiniInput v-model="products[index].total" label="Total" :step="0.01" :disabled="readOnly" />
               </td>
               <td>
                 <div class="flex items-center gap-2">

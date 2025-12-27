@@ -11,6 +11,10 @@ const props = defineProps({
         type: [Number, String],
         default: 0, // Valeur par défaut pour le modèle
     },
+    step: {
+        type: [Number, String],
+        default: 1,
+    },
     disabled: {
         type: Boolean,
         default: false,
@@ -28,22 +32,30 @@ const value = computed({
 
 // Référence pour l'élément input
 const input = ref(null);
+const toNumber = (value) => {
+    const numeric = Number(value);
+    return Number.isFinite(numeric) ? numeric : 0;
+};
+
+const resolvedStep = computed(() => {
+    const numeric = Number(props.step);
+    return Number.isFinite(numeric) && numeric > 0 ? numeric : 1;
+});
 
 // Méthodes pour gérer l'incrémentation et la décrémentation
 const increment = () => {
     if (props.disabled) {
         return;
     }
-    value.value += 1; // Incr‚mente la valeur
+    value.value = toNumber(value.value) + resolvedStep.value; // Incr‚mente la valeur
 };
 
 const decrement = () => {
     if (props.disabled) {
         return;
     }
-    if (value.value > 0) {
-        value.value -= 1; // D‚cr‚mente uniquement si la valeur est sup‚rieure … 0
-    }
+    const nextValue = toNumber(value.value) - resolvedStep.value;
+    value.value = nextValue > 0 ? nextValue : 0; // D'cr'mente uniquement si la valeur est sup'rieure . 0
 };
 
 // Exposer la méthode focus pour accéder à l'élément input
@@ -93,6 +105,7 @@ defineExpose({ focus: () => input.value.focus() });
                 style="-moz-appearance: textfield;"
                 type="number"
                 aria-roledescription="Number field"
+                :step="resolvedStep"
                 data-hs-input-number-input="true"
             />
 

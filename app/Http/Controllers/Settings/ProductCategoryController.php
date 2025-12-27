@@ -72,6 +72,45 @@ class ProductCategoryController extends Controller
         return redirect()->back()->with('success', 'Category archived successfully.');
     }
 
+    public function update(Request $request, ProductCategory $category): RedirectResponse
+    {
+        $user = $request->user();
+        if (!$user || !$user->isAccountOwner()) {
+            abort(403);
+        }
+
+        $accountId = $user->accountOwnerId();
+        if ((int) $category->user_id !== (int) $accountId) {
+            abort(403);
+        }
+
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+        ]);
+
+        $name = ProductCategory::normalizeName($validated['name'] ?? '');
+        if ($name === '') {
+            return redirect()->back()->withErrors(['name' => 'Category name is required.']);
+        }
+
+        $existing = ProductCategory::query()
+            ->whereRaw('LOWER(name) = ?', [strtolower($name)])
+            ->where(function ($query) use ($accountId) {
+                $query->where('user_id', $accountId)
+                    ->orWhereNull('user_id');
+            })
+            ->where('id', '!=', $category->id)
+            ->first();
+
+        if ($existing) {
+            return redirect()->back()->withErrors(['name' => 'Category name already exists.']);
+        }
+
+        $category->update(['name' => $name]);
+
+        return redirect()->back()->with('success', 'Category updated successfully.');
+    }
+
     public function restore(Request $request, ProductCategory $category): RedirectResponse
     {
         $user = $request->user();

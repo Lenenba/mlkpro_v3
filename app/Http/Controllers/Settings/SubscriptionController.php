@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Settings;
 
 use App\Http\Controllers\Controller;
+use App\Services\PlatformAdminNotifier;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -117,6 +118,21 @@ class SubscriptionController extends Controller
         } catch (\Throwable $exception) {
             return redirect()->back()->with('error', 'Unable to change plans right now.');
         }
+
+        $notifier = app(PlatformAdminNotifier::class);
+        $notifier->notify('plan_changed', 'Plan changed', [
+            'intro' => ($user->company_name ?: $user->email) . ' changed their plan.',
+            'details' => [
+                ['label' => 'Company', 'value' => $user->company_name ?: 'Not set'],
+                ['label' => 'Owner', 'value' => $user->email ?: 'Unknown'],
+                ['label' => 'From', 'value' => $notifier->resolvePlanName($currentPriceId)],
+                ['label' => 'To', 'value' => $notifier->resolvePlanName($validated['price_id'])],
+            ],
+            'actionUrl' => route('superadmin.tenants.show', $user->id),
+            'actionLabel' => 'View tenant',
+            'reference' => 'plan:' . $user->id . ':' . $currentPriceId . ':' . $validated['price_id'],
+            'severity' => 'info',
+        ]);
 
         return redirect()->route('settings.billing.edit', array_filter([
             'checkout' => 'swapped',
