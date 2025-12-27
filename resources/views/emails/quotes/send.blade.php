@@ -9,134 +9,204 @@
         $contactName = trim(($customer->first_name ?? '') . ' ' . ($customer->last_name ?? ''));
         $contactLabel = $contactName !== '' ? $contactName : ($customer->company_name ?? 'Client');
     @endphp
-
-    <div class="mx-auto w-full max-w-6xl space-y-5">
-        <div class="p-5 space-y-3 flex flex-col bg-stone-100 border border-stone-100 rounded-sm shadow-sm">
-            <div class="flex justify-between items-center mb-4">
-                <h1 class="text-xl inline-block font-semibold text-stone-800">
-                    Quote For {{ $customer->company_name ?? $contactLabel }}
-                </h1>
-            </div>
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div class="col-span-2 space-x-2">
-                    <div class="bg-white rounded-sm border border-stone-100 p-4 mb-4">
-                        {{ $quote->job_title }}
-                    </div>
-                    <div class="flex flex-row space-x-6">
-                        <div class="lg:col-span-3">
-                            <p>Property address</p>
-                            @if ($property)
-                                <div class="text-xs text-stone-600">{{ $property->country }}</div>
-                                <div class="text-xs text-stone-600">{{ $property->street1 }}</div>
-                                <div class="text-xs text-stone-600">{{ $property->state }} - {{ $property->zip }}</div>
-                            @else
-                                <div class="text-xs text-stone-600">No property selected.</div>
-                            @endif
-                        </div>
-                        <div class="lg:col-span-3">
-                            <p>Contact details</p>
-                            <div class="text-xs text-stone-600">{{ $contactName !== '' ? $contactName : '-' }}</div>
-                            <div class="text-xs text-stone-600">{{ $customer->email ?? '-' }}</div>
-                            <div class="text-xs text-stone-600">{{ $customer->phone ?? '-' }}</div>
-                        </div>
-                    </div>
-                </div>
-                <div class="bg-white p-4 rounded-sm border border-stone-100">
-                    <p>Quote details</p>
-                    <div class="text-xs text-stone-600 flex justify-between">
-                        <span>Quote:</span>
-                        <span>{{ $quote->number ?? $quote->id }}</span>
-                    </div>
-                    <div class="text-xs text-stone-600 flex justify-between">
-                        <span>Status:</span>
-                        <span>{{ $quote->status ?? 'sent' }}</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="p-5 space-y-3 flex flex-col bg-white border border-stone-100 rounded-sm shadow-sm">
-            <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-stone-200">
-                    <thead>
-                        <tr>
-                            <th class="min-w-[300px] text-left text-sm font-medium text-stone-800">Product/Services</th>
-                            <th class="text-left text-sm font-medium text-stone-800">Qty.</th>
-                            <th class="text-left text-sm font-medium text-stone-800">Unit cost</th>
-                            <th class="text-left text-sm font-medium text-stone-800">Total</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-stone-200">
-                        @foreach ($quote->products as $product)
-                            <tr>
-                                <td class="px-4 py-3">{{ $product->name }}</td>
-                                <td class="px-4 py-3">{{ $product->pivot->quantity }}</td>
-                                <td class="px-4 py-3">${{ number_format((float) $product->pivot->price, 2) }}</td>
-                                <td class="px-4 py-3">${{ number_format((float) $product->pivot->total, 2) }}</td>
-                            </tr>
-                        @endforeach
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <div class="p-5 grid grid-cols-2 gap-4 justify-between bg-white border border-stone-100 rounded-sm shadow-sm">
-            <div></div>
-            <div class="border-l border-stone-200 rounded-sm p-4">
-                <div class="py-4 grid grid-cols-2 gap-x-4">
-                    <div class="col-span-1">
-                        <p class="text-sm text-stone-500">Subtotal:</p>
-                    </div>
-                    <div class="col-span-1 flex justify-end">
-                        <p class="text-sm text-green-600">$ {{ number_format((float) $quote->subtotal, 2) }}</p>
-                    </div>
-                </div>
-
-                @if ($quote->taxes && $quote->taxes->count())
-                    <div class="space-y-2 py-4 border-t border-stone-200">
-                        @foreach ($quote->taxes as $tax)
-                            <div class="flex justify-between">
-                                <p class="text-sm text-stone-500">{{ $tax->tax->name ?? 'Tax' }} ({{ number_format($tax->rate, 2) }}%) :</p>
-                                <p class="text-sm text-stone-800">${{ number_format((float) $tax->amount, 2) }}</p>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+        <tr>
+            <td style="padding-bottom:16px;">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f8fafc; border:1px solid #e2e8f0; border-radius:6px;">
+                    <tr>
+                        <td style="padding:16px;">
+                            <div style="font-size:18px; font-weight:700; color:#0f172a;">
+                                Quote for {{ $customer->company_name ?? $contactLabel }}
                             </div>
-                        @endforeach
-                        <div class="flex justify-between font-bold">
-                            <p class="text-sm text-stone-800">Total taxes :</p>
-                            <p class="text-sm text-stone-800">${{ number_format((float) $quote->taxes->sum('amount'), 2) }}</p>
-                        </div>
-                    </div>
-                @endif
+                            <div style="margin-top:6px; font-size:13px; color:#475569;">
+                                {{ $quote->job_title }}
+                            </div>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
 
-                <div class="py-4 grid grid-cols-2 gap-x-4 border-t border-stone-200">
-                    <div class="col-span-1">
-                        <p class="text-sm text-stone-800 font-bold">Total amount:</p>
-                    </div>
-                    <div class="flex justify-end">
-                        <p class="text-sm text-stone-800 font-bold">$ {{ number_format((float) $quote->total, 2) }}</p>
-                    </div>
-                </div>
+        <tr>
+            <td style="padding-bottom:16px;">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                    <tr>
+                        <td valign="top" width="50%" style="padding-right:8px;">
+                            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e2e8f0; border-radius:6px; background-color:#ffffff;">
+                                <tr>
+                                    <td style="padding:12px;">
+                                        <div style="font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:0.08em; color:#047857;">
+                                            Property address
+                                        </div>
+                                        <div style="margin-top:6px; font-size:12px; color:#475569;">
+                                            @if ($property)
+                                                <div>{{ $property->street1 }}</div>
+                                                @if (!empty($property->street2))
+                                                    <div>{{ $property->street2 }}</div>
+                                                @endif
+                                                <div>{{ $property->city ?? '' }} {{ $property->state ?? '' }} {{ $property->zip ?? '' }}</div>
+                                                <div>{{ $property->country ?? '' }}</div>
+                                            @else
+                                                <div>No property selected.</div>
+                                            @endif
+                                        </div>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                        <td valign="top" width="50%" style="padding-left:8px;">
+                            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e2e8f0; border-radius:6px; background-color:#ffffff;">
+                                <tr>
+                                    <td style="padding:12px;">
+                                        <div style="font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:0.08em; color:#047857;">
+                                            Contact details
+                                        </div>
+                                        <div style="margin-top:6px; font-size:12px; color:#475569;">
+                                            <div>{{ $contactName !== '' ? $contactName : '-' }}</div>
+                                            <div>{{ $customer->email ?? '-' }}</div>
+                                            <div>{{ $customer->phone ?? '-' }}</div>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
 
-                @if ($quote->initial_deposit > 0)
-                    <div class="py-4 grid grid-cols-2 items-center gap-x-4 border-t border-stone-200">
-                        <div class="col-span-1">
-                            <p class="text-sm text-stone-500">Required deposit:</p>
-                        </div>
-                        <div class="flex justify-end">
-                            <span class="text-xs text-stone-500">(Min: ${{ number_format((float) $quote->initial_deposit, 2) }})</span>
-                        </div>
-                    </div>
-                @endif
-            </div>
-        </div>
+        <tr>
+            <td style="padding-bottom:16px;">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e2e8f0; border-radius:6px; background-color:#ffffff;">
+                    <tr>
+                        <td style="padding:12px;">
+                            <div style="font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:0.08em; color:#047857;">
+                                Quote details
+                            </div>
+                            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:8px;">
+                                <tr>
+                                    <td style="font-size:12px; color:#475569;">Quote:</td>
+                                    <td align="right" style="font-size:12px; color:#0f172a; font-weight:600;">
+                                        {{ $quote->number ?? $quote->id }}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td style="font-size:12px; color:#475569;">Status:</td>
+                                    <td align="right" style="font-size:12px; color:#0f172a; font-weight:600;">
+                                        {{ $quote->status ?? 'sent' }}
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
 
-        <div class="text-sm text-stone-600">
-            Log in to your portal to review and validate the quote.
-        </div>
-        <div>
-            <a class="inline-flex items-center gap-x-2 text-sm font-medium rounded-sm border border-transparent bg-green-600 text-white px-4 py-2 hover:bg-green-700"
-               href="{{ route('dashboard') }}">
-                Open dashboard
-            </a>
-        </div>
-    </div>
+        <tr>
+            <td style="padding-bottom:16px;">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e2e8f0; border-radius:6px; background-color:#ffffff;">
+                    <tr>
+                        <td style="padding:12px;">
+                            <div style="font-size:14px; font-weight:600; color:#0f172a; padding-bottom:8px;">
+                                Items
+                            </div>
+                            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+                                <tr style="background-color:#f1f5f9;">
+                                    <th align="left" style="padding:8px; font-size:12px; color:#0f172a;">Products / Services</th>
+                                    <th align="left" style="padding:8px; font-size:12px; color:#0f172a;">Qty.</th>
+                                    <th align="left" style="padding:8px; font-size:12px; color:#0f172a;">Unit cost</th>
+                                    <th align="left" style="padding:8px; font-size:12px; color:#0f172a;">Total</th>
+                                </tr>
+                                @foreach ($quote->products as $product)
+                                    <tr style="border-top:1px solid #e2e8f0;">
+                                        <td style="padding:8px; font-size:12px; color:#334155;">{{ $product->name }}</td>
+                                        <td style="padding:8px; font-size:12px; color:#334155;">{{ $product->pivot->quantity }}</td>
+                                        <td style="padding:8px; font-size:12px; color:#334155;">${{ number_format((float) $product->pivot->price, 2) }}</td>
+                                        <td style="padding:8px; font-size:12px; color:#334155;">${{ number_format((float) $product->pivot->total, 2) }}</td>
+                                    </tr>
+                                @endforeach
+                            </table>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+
+        <tr>
+            <td style="padding-bottom:16px;">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e2e8f0; border-radius:6px; background-color:#ffffff;">
+                    <tr>
+                        <td style="padding:12px;">
+                            <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                                <tr>
+                                    <td style="font-size:12px; color:#64748b;">Subtotal:</td>
+                                    <td align="right" style="font-size:12px; color:#0f172a; font-weight:600;">
+                                        $ {{ number_format((float) $quote->subtotal, 2) }}
+                                    </td>
+                                </tr>
+                                @if ($quote->taxes && $quote->taxes->count())
+                                    @foreach ($quote->taxes as $tax)
+                                        <tr>
+                                            <td style="font-size:12px; color:#64748b;">
+                                                {{ $tax->tax->name ?? 'Tax' }} ({{ number_format($tax->rate, 2) }}%)
+                                            </td>
+                                            <td align="right" style="font-size:12px; color:#0f172a;">
+                                                ${{ number_format((float) $tax->amount, 2) }}
+                                            </td>
+                                        </tr>
+                                    @endforeach
+                                    <tr>
+                                        <td style="font-size:12px; color:#64748b; font-weight:600;">
+                                            Total taxes:
+                                        </td>
+                                        <td align="right" style="font-size:12px; color:#0f172a; font-weight:600;">
+                                            ${{ number_format((float) $quote->taxes->sum('amount'), 2) }}
+                                        </td>
+                                    </tr>
+                                @endif
+                                <tr>
+                                    <td style="padding-top:8px; font-size:13px; color:#0f172a; font-weight:700;">
+                                        Total amount:
+                                    </td>
+                                    <td align="right" style="padding-top:8px; font-size:13px; color:#0f172a; font-weight:700;">
+                                        $ {{ number_format((float) $quote->total, 2) }}
+                                    </td>
+                                </tr>
+                                @if ($quote->initial_deposit > 0)
+                                    <tr>
+                                        <td style="padding-top:6px; font-size:12px; color:#64748b;">
+                                            Required deposit:
+                                        </td>
+                                        <td align="right" style="padding-top:6px; font-size:12px; color:#64748b;">
+                                            Min: ${{ number_format((float) $quote->initial_deposit, 2) }}
+                                        </td>
+                                    </tr>
+                                @endif
+                            </table>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+
+        <tr>
+            <td style="font-size:13px; color:#475569; padding-bottom:12px;">
+                Log in to your portal to review and validate the quote.
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <table role="presentation" cellpadding="0" cellspacing="0">
+                    <tr>
+                        <td bgcolor="#16a34a" style="border-radius:6px;">
+                            <a href="{{ route('dashboard') }}" style="display:inline-block; padding:10px 16px; font-size:14px; font-weight:600; color:#ffffff; text-decoration:none;">
+                                Open dashboard
+                            </a>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
 @endsection

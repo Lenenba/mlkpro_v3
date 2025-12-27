@@ -4,49 +4,40 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>@yield('title', config('app.name'))</title>
-    <link rel="preconnect" href="https://fonts.bunny.net">
-    <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet" />
-    @php
-        $inlineCss = '';
-        $manifestPath = public_path('build/manifest.json');
-        if (is_file($manifestPath)) {
-            $manifest = json_decode(file_get_contents($manifestPath), true) ?: [];
-            $entry = $manifest['resources/js/app.js'] ?? $manifest['resources/css/app.css'] ?? null;
-            $cssFiles = is_array($entry) ? ($entry['css'] ?? []) : [];
-            foreach ($cssFiles as $cssFile) {
-                $cssPath = public_path('build/' . ltrim($cssFile, '/'));
-                if (is_file($cssPath)) {
-                    $inlineCss .= file_get_contents($cssPath) . "\n";
-                }
-            }
-        }
-    @endphp
-    @if ($inlineCss !== '')
-        <style>
-            {!! $inlineCss !!}
-        </style>
-    @else
-        @vite('resources/css/app.css')
-    @endif
 </head>
-<body class="bg-stone-50 text-stone-900">
-    <main class="min-h-screen">
-        <div class="p-4 sm:p-6 lg:p-8">
-            @php
-                $companyName = $companyName ?? config('app.name');
-                $companyLogo = $companyLogo ?? null;
-            @endphp
-            <div class="mb-6 flex items-center gap-3">
-                @if ($companyLogo)
-                    <img src="{{ $companyLogo }}" alt="{{ $companyName }} logo" class="h-10 w-auto">
-                @else
-                    <div class="text-lg font-semibold text-stone-800">
-                        {{ $companyName }}
-                    </div>
-                @endif
-            </div>
-            @yield('content')
-        </div>
-    </main>
+@php
+    $companyName = $companyName ?? config('app.name');
+    $companyLogo = $companyLogo ?? null;
+@endphp
+<body style="margin:0; padding:0; background-color:#f1f5f9;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f1f5f9;">
+        <tr>
+            <td align="center" style="padding:24px;">
+                <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:600px; max-width:600px; background-color:#ffffff; border:1px solid #e2e8f0; border-radius:8px; overflow:hidden; font-family:Arial, sans-serif; color:#0f172a;">
+                    <tr>
+                        <td style="padding:20px 24px; border-bottom:1px solid #e2e8f0; background-color:#ffffff;">
+                            @if ($companyLogo)
+                                <img src="{{ $companyLogo }}" alt="{{ $companyName }} logo" style="height:32px; width:auto; display:block;">
+                            @else
+                                <div style="font-size:16px; font-weight:700; color:#0f172a;">
+                                    {{ $companyName }}
+                                </div>
+                            @endif
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding:24px;">
+                            @yield('content')
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding:16px 24px; background-color:#f8fafc; font-size:12px; color:#64748b;">
+                            {{ $companyName }} - {{ date('Y') }}. Tous droits reserves.
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
 </body>
 </html>

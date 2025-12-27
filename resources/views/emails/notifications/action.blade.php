@@ -3,44 +3,73 @@
 @section('title', $title ?? 'Notification')
 
 @section('content')
-    <div class="mx-auto w-full max-w-3xl space-y-4">
-        <div class="p-5 space-y-2 flex flex-col bg-stone-100 border border-stone-100 rounded-sm shadow-sm">
-            <h1 class="text-xl font-semibold text-stone-800">
-                {{ $title ?? 'Notification' }}
-            </h1>
-            @if (!empty($intro))
-                <p class="text-sm text-stone-600">{{ $intro }}</p>
-            @endif
-        </div>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+        <tr>
+            <td style="padding-bottom:16px;">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f8fafc; border:1px solid #e2e8f0; border-radius:6px;">
+                    <tr>
+                        <td style="padding:16px;">
+                            <div style="font-size:18px; font-weight:700; color:#0f172a;">
+                                {{ $title ?? 'Notification' }}
+                            </div>
+                            @if (!empty($intro))
+                                <div style="margin-top:6px; font-size:13px; color:#475569; line-height:1.5;">
+                                    {{ $intro }}
+                                </div>
+                            @endif
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
 
         @if (!empty($details))
-            <div class="p-5 bg-white border border-stone-100 rounded-sm shadow-sm">
-                <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-stone-200">
-                        <tbody class="divide-y divide-stone-200">
-                            @foreach ($details as $detail)
-                                <tr>
-                                    <td class="py-2 text-sm text-stone-500">{{ $detail['label'] ?? 'Detail' }}</td>
-                                    <td class="py-2 text-sm text-stone-800 text-right">{{ $detail['value'] ?? '-' }}</td>
-                                </tr>
-                            @endforeach
-                        </tbody>
+            <tr>
+                <td style="padding-bottom:16px;">
+                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#ffffff; border:1px solid #e2e8f0; border-radius:6px;">
+                        <tr>
+                            <td style="padding:12px;">
+                                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+                                    @foreach ($details as $detail)
+                                        <tr style="border-top:1px solid #e2e8f0;">
+                                            <td style="padding:8px; font-size:12px; color:#64748b;">
+                                                {{ $detail['label'] ?? 'Detail' }}
+                                            </td>
+                                            <td align="right" style="padding:8px; font-size:12px; color:#0f172a; font-weight:600;">
+                                                {{ $detail['value'] ?? '-' }}
+                                            </td>
+                                        </tr>
+                                    @endforeach
+                                </table>
+                            </td>
+                        </tr>
                     </table>
-                </div>
-            </div>
+                </td>
+            </tr>
         @endif
 
         @if (!empty($note))
-            <div class="text-xs text-stone-500">{{ $note }}</div>
+            <tr>
+                <td style="padding-bottom:16px; font-size:12px; color:#64748b;">
+                    {{ $note }}
+                </td>
+            </tr>
         @endif
 
         @if (!empty($actionUrl))
-            <div>
-                <a class="inline-flex items-center gap-x-2 text-sm font-medium rounded-sm border border-transparent bg-green-600 text-white px-4 py-2 hover:bg-green-700"
-                   href="{{ $actionUrl }}">
-                    {{ $actionLabel ?? 'Open' }}
-                </a>
-            </div>
+            <tr>
+                <td>
+                    <table role="presentation" cellpadding="0" cellspacing="0">
+                        <tr>
+                            <td bgcolor="#16a34a" style="border-radius:6px;">
+                                <a href="{{ $actionUrl }}" style="display:inline-block; padding:10px 16px; font-size:14px; font-weight:600; color:#ffffff; text-decoration:none;">
+                                    {{ $actionLabel ?? 'Open' }}
+                                </a>
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
         @endif
-    </div>
+    </table>
 @endsection
