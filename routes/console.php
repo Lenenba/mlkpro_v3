@@ -3,6 +3,8 @@
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Mail;
 use App\Models\Role;
 use App\Models\User;
 use App\Models\Work;
@@ -104,3 +106,75 @@ Artisan::command('mail:test {to} {--subject=Test} {--body=}', function (): int {
 
     return 0;
 })->purpose('Send a test email using current mailer');
+
+Artisan::command('mailgun:test {to}
+    {--from= : Override from address}
+    {--from-name= : Override from name}
+    {--subject=Test Mailgun}
+    {--text= : Plain text body}
+    {--html= : HTML body}
+    {--domain= : Mailgun domain}
+    {--endpoint= : Mailgun API endpoint}
+    {--secret= : Mailgun API key}', function (): int {
+    $to = trim((string) $this->argument('to'));
+    if ($to === '') {
+        $this->error('Destinataire manquant.');
+        return 1;
+    }
+
+    $domain = trim((string) ($this->option('domain') ?: env('MAILGUN_DOMAIN')));
+    $secret = trim((string) ($this->option('secret') ?: env('MAILGUN_SECRET')));
+    $endpoint = trim((string) ($this->option('endpoint') ?: env('MAILGUN_ENDPOINT', 'api.mailgun.net')));
+    $endpoint = preg_replace('#^https?://#', '', $endpoint);
+    $endpoint = rtrim($endpoint, '/');
+
+    if ($domain === '' || $secret === '') {
+        $this->error('MAILGUN_DOMAIN et MAILGUN_SECRET sont requis.');
+        return 1;
+    }
+
+    $fromAddress = trim((string) ($this->option('from') ?: config('mail.from.address', '')));
+    $fromName = trim((string) ($this->option('from-name') ?: config('mail.from.name', '')));
+    if ($fromAddress === '') {
+        $fromAddress = 'postmaster@' . $domain;
+    }
+    $from = $fromName !== '' ? "{$fromName} <{$fromAddress}>" : $fromAddress;
+
+    $subject = (string) $this->option('subject');
+    $text = trim((string) $this->option('text'));
+    $html = trim((string) $this->option('html'));
+
+    if ($text === '' && $html === '') {
+        $text = implode("\n", [
+            'Mailgun test email',
+            'App: ' . (string) config('app.name'),
+            'Date: ' . now()->toDateTimeString(),
+        ]);
+    }
+
+    $payload = [
+        'from' => $from,
+        'to' => $to,
+        'subject' => $subject,
+    ];
+    if ($text !== '') {
+        $payload['text'] = $text;
+    }
+    if ($html !== '') {
+        $payload['html'] = $html;
+    }
+
+    $response = Http::withBasicAuth('api', $secret)
+        ->asForm()
+        ->post("https://{$endpoint}/v3/{$domain}/messages", $payload);
+
+    if ($response->successful()) {
+        $this->info('OK: email envoye via Mailgun.');
+        return 0;
+    }
+
+    $this->error('Echec Mailgun (' . $response->status() . ')');
+    $this->line($response->body());
+
+    return 1;
+})->purpose('Send a test email using Mailgun API');
