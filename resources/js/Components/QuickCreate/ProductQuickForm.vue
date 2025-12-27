@@ -274,8 +274,8 @@ const submit = async () => {
 <template>
     <form @submit.prevent="submit" class="space-y-4">
         <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <FloatingInput v-model="form.name" label="Name" />
-            <FloatingSelect v-model="form.category_id" label="Category" :options="categories" />
+            <FloatingInput v-model="form.name" label="Name" :required="true" />
+            <FloatingSelect v-model="form.category_id" label="Category" :options="categories" :required="true" />
             <FloatingInput v-model="form.sku" label="SKU" />
             <FloatingSelect v-model="form.unit" label="Unit" :options="unitOptions" />
             <FloatingInput v-model="form.supplier_name" label="Supplier" />
@@ -283,11 +283,11 @@ const submit = async () => {
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <FloatingNumberInput v-model="form.price" label="Price" :step="0.01" />
+            <FloatingNumberInput v-model="form.price" label="Price" :step="0.01" :required="true" />
             <FloatingNumberInput v-model="form.cost_price" label="Cost price" :step="0.01" />
             <FloatingNumberInput v-model="form.margin_percent" label="Margin (%)" :step="0.01" />
-            <FloatingNumberInput v-model="form.stock" label="Stock" />
-            <FloatingNumberInput v-model="form.minimum_stock" label="Minimum stock" />
+            <FloatingNumberInput v-model="form.stock" label="Stock" :required="true" />
+            <FloatingNumberInput v-model="form.minimum_stock" label="Minimum stock" :required="true" />
         </div>
 
         <div class="rounded-sm border border-stone-200 bg-stone-50 p-3 text-xs text-stone-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300">

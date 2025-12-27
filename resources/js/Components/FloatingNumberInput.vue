@@ -7,6 +7,10 @@ const props = defineProps({
         type: String,
         default: 'Select quantity',
     },
+    required: {
+        type: Boolean,
+        default: false,
+    },
     step: {
         type: [Number, String],
         default: 1,
@@ -50,6 +54,7 @@ defineExpose({ focus: () => input.value.focus() });
             <div>
                 <span class="block text-xs text-stone-500 dark:text-neutral-400">
                     {{ label }}
+                    <span v-if="required" class="text-red-500 dark:text-red-400"> *</span>
                 </span>
                 <!-- Input -->
                 <input ref="input" v-model="model"

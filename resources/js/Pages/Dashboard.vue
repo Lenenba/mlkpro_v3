@@ -162,6 +162,48 @@ const displayLimitValue = (item) => {
     }
     return item.limit;
 };
+
+const onboardingChecklist = computed(() => {
+    const isServices = showServices.value;
+    return [
+        {
+            key: 'customer',
+            label: 'Add your first customer',
+            route: 'customer.create',
+            completed: stat('customers_total') > 0,
+        },
+        {
+            key: 'catalog',
+            label: isServices ? 'Add your first service' : 'Add your first product',
+            route: isServices ? 'service.index' : 'product.index',
+            completed: stat('products_total') > 0,
+        },
+        {
+            key: 'quote',
+            label: 'Create your first quote',
+            route: 'quote.index',
+            completed: stat('quotes_total') > 0,
+        },
+        {
+            key: 'workflow',
+            label: isServices ? 'Plan your first job' : 'Send your first invoice',
+            route: isServices ? 'jobs.index' : 'invoice.index',
+            completed: (isServices ? stat('works_total') : stat('invoices_total')) > 0,
+        },
+    ];
+});
+
+const checklistCompleted = computed(() =>
+    onboardingChecklist.value.filter((item) => item.completed).length
+);
+const checklistTotal = computed(() => onboardingChecklist.value.length);
+const checklistProgress = computed(() => {
+    if (!checklistTotal.value) {
+        return 0;
+    }
+    return Math.round((checklistCompleted.value / checklistTotal.value) * 100);
+});
+const showChecklist = computed(() => checklistCompleted.value < checklistTotal.value);
 </script>
 
 <template>
@@ -487,6 +529,57 @@ const displayLimitValue = (item) => {
                 </div>
 
                 <div class="space-y-4">
+                    <div
+                        v-if="showChecklist"
+                        class="bg-white border border-stone-200 rounded-sm p-5 shadow-sm dark:bg-neutral-800 dark:border-neutral-700"
+                    >
+                        <div class="flex items-start justify-between gap-3">
+                            <div>
+                                <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                                    Getting started checklist
+                                </h2>
+                                <p class="text-xs text-stone-500 dark:text-neutral-400">
+                                    Complete these steps to get comfortable with the platform.
+                                </p>
+                            </div>
+                            <div class="text-xs font-semibold text-emerald-700 dark:text-emerald-300">
+                                {{ checklistCompleted }}/{{ checklistTotal }}
+                            </div>
+                        </div>
+                        <div class="mt-3 h-1.5 w-full rounded-full bg-stone-100 dark:bg-neutral-700">
+                            <div
+                                class="h-1.5 rounded-full bg-emerald-500 dark:bg-emerald-400"
+                                :style="{ width: `${checklistProgress}%` }"
+                            ></div>
+                        </div>
+                        <ul class="mt-4 space-y-2 text-sm">
+                            <li
+                                v-for="item in onboardingChecklist"
+                                :key="item.key"
+                                class="flex items-start gap-3 rounded-sm border px-3 py-2"
+                                :class="item.completed
+                                    ? 'border-emerald-200 bg-emerald-50 dark:border-emerald-500/30 dark:bg-emerald-500/10'
+                                    : 'border-stone-200 bg-white dark:border-neutral-700 dark:bg-neutral-800'"
+                            >
+                                <span
+                                    class="mt-1 size-2 rounded-full"
+                                    :class="item.completed ? 'bg-emerald-600' : 'bg-stone-300 dark:bg-neutral-500'"
+                                ></span>
+                                <Link
+                                    :href="route(item.route)"
+                                    class="flex-1 text-sm font-medium"
+                                    :class="item.completed
+                                        ? 'text-emerald-800 dark:text-emerald-200'
+                                        : 'text-stone-700 dark:text-neutral-200'"
+                                >
+                                    {{ item.label }}
+                                </Link>
+                                <span v-if="item.completed" class="text-[11px] font-semibold text-emerald-700 dark:text-emerald-300">
+                                    Done
+                                </span>
+                            </li>
+                        </ul>
+                    </div>
                     <AnnouncementsPanel
                         v-if="hasQuickAnnouncements"
                         :announcements="quickAnnouncements"

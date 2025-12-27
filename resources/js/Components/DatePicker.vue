@@ -33,7 +33,8 @@
                peer-focus:-translate-y-1.5
                peer-focus:text-stone-500 dark:peer-focus:text-neutral-500"
       >
-        {{ label }}
+        <span>{{ label }}</span>
+        <span v-if="required" class="text-red-500 dark:text-red-400"> *</span>
       </label>
 
       <!-- Calendar Dropdown -->
@@ -117,6 +118,10 @@
       type: String,
       required: false,
       default: ''
+    },
+    required: {
+      type: Boolean,
+      default: false
     },
     label: {
       type: String,

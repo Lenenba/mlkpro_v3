@@ -6,6 +6,7 @@ use App\Models\Role;
 use App\Models\TeamMember;
 use App\Models\User;
 use App\Models\ProductCategory;
+use App\Notifications\WelcomeEmailNotification;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -141,6 +142,8 @@ class OnboardingController extends Controller
             $companyLogoPath = $request->file('company_logo')->store('company/logos', 'public');
         }
 
+        $wasOnboarded = (bool) $accountOwner->onboarding_completed_at;
+
         $accountOwner->update([
             'company_name' => $validated['company_name'],
             'company_logo' => $companyLogoPath,
@@ -185,6 +188,10 @@ class OnboardingController extends Controller
         }
         if ($invitePasswords) {
             $messageParts[] = 'Team passwords: ' . implode(', ', $invitePasswords);
+        }
+
+        if (!$wasOnboarded && $accountOwner->email) {
+            $accountOwner->notify(new WelcomeEmailNotification($accountOwner));
         }
 
         return redirect()->route('dashboard')->with('success', implode(' ', $messageParts));
