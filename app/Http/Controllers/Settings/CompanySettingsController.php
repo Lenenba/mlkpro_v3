@@ -36,6 +36,7 @@ class CompanySettingsController extends Controller
             ?: ($user->company_country ?: config('suppliers.default_country'));
         $suppliers = $supplierDirectory->all($supplierCountry);
         $supplierPreferences = $this->resolveSupplierPreferences($user->company_supplier_preferences, $suppliers);
+        $accountId = $user->accountOwnerId();
 
         return Inertia::render('Settings/Company', [
             'company' => [
@@ -47,7 +48,10 @@ class CompanySettingsController extends Controller
                 'company_city' => $user->company_city,
                 'company_type' => $user->company_type,
             ],
-            'categories' => ProductCategory::orderBy('name')->get(['id', 'name']),
+            'categories' => ProductCategory::forAccount($accountId)
+                ->active()
+                ->orderBy('name')
+                ->get(['id', 'name']),
             'usage_limits' => $usageLimits,
             'suppliers' => $suppliers,
             'supplier_preferences' => $supplierPreferences,

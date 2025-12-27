@@ -3,10 +3,8 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingTextarea from '@/Components/FloatingTextarea.vue';
-import ValidationSummary from '@/Components/ValidationSummary.vue';
 import { Link, useForm, Head } from '@inertiajs/vue3';
-import { ref } from 'vue';
-import axios from 'axios';
+import { computed, ref } from 'vue';
 
 
 const props = defineProps({
@@ -90,9 +88,12 @@ const submit = () => {
     });
 };
 
+const isCreating = computed(() => !props.customer?.id);
+
 const query = ref('');
 const suggestions = ref([]);
 const isSearching = ref(false);
+const geoapifyKey = import.meta.env.VITE_GEOAPIFY_KEY;
 
 const searchAddress = async () => {
     if (query.value.length < 2) {
@@ -100,22 +101,31 @@ const searchAddress = async () => {
         return;
     }
 
+    if (!geoapifyKey) {
+        suggestions.value = [];
+        return;
+    }
+
     isSearching.value = true;
     try {
-        const response = await axios.get(
-            `https://api-adresse.data.gouv.fr/search/`,
-            {
-                params: {
-                    q: query.value,
-                    limit: 5,
-                },
-            }
-        );
+        const url = new URL('https://api.geoapify.com/v1/geocode/autocomplete');
+        url.search = new URLSearchParams({
+            text: query.value,
+            apiKey: geoapifyKey,
+            limit: '5',
+            filter: 'countrycode:ca,us',
+        }).toString();
 
-        suggestions.value = response.data.features.map((feature) => ({
-            id: feature.properties.id,
-            label: feature.properties.label,
-            details: feature.properties,
+        const response = await fetch(url.toString());
+        if (!response.ok) {
+            throw new Error(`Geoapify request failed: ${response.status}`);
+        }
+
+        const data = await response.json();
+        suggestions.value = (data.features || []).map((feature) => ({
+            id: feature.properties?.place_id || feature.properties?.formatted || feature.properties?.name,
+            label: feature.properties?.formatted || feature.properties?.name || '',
+            details: feature.properties || {},
         }));
     } catch (error) {
         console.error('Erreur lors de la recherche d\'adresse :', error);
@@ -125,14 +135,24 @@ const searchAddress = async () => {
 };
 
 const selectAddress = (details) => {
-    form.properties.street1 = details.name || '';
-    form.properties.street2 = '';
-    form.properties.city = details.city || '';
-    form.properties.state = details.context || '';
-    form.properties.zip = details.postcode || '';
-    form.properties.country = 'France';
-    suggestions.value = [];
+    const address = details || {};
+    const streetParts = [];
+    if (address.house_number) {
+        streetParts.push(address.house_number);
+    }
+    if (address.street) {
+        streetParts.push(address.street);
+    }
+    const city = address.city || address.town || address.village || address.hamlet || address.suburb;
 
+    form.properties.street1 = streetParts.join(' ').trim();
+    form.properties.street2 = '';
+    form.properties.city = city || '';
+    form.properties.state = address.state || address.county || address.region || '';
+    form.properties.zip = address.postcode || '';
+    form.properties.country = address.country || '';
+    suggestions.value = [];
+    query.value = details.formatted || details.name || query.value;
 };
 </script>
 <template>
@@ -149,13 +169,6 @@ const selectAddress = (details) => {
 
         </div>
         <form @submit.prevent="submit">
-            <div class="grid grid-cols-1 lg:grid-cols-4 gap-1 md:gap-3 lg:gap-1">
-                <div></div>
-                <div class="lg:col-span-2">
-                    <ValidationSummary :errors="form.errors" />
-                </div>
-                <div></div>
-            </div>
             <div class="grid grid-cols-1 lg:grid-cols-4 gap-1 md:gap-3 lg:gap-1 ">
                 <div></div>
                 <div
@@ -173,16 +186,17 @@ const selectAddress = (details) => {
                     </div>
                     <div class="p-4 md:p-5">
                         <div class="flex flex-row">
-                            <FloatingSelect label="Title" v-model="form.salutation" class="w-1/5"
+                            <FloatingSelect label="Title" v-model="form.salutation" class="w-1/5" :required="true"
                                 :options="Salutation" />
-                            <FloatingInput v-model="form.first_name" label="First name" class="w-2/5" />
-                            <FloatingInput v-model="form.last_name" label="Last name" class="w-2/5" />
+                            <FloatingInput v-model="form.first_name" label="First name" class="w-2/5" :required="true" />
+                            <FloatingInput v-model="form.last_name" label="Last name" class="w-2/5" :required="true" />
                         </div>
                         <FloatingInput v-model="form.company_name" label="Company name" />
                         <h2 class="pt-4 text-sm  my-2 font-bold text-stone-800 dark:text-white"> Contact details</h2>
                         <FloatingInput v-model="form.phone" label="Phone" />
-                        <FloatingInput v-model="form.email" label="Email address" />
-                        <FloatingInput v-model="form.temporary_password" label="Mot de passe temporaire" type="password" />
+                        <FloatingInput v-model="form.email" label="Email address" :required="true" />
+                        <FloatingInput v-model="form.temporary_password" label="Mot de passe temporaire" type="password"
+                            :required="isCreating" />
                         <p class="text-xs text-stone-500 dark:text-neutral-400">
                             Le client pourra le changer lors de la premiere connexion.
                         </p>
@@ -323,11 +337,7 @@ const selectAddress = (details) => {
 
                         <div class="max-w-full mb-4">
                             <!-- SearchBox -->
-                            <div class="relative" data-hs-combo-box='{
-                                    "groupingType": "default",
-                                    "preventSelection": true,
-                                    "isOpenOnFocus": true
-                                }'>
+                            <div class="relative">
                                 <!-- Input Field -->
                                 <div class="relative">
                                     <div
@@ -343,7 +353,7 @@ const selectAddress = (details) => {
                                     <input v-model="query" @input="searchAddress"
                                         class="py-3 ps-10 pe-4 block w-full border-stone-200 rounded-sm text-sm focus:border-green-600 focus:ring-green-600"
                                         type="text" role="combobox" aria-expanded="false"
-                                        placeholder="Search for an address" data-hs-combo-box-input="" />
+                                        placeholder="Search for an address" />
                                 </div>
 
                                 <!-- Suggestions Dropdown -->

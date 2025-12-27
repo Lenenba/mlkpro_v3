@@ -1,5 +1,5 @@
 <script setup>
-import { ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { Link, router, useForm } from '@inertiajs/vue3';
 import Modal from '@/Components/UI/Modal.vue';
 import ServiceForm from '@/Pages/Service/UI/ServiceForm.vue';
@@ -118,6 +118,21 @@ const formatCurrency = (value) =>
 const formatDate = (value) => humanizeDate(value);
 
 const editingService = ref(null);
+const activeCategories = computed(() =>
+    (props.categories || []).filter((category) => !category.archived_at)
+);
+const selectableCategories = computed(() => {
+    const base = activeCategories.value;
+    const currentId = editingService.value?.category_id;
+    if (!currentId) {
+        return base;
+    }
+    if (base.some((category) => category.id === currentId)) {
+        return base;
+    }
+    const current = (props.categories || []).find((category) => category.id === currentId);
+    return current ? [...base, current] : base;
+});
 
 const openCreate = () => {
     editingService.value = null;
@@ -390,7 +405,7 @@ const destroyService = (service) => {
             <ServiceForm
                 :key="editingService?.id || 'new'"
                 :id="'hs-service-upsert'"
-                :categories="categories"
+                :categories="selectableCategories"
                 :materialProducts="materialProducts"
                 :service="editingService"
                 @submitted="editingService = null"

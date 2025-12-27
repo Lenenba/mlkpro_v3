@@ -41,7 +41,9 @@ class ProductController extends Controller
             'sort',
             'direction',
         ]);
-        $userId = Auth::user()->id;
+        $user = Auth::user();
+        $userId = $user?->id ?? Auth::id();
+        $accountId = $user?->accountOwnerId() ?? $userId;
 
         $baseQuery = Product::query()
             ->products()
@@ -135,7 +137,9 @@ class ProductController extends Controller
         return inertia('Product/Index', [
             'count' => $totalCount,
             'filters' => $filters,
-            'categories' => ProductCategory::all(),
+            'categories' => ProductCategory::forAccount($accountId)
+                ->orderBy('name')
+                ->get(['id', 'name', 'archived_at']),
             'products' => $products,
             'stats' => $stats,
             'topProducts' => $topProducts,
@@ -147,8 +151,14 @@ class ProductController extends Controller
      */
     public function options()
     {
+        $user = Auth::user();
+        $accountId = $user?->accountOwnerId() ?? Auth::id();
+
         return response()->json([
-            'categories' => ProductCategory::orderBy('name')->get(['id', 'name']),
+            'categories' => ProductCategory::forAccount($accountId)
+                ->active()
+                ->orderBy('name')
+                ->get(['id', 'name']),
         ]);
     }
 
@@ -157,8 +167,14 @@ class ProductController extends Controller
      */
     public function create()
     {
+        $user = Auth::user();
+        $accountId = $user?->accountOwnerId() ?? Auth::id();
+
         return inertia('Product/Create', [
-            'categories' => ProductCategory::all()
+            'categories' => ProductCategory::forAccount($accountId)
+                ->active()
+                ->orderBy('name')
+                ->get(['id', 'name'])
         ]);
     }
 
@@ -248,6 +264,8 @@ class ProductController extends Controller
         if (!$user) {
             abort(403);
         }
+        $accountId = $user->accountOwnerId();
+        $creatorId = $user->id;
 
         $validated = $request->validate([
             'name' => 'required|string|max:255',
@@ -300,11 +318,18 @@ class ProductController extends Controller
             $description = $source['title'] ?? null;
         }
 
+        $category = $this->resolveCategory($accountId, $creatorId, $itemType);
+        if (!$category) {
+            return response()->json([
+                'message' => 'Unable to resolve category.',
+            ], 422);
+        }
+
         $product = Product::create([
             'user_id' => Auth::id(),
             'name' => $name ?: 'Draft product',
             'description' => $description ?: 'Auto-generated from price lookup.',
-            'category_id' => $this->resolveCategory($itemType)->id,
+            'category_id' => $category->id,
             'price' => $price,
             'cost_price' => $costPrice,
             'margin_percent' => $marginPercent,
@@ -346,7 +371,10 @@ class ProductController extends Controller
             'product' => $product->load(['category', 'user', 'images', 'stockMovements' => function ($query) {
                 $query->limit(10);
             }]),
-            'categories' => ProductCategory::all()
+            'categories' => ProductCategory::forAccount(Auth::user()?->accountOwnerId() ?? Auth::id())
+                ->active()
+                ->orderBy('name')
+                ->get(['id', 'name'])
         ]);
     }
 
@@ -592,6 +620,10 @@ class ProductController extends Controller
      */
     public function import(Request $request): RedirectResponse
     {
+        $user = $request->user();
+        $accountId = $user?->accountOwnerId() ?? Auth::id();
+        $creatorId = $user?->id ?? Auth::id();
+
         $data = $request->validate([
             'file' => 'required|file|mimes:csv,txt|max:10000',
         ]);
@@ -621,8 +653,8 @@ class ProductController extends Controller
             $categoryName = $dataRow['category'] ?? null;
             $categoryId = null;
             if ($categoryName) {
-                $category = ProductCategory::firstOrCreate(['name' => $categoryName]);
-                $categoryId = $category->id;
+                $category = ProductCategory::resolveForAccount($accountId, $creatorId, $categoryName);
+                $categoryId = $category?->id;
             }
 
             $payload = [
@@ -655,7 +687,8 @@ class ProductController extends Controller
                 $payload['user_id'] = Auth::id();
                 $payload['item_type'] = Product::ITEM_TYPE_PRODUCT;
                 if (!$payload['category_id']) {
-                    $payload['category_id'] = ProductCategory::first()->id ?? null;
+                    $fallback = $this->resolveCategory($accountId, $creatorId, Product::ITEM_TYPE_PRODUCT);
+                    $payload['category_id'] = $fallback?->id;
                 }
                 if ($payload['category_id']) {
                     Product::create($payload);
@@ -749,11 +782,11 @@ class ProductController extends Controller
         }
     }
 
-    private function resolveCategory(string $itemType): ProductCategory
+    private function resolveCategory(int $accountId, ?int $creatorId, string $itemType): ?ProductCategory
     {
         $name = $itemType === Product::ITEM_TYPE_PRODUCT ? 'Products' : 'Services';
 
-        return ProductCategory::firstOrCreate(['name' => $name]);
+        return ProductCategory::resolveForAccount($accountId, $creatorId, $name);
     }
 
     private function normalizeSourceDetails($details): ?array

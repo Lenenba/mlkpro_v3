@@ -11,6 +11,7 @@
         "customers": "Customers",
         "products": "Products",
         "services": "Services",
+        "categories": "Categories",
         "quotes": "Quotes",
         "plan_scans": "Plan scanner",
         "requests": "Requests",
@@ -218,5 +219,230 @@
             "terms": "Terms and conditions",
             "copy": "MLK Pro. All rights reserved."
         }
+    },
+    "terms": {
+        "meta": {
+            "title": "Terms and conditions"
+        },
+        "header": {
+            "tagline": "Business management suite"
+        },
+        "actions": {
+            "sign_in": "Sign in",
+            "create_account": "Create account"
+        },
+        "intro": {
+            "eyebrow": "Terms and conditions",
+            "title": "Terms of Use for MLK Pro",
+            "updated": "Last update: {date}. This page is a template and should be reviewed before publication.",
+            "legal": "Legal name: Malikia Pro."
+        },
+        "sections": {
+            "scope": {
+                "title": "1. Scope",
+                "body": "These terms govern access to MLK Pro, a platform that helps businesses manage customers, quotes, jobs, tasks, invoices, products, and plan scans."
+            },
+            "accounts": {
+                "title": "2. Accounts",
+                "bullets": {
+                    "one": "Accounts are created and managed by a business owner or admin.",
+                    "two": "You are responsible for keeping credentials secure.",
+                    "three": "Roles and permissions limit access to data and actions."
+                }
+            },
+            "data": {
+                "title": "3. Data ownership",
+                "body": "Your company retains ownership of its data. By using MLK Pro, you grant the platform permission to store, process, and display your data as needed to provide the service."
+            },
+            "pricing": {
+                "title": "4. Quotes and pricing data",
+                "bullets": {
+                    "one": "Quotes are estimates and may vary based on site conditions and scope changes.",
+                    "two": "Price lookups use third-party sources and accuracy is not guaranteed.",
+                    "three": "You must validate supplier pricing before accepting or sending a quote."
+                }
+            },
+            "billing": {
+                "title": "5. Billing and payments",
+                "body": "Subscription fees, taxes, and payment terms are displayed in your billing settings. Unpaid invoices may result in limited access until resolved."
+            },
+            "acceptable": {
+                "title": "6. Acceptable use",
+                "bullets": {
+                    "one": "Do not upload unlawful content or misuse customer data.",
+                    "two": "Do not attempt to disrupt or reverse engineer the service.",
+                    "three": "Comply with applicable laws and client agreements."
+                }
+            },
+            "availability": {
+                "title": "7. Availability",
+                "body": "The platform is provided on an as-is basis. We may perform maintenance or updates that temporarily impact availability."
+            },
+            "liability": {
+                "title": "8. Limitation of liability",
+                "body": "MLK Pro is not liable for indirect damages, lost profits, or data loss beyond the limits required by law. Use the service at your own risk."
+            },
+            "termination": {
+                "title": "9. Termination",
+                "body": "You can cancel your subscription at any time. We may suspend access for violations of these terms or non-payment."
+            },
+            "changes": {
+                "title": "10. Changes",
+                "body": "We may update these terms. Continued use after changes means you accept the updated terms."
+            }
+        },
+        "note": "Questions? Contact your account owner or use the in-app support channel.",
+        "footer": "MLK Pro. All rights reserved. {year}"
+    },
+    "legal": {
+        "header": {
+            "tagline": "Business management suite"
+        },
+        "actions": {
+            "sign_in": "Sign in",
+            "create_account": "Create account"
+        },
+        "links": {
+            "terms": "Terms and conditions",
+            "privacy": "Privacy policy",
+            "refund": "Refund policy",
+            "pricing": "Pricing"
+        },
+        "footer": "Malikia Pro. All rights reserved. {year}"
+    },
+    "pricing": {
+        "meta": {
+            "title": "Pricing"
+        },
+        "hero": {
+            "eyebrow": "Pricing",
+            "title": "Plans built for field teams",
+            "subtitle": "Choose a plan that fits your workflow. Pricing is available on request.",
+            "note": "Need enterprise or custom limits? Request the pricing sheet."
+        },
+        "plans": {
+            "starter": {
+                "label": "Starter",
+                "price": "Contact us",
+                "desc": "For small teams starting with quotes and jobs."
+            },
+            "pro": {
+                "label": "Pro",
+                "badge": "Recommended",
+                "price": "Contact us",
+                "desc": "For growing teams managing services and products."
+            },
+            "enterprise": {
+                "label": "Enterprise",
+                "price": "Custom",
+                "desc": "Advanced controls, multi-entity support, and SLA options."
+            }
+        },
+        "features": {
+            "title": "Included with every plan",
+            "items": {
+                "one": "Quotes, jobs, tasks, and invoices",
+                "two": "Unified catalog for services and products",
+                "three": "Plan scan pricing signals and sources",
+                "four": "Client portal with approvals",
+                "five": "Team roles and permissions"
+            }
+        },
+        "enterprise": {
+            "title": "Enterprise pricing sheet",
+            "body": "Request the enterprise sheet for custom limits, security review, and onboarding support."
+        },
+        "actions": {
+            "primary": "Start onboarding",
+            "secondary": "Sign in"
+        }
+    },
+    "privacy": {
+        "meta": {
+            "title": "Privacy policy"
+        },
+        "intro": {
+            "eyebrow": "Privacy policy",
+            "title": "Privacy policy for MLK Pro",
+            "updated": "Last update: {date}.",
+            "summary": "This policy explains how Malikia Pro collects, uses, and protects data on MLK Pro."
+        },
+        "sections": {
+            "scope": {
+                "title": "1. Scope",
+                "body": "This policy applies to the MLK Pro platform and related services."
+            },
+            "data": {
+                "title": "2. Data we collect",
+                "body": "We collect account details, company information, usage data, and files you upload."
+            },
+            "usage": {
+                "title": "3. How we use data",
+                "body": "We use data to provide the service, improve features, and support your team."
+            },
+            "sharing": {
+                "title": "4. Data sharing",
+                "body": "We share data with service providers only as needed to operate the platform. We do not sell personal data."
+            },
+            "security": {
+                "title": "5. Security",
+                "body": "We use reasonable safeguards, access controls, and logging to protect your data."
+            },
+            "retention": {
+                "title": "6. Retention",
+                "body": "We keep data while your account is active or as required by law."
+            },
+            "rights": {
+                "title": "7. Your rights",
+                "body": "You can request access, correction, or deletion of data through your account owner."
+            },
+            "contact": {
+                "title": "8. Contact",
+                "body": "For privacy questions, contact support in the app."
+            }
+        },
+        "note": "If you have questions, contact support in the app."
+    },
+    "refund": {
+        "meta": {
+            "title": "Refund policy"
+        },
+        "intro": {
+            "eyebrow": "Refund policy",
+            "title": "Refund policy for MLK Pro",
+            "updated": "Last update: {date}.",
+            "summary": "This policy explains how refunds and credits are handled for MLK Pro subscriptions."
+        },
+        "sections": {
+            "scope": {
+                "title": "1. Scope",
+                "body": "Subscriptions are billed in advance and include access to MLK Pro features."
+            },
+            "eligibility": {
+                "title": "2. Eligibility",
+                "body": "Refunds may be considered for duplicate charges or verified billing errors."
+            },
+            "exclusions": {
+                "title": "3. Exclusions",
+                "bullets": {
+                    "one": "Change of mind after significant use.",
+                    "two": "Third-party fees or payment provider charges.",
+                    "three": "Custom services or onboarding services."
+                }
+            },
+            "process": {
+                "title": "4. How to request",
+                "body": "Submit a request via in-app support with the invoice and reason for the refund."
+            },
+            "timeline": {
+                "title": "5. Processing time",
+                "body": "If approved, refunds are issued to the original payment method. Processing time depends on the payment provider."
+            },
+            "chargebacks": {
+                "title": "6. Chargebacks",
+                "body": "Chargebacks may pause access while we review the claim."
+            }
+        },
+        "note": "Contact support if you need help with billing."
     }
 }

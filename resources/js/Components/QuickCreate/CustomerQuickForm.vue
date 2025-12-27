@@ -51,6 +51,9 @@ const form = reactive({
 const errors = ref({});
 const formError = ref('');
 const isSubmitting = ref(false);
+const addressQuery = ref('');
+const addressSuggestions = ref([]);
+const geoapifyKey = import.meta.env.VITE_GEOAPIFY_KEY;
 
 const salutations = [
     { id: 'Mr', name: 'Mr' },
@@ -122,6 +125,8 @@ const resetForm = () => {
         zip: '',
         country: '',
     };
+    addressQuery.value = '';
+    addressSuggestions.value = [];
 };
 
 const closeOverlay = () => {
@@ -190,17 +195,74 @@ const submit = async () => {
         isSubmitting.value = false;
     }
 };
+
+const searchAddress = async () => {
+    if (addressQuery.value.length < 2) {
+        addressSuggestions.value = [];
+        return;
+    }
+
+    if (!geoapifyKey) {
+        addressSuggestions.value = [];
+        return;
+    }
+
+    try {
+        const url = new URL('https://api.geoapify.com/v1/geocode/autocomplete');
+        url.search = new URLSearchParams({
+            text: addressQuery.value,
+            apiKey: geoapifyKey,
+            limit: '5',
+            filter: 'countrycode:ca,us',
+        }).toString();
+
+        const response = await fetch(url.toString());
+        if (!response.ok) {
+            throw new Error(`Geoapify request failed: ${response.status}`);
+        }
+
+        const data = await response.json();
+        addressSuggestions.value = (data.features || []).map((feature) => ({
+            id: feature.properties?.place_id || feature.properties?.formatted || feature.properties?.name,
+            label: feature.properties?.formatted || feature.properties?.name || '',
+            details: feature.properties || {},
+        }));
+    } catch (error) {
+        addressSuggestions.value = [];
+    }
+};
+
+const selectAddress = (details) => {
+    const address = details || {};
+    const streetParts = [];
+    if (address.house_number) {
+        streetParts.push(address.house_number);
+    }
+    if (address.street) {
+        streetParts.push(address.street);
+    }
+    const city = address.city || address.town || address.village || address.hamlet || address.suburb;
+
+    form.properties.street1 = streetParts.join(' ').trim();
+    form.properties.street2 = '';
+    form.properties.city = city || '';
+    form.properties.state = address.state || address.county || address.region || '';
+    form.properties.zip = address.postcode || '';
+    form.properties.country = address.country || '';
+    addressQuery.value = details.formatted || details.name || addressQuery.value;
+    addressSuggestions.value = [];
+};
 </script>
 
 <template>
     <form @submit.prevent="submit" class="space-y-4">
         <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <FloatingSelect v-model="form.salutation" label="Title" :options="salutations" />
-            <FloatingInput v-model="form.first_name" label="First name" />
-            <FloatingInput v-model="form.last_name" label="Last name" />
+            <FloatingSelect v-model="form.salutation" label="Title" :options="salutations" :required="true" />
+            <FloatingInput v-model="form.first_name" label="First name" :required="true" />
+            <FloatingInput v-model="form.last_name" label="Last name" :required="true" />
             <FloatingInput v-model="form.company_name" label="Company name" />
-            <FloatingInput v-model="form.email" label="Email" />
-            <FloatingInput v-model="form.temporary_password" label="Mot de passe temporaire" type="password" />
+            <FloatingInput v-model="form.email" label="Email" :required="true" />
+            <FloatingInput v-model="form.temporary_password" label="Mot de passe temporaire" type="password" :required="true" />
             <FloatingInput v-model="form.phone" label="Phone" />
         </div>
 
@@ -208,13 +270,43 @@ const submit = async () => {
 
         <div class="rounded-sm border border-stone-200 p-4 dark:border-neutral-700">
             <div class="text-sm font-medium text-stone-700 dark:text-neutral-200">Location</div>
+            <div class="mt-3">
+                <div class="relative">
+                    <div class="relative">
+                        <div class="absolute inset-y-0 start-0 flex items-center pointer-events-none z-20 ps-3.5">
+                            <svg class="shrink-0 size-4 text-stone-400 dark:text-white/60" xmlns="http://www.w3.org/2000/svg"
+                                width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="11" cy="11" r="8"></circle>
+                                <path d="m21 21-4.3-4.3"></path>
+                            </svg>
+                        </div>
+                        <input v-model="addressQuery" @input="searchAddress"
+                            class="py-3 ps-10 pe-4 block w-full border-stone-200 rounded-sm text-sm focus:border-green-600 focus:ring-green-600"
+                            type="text" role="combobox" aria-expanded="false" placeholder="Search for an address"
+                            />
+                    </div>
+
+                    <div v-if="addressSuggestions.length"
+                        class="absolute z-50 w-full bg-white rounded-sm shadow-[0_10px_40px_10px_rgba(0,0,0,0.08)] dark:bg-neutral-800">
+                        <div
+                            class="max-h-[300px] p-2 overflow-y-auto overflow-hidden [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-stone-100 [&::-webkit-scrollbar-thumb]:bg-stone-300 dark:[&::-webkit-scrollbar-track]:bg-neutral-700 dark:[&::-webkit-scrollbar-thumb]:bg-neutral-500">
+                            <div v-for="suggestion in addressSuggestions" :key="suggestion.id"
+                                class="py-2 px-3 flex items-center gap-x-3 hover:bg-stone-100 rounded-sm dark:hover:bg-neutral-700 cursor-pointer"
+                                @click="selectAddress(suggestion.details)">
+                                <span class="text-sm text-stone-800 dark:text-neutral-200">{{ suggestion.label }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
             <div class="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
-                <FloatingInput v-model="form.properties.street1" label="Street" />
-                <FloatingInput v-model="form.properties.street2" label="Street 2" />
-                <FloatingInput v-model="form.properties.city" label="City" />
-                <FloatingInput v-model="form.properties.state" label="State" />
-                <FloatingInput v-model="form.properties.zip" label="Zip code" />
-                <FloatingInput v-model="form.properties.country" label="Country" />
+                <FloatingInput v-model="form.properties.street1" label="Street" :readonly="true" />
+                <FloatingInput v-model="form.properties.street2" label="Street 2" :readonly="true" />
+                <FloatingInput v-model="form.properties.city" label="City" :readonly="true" />
+                <FloatingInput v-model="form.properties.state" label="State" :readonly="true" />
+                <FloatingInput v-model="form.properties.zip" label="Zip code" :readonly="true" />
+                <FloatingInput v-model="form.properties.country" label="Country" :readonly="true" />
             </div>
             <div class="mt-3 flex items-center gap-2">
                 <input type="checkbox" v-model="form.billing_same_as_physical"

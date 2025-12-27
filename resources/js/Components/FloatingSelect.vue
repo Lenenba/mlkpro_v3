@@ -9,6 +9,10 @@ const props = defineProps({
         type: Array,
         required: true,
     },
+    required: {
+        type: Boolean,
+        default: false,
+    },
 });
 const model = defineModel({
     type: [String, Number],
@@ -45,7 +49,10 @@ defineExpose({ focus: () => input.value.focus() });
             peer-focus:text-stone-500 dark:peer-focus:text-neutral-500
             peer-[:not(:placeholder-shown)]:text-xs
             peer-[:not(:placeholder-shown)]:-translate-y-1.5
-            peer-[:not(:placeholder-shown)]:text-stone-500 dark:peer-[:not(:placeholder-shown)]:text-neutral-500 dark:text-neutral-500">{{ label }}</label>
+            peer-[:not(:placeholder-shown)]:text-stone-500 dark:peer-[:not(:placeholder-shown)]:text-neutral-500 dark:text-neutral-500">
+            <span>{{ label }}</span>
+            <span v-if="required" class="text-red-500 dark:text-red-400"> *</span>
+        </label>
     </div>
     <!-- End Floating Select -->
 </template>

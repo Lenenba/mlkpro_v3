@@ -53,6 +53,9 @@ class ProductCategoryFactory extends Factory
 
         return [
             'name' => $this->faker->unique()->randomElement($categories), // Catégorie réaliste unique
+            'user_id' => null,
+            'created_by_user_id' => null,
+            'archived_at' => null,
         ];
     }
 }

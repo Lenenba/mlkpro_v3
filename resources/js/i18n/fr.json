@@ -11,6 +11,7 @@
     "customers": "Clients",
     "products": "Produits",
     "services": "Services",
+    "categories": "Categories",
     "quotes": "Devis",
     "plan_scans": "Scan de plan",
     "requests": "Demandes",
@@ -92,7 +93,7 @@
       }
     }
   },
-    "welcome": {
+  "welcome": {
     "meta": {
       "title": "Bienvenue"
     },
@@ -100,79 +101,79 @@
       "tagline": "Suite de gestion"
     },
     "hero": {
-      "eyebrow": "Concu pour equipes terrain",
-      "title": "Gerez tout le cycle du job dans un espace clair.",
-      "subtitle": "MLK Pro relie devis, plan scans, catalogue, jobs, taches et factures avec une vision claire.",
-      "primary_cta": "Demarrer l onboarding",
+      "eyebrow": "Conçu pour les équipes terrain",
+      "title": "Gérez tout le cycle d’un chantier dans un espace clair.",
+      "subtitle": "MLK Pro relie devis, scan de plans, catalogue, chantiers, tâches et factures, avec une vision simple et structurée.",
+      "primary_cta": "Démarrer l’onboarding",
       "secondary_cta": "Se connecter",
-      "note": "Passez du mode services au mode produits sans perte de donnees.",
+      "note": "Passez du mode Services au mode Produits sans perte de données.",
       "highlights": {
-        "one": "Devis rapides avec marge",
-        "two": "Plan scan vers prix en minutes",
+        "one": "Devis rapides avec marges",
+        "two": "Scan de plan → prix en quelques minutes",
         "three": "Portail client pour validation"
       },
       "stats": {
-        "one_label": "Modules cle",
+        "one_label": "Modules clés",
         "two_label": "Modes de travail",
-        "three_label": "Tableaux live"
+        "three_label": "Tableaux en direct"
       },
       "preview": {
-        "one": "Devis prets",
-        "one_desc": "Marges, sources, validation en un ecran.",
-        "two": "Signaux plan scan",
-        "two_desc": "Benchmarks avec liens fournisseurs."
+        "one": "Devis prêts",
+        "one_desc": "Marges, sources et validation sur un seul écran.",
+        "two": "Signaux du scan de plan",
+        "two_desc": "Benchmarks et liens fournisseurs intégrés."
       }
     },
     "trust": {
-      "title": "Equipes au Canada",
+      "title": "Équipes au Canada",
       "items": {
         "one": "Plomberie",
-        "two": "Electricite",
+        "two": "Électricité",
         "three": "Menuiserie",
         "four": "Nettoyage",
-        "five": "HVAC",
-        "six": "Entrepreneurs generaux"
+        "five": "CVC (HVAC)",
+        "six": "Entrepreneurs généraux"
       }
     },
     "features": {
       "kicker": "Plateforme",
-      "title": "Tout pour vendre, planifier, livrer",
-      "subtitle": "Devis rapides, suivi jobs, equipe alignee.",
+      "title": "Tout pour vendre, planifier et livrer",
+      "subtitle": "Devis rapides, suivi des chantiers, équipe alignée.",
       "items": {
         "quotes": {
           "title": "Devis intelligents",
-          "desc": "Mixez services et produits, suivez marges et sources."
+          "desc": "Mixez services et produits, et suivez marges et sources."
         },
         "plans": {
-          "title": "Plan scanner",
-          "desc": "Transformez un plan en lignes avec benchmarks."
+          "title": "Scan de plan",
+          "desc": "Transformez un plan en lignes de devis avec benchmarks."
         },
         "catalog": {
           "title": "Catalogue unique",
           "desc": "Une base commune pour produits, services et prix."
         },
         "ops": {
-          "title": "Operations terrain",
-          "desc": "Assignez, suivez les jobs et la preuve terrain."
+          "title": "Opérations terrain",
+          "desc": "Assignez, suivez les chantiers et collectez la preuve terrain."
         },
         "portal": {
           "title": "Portail client",
-          "desc": "Clients acceptent, planifient et paient."
+          "desc": "Les clients acceptent, planifient et paient en quelques clics."
         },
         "multi": {
-          "title": "Multi entreprise",
-          "desc": "Gerez plusieurs societes depuis un seul compte."
+          "title": "Multi-entreprises",
+          "desc": "Gérez plusieurs sociétés depuis un seul compte."
         }
       }
     },
     "workflow": {
       "kicker": "Workflow",
       "title": "De la demande au paiement",
-      "subtitle": "Un flux simple pour garder l equipe alignee.",
+      "subtitle": "Un flux simple pour garder l’équipe alignée.",
       "steps": {
         "one": {
-          "title": "Creez l entreprise",
-          "desc": "Logo, roles, permissions et parametres."
+          "title": "Créez l’entreprise",
+          "desc": "Logo, rôles, permissions et paramètres."
         },
         "two": {
           "title": "Construisez le catalogue",
@@ -183,40 +184,265 @@
           "desc": "Partagez les estimations et suivez la validation."
         },
         "four": {
-          "title": "Planifiez les jobs",
+          "title": "Planifiez les chantiers",
           "desc": "Suivi des statuts, checklists et preuves."
         },
         "five": {
           "title": "Facturez et encaissez",
-          "desc": "Convertissez le travail approuve en factures."
+          "desc": "Convertissez le travail approuvé en factures."
         }
       }
     },
     "field": {
       "kicker": "Ops terrain",
       "title": "Flux mobile terrain",
-      "subtitle": "Des outils simples pour les equipes sur place.",
+      "subtitle": "Des outils simples pour les équipes sur place.",
       "items": {
-        "one": "Liste quotidienne avec priorites",
+        "one": "Liste quotidienne avec priorités",
         "two": "Checklists et preuves",
         "three": "Photos et documents sur site",
         "four": "Validations et signatures client"
       }
     },
     "cta": {
-      "title": "Pret a creer votre espace ?",
-      "subtitle": "Creez votre espace en quelques minutes et invitez votre equipe.",
-      "primary": "Creer un espace",
+      "title": "Prêt à créer votre espace ?",
+      "subtitle": "Créez votre espace en quelques minutes et invitez votre équipe.",
+      "primary": "Créer un espace",
       "secondary": "Se connecter"
     },
     "images": {
-      "hero_alt": "Apercu tableau de bord",
-      "workflow_alt": "Apercu tableau workflow",
-      "mobile_alt": "Apercu checklist mobile"
+      "hero_alt": "Aperçu du tableau de bord",
+      "workflow_alt": "Aperçu du workflow",
+      "mobile_alt": "Aperçu d’une checklist mobile"
     },
     "footer": {
-      "terms": "Conditions d utilisation",
-      "copy": "MLK Pro. Tous droits reserves."
+      "terms": "Conditions d’utilisation",
+      "copy": "MLK Pro. Tous droits réservés."
     }
+  },
+  "terms": {
+    "meta": {
+      "title": "Conditions d utilisation"
+    },
+    "header": {
+      "tagline": "Suite de gestion"
+    },
+    "actions": {
+      "sign_in": "Se connecter",
+      "create_account": "Creer un compte"
+    },
+    "intro": {
+      "eyebrow": "Conditions d utilisation",
+      "title": "Conditions d utilisation pour MLK Pro",
+      "updated": "Derniere mise a jour: {date}. Cette page est un modele et doit etre relue avant publication.",
+      "legal": "Nom legal: Malikia Pro."
+    },
+    "sections": {
+      "scope": {
+        "title": "1. Portee",
+        "body": "Ces conditions regissent l acces a MLK Pro, une plateforme qui aide les entreprises a gerer clients, devis, jobs, taches, factures, produits et scans de plan."
+      },
+      "accounts": {
+        "title": "2. Comptes",
+        "bullets": {
+          "one": "Les comptes sont crees et geres par un proprietaire ou un admin.",
+          "two": "Vous etes responsable de la securite des identifiants.",
+          "three": "Les roles et permissions limitent l acces aux donnees et actions."
+        }
+      },
+      "data": {
+        "title": "3. Propriete des donnees",
+        "body": "Votre entreprise garde la propriete de ses donnees. En utilisant MLK Pro, vous autorisez la plateforme a stocker, traiter et afficher vos donnees pour fournir le service."
+      },
+      "pricing": {
+        "title": "4. Devis et donnees de prix",
+        "bullets": {
+          "one": "Les devis sont des estimations et peuvent varier selon le site et le perimetre.",
+          "two": "Les recherches de prix utilisent des sources tierces et la precision n est pas garantie.",
+          "three": "Vous devez valider les prix fournisseur avant d accepter ou d envoyer un devis."
+        }
+      },
+      "billing": {
+        "title": "5. Facturation et paiements",
+        "body": "Les frais d abonnement, taxes et conditions de paiement sont visibles dans la facturation. Les impayes peuvent limiter l acces."
+      },
+      "acceptable": {
+        "title": "6. Usage acceptable",
+        "bullets": {
+          "one": "Ne televersez pas de contenu illegal et ne detournez pas les donnees client.",
+          "two": "Ne tentez pas de perturber ou d analyser le service.",
+          "three": "Respectez les lois applicables et les accords client."
+        }
+      },
+      "availability": {
+        "title": "7. Disponibilite",
+        "body": "La plateforme est fournie en l etat. Nous pouvons faire de la maintenance ou des mises a jour qui impactent temporairement la disponibilite."
+      },
+      "liability": {
+        "title": "8. Limitation de responsabilite",
+        "body": "MLK Pro n est pas responsable des dommages indirects, pertes de profits ou pertes de donnees au dela des limites legales. Utilisez le service a vos risques."
+      },
+      "termination": {
+        "title": "9. Resiliation",
+        "body": "Vous pouvez resilier votre abonnement a tout moment. Nous pouvons suspendre l acces en cas de violation ou d impaye."
+      },
+      "changes": {
+        "title": "10. Modifications",
+        "body": "Nous pouvons mettre a jour ces conditions. L utilisation continue vaut acceptation des mises a jour."
+      }
+    },
+    "note": "Questions? Contactez le proprietaire du compte ou utilisez le support dans l application.",
+    "footer": "MLK Pro. Tous droits reserves. {year}"
+  },
+  "legal": {
+    "header": {
+      "tagline": "Suite de gestion"
+    },
+    "actions": {
+      "sign_in": "Se connecter",
+      "create_account": "Creer un compte"
+    },
+    "links": {
+      "terms": "Conditions d utilisation",
+      "privacy": "Politique de confidentialite",
+      "refund": "Politique de remboursement",
+      "pricing": "Tarification"
+    },
+    "footer": "Malikia Pro. Tous droits reserves. {year}"
+  },
+  "pricing": {
+    "meta": {
+      "title": "Tarification"
+    },
+    "hero": {
+      "eyebrow": "Tarification",
+      "title": "Plans pour equipes terrain",
+      "subtitle": "Choisissez un plan adapte a votre workflow. Prix sur demande.",
+      "note": "Besoin d un plan entreprise ou sur mesure? Demandez la fiche."
+    },
+    "plans": {
+      "starter": {
+        "label": "Essentiel",
+        "price": "Contactez-nous",
+        "desc": "Pour les petites equipes qui demarrent."
+      },
+      "pro": {
+        "label": "Pro",
+        "badge": "Recommande",
+        "price": "Contactez-nous",
+        "desc": "Pour les equipes en croissance et multi-activites."
+      },
+      "enterprise": {
+        "label": "Entreprise",
+        "price": "Sur mesure",
+        "desc": "Controles avances, multi-entites et options SLA."
+      }
+    },
+    "features": {
+      "title": "Inclus dans chaque plan",
+      "items": {
+        "one": "Devis, jobs, taches et factures",
+        "two": "Catalogue unique services et produits",
+        "three": "Signaux de prix et sources plan scan",
+        "four": "Portail client et validations",
+        "five": "Roles et permissions equipe"
+      }
+    },
+    "enterprise": {
+      "title": "Fiche tarif entreprise",
+      "body": "Demandez la fiche entreprise pour limites sur mesure, revue securite et onboarding."
+    },
+    "actions": {
+      "primary": "Demarrer l onboarding",
+      "secondary": "Se connecter"
+    }
+  },
+  "privacy": {
+    "meta": {
+      "title": "Politique de confidentialite"
+    },
+    "intro": {
+      "eyebrow": "Politique de confidentialite",
+      "title": "Politique de confidentialite pour MLK Pro",
+      "updated": "Derniere mise a jour: {date}.",
+      "summary": "Cette politique explique comment Malikia Pro collecte, utilise et protege les donnees sur MLK Pro."
+    },
+    "sections": {
+      "scope": {
+        "title": "1. Portee",
+        "body": "Cette politique s applique a la plateforme MLK Pro et services associes."
+      },
+      "data": {
+        "title": "2. Donnees collectees",
+        "body": "Nous collectons informations de compte, informations entreprise, donnees d usage et fichiers envoyes."
+      },
+      "usage": {
+        "title": "3. Utilisation des donnees",
+        "body": "Nous utilisons les donnees pour fournir le service, ameliorer les fonctionnalites et aider votre equipe."
+      },
+      "sharing": {
+        "title": "4. Partage des donnees",
+        "body": "Nous partageons les donnees avec des prestataires uniquement pour faire fonctionner la plateforme. Nous ne vendons pas les donnees personnelles."
+      },
+      "security": {
+        "title": "5. Securite",
+        "body": "Nous utilisons des mesures raisonnables, controles d acces et journalisation."
+      },
+      "retention": {
+        "title": "6. Conservation",
+        "body": "Nous conservons les donnees tant que le compte est actif ou selon la loi."
+      },
+      "rights": {
+        "title": "7. Vos droits",
+        "body": "Vous pouvez demander acces, correction ou suppression via le proprietaire du compte."
+      },
+      "contact": {
+        "title": "8. Contact",
+        "body": "Pour les questions de confidentialite, contactez le support dans l application."
+      }
+    },
+    "note": "Si vous avez des questions, contactez le support dans l application."
+  },
+  "refund": {
+    "meta": {
+      "title": "Politique de remboursement"
+    },
+    "intro": {
+      "eyebrow": "Politique de remboursement",
+      "title": "Politique de remboursement pour MLK Pro",
+      "updated": "Derniere mise a jour: {date}.",
+      "summary": "Cette politique explique comment les remboursements et credits sont geres pour les abonnements MLK Pro."
+    },
+    "sections": {
+      "scope": {
+        "title": "1. Portee",
+        "body": "Les abonnements sont factures a l avance et donnent acces aux fonctionnalites MLK Pro."
+      },
+      "eligibility": {
+        "title": "2. Eligibilite",
+        "body": "Les remboursements peuvent etre consideres pour doublons ou erreurs de facturation verifiees."
+      },
+      "exclusions": {
+        "title": "3. Exclusions",
+        "bullets": {
+          "one": "Changement d avis apres usage significatif.",
+          "two": "Frais tiers ou frais du processeur de paiement.",
+          "three": "Services sur mesure ou onboarding."
+        }
+      },
+      "process": {
+        "title": "4. Demande",
+        "body": "Soumettez une demande via le support dans l application avec la facture et la raison."
+      },
+      "timeline": {
+        "title": "5. Delai de traitement",
+        "body": "Si approuve, le remboursement est emis sur le moyen de paiement d origine. Le delai depend du fournisseur de paiement."
+      },
+      "chargebacks": {
+        "title": "6. Retrofacturations",
+        "body": "Les retrofacturations peuvent suspendre l acces pendant l examen."
+      }
+    },
+    "note": "Contactez le support si vous avez besoin d aide pour la facturation."
   }
 }

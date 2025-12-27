@@ -369,9 +369,20 @@ onBeforeUnmount(() => {
         <footer class="welcome-footer">
             <div class="welcome-container py-8 text-center text-xs text-stone-500">
                 <div class="flex flex-col items-center gap-2">
-                    <Link :href="route('terms')" class="text-stone-600 hover:text-stone-900">
-                        {{ $t('welcome.footer.terms') }}
-                    </Link>
+                    <div class="flex flex-wrap items-center justify-center gap-4 text-stone-600">
+                        <Link :href="route('pricing')" class="hover:text-stone-900">
+                            {{ $t('legal.links.pricing') }}
+                        </Link>
+                        <Link :href="route('terms')" class="hover:text-stone-900">
+                            {{ $t('legal.links.terms') }}
+                        </Link>
+                        <Link :href="route('privacy')" class="hover:text-stone-900">
+                            {{ $t('legal.links.privacy') }}
+                        </Link>
+                        <Link :href="route('refund')" class="hover:text-stone-900">
+                            {{ $t('legal.links.refund') }}
+                        </Link>
+                    </div>
                     <div>{{ $t('welcome.footer.copy') }} {{ new Date().getFullYear() }}</div>
                 </div>
             </div>

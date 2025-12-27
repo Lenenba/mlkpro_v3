@@ -41,7 +41,7 @@ class ProductModuleSeeder extends Seeder
 
         $categories = [];
         foreach ($categoryNames as $name) {
-            $categories[$name] = ProductCategory::firstOrCreate(['name' => $name]);
+            $categories[$name] = ProductCategory::resolveForAccount($user->id, $user->id, $name);
         }
 
         $now = now();
