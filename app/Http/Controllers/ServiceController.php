@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\ServiceRequest;
 use App\Models\Product;
 use App\Models\ProductCategory;
+use App\Models\TeamMember;
 use App\Services\UsageLimitService;
 use App\Utils\FileHandler;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
@@ -33,7 +34,9 @@ class ServiceController extends Controller
             'direction',
         ]);
 
-        $userId = Auth::id();
+        $user = Auth::user();
+        $userId = $user?->id ?? Auth::id();
+        $accountId = $user?->accountOwnerId() ?? $userId;
 
         $baseQuery = Product::query()
             ->services()
@@ -61,7 +64,9 @@ class ServiceController extends Controller
         return inertia('Service/Index', [
             'filters' => $filters,
             'services' => $services,
-            'categories' => ProductCategory::orderBy('name')->get(['id', 'name']),
+            'categories' => ProductCategory::forAccount($accountId)
+                ->orderBy('name')
+                ->get(['id', 'name', 'archived_at']),
             'materialProducts' => Product::query()
                 ->products()
                 ->byUser($userId)
@@ -75,18 +80,134 @@ class ServiceController extends Controller
     public function options()
     {
         $this->ensureServiceAccess();
+        $accountId = Auth::user()?->accountOwnerId() ?? Auth::id();
 
         return response()->json([
-            'categories' => ProductCategory::orderBy('name')->get(['id', 'name']),
+            'categories' => ProductCategory::forAccount($accountId)
+                ->active()
+                ->orderBy('name')
+                ->get(['id', 'name']),
         ]);
     }
 
-    public function categories()
+    public function categories(Request $request)
     {
         $this->ensureServiceAccess();
 
+        $user = $request->user();
+        $accountId = $user?->accountOwnerId() ?? Auth::id();
+
+        $filters = $request->only([
+            'search',
+            'status',
+            'created_from',
+            'created_to',
+            'created_by',
+            'sort',
+            'direction',
+        ]);
+
+        $baseQuery = ProductCategory::forAccount($accountId);
+
+        $filteredQuery = (clone $baseQuery)
+            ->when(
+                $filters['search'] ?? null,
+                fn($query, $search) => $query->where('name', 'like', '%' . $search . '%')
+            )
+            ->when(
+                $filters['status'] ?? null,
+                function ($query, $status) {
+                    if ($status === 'active') {
+                        $query->whereNull('archived_at');
+                    } elseif ($status === 'archived') {
+                        $query->whereNotNull('archived_at');
+                    }
+                }
+            )
+            ->when(
+                $filters['created_from'] ?? null,
+                fn($query, $createdFrom) => $query->whereDate('created_at', '>=', $createdFrom)
+            )
+            ->when(
+                $filters['created_to'] ?? null,
+                fn($query, $createdTo) => $query->whereDate('created_at', '<=', $createdTo)
+            )
+            ->when(
+                $filters['created_by'] ?? null,
+                fn($query, $createdBy) => $query->where('created_by_user_id', $createdBy)
+            );
+
+        $sort = in_array($filters['sort'] ?? null, ['name', 'created_at', 'items_count'], true)
+            ? $filters['sort']
+            : 'created_at';
+        $direction = ($filters['direction'] ?? 'desc') === 'asc' ? 'asc' : 'desc';
+
+        $filteredCount = (clone $filteredQuery)->count();
+
+        $categories = (clone $filteredQuery)
+            ->select(['id', 'name', 'user_id', 'created_by_user_id', 'created_at', 'archived_at'])
+            ->with(['createdBy:id,name'])
+            ->withCount([
+                'products as items_count' => fn($query) => $query->byUser($accountId),
+                'products as products_count' => fn($query) => $query
+                    ->byUser($accountId)
+                    ->where('item_type', Product::ITEM_TYPE_PRODUCT),
+                'products as services_count' => fn($query) => $query
+                    ->byUser($accountId)
+                    ->where('item_type', Product::ITEM_TYPE_SERVICE),
+            ])
+            ->orderBy($sort, $direction)
+            ->simplePaginate(10)
+            ->withQueryString();
+
+        $stats = [
+            'total' => (clone $baseQuery)->count(),
+            'active' => (clone $baseQuery)->whereNull('archived_at')->count(),
+            'archived' => (clone $baseQuery)->whereNotNull('archived_at')->count(),
+            'used' => (clone $baseQuery)
+                ->whereHas('products', fn($query) => $query->byUser($accountId))
+                ->count(),
+        ];
+
+        $ownerOption = $user ? [
+            'id' => $user->id,
+            'name' => $user->name,
+            'type' => 'owner',
+        ] : null;
+
+        $teamOptions = TeamMember::query()
+            ->forAccount($accountId)
+            ->active()
+            ->with('user:id,name')
+            ->get()
+            ->map(function (TeamMember $member) {
+                if (!$member->user) {
+                    return null;
+                }
+
+                return [
+                    'id' => $member->user->id,
+                    'name' => $member->user->name,
+                    'type' => 'team',
+                ];
+            })
+            ->filter()
+            ->values();
+
+        $creatorOptions = collect([$ownerOption])
+            ->filter()
+            ->merge($teamOptions)
+            ->unique('id')
+            ->sortBy('name')
+            ->values()
+            ->all();
+
         return inertia('Service/Categories', [
-            'categories' => ProductCategory::orderBy('name')->get(['id', 'name']),
+            'filters' => $filters,
+            'categories' => $categories,
+            'stats' => $stats,
+            'count' => $filteredCount,
+            'creators' => $creatorOptions,
         ]);
     }
 

@@ -75,7 +75,7 @@ class PlanScanService
             return $existing;
         }
 
-        $category = $this->resolveCategory($itemType);
+        $category = $this->resolveCategory($userId, $itemType);
 
         return Product::create([
             'user_id' => $userId,
@@ -94,11 +94,11 @@ class PlanScanService
         ]);
     }
 
-    private function resolveCategory(string $itemType): ProductCategory
+    private function resolveCategory(int $accountId, string $itemType): ProductCategory
     {
         $name = $itemType === 'product' ? 'Products' : 'Services';
 
-        return ProductCategory::firstOrCreate(['name' => $name]);
+        return ProductCategory::resolveForAccount($accountId, $accountId, $name);
     }
 
     private function normalizeMetrics(array $metrics): array

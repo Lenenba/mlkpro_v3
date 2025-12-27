@@ -154,7 +154,7 @@ class OnboardingController extends Controller
         ]);
 
         if ($validated['company_type'] === 'services') {
-            $this->seedSectorCategories($validated['company_sector'] ?? null);
+            $this->seedSectorCategories($accountOwner, $creator, $validated['company_sector'] ?? null);
         }
 
         $invitePasswords = [];
@@ -190,7 +190,7 @@ class OnboardingController extends Controller
         return redirect()->route('dashboard')->with('success', implode(' ', $messageParts));
     }
 
-    private function seedSectorCategories(?string $sector): void
+    private function seedSectorCategories(User $accountOwner, User $creator, ?string $sector): void
     {
         $normalized = Str::of((string) $sector)->lower()->trim()->toString();
         $categories = self::SECTOR_CATEGORIES[$normalized] ?? null;
@@ -206,7 +206,11 @@ class OnboardingController extends Controller
             if ($clean === '') {
                 continue;
             }
-            ProductCategory::firstOrCreate(['name' => $clean]);
+
+            $category = ProductCategory::resolveForAccount($accountOwner->id, $creator->id, $clean);
+            if ($category && $category->user_id === $accountOwner->id && $category->archived_at) {
+                $category->update(['archived_at' => null]);
+            }
         }
     }
 

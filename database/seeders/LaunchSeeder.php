@@ -256,8 +256,8 @@ class LaunchSeeder extends Seeder
             ]
         );
 
-        $serviceCategory = ProductCategory::firstOrCreate(['name' => 'Services']);
-        $productCategory = ProductCategory::firstOrCreate(['name' => 'Products']);
+        $serviceCategory = ProductCategory::resolveForAccount($serviceOwner->id, $serviceOwner->id, 'Services');
+        $productCategory = ProductCategory::resolveForAccount($productOwner->id, $productOwner->id, 'Products');
 
         $serviceProducts = collect([
             ['name' => 'Window cleaning', 'price' => 120],

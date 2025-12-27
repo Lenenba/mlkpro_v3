@@ -200,7 +200,9 @@ class QuoteController extends Controller
             return back()->withErrors(['property_id' => 'Invalid property for this customer.']);
         }
 
-        $items = collect($this->buildQuoteItems($validated['product'], $itemType, Auth::id()));
+        $accountId = $request->user()?->accountOwnerId() ?? Auth::id();
+        $creatorId = $request->user()?->id ?? Auth::id();
+        $items = collect($this->buildQuoteItems($validated['product'], $itemType, Auth::id(), $accountId, $creatorId));
 
         $subtotal = $items->sum('total');
         $selectedTaxes = Tax::whereIn('id', $validated['taxes'] ?? [])->get();
@@ -304,7 +306,9 @@ class QuoteController extends Controller
             return back()->withErrors(['property_id' => 'Invalid property for this customer.']);
         }
 
-        $items = collect($this->buildQuoteItems($validated['product'], $itemType, Auth::id()));
+        $accountId = $request->user()?->accountOwnerId() ?? Auth::id();
+        $creatorId = $request->user()?->id ?? Auth::id();
+        $items = collect($this->buildQuoteItems($validated['product'], $itemType, Auth::id(), $accountId, $creatorId));
 
         $subtotal = $items->sum('total');
         $selectedTaxes = Tax::whereIn('id', $validated['taxes'] ?? [])->get();
@@ -638,7 +642,7 @@ class QuoteController extends Controller
         return redirect()->route('work.edit', $work)->with('success', 'Job created from quote.');
     }
 
-    private function buildQuoteItems(array $lines, string $itemType, int $userId): array
+    private function buildQuoteItems(array $lines, string $itemType, int $userId, int $accountId, int $creatorId): array
     {
         $lines = collect($lines);
         $productIds = $lines->pluck('id')->filter()->map(fn ($id) => (int) $id)->unique()->values();
@@ -658,7 +662,7 @@ class QuoteController extends Controller
             $lineItemType = $line['item_type'] ?? $itemType;
 
             if (!$productId) {
-                $product = $this->createProductFromLine($userId, $lineItemType, $line, $sourceDetails);
+                $product = $this->createProductFromLine($userId, $accountId, $creatorId, $lineItemType, $line, $sourceDetails);
                 $productId = $product->id;
                 if (!$description) {
                     $description = $product->description;
@@ -700,7 +704,14 @@ class QuoteController extends Controller
         return is_array($details) ? $details : null;
     }
 
-    private function createProductFromLine(int $userId, string $itemType, array $line, ?array $sourceDetails): Product
+    private function createProductFromLine(
+        int $userId,
+        int $accountId,
+        int $creatorId,
+        string $itemType,
+        array $line,
+        ?array $sourceDetails
+    ): Product
     {
         $name = trim((string) ($line['name'] ?? ''));
         $query = Product::byUser($userId)
@@ -712,7 +723,7 @@ class QuoteController extends Controller
             return $existing;
         }
 
-        $category = $this->resolveCategory($itemType);
+        $category = $this->resolveCategory($accountId, $creatorId, $itemType);
 
         $selected = $sourceDetails['selected_source'] ?? null;
         $best = $sourceDetails['best_source'] ?? null;
@@ -751,11 +762,11 @@ class QuoteController extends Controller
         ]);
     }
 
-    private function resolveCategory(string $itemType): ProductCategory
+    private function resolveCategory(int $accountId, int $creatorId, string $itemType): ProductCategory
     {
         $name = $itemType === 'product' ? 'Products' : 'Services';
 
-        return ProductCategory::firstOrCreate(['name' => $name]);
+        return ProductCategory::resolveForAccount($accountId, $creatorId, $name);
     }
 
     private function syncWorkProductsFromQuote(Quote $quote, Work $work): void

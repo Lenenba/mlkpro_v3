@@ -59,6 +59,22 @@ const unitOptions = [
     { id: 'other', name: 'Other' },
 ];
 
+const selectableCategories = computed(() => {
+    const base = props.categories || [];
+    const currentId = props.product?.category_id;
+    if (!currentId) {
+        return base;
+    }
+    if (base.some((category) => category.id === currentId)) {
+        return base;
+    }
+    const current = props.product?.category;
+    if (current) {
+        return [...base, { id: current.id, name: current.name }];
+    }
+    return base;
+});
+
 const existingImages = computed(() => props.product?.images || []);
 const marginPreview = computed(() => {
     if (!form.price) {
@@ -242,7 +258,7 @@ const buttonLabel = computed(() => (props.product ? 'Update Product' : 'Create P
                     </template>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 gap-y-4">
                         <FloatingInput v-model="form.name" label="Name" />
-                        <FloatingSelect v-model="form.category_id" label="Category" :options="categories" />
+            <FloatingSelect v-model="form.category_id" label="Category" :options="selectableCategories" />
                         <FloatingInput v-model="form.sku" label="SKU" />
                         <FloatingInput v-model="form.barcode" label="Barcode" />
                         <FloatingSelect v-model="form.unit" label="Unit" :options="unitOptions" />

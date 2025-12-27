@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class ProductRequest extends FormRequest
 {
@@ -21,13 +22,27 @@ class ProductRequest extends FormRequest
      */
     public function rules(): array
     {
+        $accountId = $this->user()?->accountOwnerId();
+
         return [
             'name' => 'required|string|max:255',
             'price' => 'required|numeric|min:0',
             'cost_price' => 'nullable|numeric|min:0',
             'margin_percent' => 'nullable|numeric|min:0|max:100',
             'description' => 'nullable|string',
-            'category_id' => 'required|exists:product_categories,id',
+            'category_id' => [
+                'required',
+                Rule::exists('product_categories', 'id')->where(function ($query) use ($accountId) {
+                    if (!$accountId) {
+                        return;
+                    }
+
+                    $query->where(function ($query) use ($accountId) {
+                        $query->where('user_id', $accountId)
+                            ->orWhereNull('user_id');
+                    });
+                }),
+            ],
             'stock' => 'required|integer|min:0',
             'minimum_stock' => 'required|integer|min:0',
             'sku' => 'nullable|string|max:100',
