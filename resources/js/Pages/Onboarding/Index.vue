@@ -5,6 +5,8 @@ import GuestLayout from '@/Layouts/GuestLayout.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import InputError from '@/Components/InputError.vue';
 import DropzoneInput from '@/Components/DropzoneInput.vue';
+import Modal from '@/Components/Modal.vue';
+import TermsContent from '@/Components/Legal/TermsContent.vue';
 
 const props = defineProps({
     preset: Object,
@@ -12,12 +14,14 @@ const props = defineProps({
 
 const stepItems = [
     { id: 1, title: 'Entreprise', description: 'Infos principales et identite.' },
-    { id: 2, title: 'Type', description: 'Choisissez votre secteur.' },
-    { id: 3, title: 'Proprietaire', description: 'Role du createur.' },
-    { id: 4, title: 'Equipe', description: 'Invitez votre equipe.' },
+    { id: 2, title: 'Type', description: 'Services ou produits.' },
+    { id: 3, title: 'Secteur', description: 'Votre activite principale.' },
+    { id: 4, title: 'Proprietaire', description: 'Role du createur.' },
+    { id: 5, title: 'Equipe', description: 'Invitez votre equipe.' },
 ];
 
 const step = ref(1);
+const showTerms = ref(false);
 const totalSteps = stepItems.length;
 const currentStep = computed(() => stepItems.find((item) => item.id === step.value) || stepItems[0]);
 
@@ -31,6 +35,20 @@ const COUNTRY_OPTIONS = [
     { id: 'Suisse', name: 'Suisse' },
     { id: 'Maroc', name: 'Maroc' },
     { id: 'Tunisie', name: 'Tunisie' },
+    { id: '__other__', name: 'Autre...' },
+];
+
+const SECTOR_OPTIONS = [
+    { id: '', name: 'Selectionner un secteur' },
+    { id: 'menuiserie', name: 'Menuiserie' },
+    { id: 'plomberie', name: 'Plomberie' },
+    { id: 'electricite', name: 'Electricite' },
+    { id: 'peinture', name: 'Peinture' },
+    { id: 'toiture', name: 'Toiture' },
+    { id: 'renovation', name: 'Renovation' },
+    { id: 'paysagisme', name: 'Paysagisme' },
+    { id: 'climatisation', name: 'Climatisation' },
+    { id: 'nettoyage', name: 'Nettoyage' },
     { id: '__other__', name: 'Autre...' },
 ];
 
@@ -134,15 +152,22 @@ const form = useForm({
     company_city: '',
     company_city_other: '',
     company_type: preset.value.company_type || 'services',
+    company_sector: preset.value.company_sector || '',
+    company_sector_other: '',
     is_owner: '1',
     owner_name: '',
     owner_email: '',
     invites: [],
+    accept_terms: false,
 });
 
 const countryPreset = resolveSelectValue(preset.value.company_country, COUNTRY_OPTIONS);
 form.company_country = countryPreset.select || 'Canada';
 form.company_country_other = countryPreset.other;
+
+const sectorPreset = resolveSelectValue(preset.value.company_sector, SECTOR_OPTIONS);
+form.company_sector = sectorPreset.select;
+form.company_sector_other = sectorPreset.other;
 
 const effectiveCountry = computed(() => {
     return form.company_country === '__other__'
@@ -203,7 +228,23 @@ watch(
     }
 );
 
+watch(
+    () => form.company_sector,
+    () => {
+        if (form.company_sector !== '__other__') {
+            form.company_sector_other = '';
+        }
+    }
+);
+
 const companyTypeLabel = computed(() => (form.company_type === 'products' ? 'Entreprise de produits' : 'Entreprise de services'));
+const companySectorLabel = computed(() => {
+    if (form.company_sector === '__other__') {
+        return form.company_sector_other || 'Autre';
+    }
+    const match = SECTOR_OPTIONS.find((option) => option.id === form.company_sector);
+    return match?.name || form.company_sector || '-';
+});
 
 const goNext = () => {
     if (step.value < totalSteps) {
@@ -236,12 +277,14 @@ const submit = () => {
             const country = data.company_country === '__other__' ? data.company_country_other : data.company_country;
             const province = data.company_province === '__other__' ? data.company_province_other : data.company_province;
             const city = data.company_city === '__other__' ? data.company_city_other : data.company_city;
+            const sector = data.company_sector === '__other__' ? data.company_sector_other : data.company_sector;
 
             const payload = {
                 ...data,
                 company_country: normalizeText(country),
                 company_province: normalizeText(province),
                 company_city: normalizeText(city),
+                company_sector: normalizeText(sector),
             };
 
             if (data.company_logo instanceof File) {
@@ -253,6 +296,14 @@ const submit = () => {
             return payload;
         })
         .post(route('onboarding.store'), { forceFormData: true });
+};
+
+const openTerms = () => {
+    showTerms.value = true;
+};
+
+const closeTerms = () => {
+    showTerms.value = false;
 };
 </script>
 
@@ -388,6 +439,25 @@ const submit = () => {
                     </div>
 
                     <div v-else-if="step === 3" class="space-y-3">
+                        <div>
+                            <label class="block text-xs text-stone-500 dark:text-neutral-400">Secteur d'activite</label>
+                            <select v-model="form.company_sector"
+                                class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
+                                <option v-for="option in SECTOR_OPTIONS" :key="option.id" :value="option.id">
+                                    {{ option.name }}
+                                </option>
+                            </select>
+                            <InputError class="mt-1" :message="form.errors.company_sector" />
+                            <div v-if="form.company_sector === '__other__'" class="mt-2">
+                                <FloatingInput v-model="form.company_sector_other" label="Secteur (autre)" />
+                            </div>
+                        </div>
+                        <div class="rounded-sm border border-stone-200 bg-stone-50 p-3 text-sm text-stone-700 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200">
+                            Des categories de services seront creees automatiquement.
+                        </div>
+                    </div>
+
+                    <div v-else-if="step === 4" class="space-y-3">
                         <p class="text-sm text-stone-600 dark:text-neutral-400">Etes-vous le proprietaire de l'entreprise ?</p>
 
                         <div class="space-y-2">
@@ -416,7 +486,7 @@ const submit = () => {
                         </div>
                     </div>
 
-                    <div v-else-if="step === 4" class="space-y-3">
+                    <div v-else-if="step === 5" class="space-y-3">
                         <div class="flex items-center justify-between">
                             <div>
                                 <h3 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">Inviter l'equipe (optionnel)</h3>
@@ -475,7 +545,31 @@ const submit = () => {
                                 <span class="font-medium">Entreprise :</span> {{ form.company_name || '-' }}
                                 <span class="mx-2">/</span>
                                 <span class="font-medium">Type :</span> {{ companyTypeLabel }}
+                                <span class="mx-2">/</span>
+                                <span class="font-medium">Secteur :</span> {{ companySectorLabel }}
                             </p>
+                        </div>
+
+                        <div class="rounded-sm border border-stone-200 bg-white p-3 text-sm text-stone-700 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200">
+                            <label class="flex items-start gap-2">
+                                <input
+                                    type="checkbox"
+                                    v-model="form.accept_terms"
+                                    class="mt-1 rounded-sm border-stone-300 text-green-600 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-900"
+                                />
+                                <span>
+                                    J'accepte les
+                                    <button
+                                        type="button"
+                                        class="inline-flex items-center border-0 bg-transparent p-0 text-green-700 hover:underline dark:text-green-400"
+                                        @click.stop="openTerms"
+                                    >
+                                        conditions d'utilisation
+                                    </button>
+                                    .
+                                </span>
+                            </label>
+                            <InputError class="mt-1" :message="form.errors.accept_terms" />
                         </div>
                     </div>
                 </div>
@@ -500,6 +594,21 @@ const submit = () => {
                 </div>
             </section>
         </div>
+
+        <Modal :show="showTerms" @close="closeTerms" maxWidth="2xl">
+            <div class="flex items-center justify-end border-b border-stone-200 px-4 py-3 dark:border-neutral-700">
+                <button
+                    type="button"
+                    class="rounded-sm border border-stone-200 bg-white px-3 py-1 text-xs text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
+                    @click="closeTerms"
+                >
+                    Fermer
+                </button>
+            </div>
+            <div class="max-h-[70vh] overflow-y-auto p-4">
+                <TermsContent />
+            </div>
+        </Modal>
     </GuestLayout>
 </template>
 

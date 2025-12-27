@@ -11,6 +11,7 @@
         "customers": "Customers",
         "products": "Products",
         "services": "Services",
+        "categories": "Categories",
         "quotes": "Quotes",
         "plan_scans": "Plan scanner",
         "requests": "Requests",
@@ -233,7 +234,8 @@
         "intro": {
             "eyebrow": "Terms and conditions",
             "title": "Terms of Use for MLK Pro",
-            "updated": "Last update: {date}. This page is a template and should be reviewed before publication."
+            "updated": "Last update: {date}. This page is a template and should be reviewed before publication.",
+            "legal": "Legal name: Malikia Pro."
         },
         "sections": {
             "scope": {
@@ -291,5 +293,156 @@
         },
         "note": "Questions? Contact your account owner or use the in-app support channel.",
         "footer": "MLK Pro. All rights reserved. {year}"
+    },
+    "legal": {
+        "header": {
+            "tagline": "Business management suite"
+        },
+        "actions": {
+            "sign_in": "Sign in",
+            "create_account": "Create account"
+        },
+        "links": {
+            "terms": "Terms and conditions",
+            "privacy": "Privacy policy",
+            "refund": "Refund policy",
+            "pricing": "Pricing"
+        },
+        "footer": "Malikia Pro. All rights reserved. {year}"
+    },
+    "pricing": {
+        "meta": {
+            "title": "Pricing"
+        },
+        "hero": {
+            "eyebrow": "Pricing",
+            "title": "Plans built for field teams",
+            "subtitle": "Choose a plan that fits your workflow. Pricing is available on request.",
+            "note": "Need enterprise or custom limits? Request the pricing sheet."
+        },
+        "plans": {
+            "starter": {
+                "label": "Starter",
+                "price": "Contact us",
+                "desc": "For small teams starting with quotes and jobs."
+            },
+            "pro": {
+                "label": "Pro",
+                "badge": "Recommended",
+                "price": "Contact us",
+                "desc": "For growing teams managing services and products."
+            },
+            "enterprise": {
+                "label": "Enterprise",
+                "price": "Custom",
+                "desc": "Advanced controls, multi-entity support, and SLA options."
+            }
+        },
+        "features": {
+            "title": "Included with every plan",
+            "items": {
+                "one": "Quotes, jobs, tasks, and invoices",
+                "two": "Unified catalog for services and products",
+                "three": "Plan scan pricing signals and sources",
+                "four": "Client portal with approvals",
+                "five": "Team roles and permissions"
+            }
+        },
+        "enterprise": {
+            "title": "Enterprise pricing sheet",
+            "body": "Request the enterprise sheet for custom limits, security review, and onboarding support."
+        },
+        "actions": {
+            "primary": "Start onboarding",
+            "secondary": "Sign in"
+        }
+    },
+    "privacy": {
+        "meta": {
+            "title": "Privacy policy"
+        },
+        "intro": {
+            "eyebrow": "Privacy policy",
+            "title": "Privacy policy for MLK Pro",
+            "updated": "Last update: {date}.",
+            "summary": "This policy explains how Malikia Pro collects, uses, and protects data on MLK Pro."
+        },
+        "sections": {
+            "scope": {
+                "title": "1. Scope",
+                "body": "This policy applies to the MLK Pro platform and related services."
+            },
+            "data": {
+                "title": "2. Data we collect",
+                "body": "We collect account details, company information, usage data, and files you upload."
+            },
+            "usage": {
+                "title": "3. How we use data",
+                "body": "We use data to provide the service, improve features, and support your team."
+            },
+            "sharing": {
+                "title": "4. Data sharing",
+                "body": "We share data with service providers only as needed to operate the platform. We do not sell personal data."
+            },
+            "security": {
+                "title": "5. Security",
+                "body": "We use reasonable safeguards, access controls, and logging to protect your data."
+            },
+            "retention": {
+                "title": "6. Retention",
+                "body": "We keep data while your account is active or as required by law."
+            },
+            "rights": {
+                "title": "7. Your rights",
+                "body": "You can request access, correction, or deletion of data through your account owner."
+            },
+            "contact": {
+                "title": "8. Contact",
+                "body": "For privacy questions, contact support in the app."
+            }
+        },
+        "note": "If you have questions, contact support in the app."
+    },
+    "refund": {
+        "meta": {
+            "title": "Refund policy"
+        },
+        "intro": {
+            "eyebrow": "Refund policy",
+            "title": "Refund policy for MLK Pro",
+            "updated": "Last update: {date}.",
+            "summary": "This policy explains how refunds and credits are handled for MLK Pro subscriptions."
+        },
+        "sections": {
+            "scope": {
+                "title": "1. Scope",
+                "body": "Subscriptions are billed in advance and include access to MLK Pro features."
+            },
+            "eligibility": {
+                "title": "2. Eligibility",
+                "body": "Refunds may be considered for duplicate charges or verified billing errors."
+            },
+            "exclusions": {
+                "title": "3. Exclusions",
+                "bullets": {
+                    "one": "Change of mind after significant use.",
+                    "two": "Third-party fees or payment provider charges.",
+                    "three": "Custom services or onboarding services."
+                }
+            },
+            "process": {
+                "title": "4. How to request",
+                "body": "Submit a request via in-app support with the invoice and reason for the refund."
+            },
+            "timeline": {
+                "title": "5. Processing time",
+                "body": "If approved, refunds are issued to the original payment method. Processing time depends on the payment provider."
+            },
+            "chargebacks": {
+                "title": "6. Chargebacks",
+                "body": "Chargebacks may pause access while we review the claim."
+            }
+        },
+        "note": "Contact support if you need help with billing."
     }
 }

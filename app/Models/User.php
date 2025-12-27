@@ -41,6 +41,7 @@ class User extends Authenticatable
         'company_province',
         'company_city',
         'company_type',
+        'company_sector',
         'onboarding_completed_at',
         'payment_methods',
         'company_features',

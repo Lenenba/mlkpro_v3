@@ -81,6 +81,15 @@ class ServiceController extends Controller
         ]);
     }
 
+    public function categories()
+    {
+        $this->ensureServiceAccess();
+
+        return inertia('Service/Categories', [
+            'categories' => ProductCategory::orderBy('name')->get(['id', 'name']),
+        ]);
+    }
+
     public function store(ServiceRequest $request): RedirectResponse
     {
         $this->ensureServiceAccess();

@@ -11,6 +11,7 @@
     "customers": "Clients",
     "products": "Produits",
     "services": "Services",
+    "categories": "Categories",
     "quotes": "Devis",
     "plan_scans": "Scan de plan",
     "requests": "Demandes",
@@ -233,7 +234,8 @@
     "intro": {
       "eyebrow": "Conditions d utilisation",
       "title": "Conditions d utilisation pour MLK Pro",
-      "updated": "Derniere mise a jour: {date}. Cette page est un modele et doit etre relue avant publication."
+      "updated": "Derniere mise a jour: {date}. Cette page est un modele et doit etre relue avant publication.",
+      "legal": "Nom legal: Malikia Pro."
     },
     "sections": {
       "scope": {
@@ -291,5 +293,156 @@
     },
     "note": "Questions? Contactez le proprietaire du compte ou utilisez le support dans l application.",
     "footer": "MLK Pro. Tous droits reserves. {year}"
+  },
+  "legal": {
+    "header": {
+      "tagline": "Suite de gestion"
+    },
+    "actions": {
+      "sign_in": "Se connecter",
+      "create_account": "Creer un compte"
+    },
+    "links": {
+      "terms": "Conditions d utilisation",
+      "privacy": "Politique de confidentialite",
+      "refund": "Politique de remboursement",
+      "pricing": "Tarification"
+    },
+    "footer": "Malikia Pro. Tous droits reserves. {year}"
+  },
+  "pricing": {
+    "meta": {
+      "title": "Tarification"
+    },
+    "hero": {
+      "eyebrow": "Tarification",
+      "title": "Plans pour equipes terrain",
+      "subtitle": "Choisissez un plan adapte a votre workflow. Prix sur demande.",
+      "note": "Besoin d un plan entreprise ou sur mesure? Demandez la fiche."
+    },
+    "plans": {
+      "starter": {
+        "label": "Essentiel",
+        "price": "Contactez-nous",
+        "desc": "Pour les petites equipes qui demarrent."
+      },
+      "pro": {
+        "label": "Pro",
+        "badge": "Recommande",
+        "price": "Contactez-nous",
+        "desc": "Pour les equipes en croissance et multi-activites."
+      },
+      "enterprise": {
+        "label": "Entreprise",
+        "price": "Sur mesure",
+        "desc": "Controles avances, multi-entites et options SLA."
+      }
+    },
+    "features": {
+      "title": "Inclus dans chaque plan",
+      "items": {
+        "one": "Devis, jobs, taches et factures",
+        "two": "Catalogue unique services et produits",
+        "three": "Signaux de prix et sources plan scan",
+        "four": "Portail client et validations",
+        "five": "Roles et permissions equipe"
+      }
+    },
+    "enterprise": {
+      "title": "Fiche tarif entreprise",
+      "body": "Demandez la fiche entreprise pour limites sur mesure, revue securite et onboarding."
+    },
+    "actions": {
+      "primary": "Demarrer l onboarding",
+      "secondary": "Se connecter"
+    }
+  },
+  "privacy": {
+    "meta": {
+      "title": "Politique de confidentialite"
+    },
+    "intro": {
+      "eyebrow": "Politique de confidentialite",
+      "title": "Politique de confidentialite pour MLK Pro",
+      "updated": "Derniere mise a jour: {date}.",
+      "summary": "Cette politique explique comment Malikia Pro collecte, utilise et protege les donnees sur MLK Pro."
+    },
+    "sections": {
+      "scope": {
+        "title": "1. Portee",
+        "body": "Cette politique s applique a la plateforme MLK Pro et services associes."
+      },
+      "data": {
+        "title": "2. Donnees collectees",
+        "body": "Nous collectons informations de compte, informations entreprise, donnees d usage et fichiers envoyes."
+      },
+      "usage": {
+        "title": "3. Utilisation des donnees",
+        "body": "Nous utilisons les donnees pour fournir le service, ameliorer les fonctionnalites et aider votre equipe."
+      },
+      "sharing": {
+        "title": "4. Partage des donnees",
+        "body": "Nous partageons les donnees avec des prestataires uniquement pour faire fonctionner la plateforme. Nous ne vendons pas les donnees personnelles."
+      },
+      "security": {
+        "title": "5. Securite",
+        "body": "Nous utilisons des mesures raisonnables, controles d acces et journalisation."
+      },
+      "retention": {
+        "title": "6. Conservation",
+        "body": "Nous conservons les donnees tant que le compte est actif ou selon la loi."
+      },
+      "rights": {
+        "title": "7. Vos droits",
+        "body": "Vous pouvez demander acces, correction ou suppression via le proprietaire du compte."
+      },
+      "contact": {
+        "title": "8. Contact",
+        "body": "Pour les questions de confidentialite, contactez le support dans l application."
+      }
+    },
+    "note": "Si vous avez des questions, contactez le support dans l application."
+  },
+  "refund": {
+    "meta": {
+      "title": "Politique de remboursement"
+    },
+    "intro": {
+      "eyebrow": "Politique de remboursement",
+      "title": "Politique de remboursement pour MLK Pro",
+      "updated": "Derniere mise a jour: {date}.",
+      "summary": "Cette politique explique comment les remboursements et credits sont geres pour les abonnements MLK Pro."
+    },
+    "sections": {
+      "scope": {
+        "title": "1. Portee",
+        "body": "Les abonnements sont factures a l avance et donnent acces aux fonctionnalites MLK Pro."
+      },
+      "eligibility": {
+        "title": "2. Eligibilite",
+        "body": "Les remboursements peuvent etre consideres pour doublons ou erreurs de facturation verifiees."
+      },
+      "exclusions": {
+        "title": "3. Exclusions",
+        "bullets": {
+          "one": "Changement d avis apres usage significatif.",
+          "two": "Frais tiers ou frais du processeur de paiement.",
+          "three": "Services sur mesure ou onboarding."
+        }
+      },
+      "process": {
+        "title": "4. Demande",
+        "body": "Soumettez une demande via le support dans l application avec la facture et la raison."
+      },
+      "timeline": {
+        "title": "5. Delai de traitement",
+        "body": "Si approuve, le remboursement est emis sur le moyen de paiement d origine. Le delai depend du fournisseur de paiement."
+      },
+      "chargebacks": {
+        "title": "6. Retrofacturations",
+        "body": "Les retrofacturations peuvent suspendre l acces pendant l examen."
+      }
+    },
+    "note": "Contactez le support si vous avez besoin d aide pour la facturation."
   }
 }

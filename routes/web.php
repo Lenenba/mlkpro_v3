@@ -56,6 +56,9 @@ Route::get('/favicon.ico', function () {
 // Guest Routes
 Route::get('/', [WelcomeController::class, 'index'])->name('welcome');
 Route::get('/terms', [LegalController::class, 'terms'])->name('terms');
+Route::get('/privacy', [LegalController::class, 'privacy'])->name('privacy');
+Route::get('/refund', [LegalController::class, 'refund'])->name('refund');
+Route::get('/pricing', [LegalController::class, 'pricing'])->name('pricing');
 
 // Dashboard Route
 Route::get('/dashboard', [DashboardController::class, 'index'])->middleware(['auth', 'verified'])->name('dashboard');
@@ -125,6 +128,7 @@ Route::middleware(['auth', EnsureInternalUser::class])->group(function () {
     Route::middleware('company.feature:services')->group(function () {
         Route::get('/services/options', [ServiceController::class, 'options'])->name('service.options');
         Route::post('/services/quick', [ServiceController::class, 'storeQuick'])->name('service.quick.store');
+        Route::get('/services/categories', [ServiceController::class, 'categories'])->name('service.categories');
     });
     Route::get('/customers/options', [CustomerController::class, 'options'])->name('customer.options');
     Route::post('/customers/quick', [CustomerController::class, 'storeQuick'])->name('customer.quick.store');

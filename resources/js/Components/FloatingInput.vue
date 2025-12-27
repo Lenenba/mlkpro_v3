@@ -26,6 +26,14 @@ const props = defineProps({
         type: Boolean,
         default: false,
     },
+    readonly: {
+        type: Boolean,
+        default: false,
+    },
+    required: {
+        type: Boolean,
+        default: false,
+    },
 });
 
 const emit = defineEmits(['update:modelValue']);
@@ -70,6 +78,7 @@ defineExpose({ focus: () => input.value?.focus() });
             ref="input"
             :type="type"
             :disabled="disabled"
+            :readonly="readonly"
             :autocomplete="resolvedAutocomplete"
             class="peer p-4 block w-full border-stone-200 rounded-sm text-sm placeholder-transparent focus:border-green-600 focus:ring-green-600 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-400 dark:focus:ring-neutral-600
                 focus:pt-6
@@ -96,7 +105,8 @@ defineExpose({ focus: () => input.value?.focus() });
                 peer-focus:-translate-y-1.5
                 peer-focus:text-stone-500 dark:peer-focus:text-neutral-500"
         >
-            {{ label }}
+            <span>{{ label }}</span>
+            <span v-if="required" class="text-red-500 dark:text-red-400"> *</span>
         </label>
     </div>
 </template>

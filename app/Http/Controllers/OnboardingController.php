@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Role;
 use App\Models\TeamMember;
 use App\Models\User;
+use App\Models\ProductCategory;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -15,6 +16,19 @@ use Inertia\Response;
 
 class OnboardingController extends Controller
 {
+    private const SECTOR_CATEGORIES = [
+        'menuiserie' => ['Fabrication', 'Installation', 'Reparation', 'Finition', 'Sur mesure'],
+        'plomberie' => ['Installation', 'Reparation', 'Debouchage', 'Entretien', 'Urgence'],
+        'electricite' => ['Installation', 'Maintenance', 'Mise aux normes', 'Depannage', 'Domotique'],
+        'peinture' => ['Interieur', 'Exterieur', 'Preparation', 'Finition', 'Retouches'],
+        'toiture' => ['Inspection', 'Reparation', 'Entretien', 'Nettoyage', 'Isolation'],
+        'renovation' => ['Demolition', 'Gros oeuvre', 'Finitions', 'Amenagement', 'Suivi chantier'],
+        'paysagisme' => ['Entretien', 'Plantation', 'Tonte', 'Arrosage', 'Amenagement'],
+        'climatisation' => ['Installation', 'Maintenance', 'Reparation', 'Nettoyage', 'Mise en service'],
+        'nettoyage' => ['Residentiel', 'Commercial', 'Post-chantier', 'Desinfection', 'Vitres'],
+        'autre' => ['Installation', 'Entretien', 'Reparation', 'Conseil', 'Autres'],
+    ];
+
     public function index(Request $request): Response
     {
         $user = $request->user();
@@ -43,6 +57,7 @@ class OnboardingController extends Controller
                 'company_province' => $user->company_province,
                 'company_city' => $user->company_city,
                 'company_type' => $user->company_type,
+                'company_sector' => $user->company_sector,
                 'onboarding_completed_at' => $user->onboarding_completed_at,
             ],
         ]);
@@ -67,6 +82,7 @@ class OnboardingController extends Controller
             'company_province' => 'nullable|string|max:255',
             'company_city' => 'nullable|string|max:255',
             'company_type' => 'required|string|in:services,products',
+            'company_sector' => 'required|string|max:255',
             'is_owner' => 'required|boolean',
 
             'owner_name' => 'nullable|string|max:255|required_if:is_owner,0',
@@ -76,6 +92,8 @@ class OnboardingController extends Controller
             'invites.*.name' => 'required|string|max:255',
             'invites.*.email' => 'required|string|lowercase|email|max:255|distinct|unique:users,email',
             'invites.*.role' => 'required|string|in:admin,member',
+
+            'accept_terms' => 'accepted',
         ]);
 
         $ownerRoleId = Role::query()->firstOrCreate(
@@ -131,8 +149,13 @@ class OnboardingController extends Controller
             'company_province' => $validated['company_province'] ?? null,
             'company_city' => $validated['company_city'] ?? null,
             'company_type' => $validated['company_type'],
+            'company_sector' => $validated['company_sector'],
             'onboarding_completed_at' => now(),
         ]);
+
+        if ($validated['company_type'] === 'services') {
+            $this->seedSectorCategories($validated['company_sector'] ?? null);
+        }
 
         $invitePasswords = [];
         foreach (($validated['invites'] ?? []) as $invite) {
@@ -165,6 +188,26 @@ class OnboardingController extends Controller
         }
 
         return redirect()->route('dashboard')->with('success', implode(' ', $messageParts));
+    }
+
+    private function seedSectorCategories(?string $sector): void
+    {
+        $normalized = Str::of((string) $sector)->lower()->trim()->toString();
+        $categories = self::SECTOR_CATEGORIES[$normalized] ?? null;
+
+        if (!$categories) {
+            $base = self::SECTOR_CATEGORIES['autre'];
+            $label = preg_replace('/\s+/', ' ', trim((string) $sector));
+            $categories = $label !== '' ? array_merge([$label], $base) : $base;
+        }
+
+        foreach ($categories as $name) {
+            $clean = preg_replace('/\s+/', ' ', trim((string) $name));
+            if ($clean === '') {
+                continue;
+            }
+            ProductCategory::firstOrCreate(['name' => $clean]);
+        }
     }
 
     private function defaultPermissionsForRole(string $role): array
