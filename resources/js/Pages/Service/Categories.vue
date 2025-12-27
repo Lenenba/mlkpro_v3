@@ -36,17 +36,41 @@ const categoryForm = useForm({
     name: '',
 });
 
-const canAddCategory = computed(() => categoryForm.name.trim().length > 0);
+const editingCategory = ref(null);
+const canSubmitCategory = computed(() => categoryForm.name.trim().length > 0);
 
-const addCategory = () => {
-    if (!canAddCategory.value) {
+const resetCategoryForm = () => {
+    categoryForm.reset('name');
+    categoryForm.clearErrors();
+    editingCategory.value = null;
+};
+
+const saveCategory = () => {
+    if (!canSubmitCategory.value) {
+        return;
+    }
+
+    if (editingCategory.value) {
+        categoryForm.patch(route('settings.categories.update', editingCategory.value.id), {
+            preserveScroll: true,
+            onSuccess: () => resetCategoryForm(),
+        });
         return;
     }
 
     categoryForm.post(route('settings.categories.store'), {
         preserveScroll: true,
-        onSuccess: () => categoryForm.reset('name'),
+        onSuccess: () => resetCategoryForm(),
     });
+};
+
+const startEditCategory = (category) => {
+    if (!canManageCategory(category)) {
+        return;
+    }
+    editingCategory.value = category;
+    categoryForm.name = category.name;
+    categoryForm.clearErrors();
 };
 
 const filterForm = useForm({
@@ -280,12 +304,22 @@ const restoreCategory = (category) => {
                     </div>
                     <div class="flex w-full flex-col gap-2 sm:flex-row lg:w-auto">
                         <div class="flex-1 min-w-[220px]">
-                            <FloatingInput v-model="categoryForm.name" label="Nouvelle categorie" :required="true" />
+                            <FloatingInput v-model="categoryForm.name"
+                                :label="editingCategory ? 'Modifier categorie' : 'Nouvelle categorie'"
+                                :required="true" />
                             <InputError class="mt-1" :message="categoryForm.errors.name" />
+                            <p v-if="editingCategory" class="mt-1 text-[11px] text-stone-500 dark:text-neutral-400">
+                                Modification: {{ editingCategory.name }}
+                            </p>
                         </div>
-                        <button type="button" @click="addCategory" :disabled="!canAddCategory || categoryForm.processing"
+                        <button type="button" @click="saveCategory"
+                            :disabled="!canSubmitCategory || categoryForm.processing"
                             class="w-full sm:w-auto py-2 px-3 text-sm font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:pointer-events-none">
-                            Ajouter
+                            {{ editingCategory ? 'Mettre a jour' : 'Ajouter' }}
+                        </button>
+                        <button v-if="editingCategory" type="button" @click="resetCategoryForm"
+                            class="w-full sm:w-auto py-2 px-3 text-sm font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700">
+                            Annuler
                         </button>
                     </div>
                 </div>
@@ -466,6 +500,10 @@ const restoreCategory = (category) => {
                                             <div class="hs-dropdown-menu hs-dropdown-open:opacity-100 w-32 transition-[opacity,margin] duration opacity-0 hidden z-10 bg-white rounded-sm shadow-[0_10px_40px_10px_rgba(0,0,0,0.08)] dark:shadow-[0_10px_40px_10px_rgba(0,0,0,0.2)] dark:bg-neutral-900"
                                                 role="menu" aria-orientation="vertical">
                                                 <div class="p-1">
+                                                    <button type="button" @click="startEditCategory(category)"
+                                                        class="w-full text-start flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
+                                                        Edit
+                                                    </button>
                                                     <button v-if="!category.archived_at" type="button" @click="archiveCategory(category)"
                                                         class="w-full text-start flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
                                                         Archive
