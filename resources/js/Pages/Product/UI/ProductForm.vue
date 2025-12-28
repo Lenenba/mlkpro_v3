@@ -59,8 +59,14 @@ const unitOptions = [
     { id: 'other', name: 'Other' },
 ];
 
+const categoryOptions = ref(Array.isArray(props.categories) ? [...props.categories] : []);
+
+watch(() => props.categories, (next) => {
+    categoryOptions.value = Array.isArray(next) ? [...next] : [];
+});
+
 const selectableCategories = computed(() => {
-    const base = props.categories || [];
+    const base = categoryOptions.value || [];
     const currentId = props.product?.category_id;
     if (!currentId) {
         return base;
@@ -76,6 +82,10 @@ const selectableCategories = computed(() => {
 });
 
 const existingImages = computed(() => props.product?.images || []);
+const showCategoryForm = ref(false);
+const categoryName = ref('');
+const categoryError = ref('');
+const creatingCategory = ref(false);
 const marginPreview = computed(() => {
     if (!form.price) {
         return 0;
@@ -160,6 +170,57 @@ const applyBestPrice = () => {
     applyPrice(best);
     applyImage(best);
 };
+
+const addCategoryOption = (category) => {
+    if (!category?.id) {
+        return;
+    }
+    const exists = categoryOptions.value.some((item) => Number(item.id) === Number(category.id));
+    if (!exists) {
+        categoryOptions.value = [...categoryOptions.value, { id: category.id, name: category.name }]
+            .sort((a, b) => String(a.name).localeCompare(String(b.name)));
+    }
+    form.category_id = category.id;
+};
+
+const createCategory = async () => {
+    const name = categoryName.value.trim();
+    if (!name) {
+        categoryError.value = 'Enter a category name.';
+        return;
+    }
+
+    creatingCategory.value = true;
+    categoryError.value = '';
+
+    try {
+        const response = await axios.post(route('settings.categories.store'), {
+            name,
+        }, {
+            headers: { Accept: 'application/json' },
+        });
+        const created = response?.data?.category;
+        if (created) {
+            addCategoryOption(created);
+            categoryName.value = '';
+            showCategoryForm.value = false;
+        } else {
+            categoryError.value = 'Unable to create category.';
+        }
+    } catch (error) {
+        categoryError.value = error?.response?.data?.errors?.name?.[0]
+            || error?.response?.data?.message
+            || 'Unable to create category.';
+    } finally {
+        creatingCategory.value = false;
+    }
+};
+
+watch(categoryName, (value) => {
+    if (value && categoryError.value) {
+        categoryError.value = '';
+    }
+});
 
 const clearLookup = () => {
     priceLookupResults.value = [];
@@ -259,6 +320,35 @@ const buttonLabel = computed(() => (props.product ? 'Update Product' : 'Create P
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 gap-y-4">
                         <FloatingInput v-model="form.name" label="Name" :required="true" />
             <FloatingSelect v-model="form.category_id" label="Category" :options="selectableCategories" :required="true" />
+                        <div class="md:col-span-2 space-y-2">
+                            <div class="flex items-center justify-between">
+                                <p class="text-xs text-stone-500 dark:text-neutral-400">Need a new category?</p>
+                                <button
+                                    type="button"
+                                    class="text-xs font-semibold text-green-700 hover:text-green-800 dark:text-green-400"
+                                    @click="showCategoryForm = !showCategoryForm"
+                                >
+                                    {{ showCategoryForm ? 'Hide' : 'Add category' }}
+                                </button>
+                            </div>
+                            <p v-if="!selectableCategories.length" class="text-xs text-amber-600 dark:text-amber-300">
+                                No categories yet. Create one below.
+                            </p>
+                            <div v-if="showCategoryForm" class="flex flex-col gap-2 sm:flex-row sm:items-end">
+                                <div class="flex-1">
+                                    <FloatingInput v-model="categoryName" label="New category name" />
+                                    <p v-if="categoryError" class="mt-1 text-xs text-red-600">{{ categoryError }}</p>
+                                </div>
+                                <button
+                                    type="button"
+                                    class="inline-flex items-center justify-center rounded-sm bg-green-600 px-3 py-2 text-xs font-semibold text-white hover:bg-green-700 disabled:opacity-60"
+                                    :disabled="creatingCategory"
+                                    @click="createCategory"
+                                >
+                                    Create
+                                </button>
+                            </div>
+                        </div>
                         <FloatingInput v-model="form.sku" label="SKU" />
                         <FloatingInput v-model="form.barcode" label="Barcode" />
                         <FloatingSelect v-model="form.unit" label="Unit" :options="unitOptions" />

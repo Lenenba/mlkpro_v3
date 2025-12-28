@@ -5,12 +5,13 @@ namespace App\Http\Controllers\Settings;
 use App\Http\Controllers\Controller;
 use App\Models\Product;
 use App\Models\ProductCategory;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
 class ProductCategoryController extends Controller
 {
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request): RedirectResponse|JsonResponse
     {
         $user = $request->user();
         if (!$user || !$user->isAccountOwner()) {
@@ -23,12 +24,18 @@ class ProductCategoryController extends Controller
 
         $name = preg_replace('/\s+/', ' ', trim($validated['name'] ?? ''));
         if ($name === '') {
+            if ($request->expectsJson()) {
+                return response()->json(['message' => 'Category name is required.'], 422);
+            }
             return redirect()->back()->withErrors(['name' => 'Category name is required.']);
         }
 
         $accountId = $user->accountOwnerId();
         $category = ProductCategory::resolveForAccount($accountId, $user->id, $name);
         if (!$category) {
+            if ($request->expectsJson()) {
+                return response()->json(['message' => 'Category name is required.'], 422);
+            }
             return redirect()->back()->withErrors(['name' => 'Category name is required.']);
         }
 
@@ -48,6 +55,15 @@ class ProductCategoryController extends Controller
 
         if ($category->archived_at && $category->user_id === $accountId) {
             $category->update(['archived_at' => null]);
+        }
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'category' => [
+                    'id' => $category->id,
+                    'name' => $category->name,
+                ],
+            ], 201);
         }
 
         return redirect()->back()->with('success', 'Category added successfully.');
