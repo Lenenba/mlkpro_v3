@@ -124,7 +124,7 @@ onBeforeUnmount(() => {
                             class="rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm font-medium text-stone-800 hover:bg-stone-50">
                             {{ $t('welcome.hero.secondary_cta') }}
                         </Link>
-                        <Link v-if="canRegister" :href="route('register')"
+                        <Link v-if="canRegister" :href="route('onboarding.index')"
                             class="rounded-sm border border-transparent bg-green-600 px-3 py-2 text-sm font-medium text-white hover:bg-green-700">
                             {{ $t('welcome.hero.primary_cta') }}
                         </Link>
@@ -149,7 +149,7 @@ onBeforeUnmount(() => {
                             </p>
 
                             <div class="flex flex-wrap gap-3 welcome-fade-up" style="animation-delay: 0.3s;">
-                                <Link v-if="canRegister" :href="route('register')"
+                                <Link v-if="canRegister" :href="route('onboarding.index')"
                                     class="rounded-sm border border-transparent bg-green-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-green-700">
                                     {{ $t('welcome.hero.primary_cta') }}
                                 </Link>
@@ -352,7 +352,7 @@ onBeforeUnmount(() => {
                             <p class="mt-2 text-sm text-emerald-50">{{ $t('welcome.cta.subtitle') }}</p>
                         </div>
                         <div class="flex flex-wrap gap-2">
-                            <Link v-if="canRegister" :href="route('register')"
+                            <Link v-if="canRegister" :href="route('onboarding.index')"
                                 class="rounded-sm bg-white px-4 py-2 text-sm font-semibold text-stone-900 hover:bg-stone-100">
                                 {{ $t('welcome.cta.primary') }}
                             </Link>

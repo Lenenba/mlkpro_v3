@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref, watch } from 'vue';
-import { Head, useForm } from '@inertiajs/vue3';
+import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
 import GuestLayout from '@/Layouts/GuestLayout.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import InputError from '@/Components/InputError.vue';
@@ -12,31 +12,61 @@ const props = defineProps({
     preset: Object,
 });
 
-const stepItems = [
-    { id: 1, title: 'Entreprise', description: 'Infos principales et identite.' },
-    { id: 2, title: 'Type', description: 'Services ou produits.' },
-    { id: 3, title: 'Secteur', description: 'Votre activite principale.' },
-    { id: 4, title: 'Proprietaire', description: 'Role du createur.' },
-    { id: 5, title: 'Equipe', description: 'Invitez votre equipe.' },
+const page = usePage();
+const isGuest = computed(() => !page.props.auth?.user);
+
+const baseStepItems = [
+    { key: 'company', title: 'Entreprise', description: 'Infos principales et identite.' },
+    { key: 'type', title: 'Type', description: 'Services ou produits.' },
+    { key: 'sector', title: 'Secteur', description: 'Votre activite principale.' },
+    { key: 'owner', title: 'Proprietaire', description: 'Role du createur.' },
+    { key: 'team', title: 'Equipe', description: 'Invitez votre equipe.' },
 ];
 
 const step = ref(1);
 const showTerms = ref(false);
-const totalSteps = stepItems.length;
-const currentStep = computed(() => stepItems.find((item) => item.id === step.value) || stepItems[0]);
+const stepOffset = computed(() => (isGuest.value ? 1 : 0));
+const stepItems = computed(() => {
+    const items = baseStepItems.map((item, index) => ({
+        ...item,
+        id: index + 1 + stepOffset.value,
+    }));
+
+    if (!isGuest.value) {
+        return items;
+    }
+
+    return [
+        { id: 1, key: 'account', title: 'Compte', description: 'Identifiants et securite.' },
+        ...items,
+    ];
+});
+const totalSteps = computed(() => stepItems.value.length);
+const currentStep = computed(() => stepItems.value.find((item) => item.id === step.value) || stepItems.value[0]);
+const stepIds = computed(() => ({
+    account: 1,
+    company: 1 + stepOffset.value,
+    type: 2 + stepOffset.value,
+    sector: 3 + stepOffset.value,
+    owner: 4 + stepOffset.value,
+    team: 5 + stepOffset.value,
+}));
+const isStepDisabled = (item) => isGuest.value && item.key !== 'account';
+const selectStep = (item) => {
+    if (isStepDisabled(item)) {
+        return;
+    }
+    step.value = item.id;
+};
 
 const preset = computed(() => props.preset || {});
 
-const COUNTRY_OPTIONS = [
-    { id: '', name: 'Selectionner un pays' },
-    { id: 'Canada', name: 'Canada' },
-    { id: 'France', name: 'France' },
-    { id: 'Belgique', name: 'Belgique' },
-    { id: 'Suisse', name: 'Suisse' },
-    { id: 'Maroc', name: 'Maroc' },
-    { id: 'Tunisie', name: 'Tunisie' },
-    { id: '__other__', name: 'Autre...' },
-];
+const registerForm = useForm({
+    name: '',
+    email: '',
+    password: '',
+    password_confirmation: '',
+});
 
 const SECTOR_OPTIONS = [
     { id: '', name: 'Selectionner un secteur' },
@@ -51,80 +81,6 @@ const SECTOR_OPTIONS = [
     { id: 'nettoyage', name: 'Nettoyage' },
     { id: '__other__', name: 'Autre...' },
 ];
-
-const PROVINCES_BY_COUNTRY = {
-    Canada: [
-        'Quebec',
-        'Ontario',
-        'British Columbia',
-        'Alberta',
-        'Manitoba',
-        'Saskatchewan',
-        'Nova Scotia',
-        'New Brunswick',
-        'Newfoundland and Labrador',
-        'Prince Edward Island',
-        'Northwest Territories',
-        'Yukon',
-        'Nunavut',
-    ],
-    France: [
-        'Ile-de-France',
-        'Auvergne-Rhone-Alpes',
-        'Provence-Alpes-Cote dAzur',
-        'Occitanie',
-        'Nouvelle-Aquitaine',
-        'Hauts-de-France',
-        'Grand Est',
-        'Bretagne',
-        'Normandie',
-        'Pays de la Loire',
-        'Centre-Val de Loire',
-        'Bourgogne-Franche-Comte',
-        'Corse',
-    ],
-    Belgique: ['Bruxelles-Capitale', 'Wallonie', 'Flandre'],
-    Suisse: ['Zurich', 'Vaud', 'Geneve', 'Berne', 'Bale-Ville', 'Valais', 'Tessin'],
-    Maroc: ['Casablanca-Settat', 'Rabat-Sale-Kenitra', 'Marrakech-Safi', 'Tanger-Tetouan-Al Hoceima'],
-    Tunisie: ['Tunis', 'Ariana', 'Ben Arous', 'Sfax', 'Sousse'],
-};
-
-const CITIES_BY_COUNTRY_AND_PROVINCE = {
-    Canada: {
-        Quebec: ['Montreal', 'Quebec City', 'Laval', 'Gatineau', 'Sherbrooke'],
-        Ontario: ['Toronto', 'Ottawa', 'Mississauga', 'Hamilton', 'London'],
-        'British Columbia': ['Vancouver', 'Victoria', 'Surrey', 'Burnaby'],
-        Alberta: ['Calgary', 'Edmonton'],
-    },
-    France: {
-        'Ile-de-France': ['Paris', 'Boulogne-Billancourt', 'Saint-Denis'],
-        'Auvergne-Rhone-Alpes': ['Lyon', 'Grenoble', 'Saint-Etienne'],
-        'Provence-Alpes-Cote dAzur': ['Marseille', 'Nice', 'Toulon'],
-        Occitanie: ['Toulouse', 'Montpellier'],
-    },
-    Belgique: {
-        'Bruxelles-Capitale': ['Bruxelles'],
-        Wallonie: ['Liege', 'Namur', 'Charleroi'],
-        Flandre: ['Anvers', 'Gand', 'Bruges'],
-    },
-    Suisse: {
-        Zurich: ['Zurich'],
-        Vaud: ['Lausanne'],
-        Geneve: ['Geneve'],
-        Berne: ['Berne'],
-    },
-    Maroc: {
-        'Casablanca-Settat': ['Casablanca', 'Mohammedia'],
-        'Rabat-Sale-Kenitra': ['Rabat', 'Sale'],
-        'Marrakech-Safi': ['Marrakech'],
-    },
-    Tunisie: {
-        Tunis: ['Tunis'],
-        Ariana: ['Ariana'],
-        Sfax: ['Sfax'],
-        Sousse: ['Sousse'],
-    },
-};
 
 const hasOption = (options, value) => {
     return (options || []).some((option) => option.id === value);
@@ -145,12 +101,9 @@ const form = useForm({
     company_name: preset.value.company_name || '',
     company_logo: preset.value.company_logo || null,
     company_description: preset.value.company_description || '',
-    company_country: '',
-    company_country_other: '',
-    company_province: '',
-    company_province_other: '',
-    company_city: '',
-    company_city_other: '',
+    company_country: preset.value.company_country || '',
+    company_province: preset.value.company_province || '',
+    company_city: preset.value.company_city || '',
     company_type: preset.value.company_type || 'services',
     company_sector: preset.value.company_sector || '',
     company_sector_other: '',
@@ -161,72 +114,128 @@ const form = useForm({
     accept_terms: false,
 });
 
-const countryPreset = resolveSelectValue(preset.value.company_country, COUNTRY_OPTIONS);
-form.company_country = countryPreset.select || 'Canada';
-form.company_country_other = countryPreset.other;
-
 const sectorPreset = resolveSelectValue(preset.value.company_sector, SECTOR_OPTIONS);
 form.company_sector = sectorPreset.select;
 form.company_sector_other = sectorPreset.other;
 
-const effectiveCountry = computed(() => {
-    return form.company_country === '__other__'
-        ? String(form.company_country_other || '').trim()
-        : form.company_country;
-});
+const addressQuery = ref('');
+const addressSuggestions = ref([]);
+const validatedAddress = ref(null);
+const isSearchingAddress = ref(false);
+const geoapifyKey = import.meta.env.VITE_GEOAPIFY_KEY;
 
-const provinceOptions = computed(() => {
-    const provinces = PROVINCES_BY_COUNTRY[effectiveCountry.value] || [];
-    return [
-        { id: '', name: 'Selectionner une province' },
-        ...provinces.map((value) => ({ id: value, name: value })),
-        { id: '__other__', name: 'Autre...' },
-    ];
-});
+const clearValidatedAddress = () => {
+    validatedAddress.value = null;
+    form.company_country = '';
+    form.company_province = '';
+    form.company_city = '';
+};
 
-const provincePreset = resolveSelectValue(preset.value.company_province, provinceOptions.value);
-form.company_province = provincePreset.select;
-form.company_province_other = provincePreset.other;
-
-const effectiveProvince = computed(() => {
-    return form.company_province === '__other__'
-        ? String(form.company_province_other || '').trim()
-        : form.company_province;
-});
-
-const cityOptions = computed(() => {
-    const country = effectiveCountry.value;
-    const province = effectiveProvince.value;
-    const cities = CITIES_BY_COUNTRY_AND_PROVINCE[country]?.[province] || [];
-
-    return [
-        { id: '', name: 'Selectionner une ville' },
-        ...cities.map((value) => ({ id: value, name: value })),
-        { id: '__other__', name: 'Autre...' },
-    ];
-});
-
-const cityPreset = resolveSelectValue(preset.value.company_city, cityOptions.value);
-form.company_city = cityPreset.select;
-form.company_city_other = cityPreset.other;
-
-watch(
-    () => form.company_country,
-    () => {
-        form.company_province = '';
-        form.company_province_other = '';
-        form.company_city = '';
-        form.company_city_other = '';
+const searchAddress = async () => {
+    if (addressQuery.value.length < 2) {
+        addressSuggestions.value = [];
+        return;
     }
-);
 
-watch(
-    () => form.company_province,
-    () => {
-        form.company_city = '';
-        form.company_city_other = '';
+    if (!geoapifyKey) {
+        addressSuggestions.value = [];
+        return;
     }
-);
+
+    isSearchingAddress.value = true;
+    try {
+        const url = new URL('https://api.geoapify.com/v1/geocode/autocomplete');
+        url.search = new URLSearchParams({
+            text: addressQuery.value,
+            apiKey: geoapifyKey,
+            limit: '5',
+            filter: 'countrycode:ca,us,fr,be,ch,ma,tn',
+        }).toString();
+
+        const response = await fetch(url.toString());
+        if (!response.ok) {
+            throw new Error(`Geoapify request failed: ${response.status}`);
+        }
+
+        const data = await response.json();
+        addressSuggestions.value = (data.features || []).map((feature) => ({
+            id: feature.properties?.place_id || feature.properties?.formatted || feature.properties?.name,
+            label: feature.properties?.formatted || feature.properties?.name || '',
+            details: feature.properties || {},
+        }));
+    } catch (error) {
+        console.error('Erreur lors de la recherche d\'adresse :', error);
+    } finally {
+        isSearchingAddress.value = false;
+    }
+};
+
+const handleAddressInput = () => {
+    if (validatedAddress.value) {
+        clearValidatedAddress();
+    }
+    searchAddress();
+};
+
+const selectAddressSuggestion = (suggestion) => {
+    if (!suggestion?.details) {
+        return;
+    }
+    const address = suggestion.details || {};
+    const streetParts = [];
+    if (address.house_number) {
+        streetParts.push(address.house_number);
+    }
+    if (address.street) {
+        streetParts.push(address.street);
+    }
+
+    const city = address.city || address.town || address.village || address.hamlet || address.suburb;
+    const province = address.state || address.county || address.region || '';
+    const country = address.country || '';
+    const postalCode = address.postcode || '';
+    const formatted = address.formatted || address.name || suggestion.label || addressQuery.value;
+    const street = streetParts.join(' ').trim();
+
+    form.company_city = city || '';
+    form.company_province = province || '';
+    form.company_country = country || '';
+
+    addressQuery.value = formatted;
+    addressSuggestions.value = [];
+    validatedAddress.value = {
+        formatted,
+        street,
+        city: city || '',
+        province,
+        postalCode,
+        country,
+    };
+};
+
+const seedAddressFromPreset = () => {
+    if (validatedAddress.value) {
+        return;
+    }
+
+    const parts = [form.company_city, form.company_province, form.company_country].filter(Boolean);
+    if (!parts.length) {
+        return;
+    }
+
+    const label = parts.join(', ');
+    validatedAddress.value = {
+        formatted: label,
+        street: '',
+        city: form.company_city || '',
+        province: form.company_province || '',
+        postalCode: '',
+        country: form.company_country || '',
+    };
+    addressQuery.value = label;
+};
+
+seedAddressFromPreset();
 
 watch(
     () => form.company_sector,
@@ -247,7 +256,7 @@ const companySectorLabel = computed(() => {
 });
 
 const goNext = () => {
-    if (step.value < totalSteps) {
+    if (step.value < totalSteps.value) {
         step.value += 1;
     }
 };
@@ -266,6 +275,12 @@ const removeInvite = (index) => {
     form.invites.splice(index, 1);
 };
 
+const submitRegister = () => {
+    registerForm.post(route('onboarding.register'), {
+        onFinish: () => registerForm.reset('password', 'password_confirmation'),
+    });
+};
+
 const submit = () => {
     const normalizeText = (value) => {
         const trimmed = String(value || '').trim();
@@ -274,16 +289,13 @@ const submit = () => {
 
     form
         .transform((data) => {
-            const country = data.company_country === '__other__' ? data.company_country_other : data.company_country;
-            const province = data.company_province === '__other__' ? data.company_province_other : data.company_province;
-            const city = data.company_city === '__other__' ? data.company_city_other : data.company_city;
             const sector = data.company_sector === '__other__' ? data.company_sector_other : data.company_sector;
 
             const payload = {
                 ...data,
-                company_country: normalizeText(country),
-                company_province: normalizeText(province),
-                company_city: normalizeText(city),
+                company_country: normalizeText(data.company_country),
+                company_province: normalizeText(data.company_province),
+                company_city: normalizeText(data.company_city),
                 company_sector: normalizeText(sector),
             };
 
@@ -332,8 +344,13 @@ const closeTerms = () => {
                         Progression
                     </p>
                     <div class="mt-3 space-y-2">
-                        <button v-for="item in stepItems" :key="item.id" type="button" @click="step = item.id"
-                            class="w-full rounded-sm border px-3 py-2 text-left text-sm transition"
+                        <button
+                            v-for="item in stepItems"
+                            :key="item.id"
+                            type="button"
+                            :disabled="isStepDisabled(item)"
+                            @click="selectStep(item)"
+                            class="w-full rounded-sm border px-3 py-2 text-left text-sm transition disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-60"
                             :class="item.id === step
                                 ? 'border-green-600 bg-green-50 text-green-700 dark:border-green-500/50 dark:bg-green-500/10 dark:text-green-300'
                                 : 'border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800'">
@@ -358,7 +375,60 @@ const closeTerms = () => {
                 </div>
 
                 <div class="p-4 space-y-4">
-                    <div v-if="step === 1" class="space-y-3">
+                    <div v-if="isGuest && step === stepIds.account" class="space-y-4">
+                        <div class="rounded-sm border border-stone-200 bg-stone-50 p-3 text-xs text-stone-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300">
+                            Ce compte deviendra le proprietaire de l'entreprise.
+                        </div>
+
+                        <form class="space-y-3" @submit.prevent="submitRegister">
+                            <FloatingInput v-model="registerForm.name" label="Nom complet" autocomplete="name" required />
+                            <InputError class="mt-1" :message="registerForm.errors.name" />
+
+                            <FloatingInput v-model="registerForm.email" label="Email" type="email" autocomplete="email" required />
+                            <InputError class="mt-1" :message="registerForm.errors.email" />
+
+                            <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+                                <div>
+                                    <FloatingInput
+                                        v-model="registerForm.password"
+                                        label="Mot de passe"
+                                        type="password"
+                                        autocomplete="new-password"
+                                        required
+                                    />
+                                    <InputError class="mt-1" :message="registerForm.errors.password" />
+                                </div>
+                                <div>
+                                    <FloatingInput
+                                        v-model="registerForm.password_confirmation"
+                                        label="Confirmer le mot de passe"
+                                        type="password"
+                                        autocomplete="new-password"
+                                        required
+                                    />
+                                    <InputError class="mt-1" :message="registerForm.errors.password_confirmation" />
+                                </div>
+                            </div>
+
+                            <div class="flex flex-wrap items-center justify-between gap-3 pt-2">
+                                <Link
+                                    :href="route('login')"
+                                    class="text-xs text-stone-600 hover:text-stone-900 dark:text-neutral-400 dark:hover:text-neutral-200"
+                                >
+                                    Deja un compte ? Se connecter
+                                </Link>
+                                <button
+                                    type="submit"
+                                    :disabled="registerForm.processing"
+                                    class="rounded-sm border border-transparent bg-green-600 px-3 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50"
+                                >
+                                    Creer mon compte
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <div v-else-if="step === stepIds.company" class="space-y-3">
                         <FloatingInput v-model="form.company_name" label="Nom de l'entreprise" />
                         <InputError class="mt-1" :message="form.errors.company_name" />
 
@@ -376,50 +446,77 @@ const closeTerms = () => {
                             <InputError class="mt-1" :message="form.errors.company_description" />
                         </div>
 
-                        <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
-                            <div>
-                                <label class="block text-xs text-stone-500 dark:text-neutral-400">Pays (optionnel)</label>
-                                <select v-model="form.company_country"
-                                    class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
-                                    <option v-for="option in COUNTRY_OPTIONS" :key="option.id" :value="option.id">
-                                        {{ option.name }}
-                                    </option>
-                                </select>
-                                <InputError class="mt-1" :message="form.errors.company_country" />
-                                <div v-if="form.company_country === '__other__'" class="mt-2">
-                                    <FloatingInput v-model="form.company_country_other" label="Pays (autre)" />
+                        <div class="space-y-3">
+                            <label class="block text-xs text-stone-500 dark:text-neutral-400">Adresse de l'entreprise</label>
+                            <div class="relative w-full">
+                                <div class="relative">
+                                    <div class="absolute inset-y-0 start-0 flex items-center pointer-events-none z-20 ps-3.5">
+                                        <svg class="shrink-0 size-4 text-stone-400 dark:text-white/60"
+                                            xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round">
+                                            <circle cx="11" cy="11" r="8"></circle>
+                                            <path d="m21 21-4.3-4.3"></path>
+                                        </svg>
+                                    </div>
+                                    <input
+                                        v-model="addressQuery"
+                                        @input="handleAddressInput"
+                                        class="py-3 ps-10 pe-4 block w-full border-stone-200 rounded-sm text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
+                                        type="text"
+                                        role="combobox"
+                                        aria-expanded="false"
+                                        placeholder="Rechercher une adresse"
+                                    />
+                                </div>
+
+                                <div v-if="addressSuggestions.length"
+                                    class="absolute z-50 w-full bg-white rounded-sm shadow-[0_10px_40px_10px_rgba(0,0,0,0.08)] dark:bg-neutral-800">
+                                    <div
+                                        class="max-h-[300px] p-2 overflow-y-auto overflow-hidden [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-stone-100 [&::-webkit-scrollbar-thumb]:bg-stone-300 dark:[&::-webkit-scrollbar-track]:bg-neutral-700 dark:[&::-webkit-scrollbar-thumb]:bg-neutral-500">
+                                        <div v-for="suggestion in addressSuggestions" :key="suggestion.id"
+                                            class="py-2 px-3 flex items-center gap-x-3 hover:bg-stone-100 rounded-sm dark:hover:bg-neutral-700 cursor-pointer"
+                                            @click="selectAddressSuggestion(suggestion)">
+                                            <span class="text-sm text-stone-800 dark:text-neutral-200">
+                                                {{ suggestion.label }}
+                                            </span>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
-                            <div>
-                                <label class="block text-xs text-stone-500 dark:text-neutral-400">Province / Etat (optionnel)</label>
-                                <select v-model="form.company_province"
-                                    class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
-                                    <option v-for="option in provinceOptions" :key="option.id" :value="option.id">
-                                        {{ option.name }}
-                                    </option>
-                                </select>
-                                <InputError class="mt-1" :message="form.errors.company_province" />
-                                <div v-if="form.company_province === '__other__'" class="mt-2">
-                                    <FloatingInput v-model="form.company_province_other" label="Province / Etat (autre)" />
-                                </div>
+
+                            <div v-if="isSearchingAddress" class="text-xs text-stone-500 dark:text-neutral-400">
+                                Recherche en cours...
                             </div>
-                            <div class="md:col-span-2">
-                                <label class="block text-xs text-stone-500 dark:text-neutral-400">Ville (optionnel)</label>
-                                <select v-model="form.company_city"
-                                    class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
-                                    <option v-for="option in cityOptions" :key="option.id" :value="option.id">
-                                        {{ option.name }}
-                                    </option>
-                                </select>
-                                <InputError class="mt-1" :message="form.errors.company_city" />
-                                <div v-if="form.company_city === '__other__'" class="mt-2">
-                                    <FloatingInput v-model="form.company_city_other" label="Ville (autre)" />
+                            <InputError class="mt-1" :message="form.errors.company_country || form.errors.company_province || form.errors.company_city" />
+                        </div>
+
+                        <div v-if="validatedAddress" class="rounded-sm border border-stone-200 bg-stone-50 p-3 text-xs text-stone-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300">
+                            <p class="text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">Adresse validee</p>
+                            <div class="mt-2 grid gap-2">
+                                <div v-if="validatedAddress.formatted">
+                                    <span class="font-medium">Adresse :</span> {{ validatedAddress.formatted }}
+                                </div>
+                                <div v-if="validatedAddress.street">
+                                    <span class="font-medium">Rue :</span> {{ validatedAddress.street }}
+                                </div>
+                                <div>
+                                    <span class="font-medium">Ville :</span> {{ validatedAddress.city || '-' }}
+                                    <span class="mx-2">/</span>
+                                    <span class="font-medium">Province :</span> {{ validatedAddress.province || '-' }}
+                                </div>
+                                <div>
+                                    <span class="font-medium">Pays :</span> {{ validatedAddress.country || '-' }}
+                                    <span v-if="validatedAddress.postalCode" class="mx-2">/</span>
+                                    <span v-if="validatedAddress.postalCode">
+                                        <span class="font-medium">Code postal :</span> {{ validatedAddress.postalCode }}
+                                    </span>
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    <div v-else-if="step === 2" class="space-y-3">
+                    <div v-else-if="step === stepIds.type" class="space-y-3">
                         <div class="space-y-2">
                             <label class="flex items-center gap-2 text-sm text-stone-700 dark:text-neutral-200">
                                 <input type="radio" name="company_type" value="services" v-model="form.company_type" />
@@ -438,7 +535,7 @@ const closeTerms = () => {
                         </div>
                     </div>
 
-                    <div v-else-if="step === 3" class="space-y-3">
+                    <div v-else-if="step === stepIds.sector" class="space-y-3">
                         <div>
                             <label class="block text-xs text-stone-500 dark:text-neutral-400">Secteur d'activite</label>
                             <select v-model="form.company_sector"
@@ -457,7 +554,7 @@ const closeTerms = () => {
                         </div>
                     </div>
 
-                    <div v-else-if="step === 4" class="space-y-3">
+                    <div v-else-if="step === stepIds.owner" class="space-y-3">
                         <p class="text-sm text-stone-600 dark:text-neutral-400">Etes-vous le proprietaire de l'entreprise ?</p>
 
                         <div class="space-y-2">
@@ -486,7 +583,7 @@ const closeTerms = () => {
                         </div>
                     </div>
 
-                    <div v-else-if="step === 5" class="space-y-3">
+                    <div v-else-if="step === stepIds.team" class="space-y-3">
                         <div class="flex items-center justify-between">
                             <div>
                                 <h3 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">Inviter l'equipe (optionnel)</h3>
@@ -574,7 +671,7 @@ const closeTerms = () => {
                     </div>
                 </div>
 
-                <div class="border-t border-stone-200 p-4 dark:border-neutral-700 flex items-center justify-between">
+                <div v-if="!(isGuest && step === stepIds.account)" class="border-t border-stone-200 p-4 dark:border-neutral-700 flex items-center justify-between">
                     <button type="button" @click="goBack" :disabled="step === 1"
                         class="rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm text-stone-700 hover:bg-stone-50 disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800">
                         Retour
@@ -611,4 +708,3 @@ const closeTerms = () => {
         </Modal>
     </GuestLayout>
 </template>
-

@@ -34,7 +34,7 @@ defineProps({
                     class="rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm font-medium text-stone-800 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800">
                     {{ $t('legal.actions.sign_in') }}
                 </Link>
-                <Link v-if="canRegister" :href="route('register')"
+                <Link v-if="canRegister" :href="route('onboarding.index')"
                     class="rounded-sm border border-transparent bg-green-600 px-3 py-2 text-sm font-medium text-white hover:bg-green-700">
                     {{ $t('legal.actions.create_account') }}
                 </Link>

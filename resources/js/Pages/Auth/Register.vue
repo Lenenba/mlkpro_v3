@@ -14,7 +14,7 @@ const form = useForm({
 });
 
 const submit = () => {
-    form.post(route('register'), {
+    form.post(route('onboarding.register'), {
         onFinish: () => form.reset('password', 'password_confirmation'),
     });
 };

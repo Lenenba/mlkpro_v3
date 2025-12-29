@@ -18,7 +18,7 @@ class WelcomeController extends Controller
 
         return Inertia::render('Welcome', [
             'canLogin' => Route::has('login'),
-            'canRegister' => Route::has('register'),
+            'canRegister' => Route::has('onboarding.index'),
         ]);
     }
 }
