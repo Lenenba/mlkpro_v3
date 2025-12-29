@@ -60,6 +60,20 @@ const handleCustomerCreated = (payload) => {
     }
 };
 
+const handleCategoryCreated = (category) => {
+    if (!category?.id) {
+        return;
+    }
+
+    const existingIndex = categories.value.findIndex((item) => item.id === category.id);
+    if (existingIndex >= 0) {
+        categories.value.splice(existingIndex, 1, category);
+    } else {
+        categories.value.push(category);
+        categories.value.sort((a, b) => String(a.name).localeCompare(String(b.name)));
+    }
+};
+
 onMounted(() => {
     fetchCustomers();
     fetchCategories();
@@ -83,11 +97,12 @@ onMounted(() => {
         <div v-else-if="categoryError" class="text-sm text-red-600">
             {{ categoryError }}
         </div>
-        <div v-else-if="!categories.length" class="text-sm text-stone-500 dark:text-neutral-400">
-            Add at least one product category before creating products.
-        </div>
         <div v-else>
-            <ProductQuickForm :categories="categories" :overlay-id="'#hs-quick-create-product'" />
+            <ProductQuickForm
+                :categories="categories"
+                :overlay-id="'#hs-quick-create-product'"
+                @category-created="handleCategoryCreated"
+            />
         </div>
     </Modal>
 
@@ -98,11 +113,12 @@ onMounted(() => {
         <div v-else-if="categoryError" class="text-sm text-red-600">
             {{ categoryError }}
         </div>
-        <div v-else-if="!categories.length" class="text-sm text-stone-500 dark:text-neutral-400">
-            Add at least one category before creating services.
-        </div>
         <div v-else>
-            <ServiceQuickForm :categories="categories" :overlay-id="'#hs-quick-create-service'" />
+            <ServiceQuickForm
+                :categories="categories"
+                :overlay-id="'#hs-quick-create-service'"
+                @category-created="handleCategoryCreated"
+            />
         </div>
     </Modal>
 
