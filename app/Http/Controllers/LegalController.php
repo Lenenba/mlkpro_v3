@@ -12,7 +12,7 @@ class LegalController extends Controller
     {
         return Inertia::render('Terms', [
             'canLogin' => Route::has('login'),
-            'canRegister' => Route::has('register'),
+            'canRegister' => Route::has('onboarding.index'),
         ]);
     }
 
@@ -20,7 +20,7 @@ class LegalController extends Controller
     {
         return Inertia::render('Privacy', [
             'canLogin' => Route::has('login'),
-            'canRegister' => Route::has('register'),
+            'canRegister' => Route::has('onboarding.index'),
         ]);
     }
 
@@ -28,7 +28,7 @@ class LegalController extends Controller
     {
         return Inertia::render('Refund', [
             'canLogin' => Route::has('login'),
-            'canRegister' => Route::has('register'),
+            'canRegister' => Route::has('onboarding.index'),
         ]);
     }
 
@@ -36,7 +36,7 @@ class LegalController extends Controller
     {
         return Inertia::render('Pricing', [
             'canLogin' => Route::has('login'),
-            'canRegister' => Route::has('register'),
+            'canRegister' => Route::has('onboarding.index'),
         ]);
     }
 }

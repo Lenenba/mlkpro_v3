@@ -35,7 +35,9 @@ class OnboardingController extends Controller
     {
         $user = $request->user();
         if (!$user) {
-            abort(401);
+            return Inertia::render('Onboarding/Index', [
+                'preset' => (object) [],
+            ]);
         }
 
         if (!$user->isAccountOwner()) {

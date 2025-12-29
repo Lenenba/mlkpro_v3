@@ -59,6 +59,10 @@ Route::get('/terms', [LegalController::class, 'terms'])->name('terms');
 Route::get('/privacy', [LegalController::class, 'privacy'])->name('privacy');
 Route::get('/refund', [LegalController::class, 'refund'])->name('refund');
 Route::get('/pricing', [LegalController::class, 'pricing'])->name('pricing');
+// Onboarding (account setup)
+Route::get('/onboarding', [OnboardingController::class, 'index'])
+    ->middleware(EnsureInternalUser::class)
+    ->name('onboarding.index');
 
 // Dashboard Route
 Route::get('/dashboard', [DashboardController::class, 'index'])->middleware(['auth', 'verified'])->name('dashboard');
@@ -76,7 +80,6 @@ Route::middleware('auth')->group(function () {
 Route::middleware(['auth', EnsureInternalUser::class])->group(function () {
 
     // Onboarding (account setup)
-    Route::get('/onboarding', [OnboardingController::class, 'index'])->name('onboarding.index');
     Route::post('/onboarding', [OnboardingController::class, 'store'])->name('onboarding.store');
 
     // Settings (owner only)
