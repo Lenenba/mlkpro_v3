@@ -2,8 +2,11 @@
 import { computed } from 'vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import AnnouncementsPanel from '@/Components/Dashboard/AnnouncementsPanel.vue';
+import KpiSparkline from '@/Components/Dashboard/KpiSparkline.vue';
+import KpiTrendBadge from '@/Components/Dashboard/KpiTrendBadge.vue';
 import { Head, Link, usePage } from '@inertiajs/vue3';
 import { humanizeDate } from '@/utils/date';
+import { buildSparklinePoints, buildTrend } from '@/utils/kpi';
 
 const props = defineProps({
     stats: {
@@ -29,6 +32,10 @@ const props = defineProps({
     revenueSeries: {
         type: Object,
         default: () => ({ labels: [], values: [] }),
+    },
+    kpiSeries: {
+        type: Object,
+        default: () => ({}),
     },
     announcements: {
         type: Array,
@@ -104,6 +111,29 @@ const revenuePoints = computed(() => {
             height: `${height}px`,
         };
     });
+});
+
+const kpiSeries = computed(() => props.kpiSeries || {});
+const kpiConfig = {
+    revenue_paid: { direction: 'up' },
+    revenue_outstanding: { direction: 'down' },
+    quotes_open: { direction: 'up' },
+    works_in_progress: { direction: 'up' },
+    customers_total: { direction: 'up' },
+    products_low_stock: { direction: 'down' },
+    invoices_paid: { direction: 'up' },
+    inventory_value: { direction: 'up' },
+};
+const kpiData = computed(() => {
+    const data = {};
+    Object.entries(kpiConfig).forEach(([key, config]) => {
+        const values = kpiSeries.value?.[key] || [];
+        data[key] = {
+            points: buildSparklinePoints(values),
+            trend: buildTrend(values, config.direction),
+        };
+    });
+    return data;
 });
 
 const displayCustomer = (customer) =>
@@ -275,97 +305,153 @@ const showChecklist = computed(() => checklistCompleted.value < checklistTotal.v
                 <div
                     class="p-4 bg-white border border-t-4 border-t-emerald-600 border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
                     <div class="space-y-1">
-                        <p class="text-xs text-stone-500 dark:text-neutral-400">Revenue paid</p>
+                        <div class="flex items-center justify-between gap-2">
+                            <p class="text-xs text-stone-500 dark:text-neutral-400">Revenue paid</p>
+                            <KpiTrendBadge :trend="kpiData.revenue_paid.trend" />
+                        </div>
                         <p class="text-lg font-semibold text-stone-800 dark:text-neutral-100">
                             {{ formatCurrency(stat('revenue_paid')) }}
                         </p>
                         <p class="text-xs text-stone-500 dark:text-neutral-400">
                             Billed {{ formatCurrency(stat('revenue_billed')) }}
                         </p>
+                        <KpiSparkline
+                            :points="kpiData.revenue_paid.points"
+                            color-class="bg-emerald-500/70 dark:bg-emerald-400/50"
+                        />
                     </div>
                 </div>
                 <div
                     class="p-4 bg-white border border-t-4 border-t-amber-600 border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
                     <div class="space-y-1">
-                        <p class="text-xs text-stone-500 dark:text-neutral-400">Outstanding balance</p>
+                        <div class="flex items-center justify-between gap-2">
+                            <p class="text-xs text-stone-500 dark:text-neutral-400">Outstanding balance</p>
+                            <KpiTrendBadge :trend="kpiData.revenue_outstanding.trend" />
+                        </div>
                         <p class="text-lg font-semibold text-stone-800 dark:text-neutral-100">
                             {{ formatCurrency(stat('revenue_outstanding')) }}
                         </p>
                         <p class="text-xs text-stone-500 dark:text-neutral-400">
                             Partial invoices {{ formatNumber(stat('invoices_partial')) }}
                         </p>
+                        <KpiSparkline
+                            :points="kpiData.revenue_outstanding.points"
+                            color-class="bg-amber-500/70 dark:bg-amber-400/50"
+                        />
                     </div>
                 </div>
                 <div
                     class="p-4 bg-white border border-t-4 border-t-blue-600 border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
                     <div class="space-y-1">
-                        <p class="text-xs text-stone-500 dark:text-neutral-400">Open quotes</p>
+                        <div class="flex items-center justify-between gap-2">
+                            <p class="text-xs text-stone-500 dark:text-neutral-400">Open quotes</p>
+                            <KpiTrendBadge :trend="kpiData.quotes_open.trend" />
+                        </div>
                         <p class="text-lg font-semibold text-stone-800 dark:text-neutral-100">
                             {{ formatNumber(stat('quotes_open')) }}
                         </p>
                         <p class="text-xs text-stone-500 dark:text-neutral-400">
                             Accepted {{ formatNumber(stat('quotes_accepted')) }}
                         </p>
+                        <KpiSparkline
+                            :points="kpiData.quotes_open.points"
+                            color-class="bg-blue-500/70 dark:bg-blue-400/50"
+                        />
                     </div>
                 </div>
                 <div
                     class="p-4 bg-white border border-t-4 border-t-indigo-600 border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
                     <div class="space-y-1">
-                        <p class="text-xs text-stone-500 dark:text-neutral-400">Jobs in progress</p>
+                        <div class="flex items-center justify-between gap-2">
+                            <p class="text-xs text-stone-500 dark:text-neutral-400">Jobs in progress</p>
+                            <KpiTrendBadge :trend="kpiData.works_in_progress.trend" />
+                        </div>
                         <p class="text-lg font-semibold text-stone-800 dark:text-neutral-100">
                             {{ formatNumber(stat('works_in_progress')) }}
                         </p>
                         <p class="text-xs text-stone-500 dark:text-neutral-400">
                             Scheduled {{ formatNumber(stat('works_scheduled')) }}
                         </p>
+                        <KpiSparkline
+                            :points="kpiData.works_in_progress.points"
+                            color-class="bg-indigo-500/70 dark:bg-indigo-400/50"
+                        />
                     </div>
                 </div>
                 <div
                     class="p-4 bg-white border border-t-4 border-t-sky-600 border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
                     <div class="space-y-1">
-                        <p class="text-xs text-stone-500 dark:text-neutral-400">Customers</p>
+                        <div class="flex items-center justify-between gap-2">
+                            <p class="text-xs text-stone-500 dark:text-neutral-400">Customers</p>
+                            <KpiTrendBadge :trend="kpiData.customers_total.trend" />
+                        </div>
                         <p class="text-lg font-semibold text-stone-800 dark:text-neutral-100">
                             {{ formatNumber(stat('customers_total')) }}
                         </p>
                         <p class="text-xs text-stone-500 dark:text-neutral-400">
                             New last 30 days {{ formatNumber(stat('customers_new')) }}
                         </p>
+                        <KpiSparkline
+                            :points="kpiData.customers_total.points"
+                            color-class="bg-sky-500/70 dark:bg-sky-400/50"
+                        />
                     </div>
                 </div>
                 <div
                     class="p-4 bg-white border border-t-4 border-t-red-600 border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
                     <div class="space-y-1">
-                        <p class="text-xs text-stone-500 dark:text-neutral-400">Low stock</p>
+                        <div class="flex items-center justify-between gap-2">
+                            <p class="text-xs text-stone-500 dark:text-neutral-400">Low stock</p>
+                            <KpiTrendBadge :trend="kpiData.products_low_stock.trend" />
+                        </div>
                         <p class="text-lg font-semibold text-stone-800 dark:text-neutral-100">
                             {{ formatNumber(stat('products_low_stock')) }}
                         </p>
                         <p class="text-xs text-stone-500 dark:text-neutral-400">
                             Out of stock {{ formatNumber(stat('products_out')) }}
                         </p>
+                        <KpiSparkline
+                            :points="kpiData.products_low_stock.points"
+                            color-class="bg-red-500/70 dark:bg-red-400/50"
+                        />
                     </div>
                 </div>
                 <div
                     class="p-4 bg-white border border-t-4 border-t-teal-600 border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
                     <div class="space-y-1">
-                        <p class="text-xs text-stone-500 dark:text-neutral-400">Invoices paid</p>
+                        <div class="flex items-center justify-between gap-2">
+                            <p class="text-xs text-stone-500 dark:text-neutral-400">Invoices paid</p>
+                            <KpiTrendBadge :trend="kpiData.invoices_paid.trend" />
+                        </div>
                         <p class="text-lg font-semibold text-stone-800 dark:text-neutral-100">
                             {{ formatNumber(stat('invoices_paid')) }}
                         </p>
                         <p class="text-xs text-stone-500 dark:text-neutral-400">
                             Total invoices {{ formatNumber(stat('invoices_total')) }}
                         </p>
+                        <KpiSparkline
+                            :points="kpiData.invoices_paid.points"
+                            color-class="bg-teal-500/70 dark:bg-teal-400/50"
+                        />
                     </div>
                 </div>
                 <div
                     class="p-4 bg-white border border-t-4 border-t-stone-600 border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
                     <div class="space-y-1">
-                        <p class="text-xs text-stone-500 dark:text-neutral-400">Inventory value</p>
+                        <div class="flex items-center justify-between gap-2">
+                            <p class="text-xs text-stone-500 dark:text-neutral-400">Inventory value</p>
+                            <KpiTrendBadge :trend="kpiData.inventory_value.trend" />
+                        </div>
                         <p class="text-lg font-semibold text-stone-800 dark:text-neutral-100">
                             {{ formatCurrency(stat('inventory_value')) }}
                         </p>
                         <p class="text-xs text-stone-500 dark:text-neutral-400">
                             Products {{ formatNumber(stat('products_total')) }}
                         </p>
+                        <KpiSparkline
+                            :points="kpiData.inventory_value.points"
+                            color-class="bg-stone-500/70 dark:bg-stone-400/50"
+                        />
                     </div>
                 </div>
                 </section>

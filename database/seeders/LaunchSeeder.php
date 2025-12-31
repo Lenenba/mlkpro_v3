@@ -1206,5 +1206,710 @@ class LaunchSeeder extends Seeder
                 'street1' => '42 Product St',
             ]
         );
+
+        $setTimestamps = function ($model, $timestamp) {
+            $model->forceFill([
+                'created_at' => $timestamp,
+                'updated_at' => $timestamp,
+            ])->saveQuietly();
+        };
+
+        $suppliesCategory = ProductCategory::resolveForAccount(
+            $serviceOwner->id,
+            $serviceOwner->id,
+            'Supplies'
+        );
+
+        $trendSeries = [
+            [
+                'quote_total' => 380,
+                'outstanding_total' => 540,
+                'payment_total' => 320,
+                'inventory_stock' => 14,
+                'inventory_price' => 120,
+                'low_stock_stock' => 3,
+                'low_stock_min' => 6,
+                'low_stock_price' => 18,
+                'work_status' => Work::STATUS_EN_ROUTE,
+                'tasks' => ['todo' => 2, 'in_progress' => 1, 'done' => 1],
+            ],
+            [
+                'quote_total' => 420,
+                'outstanding_total' => 760,
+                'payment_total' => 410,
+                'inventory_stock' => 18,
+                'inventory_price' => 110,
+                'low_stock_stock' => 4,
+                'low_stock_min' => 7,
+                'low_stock_price' => 22,
+                'work_status' => Work::STATUS_IN_PROGRESS,
+                'tasks' => ['todo' => 2, 'in_progress' => 2, 'done' => 1],
+            ],
+            [
+                'quote_total' => 520,
+                'outstanding_total' => 620,
+                'payment_total' => 480,
+                'inventory_stock' => 20,
+                'inventory_price' => 140,
+                'low_stock_stock' => 2,
+                'low_stock_min' => 5,
+                'low_stock_price' => 16,
+                'work_status' => Work::STATUS_EN_ROUTE,
+                'tasks' => ['todo' => 3, 'in_progress' => 2, 'done' => 2],
+            ],
+            [
+                'quote_total' => 460,
+                'outstanding_total' => 880,
+                'payment_total' => 560,
+                'inventory_stock' => 12,
+                'inventory_price' => 160,
+                'low_stock_stock' => 3,
+                'low_stock_min' => 6,
+                'low_stock_price' => 24,
+                'work_status' => Work::STATUS_IN_PROGRESS,
+                'tasks' => ['todo' => 3, 'in_progress' => 3, 'done' => 2],
+            ],
+            [
+                'quote_total' => 610,
+                'outstanding_total' => 720,
+                'payment_total' => 700,
+                'inventory_stock' => 24,
+                'inventory_price' => 130,
+                'low_stock_stock' => 4,
+                'low_stock_min' => 8,
+                'low_stock_price' => 20,
+                'work_status' => Work::STATUS_EN_ROUTE,
+                'tasks' => ['todo' => 2, 'in_progress' => 2, 'done' => 3],
+            ],
+            [
+                'quote_total' => 690,
+                'outstanding_total' => 540,
+                'payment_total' => 820,
+                'inventory_stock' => 30,
+                'inventory_price' => 150,
+                'low_stock_stock' => 3,
+                'low_stock_min' => 7,
+                'low_stock_price' => 19,
+                'work_status' => Work::STATUS_IN_PROGRESS,
+                'tasks' => ['todo' => 2, 'in_progress' => 1, 'done' => 4],
+            ],
+        ];
+
+        $monthDayOffsets = [2, 6, 10, 14, 18, 22, 26];
+        $extraPerMonth = 3;
+        $pastBoost = 2;
+
+        foreach ($trendSeries as $index => $seed) {
+            $monthOffset = (count($trendSeries) - 1) - $index;
+            $monthDate = $now->copy()->subMonths($monthOffset);
+            $monthBase = $monthDate->copy()->startOfMonth();
+            $monthStart = $monthBase->copy()->addDays(3);
+            $monthMid = $monthBase->copy()->addDays(12);
+            $monthLate = $monthBase->copy()->addDays(22);
+            $monthLabel = $monthDate->format('M');
+            $monthExtra = $extraPerMonth + ($monthOffset >= 3 ? $pastBoost : 0);
+
+            $trendCustomer = Customer::updateOrCreate(
+                [
+                    'email' => "trend-customer-{$index}@example.com",
+                ],
+                [
+                    'user_id' => $serviceOwner->id,
+                    'first_name' => 'Trend',
+                    'last_name' => "Customer {$index}",
+                    'company_name' => "Trend {$monthLabel} Co",
+                    'phone' => '+15145550120',
+                    'description' => 'Seeded trend customer.',
+                    'salutation' => 'Mr',
+                    'billing_same_as_physical' => true,
+                ]
+            );
+            $setTimestamps($trendCustomer, $monthStart);
+
+            for ($i = 1; $i <= $monthExtra; $i += 1) {
+                $extraCustomer = Customer::updateOrCreate(
+                    [
+                        'email' => "trend-extra-{$index}-{$i}@example.com",
+                    ],
+                    [
+                        'user_id' => $serviceOwner->id,
+                        'first_name' => 'Trend',
+                        'last_name' => "Extra {$index}-{$i}",
+                        'company_name' => "Trend {$monthLabel} Extra {$i}",
+                        'phone' => '+15145550121',
+                        'description' => 'Seeded trend extra customer.',
+                        'salutation' => 'Mr',
+                        'billing_same_as_physical' => true,
+                    ]
+                );
+                $dayOffset = $monthDayOffsets[$i % count($monthDayOffsets)];
+                $setTimestamps($extraCustomer, $monthBase->copy()->addDays($dayOffset));
+            }
+
+            $trendProperty = Property::updateOrCreate(
+                [
+                    'customer_id' => $trendCustomer->id,
+                    'type' => 'physical',
+                    'street1' => "Trend {$monthLabel} St",
+                ],
+                [
+                    'is_default' => true,
+                    'city' => 'Montreal',
+                    'state' => 'QC',
+                    'zip' => 'H2H2H2',
+                    'country' => 'Canada',
+                ]
+            );
+            $setTimestamps($trendProperty, $monthStart);
+
+            $trendQuote = Quote::updateOrCreate(
+                [
+                    'user_id' => $serviceOwner->id,
+                    'customer_id' => $trendCustomer->id,
+                    'job_title' => "Monthly service quote {$monthLabel}",
+                ],
+                [
+                    'property_id' => $trendProperty->id,
+                    'status' => 'sent',
+                    'notes' => 'Seeded trend quote.',
+                    'messages' => null,
+                    'subtotal' => $seed['quote_total'],
+                    'total' => $seed['quote_total'],
+                    'initial_deposit' => 0,
+                    'is_fixed' => false,
+                ]
+            );
+            $setTimestamps($trendQuote, $monthMid);
+
+            for ($i = 1; $i <= $monthExtra; $i += 1) {
+                $quoteTotal = round($seed['quote_total'] * (0.8 + (0.12 * $i)), 2);
+                $extraQuote = Quote::updateOrCreate(
+                    [
+                        'user_id' => $serviceOwner->id,
+                        'customer_id' => $trendCustomer->id,
+                        'job_title' => "Monthly service quote {$monthLabel} #{$i}",
+                    ],
+                    [
+                        'property_id' => $trendProperty->id,
+                        'status' => $i % 2 === 0 ? 'draft' : 'sent',
+                        'notes' => 'Seeded trend quote.',
+                        'messages' => null,
+                        'subtotal' => $quoteTotal,
+                        'total' => $quoteTotal,
+                        'initial_deposit' => 0,
+                        'is_fixed' => false,
+                    ]
+                );
+                $dayOffset = $monthDayOffsets[($i + 1) % count($monthDayOffsets)];
+                $setTimestamps($extraQuote, $monthBase->copy()->addDays($dayOffset));
+            }
+
+            $trendWork = Work::updateOrCreate(
+                [
+                    'user_id' => $serviceOwner->id,
+                    'customer_id' => $trendCustomer->id,
+                    'job_title' => "Monthly service {$monthLabel}",
+                ],
+                [
+                    'instructions' => 'Seeded trend work.',
+                    'start_date' => $monthMid->toDateString(),
+                    'status' => $seed['work_status'],
+                    'subtotal' => $seed['quote_total'],
+                    'total' => $seed['quote_total'],
+                ]
+            );
+            $setTimestamps($trendWork, $monthMid);
+
+            for ($i = 1; $i <= $monthExtra; $i += 1) {
+                $workTotal = round($seed['quote_total'] * (0.75 + (0.1 * $i)), 2);
+                $extraWork = Work::updateOrCreate(
+                    [
+                        'user_id' => $serviceOwner->id,
+                        'customer_id' => $trendCustomer->id,
+                        'job_title' => "Monthly service {$monthLabel} Extra #{$i}",
+                    ],
+                    [
+                        'instructions' => 'Seeded trend work.',
+                        'start_date' => $monthMid->toDateString(),
+                        'status' => $i % 2 === 0 ? Work::STATUS_EN_ROUTE : Work::STATUS_IN_PROGRESS,
+                        'subtotal' => $workTotal,
+                        'total' => $workTotal,
+                    ]
+                );
+                $dayOffset = $monthDayOffsets[($i + 2) % count($monthDayOffsets)];
+                $setTimestamps($extraWork, $monthBase->copy()->addDays($dayOffset));
+            }
+
+            $outstandingWork = Work::updateOrCreate(
+                [
+                    'user_id' => $serviceOwner->id,
+                    'customer_id' => $trendCustomer->id,
+                    'job_title' => "Outstanding invoice {$monthLabel}",
+                ],
+                [
+                    'instructions' => 'Seeded outstanding invoice work.',
+                    'start_date' => $monthLate->toDateString(),
+                    'status' => Work::STATUS_SCHEDULED,
+                    'subtotal' => $seed['outstanding_total'],
+                    'total' => $seed['outstanding_total'],
+                ]
+            );
+            $setTimestamps($outstandingWork, $monthLate);
+
+            $outstandingInvoice = Invoice::updateOrCreate(
+                [
+                    'work_id' => $outstandingWork->id,
+                ],
+                [
+                    'user_id' => $serviceOwner->id,
+                    'customer_id' => $trendCustomer->id,
+                    'status' => $index % 2 === 0 ? 'sent' : 'overdue',
+                    'total' => $seed['outstanding_total'],
+                ]
+            );
+            $setTimestamps($outstandingInvoice, $monthLate);
+
+            for ($i = 1; $i <= $monthExtra; $i += 1) {
+                $outstandingTotal = round($seed['outstanding_total'] * (0.6 + (0.2 * $i)), 2);
+                $extraOutstandingWork = Work::updateOrCreate(
+                    [
+                        'user_id' => $serviceOwner->id,
+                        'customer_id' => $trendCustomer->id,
+                        'job_title' => "Outstanding invoice {$monthLabel} #{$i}",
+                    ],
+                    [
+                        'instructions' => 'Seeded outstanding invoice work.',
+                        'start_date' => $monthLate->toDateString(),
+                        'status' => Work::STATUS_SCHEDULED,
+                        'subtotal' => $outstandingTotal,
+                        'total' => $outstandingTotal,
+                    ]
+                );
+                $dayOffset = $monthDayOffsets[($i + 3) % count($monthDayOffsets)];
+                $setTimestamps($extraOutstandingWork, $monthBase->copy()->addDays($dayOffset));
+
+                $extraOutstandingInvoice = Invoice::updateOrCreate(
+                    [
+                        'work_id' => $extraOutstandingWork->id,
+                    ],
+                    [
+                        'user_id' => $serviceOwner->id,
+                        'customer_id' => $trendCustomer->id,
+                        'status' => $i % 2 === 0 ? 'sent' : 'overdue',
+                        'total' => $outstandingTotal,
+                    ]
+                );
+                $setTimestamps($extraOutstandingInvoice, $monthBase->copy()->addDays($dayOffset));
+            }
+
+            $paidWork = Work::updateOrCreate(
+                [
+                    'user_id' => $serviceOwner->id,
+                    'customer_id' => $trendCustomer->id,
+                    'job_title' => "Paid work {$monthLabel}",
+                ],
+                [
+                    'instructions' => 'Seeded paid work.',
+                    'start_date' => $monthLate->toDateString(),
+                    'status' => Work::STATUS_CLOSED,
+                    'subtotal' => $seed['payment_total'],
+                    'total' => $seed['payment_total'],
+                    'completed_at' => $monthLate,
+                ]
+            );
+            $setTimestamps($paidWork, $monthLate);
+
+            $paidInvoice = Invoice::updateOrCreate(
+                [
+                    'work_id' => $paidWork->id,
+                ],
+                [
+                    'user_id' => $serviceOwner->id,
+                    'customer_id' => $trendCustomer->id,
+                    'status' => 'sent',
+                    'total' => $seed['payment_total'],
+                ]
+            );
+
+            $payment = Payment::updateOrCreate(
+                [
+                    'invoice_id' => $paidInvoice->id,
+                    'reference' => "SEED-PAY-TREND-{$index}",
+                ],
+                [
+                    'customer_id' => $trendCustomer->id,
+                    'user_id' => $serviceOwner->id,
+                    'amount' => $seed['payment_total'],
+                    'method' => 'card',
+                    'status' => 'completed',
+                    'notes' => 'Seeded trend payment.',
+                    'paid_at' => $monthLate,
+                ]
+            );
+            $paidInvoice->refreshPaymentStatus();
+            $setTimestamps($paidInvoice, $monthLate);
+            $setTimestamps($payment, $monthLate);
+
+            for ($i = 1; $i <= $monthExtra; $i += 1) {
+                $paidTotal = round($seed['payment_total'] * (0.7 + (0.15 * $i)), 2);
+                $extraPaidWork = Work::updateOrCreate(
+                    [
+                        'user_id' => $serviceOwner->id,
+                        'customer_id' => $trendCustomer->id,
+                        'job_title' => "Paid work {$monthLabel} #{$i}",
+                    ],
+                    [
+                        'instructions' => 'Seeded paid work.',
+                        'start_date' => $monthLate->toDateString(),
+                        'status' => Work::STATUS_CLOSED,
+                        'subtotal' => $paidTotal,
+                        'total' => $paidTotal,
+                        'completed_at' => $monthLate,
+                    ]
+                );
+                $dayOffset = $monthDayOffsets[($i + 4) % count($monthDayOffsets)];
+                $setTimestamps($extraPaidWork, $monthBase->copy()->addDays($dayOffset));
+
+                $extraPaidInvoice = Invoice::updateOrCreate(
+                    [
+                        'work_id' => $extraPaidWork->id,
+                    ],
+                    [
+                        'user_id' => $serviceOwner->id,
+                        'customer_id' => $trendCustomer->id,
+                        'status' => 'sent',
+                        'total' => $paidTotal,
+                    ]
+                );
+
+                $extraPayment = Payment::updateOrCreate(
+                    [
+                        'invoice_id' => $extraPaidInvoice->id,
+                        'reference' => "SEED-PAY-TREND-{$index}-{$i}",
+                    ],
+                    [
+                        'customer_id' => $trendCustomer->id,
+                        'user_id' => $serviceOwner->id,
+                        'amount' => $paidTotal,
+                        'method' => 'card',
+                        'status' => 'completed',
+                        'notes' => 'Seeded trend payment.',
+                        'paid_at' => $monthBase->copy()->addDays($dayOffset),
+                    ]
+                );
+                $extraPaidInvoice->refreshPaymentStatus();
+                $setTimestamps($extraPaidInvoice, $monthBase->copy()->addDays($dayOffset));
+                $setTimestamps($extraPayment, $monthBase->copy()->addDays($dayOffset));
+            }
+
+            $inventoryProduct = Product::updateOrCreate(
+                [
+                    'user_id' => $serviceOwner->id,
+                    'name' => "Supply pack {$monthLabel}",
+                ],
+                [
+                    'category_id' => $suppliesCategory->id,
+                    'price' => $seed['inventory_price'],
+                    'stock' => $seed['inventory_stock'],
+                    'minimum_stock' => 5,
+                    'item_type' => Product::ITEM_TYPE_PRODUCT,
+                ]
+            );
+            $setTimestamps($inventoryProduct, $monthMid);
+
+            $lowStockProduct = Product::updateOrCreate(
+                [
+                    'user_id' => $serviceOwner->id,
+                    'name' => "Low stock filter {$monthLabel}",
+                ],
+                [
+                    'category_id' => $suppliesCategory->id,
+                    'price' => $seed['low_stock_price'],
+                    'stock' => $seed['low_stock_stock'],
+                    'minimum_stock' => $seed['low_stock_min'],
+                    'item_type' => Product::ITEM_TYPE_PRODUCT,
+                ]
+            );
+            $setTimestamps($lowStockProduct, $monthLate);
+
+            for ($i = 1; $i <= $monthExtra; $i += 1) {
+                $inventoryPrice = round($seed['inventory_price'] * (0.9 + (0.1 * $i)), 2);
+                $inventoryStock = $seed['inventory_stock'] + ($i * 3);
+                $extraInventoryProduct = Product::updateOrCreate(
+                    [
+                        'user_id' => $serviceOwner->id,
+                        'name' => "Supply pack {$monthLabel} #{$i}",
+                    ],
+                    [
+                        'category_id' => $suppliesCategory->id,
+                        'price' => $inventoryPrice,
+                        'stock' => $inventoryStock,
+                        'minimum_stock' => 5,
+                        'item_type' => Product::ITEM_TYPE_PRODUCT,
+                    ]
+                );
+                $dayOffset = $monthDayOffsets[($i + 1) % count($monthDayOffsets)];
+                $setTimestamps($extraInventoryProduct, $monthBase->copy()->addDays($dayOffset));
+
+                $lowStockPrice = round($seed['low_stock_price'] * (0.85 + (0.1 * $i)), 2);
+                $lowStockProductExtra = Product::updateOrCreate(
+                    [
+                        'user_id' => $serviceOwner->id,
+                        'name' => "Low stock filter {$monthLabel} #{$i}",
+                    ],
+                    [
+                        'category_id' => $suppliesCategory->id,
+                        'price' => $lowStockPrice,
+                        'stock' => max(1, $seed['low_stock_stock'] - $i),
+                        'minimum_stock' => $seed['low_stock_min'] + $i,
+                        'item_type' => Product::ITEM_TYPE_PRODUCT,
+                    ]
+                );
+                $setTimestamps($lowStockProductExtra, $monthBase->copy()->addDays($dayOffset));
+            }
+
+            foreach ($seed['tasks'] as $status => $count) {
+                $taskTotal = $count + $monthExtra;
+                for ($i = 1; $i <= $taskTotal; $i += 1) {
+                    $task = Task::updateOrCreate(
+                        [
+                            'account_id' => $serviceOwner->id,
+                            'title' => "Trend {$status} {$monthLabel} #{$i}",
+                        ],
+                        [
+                            'created_by_user_id' => $serviceOwner->id,
+                            'assigned_team_member_id' => $status === 'done' ? $adminMember->id : $memberMember->id,
+                            'customer_id' => $trendCustomer->id,
+                            'product_id' => $inventoryProduct->id,
+                            'description' => 'Seeded trend task.',
+                            'status' => $status,
+                            'due_date' => $monthLate->toDateString(),
+                            'completed_at' => $status === 'done' ? $monthLate : null,
+                        ]
+                    );
+                    $setTimestamps($task, $monthLate->copy()->addMinutes($i));
+                }
+            }
+
+            $clientPendingQuote = Quote::updateOrCreate(
+                [
+                    'user_id' => $serviceOwner->id,
+                    'customer_id' => $serviceCustomer->id,
+                    'job_title' => "Client pending quote {$monthLabel}",
+                ],
+                [
+                    'property_id' => $serviceProperty->id,
+                    'status' => 'sent',
+                    'notes' => 'Seeded client pending quote.',
+                    'messages' => null,
+                    'subtotal' => $seed['quote_total'],
+                    'total' => $seed['quote_total'],
+                    'initial_deposit' => 0,
+                    'is_fixed' => false,
+                ]
+            );
+            $setTimestamps($clientPendingQuote, $monthMid);
+
+            for ($i = 1; $i <= $monthExtra; $i += 1) {
+                $clientQuoteTotal = round($seed['quote_total'] * (0.7 + (0.1 * $i)), 2);
+                $clientPendingExtra = Quote::updateOrCreate(
+                    [
+                        'user_id' => $serviceOwner->id,
+                        'customer_id' => $serviceCustomer->id,
+                        'job_title' => "Client pending quote {$monthLabel} #{$i}",
+                    ],
+                    [
+                        'property_id' => $serviceProperty->id,
+                        'status' => $i % 2 === 0 ? 'sent' : 'draft',
+                        'notes' => 'Seeded client pending quote.',
+                        'messages' => null,
+                        'subtotal' => $clientQuoteTotal,
+                        'total' => $clientQuoteTotal,
+                        'initial_deposit' => 0,
+                        'is_fixed' => false,
+                    ]
+                );
+                $dayOffset = $monthDayOffsets[($i + 2) % count($monthDayOffsets)];
+                $setTimestamps($clientPendingExtra, $monthBase->copy()->addDays($dayOffset));
+            }
+
+            $clientPendingWork = Work::updateOrCreate(
+                [
+                    'user_id' => $serviceOwner->id,
+                    'customer_id' => $serviceCustomer->id,
+                    'job_title' => "Client pending work {$monthLabel}",
+                ],
+                [
+                    'instructions' => 'Seeded client pending work.',
+                    'start_date' => $monthMid->toDateString(),
+                    'status' => Work::STATUS_PENDING_REVIEW,
+                    'subtotal' => $seed['quote_total'],
+                    'total' => $seed['quote_total'],
+                ]
+            );
+            $setTimestamps($clientPendingWork, $monthMid);
+
+            for ($i = 1; $i <= $monthExtra; $i += 1) {
+                $clientWorkTotal = round($seed['quote_total'] * (0.65 + (0.1 * $i)), 2);
+                $clientPendingExtraWork = Work::updateOrCreate(
+                    [
+                        'user_id' => $serviceOwner->id,
+                        'customer_id' => $serviceCustomer->id,
+                        'job_title' => "Client pending work {$monthLabel} #{$i}",
+                    ],
+                    [
+                        'instructions' => 'Seeded client pending work.',
+                        'start_date' => $monthMid->toDateString(),
+                        'status' => $i % 2 === 0 ? Work::STATUS_PENDING_REVIEW : Work::STATUS_TECH_COMPLETE,
+                        'subtotal' => $clientWorkTotal,
+                        'total' => $clientWorkTotal,
+                    ]
+                );
+                $dayOffset = $monthDayOffsets[($i + 3) % count($monthDayOffsets)];
+                $setTimestamps($clientPendingExtraWork, $monthBase->copy()->addDays($dayOffset));
+            }
+
+            $clientInvoiceWork = Work::updateOrCreate(
+                [
+                    'user_id' => $serviceOwner->id,
+                    'customer_id' => $serviceCustomer->id,
+                    'job_title' => "Client invoice {$monthLabel}",
+                ],
+                [
+                    'instructions' => 'Seeded client invoice work.',
+                    'start_date' => $monthMid->toDateString(),
+                    'status' => Work::STATUS_SCHEDULED,
+                    'subtotal' => $seed['outstanding_total'],
+                    'total' => $seed['outstanding_total'],
+                ]
+            );
+            $setTimestamps($clientInvoiceWork, $monthMid);
+
+            $clientInvoice = Invoice::updateOrCreate(
+                [
+                    'work_id' => $clientInvoiceWork->id,
+                ],
+                [
+                    'user_id' => $serviceOwner->id,
+                    'customer_id' => $serviceCustomer->id,
+                    'status' => $index % 2 === 0 ? 'sent' : 'overdue',
+                    'total' => $seed['outstanding_total'],
+                ]
+            );
+            $setTimestamps($clientInvoice, $monthLate);
+
+            for ($i = 1; $i <= $monthExtra; $i += 1) {
+                $clientInvoiceTotal = round($seed['outstanding_total'] * (0.6 + (0.15 * $i)), 2);
+                $clientInvoiceWorkExtra = Work::updateOrCreate(
+                    [
+                        'user_id' => $serviceOwner->id,
+                        'customer_id' => $serviceCustomer->id,
+                        'job_title' => "Client invoice {$monthLabel} #{$i}",
+                    ],
+                    [
+                        'instructions' => 'Seeded client invoice work.',
+                        'start_date' => $monthMid->toDateString(),
+                        'status' => Work::STATUS_SCHEDULED,
+                        'subtotal' => $clientInvoiceTotal,
+                        'total' => $clientInvoiceTotal,
+                    ]
+                );
+                $dayOffset = $monthDayOffsets[($i + 4) % count($monthDayOffsets)];
+                $setTimestamps($clientInvoiceWorkExtra, $monthBase->copy()->addDays($dayOffset));
+
+                $clientInvoiceExtra = Invoice::updateOrCreate(
+                    [
+                        'work_id' => $clientInvoiceWorkExtra->id,
+                    ],
+                    [
+                        'user_id' => $serviceOwner->id,
+                        'customer_id' => $serviceCustomer->id,
+                        'status' => $i % 2 === 0 ? 'sent' : 'overdue',
+                        'total' => $clientInvoiceTotal,
+                    ]
+                );
+                $setTimestamps($clientInvoiceExtra, $monthBase->copy()->addDays($dayOffset));
+            }
+
+            $clientRatingQuote = Quote::updateOrCreate(
+                [
+                    'user_id' => $serviceOwner->id,
+                    'customer_id' => $serviceCustomer->id,
+                    'job_title' => "Client rating quote {$monthLabel}",
+                ],
+                [
+                    'property_id' => $serviceProperty->id,
+                    'status' => 'accepted',
+                    'notes' => 'Seeded rating quote.',
+                    'messages' => null,
+                    'subtotal' => $seed['quote_total'],
+                    'total' => $seed['quote_total'],
+                    'initial_deposit' => 0,
+                    'is_fixed' => false,
+                    'accepted_at' => $monthLate,
+                    'signed_at' => $monthLate,
+                ]
+            );
+            $setTimestamps($clientRatingQuote, $monthLate);
+
+            $clientRatingWork = Work::updateOrCreate(
+                [
+                    'user_id' => $serviceOwner->id,
+                    'customer_id' => $serviceCustomer->id,
+                    'job_title' => "Client rating work {$monthLabel}",
+                ],
+                [
+                    'instructions' => 'Seeded rating work.',
+                    'start_date' => $monthMid->toDateString(),
+                    'status' => Work::STATUS_VALIDATED,
+                    'subtotal' => $seed['payment_total'],
+                    'total' => $seed['payment_total'],
+                    'completed_at' => $monthLate,
+                ]
+            );
+            $setTimestamps($clientRatingWork, $monthLate);
+
+            for ($i = 1; $i <= $monthExtra; $i += 1) {
+                $ratingTotal = round($seed['payment_total'] * (0.6 + (0.1 * $i)), 2);
+                $clientRatingQuoteExtra = Quote::updateOrCreate(
+                    [
+                        'user_id' => $serviceOwner->id,
+                        'customer_id' => $serviceCustomer->id,
+                        'job_title' => "Client rating quote {$monthLabel} #{$i}",
+                    ],
+                    [
+                        'property_id' => $serviceProperty->id,
+                        'status' => $i % 2 === 0 ? 'accepted' : 'declined',
+                        'notes' => 'Seeded rating quote.',
+                        'messages' => null,
+                        'subtotal' => $ratingTotal,
+                        'total' => $ratingTotal,
+                        'initial_deposit' => 0,
+                        'is_fixed' => false,
+                        'accepted_at' => $monthLate,
+                        'signed_at' => $monthLate,
+                    ]
+                );
+                $dayOffset = $monthDayOffsets[$i % count($monthDayOffsets)];
+                $setTimestamps($clientRatingQuoteExtra, $monthBase->copy()->addDays($dayOffset));
+
+                $clientRatingWorkExtra = Work::updateOrCreate(
+                    [
+                        'user_id' => $serviceOwner->id,
+                        'customer_id' => $serviceCustomer->id,
+                        'job_title' => "Client rating work {$monthLabel} #{$i}",
+                    ],
+                    [
+                        'instructions' => 'Seeded rating work.',
+                        'start_date' => $monthMid->toDateString(),
+                        'status' => $i % 2 === 0 ? Work::STATUS_VALIDATED : Work::STATUS_AUTO_VALIDATED,
+                        'subtotal' => $ratingTotal,
+                        'total' => $ratingTotal,
+                        'completed_at' => $monthLate,
+                    ]
+                );
+                $setTimestamps($clientRatingWorkExtra, $monthBase->copy()->addDays($dayOffset));
+            }
+        }
     }
 }

@@ -1,6 +1,8 @@
 <script setup>
 import { computed, reactive, ref, watchEffect, nextTick } from 'vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import KpiSparkline from '@/Components/Dashboard/KpiSparkline.vue';
+import KpiTrendBadge from '@/Components/Dashboard/KpiTrendBadge.vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { humanizeDate } from '@/utils/date';
 import FullCalendar from '@fullcalendar/vue3';
@@ -8,9 +10,14 @@ import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import { buildPreviewEvents } from '@/utils/schedule';
 import { prepareMediaFile, MEDIA_LIMITS } from '@/utils/media';
+import { buildSparklinePoints, buildTrend } from '@/utils/kpi';
 
 const props = defineProps({
     stats: {
+        type: Object,
+        default: () => ({}),
+    },
+    kpiSeries: {
         type: Object,
         default: () => ({}),
     },
@@ -66,6 +73,24 @@ const autoValidation = computed(() => ({
     tasks: Boolean(props.autoValidation?.tasks),
     invoices: Boolean(props.autoValidation?.invoices),
 }));
+const kpiSeries = computed(() => props.kpiSeries || {});
+const kpiConfig = {
+    quotes_pending: { direction: 'down' },
+    works_pending: { direction: 'down' },
+    invoices_due: { direction: 'down' },
+    ratings_due: { direction: 'down' },
+};
+const kpiData = computed(() => {
+    const data = {};
+    Object.entries(kpiConfig).forEach(([key, config]) => {
+        const values = kpiSeries.value?.[key] || [];
+        data[key] = {
+            points: buildSparklinePoints(values),
+            trend: buildTrend(values, config.direction),
+        };
+    });
+    return data;
+});
 
 const stat = (key) => props.stats?.[key] ?? 0;
 
@@ -438,29 +463,45 @@ const submitWorkRating = (workId) => {
                 </div>
                 <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
                     <div class="p-4 bg-white border border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
-                        <p class="text-xs text-stone-500 dark:text-neutral-400">Quotes awaiting validation</p>
+                        <div class="flex items-center justify-between gap-2">
+                            <p class="text-xs text-stone-500 dark:text-neutral-400">Quotes awaiting validation</p>
+                            <KpiTrendBadge :trend="kpiData.quotes_pending.trend" />
+                        </div>
                         <p class="mt-1 text-2xl font-semibold text-stone-800 dark:text-neutral-100">
                             {{ stat('quotes_pending') }}
                         </p>
+                        <KpiSparkline :points="kpiData.quotes_pending.points" />
                     </div>
                     <div class="p-4 bg-white border border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
-                        <p class="text-xs text-stone-500 dark:text-neutral-400">Jobs awaiting validation</p>
+                        <div class="flex items-center justify-between gap-2">
+                            <p class="text-xs text-stone-500 dark:text-neutral-400">Jobs awaiting validation</p>
+                            <KpiTrendBadge :trend="kpiData.works_pending.trend" />
+                        </div>
                         <p class="mt-1 text-2xl font-semibold text-stone-800 dark:text-neutral-100">
                             {{ stat('works_pending') }}
                         </p>
+                        <KpiSparkline :points="kpiData.works_pending.points" />
                     </div>
                     <div v-if="!autoValidation.invoices"
                         class="p-4 bg-white border border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
-                        <p class="text-xs text-stone-500 dark:text-neutral-400">Invoices to pay</p>
+                        <div class="flex items-center justify-between gap-2">
+                            <p class="text-xs text-stone-500 dark:text-neutral-400">Invoices to pay</p>
+                            <KpiTrendBadge :trend="kpiData.invoices_due.trend" />
+                        </div>
                         <p class="mt-1 text-2xl font-semibold text-stone-800 dark:text-neutral-100">
                             {{ stat('invoices_due') }}
                         </p>
+                        <KpiSparkline :points="kpiData.invoices_due.points" />
                     </div>
                     <div class="p-4 bg-white border border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
-                        <p class="text-xs text-stone-500 dark:text-neutral-400">Ratings to leave</p>
+                        <div class="flex items-center justify-between gap-2">
+                            <p class="text-xs text-stone-500 dark:text-neutral-400">Ratings to leave</p>
+                            <KpiTrendBadge :trend="kpiData.ratings_due.trend" />
+                        </div>
                         <p class="mt-1 text-2xl font-semibold text-stone-800 dark:text-neutral-100">
                             {{ stat('ratings_due') }}
                         </p>
+                        <KpiSparkline :points="kpiData.ratings_due.points" />
                     </div>
                 </div>
             </section>
