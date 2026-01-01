@@ -6,6 +6,7 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
+use Illuminate\Support\Facades\URL;
 
 class SendQuoteNotification extends Notification
 {
@@ -42,6 +43,21 @@ class SendQuoteNotification extends Notification
         $companyUser = $this->quote?->customer?->user;
         $companyName = $companyUser?->company_name ?: config('app.name');
         $companyLogo = $companyUser?->company_logo_url;
+        $customer = $this->quote?->customer;
+        $usePublicLink = !(bool) ($customer?->portal_access ?? true) || !$customer?->portal_user_id;
+        $actionUrl = route('dashboard');
+        $actionLabel = 'Open dashboard';
+        $actionMessage = 'Log in to your portal to review and validate the quote.';
+        if ($usePublicLink) {
+            $expiresAt = now()->addDays(7);
+            $actionUrl = URL::temporarySignedRoute(
+                'public.quotes.show',
+                $expiresAt,
+                ['quote' => $this->quote->id]
+            );
+            $actionLabel = 'Review quote';
+            $actionMessage = 'Use the secure link below to review and validate the quote.';
+        }
 
         return (new MailMessage)
         ->subject('Your Quote from ' . $companyName)
@@ -49,6 +65,9 @@ class SendQuoteNotification extends Notification
             'quote' => $this->quote,
             'companyName' => $companyName,
             'companyLogo' => $companyLogo,
+            'actionUrl' => $actionUrl,
+            'actionLabel' => $actionLabel,
+            'actionMessage' => $actionMessage,
         ]);
     }
 

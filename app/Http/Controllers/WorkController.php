@@ -20,6 +20,7 @@ use App\Notifications\ActionEmailNotification;
 use Illuminate\Http\Request;
 use App\Http\Requests\WorkRequest;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Validation\Rule;
 use App\Traits\GeneratesSequentialNumber;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
@@ -657,6 +658,18 @@ class WorkController extends Controller
             if ($customer && $customer->email) {
                 $customerLabel = $customer->company_name
                     ?: trim(($customer->first_name ?? '') . ' ' . ($customer->last_name ?? ''));
+                $usePublicLink = !(bool) ($customer->portal_access ?? true) || !$customer->portal_user_id;
+                $actionUrl = route('dashboard');
+                $actionLabel = 'Open dashboard';
+                if ($usePublicLink) {
+                    $expiresAt = now()->addDays(7);
+                    $actionUrl = URL::temporarySignedRoute(
+                        'public.works.show',
+                        $expiresAt,
+                        ['work' => $work->id]
+                    );
+                    $actionLabel = 'Review job';
+                }
 
                 $customer->notify(new ActionEmailNotification(
                     'Job ready for validation',
@@ -666,8 +679,8 @@ class WorkController extends Controller
                         ['label' => 'Status', 'value' => $nextStatus],
                         ['label' => 'Customer', 'value' => $customerLabel ?: 'Client'],
                     ],
-                    route('dashboard'),
-                    'Open dashboard',
+                    $actionUrl,
+                    $actionLabel,
                     'Job ready for validation'
                 ));
             }

@@ -58,7 +58,7 @@ const statusClass = (status) => {
 };
 
 const proofSource = (source) => {
-    if (source === 'client') {
+    if (source === 'client' || source === 'client-public') {
         return 'Client';
     }
     if (source === 'team') {

@@ -22,6 +22,7 @@ class Customer extends Model
     protected $fillable = [
         'user_id',
         'portal_user_id',
+        'portal_access',
         'number',
         'first_name',
         'last_name',
@@ -57,6 +58,7 @@ class Customer extends Model
 
     protected $casts = [
         'billing_same_as_physical' => 'boolean',
+        'portal_access' => 'boolean',
         'auto_accept_quotes' => 'boolean',
         'auto_validate_jobs' => 'boolean',
         'auto_validate_tasks' => 'boolean',

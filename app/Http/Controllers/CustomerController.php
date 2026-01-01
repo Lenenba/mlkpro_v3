@@ -521,12 +521,19 @@ class CustomerController extends Controller
         $validated = $request->validated();
         $validated['logo'] = FileHandler::handleImageUpload('customers', $request, 'logo', 'customers/customer.png');
         $validated['header_image'] = FileHandler::handleImageUpload('customers', $request, 'header_image', 'customers/customer.png');
+        $portalAccess = array_key_exists('portal_access', $validated)
+            ? (bool) $validated['portal_access']
+            : true;
 
         $customerData = Arr::except($validated, ['temporary_password']);
+        $customerData['portal_access'] = $portalAccess;
 
-        [$customer, $portalUser] = DB::transaction(function () use ($request, $validated, $customerData) {
-            $portalUser = $this->createPortalUser($validated);
-            $customerData['portal_user_id'] = $portalUser->id;
+        [$customer, $portalUser] = DB::transaction(function () use ($request, $validated, $customerData, $portalAccess) {
+            $portalUser = null;
+            if ($portalAccess) {
+                $portalUser = $this->createPortalUser($validated);
+                $customerData['portal_user_id'] = $portalUser->id;
+            }
 
             $customer = $request->user()->customers()->create($customerData);
 
@@ -570,12 +577,19 @@ class CustomerController extends Controller
         $validated = $request->validated();
         $validated['logo'] = FileHandler::handleImageUpload('customers', $request, 'logo', 'customers/customer.png');
         $validated['header_image'] = FileHandler::handleImageUpload('customers', $request, 'header_image', 'customers/customer.png');
+        $portalAccess = array_key_exists('portal_access', $validated)
+            ? (bool) $validated['portal_access']
+            : true;
 
         $customerData = Arr::except($validated, ['temporary_password']);
+        $customerData['portal_access'] = $portalAccess;
 
-        [$customer, $portalUser] = DB::transaction(function () use ($request, $validated, $customerData) {
-            $portalUser = $this->createPortalUser($validated);
-            $customerData['portal_user_id'] = $portalUser->id;
+        [$customer, $portalUser] = DB::transaction(function () use ($request, $validated, $customerData, $portalAccess) {
+            $portalUser = null;
+            if ($portalAccess) {
+                $portalUser = $this->createPortalUser($validated);
+                $customerData['portal_user_id'] = $portalUser->id;
+            }
 
             $customer = $request->user()->customers()->create($customerData);
 

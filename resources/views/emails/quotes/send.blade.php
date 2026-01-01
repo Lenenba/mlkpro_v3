@@ -8,6 +8,9 @@
         $property = $quote->property ?? ($customer->properties->first() ?? null);
         $contactName = trim(($customer->first_name ?? '') . ' ' . ($customer->last_name ?? ''));
         $contactLabel = $contactName !== '' ? $contactName : ($customer->company_name ?? 'Client');
+        $actionUrl = $actionUrl ?? route('dashboard');
+        $actionLabel = $actionLabel ?? 'Open dashboard';
+        $actionMessage = $actionMessage ?? 'Log in to your portal to review and validate the quote.';
     @endphp
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
         <tr>
@@ -192,7 +195,7 @@
 
         <tr>
             <td style="font-size:13px; color:#475569; padding-bottom:12px;">
-                Log in to your portal to review and validate the quote.
+                {{ $actionMessage }}
             </td>
         </tr>
         <tr>
@@ -200,8 +203,8 @@
                 <table role="presentation" cellpadding="0" cellspacing="0">
                     <tr>
                         <td bgcolor="#16a34a" style="border-radius:6px;">
-                            <a href="{{ route('dashboard') }}" style="display:inline-block; padding:10px 16px; font-size:14px; font-weight:600; color:#ffffff; text-decoration:none;">
-                                Open dashboard
+                            <a href="{{ $actionUrl }}" style="display:inline-block; padding:10px 16px; font-size:14px; font-weight:600; color:#ffffff; text-decoration:none;">
+                                {{ $actionLabel }}
                             </a>
                         </td>
                     </tr>

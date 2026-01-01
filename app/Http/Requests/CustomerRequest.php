@@ -20,19 +20,27 @@ class CustomerRequest extends FormRequest
      */
     public function rules(): array
     {
-        $customerId = $this->route('customer') ? $this->route('customer')->id : null;
-        $portalUserId = $this->route('customer') ? $this->route('customer')->portal_user_id : null;
+        $customer = $this->route('customer');
+        $customerId = $customer ? $customer->id : null;
+        $portalUserId = $customer ? $customer->portal_user_id : null;
+        $portalAccess = $this->has('portal_access')
+            ? filter_var($this->input('portal_access'), FILTER_VALIDATE_BOOLEAN)
+            : (bool) ($customer?->portal_access ?? true);
+        $emailRules = [
+            'required',
+            'string',
+            'email',
+            'max:255',
+            Rule::unique('customers')->ignore($customerId),
+        ];
+        if ($portalAccess) {
+            $emailRules[] = Rule::unique('users', 'email')->ignore($portalUserId);
+        }
         return [
+            'portal_access' => 'nullable|boolean',
             'first_name' => 'required|string|max:255',
             'last_name' => 'required|string|max:255',
-            'email' => [
-                'required',
-                'string',
-                'email',
-                'max:255',
-                Rule::unique('customers')->ignore($customerId),
-                Rule::unique('users', 'email')->ignore($portalUserId),
-            ],
+            'email' => $emailRules,
             'phone' => 'nullable|string|max:25',
             'company_name' => 'nullable|string|max:255',
             'description' => 'nullable|string|min:5|max:255',

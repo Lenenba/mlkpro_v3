@@ -25,6 +25,10 @@ use App\Http\Controllers\WelcomeController;
 use App\Http\Controllers\LegalController;
 use App\Http\Controllers\LocaleController;
 use App\Http\Controllers\PublicInvoiceController;
+use App\Http\Controllers\PublicQuoteController;
+use App\Http\Controllers\PublicWorkController;
+use App\Http\Controllers\PublicWorkProofController;
+use App\Http\Controllers\PublicTaskMediaController;
 use App\Http\Controllers\Settings\CompanySettingsController;
 use App\Http\Controllers\Settings\BillingSettingsController;
 use App\Http\Controllers\Settings\ProductCategoryController;
@@ -64,6 +68,18 @@ Route::get('/pricing', [LegalController::class, 'pricing'])->name('pricing');
 Route::middleware('signed')->group(function () {
     Route::get('/pay/invoices/{invoice}', [PublicInvoiceController::class, 'show'])->name('public.invoices.show');
     Route::post('/pay/invoices/{invoice}', [PublicInvoiceController::class, 'storePayment'])->name('public.invoices.pay');
+    Route::get('/public/quotes/{quote}', [PublicQuoteController::class, 'show'])->name('public.quotes.show');
+    Route::post('/public/quotes/{quote}/accept', [PublicQuoteController::class, 'accept'])->name('public.quotes.accept');
+    Route::post('/public/quotes/{quote}/decline', [PublicQuoteController::class, 'decline'])->name('public.quotes.decline');
+    Route::get('/public/works/{work}', [PublicWorkController::class, 'show'])->name('public.works.show');
+    Route::post('/public/works/{work}/validate', [PublicWorkController::class, 'validateWork'])->name('public.works.validate');
+    Route::post('/public/works/{work}/dispute', [PublicWorkController::class, 'dispute'])->name('public.works.dispute');
+    Route::post('/public/works/{work}/schedule/confirm', [PublicWorkController::class, 'confirmSchedule'])
+        ->name('public.works.schedule.confirm');
+    Route::post('/public/works/{work}/schedule/reject', [PublicWorkController::class, 'rejectSchedule'])
+        ->name('public.works.schedule.reject');
+    Route::get('/public/works/{work}/proofs', [PublicWorkProofController::class, 'show'])->name('public.works.proofs');
+    Route::post('/public/tasks/{task}/media', [PublicTaskMediaController::class, 'store'])->name('public.tasks.media.store');
 });
 // Onboarding (account setup)
 Route::get('/onboarding', [OnboardingController::class, 'index'])

@@ -69,12 +69,18 @@ class WorkBillingService
             $note = $accountOwner
                 ? app(TemplateService::class)->resolveInvoiceNote($accountOwner)
                 : null;
-            $expiresAt = now()->addDays(7);
-            $publicInvoiceUrl = URL::temporarySignedRoute(
-                'public.invoices.show',
-                $expiresAt,
-                ['invoice' => $invoice->id]
-            );
+            $usePublicLink = !(bool) ($customer->portal_access ?? true) || !$customer->portal_user_id;
+            $actionUrl = route('dashboard');
+            $actionLabel = 'Open dashboard';
+            if ($usePublicLink) {
+                $expiresAt = now()->addDays(7);
+                $actionUrl = URL::temporarySignedRoute(
+                    'public.invoices.show',
+                    $expiresAt,
+                    ['invoice' => $invoice->id]
+                );
+                $actionLabel = 'Pay invoice';
+            }
             $customer->notify(new ActionEmailNotification(
                 'New invoice available',
                 'A new invoice has been generated for your job.',
@@ -83,8 +89,8 @@ class WorkBillingService
                     ['label' => 'Job', 'value' => $work->job_title ?? $work->number ?? $work->id],
                     ['label' => 'Total', 'value' => '$' . number_format((float) $invoice->total, 2)],
                 ],
-                $publicInvoiceUrl,
-                'Pay invoice',
+                $actionUrl,
+                $actionLabel,
                 'New invoice available',
                 $note
             ));

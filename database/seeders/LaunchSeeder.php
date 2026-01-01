@@ -216,6 +216,259 @@ class LaunchSeeder extends Seeder
             ]
         );
 
+        // Module coverage seed accounts.
+        $serviceLiteOwner = User::updateOrCreate(
+            ['email' => 'owner.services.lite@example.com'],
+            [
+                'name' => 'Service Owner Lite',
+                'password' => Hash::make('password'),
+                'role_id' => $ownerRoleId,
+                'email_verified_at' => $now,
+                'phone_number' => '+15145550020',
+                'company_name' => 'Service Lite Co',
+                'company_description' => 'Service company with limited modules.',
+                'company_country' => 'Canada',
+                'company_province' => 'QC',
+                'company_city' => 'Quebec',
+                'company_type' => 'services',
+                'onboarding_completed_at' => $now,
+                'payment_methods' => ['cash', 'card'],
+                'company_features' => [
+                    'quotes' => true,
+                    'requests' => false,
+                    'jobs' => false,
+                    'invoices' => false,
+                ],
+            ]
+        );
+
+        $serviceLiteCustomer = Customer::updateOrCreate(
+            [
+                'email' => 'lite.client@example.com',
+            ],
+            [
+                'user_id' => $serviceLiteOwner->id,
+                'first_name' => 'Lena',
+                'last_name' => 'Bouchard',
+                'company_name' => 'Lite Client Co',
+                'phone' => '+15145550021',
+                'description' => 'Customer for quotes-only module coverage.',
+                'salutation' => 'Miss',
+                'billing_same_as_physical' => true,
+            ]
+        );
+
+        $serviceLiteProperty = Property::updateOrCreate(
+            [
+                'customer_id' => $serviceLiteCustomer->id,
+                'type' => 'physical',
+                'street1' => '12 Lite Way',
+            ],
+            [
+                'is_default' => true,
+                'city' => 'Quebec',
+                'state' => 'QC',
+                'zip' => 'G1A0A1',
+                'country' => 'Canada',
+            ]
+        );
+
+        Quote::updateOrCreate(
+            [
+                'user_id' => $serviceLiteOwner->id,
+                'customer_id' => $serviceLiteCustomer->id,
+                'job_title' => 'Lite quote sample',
+            ],
+            [
+                'property_id' => $serviceLiteProperty->id,
+                'status' => 'sent',
+                'notes' => 'Seeded for quotes-only module.',
+                'messages' => null,
+                'subtotal' => 320,
+                'total' => 320,
+                'initial_deposit' => 0,
+                'is_fixed' => false,
+            ]
+        );
+
+        $serviceNoInvoiceOwner = User::updateOrCreate(
+            ['email' => 'owner.services.noinvoices@example.com'],
+            [
+                'name' => 'Service Owner No Invoices',
+                'password' => Hash::make('password'),
+                'role_id' => $ownerRoleId,
+                'email_verified_at' => $now,
+                'phone_number' => '+15145550030',
+                'company_name' => 'No Invoice Services',
+                'company_description' => 'Service company without invoices module.',
+                'company_country' => 'Canada',
+                'company_province' => 'ON',
+                'company_city' => 'Ottawa',
+                'company_type' => 'services',
+                'onboarding_completed_at' => $now,
+                'payment_methods' => ['cash', 'card'],
+                'company_features' => [
+                    'invoices' => false,
+                ],
+            ]
+        );
+
+        $noInvoiceCustomer = Customer::updateOrCreate(
+            [
+                'email' => 'noinvoice.client@example.com',
+            ],
+            [
+                'user_id' => $serviceNoInvoiceOwner->id,
+                'first_name' => 'Mason',
+                'last_name' => 'Clarke',
+                'company_name' => 'No Invoice Client',
+                'phone' => '+15145550031',
+                'description' => 'Customer for invoice-disabled module coverage.',
+                'salutation' => 'Mr',
+                'billing_same_as_physical' => true,
+            ]
+        );
+
+        $noInvoiceProperty = Property::updateOrCreate(
+            [
+                'customer_id' => $noInvoiceCustomer->id,
+                'type' => 'physical',
+                'street1' => '55 Billing Ave',
+            ],
+            [
+                'is_default' => true,
+                'city' => 'Ottawa',
+                'state' => 'ON',
+                'zip' => 'K1A0B1',
+                'country' => 'Canada',
+            ]
+        );
+
+        $noInvoiceQuote = Quote::updateOrCreate(
+            [
+                'user_id' => $serviceNoInvoiceOwner->id,
+                'customer_id' => $noInvoiceCustomer->id,
+                'job_title' => 'No invoice quote',
+            ],
+            [
+                'property_id' => $noInvoiceProperty->id,
+                'status' => 'accepted',
+                'notes' => 'Seeded for invoice-disabled module.',
+                'messages' => null,
+                'subtotal' => 540,
+                'total' => 540,
+                'initial_deposit' => 0,
+                'is_fixed' => false,
+                'accepted_at' => $now->copy()->subDays(4),
+                'signed_at' => $now->copy()->subDays(4),
+            ]
+        );
+
+        $noInvoiceWork = Work::updateOrCreate(
+            [
+                'user_id' => $serviceNoInvoiceOwner->id,
+                'customer_id' => $noInvoiceCustomer->id,
+                'job_title' => 'No invoice work',
+            ],
+            [
+                'quote_id' => $noInvoiceQuote->id,
+                'instructions' => 'Seeded work with invoices disabled.',
+                'start_date' => $now->copy()->subDays(3)->toDateString(),
+                'status' => Work::STATUS_SCHEDULED,
+                'subtotal' => 540,
+                'total' => 540,
+            ]
+        );
+
+        Invoice::updateOrCreate(
+            [
+                'work_id' => $noInvoiceWork->id,
+            ],
+            [
+                'user_id' => $serviceNoInvoiceOwner->id,
+                'customer_id' => $noInvoiceCustomer->id,
+                'status' => 'sent',
+                'total' => 540,
+            ]
+        );
+
+        $serviceRequestsOwner = User::updateOrCreate(
+            ['email' => 'owner.services.requests@example.com'],
+            [
+                'name' => 'Service Owner Requests',
+                'password' => Hash::make('password'),
+                'role_id' => $ownerRoleId,
+                'email_verified_at' => $now,
+                'phone_number' => '+15145550040',
+                'company_name' => 'Requests Only Services',
+                'company_description' => 'Service company with requests only.',
+                'company_country' => 'Canada',
+                'company_province' => 'BC',
+                'company_city' => 'Vancouver',
+                'company_type' => 'services',
+                'onboarding_completed_at' => $now,
+                'payment_methods' => ['cash', 'card'],
+                'company_features' => [
+                    'requests' => true,
+                    'quotes' => false,
+                    'jobs' => false,
+                    'invoices' => false,
+                ],
+            ]
+        );
+
+        $requestsCustomer = Customer::updateOrCreate(
+            [
+                'email' => 'requests.client@example.com',
+            ],
+            [
+                'user_id' => $serviceRequestsOwner->id,
+                'first_name' => 'Noah',
+                'last_name' => 'Singh',
+                'company_name' => 'Requests Client Co',
+                'phone' => '+15145550041',
+                'description' => 'Customer for requests-only module coverage.',
+                'salutation' => 'Mr',
+                'billing_same_as_physical' => true,
+            ]
+        );
+
+        Property::updateOrCreate(
+            [
+                'customer_id' => $requestsCustomer->id,
+                'type' => 'physical',
+                'street1' => '88 Request Blvd',
+            ],
+            [
+                'is_default' => true,
+                'city' => 'Vancouver',
+                'state' => 'BC',
+                'zip' => 'V5K0A1',
+                'country' => 'Canada',
+            ]
+        );
+
+        LeadRequest::updateOrCreate(
+            [
+                'user_id' => $serviceRequestsOwner->id,
+                'title' => 'Lead - Fence repair',
+            ],
+            [
+                'customer_id' => $requestsCustomer->id,
+                'status' => LeadRequest::STATUS_NEW,
+                'service_type' => 'Repair',
+                'urgency' => 'normal',
+                'channel' => 'manual',
+                'contact_name' => 'Noah Singh',
+                'contact_email' => 'requests.client@example.com',
+                'contact_phone' => '+15145550041',
+                'country' => 'Canada',
+                'state' => 'BC',
+                'city' => 'Vancouver',
+                'street1' => '88 Request Blvd',
+            ]
+        );
+
         $adminUser = User::updateOrCreate(
             ['email' => 'admin.services@example.com'],
             [

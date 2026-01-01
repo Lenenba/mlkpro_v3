@@ -1,4 +1,8 @@
 <script setup>
+import { computed } from 'vue';
+import { usePage } from '@inertiajs/vue3';
+import { isFeatureEnabled } from '@/utils/features';
+
 const props = defineProps({
     customer: Object,
     activeWorks: {
@@ -11,6 +15,36 @@ const props = defineProps({
     },
 });
 
+const page = usePage();
+const featureFlags = computed(() => page.props.auth?.account?.features || {});
+const hasFeature = (key) => isFeatureEnabled(featureFlags.value, key);
+const canJobs = computed(() => hasFeature('jobs'));
+const canRequests = computed(() => hasFeature('requests'));
+const canQuotes = computed(() => hasFeature('quotes'));
+const canInvoices = computed(() => hasFeature('invoices'));
+
+const tabOrder = computed(() => {
+    const tabs = [];
+    if (canJobs.value) {
+        tabs.push('active_works');
+    }
+    if (canRequests.value) {
+        tabs.push('requests');
+    }
+    if (canQuotes.value) {
+        tabs.push('quotes');
+    }
+    if (canJobs.value) {
+        tabs.push('jobs');
+    }
+    if (canInvoices.value) {
+        tabs.push('invoices');
+    }
+    return tabs;
+});
+
+const isDefault = (key) => tabOrder.value[0] === key;
+
 const stat = (key, fallback = 0) => props.stats?.[key] ?? fallback;
 </script>
 
@@ -19,9 +53,10 @@ const stat = (key, fallback = 0) => props.stats?.[key] ?? fallback;
     <nav class="relative z-0 flex border-b border-stone-200 dark:border-neutral-700 bg-white" aria-label="Tabs"
         role="tablist" aria-orientation="horizontal">
         <!-- Nav Item -->
-        <button type="button"
-            class="hs-tab-active:border-t-neutral-600 relative flex-1 first:border-s-0 border-s border-t-[3px] md:border-t-4 border-t-transparent hover:border-t-stone-300 focus:outline-none focus:border-t-stone-300 p-3.5 xl:px-6 text-start focus:z-10 dark:hs-tab-active:border-t-neutral-500 dark:border-t-transparent dark:border-neutral-700 dark:hover:border-t-neutral-600 dark:focus:border-t-neutral-600 active"
-            id="bar-with-underline-item-1" aria-selected="true" data-hs-tab="#bar-with-underline-1"
+        <button v-if="canJobs" type="button"
+            class="hs-tab-active:border-t-neutral-600 relative flex-1 first:border-s-0 border-s border-t-[3px] md:border-t-4 border-t-transparent hover:border-t-stone-300 focus:outline-none focus:border-t-stone-300 p-3.5 xl:px-6 text-start focus:z-10 dark:hs-tab-active:border-t-neutral-500 dark:border-t-transparent dark:border-neutral-700 dark:hover:border-t-neutral-600 dark:focus:border-t-neutral-600"
+            :class="{ active: isDefault('active_works') }"
+            id="bar-with-underline-item-1" :aria-selected="isDefault('active_works')" data-hs-tab="#bar-with-underline-1"
             aria-controls="bar-with-underline-1" role="tab">
             <span class="flex gap-x-4">
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
@@ -45,9 +80,10 @@ const stat = (key, fallback = 0) => props.stats?.[key] ?? fallback;
         <!-- End Nav Item -->
 
         <!-- Nav Item -->
-        <button type="button"
+        <button v-if="canRequests" type="button"
             class="hs-tab-active:border-t-neutral-600 relative flex-1 first:border-s-0 border-s border-t-[3px] md:border-t-4 border-t-transparent hover:border-t-stone-300 focus:outline-none focus:border-t-stone-300 p-3.5 xl:px-6 text-start focus:z-10 dark:hs-tab-active:border-t-neutral-500 dark:border-t-transparent dark:border-neutral-700 dark:hover:border-t-neutral-600 dark:focus:border-t-neutral-600"
-            id="bar-with-underline-item-2" aria-selected="false" data-hs-tab="#bar-with-underline-2"
+            :class="{ active: isDefault('requests') }"
+            id="bar-with-underline-item-2" :aria-selected="isDefault('requests')" data-hs-tab="#bar-with-underline-2"
             aria-controls="bar-with-underline-2" role="tab">
             <span class="flex gap-x-4">
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
@@ -73,9 +109,10 @@ const stat = (key, fallback = 0) => props.stats?.[key] ?? fallback;
         <!-- End Nav Item -->
 
         <!-- Nav Item -->
-        <button type="button"
+        <button v-if="canQuotes" type="button"
             class="hs-tab-active:border-t-neutral-600 relative flex-1 first:border-s-0 border-s border-t-[3px] md:border-t-4 border-t-transparent hover:border-t-stone-300 focus:outline-none focus:border-t-stone-300 p-3.5 xl:px-6 text-start focus:z-10 dark:hs-tab-active:border-t-neutral-500 dark:border-t-transparent dark:border-neutral-700 dark:hover:border-t-neutral-600 dark:focus:border-t-neutral-600"
-            id="bar-with-underline-item-3" aria-selected="false" data-hs-tab="#bar-with-underline-3"
+            :class="{ active: isDefault('quotes') }"
+            id="bar-with-underline-item-3" :aria-selected="isDefault('quotes')" data-hs-tab="#bar-with-underline-3"
             aria-controls="bar-with-underline-3" role="tab">
             <span class="flex gap-x-4">
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
@@ -101,9 +138,10 @@ const stat = (key, fallback = 0) => props.stats?.[key] ?? fallback;
         <!-- End Nav Item -->
 
         <!-- Nav Item -->
-        <button type="button"
+        <button v-if="canJobs" type="button"
             class="hs-tab-active:border-t-neutral-600 relative flex-1 first:border-s-0 border-s border-t-[3px] md:border-t-4 border-t-transparent hover:border-t-stone-300 focus:outline-none focus:border-t-stone-300 p-3.5 xl:px-6 text-start focus:z-10 dark:hs-tab-active:border-t-neutral-500 dark:border-t-transparent dark:border-neutral-700 dark:hover:border-t-neutral-600 dark:focus:border-t-neutral-600"
-            id="bar-with-underline-item-4" aria-selected="false" data-hs-tab="#bar-with-underline-4"
+            :class="{ active: isDefault('jobs') }"
+            id="bar-with-underline-item-4" :aria-selected="isDefault('jobs')" data-hs-tab="#bar-with-underline-4"
             aria-controls="bar-with-underline-4" role="tab">
             <span class="flex gap-x-4">
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
@@ -137,9 +175,10 @@ const stat = (key, fallback = 0) => props.stats?.[key] ?? fallback;
         <!-- End Nav Item -->
 
         <!-- Nav Item -->
-        <button type="button"
+        <button v-if="canInvoices" type="button"
             class="hs-tab-active:border-t-neutral-600 relative flex-1 first:border-s-0 border-s border-t-[3px] md:border-t-4 border-t-transparent hover:border-t-stone-300 focus:outline-none focus:border-t-stone-300 p-3.5 xl:px-6 text-start focus:z-10 dark:hs-tab-active:border-t-neutral-500 dark:border-t-transparent dark:border-neutral-700 dark:hover:border-t-neutral-600 dark:focus:border-t-neutral-600"
-            id="bar-with-underline-item-5" aria-selected="false" data-hs-tab="#bar-with-underline-5"
+            :class="{ active: isDefault('invoices') }"
+            id="bar-with-underline-item-5" :aria-selected="isDefault('invoices')" data-hs-tab="#bar-with-underline-5"
             aria-controls="bar-with-underline-5" role="tab">
             <span class="flex gap-x-4">
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"

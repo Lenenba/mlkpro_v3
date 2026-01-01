@@ -3,19 +3,31 @@
 namespace App\Http\Controllers;
 
 use App\Models\Task;
+use App\Models\User;
 use App\Models\Work;
+use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\URL;
 use Inertia\Inertia;
+use Inertia\Response;
 
-class WorkProofController extends Controller
+class PublicWorkProofController extends Controller
 {
-    public function show(Work $work)
-    {
-        $this->authorize('view', $work);
+    private const LINK_TTL_DAYS = 7;
 
-        $work->load('customer:id,company_name,first_name,last_name,email');
+    public function show(Request $request, Work $work): Response
+    {
+        $work->load('customer:id,company_name,first_name,last_name,email,auto_validate_tasks');
+
+        $customer = $work->customer;
+        $owner = User::find($work->user_id);
+        $allowUpload = !(bool) ($customer?->auto_validate_tasks ?? false);
+
+        $expiresAt = $this->resolveExpiry($request);
 
         $tasks = $work->tasks()
+            ->whereIn('status', ['in_progress', 'done'])
             ->with(['assignee.user:id,name', 'media.user:id,name', 'materials.product:id,name,unit,price'])
             ->orderByRaw('CASE WHEN due_date IS NULL THEN 1 ELSE 0 END')
             ->orderBy('due_date')
@@ -30,7 +42,11 @@ class WorkProofController extends Controller
                 'end_time',
                 'assigned_team_member_id',
             ])
-            ->map(function (Task $task) {
+            ->map(function (Task $task) use ($allowUpload, $expiresAt) {
+                $uploadUrl = $allowUpload
+                    ? URL::temporarySignedRoute('public.tasks.media.store', $expiresAt, ['task' => $task->id])
+                    : null;
+
                 return [
                     'id' => $task->id,
                     'title' => $task->title,
@@ -40,6 +56,7 @@ class WorkProofController extends Controller
                     'end_time' => $task->end_time,
                     'assignee' => $task->assignee?->user?->name,
                     'materials' => $task->materials
+                        ->where('billable', true)
                         ->sortBy('sort_order')
                         ->values()
                         ->map(function ($material) {
@@ -49,7 +66,6 @@ class WorkProofController extends Controller
                                 'quantity' => $material->quantity,
                                 'unit' => $material->unit,
                                 'unit_price' => $material->unit_price,
-                                'billable' => $material->billable,
                                 'product_name' => $material->product?->name,
                             ];
                         }),
@@ -77,11 +93,11 @@ class WorkProofController extends Controller
                                 'uploaded_at' => $media->created_at,
                             ];
                         }),
+                    'upload_url' => $uploadUrl,
                 ];
             });
 
-        return Inertia::render('Work/Proofs', [
-            'viewer' => 'team',
+        return Inertia::render('Public/WorkProofs', [
             'work' => [
                 'id' => $work->id,
                 'number' => $work->number,
@@ -90,14 +106,29 @@ class WorkProofController extends Controller
                 'start_date' => $work->start_date,
                 'end_date' => $work->end_date,
             ],
-            'customer' => $work->customer ? [
-                'id' => $work->customer->id,
-                'company_name' => $work->customer->company_name,
-                'first_name' => $work->customer->first_name,
-                'last_name' => $work->customer->last_name,
-                'email' => $work->customer->email,
+            'company' => [
+                'name' => $owner?->company_name ?: config('app.name'),
+                'logo_url' => $owner?->company_logo_url,
+            ],
+            'customer' => $customer ? [
+                'company_name' => $customer->company_name,
+                'first_name' => $customer->first_name,
+                'last_name' => $customer->last_name,
+                'email' => $customer->email,
             ] : null,
             'tasks' => $tasks,
+            'allowUpload' => $allowUpload,
+            'uploadBlockedMessage' => $allowUpload ? null : 'Task actions are handled by the company.',
         ]);
+    }
+
+    private function resolveExpiry(Request $request): Carbon
+    {
+        $expires = $request->query('expires');
+        if (is_numeric($expires)) {
+            return Carbon::createFromTimestamp((int) $expires);
+        }
+
+        return now()->addDays(self::LINK_TTL_DAYS);
     }
 }

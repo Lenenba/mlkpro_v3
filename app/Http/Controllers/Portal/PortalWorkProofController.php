@@ -80,6 +80,8 @@ class PortalWorkProofController extends Controller
                                     ? $path
                                     : Storage::disk('public')->url($path))
                                 : null;
+                            $source = $media->meta['source'] ?? null;
+                            $uploadedBy = $source === 'client-public' ? null : $media->user?->name;
 
                             return [
                                 'id' => $media->id,
@@ -87,8 +89,8 @@ class PortalWorkProofController extends Controller
                                 'media_type' => $media->media_type,
                                 'url' => $url,
                                 'note' => $media->meta['note'] ?? null,
-                                'source' => $media->meta['source'] ?? null,
-                                'uploaded_by' => $media->user?->name,
+                                'source' => $source,
+                                'uploaded_by' => $uploadedBy,
                                 'uploaded_at' => $media->created_at,
                             ];
                         }),
