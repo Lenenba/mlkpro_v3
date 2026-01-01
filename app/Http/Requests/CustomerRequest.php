@@ -22,8 +22,6 @@ class CustomerRequest extends FormRequest
     {
         $customerId = $this->route('customer') ? $this->route('customer')->id : null;
         $portalUserId = $this->route('customer') ? $this->route('customer')->portal_user_id : null;
-        $requiresPassword = $this->isMethod('post');
-
         return [
             'first_name' => 'required|string|max:255',
             'last_name' => 'required|string|max:255',
@@ -63,11 +61,6 @@ class CustomerRequest extends FormRequest
             'auto_validate_tasks' => 'nullable|boolean',
             'auto_validate_invoices' => 'nullable|boolean',
             'refer_by' => 'nullable|string|max:255',
-            'temporary_password' => [
-                $requiresPassword ? 'required' : 'nullable',
-                'string',
-                'min:8',
-            ],
             'salutation' => [
                 'required',
                 Rule::in(['Mr', 'Mrs', 'Miss']),

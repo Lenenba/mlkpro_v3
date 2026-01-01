@@ -49,7 +49,6 @@ const closeOverlay = (overlayId) => {
 const createForm = useForm({
     name: '',
     email: '',
-    password: '',
     role: 'member',
     title: '',
     phone: '',
@@ -64,7 +63,7 @@ const submitCreate = () => {
     createForm.post(route('team.store'), {
         preserveScroll: true,
         onSuccess: () => {
-            createForm.reset('name', 'email', 'password', 'title', 'phone');
+            createForm.reset('name', 'email', 'title', 'phone');
             createForm.role = 'member';
             closeOverlay('#hs-team-create');
         },
@@ -318,10 +317,6 @@ const formatDate = (value) => humanizeDate(value) || String(value || '');
                     <InputError class="mt-1" :message="createForm.errors.email" />
                 </div>
                 <div>
-                    <FloatingInput v-model="createForm.password" label="Password (optional)" />
-                    <InputError class="mt-1" :message="createForm.errors.password" />
-                </div>
-                <div>
                     <label class="block text-xs text-stone-500 dark:text-neutral-400">Role</label>
                     <select v-model="createForm.role"
                         class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
@@ -339,6 +334,9 @@ const formatDate = (value) => humanizeDate(value) || String(value || '');
                     <InputError class="mt-1" :message="createForm.errors.phone" />
                 </div>
             </div>
+            <p class="text-xs text-stone-500 dark:text-neutral-400">
+                Un lien de connexion sera envoye par email pour definir le mot de passe.
+            </p>
 
             <div>
                 <p class="text-xs text-stone-500 dark:text-neutral-400">Permissions</p>

@@ -10,6 +10,8 @@ use App\Models\User;
 use App\Models\Work;
 use App\Notifications\ActionEmailNotification;
 use App\Services\UsageLimitService;
+use Illuminate\Support\Facades\URL;
+use App\Services\TemplateService;
 
 class WorkBillingService
 {
@@ -63,6 +65,16 @@ class WorkBillingService
 
         $customer = $work->customer;
         if ($customer && $customer->email) {
+            $accountOwner = User::find($work->user_id);
+            $note = $accountOwner
+                ? app(TemplateService::class)->resolveInvoiceNote($accountOwner)
+                : null;
+            $expiresAt = now()->addDays(7);
+            $publicInvoiceUrl = URL::temporarySignedRoute(
+                'public.invoices.show',
+                $expiresAt,
+                ['invoice' => $invoice->id]
+            );
             $customer->notify(new ActionEmailNotification(
                 'New invoice available',
                 'A new invoice has been generated for your job.',
@@ -71,9 +83,10 @@ class WorkBillingService
                     ['label' => 'Job', 'value' => $work->job_title ?? $work->number ?? $work->id],
                     ['label' => 'Total', 'value' => '$' . number_format((float) $invoice->total, 2)],
                 ],
-                route('dashboard'),
-                'Open dashboard',
-                'New invoice available'
+                $publicInvoiceUrl,
+                'Pay invoice',
+                'New invoice available',
+                $note
             ));
         }
 

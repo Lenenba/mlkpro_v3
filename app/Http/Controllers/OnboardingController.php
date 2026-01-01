@@ -88,10 +88,6 @@ class OnboardingController extends Controller
             'company_city' => 'nullable|string|max:255',
             'company_type' => 'required|string|in:services,products',
             'company_sector' => 'required|string|max:255',
-            'is_owner' => 'required|boolean',
-
-            'owner_name' => 'nullable|string|max:255|required_if:is_owner,0',
-            'owner_email' => 'nullable|string|lowercase|email|max:255|required_if:is_owner,0|unique:users,email',
 
             'invites' => 'nullable|array|max:20',
             'invites.*.name' => 'required|string|max:255',
@@ -112,32 +108,7 @@ class OnboardingController extends Controller
         )->id;
 
         $accountOwner = $creator;
-        $ownerPassword = null;
-
-        if (!$validated['is_owner']) {
-            $ownerPassword = Str::random(14);
-            $accountOwner = User::create([
-                'name' => $validated['owner_name'],
-                'email' => $validated['owner_email'],
-                'password' => Hash::make($ownerPassword),
-                'role_id' => $ownerRoleId,
-                'email_verified_at' => now(),
-            ]);
-
-            $creator->update(['role_id' => $employeeRoleId]);
-
-            TeamMember::updateOrCreate(
-                [
-                    'account_id' => $accountOwner->id,
-                    'user_id' => $creator->id,
-                ],
-                [
-                    'role' => 'admin',
-                    'permissions' => $this->defaultPermissionsForRole('admin'),
-                    'is_active' => true,
-                ]
-            );
-        } elseif ($creator->role_id !== $ownerRoleId) {
+        if ($creator->role_id !== $ownerRoleId) {
             $creator->update(['role_id' => $ownerRoleId]);
         }
 
@@ -187,9 +158,6 @@ class OnboardingController extends Controller
         }
 
         $messageParts = ['Onboarding completed.'];
-        if ($ownerPassword) {
-            $messageParts[] = 'Owner login: ' . $accountOwner->email . ' / ' . $ownerPassword;
-        }
         if ($invitePasswords) {
             $messageParts[] = 'Team passwords: ' . implode(', ', $invitePasswords);
         }

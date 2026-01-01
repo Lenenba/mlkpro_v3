@@ -8,6 +8,7 @@ use App\Models\PlanScan;
 use App\Models\Product;
 use App\Models\PlatformSetting;
 use App\Models\Quote;
+use App\Models\Request as LeadRequest;
 use App\Models\Role;
 use App\Models\Task;
 use App\Models\TeamMember;
@@ -138,6 +139,7 @@ class TenantController extends BaseSuperAdminController
         $stats = [
             'customers' => Customer::query()->where('user_id', $tenant->id)->count(),
             'quotes' => Quote::query()->where('user_id', $tenant->id)->count(),
+            'requests' => LeadRequest::query()->where('user_id', $tenant->id)->count(),
             'plan_scan_quotes' => (int) PlanScan::query()->where('user_id', $tenant->id)->sum('quotes_generated'),
             'invoices' => Invoice::query()->where('user_id', $tenant->id)->count(),
             'works' => Work::query()->where('user_id', $tenant->id)->count(),
@@ -147,7 +149,7 @@ class TenantController extends BaseSuperAdminController
             'team_members' => TeamMember::query()->where('account_id', $tenant->id)->count(),
         ];
 
-        $featureFlags = $this->buildFeatureFlags($tenant);
+        $featureFlags = $this->buildFeatureFlags($tenant, $subscription);
         $usageLimits = $this->buildUsageLimits($tenant, $subscription, $stats);
 
         return Inertia::render('SuperAdmin/Tenants/Show', [
@@ -263,6 +265,7 @@ class TenantController extends BaseSuperAdminController
 
         $allowedKeys = [
             'quotes',
+            'requests',
             'plan_scan_quotes',
             'invoices',
             'jobs',
@@ -432,23 +435,31 @@ class TenantController extends BaseSuperAdminController
             ->all();
     }
 
-    private function buildFeatureFlags(User $tenant): array
+    private function buildFeatureFlags(User $tenant, ?object $subscription): array
     {
         $defaults = [
             'quotes' => 'Quotes',
+            'requests' => 'Requests',
+            'plan_scans' => 'Plan scans',
             'invoices' => 'Invoices',
             'jobs' => 'Jobs',
             'products' => 'Products',
             'services' => 'Services',
             'tasks' => 'Tasks',
+            'team_members' => 'Team members',
         ];
 
         $current = $tenant->company_features ?? [];
+        $planModules = PlatformSetting::getValue('plan_modules', []);
+        $planKey = $this->resolvePlanKey($subscription?->price_id);
+        $planDefaults = $planKey ? ($planModules[$planKey] ?? []) : [];
 
-        return collect($defaults)->map(function ($label, $key) use ($current) {
+        return collect($defaults)->map(function ($label, $key) use ($current, $planDefaults) {
             $enabled = true;
             if (array_key_exists($key, $current)) {
                 $enabled = (bool) $current[$key];
+            } elseif (array_key_exists($key, $planDefaults)) {
+                $enabled = (bool) $planDefaults[$key];
             }
 
             return [
@@ -463,6 +474,7 @@ class TenantController extends BaseSuperAdminController
     {
         $limitKeys = [
             'quotes' => 'Quotes',
+            'requests' => 'Requests',
             'plan_scan_quotes' => 'Plan scan quotes',
             'invoices' => 'Invoices',
             'jobs' => 'Jobs',

@@ -275,6 +275,7 @@ const planName = computed(() => props.usage_limits?.plan_name || props.usage_lim
 const hasUsageAlert = computed(() => usageItems.value.some((item) => item.status !== 'ok'));
 const limitLabelMap = {
     quotes: 'Devis',
+    requests: 'Demandes',
     plan_scan_quotes: 'Devis plan scan',
     invoices: 'Factures',
     jobs: 'Jobs',

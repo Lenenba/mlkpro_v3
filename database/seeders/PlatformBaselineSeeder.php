@@ -46,7 +46,20 @@ class PlatformBaselineSeeder extends Seeder
 
         $limitKeys = [
             'quotes',
+            'requests',
             'plan_scan_quotes',
+            'invoices',
+            'jobs',
+            'products',
+            'services',
+            'tasks',
+            'team_members',
+        ];
+
+        $moduleKeys = [
+            'quotes',
+            'requests',
+            'plan_scans',
             'invoices',
             'jobs',
             'products',
@@ -69,6 +82,22 @@ class PlatformBaselineSeeder extends Seeder
         PlatformSetting::query()->firstOrCreate(
             ['key' => 'plan_limits'],
             ['value' => $planLimits]
+        );
+
+        $planModules = [];
+        foreach (config('billing.plans', []) as $planKey => $plan) {
+            foreach ($moduleKeys as $moduleKey) {
+                $planModules[$planKey][$moduleKey] = true;
+            }
+        }
+
+        if (!$planModules) {
+            $planModules['free'] = array_fill_keys($moduleKeys, true);
+        }
+
+        PlatformSetting::query()->firstOrCreate(
+            ['key' => 'plan_modules'],
+            ['value' => $planModules]
         );
 
         $superadminRoleId = Role::query()->where('name', 'superadmin')->value('id');

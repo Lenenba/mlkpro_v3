@@ -14,6 +14,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Paddle\Billable;
 use Illuminate\Support\Facades\Storage;
+use App\Services\CompanyFeatureService;
 
 class User extends Authenticatable
 {
@@ -176,16 +177,7 @@ class User extends Authenticatable
 
     public function hasCompanyFeature(string $feature): bool
     {
-        $features = $this->company_features;
-        if (!$features || !is_array($features)) {
-            return true;
-        }
-
-        if (!array_key_exists($feature, $features)) {
-            return true;
-        }
-
-        return (bool) $features[$feature];
+        return app(CompanyFeatureService::class)->hasFeature($this, $feature);
     }
 
     public function isSuspended(): bool

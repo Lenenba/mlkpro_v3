@@ -19,7 +19,6 @@ const baseStepItems = [
     { key: 'company', title: 'Entreprise', description: 'Infos principales et identite.' },
     { key: 'type', title: 'Type', description: 'Services ou produits.' },
     { key: 'sector', title: 'Secteur', description: 'Votre activite principale.' },
-    { key: 'owner', title: 'Proprietaire', description: 'Role du createur.' },
     { key: 'team', title: 'Equipe', description: 'Invitez votre equipe.' },
 ];
 
@@ -48,8 +47,7 @@ const stepIds = computed(() => ({
     company: 1 + stepOffset.value,
     type: 2 + stepOffset.value,
     sector: 3 + stepOffset.value,
-    owner: 4 + stepOffset.value,
-    team: 5 + stepOffset.value,
+    team: 4 + stepOffset.value,
 }));
 const isStepDisabled = (item) => isGuest.value && item.key !== 'account';
 const selectStep = (item) => {
@@ -107,9 +105,6 @@ const form = useForm({
     company_type: preset.value.company_type || 'services',
     company_sector: preset.value.company_sector || '',
     company_sector_other: '',
-    is_owner: '1',
-    owner_name: '',
-    owner_email: '',
     invites: [],
     accept_terms: false,
 });
@@ -612,35 +607,6 @@ const closeTerms = () => {
                         </div>
                         <div class="rounded-sm border border-stone-200 bg-stone-50 p-3 text-sm text-stone-700 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200">
                             Des categories de services seront creees automatiquement, y compris pour un secteur ajoute.
-                        </div>
-                    </div>
-
-                    <div v-else-if="step === stepIds.owner" class="space-y-3">
-                        <p class="text-sm text-stone-600 dark:text-neutral-400">Etes-vous le proprietaire de l'entreprise ?</p>
-
-                        <div class="space-y-2">
-                            <label class="flex items-center gap-2 text-sm text-stone-700 dark:text-neutral-200">
-                                <input type="radio" name="is_owner" value="1" v-model="form.is_owner" />
-                                <span>Oui</span>
-                            </label>
-                            <label class="flex items-center gap-2 text-sm text-stone-700 dark:text-neutral-200">
-                                <input type="radio" name="is_owner" value="0" v-model="form.is_owner" />
-                                <span>Non</span>
-                            </label>
-                        </div>
-
-                        <InputError class="mt-1" :message="form.errors.is_owner" />
-
-                        <div v-if="form.is_owner === '0'" class="mt-3 space-y-2">
-                            <div class="rounded-sm border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900/40 dark:bg-amber-900/20 dark:text-amber-200">
-                                Un compte proprietaire sera cree automatiquement (mot de passe temporaire affiche a la fin).
-                            </div>
-
-                            <FloatingInput v-model="form.owner_name" label="Nom du proprietaire" />
-                            <InputError class="mt-1" :message="form.errors.owner_name" />
-
-                            <FloatingInput v-model="form.owner_email" label="Email du proprietaire" />
-                            <InputError class="mt-1" :message="form.errors.owner_email" />
                         </div>
                     </div>
 

@@ -27,7 +27,6 @@ const form = reactive({
     first_name: '',
     last_name: '',
     email: '',
-    temporary_password: '',
     phone: '',
     company_name: '',
     description: '',
@@ -80,7 +79,6 @@ const isValid = computed(() => {
         form.first_name.trim() &&
         form.last_name.trim() &&
         form.email.trim() &&
-        form.temporary_password.trim().length >= 8 &&
         propertyValid.value
     );
 });
@@ -106,7 +104,6 @@ const resetForm = () => {
     form.first_name = '';
     form.last_name = '';
     form.email = '';
-    form.temporary_password = '';
     form.phone = '';
     form.company_name = '';
     form.description = '';
@@ -154,7 +151,6 @@ const submit = async () => {
         first_name: form.first_name,
         last_name: form.last_name,
         email: form.email,
-        temporary_password: form.temporary_password,
         phone: form.phone,
         company_name: form.company_name,
         description: form.description,
@@ -262,9 +258,11 @@ const selectAddress = (details) => {
             <FloatingInput v-model="form.last_name" label="Last name" :required="true" />
             <FloatingInput v-model="form.company_name" label="Company name" />
             <FloatingInput v-model="form.email" label="Email" :required="true" />
-            <FloatingInput v-model="form.temporary_password" label="Mot de passe temporaire" type="password" :required="true" />
             <FloatingInput v-model="form.phone" label="Phone" />
         </div>
+        <p class="text-xs text-stone-500 dark:text-neutral-400">
+            Un lien de connexion sera envoye par email pour definir le mot de passe.
+        </p>
 
         <FloatingTextarea v-model="form.description" label="Notes" />
 

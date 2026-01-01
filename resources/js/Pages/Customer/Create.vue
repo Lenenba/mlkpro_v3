@@ -4,7 +4,7 @@ import FloatingSelect from '@/Components/FloatingSelect.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingTextarea from '@/Components/FloatingTextarea.vue';
 import { Link, useForm, Head } from '@inertiajs/vue3';
-import { computed, ref } from 'vue';
+import { ref } from 'vue';
 
 
 const props = defineProps({
@@ -56,7 +56,6 @@ const form = useForm({
     first_name: props.customer?.first_name || '',
     last_name: props.customer?.last_name || '',
     email: props.customer?.email || '',
-    temporary_password: '',
     company_name: props.customer?.company_name || '',
     billing_same_as_physical: props.customer?.billing_same_as_physical || false,
     logo: props.customer?.logo || '',
@@ -87,8 +86,6 @@ const submit = () => {
         },
     });
 };
-
-const isCreating = computed(() => !props.customer?.id);
 
 const query = ref('');
 const suggestions = ref([]);
@@ -195,10 +192,8 @@ const selectAddress = (details) => {
                         <h2 class="pt-4 text-sm  my-2 font-bold text-stone-800 dark:text-white"> Contact details</h2>
                         <FloatingInput v-model="form.phone" label="Phone" />
                         <FloatingInput v-model="form.email" label="Email address" :required="true" />
-                        <FloatingInput v-model="form.temporary_password" label="Mot de passe temporaire" type="password"
-                            :required="isCreating" />
                         <p class="text-xs text-stone-500 dark:text-neutral-400">
-                            Le client pourra le changer lors de la premiere connexion.
+                            Un lien de connexion sera envoye par email pour definir le mot de passe.
                         </p>
                         <h2 class="pt-4 text-sm  my-2 font-bold text-stone-800 dark:text-white"> Client auto validation
                         </h2>

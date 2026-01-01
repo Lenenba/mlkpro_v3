@@ -5,10 +5,12 @@ namespace App\Http\Controllers;
 use App\Models\Role;
 use App\Models\TeamMember;
 use App\Models\User;
+use App\Notifications\InviteUserNotification;
 use App\Services\UsageLimitService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
 
 class TeamMemberController extends Controller
@@ -61,7 +63,6 @@ class TeamMemberController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|string|lowercase|email|max:255|unique:users,email',
-            'password' => 'nullable|string|min:8',
             'role' => 'required|string|in:admin,member',
             'title' => 'nullable|string|max:255',
             'phone' => 'nullable|string|max:255',
@@ -77,14 +78,13 @@ class TeamMemberController extends Controller
             ])->id;
         }
 
-        $plainPassword = $validated['password'] ?? Str::random(12);
-
         $memberUser = User::create([
             'name' => $validated['name'],
             'email' => $validated['email'],
-            'password' => Hash::make($plainPassword),
+            'password' => Hash::make(Str::random(32)),
             'role_id' => $roleId,
             'email_verified_at' => now(),
+            'must_change_password' => true,
         ]);
 
         $permissions = array_values($validated['permissions'] ?? []);
@@ -102,12 +102,15 @@ class TeamMemberController extends Controller
             'is_active' => true,
         ]);
 
-        $message = 'Team member created.';
-        if (!isset($validated['password'])) {
-            $message .= ' Temporary password: ' . $plainPassword;
-        }
+        $token = Password::broker()->createToken($memberUser);
+        $memberUser->notify(new InviteUserNotification(
+            $token,
+            $user->company_name ?: config('app.name'),
+            $user->company_logo_url,
+            'team'
+        ));
 
-        return redirect()->back()->with('success', $message);
+        return redirect()->back()->with('success', 'Team member created. Invite sent by email.');
     }
 
     public function update(Request $request, TeamMember $teamMember)

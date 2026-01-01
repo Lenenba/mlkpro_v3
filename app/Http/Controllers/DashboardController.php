@@ -11,6 +11,7 @@ use App\Models\Customer;
 use App\Models\ActivityLog;
 use App\Models\Task;
 use App\Models\TeamMember;
+use App\Models\PlanScan;
 use App\Models\PlatformAnnouncement;
 use App\Models\User;
 use App\Services\UsageLimitService;
@@ -548,6 +549,7 @@ class DashboardController extends Controller
             'invoices_paid' => (clone $invoicesQuery)->where('status', 'paid')->count(),
             'invoices_partial' => (clone $invoicesQuery)->where('status', 'partial')->count(),
             'invoices_overdue' => (clone $invoicesQuery)->where('status', 'overdue')->count(),
+            'plan_scans_total' => PlanScan::query()->where('user_id', $userId)->count(),
         ];
 
         $revenueBilled = (clone $invoicesQuery)->sum('total');

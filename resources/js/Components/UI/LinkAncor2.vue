@@ -2,6 +2,7 @@
 import { computed, nextTick, onBeforeUnmount, ref } from 'vue';
 import { usePage } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
+import { isFeatureEnabled } from '@/utils/features';
 
 const isOpen = ref(false);
 const { t, locale } = useI18n();
@@ -15,6 +16,8 @@ const companyType = computed(() => page.props.auth?.account?.company?.type ?? nu
 const showServices = computed(() => companyType.value !== 'products');
 const showProducts = computed(() => true);
 const isOwner = computed(() => Boolean(page.props.auth?.account?.is_owner));
+const featureFlags = computed(() => page.props.auth?.account?.features || {});
+const hasFeature = (key) => isFeatureEnabled(featureFlags.value, key);
 
 const menuItems = computed(() => {
     locale.value;
@@ -26,24 +29,30 @@ const menuItems = computed(() => {
             overlay: '#hs-quick-create-customer',
             icon: `<svg xmlns="http://www.w3.org/2000/svg" class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>`,
         });
-        items.push({
-            label: t('quick_create.service'),
-            overlay: '#hs-quick-create-service',
-            icon: `<svg xmlns="http://www.w3.org/2000/svg" class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a4 4 0 0 0-5.66 5.66l-6.34 6.34a2 2 0 0 0 2.83 2.83l6.34-6.34a4 4 0 0 0 5.66-5.66l-2.12 2.12-2.83-2.83 2.12-2.12z"/></svg>`,
-        });
-        items.push({
-            label: t('quick_create.request'),
-            overlay: '#hs-quick-create-request',
-            icon: `<svg xmlns="http://www.w3.org/2000/svg" class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg>`,
-        });
-        items.push({
-            label: t('quick_create.quote'),
-            overlay: '#hs-quick-create-quote',
-            icon: `<svg xmlns="http://www.w3.org/2000/svg" class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2Z"/><path d="M14 2v6h6"/><path d="M8 13h8"/><path d="M8 17h5"/></svg>`,
-        });
+        if (hasFeature('services')) {
+            items.push({
+                label: t('quick_create.service'),
+                overlay: '#hs-quick-create-service',
+                icon: `<svg xmlns="http://www.w3.org/2000/svg" class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a4 4 0 0 0-5.66 5.66l-6.34 6.34a2 2 0 0 0 2.83 2.83l6.34-6.34a4 4 0 0 0 5.66-5.66l-2.12 2.12-2.83-2.83 2.12-2.12z"/></svg>`,
+            });
+        }
+        if (hasFeature('requests')) {
+            items.push({
+                label: t('quick_create.request'),
+                overlay: '#hs-quick-create-request',
+                icon: `<svg xmlns="http://www.w3.org/2000/svg" class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg>`,
+            });
+        }
+        if (hasFeature('quotes')) {
+            items.push({
+                label: t('quick_create.quote'),
+                overlay: '#hs-quick-create-quote',
+                icon: `<svg xmlns="http://www.w3.org/2000/svg" class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2Z"/><path d="M14 2v6h6"/><path d="M8 13h8"/><path d="M8 17h5"/></svg>`,
+            });
+        }
     }
 
-    if (isOwner.value && showProducts.value) {
+    if (isOwner.value && showProducts.value && hasFeature('products')) {
         items.push({
             label: t('quick_create.product'),
             overlay: '#hs-quick-create-product',

@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use App\Models\User;
 use App\Models\PlatformSetting;
+use App\Services\CompanyFeatureService;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -35,12 +36,16 @@ class HandleInertiaRequests extends Middleware
         $ownerId = $user?->accountOwnerId();
 
         $accountOwner = null;
+        $accountFeatures = null;
         if ($user && $ownerId) {
             $accountOwner = $ownerId === $user->id
                 ? $user
                 : User::query()
                     ->select(['id', 'company_name', 'company_type', 'company_logo', 'onboarding_completed_at'])
                     ->find($ownerId);
+        }
+        if ($user && $accountOwner) {
+            $accountFeatures = app(CompanyFeatureService::class)->resolveEffectiveFeatures($accountOwner);
         }
 
         $impersonatorId = $request->session()->get('impersonator_id');
@@ -77,6 +82,7 @@ class HandleInertiaRequests extends Middleware
                         'onboarded' => (bool) $accountOwner->onboarding_completed_at,
                         'logo_url' => $accountOwner->company_logo_url,
                     ] : null,
+                    'features' => $accountFeatures,
                     'platform' => $platformAdmin ? [
                         'role' => $platformAdmin->role,
                         'permissions' => $platformAdmin->permissions ?? [],

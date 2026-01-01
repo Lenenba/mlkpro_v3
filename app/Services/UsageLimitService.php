@@ -7,6 +7,7 @@ use App\Models\PlanScan;
 use App\Models\PlatformSetting;
 use App\Models\Product;
 use App\Models\Quote;
+use App\Models\Request as LeadRequest;
 use App\Models\Task;
 use App\Models\TeamMember;
 use App\Models\User;
@@ -18,6 +19,7 @@ class UsageLimitService
 {
     public const LIMIT_KEYS = [
         'quotes' => 'Quotes',
+        'requests' => 'Requests',
         'plan_scan_quotes' => 'Plan scan quotes',
         'invoices' => 'Invoices',
         'jobs' => 'Jobs',
@@ -160,6 +162,7 @@ class UsageLimitService
 
         return [
             'quotes' => Quote::query()->where('user_id', $accountId)->count(),
+            'requests' => LeadRequest::query()->where('user_id', $accountId)->count(),
             'plan_scan_quotes' => (int) PlanScan::query()->where('user_id', $accountId)->sum('quotes_generated'),
             'invoices' => Invoice::query()->where('user_id', $accountId)->count(),
             'jobs' => Work::query()->where('user_id', $accountId)->count(),

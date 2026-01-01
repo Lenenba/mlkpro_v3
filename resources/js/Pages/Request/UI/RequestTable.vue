@@ -1,11 +1,12 @@
 <script setup>
 import { computed, ref, watch } from 'vue';
-import { Link, router, useForm } from '@inertiajs/vue3';
+import { Link, router, useForm, usePage } from '@inertiajs/vue3';
 import Modal from '@/Components/UI/Modal.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingTextarea from '@/Components/FloatingTextarea.vue';
 import InputError from '@/Components/InputError.vue';
 import { humanizeDate } from '@/utils/date';
+import { isFeatureEnabled } from '@/utils/features';
 
 const props = defineProps({
     requests: {
@@ -194,6 +195,11 @@ const statusClass = (status) => {
     }
 };
 
+const page = usePage();
+const featureFlags = computed(() => page.props.auth?.account?.features || {});
+const canUseRequests = computed(() => isFeatureEnabled(featureFlags.value, 'requests'));
+const canUseQuotes = computed(() => isFeatureEnabled(featureFlags.value, 'quotes'));
+
 const openQuickCreate = () => {
     if (window.HSOverlay) {
         window.HSOverlay.open('#hs-quick-create-request');
@@ -263,6 +269,7 @@ const openQuickCreate = () => {
             </div>
 
             <button
+                v-if="canUseRequests"
                 type="button"
                 class="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700"
                 @click="openQuickCreate"
@@ -341,7 +348,7 @@ const openQuickCreate = () => {
                                                 class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
                                                 View quote
                                             </Link>
-                                            <button v-else-if="lead.status === 'REQ_NEW'" type="button" @click="openConvert(lead)"
+                                            <button v-else-if="lead.status === 'REQ_NEW' && canUseQuotes" type="button" @click="openConvert(lead)"
                                                 class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-emerald-600 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-neutral-800">
                                                 Convert
                                             </button>
