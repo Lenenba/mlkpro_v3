@@ -15,6 +15,7 @@ use App\Models\TeamMember;
 use App\Models\WorkChecklistItem;
 use App\Models\User;
 use App\Services\WorkBillingService;
+use App\Services\WorkScheduleService;
 use App\Services\UsageLimitService;
 use App\Notifications\ActionEmailNotification;
 use Illuminate\Http\Request;
@@ -338,6 +339,8 @@ class WorkController extends Controller
             'total' => $work->total,
         ], 'Job created');
 
+        $this->autoScheduleTasksForWork($work, $user);
+
         return redirect()->route('customer.show', $customer)->with('success', 'Job created successfully!');
     }
 
@@ -597,6 +600,8 @@ class WorkController extends Controller
         ActivityLog::record(Auth::user(), $work, 'updated', [
             'total' => $work->total,
         ], 'Job updated');
+
+        $this->autoScheduleTasksForWork($work, $user);
 
         return redirect()->back()->with('success', 'Job updated successfully.');
     }
@@ -865,6 +870,33 @@ class WorkController extends Controller
         $work->instructions = $work->quote->notes ?: ($work->quote->messages ?: '');
         $work->subtotal = $work->quote->subtotal;
         $work->total = $work->quote->total;
+    }
+
+    private function autoScheduleTasksForWork(Work $work, ?User $actor): void
+    {
+        $customer = $work->relationLoaded('customer')
+            ? $work->customer
+            : Customer::query()->find($work->customer_id);
+
+        if (!$customer || (bool) ($customer->portal_access ?? true)) {
+            return;
+        }
+
+        if ($work->status !== Work::STATUS_SCHEDULED) {
+            return;
+        }
+
+        $scheduleService = app(WorkScheduleService::class);
+        $pendingDates = $scheduleService->pendingDateStrings($work);
+        if (!$pendingDates) {
+            return;
+        }
+
+        if ($actor) {
+            app(UsageLimitService::class)->enforceLimit($actor, 'tasks', count($pendingDates));
+        }
+
+        $scheduleService->generateTasksForDates($work, $pendingDates, $actor?->id);
     }
 
 }

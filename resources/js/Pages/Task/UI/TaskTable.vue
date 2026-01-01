@@ -28,6 +28,10 @@ const props = defineProps({
         type: Array,
         default: () => [],
     },
+    works: {
+        type: Array,
+        default: () => [],
+    },
     materialProducts: {
         type: Array,
         default: () => [],
@@ -120,6 +124,23 @@ const formatDate = (value) => humanizeDate(value) || String(value || '');
 
 const canChangeStatus = computed(() => props.canManage || props.canEditStatus);
 
+const workLabel = (work) => {
+    if (!work) {
+        return '';
+    }
+    const title = work.job_title || work.number || `Job #${work.id}`;
+    const customerName = work.customer?.company_name
+        || `${work.customer?.first_name || ''} ${work.customer?.last_name || ''}`.trim();
+    return customerName ? `${title} - ${customerName}` : title;
+};
+
+const workOptions = computed(() =>
+    (props.works || []).map((work) => ({
+        id: work.id,
+        name: workLabel(work),
+    }))
+);
+
 const materialOptions = computed(() => [
     { id: '', name: 'Custom' },
     ...props.materialProducts.map((product) => ({
@@ -191,6 +212,8 @@ const normalizeMaterials = (materials) =>
 const isTaskLocked = (task) => task?.status === 'done';
 
 const createForm = useForm({
+    work_id: '',
+    standalone: false,
     title: '',
     description: '',
     status: 'todo',
@@ -198,6 +221,34 @@ const createForm = useForm({
     assigned_team_member_id: '',
     materials: [],
 });
+
+const normalizeWorkSelection = (form) => {
+    if (form.standalone) {
+        form.work_id = null;
+    }
+
+    if (!form.work_id) {
+        form.work_id = null;
+    }
+};
+
+watch(
+    () => createForm.standalone,
+    (value) => {
+        if (value) {
+            createForm.work_id = '';
+        }
+    }
+);
+
+watch(
+    () => createForm.work_id,
+    (value) => {
+        if (value) {
+            createForm.standalone = false;
+        }
+    }
+);
 
 const closeOverlay = (overlayId) => {
     if (window.HSOverlay) {
@@ -211,11 +262,12 @@ const submitCreate = () => {
     }
 
     createForm.materials = normalizeMaterials(createForm.materials);
+    normalizeWorkSelection(createForm);
 
     createForm.post(route('task.store'), {
         preserveScroll: true,
         onSuccess: () => {
-            createForm.reset('title', 'description', 'due_date', 'assigned_team_member_id');
+            createForm.reset('work_id', 'standalone', 'title', 'description', 'due_date', 'assigned_team_member_id');
             createForm.status = 'todo';
             createForm.materials = [];
             closeOverlay('#hs-task-create');
@@ -225,6 +277,8 @@ const submitCreate = () => {
 
 const editingTaskId = ref(null);
 const editForm = useForm({
+    work_id: '',
+    standalone: false,
     title: '',
     description: '',
     status: 'todo',
@@ -234,6 +288,24 @@ const editForm = useForm({
     product_id: null,
     materials: [],
 });
+
+watch(
+    () => editForm.standalone,
+    (value) => {
+        if (value) {
+            editForm.work_id = '';
+        }
+    }
+);
+
+watch(
+    () => editForm.work_id,
+    (value) => {
+        if (value) {
+            editForm.standalone = false;
+        }
+    }
+);
 
 const openEditTask = (task) => {
     if (!props.canManage) {
@@ -251,6 +323,8 @@ const openEditTask = (task) => {
     editForm.status = task.status || 'todo';
     editForm.due_date = task.due_date || '';
     editForm.assigned_team_member_id = task.assigned_team_member_id || '';
+    editForm.work_id = task.work_id ?? '';
+    editForm.standalone = !task.work_id;
     editForm.customer_id = task.customer_id ?? null;
     editForm.product_id = task.product_id ?? null;
     editForm.materials = mapTaskMaterials(task.materials || []);
@@ -266,6 +340,7 @@ const submitEdit = () => {
     }
 
     editForm.materials = normalizeMaterials(editForm.materials);
+    normalizeWorkSelection(editForm);
 
     editForm.put(route('task.update', editingTaskId.value), {
         preserveScroll: true,
@@ -289,6 +364,8 @@ const setTaskStatus = (task, status) => {
                 status,
                 due_date: task.due_date || null,
                 assigned_team_member_id: task.assigned_team_member_id ?? null,
+                work_id: task.work_id ?? null,
+                standalone: !task.work_id,
                 customer_id: task.customer_id ?? null,
                 product_id: task.product_id ?? null,
             },
@@ -606,6 +683,25 @@ const submitProof = () => {
                 <InputError class="mt-1" :message="createForm.errors.description" />
             </div>
 
+            <div>
+                <label class="block text-xs text-stone-500 dark:text-neutral-400">Job</label>
+                <select
+                    v-model="createForm.work_id"
+                    :disabled="createForm.standalone"
+                    class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 disabled:bg-stone-100 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 dark:disabled:bg-neutral-800"
+                >
+                    <option value="">Select a job</option>
+                    <option v-for="work in workOptions" :key="work.id" :value="work.id">
+                        {{ work.name }}
+                    </option>
+                </select>
+                <InputError class="mt-1" :message="createForm.errors.work_id" />
+                <label class="mt-2 flex items-center gap-2">
+                    <Checkbox v-model:checked="createForm.standalone" />
+                    <span class="text-xs text-stone-600 dark:text-neutral-400">Task ponctuelle (sans job)</span>
+                </label>
+            </div>
+
             <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
                     <label class="block text-xs text-stone-500 dark:text-neutral-400">Status</label>
@@ -700,6 +796,25 @@ const submitProof = () => {
             <div>
                 <FloatingTextarea v-model="editForm.description" label="Description (optional)" />
                 <InputError class="mt-1" :message="editForm.errors.description" />
+            </div>
+
+            <div>
+                <label class="block text-xs text-stone-500 dark:text-neutral-400">Job</label>
+                <select
+                    v-model="editForm.work_id"
+                    :disabled="editForm.standalone"
+                    class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 disabled:bg-stone-100 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 dark:disabled:bg-neutral-800"
+                >
+                    <option value="">Select a job</option>
+                    <option v-for="work in workOptions" :key="work.id" :value="work.id">
+                        {{ work.name }}
+                    </option>
+                </select>
+                <InputError class="mt-1" :message="editForm.errors.work_id" />
+                <label class="mt-2 flex items-center gap-2">
+                    <Checkbox v-model:checked="editForm.standalone" />
+                    <span class="text-xs text-stone-600 dark:text-neutral-400">Task ponctuelle (sans job)</span>
+                </label>
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-3">

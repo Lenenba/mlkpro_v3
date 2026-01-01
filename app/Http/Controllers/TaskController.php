@@ -7,6 +7,7 @@ use App\Models\ProductStockMovement;
 use App\Models\Task;
 use App\Models\TaskMaterial;
 use App\Models\TeamMember;
+use App\Models\Work;
 use App\Services\UsageLimitService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -96,6 +97,13 @@ class TaskController extends Controller
             ->orderBy('name')
             ->get(['id', 'name', 'unit', 'price']);
 
+        $works = Work::query()
+            ->byUser($accountId)
+            ->with('customer:id,company_name,first_name,last_name')
+            ->orderByDesc('created_at')
+            ->limit(200)
+            ->get(['id', 'job_title', 'number', 'customer_id', 'status']);
+
         return inertia('Task/Index', [
             'tasks' => $tasks,
             'filters' => $filters,
@@ -104,6 +112,7 @@ class TaskController extends Controller
             'stats' => $stats,
             'count' => $totalCount,
             'materialProducts' => $materialProducts,
+            'works' => $works,
             'canCreate' => $user ? $user->can('create', Task::class) : false,
             'canManage' => $canManage,
             'canDelete' => $canDelete,
@@ -126,6 +135,13 @@ class TaskController extends Controller
             'title' => 'required|string|max:255',
             'description' => 'nullable|string|max:5000',
             'status' => ['nullable', 'string', Rule::in(Task::STATUSES)],
+            'work_id' => [
+                Rule::requiredIf(fn() => !$request->boolean('standalone')),
+                'nullable',
+                'integer',
+                Rule::exists('works', 'id')->where('user_id', $accountId),
+            ],
+            'standalone' => 'nullable|boolean',
             'due_date' => 'nullable|date',
             'assigned_team_member_id' => [
                 'nullable',
@@ -163,14 +179,21 @@ class TaskController extends Controller
             ],
         ]);
 
+        $work = null;
+        $workId = $validated['work_id'] ?? null;
+        if ($workId) {
+            $work = Work::query()->where('user_id', $accountId)->find($workId);
+        }
+
         $status = $validated['status'] ?? 'todo';
 
         $task = Task::create([
             'account_id' => $accountId,
             'created_by_user_id' => Auth::id(),
             'assigned_team_member_id' => $validated['assigned_team_member_id'] ?? null,
-            'customer_id' => $validated['customer_id'] ?? null,
+            'customer_id' => $work ? $work->customer_id : ($validated['customer_id'] ?? null),
             'product_id' => $validated['product_id'] ?? null,
+            'work_id' => $work?->id,
             'title' => $validated['title'],
             'description' => $validated['description'] ?? null,
             'status' => $status,
@@ -213,30 +236,37 @@ class TaskController extends Controller
         ];
 
         if ($isManager) {
-            $rules = array_merge($rules, [
-                'title' => 'required|string|max:255',
-                'description' => 'nullable|string|max:5000',
-                'due_date' => 'nullable|date',
-                'assigned_team_member_id' => [
-                    'nullable',
-                    'integer',
-                    Rule::exists('team_members', 'id')->where('account_id', $accountId),
-                ],
-                'customer_id' => [
-                    'nullable',
-                    'integer',
-                    Rule::exists('customers', 'id')->where('user_id', $accountId),
-                ],
-                'product_id' => [
-                    'nullable',
-                    'integer',
-                    Rule::exists('products', 'id')->where('user_id', $accountId),
-                ],
-                'materials' => 'nullable|array',
-                'materials.*.id' => 'nullable|integer',
-                'materials.*.product_id' => [
-                    'nullable',
-                    'integer',
+                $rules = array_merge($rules, [
+                    'title' => 'required|string|max:255',
+                    'description' => 'nullable|string|max:5000',
+                    'due_date' => 'nullable|date',
+                    'assigned_team_member_id' => [
+                        'nullable',
+                        'integer',
+                        Rule::exists('team_members', 'id')->where('account_id', $accountId),
+                    ],
+                    'customer_id' => [
+                        'nullable',
+                        'integer',
+                        Rule::exists('customers', 'id')->where('user_id', $accountId),
+                    ],
+                    'product_id' => [
+                        'nullable',
+                        'integer',
+                        Rule::exists('products', 'id')->where('user_id', $accountId),
+                    ],
+                    'work_id' => [
+                        Rule::requiredIf(fn() => !$request->boolean('standalone')),
+                        'nullable',
+                        'integer',
+                        Rule::exists('works', 'id')->where('user_id', $accountId),
+                    ],
+                    'standalone' => 'nullable|boolean',
+                    'materials' => 'nullable|array',
+                    'materials.*.id' => 'nullable|integer',
+                    'materials.*.product_id' => [
+                        'nullable',
+                        'integer',
                     Rule::exists('products', 'id')->where('user_id', $accountId),
                 ],
                 'materials.*.label' => 'nullable|string|max:255',
@@ -265,8 +295,21 @@ class TaskController extends Controller
             $updates['description'] = $validated['description'] ?? null;
             $updates['due_date'] = $validated['due_date'] ?? null;
             $updates['assigned_team_member_id'] = $validated['assigned_team_member_id'] ?? null;
-            $updates['customer_id'] = $validated['customer_id'] ?? null;
             $updates['product_id'] = $validated['product_id'] ?? null;
+
+            $work = null;
+            $workId = $validated['work_id'] ?? null;
+            if ($workId) {
+                $work = Work::query()->where('user_id', $accountId)->find($workId);
+            }
+
+            if ($work) {
+                $updates['work_id'] = $work->id;
+                $updates['customer_id'] = $work->customer_id;
+            } else {
+                $updates['work_id'] = null;
+                $updates['customer_id'] = $validated['customer_id'] ?? null;
+            }
         }
 
         $wasInProgress = $task->status === 'in_progress';
