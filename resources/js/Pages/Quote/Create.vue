@@ -13,11 +13,24 @@ const props = defineProps({
     lastQuotesNumber: String,
     taxes: Array,
     selectedPropertyId: Number,
+    templateDefaults: {
+        type: Object,
+        default: () => ({}),
+    },
+    templateExamples: {
+        type: Array,
+        default: () => [],
+    },
 });
 
 const page = usePage();
 const companyName = computed(() => page.props.auth?.account?.company?.name || 'Entreprise');
 const companyLogo = computed(() => page.props.auth?.account?.company?.logo_url || null);
+const isEditing = computed(() => Boolean(props.quote?.id));
+const templateDefaults = computed(() => props.templateDefaults || {});
+const templateExamples = computed(() => props.templateExamples || []);
+const defaultMessages = computed(() => templateDefaults.value?.messages || '');
+const defaultNotes = computed(() => templateDefaults.value?.notes || '');
 
 const parseSourceDetails = (value) => {
     if (!value) {
@@ -49,8 +62,8 @@ const form = useForm({
     property_id: initialPropertyId,
     job_title: props.quote?.job_title || '',
     status: props.quote?.status || 'draft',
-    notes: props.quote?.notes || '',
-    messages: props.quote?.messages || '',
+    notes: isEditing.value ? (props.quote?.notes || '') : defaultNotes.value,
+    messages: isEditing.value ? (props.quote?.messages || '') : defaultMessages.value,
     product: props.quote?.products?.map(product => ({
         id: product.id,
         name: product.name,
@@ -76,6 +89,21 @@ const selectedProperty = computed(() => {
 
 const availableTaxes = computed(() => props.taxes || []);
 const isLocked = computed(() => Boolean(props.quote?.archived_at) || props.quote?.status === 'accepted');
+const templateOptions = computed(() => {
+    const options = templateExamples.value.slice();
+    if (defaultMessages.value || defaultNotes.value) {
+        options.unshift({
+            key: 'default',
+            label: 'Default template',
+            messages: defaultMessages.value,
+            notes: defaultNotes.value,
+        });
+    }
+    return options;
+});
+const showTemplatePicker = computed(() =>
+    !isLocked.value && !isEditing.value && templateOptions.value.length > 0
+);
 
 
 const updateSubtotal = (newSubtotal) => {
@@ -135,6 +163,18 @@ const validateDeposit = () => {
 const toggleDepositInput = () => {
     showDepositInput.value = true;
     form.initial_deposit = Number(minimumDeposit.value) || 0;
+};
+
+const applyTemplate = (template) => {
+    if (!template || isLocked.value) {
+        return;
+    }
+    if (typeof template.messages === 'string') {
+        form.messages = template.messages;
+    }
+    if (typeof template.notes === 'string') {
+        form.notes = template.notes;
+    }
 };
 
 // Soumettre le formulaire
@@ -289,6 +329,24 @@ const submit = () => {
                     </div>
                     <div
                         class="p-5 grid grid-cols-2 gap-4 justify-between bg-white border border-stone-200 rounded-sm shadow-sm xl:shadow-none dark:bg-neutral-900 dark:border-neutral-700">
+
+                        <div v-if="showTemplatePicker" class="col-span-2 rounded-sm border border-stone-200 bg-stone-50 p-3 text-xs text-stone-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300">
+                            <div class="flex flex-wrap items-center justify-between gap-2">
+                                <span class="font-semibold text-stone-700 dark:text-neutral-200">Templates</span>
+                                <span>Pick a starting point for this quote.</span>
+                            </div>
+                            <div class="mt-2 flex flex-wrap gap-2">
+                                <button
+                                    v-for="template in templateOptions"
+                                    :key="template.key"
+                                    type="button"
+                                    @click="applyTemplate(template)"
+                                    class="rounded-sm border border-stone-200 bg-white px-3 py-1.5 text-xs font-medium text-stone-700 hover:bg-stone-100 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-700"
+                                >
+                                    {{ template.label }}
+                                </button>
+                            </div>
+                        </div>
 
                         <div>
                             <FloatingTextarea v-model="form.messages" label="Client message" :disabled="isLocked" />

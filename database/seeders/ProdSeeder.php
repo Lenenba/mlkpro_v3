@@ -2,11 +2,7 @@
 
 namespace Database\Seeders;
 
-use App\Models\Role;
-use App\Models\User;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\Hash;
-use RuntimeException;
 
 class ProdSeeder extends Seeder
 {
@@ -15,7 +11,8 @@ class ProdSeeder extends Seeder
      */
     public function run(): void
     {
-        $roles = ['superadmin', 'admin', 'owner', 'employee', 'client'];
-
+        $this->call([
+            PlatformBaselineSeeder::class,
+        ]);
     }
 }

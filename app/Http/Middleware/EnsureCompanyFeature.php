@@ -5,6 +5,7 @@ namespace App\Http\Middleware;
 use App\Models\User;
 use Closure;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
 use Symfony\Component\HttpFoundation\Response;
 
 class EnsureCompanyFeature
@@ -29,9 +30,46 @@ class EnsureCompanyFeature
             : User::query()->find($ownerId);
 
         if (!$owner || !$owner->hasCompanyFeature($feature)) {
-            abort(404);
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'message' => 'Module unavailable for your plan.',
+                ], 403);
+            }
+
+            if ($request->isMethod('get')) {
+                return Inertia::render('Errors/ModuleUnavailable', [
+                    'feature' => $feature,
+                    'featureLabel' => $this->featureLabel($feature),
+                    'isOwner' => $user->id === $ownerId,
+                    'upgradeUrl' => $user->id === $ownerId
+                        ? route('settings.billing.edit')
+                        : null,
+                ])->toResponse($request)->setStatusCode(403);
+            }
+
+            abort(403);
         }
 
         return $next($request);
+    }
+
+    private function featureLabel(string $feature): string
+    {
+        $labels = [
+            'quotes' => 'Quotes',
+            'plan_scans' => 'Plan scans',
+            'invoices' => 'Invoices',
+            'jobs' => 'Jobs',
+            'products' => 'Products',
+            'services' => 'Services',
+            'tasks' => 'Tasks',
+            'team_members' => 'Team members',
+        ];
+
+        if (isset($labels[$feature])) {
+            return $labels[$feature];
+        }
+
+        return ucfirst(str_replace('_', ' ', $feature));
     }
 }

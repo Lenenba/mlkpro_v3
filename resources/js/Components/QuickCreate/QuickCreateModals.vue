@@ -1,12 +1,21 @@
 <script setup>
-import { onMounted, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import axios from 'axios';
+import { usePage } from '@inertiajs/vue3';
 import Modal from '@/Components/UI/Modal.vue';
 import ProductQuickForm from '@/Components/QuickCreate/ProductQuickForm.vue';
 import ServiceQuickForm from '@/Components/QuickCreate/ServiceQuickForm.vue';
 import CustomerQuickForm from '@/Components/QuickCreate/CustomerQuickForm.vue';
 import QuoteQuickDialog from '@/Components/QuickCreate/QuoteQuickDialog.vue';
 import RequestQuickForm from '@/Components/QuickCreate/RequestQuickForm.vue';
+import { isFeatureEnabled } from '@/utils/features';
+
+const page = usePage();
+const featureFlags = computed(() => page.props.auth?.account?.features || {});
+const canProducts = computed(() => isFeatureEnabled(featureFlags.value, 'products'));
+const canServices = computed(() => isFeatureEnabled(featureFlags.value, 'services'));
+const canQuotes = computed(() => isFeatureEnabled(featureFlags.value, 'quotes'));
+const canRequests = computed(() => isFeatureEnabled(featureFlags.value, 'requests'));
 
 const customers = ref([]);
 const categories = ref([]);
@@ -75,8 +84,12 @@ const handleCategoryCreated = (category) => {
 };
 
 onMounted(() => {
-    fetchCustomers();
-    fetchCategories();
+    if (canQuotes.value || canRequests.value) {
+        fetchCustomers();
+    }
+    if (canProducts.value || canServices.value) {
+        fetchCategories();
+    }
 });
 </script>
 
@@ -90,7 +103,7 @@ onMounted(() => {
         />
     </Modal>
 
-    <Modal :title="'New product'" :id="'hs-quick-create-product'">
+    <Modal v-if="canProducts" :title="'New product'" :id="'hs-quick-create-product'">
         <div v-if="loadingCategories" class="text-sm text-stone-500 dark:text-neutral-400">
             Loading categories...
         </div>
@@ -106,7 +119,7 @@ onMounted(() => {
         </div>
     </Modal>
 
-    <Modal :title="'New service'" :id="'hs-quick-create-service'">
+    <Modal v-if="canServices" :title="'New service'" :id="'hs-quick-create-service'">
         <div v-if="loadingCategories" class="text-sm text-stone-500 dark:text-neutral-400">
             Loading categories...
         </div>
@@ -122,7 +135,7 @@ onMounted(() => {
         </div>
     </Modal>
 
-    <Modal :title="'New quote'" :id="'hs-quick-create-quote'">
+    <Modal v-if="canQuotes" :title="'New quote'" :id="'hs-quick-create-quote'">
         <div v-if="customerError" class="mb-3 text-sm text-red-600">
             {{ customerError }}
         </div>
@@ -134,7 +147,7 @@ onMounted(() => {
         />
     </Modal>
 
-    <Modal :title="'New request'" :id="'hs-quick-create-request'">
+    <Modal v-if="canRequests" :title="'New request'" :id="'hs-quick-create-request'">
         <div v-if="customerError" class="mb-3 text-sm text-red-600">
             {{ customerError }}
         </div>

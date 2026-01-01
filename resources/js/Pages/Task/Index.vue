@@ -9,6 +9,10 @@ const props = defineProps({
     filters: Object,
     statuses: Array,
     teamMembers: Array,
+    works: {
+        type: Array,
+        default: () => [],
+    },
     stats: Object,
     count: Number,
     canCreate: Boolean,
@@ -32,6 +36,7 @@ const props = defineProps({
                 :filters="filters"
                 :statuses="statuses"
                 :teamMembers="teamMembers"
+                :works="works"
                 :count="count"
                 :canCreate="canCreate"
                 :canManage="canManage"

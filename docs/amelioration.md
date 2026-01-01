@@ -1,0 +1,1 @@
+- les personne quon cree lors du onboarding ou lors de lajout dune personne dans lequipe il faudrais rajouter lenvoie de email pour ces personnes la , il faudrais envoie un email un lien magique pour que la personne que lona cree puisse clicker dessus et etre diriger pour cree son mot de passe

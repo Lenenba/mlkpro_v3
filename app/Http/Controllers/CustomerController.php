@@ -12,6 +12,7 @@ use App\Models\Customer;
 use App\Models\Role;
 use App\Models\Request as LeadRequest;
 use App\Models\User;
+use App\Notifications\InviteUserNotification;
 use App\Utils\FileHandler;
 use App\Models\ActivityLog;
 use Illuminate\Http\Request;
@@ -19,6 +20,8 @@ use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Password;
+use Illuminate\Support\Str;
 use App\Http\Requests\CustomerRequest;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 
@@ -518,14 +521,23 @@ class CustomerController extends Controller
         $validated = $request->validated();
         $validated['logo'] = FileHandler::handleImageUpload('customers', $request, 'logo', 'customers/customer.png');
         $validated['header_image'] = FileHandler::handleImageUpload('customers', $request, 'header_image', 'customers/customer.png');
+        $portalAccess = array_key_exists('portal_access', $validated)
+            ? (bool) $validated['portal_access']
+            : true;
 
         $customerData = Arr::except($validated, ['temporary_password']);
+        $customerData['portal_access'] = $portalAccess;
 
-        $customer = DB::transaction(function () use ($request, $validated, $customerData) {
-            $portalUser = $this->createPortalUser($validated);
-            $customerData['portal_user_id'] = $portalUser->id;
+        [$customer, $portalUser] = DB::transaction(function () use ($request, $validated, $customerData, $portalAccess) {
+            $portalUser = null;
+            if ($portalAccess) {
+                $portalUser = $this->createPortalUser($validated);
+                $customerData['portal_user_id'] = $portalUser->id;
+            }
 
-            return $request->user()->customers()->create($customerData);
+            $customer = $request->user()->customers()->create($customerData);
+
+            return [$customer, $portalUser];
         });
 
         // Add properties if provided
@@ -543,6 +555,17 @@ class CustomerController extends Controller
             'email' => $customer->email,
         ], 'Customer created');
 
+        if ($portalUser) {
+            $accountOwner = User::query()->find($request->user()->accountOwnerId());
+            $token = Password::broker()->createToken($portalUser);
+            $portalUser->notify(new InviteUserNotification(
+                $token,
+                $accountOwner?->company_name ?: config('app.name'),
+                $accountOwner?->company_logo_url,
+                'client'
+            ));
+        }
+
         return redirect()->route('customer.index')->with('success', 'Customer created successfully.');
     }
 
@@ -554,14 +577,23 @@ class CustomerController extends Controller
         $validated = $request->validated();
         $validated['logo'] = FileHandler::handleImageUpload('customers', $request, 'logo', 'customers/customer.png');
         $validated['header_image'] = FileHandler::handleImageUpload('customers', $request, 'header_image', 'customers/customer.png');
+        $portalAccess = array_key_exists('portal_access', $validated)
+            ? (bool) $validated['portal_access']
+            : true;
 
         $customerData = Arr::except($validated, ['temporary_password']);
+        $customerData['portal_access'] = $portalAccess;
 
-        $customer = DB::transaction(function () use ($request, $validated, $customerData) {
-            $portalUser = $this->createPortalUser($validated);
-            $customerData['portal_user_id'] = $portalUser->id;
+        [$customer, $portalUser] = DB::transaction(function () use ($request, $validated, $customerData, $portalAccess) {
+            $portalUser = null;
+            if ($portalAccess) {
+                $portalUser = $this->createPortalUser($validated);
+                $customerData['portal_user_id'] = $portalUser->id;
+            }
 
-            return $request->user()->customers()->create($customerData);
+            $customer = $request->user()->customers()->create($customerData);
+
+            return [$customer, $portalUser];
         });
 
         $property = null;
@@ -578,6 +610,17 @@ class CustomerController extends Controller
             'company_name' => $customer->company_name,
             'email' => $customer->email,
         ], 'Customer created');
+
+        if ($portalUser) {
+            $accountOwner = User::query()->find($request->user()->accountOwnerId());
+            $token = Password::broker()->createToken($portalUser);
+            $portalUser->notify(new InviteUserNotification(
+                $token,
+                $accountOwner?->company_name ?: config('app.name'),
+                $accountOwner?->company_logo_url,
+                'client'
+            ));
+        }
 
         $propertyData = [];
         if ($property) {
@@ -699,7 +742,7 @@ class CustomerController extends Controller
         return User::create([
             'name' => $name ?: $validated['email'],
             'email' => $validated['email'],
-            'password' => Hash::make($validated['temporary_password']),
+            'password' => Hash::make(Str::random(32)),
             'role_id' => $roleId,
             'phone_number' => $validated['phone'] ?? null,
             'company_name' => $validated['company_name'] ?? null,

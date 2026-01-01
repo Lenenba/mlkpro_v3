@@ -5,6 +5,7 @@ import LinkAncor from "@/Components/UI/LinkAncor.vue";
 import { Link, router, usePage } from '@inertiajs/vue3';
 import MenuDropdown from "@/Components/UI/LinkAncor2.vue";
 import QuickCreateModals from "@/Components/QuickCreate/QuickCreateModals.vue";
+import { isFeatureEnabled } from '@/utils/features';
 
 const page = usePage()
 const companyType = computed(() => page.props.auth?.account?.company?.type ?? null);
@@ -15,6 +16,8 @@ const isClient = computed(() => Boolean(page.props.auth?.account?.is_client));
 const isSuperadmin = computed(() => Boolean(page.props.auth?.account?.is_superadmin));
 const isPlatformAdmin = computed(() => Boolean(page.props.auth?.account?.is_platform_admin));
 const platformPermissions = computed(() => page.props.auth?.account?.platform?.permissions || []);
+const featureFlags = computed(() => page.props.auth?.account?.features || {});
+const hasFeature = (key) => isFeatureEnabled(featureFlags.value, key);
 const showPlatformNav = computed(() => isSuperadmin.value || isPlatformAdmin.value);
 const canPlatform = (permission) => isSuperadmin.value || platformPermissions.value.includes(permission);
 const userName = computed(() => page.props.auth?.user?.name || '');
@@ -209,7 +212,7 @@ const setLocale = (locale) => {
                                 <!-- End Item -->
 
                                 <!-- Item -->
-                                <LinkAncor v-if="showProducts && page.props.auth.account?.is_owner" :label="$t('nav.products')" :href="'product.index'"
+                                <LinkAncor v-if="showProducts && hasFeature('products') && page.props.auth.account?.is_owner" :label="$t('nav.products')" :href="'product.index'"
                                     :active="route().current('product.index')">
                                     <template #icon>
                                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
@@ -229,7 +232,7 @@ const setLocale = (locale) => {
                                 <!-- End Item -->
 
                                 <!-- Item -->
-                                <LinkAncor v-if="showServices && page.props.auth.account?.is_owner" :label="$t('nav.services')" :href="'service.index'"
+                                <LinkAncor v-if="showServices && hasFeature('services') && page.props.auth.account?.is_owner" :label="$t('nav.services')" :href="'service.index'"
                                     :active="route().current('service.index')">
                                     <template #icon>
                                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
@@ -243,7 +246,7 @@ const setLocale = (locale) => {
                                 </LinkAncor>
                                 <!-- End Item -->
                                 <!-- Item -->
-                                <LinkAncor v-if="showServices && page.props.auth.account?.is_owner" :label="$t('nav.categories')" :href="'service.categories'"
+                                <LinkAncor v-if="showServices && hasFeature('services') && page.props.auth.account?.is_owner" :label="$t('nav.categories')" :href="'service.categories'"
                                     :active="route().current('service.categories')">
                                     <template #icon>
                                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
@@ -257,7 +260,7 @@ const setLocale = (locale) => {
                                 </LinkAncor>
                                 <!-- End Item -->
                                 <!-- Item -->
-                                <LinkAncor v-if="showServices && page.props.auth.account?.is_owner" :label="$t('nav.quotes')" :href="'quote.index'"
+                                <LinkAncor v-if="showServices && hasFeature('quotes') && page.props.auth.account?.is_owner" :label="$t('nav.quotes')" :href="'quote.index'"
                                     :active="route().current('quote.index') || route().current('customer.quote.*')">
                                     <template #icon>
                                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
@@ -273,7 +276,7 @@ const setLocale = (locale) => {
                                 </LinkAncor>
                                 <!-- End Item -->
                                 <!-- Item -->
-                                <LinkAncor v-if="showServices && page.props.auth.account?.is_owner" :label="$t('nav.plan_scans')" :href="'plan-scans.index'"
+                                <LinkAncor v-if="showServices && hasFeature('plan_scans') && page.props.auth.account?.is_owner" :label="$t('nav.plan_scans')" :href="'plan-scans.index'"
                                     :active="route().current('plan-scans.*')">
                                     <template #icon>
                                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
@@ -287,7 +290,7 @@ const setLocale = (locale) => {
                                 </LinkAncor>
                                 <!-- End Item -->
                                 <!-- Item -->
-                                <LinkAncor v-if="showServices && page.props.auth.account?.is_owner" :label="$t('nav.requests')" :href="'request.index'"
+                                <LinkAncor v-if="showServices && hasFeature('requests') && page.props.auth.account?.is_owner" :label="$t('nav.requests')" :href="'request.index'"
                                     :active="route().current('request.*')">
                                     <template #icon>
                                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
@@ -302,7 +305,7 @@ const setLocale = (locale) => {
                                 </LinkAncor>
                                 <!-- End Item -->
                                 <!-- Item -->
-                                <LinkAncor v-if="showServices && !isClient" :label="$t('nav.jobs')" :href="'jobs.index'"
+                                <LinkAncor v-if="showServices && hasFeature('jobs') && !isClient" :label="$t('nav.jobs')" :href="'jobs.index'"
                                     :active="route().current('jobs.index') || route().current('work.*')">
                                     <template #icon>
                                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
@@ -318,7 +321,7 @@ const setLocale = (locale) => {
                                 <!-- End Item -->
 
                                 <!-- Item -->
-                                <LinkAncor v-if="!isClient" :label="$t('nav.tasks')" :href="'task.index'"
+                                <LinkAncor v-if="hasFeature('tasks') && !isClient" :label="$t('nav.tasks')" :href="'task.index'"
                                     :active="route().current('task.*')">
                                     <template #icon>
                                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
@@ -333,7 +336,7 @@ const setLocale = (locale) => {
                                 <!-- End Item -->
 
                                 <!-- Item -->
-                                <LinkAncor v-if="page.props.auth.account?.is_owner" :label="$t('nav.team')" :href="'team.index'"
+                                <LinkAncor v-if="hasFeature('team_members') && page.props.auth.account?.is_owner" :label="$t('nav.team')" :href="'team.index'"
                                     :active="route().current('team.*')">
                                     <template #icon>
                                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
@@ -349,7 +352,7 @@ const setLocale = (locale) => {
                                 </LinkAncor>
                                 <!-- End Item -->
                                 <!-- Item -->
-                                <LinkAncor v-if="showServices && page.props.auth.account?.is_owner" :label="$t('nav.invoices')" :href="'invoice.index'"
+                                <LinkAncor v-if="showServices && hasFeature('invoices') && page.props.auth.account?.is_owner" :label="$t('nav.invoices')" :href="'invoice.index'"
                                     :active="route().current('invoice.*')">
                                     <template #icon>
                                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"

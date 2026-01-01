@@ -11,6 +11,7 @@ use App\Services\PlatformAdminNotifier;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
@@ -87,10 +88,6 @@ class OnboardingController extends Controller
             'company_city' => 'nullable|string|max:255',
             'company_type' => 'required|string|in:services,products',
             'company_sector' => 'required|string|max:255',
-            'is_owner' => 'required|boolean',
-
-            'owner_name' => 'nullable|string|max:255|required_if:is_owner,0',
-            'owner_email' => 'nullable|string|lowercase|email|max:255|required_if:is_owner,0|unique:users,email',
 
             'invites' => 'nullable|array|max:20',
             'invites.*.name' => 'required|string|max:255',
@@ -111,32 +108,7 @@ class OnboardingController extends Controller
         )->id;
 
         $accountOwner = $creator;
-        $ownerPassword = null;
-
-        if (!$validated['is_owner']) {
-            $ownerPassword = Str::random(14);
-            $accountOwner = User::create([
-                'name' => $validated['owner_name'],
-                'email' => $validated['owner_email'],
-                'password' => Hash::make($ownerPassword),
-                'role_id' => $ownerRoleId,
-                'email_verified_at' => now(),
-            ]);
-
-            $creator->update(['role_id' => $employeeRoleId]);
-
-            TeamMember::updateOrCreate(
-                [
-                    'account_id' => $accountOwner->id,
-                    'user_id' => $creator->id,
-                ],
-                [
-                    'role' => 'admin',
-                    'permissions' => $this->defaultPermissionsForRole('admin'),
-                    'is_active' => true,
-                ]
-            );
-        } elseif ($creator->role_id !== $ownerRoleId) {
+        if ($creator->role_id !== $ownerRoleId) {
             $creator->update(['role_id' => $ownerRoleId]);
         }
 
@@ -186,9 +158,6 @@ class OnboardingController extends Controller
         }
 
         $messageParts = ['Onboarding completed.'];
-        if ($ownerPassword) {
-            $messageParts[] = 'Owner login: ' . $accountOwner->email . ' / ' . $ownerPassword;
-        }
         if ($invitePasswords) {
             $messageParts[] = 'Team passwords: ' . implode(', ', $invitePasswords);
         }
@@ -226,9 +195,11 @@ class OnboardingController extends Controller
         $categories = self::SECTOR_CATEGORIES[$normalized] ?? null;
 
         if (!$categories) {
+            $remoteCategories = $this->discoverSectorCategories((string) $sector);
             $base = self::SECTOR_CATEGORIES['autre'];
             $label = preg_replace('/\s+/', ' ', trim((string) $sector));
-            $categories = $label !== '' ? array_merge([$label], $base) : $base;
+            $categories = array_merge($remoteCategories, $label !== '' ? [$label] : [], $base);
+            $categories = array_values(array_unique($categories));
         }
 
         foreach ($categories as $name) {
@@ -241,6 +212,55 @@ class OnboardingController extends Controller
             if ($category && $category->user_id === $accountOwner->id && $category->archived_at) {
                 $category->update(['archived_at' => null]);
             }
+        }
+    }
+
+    private function discoverSectorCategories(string $sector): array
+    {
+        $query = preg_replace('/\s+/', ' ', trim($sector));
+        if ($query === '') {
+            return [];
+        }
+
+        $titles = $this->fetchWikipediaTitles($query);
+        if (!$titles) {
+            $titles = $this->fetchWikipediaTitles($query . ' services');
+        }
+
+        $categories = [];
+        foreach ($titles as $title) {
+            $clean = preg_replace('/\s+/', ' ', trim((string) $title));
+            $clean = preg_replace('/\s+\(.*\)$/', '', $clean);
+            if ($clean !== '') {
+                $categories[] = $clean;
+            }
+        }
+
+        $categories = array_values(array_unique($categories));
+        return array_slice($categories, 0, 3);
+    }
+
+    private function fetchWikipediaTitles(string $query): array
+    {
+        try {
+            $response = Http::timeout(5)->acceptJson()->get('https://fr.wikipedia.org/w/api.php', [
+                'action' => 'opensearch',
+                'search' => $query,
+                'limit' => 5,
+                'namespace' => 0,
+                'format' => 'json',
+            ]);
+
+            if (!$response->ok()) {
+                return [];
+            }
+
+            $data = $response->json();
+            $titles = is_array($data) && isset($data[1]) && is_array($data[1]) ? $data[1] : [];
+
+            return array_values(array_filter($titles, fn($title) => trim((string) $title) !== ''));
+        } catch (\Throwable $exception) {
+            return [];
         }
     }
 

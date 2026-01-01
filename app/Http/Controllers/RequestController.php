@@ -130,6 +130,10 @@ class RequestController extends Controller
         $user = $request->user();
         $accountId = $user?->accountOwnerId() ?? Auth::id();
 
+        if ($user) {
+            app(UsageLimitService::class)->enforceLimit($user, 'requests');
+        }
+
         $validated = $request->validate([
             'customer_id' => ['nullable', Rule::exists('customers', 'id')],
             'external_customer_id' => 'nullable|string|max:100',

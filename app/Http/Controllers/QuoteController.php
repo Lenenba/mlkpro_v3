@@ -13,6 +13,8 @@ use App\Models\ActivityLog;
 use App\Models\QuoteProduct;
 use App\Models\Transaction;
 use App\Models\WorkChecklistItem;
+use App\Models\User;
+use App\Services\TemplateService;
 use App\Services\UsageLimitService;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
@@ -124,6 +126,12 @@ class QuoteController extends Controller
             ? Product::ITEM_TYPE_PRODUCT
             : Product::ITEM_TYPE_SERVICE;
 
+        $accountOwnerId = $request->user()?->accountOwnerId() ?? Auth::id();
+        $accountOwner = User::query()->find($accountOwnerId);
+        $templateService = app(TemplateService::class);
+        $templateDefaults = $templateService->resolveQuoteDefaults($accountOwner);
+        $templateExamples = $templateService->resolveQuoteExamples($accountOwner);
+
         return Inertia::render('Quote/Create', [
             'lastQuotesNumber' => $this->generateNextNumber(
                 $customer->quotes()->latest('created_at')->value('number')
@@ -131,6 +139,8 @@ class QuoteController extends Controller
             'customer' => $customer,
             'taxes' => Tax::all(),
             'selectedPropertyId' => $propertyId ? (int) $propertyId : null,
+            'templateDefaults' => $templateDefaults,
+            'templateExamples' => $templateExamples,
         ]);
     }
 

@@ -1,9 +1,15 @@
 <script setup>
-import { Link } from '@inertiajs/vue3';
+import { computed } from 'vue';
+import { Link, usePage } from '@inertiajs/vue3';
+import { isFeatureEnabled } from '@/utils/features';
 
 const props = defineProps({
     customer: Object,
 });
+
+const page = usePage();
+const featureFlags = computed(() => page.props.auth?.account?.features || {});
+const hasFeature = (key) => isFeatureEnabled(featureFlags.value, key);
 
 const openRequestModal = () => {
     if (!props.customer?.id) {
@@ -90,7 +96,7 @@ const openRequestModal = () => {
                             role="menu" aria-orientation="vertical" aria-labelledby="hs-pro-in1trsbgwmdid1">
                             <!-- List -->
                             <div class="p-1">
-                                <Link :href="route('customer.quote.create', customer)">
+                                <Link v-if="hasFeature('quotes')" :href="route('customer.quote.create', customer)">
                                     <button type="button"
                                         class="w-full flex items-center gap-x-3 py-2 px-3 rounded-sm text-sm text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800 dark:focus:bg-neutral-800">
                                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
@@ -105,7 +111,7 @@ const openRequestModal = () => {
                                     </button>
                                 </Link>
 
-                                <button type="button" @click="openRequestModal"
+                                <button v-if="hasFeature('requests')" type="button" @click="openRequestModal"
                                     class="w-full flex items-center gap-x-3 py-2 px-3 rounded-sm text-sm text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800 dark:focus:bg-neutral-800">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
                                         fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
@@ -117,7 +123,7 @@ const openRequestModal = () => {
                                     </svg>
                                     Create request
                                 </button>
-                                <Link :href="route('work.create', customer)">
+                                <Link v-if="hasFeature('jobs')" :href="route('work.create', customer)">
                                     <button type="button"
                                         class="w-full flex items-center gap-x-3 py-2 px-3 rounded-sm text-sm text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800 dark:focus:bg-neutral-800">
                                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
@@ -139,7 +145,7 @@ const openRequestModal = () => {
                                         Create job
                                     </button>
                                 </Link>
-                                <button type="button"
+                                <button v-if="hasFeature('invoices')" type="button"
                                     class="w-full flex items-center gap-x-3 py-2 px-3 rounded-sm text-sm text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800 dark:focus:bg-neutral-800">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
                                         fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"

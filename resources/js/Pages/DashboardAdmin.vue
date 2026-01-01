@@ -2,12 +2,19 @@
 import { computed } from 'vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import AnnouncementsPanel from '@/Components/Dashboard/AnnouncementsPanel.vue';
+import KpiSparkline from '@/Components/Dashboard/KpiSparkline.vue';
+import KpiTrendBadge from '@/Components/Dashboard/KpiTrendBadge.vue';
 import { Head, Link, usePage } from '@inertiajs/vue3';
 import { humanizeDate } from '@/utils/date';
+import { buildSparklinePoints, buildTrend } from '@/utils/kpi';
 
 const props = defineProps({
     stats: Object,
     tasks: Array,
+    kpiSeries: {
+        type: Object,
+        default: () => ({}),
+    },
     announcements: {
         type: Array,
         default: () => [],
@@ -17,6 +24,24 @@ const props = defineProps({
 const page = usePage();
 const userName = computed(() => page.props.auth?.user?.name || 'there');
 const hasAnnouncements = computed(() => (props.announcements || []).length > 0);
+const kpiSeries = computed(() => props.kpiSeries || {});
+const kpiConfig = {
+    tasks_total: { direction: 'up' },
+    tasks_todo: { direction: 'down' },
+    tasks_in_progress: { direction: 'up' },
+    tasks_done: { direction: 'up' },
+};
+const kpiData = computed(() => {
+    const data = {};
+    Object.entries(kpiConfig).forEach(([key, config]) => {
+        const values = kpiSeries.value?.[key] || [];
+        data[key] = {
+            points: buildSparklinePoints(values),
+            trend: buildTrend(values, config.direction),
+        };
+    });
+    return data;
+});
 
 const stat = (key) => props.stats?.[key] ?? 0;
 const formatDate = (value) => humanizeDate(value) || '-';
@@ -37,20 +62,48 @@ const formatDate = (value) => humanizeDate(value) || '-';
             <div :class="['grid gap-4', hasAnnouncements ? 'xl:grid-cols-[minmax(0,1fr)_320px]' : 'grid-cols-1']">
                 <div class="grid grid-cols-1 gap-3 md:grid-cols-4">
                     <div class="rounded-sm border border-stone-200 border-t-4 border-t-emerald-600 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-800">
-                        <p class="text-xs text-stone-500 dark:text-neutral-400">Total</p>
+                        <div class="flex items-center justify-between gap-2">
+                            <p class="text-xs text-stone-500 dark:text-neutral-400">Total</p>
+                            <KpiTrendBadge :trend="kpiData.tasks_total.trend" />
+                        </div>
                         <p class="mt-1 text-2xl font-semibold text-stone-900 dark:text-neutral-100">{{ stat('tasks_total') }}</p>
+                        <KpiSparkline
+                            :points="kpiData.tasks_total.points"
+                            color-class="bg-emerald-500/70 dark:bg-emerald-400/50"
+                        />
                     </div>
                     <div class="rounded-sm border border-stone-200 border-t-4 border-t-amber-600 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-800">
-                        <p class="text-xs text-stone-500 dark:text-neutral-400">To do</p>
+                        <div class="flex items-center justify-between gap-2">
+                            <p class="text-xs text-stone-500 dark:text-neutral-400">To do</p>
+                            <KpiTrendBadge :trend="kpiData.tasks_todo.trend" />
+                        </div>
                         <p class="mt-1 text-2xl font-semibold text-stone-900 dark:text-neutral-100">{{ stat('tasks_todo') }}</p>
+                        <KpiSparkline
+                            :points="kpiData.tasks_todo.points"
+                            color-class="bg-amber-500/70 dark:bg-amber-400/50"
+                        />
                     </div>
                     <div class="rounded-sm border border-stone-200 border-t-4 border-t-blue-600 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-800">
-                        <p class="text-xs text-stone-500 dark:text-neutral-400">In progress</p>
+                        <div class="flex items-center justify-between gap-2">
+                            <p class="text-xs text-stone-500 dark:text-neutral-400">In progress</p>
+                            <KpiTrendBadge :trend="kpiData.tasks_in_progress.trend" />
+                        </div>
                         <p class="mt-1 text-2xl font-semibold text-stone-900 dark:text-neutral-100">{{ stat('tasks_in_progress') }}</p>
+                        <KpiSparkline
+                            :points="kpiData.tasks_in_progress.points"
+                            color-class="bg-blue-500/70 dark:bg-blue-400/50"
+                        />
                     </div>
                     <div class="rounded-sm border border-stone-200 border-t-4 border-t-rose-600 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-800">
-                        <p class="text-xs text-stone-500 dark:text-neutral-400">Done</p>
+                        <div class="flex items-center justify-between gap-2">
+                            <p class="text-xs text-stone-500 dark:text-neutral-400">Done</p>
+                            <KpiTrendBadge :trend="kpiData.tasks_done.trend" />
+                        </div>
                         <p class="mt-1 text-2xl font-semibold text-stone-900 dark:text-neutral-100">{{ stat('tasks_done') }}</p>
+                        <KpiSparkline
+                            :points="kpiData.tasks_done.points"
+                            color-class="bg-rose-500/70 dark:bg-rose-400/50"
+                        />
                     </div>
                 </div>
                 <AnnouncementsPanel

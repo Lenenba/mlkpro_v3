@@ -25,6 +25,7 @@ class PlatformSettingsController extends BaseSuperAdminController
             'invoice_default' => '',
         ]);
         $planLimits = PlatformSetting::getValue('plan_limits', []);
+        $planModules = PlatformSetting::getValue('plan_modules', []);
         $plans = collect(config('billing.plans', []))
             ->map(function (array $plan, string $key) {
                 return [
@@ -41,6 +42,7 @@ class PlatformSettingsController extends BaseSuperAdminController
             'templates' => $templates,
             'plans' => $plans,
             'plan_limits' => $planLimits,
+            'plan_modules' => $planModules,
         ]);
     }
 
@@ -57,6 +59,9 @@ class PlatformSettingsController extends BaseSuperAdminController
             'plan_limits' => 'nullable|array',
             'plan_limits.*' => 'array',
             'plan_limits.*.*' => 'nullable|numeric|min:0',
+            'plan_modules' => 'nullable|array',
+            'plan_modules.*' => 'array',
+            'plan_modules.*.*' => 'nullable|boolean',
         ]);
 
         PlatformSetting::setValue('maintenance', [
@@ -72,7 +77,19 @@ class PlatformSettingsController extends BaseSuperAdminController
 
         $limitKeys = [
             'quotes',
+            'requests',
             'plan_scan_quotes',
+            'invoices',
+            'jobs',
+            'products',
+            'services',
+            'tasks',
+            'team_members',
+        ];
+        $moduleKeys = [
+            'quotes',
+            'requests',
+            'plan_scans',
             'invoices',
             'jobs',
             'products',
@@ -91,6 +108,18 @@ class PlatformSettingsController extends BaseSuperAdminController
         }
 
         PlatformSetting::setValue('plan_limits', $limitsPayload);
+
+        $modulesPayload = [];
+        $inputModules = $validated['plan_modules'] ?? [];
+        foreach (config('billing.plans', []) as $planKey => $plan) {
+            $planInput = $inputModules[$planKey] ?? [];
+            foreach ($moduleKeys as $moduleKey) {
+                $value = $planInput[$moduleKey] ?? null;
+                $modulesPayload[$planKey][$moduleKey] = $value === null ? true : (bool) $value;
+            }
+        }
+
+        PlatformSetting::setValue('plan_modules', $modulesPayload);
 
         $this->logAudit($request, 'platform_settings.updated');
 

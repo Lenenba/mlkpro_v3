@@ -11,6 +11,7 @@ use App\Models\Customer;
 use App\Models\ActivityLog;
 use App\Models\Task;
 use App\Models\TeamMember;
+use App\Models\PlanScan;
 use App\Models\PlatformAnnouncement;
 use App\Models\User;
 use App\Services\UsageLimitService;
@@ -24,6 +25,7 @@ class DashboardController extends Controller
     public function index()
     {
         $user = Auth::user();
+        $now = now();
         if ($user && $user->isClient()) {
             $customer = $user->customerProfile;
             if (!$customer) {
@@ -289,6 +291,40 @@ class DashboardController extends Controller
                     ];
                 });
 
+            $seriesMonths = 6;
+            $quotesPendingSeries = $this->buildMonthlySeries($now, $seriesMonths, function ($start, $end) use ($pendingQuotesQuery) {
+                return (clone $pendingQuotesQuery)
+                    ->whereBetween('created_at', [$start, $end])
+                    ->count();
+            });
+            $worksPendingSeries = $this->buildMonthlySeries($now, $seriesMonths, function ($start, $end) use ($pendingWorksQuery) {
+                return (clone $pendingWorksQuery)
+                    ->whereBetween('created_at', [$start, $end])
+                    ->count();
+            });
+            $invoicesDueSeries = $autoValidateInvoices
+                ? ['values' => array_fill(0, $seriesMonths, 0)]
+                : $this->buildMonthlySeries($now, $seriesMonths, function ($start, $end) use ($invoicesDueQuery) {
+                    return (clone $invoicesDueQuery)
+                        ->whereBetween('created_at', [$start, $end])
+                        ->count();
+                });
+            $ratingsDueSeries = $this->buildMonthlySeries($now, $seriesMonths, function ($start, $end) use ($quoteRatingsQuery, $workRatingsQuery) {
+                $quoteCount = (clone $quoteRatingsQuery)
+                    ->whereBetween('updated_at', [$start, $end])
+                    ->count();
+                $workCount = (clone $workRatingsQuery)
+                    ->whereBetween('updated_at', [$start, $end])
+                    ->count();
+                return $quoteCount + $workCount;
+            });
+            $kpiSeries = [
+                'quotes_pending' => $quotesPendingSeries['values'],
+                'works_pending' => $worksPendingSeries['values'],
+                'invoices_due' => $invoicesDueSeries['values'],
+                'ratings_due' => $ratingsDueSeries['values'],
+            ];
+
             return Inertia::render('DashboardClient', [
                 'profileMissing' => false,
                 'stats' => $stats,
@@ -296,6 +332,7 @@ class DashboardController extends Controller
                     'tasks' => $autoValidateTasks,
                     'invoices' => $autoValidateInvoices,
                 ],
+                'kpiSeries' => $kpiSeries,
                 'pendingQuotes' => $pendingQuotes,
                 'pendingSchedules' => $pendingSchedules,
                 'validatedQuotes' => $validatedQuotes,
@@ -361,11 +398,43 @@ class DashboardController extends Controller
                         ];
                     });
 
+                $seriesMonths = 6;
+                $tasksTotalSeries = $this->buildMonthlySeries($now, $seriesMonths, function ($start, $end) use ($tasksQuery) {
+                    return (clone $tasksQuery)
+                        ->whereBetween('created_at', [$start, $end])
+                        ->count();
+                });
+                $tasksTodoSeries = $this->buildMonthlySeries($now, $seriesMonths, function ($start, $end) use ($tasksQuery) {
+                    return (clone $tasksQuery)
+                        ->where('status', 'todo')
+                        ->whereBetween('created_at', [$start, $end])
+                        ->count();
+                });
+                $tasksInProgressSeries = $this->buildMonthlySeries($now, $seriesMonths, function ($start, $end) use ($tasksQuery) {
+                    return (clone $tasksQuery)
+                        ->where('status', 'in_progress')
+                        ->whereBetween('created_at', [$start, $end])
+                        ->count();
+                });
+                $tasksDoneSeries = $this->buildMonthlySeries($now, $seriesMonths, function ($start, $end) use ($tasksQuery) {
+                    return (clone $tasksQuery)
+                        ->where('status', 'done')
+                        ->whereBetween('created_at', [$start, $end])
+                        ->count();
+                });
+                $kpiSeries = [
+                    'tasks_total' => $tasksTotalSeries['values'],
+                    'tasks_todo' => $tasksTodoSeries['values'],
+                    'tasks_in_progress' => $tasksInProgressSeries['values'],
+                    'tasks_done' => $tasksDoneSeries['values'],
+                ];
+
                 return Inertia::render('DashboardAdmin', [
                     'stats' => $stats,
                     'tasks' => $tasks,
                     'announcements' => $internalAnnouncements,
                     'quickAnnouncements' => $quickAnnouncements,
+                    'kpiSeries' => $kpiSeries,
                 ]);
             }
 
@@ -399,16 +468,41 @@ class DashboardController extends Controller
                     ];
                 });
 
+            $seriesMonths = 6;
+            $tasksTodoSeries = $this->buildMonthlySeries($now, $seriesMonths, function ($start, $end) use ($tasksQuery) {
+                return (clone $tasksQuery)
+                    ->where('status', 'todo')
+                    ->whereBetween('created_at', [$start, $end])
+                    ->count();
+            });
+            $tasksInProgressSeries = $this->buildMonthlySeries($now, $seriesMonths, function ($start, $end) use ($tasksQuery) {
+                return (clone $tasksQuery)
+                    ->where('status', 'in_progress')
+                    ->whereBetween('created_at', [$start, $end])
+                    ->count();
+            });
+            $tasksDoneSeries = $this->buildMonthlySeries($now, $seriesMonths, function ($start, $end) use ($tasksQuery) {
+                return (clone $tasksQuery)
+                    ->where('status', 'done')
+                    ->whereBetween('created_at', [$start, $end])
+                    ->count();
+            });
+            $kpiSeries = [
+                'tasks_todo' => $tasksTodoSeries['values'],
+                'tasks_in_progress' => $tasksInProgressSeries['values'],
+                'tasks_done' => $tasksDoneSeries['values'],
+            ];
+
             return Inertia::render('DashboardMember', [
                 'stats' => $stats,
                 'tasks' => $tasks,
                 'announcements' => $internalAnnouncements,
                 'quickAnnouncements' => $quickAnnouncements,
+                'kpiSeries' => $kpiSeries,
             ]);
         }
 
         $userId = $accountId;
-        $now = now();
         $startOfMonth = $now->copy()->startOfMonth();
         $recentSince = $now->copy()->subDays(30);
 
@@ -455,6 +549,7 @@ class DashboardController extends Controller
             'invoices_paid' => (clone $invoicesQuery)->where('status', 'paid')->count(),
             'invoices_partial' => (clone $invoicesQuery)->where('status', 'partial')->count(),
             'invoices_overdue' => (clone $invoicesQuery)->where('status', 'overdue')->count(),
+            'plan_scans_total' => PlanScan::query()->where('user_id', $userId)->count(),
         ];
 
         $revenueBilled = (clone $invoicesQuery)->sum('total');
@@ -556,17 +651,64 @@ class DashboardController extends Controller
                 ];
             });
 
-        $labels = [];
-        $values = [];
-        for ($i = 5; $i >= 0; $i -= 1) {
-            $date = $now->copy()->subMonths($i);
-            $start = $date->copy()->startOfMonth();
-            $end = $date->copy()->endOfMonth();
-            $labels[] = $date->format('M');
-            $values[] = (float) Payment::where('user_id', $userId)
+        $seriesMonths = 6;
+        $revenueSeries = $this->buildMonthlySeries($now, $seriesMonths, function ($start, $end) use ($userId) {
+            return (float) Payment::where('user_id', $userId)
                 ->whereBetween('paid_at', [$start, $end])
                 ->sum('amount');
-        }
+        });
+        $revenueOutstandingSeries = $this->buildMonthlySeries($now, $seriesMonths, function ($start, $end) use ($invoicesQuery) {
+            return (float) (clone $invoicesQuery)
+                ->whereNotIn('status', ['paid', 'void'])
+                ->whereBetween('created_at', [$start, $end])
+                ->sum('total');
+        });
+        $quotesOpenSeries = $this->buildMonthlySeries($now, $seriesMonths, function ($start, $end) use ($quotesQuery) {
+            return (clone $quotesQuery)
+                ->whereIn('status', ['draft', 'sent'])
+                ->whereBetween('created_at', [$start, $end])
+                ->count();
+        });
+        $worksInProgressSeries = $this->buildMonthlySeries($now, $seriesMonths, function ($start, $end) use ($worksQuery, $inProgressStatuses) {
+            return (clone $worksQuery)
+                ->whereIn('status', $inProgressStatuses)
+                ->whereBetween('created_at', [$start, $end])
+                ->count();
+        });
+        $customersSeries = $this->buildMonthlySeries($now, $seriesMonths, function ($start, $end) use ($customersQuery) {
+            return (clone $customersQuery)
+                ->whereBetween('created_at', [$start, $end])
+                ->count();
+        });
+        $lowStockSeries = $this->buildMonthlySeries($now, $seriesMonths, function ($start, $end) use ($productsQuery) {
+            return (clone $productsQuery)
+                ->whereColumn('stock', '<=', 'minimum_stock')
+                ->where('stock', '>', 0)
+                ->whereBetween('updated_at', [$start, $end])
+                ->count();
+        });
+        $invoicesPaidSeries = $this->buildMonthlySeries($now, $seriesMonths, function ($start, $end) use ($invoicesQuery) {
+            return (clone $invoicesQuery)
+                ->where('status', 'paid')
+                ->whereBetween('updated_at', [$start, $end])
+                ->count();
+        });
+        $inventorySeries = $this->buildMonthlySeries($now, $seriesMonths, function ($start, $end) use ($productsQuery) {
+            return (float) (clone $productsQuery)
+                ->whereBetween('created_at', [$start, $end])
+                ->selectRaw('COALESCE(SUM(stock * COALESCE(NULLIF(cost_price, 0), price)), 0) as value')
+                ->value('value');
+        });
+        $kpiSeries = [
+            'revenue_paid' => $revenueSeries['values'],
+            'revenue_outstanding' => $revenueOutstandingSeries['values'],
+            'quotes_open' => $quotesOpenSeries['values'],
+            'works_in_progress' => $worksInProgressSeries['values'],
+            'customers_total' => $customersSeries['values'],
+            'products_low_stock' => $lowStockSeries['values'],
+            'invoices_paid' => $invoicesPaidSeries['values'],
+            'inventory_value' => $inventorySeries['values'],
+        ];
 
         $plans = collect(config('billing.plans', []))
             ->map(function (array $plan, string $key) {
@@ -594,10 +736,8 @@ class DashboardController extends Controller
             'upcomingJobs' => $upcomingJobs,
             'outstandingInvoices' => $outstandingInvoices,
             'activity' => $activity,
-            'revenueSeries' => [
-                'labels' => $labels,
-                'values' => $values,
-            ],
+            'revenueSeries' => $revenueSeries,
+            'kpiSeries' => $kpiSeries,
             'announcements' => $internalAnnouncements,
             'quickAnnouncements' => $quickAnnouncements,
             'usage_limits' => $usageLimits,
@@ -612,6 +752,24 @@ class DashboardController extends Controller
                 ],
             ],
         ]);
+    }
+
+    private function buildMonthlySeries($now, int $months, callable $resolver): array
+    {
+        $labels = [];
+        $values = [];
+        for ($i = $months - 1; $i >= 0; $i -= 1) {
+            $date = $now->copy()->subMonths($i);
+            $start = $date->copy()->startOfMonth();
+            $end = $date->copy()->endOfMonth();
+            $labels[] = $date->format('M');
+            $values[] = $resolver($start, $end);
+        }
+
+        return [
+            'labels' => $labels,
+            'values' => $values,
+        ];
     }
 
     private function resolveAnnouncements(int $tenantId, ?User $tenant, string $placement): array

@@ -2,8 +2,12 @@
 import { computed } from 'vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import AnnouncementsPanel from '@/Components/Dashboard/AnnouncementsPanel.vue';
+import KpiSparkline from '@/Components/Dashboard/KpiSparkline.vue';
+import KpiTrendBadge from '@/Components/Dashboard/KpiTrendBadge.vue';
 import { Head, Link, usePage } from '@inertiajs/vue3';
 import { humanizeDate } from '@/utils/date';
+import { buildSparklinePoints, buildTrend } from '@/utils/kpi';
+import { isFeatureEnabled } from '@/utils/features';
 
 const props = defineProps({
     stats: {
@@ -30,6 +34,10 @@ const props = defineProps({
         type: Object,
         default: () => ({ labels: [], values: [] }),
     },
+    kpiSeries: {
+        type: Object,
+        default: () => ({}),
+    },
     announcements: {
         type: Array,
         default: () => [],
@@ -53,6 +61,12 @@ const userName = computed(() => page.props.auth?.user?.name || 'there');
 const companyType = computed(() => page.props.auth?.account?.company?.type ?? null);
 const showServices = computed(() => companyType.value !== 'products');
 const isOwner = computed(() => Boolean(page.props.auth?.account?.is_owner));
+const featureFlags = computed(() => page.props.auth?.account?.features || {});
+const hasFeature = (key) => isFeatureEnabled(featureFlags.value, key);
+const hasCatalogFeature = computed(() =>
+    showServices.value ? hasFeature('services') : hasFeature('products')
+);
+const hasPlanScans = computed(() => showServices.value && hasFeature('quotes') && hasFeature('plan_scans'));
 const hasTopAnnouncements = computed(() => (props.announcements || []).length > 0);
 const hasQuickAnnouncements = computed(() => (props.quickAnnouncements || []).length > 0);
 const billing = computed(() => props.billing || {});
@@ -65,6 +79,7 @@ const hasUsageAlerts = computed(() => usageAlerts.value.length > 0);
 const planName = computed(() => props.usage_limits?.plan_name || props.usage_limits?.plan_key || '');
 const limitLabelMap = {
     quotes: 'Quotes',
+    requests: 'Requests',
     invoices: 'Invoices',
     jobs: 'Jobs',
     products: 'Products',
@@ -85,6 +100,10 @@ const formatCurrency = (value) =>
     `$${Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 const formatDate = (value) => humanizeDate(value);
+const customersEmpty = computed(() => stat('customers_total') <= 0);
+const catalogEmpty = computed(() => stat('products_total') <= 0);
+const quotesEmpty = computed(() => stat('quotes_total') <= 0);
+const planScansEmpty = computed(() => stat('plan_scans_total') <= 0);
 
 const revenueMax = computed(() => {
     const values = props.revenueSeries?.values || [];
@@ -104,6 +123,29 @@ const revenuePoints = computed(() => {
             height: `${height}px`,
         };
     });
+});
+
+const kpiSeries = computed(() => props.kpiSeries || {});
+const kpiConfig = {
+    revenue_paid: { direction: 'up' },
+    revenue_outstanding: { direction: 'down' },
+    quotes_open: { direction: 'up' },
+    works_in_progress: { direction: 'up' },
+    customers_total: { direction: 'up' },
+    products_low_stock: { direction: 'down' },
+    invoices_paid: { direction: 'up' },
+    inventory_value: { direction: 'up' },
+};
+const kpiData = computed(() => {
+    const data = {};
+    Object.entries(kpiConfig).forEach(([key, config]) => {
+        const values = kpiSeries.value?.[key] || [];
+        data[key] = {
+            points: buildSparklinePoints(values),
+            trend: buildTrend(values, config.direction),
+        };
+    });
+    return data;
 });
 
 const displayCustomer = (customer) =>
@@ -164,33 +206,35 @@ const displayLimitValue = (item) => {
 };
 
 const onboardingChecklist = computed(() => {
+    const steps = [];
     const isServices = showServices.value;
-    return [
-        {
-            key: 'customer',
-            label: 'Add your first customer',
-            route: 'customer.create',
-            completed: stat('customers_total') > 0,
-        },
-        {
+
+    if (hasCatalogFeature.value) {
+        steps.push({
             key: 'catalog',
             label: isServices ? 'Add your first service' : 'Add your first product',
             route: isServices ? 'service.index' : 'product.index',
             completed: stat('products_total') > 0,
-        },
-        {
+        });
+    }
+
+    steps.push({
+        key: 'customer',
+        label: 'Add your first customer',
+        route: 'customer.create',
+        completed: stat('customers_total') > 0,
+    });
+
+    if (hasFeature('quotes')) {
+        steps.push({
             key: 'quote',
             label: 'Create your first quote',
             route: 'quote.index',
             completed: stat('quotes_total') > 0,
-        },
-        {
-            key: 'workflow',
-            label: isServices ? 'Plan your first job' : 'Send your first invoice',
-            route: isServices ? 'jobs.index' : 'invoice.index',
-            completed: (isServices ? stat('works_total') : stat('invoices_total')) > 0,
-        },
-    ];
+        });
+    }
+
+    return steps;
 });
 
 const checklistCompleted = computed(() =>
@@ -203,7 +247,78 @@ const checklistProgress = computed(() => {
     }
     return Math.round((checklistCompleted.value / checklistTotal.value) * 100);
 });
-const showChecklist = computed(() => checklistCompleted.value < checklistTotal.value);
+const showChecklist = computed(() =>
+    checklistTotal.value > 0 && checklistCompleted.value < checklistTotal.value
+);
+const showPlanScanCta = computed(() => hasPlanScans.value);
+
+const suggestionActions = computed(() => {
+    const actions = [];
+
+    actions.push({
+        key: 'customer',
+        label: 'Create customer',
+        type: 'overlay',
+        overlay: '#hs-quick-create-customer',
+        priority: customersEmpty.value ? 1 : 5,
+    });
+
+    if (hasCatalogFeature.value) {
+        actions.push({
+            key: 'catalog',
+            label: showServices.value ? 'Add service' : 'Add product',
+            type: showServices.value ? 'link' : 'overlay',
+            route: showServices.value ? 'service.index' : null,
+            overlay: showServices.value ? null : '#hs-quick-create-product',
+            priority: catalogEmpty.value ? 2 : 6,
+        });
+    }
+
+    if (hasFeature('quotes')) {
+        actions.push({
+            key: 'quote',
+            label: 'Create quote',
+            type: 'overlay',
+            overlay: '#hs-quick-create-quote',
+            priority: quotesEmpty.value ? 3 : 7,
+        });
+    }
+
+    if (hasPlanScans.value) {
+        actions.push({
+            key: 'plan_scan',
+            label: 'Import a plan',
+            type: 'link',
+            route: 'plan-scans.create',
+            priority: planScansEmpty.value ? 4 : 8,
+        });
+    }
+
+    if (showServices.value && isOwner.value && hasFeature('requests')) {
+        actions.push({
+            key: 'request',
+            label: 'Create request',
+            type: 'overlay',
+            overlay: '#hs-quick-create-request',
+            priority: 9,
+        });
+    }
+
+    if (hasFeature('jobs')) {
+        actions.push({
+            key: 'jobs',
+            label: 'Review jobs',
+            type: 'link',
+            route: 'jobs.index',
+            priority: 10,
+        });
+    }
+
+    return actions.sort((a, b) => a.priority - b.priority);
+});
+
+const primaryAction = computed(() => suggestionActions.value[0] || null);
+const secondaryActions = computed(() => suggestionActions.value.slice(1, 5));
 </script>
 
 <template>
@@ -222,8 +337,8 @@ const showChecklist = computed(() => checklistCompleted.value < checklistTotal.v
                             Welcome back, {{ userName }}. Here is your business snapshot.
                         </p>
                         <div class="flex flex-wrap gap-3 text-xs text-stone-500 dark:text-neutral-400">
-                            <span>Quotes this month: {{ formatNumber(stat('quotes_month')) }}</span>
-                            <span>Payments this month: {{ formatCurrency(stat('payments_month')) }}</span>
+                            <span v-if="hasFeature('quotes')">Quotes this month: {{ formatNumber(stat('quotes_month')) }}</span>
+                            <span v-if="hasFeature('invoices')">Payments this month: {{ formatCurrency(stat('payments_month')) }}</span>
                         </div>
                     </div>
                     <!-- <div class="flex flex-wrap items-center gap-2">
@@ -272,100 +387,156 @@ const showChecklist = computed(() => checklistCompleted.value < checklistTotal.v
 
             <div :class="['grid gap-4', hasTopAnnouncements ? 'xl:grid-cols-[minmax(0,1fr)_320px]' : 'grid-cols-1']">
                 <section class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
-                <div
+                <div v-if="hasFeature('invoices')"
                     class="p-4 bg-white border border-t-4 border-t-emerald-600 border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
                     <div class="space-y-1">
-                        <p class="text-xs text-stone-500 dark:text-neutral-400">Revenue paid</p>
+                        <div class="flex items-center justify-between gap-2">
+                            <p class="text-xs text-stone-500 dark:text-neutral-400">Revenue paid</p>
+                            <KpiTrendBadge :trend="kpiData.revenue_paid.trend" />
+                        </div>
                         <p class="text-lg font-semibold text-stone-800 dark:text-neutral-100">
                             {{ formatCurrency(stat('revenue_paid')) }}
                         </p>
                         <p class="text-xs text-stone-500 dark:text-neutral-400">
                             Billed {{ formatCurrency(stat('revenue_billed')) }}
                         </p>
+                        <KpiSparkline
+                            :points="kpiData.revenue_paid.points"
+                            color-class="bg-emerald-500/70 dark:bg-emerald-400/50"
+                        />
                     </div>
                 </div>
-                <div
+                <div v-if="hasFeature('invoices')"
                     class="p-4 bg-white border border-t-4 border-t-amber-600 border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
                     <div class="space-y-1">
-                        <p class="text-xs text-stone-500 dark:text-neutral-400">Outstanding balance</p>
+                        <div class="flex items-center justify-between gap-2">
+                            <p class="text-xs text-stone-500 dark:text-neutral-400">Outstanding balance</p>
+                            <KpiTrendBadge :trend="kpiData.revenue_outstanding.trend" />
+                        </div>
                         <p class="text-lg font-semibold text-stone-800 dark:text-neutral-100">
                             {{ formatCurrency(stat('revenue_outstanding')) }}
                         </p>
                         <p class="text-xs text-stone-500 dark:text-neutral-400">
                             Partial invoices {{ formatNumber(stat('invoices_partial')) }}
                         </p>
+                        <KpiSparkline
+                            :points="kpiData.revenue_outstanding.points"
+                            color-class="bg-amber-500/70 dark:bg-amber-400/50"
+                        />
                     </div>
                 </div>
-                <div
+                <div v-if="hasFeature('quotes')"
                     class="p-4 bg-white border border-t-4 border-t-blue-600 border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
                     <div class="space-y-1">
-                        <p class="text-xs text-stone-500 dark:text-neutral-400">Open quotes</p>
+                        <div class="flex items-center justify-between gap-2">
+                            <p class="text-xs text-stone-500 dark:text-neutral-400">Open quotes</p>
+                            <KpiTrendBadge :trend="kpiData.quotes_open.trend" />
+                        </div>
                         <p class="text-lg font-semibold text-stone-800 dark:text-neutral-100">
                             {{ formatNumber(stat('quotes_open')) }}
                         </p>
                         <p class="text-xs text-stone-500 dark:text-neutral-400">
                             Accepted {{ formatNumber(stat('quotes_accepted')) }}
                         </p>
+                        <KpiSparkline
+                            :points="kpiData.quotes_open.points"
+                            color-class="bg-blue-500/70 dark:bg-blue-400/50"
+                        />
                     </div>
                 </div>
-                <div
+                <div v-if="hasFeature('jobs')"
                     class="p-4 bg-white border border-t-4 border-t-indigo-600 border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
                     <div class="space-y-1">
-                        <p class="text-xs text-stone-500 dark:text-neutral-400">Jobs in progress</p>
+                        <div class="flex items-center justify-between gap-2">
+                            <p class="text-xs text-stone-500 dark:text-neutral-400">Jobs in progress</p>
+                            <KpiTrendBadge :trend="kpiData.works_in_progress.trend" />
+                        </div>
                         <p class="text-lg font-semibold text-stone-800 dark:text-neutral-100">
                             {{ formatNumber(stat('works_in_progress')) }}
                         </p>
                         <p class="text-xs text-stone-500 dark:text-neutral-400">
                             Scheduled {{ formatNumber(stat('works_scheduled')) }}
                         </p>
+                        <KpiSparkline
+                            :points="kpiData.works_in_progress.points"
+                            color-class="bg-indigo-500/70 dark:bg-indigo-400/50"
+                        />
                     </div>
                 </div>
                 <div
                     class="p-4 bg-white border border-t-4 border-t-sky-600 border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
                     <div class="space-y-1">
-                        <p class="text-xs text-stone-500 dark:text-neutral-400">Customers</p>
+                        <div class="flex items-center justify-between gap-2">
+                            <p class="text-xs text-stone-500 dark:text-neutral-400">Customers</p>
+                            <KpiTrendBadge :trend="kpiData.customers_total.trend" />
+                        </div>
                         <p class="text-lg font-semibold text-stone-800 dark:text-neutral-100">
                             {{ formatNumber(stat('customers_total')) }}
                         </p>
                         <p class="text-xs text-stone-500 dark:text-neutral-400">
                             New last 30 days {{ formatNumber(stat('customers_new')) }}
                         </p>
+                        <KpiSparkline
+                            :points="kpiData.customers_total.points"
+                            color-class="bg-sky-500/70 dark:bg-sky-400/50"
+                        />
                     </div>
                 </div>
-                <div
+                <div v-if="hasFeature('products')"
                     class="p-4 bg-white border border-t-4 border-t-red-600 border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
                     <div class="space-y-1">
-                        <p class="text-xs text-stone-500 dark:text-neutral-400">Low stock</p>
+                        <div class="flex items-center justify-between gap-2">
+                            <p class="text-xs text-stone-500 dark:text-neutral-400">Low stock</p>
+                            <KpiTrendBadge :trend="kpiData.products_low_stock.trend" />
+                        </div>
                         <p class="text-lg font-semibold text-stone-800 dark:text-neutral-100">
                             {{ formatNumber(stat('products_low_stock')) }}
                         </p>
                         <p class="text-xs text-stone-500 dark:text-neutral-400">
                             Out of stock {{ formatNumber(stat('products_out')) }}
                         </p>
+                        <KpiSparkline
+                            :points="kpiData.products_low_stock.points"
+                            color-class="bg-red-500/70 dark:bg-red-400/50"
+                        />
                     </div>
                 </div>
-                <div
+                <div v-if="hasFeature('invoices')"
                     class="p-4 bg-white border border-t-4 border-t-teal-600 border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
                     <div class="space-y-1">
-                        <p class="text-xs text-stone-500 dark:text-neutral-400">Invoices paid</p>
+                        <div class="flex items-center justify-between gap-2">
+                            <p class="text-xs text-stone-500 dark:text-neutral-400">Invoices paid</p>
+                            <KpiTrendBadge :trend="kpiData.invoices_paid.trend" />
+                        </div>
                         <p class="text-lg font-semibold text-stone-800 dark:text-neutral-100">
                             {{ formatNumber(stat('invoices_paid')) }}
                         </p>
                         <p class="text-xs text-stone-500 dark:text-neutral-400">
                             Total invoices {{ formatNumber(stat('invoices_total')) }}
                         </p>
+                        <KpiSparkline
+                            :points="kpiData.invoices_paid.points"
+                            color-class="bg-teal-500/70 dark:bg-teal-400/50"
+                        />
                     </div>
                 </div>
-                <div
+                <div v-if="hasFeature('products')"
                     class="p-4 bg-white border border-t-4 border-t-stone-600 border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
                     <div class="space-y-1">
-                        <p class="text-xs text-stone-500 dark:text-neutral-400">Inventory value</p>
+                        <div class="flex items-center justify-between gap-2">
+                            <p class="text-xs text-stone-500 dark:text-neutral-400">Inventory value</p>
+                            <KpiTrendBadge :trend="kpiData.inventory_value.trend" />
+                        </div>
                         <p class="text-lg font-semibold text-stone-800 dark:text-neutral-100">
                             {{ formatCurrency(stat('inventory_value')) }}
                         </p>
                         <p class="text-xs text-stone-500 dark:text-neutral-400">
                             Products {{ formatNumber(stat('products_total')) }}
                         </p>
+                        <KpiSparkline
+                            :points="kpiData.inventory_value.points"
+                            color-class="bg-stone-500/70 dark:bg-stone-400/50"
+                        />
                     </div>
                 </div>
                 </section>
@@ -381,7 +552,7 @@ const showChecklist = computed(() => checklistCompleted.value < checklistTotal.v
 
             <section class="grid grid-cols-1 xl:grid-cols-3 gap-4">
                 <div class="xl:col-span-2 space-y-4">
-                    <div class="bg-white border border-stone-200 rounded-sm p-5 shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
+                    <div v-if="hasFeature('invoices')" class="bg-white border border-stone-200 rounded-sm p-5 shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
                         <div class="flex flex-wrap items-center justify-between gap-2">
                             <div>
                                 <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
@@ -428,7 +599,7 @@ const showChecklist = computed(() => checklistCompleted.value < checklistTotal.v
                         </div>
                     </div>
 
-                    <div class="bg-white border border-stone-200 rounded-sm p-5 shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
+                    <div v-if="hasFeature('quotes')" class="bg-white border border-stone-200 rounded-sm p-5 shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
                         <div class="flex items-center justify-between">
                             <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
                                 Recent quotes
@@ -491,7 +662,7 @@ const showChecklist = computed(() => checklistCompleted.value < checklistTotal.v
                         </div>
                     </div>
 
-                    <div class="bg-white border border-stone-200 rounded-sm p-5 shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
+                    <div v-if="hasFeature('jobs')" class="bg-white border border-stone-200 rounded-sm p-5 shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
                         <div class="flex items-center justify-between">
                             <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
                                 Upcoming jobs
@@ -579,6 +750,27 @@ const showChecklist = computed(() => checklistCompleted.value < checklistTotal.v
                                 </span>
                             </li>
                         </ul>
+                        <div
+                            v-if="showPlanScanCta"
+                            class="mt-4 rounded-sm border border-stone-200 bg-white px-3 py-3 text-xs text-stone-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300"
+                        >
+                            <div class="flex flex-wrap items-center justify-between gap-3">
+                                <div>
+                                    <div class="font-semibold text-stone-700 dark:text-neutral-100">Plan scans</div>
+                                    <div class="text-[11px] text-stone-500 dark:text-neutral-400">
+                                        {{ planScansEmpty
+                                            ? 'Import your first plan to speed up quotes.'
+                                            : `You have ${formatNumber(stat('plan_scans_total'))} plan scans.` }}
+                                    </div>
+                                </div>
+                                <Link
+                                    :href="route('plan-scans.create')"
+                                    class="rounded-sm border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-[11px] font-semibold text-emerald-800 hover:bg-emerald-100 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200 dark:hover:bg-emerald-500/20"
+                                >
+                                    Import a plan
+                                </Link>
+                            </div>
+                        </div>
                     </div>
                     <AnnouncementsPanel
                         v-if="hasQuickAnnouncements"
@@ -593,31 +785,60 @@ const showChecklist = computed(() => checklistCompleted.value < checklistTotal.v
                         <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
                             Quick actions
                         </h2>
-                        <div class="mt-4 grid grid-cols-1 gap-2 text-sm">
-                            <button type="button" data-hs-overlay="#hs-quick-create-quote"
-                                class="py-2 px-3 rounded-sm border border-stone-200 bg-stone-100 text-stone-700 hover:bg-stone-200 dark:bg-neutral-700 dark:border-neutral-600 dark:text-neutral-200">
-                                Create quote
-                            </button>
-                            <button v-if="showServices && isOwner" type="button" data-hs-overlay="#hs-quick-create-request"
-                                class="py-2 px-3 rounded-sm border border-stone-200 bg-stone-100 text-stone-700 hover:bg-stone-200 dark:bg-neutral-700 dark:border-neutral-600 dark:text-neutral-200">
-                                Create request
-                            </button>
-                            <button type="button" data-hs-overlay="#hs-quick-create-customer"
-                                class="py-2 px-3 rounded-sm border border-stone-200 bg-stone-100 text-stone-700 hover:bg-stone-200 dark:bg-neutral-700 dark:border-neutral-600 dark:text-neutral-200">
-                                Add customer
-                            </button>
-                            <button type="button" data-hs-overlay="#hs-quick-create-product"
-                                class="py-2 px-3 rounded-sm border border-stone-200 bg-stone-100 text-stone-700 hover:bg-stone-200 dark:bg-neutral-700 dark:border-neutral-600 dark:text-neutral-200">
-                                Add product
-                            </button>
-                            <Link :href="route('jobs.index')"
-                                class="py-2 px-3 rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200">
-                                Review jobs
-                            </Link>
+                        <div class="mt-4 space-y-3 text-sm">
+                            <div v-if="primaryAction">
+                                <button
+                                    v-if="primaryAction.type === 'overlay'"
+                                    type="button"
+                                    :data-hs-overlay="primaryAction.overlay"
+                                    class="w-full rounded-sm border border-emerald-600 bg-emerald-600 px-3 py-2 text-white hover:bg-emerald-700"
+                                >
+                                    <div class="flex items-center justify-between">
+                                        <span class="text-xs font-semibold uppercase tracking-wide">+ Create</span>
+                                        <span class="text-[11px] font-medium text-emerald-100">
+                                            Suggested: {{ primaryAction.label }}
+                                        </span>
+                                    </div>
+                                </button>
+                                <Link
+                                    v-else
+                                    :href="route(primaryAction.route)"
+                                    class="block w-full rounded-sm border border-emerald-600 bg-emerald-600 px-3 py-2 text-white hover:bg-emerald-700"
+                                >
+                                    <div class="flex items-center justify-between">
+                                        <span class="text-xs font-semibold uppercase tracking-wide">+ Create</span>
+                                        <span class="text-[11px] font-medium text-emerald-100">
+                                            Suggested: {{ primaryAction.label }}
+                                        </span>
+                                    </div>
+                                </Link>
+                            </div>
+                            <div v-if="secondaryActions.length" class="space-y-2">
+                                <div class="text-xs text-stone-500 dark:text-neutral-400">Suggested next</div>
+                                <div class="grid grid-cols-1 gap-2 text-sm">
+                                    <template v-for="action in secondaryActions" :key="action.key">
+                                        <button
+                                            v-if="action.type === 'overlay'"
+                                            type="button"
+                                            :data-hs-overlay="action.overlay"
+                                            class="py-2 px-3 rounded-sm border border-stone-200 bg-stone-100 text-stone-700 hover:bg-stone-200 dark:bg-neutral-700 dark:border-neutral-600 dark:text-neutral-200"
+                                        >
+                                            {{ action.label }}
+                                        </button>
+                                        <Link
+                                            v-else
+                                            :href="route(action.route)"
+                                            class="py-2 px-3 rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200"
+                                        >
+                                            {{ action.label }}
+                                        </Link>
+                                    </template>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
-                    <div class="bg-white border border-stone-200 rounded-sm p-5 shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
+                    <div v-if="hasFeature('invoices')" class="bg-white border border-stone-200 rounded-sm p-5 shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
                         <div class="flex items-center justify-between">
                             <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
                                 Outstanding invoices

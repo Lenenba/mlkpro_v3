@@ -27,9 +27,9 @@ const form = reactive({
     first_name: '',
     last_name: '',
     email: '',
-    temporary_password: '',
     phone: '',
     company_name: '',
+    portal_access: true,
     description: '',
     refer_by: '',
     billing_same_as_physical: true,
@@ -80,7 +80,6 @@ const isValid = computed(() => {
         form.first_name.trim() &&
         form.last_name.trim() &&
         form.email.trim() &&
-        form.temporary_password.trim().length >= 8 &&
         propertyValid.value
     );
 });
@@ -106,11 +105,11 @@ const resetForm = () => {
     form.first_name = '';
     form.last_name = '';
     form.email = '';
-    form.temporary_password = '';
     form.phone = '';
     form.company_name = '';
     form.description = '';
     form.refer_by = '';
+    form.portal_access = true;
     form.billing_same_as_physical = true;
     form.auto_accept_quotes = false;
     form.auto_validate_jobs = false;
@@ -154,9 +153,9 @@ const submit = async () => {
         first_name: form.first_name,
         last_name: form.last_name,
         email: form.email,
-        temporary_password: form.temporary_password,
         phone: form.phone,
         company_name: form.company_name,
+        portal_access: form.portal_access,
         description: form.description,
         refer_by: form.refer_by,
         billing_same_as_physical: form.billing_same_as_physical,
@@ -262,8 +261,16 @@ const selectAddress = (details) => {
             <FloatingInput v-model="form.last_name" label="Last name" :required="true" />
             <FloatingInput v-model="form.company_name" label="Company name" />
             <FloatingInput v-model="form.email" label="Email" :required="true" />
-            <FloatingInput v-model="form.temporary_password" label="Mot de passe temporaire" type="password" :required="true" />
             <FloatingInput v-model="form.phone" label="Phone" />
+        </div>
+        <div class="flex items-start gap-2">
+            <input id="quick-customer-portal-access" type="checkbox" v-model="form.portal_access"
+                class="mt-1 size-4 rounded border-stone-300 text-green-600 focus:ring-green-500 dark:bg-neutral-900 dark:border-neutral-700 dark:checked:bg-green-500 dark:checked:border-green-500" />
+            <div>
+                <label for="quick-customer-portal-access" class="text-sm text-stone-700 dark:text-neutral-200">
+                    Donner acces a la plateforme
+                </label>
+            </div>
         </div>
 
         <FloatingTextarea v-model="form.description" label="Notes" />

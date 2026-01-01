@@ -24,6 +24,11 @@ use App\Http\Controllers\WorkChecklistController;
 use App\Http\Controllers\WelcomeController;
 use App\Http\Controllers\LegalController;
 use App\Http\Controllers\LocaleController;
+use App\Http\Controllers\PublicInvoiceController;
+use App\Http\Controllers\PublicQuoteController;
+use App\Http\Controllers\PublicWorkController;
+use App\Http\Controllers\PublicWorkProofController;
+use App\Http\Controllers\PublicTaskMediaController;
 use App\Http\Controllers\Settings\CompanySettingsController;
 use App\Http\Controllers\Settings\BillingSettingsController;
 use App\Http\Controllers\Settings\ProductCategoryController;
@@ -59,6 +64,23 @@ Route::get('/terms', [LegalController::class, 'terms'])->name('terms');
 Route::get('/privacy', [LegalController::class, 'privacy'])->name('privacy');
 Route::get('/refund', [LegalController::class, 'refund'])->name('refund');
 Route::get('/pricing', [LegalController::class, 'pricing'])->name('pricing');
+
+Route::middleware('signed')->group(function () {
+    Route::get('/pay/invoices/{invoice}', [PublicInvoiceController::class, 'show'])->name('public.invoices.show');
+    Route::post('/pay/invoices/{invoice}', [PublicInvoiceController::class, 'storePayment'])->name('public.invoices.pay');
+    Route::get('/public/quotes/{quote}', [PublicQuoteController::class, 'show'])->name('public.quotes.show');
+    Route::post('/public/quotes/{quote}/accept', [PublicQuoteController::class, 'accept'])->name('public.quotes.accept');
+    Route::post('/public/quotes/{quote}/decline', [PublicQuoteController::class, 'decline'])->name('public.quotes.decline');
+    Route::get('/public/works/{work}', [PublicWorkController::class, 'show'])->name('public.works.show');
+    Route::post('/public/works/{work}/validate', [PublicWorkController::class, 'validateWork'])->name('public.works.validate');
+    Route::post('/public/works/{work}/dispute', [PublicWorkController::class, 'dispute'])->name('public.works.dispute');
+    Route::post('/public/works/{work}/schedule/confirm', [PublicWorkController::class, 'confirmSchedule'])
+        ->name('public.works.schedule.confirm');
+    Route::post('/public/works/{work}/schedule/reject', [PublicWorkController::class, 'rejectSchedule'])
+        ->name('public.works.schedule.reject');
+    Route::get('/public/works/{work}/proofs', [PublicWorkProofController::class, 'show'])->name('public.works.proofs');
+    Route::post('/public/tasks/{task}/media', [PublicTaskMediaController::class, 'store'])->name('public.tasks.media.store');
+});
 // Onboarding (account setup)
 Route::get('/onboarding', [OnboardingController::class, 'index'])
     ->middleware(EnsureInternalUser::class)
@@ -100,10 +122,14 @@ Route::middleware(['auth', EnsureInternalUser::class])->group(function () {
         ->name('settings.billing.payment-method');
 
     // Lead Requests
-    Route::get('/requests', [RequestController::class, 'index'])->name('request.index');
-    Route::post('/requests', [RequestController::class, 'store'])->name('request.store');
-    Route::post('/requests/{lead}/convert', [RequestController::class, 'convert'])->name('request.convert');
-    Route::delete('/requests/{lead}', [RequestController::class, 'destroy'])->name('request.destroy');
+    Route::middleware('company.feature:requests')->group(function () {
+        Route::get('/requests', [RequestController::class, 'index'])->name('request.index');
+        Route::post('/requests', [RequestController::class, 'store'])->name('request.store');
+        Route::post('/requests/{lead}/convert', [RequestController::class, 'convert'])
+            ->middleware('company.feature:quotes')
+            ->name('request.convert');
+        Route::delete('/requests/{lead}', [RequestController::class, 'destroy'])->name('request.destroy');
+    });
 
     Route::middleware('company.feature:quotes')->group(function () {
         Route::get('/quotes', [QuoteController::class, 'index'])->name('quote.index');
@@ -118,11 +144,13 @@ Route::middleware(['auth', EnsureInternalUser::class])->group(function () {
         Route::post('/quote/{quote}/send-email', QuoteEmaillingController::class)->name('quote.send.email');
         Route::post('/quote/{quote}/convert', [QuoteController::class, 'convertToWork'])->name('quote.convert');
 
-        Route::get('/plan-scans', [PlanScanController::class, 'index'])->name('plan-scans.index');
-        Route::get('/plan-scans/create', [PlanScanController::class, 'create'])->name('plan-scans.create');
-        Route::post('/plan-scans', [PlanScanController::class, 'store'])->name('plan-scans.store');
-        Route::get('/plan-scans/{planScan}', [PlanScanController::class, 'show'])->name('plan-scans.show');
-        Route::post('/plan-scans/{planScan}/convert', [PlanScanController::class, 'convert'])->name('plan-scans.convert');
+        Route::middleware('company.feature:plan_scans')->group(function () {
+            Route::get('/plan-scans', [PlanScanController::class, 'index'])->name('plan-scans.index');
+            Route::get('/plan-scans/create', [PlanScanController::class, 'create'])->name('plan-scans.create');
+            Route::post('/plan-scans', [PlanScanController::class, 'store'])->name('plan-scans.store');
+            Route::get('/plan-scans/{planScan}', [PlanScanController::class, 'show'])->name('plan-scans.show');
+            Route::post('/plan-scans/{planScan}/convert', [PlanScanController::class, 'convert'])->name('plan-scans.convert');
+        });
     });
 
     // Product custom search
@@ -197,10 +225,12 @@ Route::middleware(['auth', EnsureInternalUser::class])->group(function () {
     });
 
     // Team Management
-    Route::get('/team', [TeamMemberController::class, 'index'])->name('team.index');
-    Route::post('/team', [TeamMemberController::class, 'store'])->name('team.store');
-    Route::put('/team/{teamMember}', [TeamMemberController::class, 'update'])->name('team.update');
-    Route::delete('/team/{teamMember}', [TeamMemberController::class, 'destroy'])->name('team.destroy');
+    Route::middleware('company.feature:team_members')->group(function () {
+        Route::get('/team', [TeamMemberController::class, 'index'])->name('team.index');
+        Route::post('/team', [TeamMemberController::class, 'store'])->name('team.store');
+        Route::put('/team/{teamMember}', [TeamMemberController::class, 'update'])->name('team.update');
+        Route::delete('/team/{teamMember}', [TeamMemberController::class, 'destroy'])->name('team.destroy');
+    });
 
     // Tasks
     Route::middleware('company.feature:tasks')->group(function () {

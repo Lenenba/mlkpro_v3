@@ -15,11 +15,13 @@ use App\Models\TeamMember;
 use App\Models\WorkChecklistItem;
 use App\Models\User;
 use App\Services\WorkBillingService;
+use App\Services\WorkScheduleService;
 use App\Services\UsageLimitService;
 use App\Notifications\ActionEmailNotification;
 use Illuminate\Http\Request;
 use App\Http\Requests\WorkRequest;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Validation\Rule;
 use App\Traits\GeneratesSequentialNumber;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
@@ -337,6 +339,8 @@ class WorkController extends Controller
             'total' => $work->total,
         ], 'Job created');
 
+        $this->autoScheduleTasksForWork($work, $user);
+
         return redirect()->route('customer.show', $customer)->with('success', 'Job created successfully!');
     }
 
@@ -597,6 +601,8 @@ class WorkController extends Controller
             'total' => $work->total,
         ], 'Job updated');
 
+        $this->autoScheduleTasksForWork($work, $user);
+
         return redirect()->back()->with('success', 'Job updated successfully.');
     }
 
@@ -657,6 +663,18 @@ class WorkController extends Controller
             if ($customer && $customer->email) {
                 $customerLabel = $customer->company_name
                     ?: trim(($customer->first_name ?? '') . ' ' . ($customer->last_name ?? ''));
+                $usePublicLink = !(bool) ($customer->portal_access ?? true) || !$customer->portal_user_id;
+                $actionUrl = route('dashboard');
+                $actionLabel = 'Open dashboard';
+                if ($usePublicLink) {
+                    $expiresAt = now()->addDays(7);
+                    $actionUrl = URL::temporarySignedRoute(
+                        'public.works.show',
+                        $expiresAt,
+                        ['work' => $work->id]
+                    );
+                    $actionLabel = 'Review job';
+                }
 
                 $customer->notify(new ActionEmailNotification(
                     'Job ready for validation',
@@ -666,8 +684,8 @@ class WorkController extends Controller
                         ['label' => 'Status', 'value' => $nextStatus],
                         ['label' => 'Customer', 'value' => $customerLabel ?: 'Client'],
                     ],
-                    route('dashboard'),
-                    'Open dashboard',
+                    $actionUrl,
+                    $actionLabel,
                     'Job ready for validation'
                 ));
             }
@@ -852,6 +870,33 @@ class WorkController extends Controller
         $work->instructions = $work->quote->notes ?: ($work->quote->messages ?: '');
         $work->subtotal = $work->quote->subtotal;
         $work->total = $work->quote->total;
+    }
+
+    private function autoScheduleTasksForWork(Work $work, ?User $actor): void
+    {
+        $customer = $work->relationLoaded('customer')
+            ? $work->customer
+            : Customer::query()->find($work->customer_id);
+
+        if (!$customer || (bool) ($customer->portal_access ?? true)) {
+            return;
+        }
+
+        if ($work->status !== Work::STATUS_SCHEDULED) {
+            return;
+        }
+
+        $scheduleService = app(WorkScheduleService::class);
+        $pendingDates = $scheduleService->pendingDateStrings($work);
+        if (!$pendingDates) {
+            return;
+        }
+
+        if ($actor) {
+            app(UsageLimitService::class)->enforceLimit($actor, 'tasks', count($pendingDates));
+        }
+
+        $scheduleService->generateTasksForDates($work, $pendingDates, $actor?->id);
     }
 
 }
