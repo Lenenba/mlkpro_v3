@@ -6,16 +6,13 @@ use App\Http\Controllers\Controller;
 use App\Models\ProductCategory;
 use App\Services\SupplierDirectory;
 use App\Services\UsageLimitService;
-use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
-use Inertia\Inertia;
-use Inertia\Response;
 
 class CompanySettingsController extends Controller
 {
-    public function edit(Request $request): Response
+    public function edit(Request $request)
     {
         $user = $request->user();
         if (!$user || !$user->isAccountOwner()) {
@@ -38,7 +35,7 @@ class CompanySettingsController extends Controller
         $supplierPreferences = $this->resolveSupplierPreferences($user->company_supplier_preferences, $suppliers);
         $accountId = $user->accountOwnerId();
 
-        return Inertia::render('Settings/Company', [
+        return $this->inertiaOrJson('Settings/Company', [
             'company' => [
                 'company_name' => $user->company_name,
                 'company_logo' => $companyLogo,
@@ -58,7 +55,7 @@ class CompanySettingsController extends Controller
         ]);
     }
 
-    public function update(Request $request): RedirectResponse
+    public function update(Request $request)
     {
         $user = $request->user();
         if (!$user || !$user->isAccountOwner()) {
@@ -101,6 +98,15 @@ class CompanySettingsController extends Controller
         $preferredSuppliers = array_values(array_intersect($preferredSuppliers, $enabledSuppliers));
 
         if (count($preferredSuppliers) > 2) {
+            if ($this->shouldReturnJson($request)) {
+                return response()->json([
+                    'message' => 'Validation error.',
+                    'errors' => [
+                        'supplier_preferred' => ['Selectionnez jusqu a 2 fournisseurs preferes.'],
+                    ],
+                ], 422);
+            }
+
             return redirect()->back()->withErrors([
                 'supplier_preferred' => 'Selectionnez jusqu a 2 fournisseurs preferes.',
             ]);
@@ -119,6 +125,13 @@ class CompanySettingsController extends Controller
                 'preferred' => $preferredSuppliers,
             ],
         ]);
+
+        if ($this->shouldReturnJson($request)) {
+            return response()->json([
+                'message' => 'Company settings updated.',
+                'company' => $user->fresh(),
+            ]);
+        }
 
         return redirect()->back()->with('success', 'Company settings updated.');
     }

@@ -63,6 +63,14 @@ class PaymentController extends Controller
             $invoice->work->save();
         }
 
+        if ($this->shouldReturnJson($request)) {
+            return response()->json([
+                'message' => 'Payment recorded successfully.',
+                'payment' => $payment->fresh(),
+                'invoice' => $invoice->fresh(),
+            ], 201);
+        }
+
         return redirect()->back()->with('success', 'Payment recorded successfully.');
     }
 }

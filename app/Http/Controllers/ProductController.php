@@ -10,7 +10,6 @@ use App\Models\ActivityLog;
 use App\Http\Requests\ProductRequest;
 use App\Services\UsageLimitService;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
-use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -134,7 +133,7 @@ class ProductController extends Controller
 
         $stats['rotation'] = $rotation;
 
-        return inertia('Product/Index', [
+        return $this->inertiaOrJson('Product/Index', [
             'count' => $totalCount,
             'filters' => $filters,
             'categories' => ProductCategory::forAccount($accountId)
@@ -170,7 +169,7 @@ class ProductController extends Controller
         $user = Auth::user();
         $accountId = $user?->accountOwnerId() ?? Auth::id();
 
-        return inertia('Product/Create', [
+        return $this->inertiaOrJson('Product/Create', [
             'categories' => ProductCategory::forAccount($accountId)
                 ->active()
                 ->orderBy('name')
@@ -208,6 +207,13 @@ class ProductController extends Controller
                 'is_primary' => false,
                 'sort_order' => $index + 1,
             ]);
+        }
+
+        if ($this->shouldReturnJson($request)) {
+            return response()->json([
+                'message' => 'Product created successfully.',
+                'product' => $product->load(['category', 'images']),
+            ], 201);
         }
 
         return redirect()->route('product.index')->with('success', 'Product created successfully.');
@@ -362,12 +368,18 @@ class ProductController extends Controller
         try {
             $this->authorize('update', $product);
         } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+            if ($this->shouldReturnJson()) {
+                return response()->json([
+                    'message' => 'You are not authorized to edit this product.',
+                ], 403);
+            }
+
             return redirect()->back()->with('error', 'You are not authorized to edit this product.');
         }
 
         $this->ensureProductItem($product);
 
-        return inertia('Product/Show', [
+        return $this->inertiaOrJson('Product/Show', [
             'product' => $product->load(['category', 'user', 'images', 'stockMovements' => function ($query) {
                 $query->limit(10);
             }]),
@@ -389,7 +401,7 @@ class ProductController extends Controller
     /**
      * Quick update selected product fields.
      */
-    public function quickUpdate(Request $request, Product $product): RedirectResponse
+    public function quickUpdate(Request $request, Product $product)
     {
         $this->authorize('update', $product);
         $this->ensureProductItem($product);
@@ -406,13 +418,20 @@ class ProductController extends Controller
         $data = array_filter($data, static fn($value) => $value !== null);
         $product->update($data);
 
+        if ($this->shouldReturnJson($request)) {
+            return response()->json([
+                'message' => 'Product updated successfully.',
+                'product' => $product->fresh(),
+            ]);
+        }
+
         return redirect()->back()->with('success', 'Product updated successfully.');
     }
 
     /**
      * Adjust stock levels and create a stock movement record.
      */
-    public function adjustStock(Request $request, Product $product): RedirectResponse
+    public function adjustStock(Request $request, Product $product)
     {
         $this->authorize('update', $product);
         $this->ensureProductItem($product);
@@ -446,13 +465,20 @@ class ProductController extends Controller
             'note' => $data['note'] ?? null,
         ], 'Stock movement recorded');
 
+        if ($this->shouldReturnJson($request)) {
+            return response()->json([
+                'message' => 'Stock updated successfully.',
+                'product' => $product->fresh(),
+            ]);
+        }
+
         return redirect()->back()->with('success', 'Stock updated successfully.');
     }
 
     /**
      * Bulk actions on products.
      */
-    public function bulk(Request $request): RedirectResponse
+    public function bulk(Request $request)
     {
         $data = $request->validate([
             'action' => 'required|in:archive,restore,delete',
@@ -471,6 +497,12 @@ class ProductController extends Controller
                 $this->authorize('update', $product);
             }
             Product::query()->products()->byUser(Auth::id())->whereIn('id', $data['ids'])->update(['is_active' => false]);
+            if ($this->shouldReturnJson($request)) {
+                return response()->json([
+                    'message' => 'Products archived.',
+                    'ids' => $data['ids'],
+                ]);
+            }
             return redirect()->back()->with('success', 'Products archived.');
         }
 
@@ -479,6 +511,12 @@ class ProductController extends Controller
                 $this->authorize('update', $product);
             }
             Product::query()->products()->byUser(Auth::id())->whereIn('id', $data['ids'])->update(['is_active' => true]);
+            if ($this->shouldReturnJson($request)) {
+                return response()->json([
+                    'message' => 'Products restored.',
+                    'ids' => $data['ids'],
+                ]);
+            }
             return redirect()->back()->with('success', 'Products restored.');
         }
 
@@ -491,13 +529,20 @@ class ProductController extends Controller
             $product->delete();
         }
 
+        if ($this->shouldReturnJson($request)) {
+            return response()->json([
+                'message' => 'Products deleted.',
+                'ids' => $data['ids'],
+            ]);
+        }
+
         return redirect()->back()->with('success', 'Products deleted.');
     }
 
     /**
      * Duplicate a product with its images.
      */
-    public function duplicate(Product $product): RedirectResponse
+    public function duplicate(Product $product)
     {
         $this->authorize('update', $product);
         $this->ensureProductItem($product);
@@ -529,6 +574,13 @@ class ProductController extends Controller
                     'sort_order' => $image->sort_order,
                 ]);
             }
+        }
+
+        if ($this->shouldReturnJson()) {
+            return response()->json([
+                'message' => 'Product duplicated.',
+                'product' => $copy->fresh(['category', 'images']),
+            ]);
         }
 
         return redirect()->back()->with('success', 'Product duplicated.');
@@ -618,7 +670,7 @@ class ProductController extends Controller
     /**
      * Import products from CSV.
      */
-    public function import(Request $request): RedirectResponse
+    public function import(Request $request)
     {
         $user = $request->user();
         $accountId = $user?->accountOwnerId() ?? Auth::id();
@@ -631,12 +683,24 @@ class ProductController extends Controller
         $file = $data['file'];
         $handle = fopen($file->getRealPath(), 'r');
         if (!$handle) {
+            if ($this->shouldReturnJson($request)) {
+                return response()->json([
+                    'message' => 'Unable to read import file.',
+                ], 422);
+            }
+
             return redirect()->back()->with('error', 'Unable to read import file.');
         }
 
         $headers = fgetcsv($handle);
         if (!$headers) {
             fclose($handle);
+            if ($this->shouldReturnJson($request)) {
+                return response()->json([
+                    'message' => 'Import file is empty.',
+                ], 422);
+            }
+
             return redirect()->back()->with('error', 'Import file is empty.');
         }
 
@@ -704,16 +768,29 @@ class ProductController extends Controller
             'imported' => $imported,
         ], 'Products imported');
 
+        if ($this->shouldReturnJson($request)) {
+            return response()->json([
+                'message' => "Imported {$imported} products.",
+                'imported' => $imported,
+            ]);
+        }
+
         return redirect()->back()->with('success', "Imported {$imported} products.");
     }
     /**
      * Update the specified product in the database.
      */
-    public function update(ProductRequest $request, Product $product): RedirectResponse
+    public function update(ProductRequest $request, Product $product)
     {
         try {
             $this->authorize('update', $product);
         } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+            if ($this->shouldReturnJson($request)) {
+                return response()->json([
+                    'message' => 'You are not authorized to edit this product.',
+                ], 403);
+            }
+
             return redirect()->back()->with('error', 'You are not authorized to edit this product.');
         }
 
@@ -755,6 +832,13 @@ class ProductController extends Controller
             ]);
         }
 
+        if ($this->shouldReturnJson($request)) {
+            return response()->json([
+                'message' => 'Product updated successfully.',
+                'product' => $product->fresh(['category', 'images']),
+            ]);
+        }
+
         return redirect()->route('product.index')->with('success', 'Product updated successfully.');
     }
 
@@ -771,6 +855,12 @@ class ProductController extends Controller
         }
         FileHandler::deleteFile($product->image, 'products/product.jpg');
         $product->delete();
+
+        if ($this->shouldReturnJson()) {
+            return response()->json([
+                'message' => 'Product deleted successfully.',
+            ]);
+        }
 
         return redirect()->route('product.index')->with('success', 'Product deleted successfully.');
     }

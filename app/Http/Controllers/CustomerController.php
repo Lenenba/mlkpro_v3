@@ -7,7 +7,6 @@ use App\Models\Quote;
 use App\Models\Task;
 use App\Models\Invoice;
 use App\Models\Payment;
-use Inertia\Inertia;
 use App\Models\Customer;
 use App\Models\Role;
 use App\Models\Request as LeadRequest;
@@ -110,7 +109,7 @@ class CustomerController extends Controller
             ->get(['id', 'company_name', 'first_name', 'last_name', 'logo', 'header_image']);
 
         // Pass data to Inertia view
-        return Inertia::render('Customer/Index', [
+        return $this->inertiaOrJson('Customer/Index', [
             'customers' => $customers,
             'filters' => $filters,
             'count' => $totalCount,
@@ -170,7 +169,7 @@ class CustomerController extends Controller
      */
     public function create()
     {
-        return Inertia::render('Customer/Create', [
+        return $this->inertiaOrJson('Customer/Create', [
             'customer' => new Customer(),
         ]);
     }
@@ -420,7 +419,7 @@ class CustomerController extends Controller
             })
             ->values();
 
-        return Inertia::render('Customer/Show', [
+        return $this->inertiaOrJson('Customer/Show', [
             'customer' => $customer,
             'works' => $works,
             'filters' => $filters,
@@ -454,6 +453,16 @@ class CustomerController extends Controller
             'description' => $customer->description,
         ], 'Customer notes updated');
 
+        if ($this->shouldReturnJson($request)) {
+            return response()->json([
+                'message' => 'Notes updated.',
+                'customer' => [
+                    'id' => $customer->id,
+                    'description' => $customer->description,
+                ],
+            ]);
+        }
+
         return redirect()->back()->with('success', 'Notes updated.');
     }
 
@@ -478,6 +487,16 @@ class CustomerController extends Controller
         ActivityLog::record($request->user(), $customer, 'tags_updated', [
             'tags' => $tags,
         ], 'Customer tags updated');
+
+        if ($this->shouldReturnJson($request)) {
+            return response()->json([
+                'message' => 'Tags updated.',
+                'customer' => [
+                    'id' => $customer->id,
+                    'tags' => $customer->tags,
+                ],
+            ]);
+        }
 
         return redirect()->back()->with('success', 'Tags updated.');
     }
@@ -506,6 +525,19 @@ class CustomerController extends Controller
             'auto_validate_tasks' => $customer->auto_validate_tasks,
             'auto_validate_invoices' => $customer->auto_validate_invoices,
         ], 'Customer auto validation updated');
+
+        if ($this->shouldReturnJson($request)) {
+            return response()->json([
+                'message' => 'Auto validation preferences updated.',
+                'customer' => [
+                    'id' => $customer->id,
+                    'auto_accept_quotes' => $customer->auto_accept_quotes,
+                    'auto_validate_jobs' => $customer->auto_validate_jobs,
+                    'auto_validate_tasks' => $customer->auto_validate_tasks,
+                    'auto_validate_invoices' => $customer->auto_validate_invoices,
+                ],
+            ]);
+        }
 
         return redirect()->back()->with('success', 'Auto validation preferences updated.');
     }
@@ -564,6 +596,14 @@ class CustomerController extends Controller
                 $accountOwner?->company_logo_url,
                 'client'
             ));
+        }
+
+        if ($this->shouldReturnJson($request)) {
+            return response()->json([
+                'message' => 'Customer created successfully.',
+                'customer' => $customer->load('properties'),
+                'portal_user_id' => $portalUser?->id,
+            ], 201);
         }
 
         return redirect()->route('customer.index')->with('success', 'Customer created successfully.');
@@ -706,6 +746,13 @@ class CustomerController extends Controller
             'email' => $customer->email,
         ], 'Customer updated');
 
+        if ($this->shouldReturnJson($request)) {
+            return response()->json([
+                'message' => 'Customer updated successfully.',
+                'customer' => $customer->load('properties'),
+            ]);
+        }
+
         return redirect()->route('customer.index')->with('success', 'Customer updated successfully.');
     }
 
@@ -723,6 +770,12 @@ class CustomerController extends Controller
             'email' => $customer->email,
         ], 'Customer deleted');
         $customer->delete();
+
+        if ($this->shouldReturnJson($request)) {
+            return response()->json([
+                'message' => 'Customer deleted successfully.',
+            ]);
+        }
 
         return redirect()->route('customer.index')->with('success', 'Customer deleted successfully.');
     }

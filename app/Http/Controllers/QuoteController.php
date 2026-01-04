@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Models\Tax;
-use Inertia\Inertia;
 use App\Models\Quote;
 use App\Models\Product;
 use App\Models\ProductCategory;
@@ -100,7 +99,7 @@ class QuoteController extends Controller
             ->orderBy('company_name')
             ->get(['id', 'company_name', 'first_name', 'last_name']);
 
-        return Inertia::render('Quote/Index', [
+        return $this->inertiaOrJson('Quote/Index', [
             'quotes' => $quotes,
             'filters' => $filters,
             'count' => $totalCount,
@@ -132,7 +131,7 @@ class QuoteController extends Controller
         $templateDefaults = $templateService->resolveQuoteDefaults($accountOwner);
         $templateExamples = $templateService->resolveQuoteExamples($accountOwner);
 
-        return Inertia::render('Quote/Create', [
+        return $this->inertiaOrJson('Quote/Create', [
             'lastQuotesNumber' => $this->generateNextNumber(
                 $customer->quotes()->latest('created_at')->value('number')
             ),
@@ -158,7 +157,7 @@ class QuoteController extends Controller
             ? Product::ITEM_TYPE_PRODUCT
             : Product::ITEM_TYPE_SERVICE;
 
-        return Inertia::render('Quote/Create', [
+        return $this->inertiaOrJson('Quote/Create', [
             'quote' => $quote->load('products', 'taxes'),
             'customer' =>  $customer,
             'taxes' => Tax::all(),
@@ -207,6 +206,15 @@ class QuoteController extends Controller
 
         $propertyId = $validated['property_id'] ?? null;
         if ($propertyId && !$customer->properties()->whereKey($propertyId)->exists()) {
+            if ($this->shouldReturnJson($request)) {
+                return response()->json([
+                    'message' => 'Validation error.',
+                    'errors' => [
+                        'property_id' => ['Invalid property for this customer.'],
+                    ],
+                ], 422);
+            }
+
             return back()->withErrors(['property_id' => 'Invalid property for this customer.']);
         }
 
@@ -275,6 +283,13 @@ class QuoteController extends Controller
             $this->autoAcceptQuote($quote);
         }
 
+        if ($this->shouldReturnJson($request)) {
+            return response()->json([
+                'message' => 'Quote created successfully!',
+                'quote' => $quote?->fresh(['products', 'taxes', 'customer']),
+            ], 201);
+        }
+
         return redirect()->route('customer.show', $customer)->with('success', 'Quote created successfully!');
     }
 
@@ -313,6 +328,15 @@ class QuoteController extends Controller
         $customer = Customer::byUser(Auth::id())->findOrFail($validated['customer_id']);
         $propertyId = $validated['property_id'] ?? null;
         if ($propertyId && !$customer->properties()->whereKey($propertyId)->exists()) {
+            if ($this->shouldReturnJson($request)) {
+                return response()->json([
+                    'message' => 'Validation error.',
+                    'errors' => [
+                        'property_id' => ['Invalid property for this customer.'],
+                    ],
+                ], 422);
+            }
+
             return back()->withErrors(['property_id' => 'Invalid property for this customer.']);
         }
 
@@ -386,6 +410,13 @@ class QuoteController extends Controller
             $this->autoAcceptQuote($quote);
         }
 
+        if ($this->shouldReturnJson($request)) {
+            return response()->json([
+                'message' => 'Quote updated successfully!',
+                'quote' => $quote->fresh(['products', 'taxes', 'customer']),
+            ]);
+        }
+
         return redirect()->route('customer.show', $quote->customer)->with('success', 'Quote updated successfully!');
     }
 
@@ -394,16 +425,40 @@ class QuoteController extends Controller
         $this->authorize('show', $quote);
 
         if ($quote->isArchived()) {
+            if ($this->shouldReturnJson($request)) {
+                return response()->json([
+                    'message' => 'Archived quotes cannot be accepted.',
+                    'errors' => [
+                        'status' => ['Archived quotes cannot be accepted.'],
+                    ],
+                ], 422);
+            }
+
             return redirect()->back()->withErrors([
                 'status' => 'Archived quotes cannot be accepted.',
             ]);
         }
 
         if ($quote->status === 'accepted') {
+            if ($this->shouldReturnJson($request)) {
+                return response()->json([
+                    'message' => 'Quote already accepted.',
+                ]);
+            }
+
             return redirect()->back()->with('success', 'Quote already accepted.');
         }
 
         if ($quote->status === 'declined') {
+            if ($this->shouldReturnJson($request)) {
+                return response()->json([
+                    'message' => 'Quote already declined.',
+                    'errors' => [
+                        'status' => ['Quote already declined.'],
+                    ],
+                ], 422);
+            }
+
             return redirect()->back()->withErrors([
                 'status' => 'Quote already declined.',
             ]);
@@ -420,6 +475,15 @@ class QuoteController extends Controller
         $depositAmount = (float) ($validated['deposit_amount'] ?? $requiredDeposit);
 
         if ($requiredDeposit > 0 && $depositAmount < $requiredDeposit) {
+            if ($this->shouldReturnJson($request)) {
+                return response()->json([
+                    'message' => 'Validation error.',
+                    'errors' => [
+                        'deposit_amount' => ['Deposit is below the required amount.'],
+                    ],
+                ], 422);
+            }
+
             return redirect()->back()->withErrors([
                 'deposit_amount' => 'Deposit is below the required amount.',
             ]);
@@ -507,6 +571,14 @@ class QuoteController extends Controller
             }
         });
 
+        if ($this->shouldReturnJson($request)) {
+            return response()->json([
+                'message' => 'Quote accepted and job created.',
+                'quote' => $quote->fresh(['customer', 'products', 'taxes']),
+                'work' => $work->fresh(['customer', 'products', 'teamMembers']),
+            ]);
+        }
+
         return redirect()->route('work.edit', $work)->with('success', 'Quote accepted and job created.');
     }
 
@@ -536,7 +608,7 @@ class QuoteController extends Controller
             }
         }
 
-        return Inertia::render('Quote/Show', [
+        return $this->inertiaOrJson('Quote/Show', [
             'quote' => $quote,
             'products' => Product::byUser(Auth::id())->where('item_type', $itemType)->get(),
             'taxes' => Tax::all(),
@@ -554,6 +626,13 @@ class QuoteController extends Controller
             'total' => $quote->total,
         ], 'Quote archived');
 
+        if ($this->shouldReturnJson()) {
+            return response()->json([
+                'message' => 'Quote archived successfully!',
+                'quote' => $quote->fresh(),
+            ]);
+        }
+
         return redirect()->route('customer.show', $quote->customer)->with('success', 'Quote archived successfully!');
     }
 
@@ -568,6 +647,13 @@ class QuoteController extends Controller
             'total' => $quote->total,
         ], 'Quote restored');
 
+        if ($this->shouldReturnJson()) {
+            return response()->json([
+                'message' => 'Quote restored successfully!',
+                'quote' => $quote->fresh(),
+            ]);
+        }
+
         return redirect()->back()->with('success', 'Quote restored successfully!');
     }
 
@@ -576,6 +662,15 @@ class QuoteController extends Controller
         $this->authorize('show', $quote);
 
         if ($quote->isArchived()) {
+            if ($this->shouldReturnJson()) {
+                return response()->json([
+                    'message' => 'Archived quotes cannot be converted.',
+                    'errors' => [
+                        'status' => ['Archived quotes cannot be converted.'],
+                    ],
+                ], 422);
+            }
+
             return redirect()->back()->withErrors([
                 'status' => 'Archived quotes cannot be converted.',
             ]);
@@ -585,6 +680,13 @@ class QuoteController extends Controller
 
         $existingWork = Work::where('quote_id', $quote->id)->first();
         if ($existingWork) {
+            if ($this->shouldReturnJson()) {
+                return response()->json([
+                    'message' => 'Job already created for this quote.',
+                    'work' => $existingWork,
+                ]);
+            }
+
             return redirect()->route('work.edit', $existingWork)->with('success', 'Job already created for this quote.');
         }
 
@@ -648,6 +750,14 @@ class QuoteController extends Controller
         ActivityLog::record(Auth::user(), $quote, 'converted', [
             'work_id' => $work->id,
         ], 'Quote converted to job');
+
+        if ($this->shouldReturnJson()) {
+            return response()->json([
+                'message' => 'Job created from quote.',
+                'work' => $work->fresh(['customer', 'products']),
+                'quote' => $quote->fresh(),
+            ]);
+        }
 
         return redirect()->route('work.edit', $work)->with('success', 'Job created from quote.');
     }

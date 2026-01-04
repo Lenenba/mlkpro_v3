@@ -5,14 +5,13 @@ namespace App\Http\Controllers;
 use App\Models\Work;
 use App\Models\WorkMedia;
 use App\Utils\FileHandler;
-use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
 
 class WorkMediaController extends Controller
 {
-    public function store(Request $request, Work $work): RedirectResponse
+    public function store(Request $request, Work $work)
     {
         $user = Auth::user();
         $accountId = $user?->accountOwnerId() ?? Auth::id();
@@ -28,7 +27,7 @@ class WorkMediaController extends Controller
 
         $path = FileHandler::handleImageUpload('work-media', $request, 'image', null);
 
-        WorkMedia::create([
+        $media = WorkMedia::create([
             'work_id' => $work->id,
             'user_id' => $user->id,
             'type' => $validated['type'],
@@ -36,7 +35,13 @@ class WorkMediaController extends Controller
             'meta' => $validated['meta'] ?? null,
         ]);
 
+        if ($this->shouldReturnJson($request)) {
+            return response()->json([
+                'message' => 'Photo uploaded successfully.',
+                'media' => $media,
+            ], 201);
+        }
+
         return redirect()->back()->with('success', 'Photo uploaded successfully.');
     }
 }
-

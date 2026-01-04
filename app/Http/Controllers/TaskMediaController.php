@@ -4,14 +4,13 @@ namespace App\Http\Controllers;
 
 use App\Models\Task;
 use App\Models\TaskMedia;
-use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
 
 class TaskMediaController extends Controller
 {
-    public function store(Request $request, Task $task): RedirectResponse
+    public function store(Request $request, Task $task)
     {
         $this->authorize('update', $task);
 
@@ -23,6 +22,15 @@ class TaskMediaController extends Controller
 
         $file = $request->file('file');
         if (!$file) {
+            if ($this->shouldReturnJson($request)) {
+                return response()->json([
+                    'message' => 'Upload failed.',
+                    'errors' => [
+                        'file' => ['Upload failed.'],
+                    ],
+                ], 422);
+            }
+
             return redirect()->back()->withErrors([
                 'file' => 'Upload failed.',
             ]);
@@ -32,7 +40,7 @@ class TaskMediaController extends Controller
         $mime = $file->getMimeType() ?: '';
         $mediaType = str_starts_with($mime, 'video/') ? 'video' : 'image';
 
-        TaskMedia::create([
+        $media = TaskMedia::create([
             'task_id' => $task->id,
             'user_id' => Auth::id(),
             'type' => $validated['type'],
@@ -43,6 +51,13 @@ class TaskMediaController extends Controller
                 'source' => Auth::user()?->isClient() ? 'client' : 'team',
             ],
         ]);
+
+        if ($this->shouldReturnJson($request)) {
+            return response()->json([
+                'message' => 'Proof uploaded successfully.',
+                'media' => $media,
+            ], 201);
+        }
 
         return redirect()->back()->with('success', 'Proof uploaded successfully.');
     }

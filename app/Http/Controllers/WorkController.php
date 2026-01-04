@@ -106,7 +106,7 @@ class WorkController extends Controller
 
         $customers = $customersQuery->get(['id', 'company_name', 'first_name', 'last_name']);
 
-        return inertia('Work/Index', [
+        return $this->inertiaOrJson('Work/Index', [
             'works' => $works,
             'filters' => $filters,
             'stats' => $stats,
@@ -164,7 +164,7 @@ class WorkController extends Controller
             ? Product::ITEM_TYPE_PRODUCT
             : Product::ITEM_TYPE_SERVICE;
 
-        return inertia('Work/Create', [
+        return $this->inertiaOrJson('Work/Create', [
             'lastWorkNumber' => $this->generateNextNumber($customer->works->last()->number ?? null),
             'tasks' => $tasks,
             'customer' => $customer->load('properties'),
@@ -190,7 +190,7 @@ class WorkController extends Controller
         $this->applyQuoteSnapshotToWork($work);
         $lockedFromQuote = (bool) $work->quote_id && $work->relationLoaded('quote') && $work->quote;
 
-        return inertia('Work/Show', [
+        return $this->inertiaOrJson('Work/Show', [
             'work' => $work,
             'customer' => $work->customer,
             'lockedFromQuote' => $lockedFromQuote,
@@ -341,6 +341,13 @@ class WorkController extends Controller
 
         $this->autoScheduleTasksForWork($work, $user);
 
+        if ($this->shouldReturnJson($request)) {
+            return response()->json([
+                'message' => 'Job created successfully!',
+                'work' => $work->load(['customer', 'products', 'teamMembers']),
+            ], 201);
+        }
+
         return redirect()->route('customer.show', $customer)->with('success', 'Job created successfully!');
     }
 
@@ -415,7 +422,7 @@ class WorkController extends Controller
                 ];
             });
 
-        return inertia('Work/Create', [
+        return $this->inertiaOrJson('Work/Create', [
             'work' => $work,
             'lastWorkNumber' => $work->number,
             'customer' => $customer,
@@ -603,6 +610,13 @@ class WorkController extends Controller
 
         $this->autoScheduleTasksForWork($work, $user);
 
+        if ($this->shouldReturnJson($request)) {
+            return response()->json([
+                'message' => 'Job updated successfully.',
+                'work' => $work->fresh(['customer', 'products', 'teamMembers']),
+            ]);
+        }
+
         return redirect()->back()->with('success', 'Job updated successfully.');
     }
 
@@ -623,6 +637,15 @@ class WorkController extends Controller
         $afterCount = $work->media()->where('type', 'after')->count();
 
         if ($nextStatus === Work::STATUS_IN_PROGRESS && $beforeCount < 3) {
+            if ($this->shouldReturnJson($request)) {
+                return response()->json([
+                    'message' => 'Validation error.',
+                    'errors' => [
+                        'status' => ['Upload at least 3 before photos before starting the job.'],
+                    ],
+                ], 422);
+            }
+
             return redirect()->back()->withErrors([
                 'status' => 'Upload at least 3 before photos before starting the job.',
             ]);
@@ -631,12 +654,30 @@ class WorkController extends Controller
         if ($nextStatus === Work::STATUS_TECH_COMPLETE) {
             $pendingChecklist = $work->checklistItems()->where('status', '!=', 'done')->count();
             if ($pendingChecklist > 0) {
+                if ($this->shouldReturnJson($request)) {
+                    return response()->json([
+                        'message' => 'Validation error.',
+                        'errors' => [
+                            'status' => ['Complete all checklist items before finishing the job.'],
+                        ],
+                    ], 422);
+                }
+
                 return redirect()->back()->withErrors([
                     'status' => 'Complete all checklist items before finishing the job.',
                 ]);
             }
 
             if ($afterCount < 3) {
+                if ($this->shouldReturnJson($request)) {
+                    return response()->json([
+                        'message' => 'Validation error.',
+                        'errors' => [
+                            'status' => ['Upload at least 3 after photos before finishing the job.'],
+                        ],
+                    ], 422);
+                }
+
                 return redirect()->back()->withErrors([
                     'status' => 'Upload at least 3 after photos before finishing the job.',
                 ]);
@@ -698,6 +739,13 @@ class WorkController extends Controller
             }
         }
 
+        if ($this->shouldReturnJson($request)) {
+            return response()->json([
+                'message' => 'Job status updated.',
+                'work' => $work->fresh(),
+            ]);
+        }
+
         return redirect()->back()->with('success', 'Job status updated.');
     }
 
@@ -718,6 +766,12 @@ class WorkController extends Controller
             'total' => $work->total,
         ], 'Job deleted');
         $work->delete();
+
+        if ($this->shouldReturnJson()) {
+            return response()->json([
+                'message' => 'Job deleted successfully.',
+            ]);
+        }
 
         return redirect()->back()->with('success', 'Job deleted successfully.');
     }
@@ -850,6 +904,13 @@ class WorkController extends Controller
                 );
             }
         });
+
+        if ($this->shouldReturnJson($request)) {
+            return response()->json([
+                'message' => 'Extra quote created.',
+                'quote' => $quote?->load(['products', 'taxes', 'customer']),
+            ], 201);
+        }
 
         return redirect()->route('customer.quote.edit', $quote)->with('success', 'Extra quote created.');
     }

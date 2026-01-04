@@ -37,7 +37,7 @@ class TeamMemberController extends Controller
             ->orderBy('created_at')
             ->get();
 
-        return inertia('Team/Index', [
+        return $this->inertiaOrJson('Team/Index', [
             'teamMembers' => $teamMembers,
             'availablePermissions' => self::AVAILABLE_PERMISSIONS,
             'stats' => [
@@ -92,7 +92,7 @@ class TeamMemberController extends Controller
             $permissions = $this->defaultPermissionsForRole($validated['role']);
         }
 
-        TeamMember::create([
+        $teamMember = TeamMember::create([
             'account_id' => $user->id,
             'user_id' => $memberUser->id,
             'role' => $validated['role'],
@@ -109,6 +109,13 @@ class TeamMemberController extends Controller
             $user->company_logo_url,
             'team'
         ));
+
+        if ($this->shouldReturnJson($request)) {
+            return response()->json([
+                'message' => 'Team member created. Invite sent by email.',
+                'team_member' => $teamMember->load('user'),
+            ], 201);
+        }
 
         return redirect()->back()->with('success', 'Team member created. Invite sent by email.');
     }
@@ -167,6 +174,13 @@ class TeamMemberController extends Controller
             $teamMember->update($teamMemberUpdates);
         }
 
+        if ($this->shouldReturnJson($request)) {
+            return response()->json([
+                'message' => 'Team member updated.',
+                'team_member' => $teamMember->fresh(),
+            ]);
+        }
+
         return redirect()->back()->with('success', 'Team member updated.');
     }
 
@@ -183,6 +197,13 @@ class TeamMemberController extends Controller
 
         $teamMember->works()->detach();
         $teamMember->update(['is_active' => false]);
+
+        if ($this->shouldReturnJson()) {
+            return response()->json([
+                'message' => 'Team member deactivated.',
+                'team_member' => $teamMember->fresh(),
+            ]);
+        }
 
         return redirect()->back()->with('success', 'Team member deactivated.');
     }

@@ -9,7 +9,6 @@ use App\Models\TeamMember;
 use App\Services\UsageLimitService;
 use App\Utils\FileHandler;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
-use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -61,7 +60,7 @@ class ServiceController extends Controller
             'average_price' => round((float) ((clone $baseQuery)->avg('price') ?? 0), 2),
         ];
 
-        return inertia('Service/Index', [
+        return $this->inertiaOrJson('Service/Index', [
             'filters' => $filters,
             'services' => $services,
             'categories' => ProductCategory::forAccount($accountId)
@@ -202,7 +201,7 @@ class ServiceController extends Controller
             ->values()
             ->all();
 
-        return inertia('Service/Categories', [
+        return $this->inertiaOrJson('Service/Categories', [
             'filters' => $filters,
             'categories' => $categories,
             'stats' => $stats,
@@ -211,7 +210,7 @@ class ServiceController extends Controller
         ]);
     }
 
-    public function store(ServiceRequest $request): RedirectResponse
+    public function store(ServiceRequest $request)
     {
         $this->ensureServiceAccess();
         app(UsageLimitService::class)->enforceLimit($request->user(), 'services');
@@ -226,6 +225,13 @@ class ServiceController extends Controller
 
         if ($request->has('materials')) {
             $this->syncServiceMaterials($service, $validated['materials'] ?? []);
+        }
+
+        if ($this->shouldReturnJson($request)) {
+            return response()->json([
+                'message' => 'Service created successfully.',
+                'service' => $service->fresh(['category', 'serviceMaterials.product']),
+            ], 201);
         }
 
         return redirect()->route('service.index')->with('success', 'Service created successfully.');
@@ -252,7 +258,7 @@ class ServiceController extends Controller
         ], 201);
     }
 
-    public function update(ServiceRequest $request, Product $service): RedirectResponse
+    public function update(ServiceRequest $request, Product $service)
     {
         $this->ensureServiceAccess();
         $this->authorize('update', $service);
@@ -270,10 +276,17 @@ class ServiceController extends Controller
             $this->syncServiceMaterials($service, $validated['materials'] ?? []);
         }
 
+        if ($this->shouldReturnJson($request)) {
+            return response()->json([
+                'message' => 'Service updated successfully.',
+                'service' => $service->fresh(['category', 'serviceMaterials.product']),
+            ]);
+        }
+
         return redirect()->route('service.index')->with('success', 'Service updated successfully.');
     }
 
-    public function destroy(Product $service): RedirectResponse
+    public function destroy(Product $service)
     {
         $this->ensureServiceAccess();
         $this->authorize('delete', $service);
@@ -281,6 +294,12 @@ class ServiceController extends Controller
 
         FileHandler::deleteFile($service->image, 'products/product.jpg');
         $service->delete();
+
+        if ($this->shouldReturnJson()) {
+            return response()->json([
+                'message' => 'Service deleted successfully.',
+            ]);
+        }
 
         return redirect()->route('service.index')->with('success', 'Service deleted successfully.');
     }

@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Models\Task;
 use App\Models\Work;
 use Illuminate\Support\Facades\Storage;
-use Inertia\Inertia;
 
 class WorkProofController extends Controller
 {
@@ -80,7 +79,7 @@ class WorkProofController extends Controller
                 ];
             });
 
-        return Inertia::render('Work/Proofs', [
+        return $this->inertiaOrJson('Work/Proofs', [
             'viewer' => 'team',
             'work' => [
                 'id' => $work->id,

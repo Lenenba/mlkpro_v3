@@ -4,14 +4,13 @@ namespace App\Http\Controllers;
 
 use App\Models\Work;
 use App\Models\WorkChecklistItem;
-use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
 
 class WorkChecklistController extends Controller
 {
-    public function update(Request $request, Work $work, WorkChecklistItem $item): RedirectResponse
+    public function update(Request $request, Work $work, WorkChecklistItem $item)
     {
         $user = Auth::user();
         $accountId = $user?->accountOwnerId() ?? Auth::id();
@@ -31,7 +30,13 @@ class WorkChecklistController extends Controller
         $item->completed_at = $validated['status'] === 'done' ? now() : null;
         $item->save();
 
+        if ($this->shouldReturnJson($request)) {
+            return response()->json([
+                'message' => 'Checklist updated.',
+                'item' => $item->fresh(),
+            ]);
+        }
+
         return redirect()->back()->with('success', 'Checklist updated.');
     }
 }
-

@@ -9,7 +9,6 @@ use App\Models\TaskMaterial;
 use App\Models\TeamMember;
 use App\Models\Work;
 use App\Services\UsageLimitService;
-use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -104,7 +103,7 @@ class TaskController extends Controller
             ->limit(200)
             ->get(['id', 'job_title', 'number', 'customer_id', 'status']);
 
-        return inertia('Task/Index', [
+        return $this->inertiaOrJson('Task/Index', [
             'tasks' => $tasks,
             'filters' => $filters,
             'statuses' => Task::STATUSES,
@@ -120,7 +119,7 @@ class TaskController extends Controller
         ]);
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request)
     {
         $this->authorize('create', Task::class);
 
@@ -209,10 +208,17 @@ class TaskController extends Controller
             $this->applyMaterialStock($task, Auth::user());
         }
 
+        if ($this->shouldReturnJson($request)) {
+            return response()->json([
+                'message' => 'Task created.',
+                'task' => $task->fresh(['assignee.user', 'materials.product']),
+            ], 201);
+        }
+
         return redirect()->back()->with('success', 'Task created.');
     }
 
-    public function update(Request $request, Task $task): RedirectResponse
+    public function update(Request $request, Task $task)
     {
         $this->authorize('update', $task);
 
@@ -220,6 +226,15 @@ class TaskController extends Controller
         $accountId = $user?->accountOwnerId() ?? Auth::id();
 
         if ($task->status === 'done') {
+            if ($this->shouldReturnJson($request)) {
+                return response()->json([
+                    'message' => 'This task is locked after completion.',
+                    'errors' => [
+                        'task' => ['This task is locked after completion.'],
+                    ],
+                ], 422);
+            }
+
             return redirect()->back()->withErrors([
                 'task' => 'This task is locked after completion.',
             ]);
@@ -337,14 +352,27 @@ class TaskController extends Controller
                 ->handleTaskCompleted($task, $user);
         }
 
+        if ($this->shouldReturnJson($request)) {
+            return response()->json([
+                'message' => 'Task updated.',
+                'task' => $task->fresh(['assignee.user', 'materials.product']),
+            ]);
+        }
+
         return redirect()->back()->with('success', 'Task updated.');
     }
 
-    public function destroy(Task $task): RedirectResponse
+    public function destroy(Task $task)
     {
         $this->authorize('delete', $task);
 
         $task->delete();
+
+        if ($this->shouldReturnJson()) {
+            return response()->json([
+                'message' => 'Task deleted.',
+            ]);
+        }
 
         return redirect()->back()->with('success', 'Task deleted.');
     }

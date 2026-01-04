@@ -1,0 +1,3664 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "MLK Pro API",
+    "version": "v1",
+    "description": "Auto-generated from routes/api.php (internal API v1)."
+  },
+  "servers": [
+    {
+      "url": "http://localhost",
+      "description": "Local dev"
+    }
+  ],
+  "tags": [
+    {
+      "name": "auth"
+    },
+    {
+      "name": "customer"
+    },
+    {
+      "name": "customers"
+    },
+    {
+      "name": "dashboard"
+    },
+    {
+      "name": "invoice"
+    },
+    {
+      "name": "invoices"
+    },
+    {
+      "name": "jobs"
+    },
+    {
+      "name": "locale"
+    },
+    {
+      "name": "onboarding"
+    },
+    {
+      "name": "plan-scans"
+    },
+    {
+      "name": "product"
+    },
+    {
+      "name": "products"
+    },
+    {
+      "name": "profile"
+    },
+    {
+      "name": "quote"
+    },
+    {
+      "name": "quotes"
+    },
+    {
+      "name": "requests"
+    },
+    {
+      "name": "service"
+    },
+    {
+      "name": "services"
+    },
+    {
+      "name": "settings"
+    },
+    {
+      "name": "tasks"
+    },
+    {
+      "name": "team"
+    },
+    {
+      "name": "work"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    }
+  },
+  "paths": {
+    "/api/v1/auth/login": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "AuthController@login",
+        "operationId": "AuthController_login_post",
+        "parameters": [],
+        "security": [],
+        "responses": {
+          "201": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\Api\\AuthController@login",
+        "x-middleware": [
+          "api"
+        ]
+      }
+    },
+    "/api/v1/auth/logout": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "AuthController@logout",
+        "operationId": "AuthController_logout_post",
+        "parameters": [],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\Api\\AuthController@logout",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended"
+        ]
+      }
+    },
+    "/api/v1/auth/me": {
+      "get": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "AuthController@me",
+        "operationId": "AuthController_me_get",
+        "parameters": [],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\Api\\AuthController@me",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended"
+        ]
+      }
+    },
+    "/api/v1/customer": {
+      "get": {
+        "tags": [
+          "customer"
+        ],
+        "summary": "customer.index",
+        "operationId": "customer_index_get",
+        "parameters": [],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\CustomerController@index",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete"
+        ]
+      },
+      "post": {
+        "tags": [
+          "customer"
+        ],
+        "summary": "customer.store",
+        "operationId": "customer_store_post",
+        "parameters": [],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\CustomerController@store",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete"
+        ]
+      }
+    },
+    "/api/v1/customer/quote/store": {
+      "post": {
+        "tags": [
+          "customer"
+        ],
+        "summary": "QuoteController@store",
+        "operationId": "QuoteController_store_post",
+        "parameters": [],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\QuoteController@store",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:quotes"
+        ]
+      }
+    },
+    "/api/v1/customer/quote/{quote}/destroy": {
+      "delete": {
+        "tags": [
+          "customer"
+        ],
+        "summary": "QuoteController@destroy",
+        "operationId": "QuoteController_destroy_delete",
+        "parameters": [
+          {
+            "name": "quote",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\QuoteController@destroy",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:quotes"
+        ]
+      }
+    },
+    "/api/v1/customer/quote/{quote}/edit": {
+      "get": {
+        "tags": [
+          "customer"
+        ],
+        "summary": "QuoteController@edit",
+        "operationId": "QuoteController_edit_get",
+        "parameters": [
+          {
+            "name": "quote",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\QuoteController@edit",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:quotes"
+        ]
+      }
+    },
+    "/api/v1/customer/quote/{quote}/restore": {
+      "post": {
+        "tags": [
+          "customer"
+        ],
+        "summary": "QuoteController@restore",
+        "operationId": "QuoteController_restore_post",
+        "parameters": [
+          {
+            "name": "quote",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\QuoteController@restore",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:quotes"
+        ]
+      }
+    },
+    "/api/v1/customer/quote/{quote}/show": {
+      "get": {
+        "tags": [
+          "customer"
+        ],
+        "summary": "QuoteController@show",
+        "operationId": "QuoteController_show_get",
+        "parameters": [
+          {
+            "name": "quote",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\QuoteController@show",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:quotes"
+        ]
+      }
+    },
+    "/api/v1/customer/quote/{quote}/update": {
+      "put": {
+        "tags": [
+          "customer"
+        ],
+        "summary": "QuoteController@update",
+        "operationId": "QuoteController_update_put",
+        "parameters": [
+          {
+            "name": "quote",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\QuoteController@update",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:quotes"
+        ]
+      }
+    },
+    "/api/v1/customer/{customer}": {
+      "get": {
+        "tags": [
+          "customer"
+        ],
+        "summary": "customer.show",
+        "operationId": "customer_show_get",
+        "parameters": [
+          {
+            "name": "customer",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\CustomerController@show",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete"
+        ]
+      },
+      "put": {
+        "tags": [
+          "customer"
+        ],
+        "summary": "customer.update",
+        "operationId": "customer_update_put",
+        "parameters": [
+          {
+            "name": "customer",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\CustomerController@update",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete"
+        ]
+      },
+      "patch": {
+        "tags": [
+          "customer"
+        ],
+        "summary": "customer.update",
+        "operationId": "customer_update_patch",
+        "parameters": [
+          {
+            "name": "customer",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\CustomerController@update",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete"
+        ]
+      },
+      "delete": {
+        "tags": [
+          "customer"
+        ],
+        "summary": "customer.destroy",
+        "operationId": "customer_destroy_delete",
+        "parameters": [
+          {
+            "name": "customer",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\CustomerController@destroy",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete"
+        ]
+      }
+    },
+    "/api/v1/customer/{customer}/auto-validation": {
+      "patch": {
+        "tags": [
+          "customer"
+        ],
+        "summary": "CustomerController@updateAutoValidation",
+        "operationId": "CustomerController_updateAutoValidation_patch",
+        "parameters": [
+          {
+            "name": "customer",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\CustomerController@updateAutoValidation",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete"
+        ]
+      }
+    },
+    "/api/v1/customer/{customer}/notes": {
+      "patch": {
+        "tags": [
+          "customer"
+        ],
+        "summary": "CustomerController@updateNotes",
+        "operationId": "CustomerController_updateNotes_patch",
+        "parameters": [
+          {
+            "name": "customer",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\CustomerController@updateNotes",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete"
+        ]
+      }
+    },
+    "/api/v1/customer/{customer}/properties": {
+      "post": {
+        "tags": [
+          "customer"
+        ],
+        "summary": "CustomerPropertyController@store",
+        "operationId": "CustomerPropertyController_store_post",
+        "parameters": [
+          {
+            "name": "customer",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\CustomerPropertyController@store",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete"
+        ]
+      }
+    },
+    "/api/v1/customer/{customer}/properties/{property}": {
+      "put": {
+        "tags": [
+          "customer"
+        ],
+        "summary": "CustomerPropertyController@update",
+        "operationId": "CustomerPropertyController_update_put",
+        "parameters": [
+          {
+            "name": "customer",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "property",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\CustomerPropertyController@update",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete"
+        ]
+      },
+      "delete": {
+        "tags": [
+          "customer"
+        ],
+        "summary": "CustomerPropertyController@destroy",
+        "operationId": "CustomerPropertyController_destroy_delete",
+        "parameters": [
+          {
+            "name": "customer",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "property",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\CustomerPropertyController@destroy",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete"
+        ]
+      }
+    },
+    "/api/v1/customer/{customer}/properties/{property}/default": {
+      "put": {
+        "tags": [
+          "customer"
+        ],
+        "summary": "CustomerPropertyController@setDefault",
+        "operationId": "CustomerPropertyController_setDefault_put",
+        "parameters": [
+          {
+            "name": "customer",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "property",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\CustomerPropertyController@setDefault",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete"
+        ]
+      }
+    },
+    "/api/v1/customer/{customer}/quote/create": {
+      "get": {
+        "tags": [
+          "customer"
+        ],
+        "summary": "QuoteController@create",
+        "operationId": "QuoteController_create_get",
+        "parameters": [
+          {
+            "name": "customer",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\QuoteController@create",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:quotes"
+        ]
+      }
+    },
+    "/api/v1/customer/{customer}/tags": {
+      "patch": {
+        "tags": [
+          "customer"
+        ],
+        "summary": "CustomerController@updateTags",
+        "operationId": "CustomerController_updateTags_patch",
+        "parameters": [
+          {
+            "name": "customer",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\CustomerController@updateTags",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete"
+        ]
+      }
+    },
+    "/api/v1/customers/options": {
+      "get": {
+        "tags": [
+          "customers"
+        ],
+        "summary": "CustomerController@options",
+        "operationId": "CustomerController_options_get",
+        "parameters": [],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\CustomerController@options",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete"
+        ]
+      }
+    },
+    "/api/v1/customers/quick": {
+      "post": {
+        "tags": [
+          "customers"
+        ],
+        "summary": "CustomerController@storeQuick",
+        "operationId": "CustomerController_storeQuick_post",
+        "parameters": [],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\CustomerController@storeQuick",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete"
+        ]
+      }
+    },
+    "/api/v1/dashboard": {
+      "get": {
+        "tags": [
+          "dashboard"
+        ],
+        "summary": "DashboardController@index",
+        "operationId": "DashboardController_index_get",
+        "parameters": [],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\DashboardController@index",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete"
+        ]
+      }
+    },
+    "/api/v1/invoice/{invoice}/payments": {
+      "post": {
+        "tags": [
+          "invoice"
+        ],
+        "summary": "PaymentController@store",
+        "operationId": "PaymentController_store_post",
+        "parameters": [
+          {
+            "name": "invoice",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\PaymentController@store",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete"
+        ]
+      }
+    },
+    "/api/v1/invoices": {
+      "get": {
+        "tags": [
+          "invoices"
+        ],
+        "summary": "InvoiceController@index",
+        "operationId": "InvoiceController_index_get",
+        "parameters": [],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\InvoiceController@index",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:invoices"
+        ]
+      }
+    },
+    "/api/v1/invoices/{invoice}": {
+      "get": {
+        "tags": [
+          "invoices"
+        ],
+        "summary": "InvoiceController@show",
+        "operationId": "InvoiceController_show_get",
+        "parameters": [
+          {
+            "name": "invoice",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\InvoiceController@show",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:invoices"
+        ]
+      }
+    },
+    "/api/v1/jobs": {
+      "get": {
+        "tags": [
+          "jobs"
+        ],
+        "summary": "WorkController@index",
+        "operationId": "WorkController_index_get",
+        "parameters": [],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\WorkController@index",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:jobs"
+        ]
+      }
+    },
+    "/api/v1/locale": {
+      "post": {
+        "tags": [
+          "locale"
+        ],
+        "summary": "LocaleController@update",
+        "operationId": "LocaleController_update_post",
+        "parameters": [],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\LocaleController@update",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete"
+        ]
+      }
+    },
+    "/api/v1/onboarding": {
+      "get": {
+        "tags": [
+          "onboarding"
+        ],
+        "summary": "OnboardingController@index",
+        "operationId": "OnboardingController_index_get",
+        "parameters": [],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\OnboardingController@index",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended"
+        ]
+      },
+      "post": {
+        "tags": [
+          "onboarding"
+        ],
+        "summary": "OnboardingController@store",
+        "operationId": "OnboardingController_store_post",
+        "parameters": [],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\OnboardingController@store",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended"
+        ]
+      }
+    },
+    "/api/v1/plan-scans": {
+      "get": {
+        "tags": [
+          "plan-scans"
+        ],
+        "summary": "PlanScanController@index",
+        "operationId": "PlanScanController_index_get",
+        "parameters": [],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\PlanScanController@index",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:quotes",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:plan_scans"
+        ]
+      },
+      "post": {
+        "tags": [
+          "plan-scans"
+        ],
+        "summary": "PlanScanController@store",
+        "operationId": "PlanScanController_store_post",
+        "parameters": [],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\PlanScanController@store",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:quotes",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:plan_scans"
+        ]
+      }
+    },
+    "/api/v1/plan-scans/create": {
+      "get": {
+        "tags": [
+          "plan-scans"
+        ],
+        "summary": "PlanScanController@create",
+        "operationId": "PlanScanController_create_get",
+        "parameters": [],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\PlanScanController@create",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:quotes",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:plan_scans"
+        ]
+      }
+    },
+    "/api/v1/plan-scans/{planScan}": {
+      "get": {
+        "tags": [
+          "plan-scans"
+        ],
+        "summary": "PlanScanController@show",
+        "operationId": "PlanScanController_show_get",
+        "parameters": [
+          {
+            "name": "planScan",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\PlanScanController@show",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:quotes",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:plan_scans"
+        ]
+      }
+    },
+    "/api/v1/plan-scans/{planScan}/convert": {
+      "post": {
+        "tags": [
+          "plan-scans"
+        ],
+        "summary": "PlanScanController@convert",
+        "operationId": "PlanScanController_convert_post",
+        "parameters": [
+          {
+            "name": "planScan",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\PlanScanController@convert",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:quotes",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:plan_scans"
+        ]
+      }
+    },
+    "/api/v1/product": {
+      "get": {
+        "tags": [
+          "product"
+        ],
+        "summary": "product.index",
+        "operationId": "product_index_get",
+        "parameters": [],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\ProductController@index",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:products"
+        ]
+      },
+      "post": {
+        "tags": [
+          "product"
+        ],
+        "summary": "product.store",
+        "operationId": "product_store_post",
+        "parameters": [],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\ProductController@store",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:products"
+        ]
+      }
+    },
+    "/api/v1/product/bulk": {
+      "post": {
+        "tags": [
+          "product"
+        ],
+        "summary": "ProductController@bulk",
+        "operationId": "ProductController_bulk_post",
+        "parameters": [],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\ProductController@bulk",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:products"
+        ]
+      }
+    },
+    "/api/v1/product/export/csv": {
+      "get": {
+        "tags": [
+          "product"
+        ],
+        "summary": "ProductController@export",
+        "operationId": "ProductController_export_get",
+        "parameters": [],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\ProductController@export",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:products"
+        ]
+      }
+    },
+    "/api/v1/product/import/csv": {
+      "post": {
+        "tags": [
+          "product"
+        ],
+        "summary": "ProductController@import",
+        "operationId": "ProductController_import_post",
+        "parameters": [],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\ProductController@import",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:products"
+        ]
+      }
+    },
+    "/api/v1/product/price-lookup": {
+      "get": {
+        "tags": [
+          "product"
+        ],
+        "summary": "ProductPriceLookupController",
+        "operationId": "ProductPriceLookupController_get",
+        "parameters": [],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\ProductPriceLookupController",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:products"
+        ]
+      }
+    },
+    "/api/v1/product/search": {
+      "get": {
+        "tags": [
+          "product"
+        ],
+        "summary": "ProductsSearchController",
+        "operationId": "ProductsSearchController_get",
+        "parameters": [],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\ProductsSearchController",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:products"
+        ]
+      }
+    },
+    "/api/v1/product/{product}": {
+      "get": {
+        "tags": [
+          "product"
+        ],
+        "summary": "product.show",
+        "operationId": "product_show_get",
+        "parameters": [
+          {
+            "name": "product",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\ProductController@show",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:products"
+        ]
+      },
+      "put": {
+        "tags": [
+          "product"
+        ],
+        "summary": "product.update",
+        "operationId": "product_update_put",
+        "parameters": [
+          {
+            "name": "product",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\ProductController@update",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:products"
+        ]
+      },
+      "patch": {
+        "tags": [
+          "product"
+        ],
+        "summary": "product.update",
+        "operationId": "product_update_patch",
+        "parameters": [
+          {
+            "name": "product",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\ProductController@update",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:products"
+        ]
+      },
+      "delete": {
+        "tags": [
+          "product"
+        ],
+        "summary": "product.destroy",
+        "operationId": "product_destroy_delete",
+        "parameters": [
+          {
+            "name": "product",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\ProductController@destroy",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:products"
+        ]
+      }
+    },
+    "/api/v1/product/{product}/adjust-stock": {
+      "post": {
+        "tags": [
+          "product"
+        ],
+        "summary": "ProductController@adjustStock",
+        "operationId": "ProductController_adjustStock_post",
+        "parameters": [
+          {
+            "name": "product",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\ProductController@adjustStock",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:products"
+        ]
+      }
+    },
+    "/api/v1/product/{product}/duplicate": {
+      "post": {
+        "tags": [
+          "product"
+        ],
+        "summary": "ProductController@duplicate",
+        "operationId": "ProductController_duplicate_post",
+        "parameters": [
+          {
+            "name": "product",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\ProductController@duplicate",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:products"
+        ]
+      }
+    },
+    "/api/v1/product/{product}/quick-update": {
+      "put": {
+        "tags": [
+          "product"
+        ],
+        "summary": "ProductController@quickUpdate",
+        "operationId": "ProductController_quickUpdate_put",
+        "parameters": [
+          {
+            "name": "product",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\ProductController@quickUpdate",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:products"
+        ]
+      }
+    },
+    "/api/v1/products/draft": {
+      "post": {
+        "tags": [
+          "products"
+        ],
+        "summary": "ProductController@storeDraft",
+        "operationId": "ProductController_storeDraft_post",
+        "parameters": [],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\ProductController@storeDraft",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:products"
+        ]
+      }
+    },
+    "/api/v1/products/options": {
+      "get": {
+        "tags": [
+          "products"
+        ],
+        "summary": "ProductController@options",
+        "operationId": "ProductController_options_get",
+        "parameters": [],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\ProductController@options",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:products"
+        ]
+      }
+    },
+    "/api/v1/products/quick": {
+      "post": {
+        "tags": [
+          "products"
+        ],
+        "summary": "ProductController@storeQuick",
+        "operationId": "ProductController_storeQuick_post",
+        "parameters": [],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\ProductController@storeQuick",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:products"
+        ]
+      }
+    },
+    "/api/v1/profile": {
+      "get": {
+        "tags": [
+          "profile"
+        ],
+        "summary": "ProfileController@edit",
+        "operationId": "ProfileController_edit_get",
+        "parameters": [],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\ProfileController@edit",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete"
+        ]
+      },
+      "patch": {
+        "tags": [
+          "profile"
+        ],
+        "summary": "ProfileController@update",
+        "operationId": "ProfileController_update_patch",
+        "parameters": [],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\ProfileController@update",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete"
+        ]
+      },
+      "delete": {
+        "tags": [
+          "profile"
+        ],
+        "summary": "ProfileController@destroy",
+        "operationId": "ProfileController_destroy_delete",
+        "parameters": [],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\ProfileController@destroy",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete"
+        ]
+      }
+    },
+    "/api/v1/quote/{quote}/accept": {
+      "post": {
+        "tags": [
+          "quote"
+        ],
+        "summary": "QuoteController@accept",
+        "operationId": "QuoteController_accept_post",
+        "parameters": [
+          {
+            "name": "quote",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\QuoteController@accept",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:quotes"
+        ]
+      }
+    },
+    "/api/v1/quote/{quote}/convert": {
+      "post": {
+        "tags": [
+          "quote"
+        ],
+        "summary": "QuoteController@convertToWork",
+        "operationId": "QuoteController_convertToWork_post",
+        "parameters": [
+          {
+            "name": "quote",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\QuoteController@convertToWork",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:quotes"
+        ]
+      }
+    },
+    "/api/v1/quote/{quote}/send-email": {
+      "post": {
+        "tags": [
+          "quote"
+        ],
+        "summary": "QuoteEmaillingController",
+        "operationId": "QuoteEmaillingController_post",
+        "parameters": [
+          {
+            "name": "quote",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\QuoteEmaillingController",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:quotes"
+        ]
+      }
+    },
+    "/api/v1/quotes": {
+      "get": {
+        "tags": [
+          "quotes"
+        ],
+        "summary": "QuoteController@index",
+        "operationId": "QuoteController_index_get",
+        "parameters": [],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\QuoteController@index",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:quotes"
+        ]
+      }
+    },
+    "/api/v1/requests": {
+      "get": {
+        "tags": [
+          "requests"
+        ],
+        "summary": "RequestController@index",
+        "operationId": "RequestController_index_get",
+        "parameters": [],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\RequestController@index",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:requests"
+        ]
+      },
+      "post": {
+        "tags": [
+          "requests"
+        ],
+        "summary": "RequestController@store",
+        "operationId": "RequestController_store_post",
+        "parameters": [],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\RequestController@store",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:requests"
+        ]
+      }
+    },
+    "/api/v1/requests/{lead}": {
+      "delete": {
+        "tags": [
+          "requests"
+        ],
+        "summary": "RequestController@destroy",
+        "operationId": "RequestController_destroy_delete",
+        "parameters": [
+          {
+            "name": "lead",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\RequestController@destroy",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:requests"
+        ]
+      }
+    },
+    "/api/v1/requests/{lead}/convert": {
+      "post": {
+        "tags": [
+          "requests"
+        ],
+        "summary": "RequestController@convert",
+        "operationId": "RequestController_convert_post",
+        "parameters": [
+          {
+            "name": "lead",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\RequestController@convert",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:requests",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:quotes"
+        ]
+      }
+    },
+    "/api/v1/service": {
+      "get": {
+        "tags": [
+          "service"
+        ],
+        "summary": "service.index",
+        "operationId": "service_index_get",
+        "parameters": [],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\ServiceController@index",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:services"
+        ]
+      },
+      "post": {
+        "tags": [
+          "service"
+        ],
+        "summary": "service.store",
+        "operationId": "service_store_post",
+        "parameters": [],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\ServiceController@store",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:services"
+        ]
+      }
+    },
+    "/api/v1/service/{service}": {
+      "put": {
+        "tags": [
+          "service"
+        ],
+        "summary": "service.update",
+        "operationId": "service_update_put",
+        "parameters": [
+          {
+            "name": "service",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\ServiceController@update",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:services"
+        ]
+      },
+      "patch": {
+        "tags": [
+          "service"
+        ],
+        "summary": "service.update",
+        "operationId": "service_update_patch",
+        "parameters": [
+          {
+            "name": "service",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\ServiceController@update",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:services"
+        ]
+      },
+      "delete": {
+        "tags": [
+          "service"
+        ],
+        "summary": "service.destroy",
+        "operationId": "service_destroy_delete",
+        "parameters": [
+          {
+            "name": "service",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\ServiceController@destroy",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:services"
+        ]
+      }
+    },
+    "/api/v1/services/categories": {
+      "get": {
+        "tags": [
+          "services"
+        ],
+        "summary": "ServiceController@categories",
+        "operationId": "ServiceController_categories_get",
+        "parameters": [],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\ServiceController@categories",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:services"
+        ]
+      }
+    },
+    "/api/v1/services/options": {
+      "get": {
+        "tags": [
+          "services"
+        ],
+        "summary": "ServiceController@options",
+        "operationId": "ServiceController_options_get",
+        "parameters": [],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\ServiceController@options",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:services"
+        ]
+      }
+    },
+    "/api/v1/services/quick": {
+      "post": {
+        "tags": [
+          "services"
+        ],
+        "summary": "ServiceController@storeQuick",
+        "operationId": "ServiceController_storeQuick_post",
+        "parameters": [],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\ServiceController@storeQuick",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:services"
+        ]
+      }
+    },
+    "/api/v1/settings/billing": {
+      "get": {
+        "tags": [
+          "settings"
+        ],
+        "summary": "BillingSettingsController@edit",
+        "operationId": "BillingSettingsController_edit_get",
+        "parameters": [],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\Settings\\BillingSettingsController@edit",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete"
+        ]
+      },
+      "put": {
+        "tags": [
+          "settings"
+        ],
+        "summary": "BillingSettingsController@update",
+        "operationId": "BillingSettingsController_update_put",
+        "parameters": [],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\Settings\\BillingSettingsController@update",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete"
+        ]
+      }
+    },
+    "/api/v1/settings/billing/payment-method": {
+      "post": {
+        "tags": [
+          "settings"
+        ],
+        "summary": "SubscriptionController@paymentMethodTransaction",
+        "operationId": "SubscriptionController_paymentMethodTransaction_post",
+        "parameters": [],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\Settings\\SubscriptionController@paymentMethodTransaction",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete"
+        ]
+      }
+    },
+    "/api/v1/settings/billing/portal": {
+      "post": {
+        "tags": [
+          "settings"
+        ],
+        "summary": "SubscriptionController@portal",
+        "operationId": "SubscriptionController_portal_post",
+        "parameters": [],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\Settings\\SubscriptionController@portal",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete"
+        ]
+      }
+    },
+    "/api/v1/settings/billing/swap": {
+      "post": {
+        "tags": [
+          "settings"
+        ],
+        "summary": "SubscriptionController@swap",
+        "operationId": "SubscriptionController_swap_post",
+        "parameters": [],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\Settings\\SubscriptionController@swap",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete"
+        ]
+      }
+    },
+    "/api/v1/settings/categories": {
+      "post": {
+        "tags": [
+          "settings"
+        ],
+        "summary": "ProductCategoryController@store",
+        "operationId": "ProductCategoryController_store_post",
+        "parameters": [],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\Settings\\ProductCategoryController@store",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete"
+        ]
+      }
+    },
+    "/api/v1/settings/categories/{category}": {
+      "patch": {
+        "tags": [
+          "settings"
+        ],
+        "summary": "ProductCategoryController@update",
+        "operationId": "ProductCategoryController_update_patch",
+        "parameters": [
+          {
+            "name": "category",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\Settings\\ProductCategoryController@update",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete"
+        ]
+      }
+    },
+    "/api/v1/settings/categories/{category}/archive": {
+      "patch": {
+        "tags": [
+          "settings"
+        ],
+        "summary": "ProductCategoryController@archive",
+        "operationId": "ProductCategoryController_archive_patch",
+        "parameters": [
+          {
+            "name": "category",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\Settings\\ProductCategoryController@archive",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete"
+        ]
+      }
+    },
+    "/api/v1/settings/categories/{category}/restore": {
+      "patch": {
+        "tags": [
+          "settings"
+        ],
+        "summary": "ProductCategoryController@restore",
+        "operationId": "ProductCategoryController_restore_patch",
+        "parameters": [
+          {
+            "name": "category",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\Settings\\ProductCategoryController@restore",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete"
+        ]
+      }
+    },
+    "/api/v1/settings/company": {
+      "get": {
+        "tags": [
+          "settings"
+        ],
+        "summary": "CompanySettingsController@edit",
+        "operationId": "CompanySettingsController_edit_get",
+        "parameters": [],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\Settings\\CompanySettingsController@edit",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete"
+        ]
+      },
+      "put": {
+        "tags": [
+          "settings"
+        ],
+        "summary": "CompanySettingsController@update",
+        "operationId": "CompanySettingsController_update_put",
+        "parameters": [],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\Settings\\CompanySettingsController@update",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete"
+        ]
+      }
+    },
+    "/api/v1/tasks": {
+      "get": {
+        "tags": [
+          "tasks"
+        ],
+        "summary": "TaskController@index",
+        "operationId": "TaskController_index_get",
+        "parameters": [],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\TaskController@index",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:tasks"
+        ]
+      },
+      "post": {
+        "tags": [
+          "tasks"
+        ],
+        "summary": "TaskController@store",
+        "operationId": "TaskController_store_post",
+        "parameters": [],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\TaskController@store",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:tasks"
+        ]
+      }
+    },
+    "/api/v1/tasks/{task}": {
+      "put": {
+        "tags": [
+          "tasks"
+        ],
+        "summary": "TaskController@update",
+        "operationId": "TaskController_update_put",
+        "parameters": [
+          {
+            "name": "task",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\TaskController@update",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:tasks"
+        ]
+      },
+      "delete": {
+        "tags": [
+          "tasks"
+        ],
+        "summary": "TaskController@destroy",
+        "operationId": "TaskController_destroy_delete",
+        "parameters": [
+          {
+            "name": "task",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\TaskController@destroy",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:tasks"
+        ]
+      }
+    },
+    "/api/v1/tasks/{task}/media": {
+      "post": {
+        "tags": [
+          "tasks"
+        ],
+        "summary": "TaskMediaController@store",
+        "operationId": "TaskMediaController_store_post",
+        "parameters": [
+          {
+            "name": "task",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\TaskMediaController@store",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:tasks"
+        ]
+      }
+    },
+    "/api/v1/team": {
+      "get": {
+        "tags": [
+          "team"
+        ],
+        "summary": "TeamMemberController@index",
+        "operationId": "TeamMemberController_index_get",
+        "parameters": [],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\TeamMemberController@index",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:team_members"
+        ]
+      },
+      "post": {
+        "tags": [
+          "team"
+        ],
+        "summary": "TeamMemberController@store",
+        "operationId": "TeamMemberController_store_post",
+        "parameters": [],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\TeamMemberController@store",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:team_members"
+        ]
+      }
+    },
+    "/api/v1/team/{teamMember}": {
+      "put": {
+        "tags": [
+          "team"
+        ],
+        "summary": "TeamMemberController@update",
+        "operationId": "TeamMemberController_update_put",
+        "parameters": [
+          {
+            "name": "teamMember",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\TeamMemberController@update",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:team_members"
+        ]
+      },
+      "delete": {
+        "tags": [
+          "team"
+        ],
+        "summary": "TeamMemberController@destroy",
+        "operationId": "TeamMemberController_destroy_delete",
+        "parameters": [
+          {
+            "name": "teamMember",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\TeamMemberController@destroy",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:team_members"
+        ]
+      }
+    },
+    "/api/v1/work": {
+      "get": {
+        "tags": [
+          "work"
+        ],
+        "summary": "work.index",
+        "operationId": "work_index_get",
+        "parameters": [],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\WorkController@index",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:jobs"
+        ]
+      },
+      "post": {
+        "tags": [
+          "work"
+        ],
+        "summary": "work.store",
+        "operationId": "work_store_post",
+        "parameters": [],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\WorkController@store",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:jobs"
+        ]
+      }
+    },
+    "/api/v1/work/create/{customer}": {
+      "get": {
+        "tags": [
+          "work"
+        ],
+        "summary": "WorkController@create",
+        "operationId": "WorkController_create_get",
+        "parameters": [
+          {
+            "name": "customer",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\WorkController@create",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:jobs"
+        ]
+      }
+    },
+    "/api/v1/work/{work}": {
+      "get": {
+        "tags": [
+          "work"
+        ],
+        "summary": "work.show",
+        "operationId": "work_show_get",
+        "parameters": [
+          {
+            "name": "work",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\WorkController@show",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:jobs"
+        ]
+      },
+      "put": {
+        "tags": [
+          "work"
+        ],
+        "summary": "work.update",
+        "operationId": "work_update_put",
+        "parameters": [
+          {
+            "name": "work",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\WorkController@update",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:jobs"
+        ]
+      },
+      "patch": {
+        "tags": [
+          "work"
+        ],
+        "summary": "work.update",
+        "operationId": "work_update_patch",
+        "parameters": [
+          {
+            "name": "work",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\WorkController@update",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:jobs"
+        ]
+      },
+      "delete": {
+        "tags": [
+          "work"
+        ],
+        "summary": "work.destroy",
+        "operationId": "work_destroy_delete",
+        "parameters": [
+          {
+            "name": "work",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\WorkController@destroy",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:jobs"
+        ]
+      }
+    },
+    "/api/v1/work/{work}/checklist/{item}": {
+      "patch": {
+        "tags": [
+          "work"
+        ],
+        "summary": "WorkChecklistController@update",
+        "operationId": "WorkChecklistController_update_patch",
+        "parameters": [
+          {
+            "name": "work",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "item",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\WorkChecklistController@update",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:jobs"
+        ]
+      }
+    },
+    "/api/v1/work/{work}/edit": {
+      "get": {
+        "tags": [
+          "work"
+        ],
+        "summary": "WorkController@edit",
+        "operationId": "WorkController_edit_get",
+        "parameters": [
+          {
+            "name": "work",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\WorkController@edit",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:jobs"
+        ]
+      }
+    },
+    "/api/v1/work/{work}/extras": {
+      "post": {
+        "tags": [
+          "work"
+        ],
+        "summary": "WorkController@addExtraQuote",
+        "operationId": "WorkController_addExtraQuote_post",
+        "parameters": [
+          {
+            "name": "work",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\WorkController@addExtraQuote",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:jobs"
+        ]
+      }
+    },
+    "/api/v1/work/{work}/invoice": {
+      "post": {
+        "tags": [
+          "work"
+        ],
+        "summary": "InvoiceController@storeFromWork",
+        "operationId": "InvoiceController_storeFromWork_post",
+        "parameters": [
+          {
+            "name": "work",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\InvoiceController@storeFromWork",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:invoices"
+        ]
+      }
+    },
+    "/api/v1/work/{work}/media": {
+      "post": {
+        "tags": [
+          "work"
+        ],
+        "summary": "WorkMediaController@store",
+        "operationId": "WorkMediaController_store_post",
+        "parameters": [
+          {
+            "name": "work",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\WorkMediaController@store",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:jobs"
+        ]
+      }
+    },
+    "/api/v1/work/{work}/proofs": {
+      "get": {
+        "tags": [
+          "work"
+        ],
+        "summary": "WorkProofController@show",
+        "operationId": "WorkProofController_show_get",
+        "parameters": [
+          {
+            "name": "work",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\WorkProofController@show",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:jobs"
+        ]
+      }
+    },
+    "/api/v1/work/{work}/status": {
+      "post": {
+        "tags": [
+          "work"
+        ],
+        "summary": "WorkController@updateStatus",
+        "operationId": "WorkController_updateStatus_post",
+        "parameters": [
+          {
+            "name": "work",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success"
+          }
+        },
+        "x-action": "App\\Http\\Controllers\\WorkController@updateStatus",
+        "x-middleware": [
+          "api",
+          "Illuminate\\Auth\\Middleware\\Authenticate:sanctum",
+          "App\\Http\\Middleware\\EnsureInternalUser",
+          "App\\Http\\Middleware\\EnsureNotSuspended",
+          "App\\Http\\Middleware\\EnsureOnboardingIsComplete",
+          "App\\Http\\Middleware\\EnsureCompanyFeature:jobs"
+        ]
+      }
+    }
+  }
+}
