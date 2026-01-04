@@ -4,6 +4,7 @@ import axios from 'axios';
 import { usePage } from '@inertiajs/vue3';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingNumberMiniInput from '@/Components/FloatingNumberMiniInput.vue';
+import Modal from '@/Components/UI/Modal.vue';
 
 // Define component props
 const props = defineProps({
@@ -40,6 +41,8 @@ const emits = defineEmits(['update:modelValue', 'update:subtotal']);
 
 const page = usePage();
 const companyType = computed(() => page.props.auth?.account?.company?.type ?? null);
+const companyName = computed(() => page.props.auth?.account?.company?.name || 'Entreprise');
+const companyLogo = computed(() => page.props.auth?.account?.company?.logo_url || null);
 const allowMixed = computed(() => props.allowMixedTypes || props.itemType === 'mixed');
 const defaultItemType = computed(() => {
   if (props.itemType && props.itemType !== 'mixed') {
@@ -57,6 +60,12 @@ const itemTypeOptions = [
   { id: 'product', name: 'Produit' },
   { id: 'service', name: 'Service' },
 ];
+const itemPickerId = 'hs-quote-item-picker';
+const activeLineIndex = ref(null);
+const pickerQuery = ref('');
+const pickerType = ref(defaultItemType.value);
+const pickerLoading = ref(false);
+const pickerError = ref('');
 
 // Local reactive state for product lines
 const normalizeLine = (line = {}) => ({

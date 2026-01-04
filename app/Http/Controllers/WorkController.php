@@ -26,6 +26,7 @@ use Illuminate\Validation\Rule;
 use App\Traits\GeneratesSequentialNumber;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 class WorkController extends Controller
 {
@@ -189,6 +190,36 @@ class WorkController extends Controller
 
         $this->applyQuoteSnapshotToWork($work);
         $lockedFromQuote = (bool) $work->quote_id && $work->relationLoaded('quote') && $work->quote;
+
+        $work->loadMissing([
+            'checklistItems' => fn($query) => $query->orderBy('sort_order'),
+            'media',
+        ]);
+
+        if ($work->relationLoaded('media')) {
+            $mediaPayload = $work->media
+                ->sortByDesc('created_at')
+                ->values()
+                ->map(function ($media) {
+                    $path = $media->path;
+                    $url = $path
+                        ? (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')
+                            ? $path
+                            : Storage::disk('public')->url($path))
+                        : null;
+
+                    return [
+                        'id' => $media->id,
+                        'type' => $media->type,
+                        'path' => $path,
+                        'url' => $url,
+                        'meta' => $media->meta,
+                        'created_at' => $media->created_at,
+                    ];
+                });
+
+            $work->setRelation('media', $mediaPayload);
+        }
 
         return $this->inertiaOrJson('Work/Show', [
             'work' => $work,

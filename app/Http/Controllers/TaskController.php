@@ -12,6 +12,7 @@ use App\Services\UsageLimitService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 
 class TaskController extends Controller
@@ -116,6 +117,104 @@ class TaskController extends Controller
             'canManage' => $canManage,
             'canDelete' => $canDelete,
             'canEditStatus' => $canEditStatus,
+        ]);
+    }
+
+    public function show(Request $request, Task $task)
+    {
+        $this->authorize('view', $task);
+
+        $user = Auth::user();
+        $accountId = $user?->accountOwnerId() ?? Auth::id();
+
+        if ($task->account_id !== $accountId) {
+            abort(404);
+        }
+
+        $membership = $user && $user->id !== $accountId
+            ? $user->teamMembership()->first()
+            : null;
+        $isAdminMember = $membership && $membership->role === 'admin';
+
+        if ($membership && $membership->role !== 'admin' && $task->assigned_team_member_id !== $membership->id) {
+            abort(403);
+        }
+
+        $canManage = $user
+            ? ($user->id === $accountId || ($isAdminMember && $membership->hasPermission('tasks.edit')))
+            : false;
+        $canEditStatus = $user
+            ? ($user->id === $accountId || ($membership && $membership->hasPermission('tasks.edit')))
+            : false;
+        $canDelete = $user
+            ? ($user->id === $accountId || ($isAdminMember && $membership->hasPermission('tasks.delete')))
+            : false;
+
+        $task->load(['assignee.user:id,name', 'materials.product:id,name,unit,price', 'media.user:id,name']);
+
+        if ($task->relationLoaded('media')) {
+            $mediaPayload = $task->media
+                ->sortByDesc('created_at')
+                ->values()
+                ->map(function ($media) {
+                    $path = $media->path;
+                    $url = $path
+                        ? (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')
+                            ? $path
+                            : Storage::disk('public')->url($path))
+                        : null;
+
+                    $source = $media->meta['source'] ?? null;
+                    $uploadedBy = $source === 'client-public' ? null : $media->user?->name;
+
+                    return [
+                        'id' => $media->id,
+                        'type' => $media->type,
+                        'media_type' => $media->media_type,
+                        'path' => $path,
+                        'url' => $url,
+                        'note' => $media->meta['note'] ?? null,
+                        'source' => $source,
+                        'uploaded_by' => $uploadedBy,
+                        'uploaded_at' => $media->created_at,
+                    ];
+                });
+
+            $task->setRelation('media', $mediaPayload);
+        }
+
+        $teamMembers = collect();
+        if ($canManage) {
+            $teamMembers = TeamMember::query()
+                ->forAccount($accountId)
+                ->active()
+                ->with('user:id,name')
+                ->orderBy('created_at')
+                ->get(['id', 'user_id', 'role']);
+        }
+
+        $materialProducts = Product::query()
+            ->products()
+            ->byUser($accountId)
+            ->orderBy('name')
+            ->get(['id', 'name', 'unit', 'price']);
+
+        $works = Work::query()
+            ->byUser($accountId)
+            ->with('customer:id,company_name,first_name,last_name')
+            ->orderByDesc('created_at')
+            ->limit(200)
+            ->get(['id', 'job_title', 'number', 'customer_id', 'status']);
+
+        return $this->inertiaOrJson('Task/Show', [
+            'task' => $task,
+            'statuses' => Task::STATUSES,
+            'teamMembers' => $teamMembers,
+            'materialProducts' => $materialProducts,
+            'works' => $works,
+            'canManage' => $canManage,
+            'canEditStatus' => $canEditStatus,
+            'canDelete' => $canDelete,
         ]);
     }
 
@@ -251,37 +350,37 @@ class TaskController extends Controller
         ];
 
         if ($isManager) {
-                $rules = array_merge($rules, [
-                    'title' => 'required|string|max:255',
-                    'description' => 'nullable|string|max:5000',
-                    'due_date' => 'nullable|date',
-                    'assigned_team_member_id' => [
-                        'nullable',
-                        'integer',
-                        Rule::exists('team_members', 'id')->where('account_id', $accountId),
-                    ],
-                    'customer_id' => [
-                        'nullable',
-                        'integer',
-                        Rule::exists('customers', 'id')->where('user_id', $accountId),
-                    ],
-                    'product_id' => [
-                        'nullable',
-                        'integer',
-                        Rule::exists('products', 'id')->where('user_id', $accountId),
-                    ],
-                    'work_id' => [
-                        Rule::requiredIf(fn() => !$request->boolean('standalone')),
-                        'nullable',
-                        'integer',
-                        Rule::exists('works', 'id')->where('user_id', $accountId),
-                    ],
-                    'standalone' => 'nullable|boolean',
-                    'materials' => 'nullable|array',
-                    'materials.*.id' => 'nullable|integer',
-                    'materials.*.product_id' => [
-                        'nullable',
-                        'integer',
+            $rules = array_merge($rules, [
+                'title' => 'required|string|max:255',
+                'description' => 'nullable|string|max:5000',
+                'due_date' => 'nullable|date',
+                'assigned_team_member_id' => [
+                    'nullable',
+                    'integer',
+                    Rule::exists('team_members', 'id')->where('account_id', $accountId),
+                ],
+                'customer_id' => [
+                    'nullable',
+                    'integer',
+                    Rule::exists('customers', 'id')->where('user_id', $accountId),
+                ],
+                'product_id' => [
+                    'nullable',
+                    'integer',
+                    Rule::exists('products', 'id')->where('user_id', $accountId),
+                ],
+                'work_id' => [
+                    Rule::requiredIf(fn() => !$request->boolean('standalone')),
+                    'nullable',
+                    'integer',
+                    Rule::exists('works', 'id')->where('user_id', $accountId),
+                ],
+                'standalone' => 'nullable|boolean',
+                'materials' => 'nullable|array',
+                'materials.*.id' => 'nullable|integer',
+                'materials.*.product_id' => [
+                    'nullable',
+                    'integer',
                     Rule::exists('products', 'id')->where('user_id', $accountId),
                 ],
                 'materials.*.label' => 'nullable|string|max:255',
