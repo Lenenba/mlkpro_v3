@@ -74,6 +74,17 @@ class PortalRatingController extends Controller
             ));
         }
 
+        if ($this->shouldReturnJson($request)) {
+            return response()->json([
+                'message' => 'Quote rated successfully.',
+                'rating' => [
+                    'id' => $rating->id,
+                    'rating' => $rating->rating,
+                    'feedback' => $rating->feedback,
+                ],
+            ], 201);
+        }
+
         return redirect()->back()->with('success', 'Quote rated successfully.');
     }
 
@@ -123,6 +134,17 @@ class PortalRatingController extends Controller
                 'View job',
                 'Job rating received'
             ));
+        }
+
+        if ($this->shouldReturnJson($request)) {
+            return response()->json([
+                'message' => 'Job rated successfully.',
+                'rating' => [
+                    'id' => $rating->id,
+                    'rating' => $rating->rating,
+                    'feedback' => $rating->feedback,
+                ],
+            ], 201);
         }
 
         return redirect()->back()->with('success', 'Job rated successfully.');

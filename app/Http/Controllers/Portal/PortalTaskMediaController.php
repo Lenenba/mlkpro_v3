@@ -6,9 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Models\Customer;
 use App\Models\Task;
 use App\Models\TaskMedia;
-use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 
 class PortalTaskMediaController extends Controller
@@ -23,10 +23,16 @@ class PortalTaskMediaController extends Controller
         return $customer;
     }
 
-    public function store(Request $request, Task $task): RedirectResponse
+    public function store(Request $request, Task $task)
     {
         $customer = $this->portalCustomer($request);
         if ($customer->auto_validate_tasks) {
+            if ($this->shouldReturnJson($request)) {
+                return response()->json([
+                    'message' => 'Task actions are handled by the company.',
+                ], 422);
+            }
+
             return redirect()->back()->withErrors([
                 'status' => 'Task actions are handled by the company.',
             ]);
@@ -47,6 +53,12 @@ class PortalTaskMediaController extends Controller
 
         $file = $request->file('file');
         if (!$file) {
+            if ($this->shouldReturnJson($request)) {
+                return response()->json([
+                    'message' => 'Upload failed.',
+                ], 422);
+            }
+
             return redirect()->back()->withErrors([
                 'file' => 'Upload failed.',
             ]);
@@ -56,7 +68,7 @@ class PortalTaskMediaController extends Controller
         $mime = $file->getMimeType() ?: '';
         $mediaType = str_starts_with($mime, 'video/') ? 'video' : 'image';
 
-        TaskMedia::create([
+        $media = TaskMedia::create([
             'task_id' => $task->id,
             'user_id' => Auth::id(),
             'type' => $validated['type'],
@@ -67,6 +79,19 @@ class PortalTaskMediaController extends Controller
                 'source' => 'client',
             ],
         ]);
+
+        if ($this->shouldReturnJson($request)) {
+            return response()->json([
+                'message' => 'Proof uploaded successfully.',
+                'media' => [
+                    'id' => $media->id,
+                    'type' => $media->type,
+                    'media_type' => $media->media_type,
+                    'url' => Storage::disk('public')->url($media->path),
+                    'note' => $media->meta['note'] ?? null,
+                ],
+            ], 201);
+        }
 
         return redirect()->back()->with('success', 'Proof uploaded successfully.');
     }

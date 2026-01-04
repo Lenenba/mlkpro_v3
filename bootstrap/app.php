@@ -1,8 +1,11 @@
 <?php
 
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\Request;
+use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -27,5 +30,33 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
-        //
+        $redirectForbidden = function (Request $request, ?string $message = null) {
+            if ($request->is('api/*') || $request->expectsJson()) {
+                return null;
+            }
+
+            $fallbackMessage = 'Acces refuse. Vous n\'avez pas les permissions necessaires.';
+            $message = $message && !in_array($message, ['This action is unauthorized.', 'Forbidden'], true)
+                ? $message
+                : $fallbackMessage;
+
+            $previous = url()->previous();
+            $current = $request->fullUrl();
+            $fallback = route('dashboard');
+            $target = $previous && $previous !== $current ? $previous : $fallback;
+
+            return redirect()->to($target)->with('warning', $message);
+        };
+
+        $exceptions->renderable(function (AuthorizationException $exception, Request $request) use ($redirectForbidden) {
+            return $redirectForbidden($request, $exception->getMessage());
+        });
+
+        $exceptions->renderable(function (HttpExceptionInterface $exception, Request $request) use ($redirectForbidden) {
+            if ($exception->getStatusCode() !== 403) {
+                return null;
+            }
+
+            return $redirectForbidden($request, $exception->getMessage());
+        });
     })->create();

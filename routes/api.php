@@ -25,10 +25,17 @@ use App\Http\Controllers\TaskController;
 use App\Http\Controllers\TaskMediaController;
 use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\PaymentController;
+use App\Http\Controllers\Portal\PortalInvoiceController;
+use App\Http\Controllers\Portal\PortalQuoteController;
+use App\Http\Controllers\Portal\PortalRatingController;
+use App\Http\Controllers\Portal\PortalTaskMediaController;
+use App\Http\Controllers\Portal\PortalWorkController;
+use App\Http\Controllers\Portal\PortalWorkProofController;
 use App\Http\Controllers\Settings\CompanySettingsController;
 use App\Http\Controllers\Settings\BillingSettingsController;
 use App\Http\Controllers\Settings\ProductCategoryController;
 use App\Http\Controllers\Settings\SubscriptionController;
+use App\Http\Middleware\EnsureClientUser;
 use App\Http\Middleware\EnsureInternalUser;
 use App\Http\Middleware\EnsureNotSuspended;
 use App\Http\Middleware\EnsureOnboardingIsComplete;
@@ -36,13 +43,37 @@ use App\Http\Middleware\EnsureOnboardingIsComplete;
 Route::name('api.')->group(function () {
     Route::prefix('auth')->group(function () {
         Route::post('login', [AuthController::class, 'login']);
+        Route::post('register', [AuthController::class, 'register']);
+        Route::post('forgot-password', [AuthController::class, 'forgotPassword']);
+        Route::post('reset-password', [AuthController::class, 'resetPassword']);
     });
 
-    Route::middleware(['auth:sanctum', EnsureInternalUser::class, EnsureNotSuspended::class])->group(function () {
+    Route::middleware(['auth:sanctum', EnsureNotSuspended::class])->group(function () {
         Route::prefix('auth')->group(function () {
             Route::get('me', [AuthController::class, 'me']);
             Route::post('logout', [AuthController::class, 'logout']);
+            Route::post('verify/resend', [AuthController::class, 'resendVerification']);
         });
+    });
+
+    Route::middleware(['auth:sanctum', EnsureClientUser::class, EnsureNotSuspended::class])
+        ->prefix('portal')
+        ->group(function () {
+            Route::get('dashboard', [DashboardController::class, 'index']);
+            Route::post('quotes/{quote}/accept', [PortalQuoteController::class, 'accept']);
+            Route::post('quotes/{quote}/decline', [PortalQuoteController::class, 'decline']);
+            Route::post('works/{work}/validate', [PortalWorkController::class, 'validateWork']);
+            Route::post('works/{work}/schedule/confirm', [PortalWorkController::class, 'confirmSchedule']);
+            Route::post('works/{work}/schedule/reject', [PortalWorkController::class, 'rejectSchedule']);
+            Route::post('works/{work}/dispute', [PortalWorkController::class, 'dispute']);
+            Route::get('works/{work}/proofs', [PortalWorkProofController::class, 'show']);
+            Route::post('tasks/{task}/media', [PortalTaskMediaController::class, 'store']);
+            Route::post('invoices/{invoice}/payments', [PortalInvoiceController::class, 'storePayment']);
+            Route::post('quotes/{quote}/ratings', [PortalRatingController::class, 'storeQuote']);
+            Route::post('works/{work}/ratings', [PortalRatingController::class, 'storeWork']);
+        });
+
+    Route::middleware(['auth:sanctum', EnsureInternalUser::class, EnsureNotSuspended::class])->group(function () {
 
         Route::get('onboarding', [OnboardingController::class, 'index']);
         Route::post('onboarding', [OnboardingController::class, 'store']);
