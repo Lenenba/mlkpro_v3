@@ -16,6 +16,15 @@ class QuoteEmaillingController extends Controller
         }
 
         if ($quote->isArchived()) {
+            if ($this->shouldReturnJson()) {
+                return response()->json([
+                    'message' => 'Archived quotes cannot be sent.',
+                    'errors' => [
+                        'status' => ['Archived quotes cannot be sent.'],
+                    ],
+                ], 422);
+            }
+
             return redirect()->back()->withErrors([
                 'status' => 'Archived quotes cannot be sent.',
             ]);
@@ -24,6 +33,12 @@ class QuoteEmaillingController extends Controller
         $quote->load(['customer.user', 'property', 'products', 'taxes.tax']);
 
         if (!$quote->customer || !$quote->customer->email) {
+            if ($this->shouldReturnJson()) {
+                return response()->json([
+                    'message' => 'Customer email address is not available.',
+                ], 422);
+            }
+
             return redirect()->back()->with('error', 'Customer email address is not available.');
         }
 
@@ -40,6 +55,13 @@ class QuoteEmaillingController extends Controller
                 'from' => $previousStatus,
                 'to' => 'sent',
             ], 'Quote status updated');
+        }
+
+        if ($this->shouldReturnJson()) {
+            return response()->json([
+                'message' => 'Quote sent successfully to ' . $quote->customer->email,
+                'quote' => $quote->fresh(),
+            ]);
         }
 
         return redirect()->back()->with('success', 'Quote sent successfully to ' . $quote->customer->email);

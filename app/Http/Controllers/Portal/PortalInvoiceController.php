@@ -28,6 +28,12 @@ class PortalInvoiceController extends Controller
     {
         $customer = $this->portalCustomer($request);
         if ($customer->auto_validate_invoices) {
+            if ($this->shouldReturnJson($request)) {
+                return response()->json([
+                    'message' => 'Invoice actions are handled by the company.',
+                ], 422);
+            }
+
             return redirect()->back()->withErrors([
                 'status' => 'Invoice actions are handled by the company.',
             ]);
@@ -94,6 +100,24 @@ class PortalInvoiceController extends Controller
                 'View invoice',
                 'Payment received from client'
             ));
+        }
+
+        if ($this->shouldReturnJson($request)) {
+            return response()->json([
+                'message' => 'Payment recorded successfully.',
+                'invoice' => [
+                    'id' => $invoice->id,
+                    'status' => $invoice->status,
+                    'total' => $invoice->total,
+                    'balance_due' => $invoice->balance_due,
+                ],
+                'payment' => [
+                    'id' => $payment->id,
+                    'amount' => $payment->amount,
+                    'method' => $payment->method,
+                    'paid_at' => $payment->paid_at,
+                ],
+            ]);
         }
 
         return redirect()->back()->with('success', 'Payment recorded successfully.');

@@ -7,7 +7,6 @@ use App\Models\Customer;
 use App\Models\Quote;
 use App\Models\Request as LeadRequest;
 use App\Services\UsageLimitService;
-use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
@@ -113,7 +112,7 @@ class RequestController extends Controller
             ['id' => LeadRequest::STATUS_CONVERTED, 'name' => 'Converted'],
         ];
 
-        return inertia('Request/Index', [
+        return $this->inertiaOrJson('Request/Index', [
             'requests' => $requests,
             'filters' => $filters,
             'stats' => $stats,
@@ -125,7 +124,7 @@ class RequestController extends Controller
     /**
      * Store a new lead request.
      */
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request)
     {
         $user = $request->user();
         $accountId = $user?->accountOwnerId() ?? Auth::id();
@@ -174,13 +173,20 @@ class RequestController extends Controller
             'service_type' => $lead->service_type,
         ], 'Request created');
 
+        if ($this->shouldReturnJson($request)) {
+            return response()->json([
+                'message' => 'Request created successfully.',
+                'request' => $lead,
+            ], 201);
+        }
+
         return redirect()->back()->with('success', 'Request created successfully.');
     }
 
     /**
      * Convert a request into a draft quote.
      */
-    public function convert(Request $request, LeadRequest $lead): RedirectResponse
+    public function convert(Request $request, LeadRequest $lead)
     {
         $user = $request->user();
         $accountId = $user?->accountOwnerId() ?? Auth::id();
@@ -198,6 +204,15 @@ class RequestController extends Controller
         $customer = Customer::byUser($accountId)->findOrFail($validated['customer_id']);
         $propertyId = $validated['property_id'] ?? null;
         if ($propertyId && !$customer->properties()->whereKey($propertyId)->exists()) {
+            if ($this->shouldReturnJson($request)) {
+                return response()->json([
+                    'message' => 'Validation error.',
+                    'errors' => [
+                        'property_id' => ['Invalid property for this customer.'],
+                    ],
+                ], 422);
+            }
+
             return redirect()->back()->withErrors(['property_id' => 'Invalid property for this customer.']);
         }
         $jobTitle = $validated['job_title'] ?? $lead->title ?? $lead->service_type ?? 'New Quote';
@@ -231,10 +246,18 @@ class RequestController extends Controller
             'customer_id' => $quote->customer_id,
         ], 'Quote created from request');
 
+        if ($this->shouldReturnJson($request)) {
+            return response()->json([
+                'message' => 'Request converted to quote.',
+                'quote' => $quote,
+                'request' => $lead->fresh(),
+            ]);
+        }
+
         return redirect()->route('customer.quote.edit', $quote)->with('success', 'Request converted to quote.');
     }
 
-    public function destroy(Request $request, LeadRequest $lead): RedirectResponse
+    public function destroy(Request $request, LeadRequest $lead)
     {
         $user = $request->user();
         $accountId = $user?->accountOwnerId() ?? Auth::id();
@@ -252,6 +275,12 @@ class RequestController extends Controller
         ], 'Request deleted');
 
         $lead->delete();
+
+        if ($this->shouldReturnJson($request)) {
+            return response()->json([
+                'message' => 'Request deleted.',
+            ]);
+        }
 
         return redirect()->back()->with('success', 'Request deleted.');
     }

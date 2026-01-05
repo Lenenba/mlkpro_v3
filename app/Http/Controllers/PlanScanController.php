@@ -14,7 +14,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
-use Inertia\Inertia;
 
 class PlanScanController extends Controller
 {
@@ -43,7 +42,7 @@ class PlanScanController extends Controller
             'failed' => (clone $baseQuery)->where('status', PlanScanService::STATUS_FAILED)->count(),
         ];
 
-        return Inertia::render('PlanScan/Index', [
+        return $this->inertiaOrJson('PlanScan/Index', [
             'scans' => $scans,
             'stats' => $stats,
         ]);
@@ -90,7 +89,7 @@ class PlanScanController extends Controller
             })
             ->values();
 
-        return Inertia::render('PlanScan/Create', [
+        return $this->inertiaOrJson('PlanScan/Create', [
             'customers' => $customers,
             'tradeOptions' => $service->tradeOptions(),
             'priorityOptions' => $service->priorityOptions(),
@@ -124,12 +123,30 @@ class PlanScanController extends Controller
         $propertyId = $validated['property_id'] ?? null;
 
         if ($propertyId && !$customerId) {
+            if ($this->shouldReturnJson($request)) {
+                return response()->json([
+                    'message' => 'Validation error.',
+                    'errors' => [
+                        'property_id' => ['Select a customer first.'],
+                    ],
+                ], 422);
+            }
+
             return back()->withErrors(['property_id' => 'Select a customer first.']);
         }
 
         if ($customerId) {
             $customer = Customer::byUser($accountId)->findOrFail($customerId);
             if ($propertyId && !$customer->properties()->whereKey($propertyId)->exists()) {
+                if ($this->shouldReturnJson($request)) {
+                    return response()->json([
+                        'message' => 'Validation error.',
+                        'errors' => [
+                            'property_id' => ['Invalid property for this customer.'],
+                        ],
+                    ], 422);
+                }
+
                 return back()->withErrors(['property_id' => 'Invalid property for this customer.']);
             }
         }
@@ -176,9 +193,23 @@ class PlanScanController extends Controller
                 'error_message' => $exception->getMessage(),
             ]);
 
+            if ($this->shouldReturnJson($request)) {
+                return response()->json([
+                    'message' => 'Plan scan failed. Please try again.',
+                    'scan' => $scan->fresh(),
+                ], 500);
+            }
+
             return redirect()
                 ->route('plan-scans.show', $scan)
                 ->with('error', 'Plan scan failed. Please try again.');
+        }
+
+        if ($this->shouldReturnJson($request)) {
+            return response()->json([
+                'message' => 'Plan scan ready.',
+                'scan' => $scan->fresh(),
+            ], 201);
         }
 
         return redirect()
@@ -227,7 +258,7 @@ class PlanScanController extends Controller
             })
             ->values();
 
-        return Inertia::render('PlanScan/Show', [
+        return $this->inertiaOrJson('PlanScan/Show', [
             'scan' => $planScan->load(['customer', 'property']),
             'customers' => $customers,
         ]);
@@ -243,6 +274,15 @@ class PlanScanController extends Controller
         }
 
         if ($planScan->status !== PlanScanService::STATUS_READY) {
+            if ($this->shouldReturnJson($request)) {
+                return response()->json([
+                    'message' => 'Plan scan is not ready yet.',
+                    'errors' => [
+                        'status' => ['Plan scan is not ready yet.'],
+                    ],
+                ], 422);
+            }
+
             return back()->withErrors(['status' => 'Plan scan is not ready yet.']);
         }
 
@@ -256,16 +296,43 @@ class PlanScanController extends Controller
         $propertyId = $planScan->property_id ?? $validated['property_id'] ?? null;
 
         if (!$customerId) {
+            if ($this->shouldReturnJson($request)) {
+                return response()->json([
+                    'message' => 'Validation error.',
+                    'errors' => [
+                        'customer_id' => ['Select a customer to create the quote.'],
+                    ],
+                ], 422);
+            }
+
             return back()->withErrors(['customer_id' => 'Select a customer to create the quote.']);
         }
 
         $customer = Customer::byUser($accountId)->findOrFail($customerId);
         if ($propertyId && !$customer->properties()->whereKey($propertyId)->exists()) {
+            if ($this->shouldReturnJson($request)) {
+                return response()->json([
+                    'message' => 'Validation error.',
+                    'errors' => [
+                        'property_id' => ['Invalid property for this customer.'],
+                    ],
+                ], 422);
+            }
+
             return back()->withErrors(['property_id' => 'Invalid property for this customer.']);
         }
 
         $variant = collect($planScan->variants ?? [])->firstWhere('key', $validated['variant']);
         if (!$variant) {
+            if ($this->shouldReturnJson($request)) {
+                return response()->json([
+                    'message' => 'Validation error.',
+                    'errors' => [
+                        'variant' => ['Variant not available.'],
+                    ],
+                ], 422);
+            }
+
             return back()->withErrors(['variant' => 'Variant not available.']);
         }
 
@@ -350,6 +417,14 @@ class PlanScanController extends Controller
             'quote_id' => $quote?->id,
             'variant' => $validated['variant'],
         ], 'Plan scan converted to quote');
+
+        if ($this->shouldReturnJson($request)) {
+            return response()->json([
+                'message' => 'Quote created from plan scan.',
+                'quote' => $quote->fresh(['products', 'customer']),
+                'plan_scan' => $planScan->fresh(),
+            ]);
+        }
 
         return redirect()
             ->route('customer.quote.edit', $quote)

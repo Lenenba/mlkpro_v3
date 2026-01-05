@@ -153,7 +153,16 @@ class UsageLimitService
             }
         }
 
-        return array_key_exists('free', $planLimits) ? 'free' : null;
+        if (array_key_exists('free', $planLimits)) {
+            return 'free';
+        }
+
+        $plans = config('billing.plans', []);
+        if (array_key_exists('free', $plans)) {
+            return 'free';
+        }
+
+        return null;
     }
 
     private function resolveUsageStats(User $accountOwner): array

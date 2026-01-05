@@ -32,6 +32,7 @@ class EnsureOnboardingIsComplete
 
         $route = $request->route();
         if ($route?->named('onboarding.*')
+            || $route?->named('api.onboarding.*')
             || $route?->named('logout')
             || $route?->named('verification.*')
             || $route?->named('password.*')
@@ -41,6 +42,13 @@ class EnsureOnboardingIsComplete
 
         if ($user->onboarding_completed_at) {
             return $next($request);
+        }
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'message' => 'Onboarding required.',
+                'onboarding_required' => true,
+            ], 409);
         }
 
         return redirect()->route('onboarding.index');

@@ -36,16 +36,38 @@ class PortalQuoteController extends Controller
         }
 
         if ($quote->isArchived()) {
+            if ($this->shouldReturnJson($request)) {
+                return response()->json([
+                    'message' => 'Archived quotes cannot be accepted.',
+                ], 422);
+            }
+
             return redirect()->back()->withErrors([
                 'status' => 'Archived quotes cannot be accepted.',
             ]);
         }
 
         if ($quote->status === 'accepted') {
+            if ($this->shouldReturnJson($request)) {
+                return response()->json([
+                    'message' => 'Quote already accepted.',
+                    'quote' => [
+                        'id' => $quote->id,
+                        'status' => $quote->status,
+                    ],
+                ]);
+            }
+
             return redirect()->back()->with('success', 'Quote already accepted.');
         }
 
         if ($quote->status === 'declined') {
+            if ($this->shouldReturnJson($request)) {
+                return response()->json([
+                    'message' => 'Quote already declined.',
+                ], 422);
+            }
+
             return redirect()->back()->withErrors([
                 'status' => 'Quote already declined.',
             ]);
@@ -62,6 +84,12 @@ class PortalQuoteController extends Controller
         $depositAmount = (float) ($validated['deposit_amount'] ?? $requiredDeposit);
 
         if ($requiredDeposit > 0 && $depositAmount < $requiredDeposit) {
+            if ($this->shouldReturnJson($request)) {
+                return response()->json([
+                    'message' => 'Deposit is below the required amount.',
+                ], 422);
+            }
+
             return redirect()->back()->withErrors([
                 'deposit_amount' => 'Deposit is below the required amount.',
             ]);
@@ -175,6 +203,23 @@ class PortalQuoteController extends Controller
             ));
         }
 
+        if ($this->shouldReturnJson($request)) {
+            $quote->refresh();
+
+            return response()->json([
+                'message' => 'Quote accepted.',
+                'quote' => [
+                    'id' => $quote->id,
+                    'status' => $quote->status,
+                    'accepted_at' => $quote->accepted_at,
+                ],
+                'work' => $work ? [
+                    'id' => $work->id,
+                    'status' => $work->status,
+                ] : null,
+            ]);
+        }
+
         return redirect()->back()->with('success', 'Quote accepted.');
     }
 
@@ -186,16 +231,38 @@ class PortalQuoteController extends Controller
         }
 
         if ($quote->isArchived()) {
+            if ($this->shouldReturnJson($request)) {
+                return response()->json([
+                    'message' => 'Archived quotes cannot be declined.',
+                ], 422);
+            }
+
             return redirect()->back()->withErrors([
                 'status' => 'Archived quotes cannot be declined.',
             ]);
         }
 
         if ($quote->status === 'declined') {
+            if ($this->shouldReturnJson($request)) {
+                return response()->json([
+                    'message' => 'Quote already declined.',
+                    'quote' => [
+                        'id' => $quote->id,
+                        'status' => $quote->status,
+                    ],
+                ]);
+            }
+
             return redirect()->back()->with('success', 'Quote already declined.');
         }
 
         if ($quote->status === 'accepted') {
+            if ($this->shouldReturnJson($request)) {
+                return response()->json([
+                    'message' => 'Quote already accepted.',
+                ], 422);
+            }
+
             return redirect()->back()->withErrors([
                 'status' => 'Quote already accepted.',
             ]);
@@ -228,6 +295,19 @@ class PortalQuoteController extends Controller
                 'View quote',
                 'Quote declined by client'
             ));
+        }
+
+        if ($this->shouldReturnJson($request)) {
+            $quote->refresh();
+
+            return response()->json([
+                'message' => 'Quote declined.',
+                'quote' => [
+                    'id' => $quote->id,
+                    'status' => $quote->status,
+                    'accepted_at' => $quote->accepted_at,
+                ],
+            ]);
         }
 
         return redirect()->back()->with('success', 'Quote declined.');

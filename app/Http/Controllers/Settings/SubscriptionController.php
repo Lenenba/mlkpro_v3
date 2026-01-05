@@ -5,17 +5,15 @@ namespace App\Http\Controllers\Settings;
 use App\Http\Controllers\Controller;
 use App\Services\PlatformAdminNotifier;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Laravel\Paddle\Subscription;
-use Symfony\Component\HttpFoundation\Response;
 
 class SubscriptionController extends Controller
 {
-    public function portal(Request $request): Response
+    public function portal(Request $request)
     {
         $user = $request->user();
         if (!$user || !$user->isAccountOwner()) {
@@ -24,10 +22,22 @@ class SubscriptionController extends Controller
 
         $subscription = $user->subscription(Subscription::DEFAULT_TYPE);
         if (!$subscription) {
+            if ($this->shouldReturnJson($request)) {
+                return response()->json([
+                    'message' => 'No active subscription found.',
+                ], 422);
+            }
+
             return redirect()->back()->with('error', 'No active subscription found.');
         }
 
         $updateUrl = $subscription->paymentMethodUpdateUrl();
+
+        if ($this->shouldReturnJson($request)) {
+            return response()->json([
+                'url' => $updateUrl,
+            ]);
+        }
 
         if ($request->header('X-Inertia')) {
             return Inertia::location($updateUrl);
@@ -75,7 +85,7 @@ class SubscriptionController extends Controller
         ]);
     }
 
-    public function swap(Request $request): RedirectResponse
+    public function swap(Request $request)
     {
         $user = $request->user();
         if (!$user || !$user->isAccountOwner()) {
@@ -89,6 +99,15 @@ class SubscriptionController extends Controller
 
         $priceIds = $plans->pluck('price_id')->filter()->values()->all();
         if (!$priceIds) {
+            if ($this->shouldReturnJson($request)) {
+                return response()->json([
+                    'message' => 'No subscription plans are configured.',
+                    'errors' => [
+                        'price_id' => ['No subscription plans are configured.'],
+                    ],
+                ], 422);
+            }
+
             return redirect()->back()->withErrors([
                 'price_id' => 'No subscription plans are configured.',
             ]);
@@ -100,6 +119,15 @@ class SubscriptionController extends Controller
 
         $subscription = $user->subscription(Subscription::DEFAULT_TYPE);
         if (!$subscription || !$subscription->active()) {
+            if ($this->shouldReturnJson($request)) {
+                return response()->json([
+                    'message' => 'You do not have an active subscription.',
+                    'errors' => [
+                        'price_id' => ['You do not have an active subscription.'],
+                    ],
+                ], 422);
+            }
+
             return redirect()->back()->withErrors([
                 'price_id' => 'You do not have an active subscription.',
             ]);
@@ -107,6 +135,12 @@ class SubscriptionController extends Controller
 
         $currentPriceId = $subscription->items()->value('price_id');
         if ($currentPriceId === $validated['price_id']) {
+            if ($this->shouldReturnJson($request)) {
+                return response()->json([
+                    'message' => 'You are already on this plan.',
+                ]);
+            }
+
             return redirect()->back()->with('info', 'You are already on this plan.');
         }
 
@@ -116,6 +150,12 @@ class SubscriptionController extends Controller
         try {
             $subscription->swap($validated['price_id']);
         } catch (\Throwable $exception) {
+            if ($this->shouldReturnJson($request)) {
+                return response()->json([
+                    'message' => 'Unable to change plans right now.',
+                ], 500);
+            }
+
             return redirect()->back()->with('error', 'Unable to change plans right now.');
         }
 
@@ -133,6 +173,13 @@ class SubscriptionController extends Controller
             'reference' => 'plan:' . $user->id . ':' . $currentPriceId . ':' . $validated['price_id'],
             'severity' => 'info',
         ]);
+
+        if ($this->shouldReturnJson($request)) {
+            return response()->json([
+                'message' => 'Plan updated.',
+                'plan_key' => $planKey,
+            ]);
+        }
 
         return redirect()->route('settings.billing.edit', array_filter([
             'checkout' => 'swapped',

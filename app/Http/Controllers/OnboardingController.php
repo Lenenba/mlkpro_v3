@@ -8,14 +8,11 @@ use App\Models\User;
 use App\Models\ProductCategory;
 use App\Notifications\WelcomeEmailNotification;
 use App\Services\PlatformAdminNotifier;
-use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
-use Inertia\Inertia;
-use Inertia\Response;
 
 class OnboardingController extends Controller
 {
@@ -32,17 +29,17 @@ class OnboardingController extends Controller
         'autre' => ['Installation', 'Entretien', 'Reparation', 'Conseil', 'Autres'],
     ];
 
-    public function index(Request $request): Response
+    public function index(Request $request)
     {
         $user = $request->user();
         if (!$user) {
-            return Inertia::render('Onboarding/Index', [
+            return $this->inertiaOrJson('Onboarding/Index', [
                 'preset' => (object) [],
             ]);
         }
 
         if (!$user->isAccountOwner()) {
-            return Inertia::render('Onboarding/PendingOwner');
+            return $this->inertiaOrJson('Onboarding/PendingOwner', []);
         }
 
         $companyLogo = null;
@@ -53,7 +50,7 @@ class OnboardingController extends Controller
                 : Storage::disk('public')->url($path);
         }
 
-        return Inertia::render('Onboarding/Index', [
+        return $this->inertiaOrJson('Onboarding/Index', [
             'preset' => [
                 'company_name' => $user->company_name,
                 'company_logo' => $companyLogo,
@@ -68,7 +65,7 @@ class OnboardingController extends Controller
         ]);
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request)
     {
         $creator = $request->user();
         if (!$creator) {
@@ -76,6 +73,12 @@ class OnboardingController extends Controller
         }
 
         if (!$creator->isAccountOwner()) {
+            if ($this->shouldReturnJson($request)) {
+                return response()->json([
+                    'message' => 'Only the account owner can complete onboarding.',
+                ], 403);
+            }
+
             return redirect()->route('dashboard')->with('error', 'Only the account owner can complete onboarding.');
         }
 
@@ -183,6 +186,13 @@ class OnboardingController extends Controller
                 'actionLabel' => 'View tenant',
                 'reference' => 'onboarding:' . $accountOwner->id,
                 'severity' => 'success',
+            ]);
+        }
+
+        if ($this->shouldReturnJson($request)) {
+            return response()->json([
+                'message' => implode(' ', $messageParts),
+                'user' => $accountOwner->fresh(),
             ]);
         }
 

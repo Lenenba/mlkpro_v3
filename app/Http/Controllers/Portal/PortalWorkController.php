@@ -37,11 +37,27 @@ class PortalWorkController extends Controller
         }
 
         if (in_array($work->status, [Work::STATUS_VALIDATED, Work::STATUS_AUTO_VALIDATED], true)) {
+            if ($this->shouldReturnJson($request)) {
+                return response()->json([
+                    'message' => 'Job already validated.',
+                    'work' => [
+                        'id' => $work->id,
+                        'status' => $work->status,
+                    ],
+                ]);
+            }
+
             return redirect()->back()->with('success', 'Job already validated.');
         }
 
         $allowed = [Work::STATUS_PENDING_REVIEW, Work::STATUS_TECH_COMPLETE];
         if (!in_array($work->status, $allowed, true)) {
+            if ($this->shouldReturnJson($request)) {
+                return response()->json([
+                    'message' => 'This job is not ready for validation.',
+                ], 422);
+            }
+
             return redirect()->back()->withErrors([
                 'status' => 'This job is not ready for validation.',
             ]);
@@ -80,6 +96,18 @@ class PortalWorkController extends Controller
             ));
         }
 
+        if ($this->shouldReturnJson($request)) {
+            $work->refresh();
+
+            return response()->json([
+                'message' => 'Job validated.',
+                'work' => [
+                    'id' => $work->id,
+                    'status' => $work->status,
+                ],
+            ]);
+        }
+
         return redirect()->back()->with('success', 'Job validated.');
     }
 
@@ -91,11 +119,27 @@ class PortalWorkController extends Controller
         }
 
         if ($work->status === Work::STATUS_DISPUTE) {
+            if ($this->shouldReturnJson($request)) {
+                return response()->json([
+                    'message' => 'Job already marked as dispute.',
+                    'work' => [
+                        'id' => $work->id,
+                        'status' => $work->status,
+                    ],
+                ]);
+            }
+
             return redirect()->back()->with('success', 'Job already marked as dispute.');
         }
 
         $allowed = [Work::STATUS_PENDING_REVIEW, Work::STATUS_TECH_COMPLETE];
         if (!in_array($work->status, $allowed, true)) {
+            if ($this->shouldReturnJson($request)) {
+                return response()->json([
+                    'message' => 'This job cannot be disputed right now.',
+                ], 422);
+            }
+
             return redirect()->back()->withErrors([
                 'status' => 'This job cannot be disputed right now.',
             ]);
@@ -129,6 +173,18 @@ class PortalWorkController extends Controller
             ));
         }
 
+        if ($this->shouldReturnJson($request)) {
+            $work->refresh();
+
+            return response()->json([
+                'message' => 'Job marked as dispute.',
+                'work' => [
+                    'id' => $work->id,
+                    'status' => $work->status,
+                ],
+            ]);
+        }
+
         return redirect()->back()->with('success', 'Job marked as dispute.');
     }
 
@@ -140,6 +196,12 @@ class PortalWorkController extends Controller
         }
 
         if ($work->status === Work::STATUS_CANCELLED) {
+            if ($this->shouldReturnJson($request)) {
+                return response()->json([
+                    'message' => 'This job cannot be scheduled.',
+                ], 422);
+            }
+
             return redirect()->back()->withErrors([
                 'status' => 'This job cannot be scheduled.',
             ]);
@@ -155,6 +217,12 @@ class PortalWorkController extends Controller
         }
 
         if (!$assigneeIds) {
+            if ($this->shouldReturnJson($request)) {
+                return response()->json([
+                    'message' => 'Add at least one team member before confirming the schedule.',
+                ], 422);
+            }
+
             return redirect()->back()->withErrors([
                 'schedule' => 'Add at least one team member before confirming the schedule.',
             ]);
@@ -170,6 +238,13 @@ class PortalWorkController extends Controller
         }
 
         if ($pendingCount === 0) {
+            if ($this->shouldReturnJson($request)) {
+                return response()->json([
+                    'message' => 'Planning deja confirme.',
+                    'tasks_created' => 0,
+                ]);
+            }
+
             return redirect()->back()->with('success', 'Planning deja confirme.');
         }
 
@@ -189,18 +264,42 @@ class PortalWorkController extends Controller
                 'tasks_planned' => $pendingCount,
             ], 'Schedule queued by client');
 
+            if ($this->shouldReturnJson($request)) {
+                return response()->json([
+                    'message' => 'Planning en cours. Les taches seront creees sous peu.',
+                    'queued' => true,
+                    'tasks_planned' => $pendingCount,
+                ]);
+            }
+
             return redirect()->back()->with('success', 'Planning en cours. Les taches seront creees sous peu.');
         }
 
         try {
             $createdCount = $scheduleService->generateTasksForDates($work, $pendingDates, $request->user()?->id);
         } catch (ValidationException $exception) {
+            if ($this->shouldReturnJson($request)) {
+                return response()->json([
+                    'message' => 'Validation error.',
+                    'errors' => $exception->errors(),
+                ], 422);
+            }
+
             return redirect()->back()->withErrors($exception->errors());
         }
 
         ActivityLog::record($request->user(), $work, 'schedule_confirmed', [
             'tasks_created' => $createdCount,
         ], 'Schedule confirmed by client');
+
+        if ($this->shouldReturnJson($request)) {
+            return response()->json([
+                'message' => $createdCount > 0
+                    ? 'Planning confirme, les taches ont ete creees.'
+                    : 'Planning deja confirme.',
+                'tasks_created' => $createdCount,
+            ]);
+        }
 
         return redirect()->back()->with('success', $createdCount > 0
             ? 'Planning confirme, les taches ont ete creees.'
@@ -215,12 +314,24 @@ class PortalWorkController extends Controller
         }
 
         if ($work->status === Work::STATUS_CANCELLED) {
+            if ($this->shouldReturnJson($request)) {
+                return response()->json([
+                    'message' => 'This job cannot be updated right now.',
+                ], 422);
+            }
+
             return redirect()->back()->withErrors([
                 'status' => 'This job cannot be updated right now.',
             ]);
         }
 
         if ($work->tasks()->exists()) {
+            if ($this->shouldReturnJson($request)) {
+                return response()->json([
+                    'message' => 'This schedule has already been confirmed.',
+                ], 422);
+            }
+
             return redirect()->back()->withErrors([
                 'schedule' => 'This schedule has already been confirmed.',
             ]);
@@ -252,6 +363,18 @@ class PortalWorkController extends Controller
                 'Review schedule',
                 'Schedule rejected by client'
             ));
+        }
+
+        if ($this->shouldReturnJson($request)) {
+            $work->refresh();
+
+            return response()->json([
+                'message' => 'Schedule sent back for updates.',
+                'work' => [
+                    'id' => $work->id,
+                    'status' => $work->status,
+                ],
+            ]);
         }
 
         return redirect()->back()->with('success', 'Schedule sent back for updates.');

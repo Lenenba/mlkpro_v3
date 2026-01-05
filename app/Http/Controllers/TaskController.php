@@ -9,10 +9,10 @@ use App\Models\TaskMaterial;
 use App\Models\TeamMember;
 use App\Models\Work;
 use App\Services\UsageLimitService;
-use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 
 class TaskController extends Controller
@@ -104,7 +104,7 @@ class TaskController extends Controller
             ->limit(200)
             ->get(['id', 'job_title', 'number', 'customer_id', 'status']);
 
-        return inertia('Task/Index', [
+        return $this->inertiaOrJson('Task/Index', [
             'tasks' => $tasks,
             'filters' => $filters,
             'statuses' => Task::STATUSES,
@@ -120,7 +120,105 @@ class TaskController extends Controller
         ]);
     }
 
-    public function store(Request $request): RedirectResponse
+    public function show(Request $request, Task $task)
+    {
+        $this->authorize('view', $task);
+
+        $user = Auth::user();
+        $accountId = $user?->accountOwnerId() ?? Auth::id();
+
+        if ($task->account_id !== $accountId) {
+            abort(404);
+        }
+
+        $membership = $user && $user->id !== $accountId
+            ? $user->teamMembership()->first()
+            : null;
+        $isAdminMember = $membership && $membership->role === 'admin';
+
+        if ($membership && $membership->role !== 'admin' && $task->assigned_team_member_id !== $membership->id) {
+            abort(403);
+        }
+
+        $canManage = $user
+            ? ($user->id === $accountId || ($isAdminMember && $membership->hasPermission('tasks.edit')))
+            : false;
+        $canEditStatus = $user
+            ? ($user->id === $accountId || ($membership && $membership->hasPermission('tasks.edit')))
+            : false;
+        $canDelete = $user
+            ? ($user->id === $accountId || ($isAdminMember && $membership->hasPermission('tasks.delete')))
+            : false;
+
+        $task->load(['assignee.user:id,name', 'materials.product:id,name,unit,price', 'media.user:id,name']);
+
+        if ($task->relationLoaded('media')) {
+            $mediaPayload = $task->media
+                ->sortByDesc('created_at')
+                ->values()
+                ->map(function ($media) {
+                    $path = $media->path;
+                    $url = $path
+                        ? (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')
+                            ? $path
+                            : Storage::disk('public')->url($path))
+                        : null;
+
+                    $source = $media->meta['source'] ?? null;
+                    $uploadedBy = $source === 'client-public' ? null : $media->user?->name;
+
+                    return [
+                        'id' => $media->id,
+                        'type' => $media->type,
+                        'media_type' => $media->media_type,
+                        'path' => $path,
+                        'url' => $url,
+                        'note' => $media->meta['note'] ?? null,
+                        'source' => $source,
+                        'uploaded_by' => $uploadedBy,
+                        'uploaded_at' => $media->created_at,
+                    ];
+                });
+
+            $task->setRelation('media', $mediaPayload);
+        }
+
+        $teamMembers = collect();
+        if ($canManage) {
+            $teamMembers = TeamMember::query()
+                ->forAccount($accountId)
+                ->active()
+                ->with('user:id,name')
+                ->orderBy('created_at')
+                ->get(['id', 'user_id', 'role']);
+        }
+
+        $materialProducts = Product::query()
+            ->products()
+            ->byUser($accountId)
+            ->orderBy('name')
+            ->get(['id', 'name', 'unit', 'price']);
+
+        $works = Work::query()
+            ->byUser($accountId)
+            ->with('customer:id,company_name,first_name,last_name')
+            ->orderByDesc('created_at')
+            ->limit(200)
+            ->get(['id', 'job_title', 'number', 'customer_id', 'status']);
+
+        return $this->inertiaOrJson('Task/Show', [
+            'task' => $task,
+            'statuses' => Task::STATUSES,
+            'teamMembers' => $teamMembers,
+            'materialProducts' => $materialProducts,
+            'works' => $works,
+            'canManage' => $canManage,
+            'canEditStatus' => $canEditStatus,
+            'canDelete' => $canDelete,
+        ]);
+    }
+
+    public function store(Request $request)
     {
         $this->authorize('create', Task::class);
 
@@ -209,10 +307,17 @@ class TaskController extends Controller
             $this->applyMaterialStock($task, Auth::user());
         }
 
+        if ($this->shouldReturnJson($request)) {
+            return response()->json([
+                'message' => 'Task created.',
+                'task' => $task->fresh(['assignee.user', 'materials.product']),
+            ], 201);
+        }
+
         return redirect()->back()->with('success', 'Task created.');
     }
 
-    public function update(Request $request, Task $task): RedirectResponse
+    public function update(Request $request, Task $task)
     {
         $this->authorize('update', $task);
 
@@ -220,6 +325,15 @@ class TaskController extends Controller
         $accountId = $user?->accountOwnerId() ?? Auth::id();
 
         if ($task->status === 'done') {
+            if ($this->shouldReturnJson($request)) {
+                return response()->json([
+                    'message' => 'This task is locked after completion.',
+                    'errors' => [
+                        'task' => ['This task is locked after completion.'],
+                    ],
+                ], 422);
+            }
+
             return redirect()->back()->withErrors([
                 'task' => 'This task is locked after completion.',
             ]);
@@ -236,37 +350,37 @@ class TaskController extends Controller
         ];
 
         if ($isManager) {
-                $rules = array_merge($rules, [
-                    'title' => 'required|string|max:255',
-                    'description' => 'nullable|string|max:5000',
-                    'due_date' => 'nullable|date',
-                    'assigned_team_member_id' => [
-                        'nullable',
-                        'integer',
-                        Rule::exists('team_members', 'id')->where('account_id', $accountId),
-                    ],
-                    'customer_id' => [
-                        'nullable',
-                        'integer',
-                        Rule::exists('customers', 'id')->where('user_id', $accountId),
-                    ],
-                    'product_id' => [
-                        'nullable',
-                        'integer',
-                        Rule::exists('products', 'id')->where('user_id', $accountId),
-                    ],
-                    'work_id' => [
-                        Rule::requiredIf(fn() => !$request->boolean('standalone')),
-                        'nullable',
-                        'integer',
-                        Rule::exists('works', 'id')->where('user_id', $accountId),
-                    ],
-                    'standalone' => 'nullable|boolean',
-                    'materials' => 'nullable|array',
-                    'materials.*.id' => 'nullable|integer',
-                    'materials.*.product_id' => [
-                        'nullable',
-                        'integer',
+            $rules = array_merge($rules, [
+                'title' => 'required|string|max:255',
+                'description' => 'nullable|string|max:5000',
+                'due_date' => 'nullable|date',
+                'assigned_team_member_id' => [
+                    'nullable',
+                    'integer',
+                    Rule::exists('team_members', 'id')->where('account_id', $accountId),
+                ],
+                'customer_id' => [
+                    'nullable',
+                    'integer',
+                    Rule::exists('customers', 'id')->where('user_id', $accountId),
+                ],
+                'product_id' => [
+                    'nullable',
+                    'integer',
+                    Rule::exists('products', 'id')->where('user_id', $accountId),
+                ],
+                'work_id' => [
+                    Rule::requiredIf(fn() => !$request->boolean('standalone')),
+                    'nullable',
+                    'integer',
+                    Rule::exists('works', 'id')->where('user_id', $accountId),
+                ],
+                'standalone' => 'nullable|boolean',
+                'materials' => 'nullable|array',
+                'materials.*.id' => 'nullable|integer',
+                'materials.*.product_id' => [
+                    'nullable',
+                    'integer',
                     Rule::exists('products', 'id')->where('user_id', $accountId),
                 ],
                 'materials.*.label' => 'nullable|string|max:255',
@@ -337,14 +451,27 @@ class TaskController extends Controller
                 ->handleTaskCompleted($task, $user);
         }
 
+        if ($this->shouldReturnJson($request)) {
+            return response()->json([
+                'message' => 'Task updated.',
+                'task' => $task->fresh(['assignee.user', 'materials.product']),
+            ]);
+        }
+
         return redirect()->back()->with('success', 'Task updated.');
     }
 
-    public function destroy(Task $task): RedirectResponse
+    public function destroy(Task $task)
     {
         $this->authorize('delete', $task);
 
         $task->delete();
+
+        if ($this->shouldReturnJson()) {
+            return response()->json([
+                'message' => 'Task deleted.',
+            ]);
+        }
 
         return redirect()->back()->with('success', 'Task deleted.');
     }

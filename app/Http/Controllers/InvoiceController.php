@@ -71,7 +71,7 @@ class InvoiceController extends Controller
             ->orderBy('company_name')
             ->get(['id', 'company_name', 'first_name', 'last_name']);
 
-        return inertia('Invoice/Index', [
+        return $this->inertiaOrJson('Invoice/Index', [
             'invoices' => $invoices,
             'filters' => $filters,
             'stats' => $stats,
@@ -89,7 +89,7 @@ class InvoiceController extends Controller
             abort(403);
         }
 
-        return inertia('Invoice/Show', [
+        return $this->inertiaOrJson('Invoice/Show', [
             'invoice' => $invoice->load([
                 'customer.properties',
                 'items',
@@ -113,10 +113,23 @@ class InvoiceController extends Controller
         app(UsageLimitService::class)->enforceLimit($request->user(), 'invoices');
 
         if ($work->invoice) {
+            if ($this->shouldReturnJson($request)) {
+                return response()->json([
+                    'message' => 'This job already has an invoice.',
+                ], 422);
+            }
+
             return redirect()->back()->with('error', 'This job already has an invoice.');
         }
 
         $invoice = $billingService->createInvoiceFromWork($work, $request->user());
+
+        if ($this->shouldReturnJson($request)) {
+            return response()->json([
+                'message' => 'Invoice created successfully.',
+                'invoice' => $invoice->load(['items', 'customer']),
+            ], 201);
+        }
 
         return redirect()->route('invoice.show', $invoice)->with('success', 'Invoice created successfully.');
     }

@@ -15,7 +15,6 @@ use App\Models\PlanScan;
 use App\Models\PlatformAnnouncement;
 use App\Models\User;
 use App\Services\UsageLimitService;
-use Inertia\Inertia;
 use Illuminate\Support\Facades\Auth;
 use Laravel\Paddle\Cashier;
 use Laravel\Paddle\Subscription;
@@ -29,7 +28,7 @@ class DashboardController extends Controller
         if ($user && $user->isClient()) {
             $customer = $user->customerProfile;
             if (!$customer) {
-                return Inertia::render('DashboardClient', [
+                return $this->inertiaOrJson('DashboardClient', [
                     'profileMissing' => true,
                     'stats' => [
                         'quotes_pending' => 0,
@@ -325,7 +324,7 @@ class DashboardController extends Controller
                 'ratings_due' => $ratingsDueSeries['values'],
             ];
 
-            return Inertia::render('DashboardClient', [
+            return $this->inertiaOrJson('DashboardClient', [
                 'profileMissing' => false,
                 'stats' => $stats,
                 'autoValidation' => [
@@ -429,7 +428,7 @@ class DashboardController extends Controller
                     'tasks_done' => $tasksDoneSeries['values'],
                 ];
 
-                return Inertia::render('DashboardAdmin', [
+                return $this->inertiaOrJson('DashboardAdmin', [
                     'stats' => $stats,
                     'tasks' => $tasks,
                     'announcements' => $internalAnnouncements,
@@ -493,7 +492,7 @@ class DashboardController extends Controller
                 'tasks_done' => $tasksDoneSeries['values'],
             ];
 
-            return Inertia::render('DashboardMember', [
+            return $this->inertiaOrJson('DashboardMember', [
                 'stats' => $stats,
                 'tasks' => $tasks,
                 'announcements' => $internalAnnouncements,
@@ -730,7 +729,7 @@ class DashboardController extends Controller
             ? app(UsageLimitService::class)->buildForUser($accountOwner)
             : ['items' => []];
 
-        return Inertia::render('Dashboard', [
+        return $this->inertiaOrJson('Dashboard', [
             'stats' => $stats,
             'recentQuotes' => $recentQuotes,
             'upcomingJobs' => $upcomingJobs,

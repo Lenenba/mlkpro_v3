@@ -3,13 +3,10 @@
 namespace App\Http\Controllers\Settings;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
-use Inertia\Inertia;
-use Inertia\Response;
 use Laravel\Paddle\Cashier;
 use Laravel\Paddle\Subscription;
 
@@ -22,7 +19,7 @@ class BillingSettingsController extends Controller
         ['id' => 'check', 'name' => 'Check'],
     ];
 
-    public function edit(Request $request): Response
+    public function edit(Request $request)
     {
         $user = $request->user();
         if (!$user || !$user->isAccountOwner()) {
@@ -79,7 +76,7 @@ class BillingSettingsController extends Controller
         $subscription = $user->subscription(Subscription::DEFAULT_TYPE);
         $subscriptionPriceId = $subscription?->items()->value('price_id');
 
-        return Inertia::render('Settings/Billing', [
+        return $this->inertiaOrJson('Settings/Billing', [
             'availableMethods' => self::AVAILABLE_METHODS,
             'paymentMethods' => array_values($user->payment_methods ?? []),
             'plans' => $plans,
@@ -107,7 +104,7 @@ class BillingSettingsController extends Controller
         ]);
     }
 
-    public function update(Request $request): RedirectResponse
+    public function update(Request $request)
     {
         $user = $request->user();
         if (!$user || !$user->isAccountOwner()) {
@@ -124,6 +121,13 @@ class BillingSettingsController extends Controller
         $user->update([
             'payment_methods' => array_values(array_unique($validated['payment_methods'] ?? [])),
         ]);
+
+        if ($this->shouldReturnJson($request)) {
+            return response()->json([
+                'message' => 'Payment settings updated.',
+                'payment_methods' => $user->payment_methods,
+            ]);
+        }
 
         return redirect()->back()->with('success', 'Payment settings updated.');
     }

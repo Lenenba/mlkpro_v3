@@ -78,6 +78,15 @@ class CompanyFeatureService
             }
         }
 
-        return array_key_exists('free', $planModules) ? 'free' : null;
+        if (array_key_exists('free', $planModules)) {
+            return 'free';
+        }
+
+        $plans = config('billing.plans', []);
+        if (array_key_exists('free', $plans)) {
+            return 'free';
+        }
+
+        return null;
     }
 }

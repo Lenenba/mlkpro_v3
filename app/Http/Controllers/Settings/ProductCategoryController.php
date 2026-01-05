@@ -5,13 +5,11 @@ namespace App\Http\Controllers\Settings;
 use App\Http\Controllers\Controller;
 use App\Models\Product;
 use App\Models\ProductCategory;
-use Illuminate\Http\JsonResponse;
-use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
 class ProductCategoryController extends Controller
 {
-    public function store(Request $request): RedirectResponse|JsonResponse
+    public function store(Request $request)
     {
         $user = $request->user();
         if (!$user || !$user->isAccountOwner()) {
@@ -24,7 +22,7 @@ class ProductCategoryController extends Controller
 
         $name = preg_replace('/\s+/', ' ', trim($validated['name'] ?? ''));
         if ($name === '') {
-            if ($request->expectsJson()) {
+            if ($this->shouldReturnJson($request)) {
                 return response()->json(['message' => 'Category name is required.'], 422);
             }
             return redirect()->back()->withErrors(['name' => 'Category name is required.']);
@@ -33,7 +31,7 @@ class ProductCategoryController extends Controller
         $accountId = $user->accountOwnerId();
         $category = ProductCategory::resolveForAccount($accountId, $user->id, $name);
         if (!$category) {
-            if ($request->expectsJson()) {
+            if ($this->shouldReturnJson($request)) {
                 return response()->json(['message' => 'Category name is required.'], 422);
             }
             return redirect()->back()->withErrors(['name' => 'Category name is required.']);
@@ -57,7 +55,7 @@ class ProductCategoryController extends Controller
             $category->update(['archived_at' => null]);
         }
 
-        if ($request->expectsJson()) {
+        if ($this->shouldReturnJson($request)) {
             return response()->json([
                 'category' => [
                     'id' => $category->id,
@@ -69,7 +67,7 @@ class ProductCategoryController extends Controller
         return redirect()->back()->with('success', 'Category added successfully.');
     }
 
-    public function archive(Request $request, ProductCategory $category): RedirectResponse
+    public function archive(Request $request, ProductCategory $category)
     {
         $user = $request->user();
         if (!$user || !$user->isAccountOwner()) {
@@ -85,10 +83,20 @@ class ProductCategoryController extends Controller
             $category->update(['archived_at' => now()]);
         }
 
+        if ($this->shouldReturnJson($request)) {
+            return response()->json([
+                'message' => 'Category archived successfully.',
+                'category' => [
+                    'id' => $category->id,
+                    'name' => $category->name,
+                ],
+            ]);
+        }
+
         return redirect()->back()->with('success', 'Category archived successfully.');
     }
 
-    public function update(Request $request, ProductCategory $category): RedirectResponse
+    public function update(Request $request, ProductCategory $category)
     {
         $user = $request->user();
         if (!$user || !$user->isAccountOwner()) {
@@ -106,6 +114,15 @@ class ProductCategoryController extends Controller
 
         $name = ProductCategory::normalizeName($validated['name'] ?? '');
         if ($name === '') {
+            if ($this->shouldReturnJson($request)) {
+                return response()->json([
+                    'message' => 'Validation error.',
+                    'errors' => [
+                        'name' => ['Category name is required.'],
+                    ],
+                ], 422);
+            }
+
             return redirect()->back()->withErrors(['name' => 'Category name is required.']);
         }
 
@@ -119,15 +136,34 @@ class ProductCategoryController extends Controller
             ->first();
 
         if ($existing) {
+            if ($this->shouldReturnJson($request)) {
+                return response()->json([
+                    'message' => 'Validation error.',
+                    'errors' => [
+                        'name' => ['Category name already exists.'],
+                    ],
+                ], 422);
+            }
+
             return redirect()->back()->withErrors(['name' => 'Category name already exists.']);
         }
 
         $category->update(['name' => $name]);
 
+        if ($this->shouldReturnJson($request)) {
+            return response()->json([
+                'message' => 'Category updated successfully.',
+                'category' => [
+                    'id' => $category->id,
+                    'name' => $category->name,
+                ],
+            ]);
+        }
+
         return redirect()->back()->with('success', 'Category updated successfully.');
     }
 
-    public function restore(Request $request, ProductCategory $category): RedirectResponse
+    public function restore(Request $request, ProductCategory $category)
     {
         $user = $request->user();
         if (!$user || !$user->isAccountOwner()) {
@@ -141,6 +177,16 @@ class ProductCategoryController extends Controller
 
         if ($category->archived_at) {
             $category->update(['archived_at' => null]);
+        }
+
+        if ($this->shouldReturnJson($request)) {
+            return response()->json([
+                'message' => 'Category restored successfully.',
+                'category' => [
+                    'id' => $category->id,
+                    'name' => $category->name,
+                ],
+            ]);
         }
 
         return redirect()->back()->with('success', 'Category restored successfully.');

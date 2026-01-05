@@ -30,24 +30,19 @@ class EnsureCompanyFeature
             : User::query()->find($ownerId);
 
         if (!$owner || !$owner->hasCompanyFeature($feature)) {
-            if ($request->expectsJson()) {
+            if ($request->is('api/*') || $request->expectsJson()) {
                 return response()->json([
                     'message' => 'Module unavailable for your plan.',
                 ], 403);
             }
 
-            if ($request->isMethod('get')) {
-                return Inertia::render('Errors/ModuleUnavailable', [
-                    'feature' => $feature,
-                    'featureLabel' => $this->featureLabel($feature),
-                    'isOwner' => $user->id === $ownerId,
-                    'upgradeUrl' => $user->id === $ownerId
-                        ? route('settings.billing.edit')
-                        : null,
-                ])->toResponse($request)->setStatusCode(403);
-            }
+            $message = 'Module indisponible pour votre plan.';
+            $previous = url()->previous();
+            $current = $request->fullUrl();
+            $fallback = route('dashboard');
+            $target = $previous && $previous !== $current ? $previous : $fallback;
 
-            abort(403);
+            return redirect()->to($target)->with('warning', $message);
         }
 
         return $next($request);

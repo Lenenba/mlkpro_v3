@@ -97,7 +97,7 @@ class PortalWorkProofController extends Controller
                 ];
             });
 
-        return Inertia::render('Work/Proofs', [
+        $payload = [
             'viewer' => 'client',
             'work' => [
                 'id' => $work->id,
@@ -115,6 +115,12 @@ class PortalWorkProofController extends Controller
                 'email' => $work->customer->email,
             ] : null,
             'tasks' => $tasks,
-        ]);
+        ];
+
+        if ($this->shouldReturnJson($request)) {
+            return response()->json($payload);
+        }
+
+        return Inertia::render('Work/Proofs', $payload);
     }
 }

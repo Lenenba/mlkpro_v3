@@ -44,6 +44,13 @@ class CustomerPropertyController extends Controller
             $property = $customer->properties()->create($validated);
         });
 
+        if ($this->shouldReturnJson($request)) {
+            return response()->json([
+                'message' => 'Property added successfully.',
+                'property' => $property,
+            ], 201);
+        }
+
         return redirect()
             ->route('customer.show', $customer)
             ->with('success', 'Property added successfully.');
@@ -64,6 +71,13 @@ class CustomerPropertyController extends Controller
         ]);
 
         $property->update($validated);
+
+        if ($this->shouldReturnJson($request)) {
+            return response()->json([
+                'message' => 'Property updated successfully.',
+                'property' => $property->fresh(),
+            ]);
+        }
 
         return redirect()
             ->route('customer.show', $customer)
@@ -91,6 +105,12 @@ class CustomerPropertyController extends Controller
             $nextProperty->update(['is_default' => true]);
         });
 
+        if ($this->shouldReturnJson($request)) {
+            return response()->json([
+                'message' => 'Property deleted successfully.',
+            ]);
+        }
+
         return redirect()
             ->route('customer.show', $customer)
             ->with('success', 'Property deleted successfully.');
@@ -105,9 +125,15 @@ class CustomerPropertyController extends Controller
             $property->update(['is_default' => true]);
         });
 
+        if ($this->shouldReturnJson($request)) {
+            return response()->json([
+                'message' => 'Default property updated successfully.',
+                'property' => $property->fresh(),
+            ]);
+        }
+
         return redirect()
             ->route('customer.show', $customer)
             ->with('success', 'Default property updated successfully.');
     }
 }
-

@@ -17,6 +17,12 @@ class EnsureNotSuspended
         $user = $request->user();
 
         if ($user && $user->is_suspended && !$user->isSuperadmin()) {
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'message' => 'Account suspended. Please contact support.',
+                ], 403);
+            }
+
             if ($request->session()->has('impersonator_id')) {
                 return $next($request);
             }
