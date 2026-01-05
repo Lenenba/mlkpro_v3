@@ -89,14 +89,11 @@ class TenantController extends BaseSuperAdminController
         $tenants = $query->orderByDesc('created_at')->paginate(15)->withQueryString();
 
         $subscriptionMap = $this->subscriptionMap($tenants->pluck('id'));
-        $planMap = $this->planMap();
 
-        $tenants->through(function (User $tenant) use ($subscriptionMap, $planMap) {
+        $tenants->through(function (User $tenant) use ($subscriptionMap) {
             $subscription = $subscriptionMap[$tenant->id] ?? null;
-            $planName = null;
-            if ($subscription?->price_id && isset($planMap[$subscription->price_id])) {
-                $planName = $planMap[$subscription->price_id]['name'] ?? null;
-            }
+            $planKey = $this->resolvePlanKey($subscription?->price_id);
+            $planName = $planKey ? (config('billing.plans.' . $planKey . '.name') ?? $planKey) : null;
 
             return [
                 'id' => $tenant->id,
@@ -107,9 +104,9 @@ class TenantController extends BaseSuperAdminController
                 'created_at' => $tenant->created_at,
                 'is_suspended' => (bool) $tenant->is_suspended,
                 'onboarding_completed_at' => $tenant->onboarding_completed_at,
-                'subscription' => $subscription ? [
-                    'status' => $subscription->status,
-                    'price_id' => $subscription->price_id,
+                'subscription' => ($subscription || $planKey) ? [
+                    'status' => $subscription?->status ?? 'free',
+                    'price_id' => $subscription?->price_id,
                     'plan_name' => $planName,
                 ] : null,
             ];
@@ -136,11 +133,8 @@ class TenantController extends BaseSuperAdminController
         $this->ensureOwner($tenant);
 
         $subscription = $this->subscriptionMap(collect([$tenant->id]))[$tenant->id] ?? null;
-        $planMap = $this->planMap();
-        $planName = null;
-        if ($subscription?->price_id && isset($planMap[$subscription->price_id])) {
-            $planName = $planMap[$subscription->price_id]['name'] ?? null;
-        }
+        $planKey = $this->resolvePlanKey($subscription?->price_id);
+        $planName = $planKey ? (config('billing.plans.' . $planKey . '.name') ?? $planKey) : null;
 
         $stats = [
             'customers' => Customer::query()->where('user_id', $tenant->id)->count(),
@@ -172,12 +166,12 @@ class TenantController extends BaseSuperAdminController
                 'is_suspended' => (bool) $tenant->is_suspended,
                 'suspended_at' => $tenant->suspended_at,
                 'suspension_reason' => $tenant->suspension_reason,
-                'subscription' => $subscription ? [
-                    'status' => $subscription->status,
-                    'price_id' => $subscription->price_id,
+                'subscription' => ($subscription || $planKey) ? [
+                    'status' => $subscription?->status ?? 'free',
+                    'price_id' => $subscription?->price_id,
                     'plan_name' => $planName,
-                    'trial_ends_at' => $subscription->trial_ends_at ?? null,
-                    'ends_at' => $subscription->ends_at ?? null,
+                    'trial_ends_at' => $subscription?->trial_ends_at ?? null,
+                    'ends_at' => $subscription?->ends_at ?? null,
                 ] : null,
             ],
             'stats' => $stats,
@@ -535,14 +529,25 @@ class TenantController extends BaseSuperAdminController
 
     private function resolvePlanKey(?string $priceId): ?string
     {
-        if (!$priceId) {
-            return null;
-        }
-
         foreach (config('billing.plans', []) as $key => $plan) {
-            if (!empty($plan['price_id']) && $plan['price_id'] === $priceId) {
+            if ($priceId && !empty($plan['price_id']) && $plan['price_id'] === $priceId) {
                 return $key;
             }
+        }
+
+        $planModules = PlatformSetting::getValue('plan_modules', []);
+        if (array_key_exists('free', $planModules)) {
+            return 'free';
+        }
+
+        $planLimits = PlatformSetting::getValue('plan_limits', []);
+        if (array_key_exists('free', $planLimits)) {
+            return 'free';
+        }
+
+        $plans = config('billing.plans', []);
+        if (array_key_exists('free', $plans)) {
+            return 'free';
         }
 
         return null;
