@@ -53,7 +53,7 @@ class WelcomeEmailNotification extends Notification
         ];
 
         return (new MailMessage())
-            ->subject('Bienvenue sur ' . $companyName)
+            ->subject('Bienvenue' . $companyName)
             ->view('emails.onboarding.welcome', [
                 'companyName' => $companyName,
                 'companyLogo' => $companyLogo,
