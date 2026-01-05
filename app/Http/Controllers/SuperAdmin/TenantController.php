@@ -93,7 +93,10 @@ class TenantController extends BaseSuperAdminController
 
         $tenants->through(function (User $tenant) use ($subscriptionMap, $planMap) {
             $subscription = $subscriptionMap[$tenant->id] ?? null;
-            $planName = $subscription?->price_id ? ($planMap[$subscription->price_id]['name'] ?? null) : null;
+            $planName = null;
+            if ($subscription?->price_id && isset($planMap[$subscription->price_id])) {
+                $planName = $planMap[$subscription->price_id]['name'] ?? null;
+            }
 
             return [
                 'id' => $tenant->id,
@@ -134,7 +137,10 @@ class TenantController extends BaseSuperAdminController
 
         $subscription = $this->subscriptionMap(collect([$tenant->id]))[$tenant->id] ?? null;
         $planMap = $this->planMap();
-        $planName = $subscription?->price_id ? ($planMap[$subscription->price_id]['name'] ?? null) : null;
+        $planName = null;
+        if ($subscription?->price_id && isset($planMap[$subscription->price_id])) {
+            $planName = $planMap[$subscription->price_id]['name'] ?? null;
+        }
 
         $stats = [
             'customers' => Customer::query()->where('user_id', $tenant->id)->count(),
