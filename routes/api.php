@@ -35,10 +35,17 @@ use App\Http\Controllers\Settings\CompanySettingsController;
 use App\Http\Controllers\Settings\BillingSettingsController;
 use App\Http\Controllers\Settings\ProductCategoryController;
 use App\Http\Controllers\Settings\SubscriptionController;
+use App\Http\Controllers\Api\SuperAdmin\AdminController as SuperAdminAdminController;
+use App\Http\Controllers\Api\SuperAdmin\AnnouncementController as SuperAdminAnnouncementController;
+use App\Http\Controllers\Api\SuperAdmin\DashboardController as SuperAdminDashboardController;
+use App\Http\Controllers\Api\SuperAdmin\PlatformSettingsController as SuperAdminPlatformSettingsController;
+use App\Http\Controllers\Api\SuperAdmin\SupportController as SuperAdminSupportController;
+use App\Http\Controllers\Api\SuperAdmin\TenantController as SuperAdminTenantController;
 use App\Http\Middleware\EnsureClientUser;
 use App\Http\Middleware\EnsureInternalUser;
 use App\Http\Middleware\EnsureNotSuspended;
 use App\Http\Middleware\EnsureOnboardingIsComplete;
+use App\Http\Middleware\EnsurePlatformAdmin;
 
 Route::name('api.')->group(function () {
     Route::prefix('auth')->group(function () {
@@ -207,4 +214,29 @@ Route::name('api.')->group(function () {
             Route::post('invoice/{invoice}/payments', [PaymentController::class, 'store']);
         });
     });
+
+    Route::middleware(['auth:sanctum', EnsurePlatformAdmin::class, EnsureNotSuspended::class])
+        ->prefix('super-admin')
+        ->name('super-admin.')
+        ->group(function () {
+        Route::get('dashboard', [SuperAdminDashboardController::class, 'index']);
+        Route::get('admins', [SuperAdminAdminController::class, 'index']);
+        Route::post('admins', [SuperAdminAdminController::class, 'store']);
+        Route::put('admins/{admin}', [SuperAdminAdminController::class, 'update']);
+        Route::get('announcements', [SuperAdminAnnouncementController::class, 'index']);
+        Route::post('announcements', [SuperAdminAnnouncementController::class, 'store']);
+        Route::put('announcements/{announcement}', [SuperAdminAnnouncementController::class, 'update']);
+        Route::delete('announcements/{announcement}', [SuperAdminAnnouncementController::class, 'destroy']);
+        Route::get('support', [SuperAdminSupportController::class, 'index']);
+        Route::post('support', [SuperAdminSupportController::class, 'store']);
+        Route::put('support/{ticket}', [SuperAdminSupportController::class, 'update']);
+        Route::get('settings', [SuperAdminPlatformSettingsController::class, 'show']);
+        Route::put('settings', [SuperAdminPlatformSettingsController::class, 'update']);
+        Route::get('tenants', [SuperAdminTenantController::class, 'index']);
+        Route::get('tenants/{tenant}', [SuperAdminTenantController::class, 'show']);
+        Route::post('tenants/{tenant}/suspend', [SuperAdminTenantController::class, 'suspend']);
+        Route::post('tenants/{tenant}/restore', [SuperAdminTenantController::class, 'restore']);
+        Route::put('tenants/{tenant}/features', [SuperAdminTenantController::class, 'updateFeatures']);
+        Route::put('tenants/{tenant}/limits', [SuperAdminTenantController::class, 'updateLimits']);
+        });
 });

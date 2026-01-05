@@ -561,13 +561,14 @@ class CustomerController extends Controller
         $customerData['portal_access'] = $portalAccess;
 
         [$customer, $portalUser] = DB::transaction(function () use ($request, $validated, $customerData, $portalAccess) {
-            $portalUser = null;
-            if ($portalAccess) {
-                $portalUser = $this->createPortalUser($validated);
-                $customerData['portal_user_id'] = $portalUser->id;
-            }
+        $portalUser = null;
+        if ($portalAccess) {
+            $roleId = $this->resolveClientRoleId();
+            $portalUser = $this->createPortalUser($validated, $roleId);
+            $customerData['portal_user_id'] = $portalUser->id;
+        }
 
-            $customer = $request->user()->customers()->create($customerData);
+        $customer = $request->user()->customers()->create($customerData);
 
             return [$customer, $portalUser];
         });
@@ -627,7 +628,8 @@ class CustomerController extends Controller
         [$customer, $portalUser] = DB::transaction(function () use ($request, $validated, $customerData, $portalAccess) {
             $portalUser = null;
             if ($portalAccess) {
-                $portalUser = $this->createPortalUser($validated);
+                $roleId = $this->resolveClientRoleId();
+                $portalUser = $this->createPortalUser($validated, $roleId);
                 $customerData['portal_user_id'] = $portalUser->id;
             }
 
@@ -780,13 +782,16 @@ class CustomerController extends Controller
         return redirect()->route('customer.index')->with('success', 'Customer deleted successfully.');
     }
 
-    private function createPortalUser(array $validated): User
+    private function resolveClientRoleId(): int
     {
-        $roleId = Role::query()->where('name', 'client')->value('id');
-        if (!$roleId) {
-            throw new \RuntimeException('Client role not found.');
-        }
+        return Role::firstOrCreate(
+            ['name' => 'client'],
+            ['description' => 'Access to client functionalities']
+        )->id;
+    }
 
+    private function createPortalUser(array $validated, int $roleId): User
+    {
         $name = trim(($validated['first_name'] ?? '') . ' ' . ($validated['last_name'] ?? ''));
         if ($name === '') {
             $name = $validated['company_name'] ?? $validated['email'];
