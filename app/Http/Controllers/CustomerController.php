@@ -62,6 +62,7 @@ class CustomerController extends Controller
             ->withCount([
                 'quotes as quotes_count' => fn($query) => $query->where('user_id', $userId),
                 'works as works_count' => fn($query) => $query->where('user_id', $userId),
+                'invoices as invoices_count' => fn($query) => $query->where('user_id', $userId),
             ])
             ->orderBy($sort, $direction)
             ->simplePaginate(12)
@@ -102,6 +103,7 @@ class CustomerController extends Controller
             ->withCount([
                 'quotes as quotes_count' => fn($query) => $query->where('user_id', $userId),
                 'works as works_count' => fn($query) => $query->where('user_id', $userId),
+                'invoices as invoices_count' => fn($query) => $query->where('user_id', $userId),
             ])
             ->orderByDesc('quotes_count')
             ->orderByDesc('works_count')
