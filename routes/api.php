@@ -209,6 +209,7 @@ Route::name('api.')->group(function () {
             Route::middleware('company.feature:invoices')->group(function () {
                 Route::get('invoices', [InvoiceController::class, 'index']);
                 Route::get('invoices/{invoice}', [InvoiceController::class, 'show']);
+                Route::get('invoices/{invoice}/pdf', [InvoiceController::class, 'pdf']);
                 Route::post('work/{work}/invoice', [InvoiceController::class, 'storeFromWork']);
             });
 

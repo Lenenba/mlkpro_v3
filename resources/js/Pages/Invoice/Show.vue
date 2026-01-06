@@ -144,16 +144,26 @@ const lineItemColspan = computed(() => (isTaskBased.value ? 5 : 4));
                             </p>
                         </div>
                     </div>
-                    <span class="py-1.5 px-3 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-full"
-                        :class="{
-                            'bg-stone-100 text-stone-700': invoice.status === 'draft',
-                            'bg-sky-100 text-sky-700': invoice.status === 'sent',
-                            'bg-amber-100 text-amber-800': invoice.status === 'partial',
-                            'bg-emerald-100 text-emerald-800': invoice.status === 'paid',
-                            'bg-rose-100 text-rose-800': invoice.status === 'overdue' || invoice.status === 'void',
-                        }">
-                        {{ invoice.status }}
-                    </span>
+                    <div class="flex items-center gap-2">
+                        <a
+                            :href="route('invoice.pdf', invoice.id)"
+                            class="inline-flex items-center gap-x-2 text-xs font-medium rounded-sm border border-stone-200 bg-white px-3 py-1.5 text-stone-700 hover:bg-stone-50"
+                            target="_blank"
+                            rel="noopener"
+                        >
+                            Download PDF
+                        </a>
+                        <span class="py-1.5 px-3 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-full"
+                            :class="{
+                                'bg-stone-100 text-stone-700': invoice.status === 'draft',
+                                'bg-sky-100 text-sky-700': invoice.status === 'sent',
+                                'bg-amber-100 text-amber-800': invoice.status === 'partial',
+                                'bg-emerald-100 text-emerald-800': invoice.status === 'paid',
+                                'bg-rose-100 text-rose-800': invoice.status === 'overdue' || invoice.status === 'void',
+                            }">
+                            {{ invoice.status }}
+                        </span>
+                    </div>
                 </div>
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     <div class="col-span-2 space-x-2">

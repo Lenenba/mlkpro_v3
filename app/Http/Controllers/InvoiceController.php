@@ -7,8 +7,10 @@ use App\Models\Invoice;
 use App\Models\Customer;
 use App\Services\WorkBillingService;
 use App\Services\UsageLimitService;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\URL;
 
 class InvoiceController extends Controller
 {
@@ -83,22 +85,93 @@ class InvoiceController extends Controller
     /**
      * Display the specified invoice.
      */
-    public function show(Invoice $invoice)
+    public function show(Request $request, Invoice $invoice)
     {
         if ($invoice->user_id !== Auth::id()) {
             abort(403);
         }
 
-        return $this->inertiaOrJson('Invoice/Show', [
-            'invoice' => $invoice->load([
-                'customer.properties',
-                'items',
-                'work.products',
-                'work.quote.property',
-                'work.ratings',
-                'payments',
-            ]),
+        $invoice->load([
+            'customer.properties',
+            'items',
+            'work.products',
+            'work.quote.property',
+            'work.ratings',
+            'payments',
         ]);
+
+        $payload = [
+            'invoice' => $invoice,
+        ];
+
+        if ($this->shouldReturnJson($request)) {
+            $payload['public_url'] = URL::temporarySignedRoute(
+                'public.invoices.show',
+                now()->addDays(7),
+                ['invoice' => $invoice->id]
+            );
+        }
+
+        return $this->inertiaOrJson('Invoice/Show', $payload);
+    }
+
+    public function pdf(Request $request, Invoice $invoice)
+    {
+        if ($invoice->user_id !== Auth::id()) {
+            abort(403);
+        }
+
+        $invoice->load([
+            'customer',
+            'items',
+            'work.products',
+            'payments',
+        ]);
+
+        $lineItems = collect();
+        if ($invoice->items->isNotEmpty()) {
+            $lineItems = $invoice->items->map(function ($item) {
+                return [
+                    'title' => $item->title ?: 'Line item',
+                    'description' => $item->description,
+                    'quantity' => (float) ($item->quantity ?? 0),
+                    'unit_price' => (float) ($item->unit_price ?? 0),
+                    'total' => (float) ($item->total ?? 0),
+                ];
+            });
+        } elseif ($invoice->work && $invoice->work->products->isNotEmpty()) {
+            $lineItems = $invoice->work->products->map(function ($product) {
+                $quantity = (float) ($product->pivot?->quantity ?? 0);
+                $unitPrice = (float) ($product->pivot?->price ?? $product->price ?? 0);
+                $total = (float) ($product->pivot?->total ?? round($quantity * $unitPrice, 2));
+
+                return [
+                    'title' => $product->name ?: 'Line item',
+                    'description' => $product->pivot?->description ?: $product->description,
+                    'quantity' => $quantity,
+                    'unit_price' => $unitPrice,
+                    'total' => $total,
+                ];
+            });
+        }
+
+        $subtotal = round($lineItems->sum('total'), 2);
+        $totalPaid = round((float) $invoice->payments->sum('amount'), 2);
+
+        $pdf = Pdf::loadView('pdf.invoice', [
+            'invoice' => $invoice,
+            'customer' => $invoice->customer,
+            'company' => $request->user(),
+            'work' => $invoice->work,
+            'lineItems' => $lineItems,
+            'subtotal' => $subtotal,
+            'totalPaid' => $totalPaid,
+        ]);
+
+        $label = $invoice->number ?: $invoice->id;
+        $filename = 'invoice-' . $label . '.pdf';
+
+        return $pdf->download($filename);
     }
 
     /**

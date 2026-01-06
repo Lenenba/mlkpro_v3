@@ -246,6 +246,7 @@ Route::middleware(['auth', EnsureInternalUser::class])->group(function () {
     Route::middleware('company.feature:invoices')->group(function () {
         Route::get('/invoices', [InvoiceController::class, 'index'])->name('invoice.index');
         Route::get('/invoices/{invoice}', [InvoiceController::class, 'show'])->name('invoice.show');
+        Route::get('/invoices/{invoice}/pdf', [InvoiceController::class, 'pdf'])->name('invoice.pdf');
         Route::post('/work/{work}/invoice', [InvoiceController::class, 'storeFromWork'])->name('invoice.store-from-work');
     });
 
