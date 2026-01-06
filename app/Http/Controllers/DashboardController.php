@@ -15,6 +15,7 @@ use App\Models\PlanScan;
 use App\Models\PlatformAnnouncement;
 use App\Models\User;
 use App\Services\UsageLimitService;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Laravel\Paddle\Cashier;
 use Laravel\Paddle\Subscription;
@@ -25,6 +26,7 @@ class DashboardController extends Controller
     {
         $user = Auth::user();
         $now = now();
+        $today = $now->toDateString();
         if ($user && $user->isClient()) {
             $customer = $user->customerProfile;
             if (!$customer) {
@@ -384,18 +386,46 @@ class DashboardController extends Controller
                     ->orderBy('due_date')
                     ->orderByDesc('created_at')
                     ->limit(10)
-                    ->get(['id', 'title', 'status', 'due_date', 'assigned_team_member_id'])
+                    ->get(['id', 'title', 'status', 'due_date', 'start_time', 'end_time', 'assigned_team_member_id'])
                     ->map(function ($task) {
                         return [
                             'id' => $task->id,
                             'title' => $task->title,
                             'status' => $task->status,
                             'due_date' => $task->due_date,
+                            'start_time' => $task->start_time,
+                            'end_time' => $task->end_time,
                             'assignee' => $task->assignee?->user ? [
                                 'name' => $task->assignee->user->name,
                             ] : null,
                         ];
                     });
+
+                $tasksToday = (clone $tasksQuery)
+                    ->with('assignee.user:id,name')
+                    ->whereDate('due_date', $today)
+                    ->whereIn('status', ['todo', 'in_progress'])
+                    ->orderByRaw('CASE WHEN start_time IS NULL THEN 1 ELSE 0 END')
+                    ->orderBy('start_time')
+                    ->orderByDesc('created_at')
+                    ->limit(12)
+                    ->get(['id', 'title', 'status', 'due_date', 'start_time', 'end_time', 'assigned_team_member_id'])
+                    ->map(function ($task) {
+                        return [
+                            'id' => $task->id,
+                            'title' => $task->title,
+                            'status' => $task->status,
+                            'due_date' => $task->due_date,
+                            'start_time' => $task->start_time,
+                            'end_time' => $task->end_time,
+                            'assignee' => $task->assignee?->user ? [
+                                'name' => $task->assignee->user->name,
+                            ] : null,
+                        ];
+                    });
+
+                $worksQuery = Work::query()->byUser($accountId);
+                $worksToday = $this->buildWorksToday($worksQuery, $today);
 
                 $seriesMonths = 6;
                 $tasksTotalSeries = $this->buildMonthlySeries($now, $seriesMonths, function ($start, $end) use ($tasksQuery) {
@@ -431,6 +461,8 @@ class DashboardController extends Controller
                 return $this->inertiaOrJson('DashboardAdmin', [
                     'stats' => $stats,
                     'tasks' => $tasks,
+                    'tasksToday' => $tasksToday,
+                    'worksToday' => $worksToday,
                     'announcements' => $internalAnnouncements,
                     'quickAnnouncements' => $quickAnnouncements,
                     'kpiSeries' => $kpiSeries,
@@ -454,18 +486,48 @@ class DashboardController extends Controller
                 ->orderBy('due_date')
                 ->orderByDesc('created_at')
                 ->limit(10)
-                ->get(['id', 'title', 'status', 'due_date', 'assigned_team_member_id'])
+                ->get(['id', 'title', 'status', 'due_date', 'start_time', 'end_time', 'assigned_team_member_id'])
                 ->map(function ($task) {
                     return [
                         'id' => $task->id,
                         'title' => $task->title,
                         'status' => $task->status,
                         'due_date' => $task->due_date,
+                        'start_time' => $task->start_time,
+                        'end_time' => $task->end_time,
                         'assignee' => $task->assignee?->user ? [
                             'name' => $task->assignee->user->name,
                         ] : null,
                     ];
                 });
+
+            $tasksToday = (clone $tasksQuery)
+                ->with('assignee.user:id,name')
+                ->whereDate('due_date', $today)
+                ->whereIn('status', ['todo', 'in_progress'])
+                ->orderByRaw('CASE WHEN start_time IS NULL THEN 1 ELSE 0 END')
+                ->orderBy('start_time')
+                ->orderByDesc('created_at')
+                ->limit(12)
+                ->get(['id', 'title', 'status', 'due_date', 'start_time', 'end_time', 'assigned_team_member_id'])
+                ->map(function ($task) {
+                    return [
+                        'id' => $task->id,
+                        'title' => $task->title,
+                        'status' => $task->status,
+                        'due_date' => $task->due_date,
+                        'start_time' => $task->start_time,
+                        'end_time' => $task->end_time,
+                        'assignee' => $task->assignee?->user ? [
+                            'name' => $task->assignee->user->name,
+                        ] : null,
+                    ];
+                });
+
+            $worksQuery = Work::query()
+                ->byUser($accountId)
+                ->whereHas('teamMembers', fn($query) => $query->whereKey($membership->id));
+            $worksToday = $this->buildWorksToday($worksQuery, $today);
 
             $seriesMonths = 6;
             $tasksTodoSeries = $this->buildMonthlySeries($now, $seriesMonths, function ($start, $end) use ($tasksQuery) {
@@ -495,6 +557,8 @@ class DashboardController extends Controller
             return $this->inertiaOrJson('DashboardMember', [
                 'stats' => $stats,
                 'tasks' => $tasks,
+                'tasksToday' => $tasksToday,
+                'worksToday' => $worksToday,
                 'announcements' => $internalAnnouncements,
                 'quickAnnouncements' => $quickAnnouncements,
                 'kpiSeries' => $kpiSeries,
@@ -559,6 +623,54 @@ class DashboardController extends Controller
         $stats['payments_month'] = Payment::where('user_id', $userId)
             ->whereDate('paid_at', '>=', $startOfMonth)
             ->sum('amount');
+
+        $tasksQuery = Task::query()->forAccount($accountId);
+        $tasks = (clone $tasksQuery)
+            ->with('assignee.user:id,name')
+            ->orderByRaw('CASE WHEN due_date IS NULL THEN 1 ELSE 0 END')
+            ->orderBy('due_date')
+            ->orderByDesc('created_at')
+            ->limit(10)
+            ->get(['id', 'title', 'status', 'due_date', 'start_time', 'end_time', 'assigned_team_member_id'])
+            ->map(function ($task) {
+                return [
+                    'id' => $task->id,
+                    'title' => $task->title,
+                    'status' => $task->status,
+                    'due_date' => $task->due_date,
+                    'start_time' => $task->start_time,
+                    'end_time' => $task->end_time,
+                    'assignee' => $task->assignee?->user ? [
+                        'name' => $task->assignee->user->name,
+                    ] : null,
+                ];
+            });
+
+        $tasksToday = (clone $tasksQuery)
+            ->with('assignee.user:id,name')
+            ->whereDate('due_date', $today)
+            ->whereIn('status', ['todo', 'in_progress'])
+            ->orderByRaw('CASE WHEN start_time IS NULL THEN 1 ELSE 0 END')
+            ->orderBy('start_time')
+            ->orderByDesc('created_at')
+            ->limit(12)
+            ->get(['id', 'title', 'status', 'due_date', 'start_time', 'end_time', 'assigned_team_member_id'])
+            ->map(function ($task) {
+                return [
+                    'id' => $task->id,
+                    'title' => $task->title,
+                    'status' => $task->status,
+                    'due_date' => $task->due_date,
+                    'start_time' => $task->start_time,
+                    'end_time' => $task->end_time,
+                    'assignee' => $task->assignee?->user ? [
+                        'name' => $task->assignee->user->name,
+                    ] : null,
+                ];
+            });
+
+        $worksQuery = Work::query()->byUser($accountId);
+        $worksToday = $this->buildWorksToday($worksQuery, $today);
 
         $recentQuotes = Quote::byUser($userId)
             ->with('customer:id,company_name,first_name,last_name')
@@ -735,6 +847,9 @@ class DashboardController extends Controller
             'upcomingJobs' => $upcomingJobs,
             'outstandingInvoices' => $outstandingInvoices,
             'activity' => $activity,
+            'tasks' => $tasks,
+            'tasksToday' => $tasksToday,
+            'worksToday' => $worksToday,
             'revenueSeries' => $revenueSeries,
             'kpiSeries' => $kpiSeries,
             'announcements' => $internalAnnouncements,
@@ -753,6 +868,231 @@ class DashboardController extends Controller
         ]);
     }
 
+    public function tasksCalendar()
+    {
+        $user = Auth::user();
+        if (!$user) {
+            abort(403);
+        }
+
+        $accountId = $user->accountOwnerId() ?? $user->id;
+        $isAccountOwner = $user->id === $accountId;
+        $membership = null;
+        if (!$isAccountOwner) {
+            $membership = TeamMember::query()
+                ->forAccount($accountId)
+                ->active()
+                ->where('user_id', $user->id)
+                ->first();
+        }
+
+        $tasksQuery = Task::query()->forAccount($accountId);
+        if ($membership && $membership->role !== 'admin') {
+            $tasksQuery->where('assigned_team_member_id', $membership->id);
+        }
+
+        $worksQuery = Work::query()->byUser($accountId);
+        if ($membership && $membership->role !== 'admin') {
+            $worksQuery->whereHas('teamMembers', fn($query) => $query->whereKey($membership->id));
+        }
+
+        $today = now()->toDateString();
+        $tasks = (clone $tasksQuery)
+            ->whereDate('due_date', $today)
+            ->whereIn('status', ['todo', 'in_progress'])
+            ->orderByRaw('CASE WHEN start_time IS NULL THEN 1 ELSE 0 END')
+            ->orderBy('start_time')
+            ->orderByDesc('created_at')
+            ->get(['id', 'title', 'description', 'due_date', 'start_time', 'end_time']);
+
+        $excludedStatuses = array_merge(Work::COMPLETED_STATUSES, [Work::STATUS_CANCELLED]);
+        $works = (clone $worksQuery)
+            ->whereDate('start_date', $today)
+            ->whereNotIn('status', $excludedStatuses)
+            ->orderByRaw('CASE WHEN start_time IS NULL THEN 1 ELSE 0 END')
+            ->orderBy('start_time')
+            ->orderByDesc('created_at')
+            ->get(['id', 'job_title', 'instructions', 'start_date', 'start_time', 'end_time']);
+
+        $calendar = $this->buildAgendaCalendar($tasks, $works);
+        $filename = 'tasks-' . $today . '.ics';
+
+        return response($calendar, 200, [
+            'Content-Type' => 'text/calendar; charset=utf-8',
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+        ]);
+    }
+
+    private function buildAgendaCalendar($tasks, $works): string
+    {
+        $timezone = config('app.timezone', 'UTC');
+        $nowUtc = now('UTC')->format('Ymd\THis\Z');
+        $lines = [
+            'BEGIN:VCALENDAR',
+            'VERSION:2.0',
+            'PRODID:-//MLK Pro//Dashboard Tasks//EN',
+            'CALSCALE:GREGORIAN',
+            'METHOD:PUBLISH',
+        ];
+
+        foreach ($tasks as $task) {
+            if (!$task->due_date) {
+                continue;
+            }
+
+            $summary = $this->escapeCalendarText($task->title ?: 'Task');
+            $description = $task->description ? $this->escapeCalendarText($task->description) : '';
+            $window = $this->buildTaskCalendarWindow($task, $timezone);
+            if (!$window) {
+                continue;
+            }
+
+            $lines[] = 'BEGIN:VEVENT';
+            $lines[] = 'UID:task-' . $task->id . '@mlkpro';
+            $lines[] = 'DTSTAMP:' . $nowUtc;
+            $lines[] = 'SUMMARY:' . $summary;
+            if ($description !== '') {
+                $lines[] = 'DESCRIPTION:' . $description;
+            }
+
+            if ($window['all_day']) {
+                $lines[] = 'DTSTART;VALUE=DATE:' . $window['start'];
+                $lines[] = 'DTEND;VALUE=DATE:' . $window['end'];
+            } else {
+                $lines[] = 'DTSTART:' . $window['start'];
+                $lines[] = 'DTEND:' . $window['end'];
+            }
+
+            $lines[] = 'BEGIN:VALARM';
+            $lines[] = 'TRIGGER:-PT15M';
+            $lines[] = 'ACTION:DISPLAY';
+            $lines[] = 'DESCRIPTION:Task reminder';
+            $lines[] = 'END:VALARM';
+            $lines[] = 'END:VEVENT';
+        }
+
+        foreach ($works as $work) {
+            if (!$work->start_date) {
+                continue;
+            }
+
+            $summary = $this->escapeCalendarText($work->job_title ?: 'Work');
+            $description = $work->instructions ? $this->escapeCalendarText($work->instructions) : '';
+            $window = $this->buildWorkCalendarWindow($work, $timezone);
+            if (!$window) {
+                continue;
+            }
+
+            $lines[] = 'BEGIN:VEVENT';
+            $lines[] = 'UID:work-' . $work->id . '@mlkpro';
+            $lines[] = 'DTSTAMP:' . $nowUtc;
+            $lines[] = 'SUMMARY:' . $summary;
+            if ($description !== '') {
+                $lines[] = 'DESCRIPTION:' . $description;
+            }
+
+            if ($window['all_day']) {
+                $lines[] = 'DTSTART;VALUE=DATE:' . $window['start'];
+                $lines[] = 'DTEND;VALUE=DATE:' . $window['end'];
+            } else {
+                $lines[] = 'DTSTART:' . $window['start'];
+                $lines[] = 'DTEND:' . $window['end'];
+            }
+
+            $lines[] = 'BEGIN:VALARM';
+            $lines[] = 'TRIGGER:-PT15M';
+            $lines[] = 'ACTION:DISPLAY';
+            $lines[] = 'DESCRIPTION:Work reminder';
+            $lines[] = 'END:VALARM';
+            $lines[] = 'END:VEVENT';
+        }
+
+        $lines[] = 'END:VCALENDAR';
+
+        return implode("\r\n", $lines) . "\r\n";
+    }
+
+    private function buildTaskCalendarWindow(Task $task, string $timezone): ?array
+    {
+        $dueDate = $task->due_date ? Carbon::parse($task->due_date, $timezone) : null;
+        if (!$dueDate) {
+            return null;
+        }
+
+        $startTime = $task->start_time;
+        $endTime = $task->end_time;
+        if (!$startTime && !$endTime) {
+            return [
+                'all_day' => true,
+                'start' => $dueDate->format('Ymd'),
+                'end' => $dueDate->copy()->addDay()->format('Ymd'),
+            ];
+        }
+
+        $startAt = $startTime
+            ? Carbon::parse($dueDate->format('Y-m-d') . ' ' . $startTime, $timezone)
+            : Carbon::parse($dueDate->format('Y-m-d') . ' ' . $endTime, $timezone)->subHour();
+        $endAt = $endTime
+            ? Carbon::parse($dueDate->format('Y-m-d') . ' ' . $endTime, $timezone)
+            : $startAt->copy()->addHour();
+
+        if ($endAt->lessThanOrEqualTo($startAt)) {
+            $endAt = $startAt->copy()->addHour();
+        }
+
+        return [
+            'all_day' => false,
+            'start' => $startAt->copy()->utc()->format('Ymd\THis\Z'),
+            'end' => $endAt->copy()->utc()->format('Ymd\THis\Z'),
+        ];
+    }
+
+    private function buildWorkCalendarWindow(Work $work, string $timezone): ?array
+    {
+        $startDate = $work->start_date ? Carbon::parse($work->start_date, $timezone) : null;
+        if (!$startDate) {
+            return null;
+        }
+
+        $startTime = $work->start_time;
+        $endTime = $work->end_time;
+        if (!$startTime && !$endTime) {
+            return [
+                'all_day' => true,
+                'start' => $startDate->format('Ymd'),
+                'end' => $startDate->copy()->addDay()->format('Ymd'),
+            ];
+        }
+
+        $startAt = $startTime
+            ? Carbon::parse($startDate->format('Y-m-d') . ' ' . $startTime, $timezone)
+            : Carbon::parse($startDate->format('Y-m-d') . ' ' . $endTime, $timezone)->subHour();
+        $endAt = $endTime
+            ? Carbon::parse($startDate->format('Y-m-d') . ' ' . $endTime, $timezone)
+            : $startAt->copy()->addHour();
+
+        if ($endAt->lessThanOrEqualTo($startAt)) {
+            $endAt = $startAt->copy()->addHour();
+        }
+
+        return [
+            'all_day' => false,
+            'start' => $startAt->copy()->utc()->format('Ymd\THis\Z'),
+            'end' => $endAt->copy()->utc()->format('Ymd\THis\Z'),
+        ];
+    }
+
+    private function escapeCalendarText(string $value): string
+    {
+        $value = str_replace('\\', '\\\\', $value);
+        $value = str_replace("\r", '', $value);
+        $value = str_replace("\n", '\\n', $value);
+        $value = str_replace(';', '\;', $value);
+        $value = str_replace(',', '\,', $value);
+
+        return $value;
+    }
+
     private function buildMonthlySeries($now, int $months, callable $resolver): array
     {
         $labels = [];
@@ -769,6 +1109,32 @@ class DashboardController extends Controller
             'labels' => $labels,
             'values' => $values,
         ];
+    }
+
+    private function buildWorksToday($query, string $today): array
+    {
+        $excludedStatuses = array_merge(Work::COMPLETED_STATUSES, [Work::STATUS_CANCELLED]);
+
+        return (clone $query)
+            ->whereDate('start_date', $today)
+            ->whereNotIn('status', $excludedStatuses)
+            ->orderByRaw('CASE WHEN start_time IS NULL THEN 1 ELSE 0 END')
+            ->orderBy('start_time')
+            ->orderByDesc('created_at')
+            ->limit(12)
+            ->get(['id', 'job_title', 'status', 'start_date', 'start_time', 'end_time'])
+            ->map(function ($work) {
+                return [
+                    'id' => $work->id,
+                    'title' => $work->job_title,
+                    'status' => $work->status,
+                    'due_date' => $work->start_date,
+                    'start_time' => $work->start_time,
+                    'end_time' => $work->end_time,
+                ];
+            })
+            ->values()
+            ->all();
     }
 
     private function resolveAnnouncements(int $tenantId, ?User $tenant, string $placement): array

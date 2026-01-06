@@ -39,10 +39,15 @@ const props = defineProps({
 
 const properties = computed(() => props.customer?.properties || []);
 const tags = computed(() => props.customer?.tags || []);
+const latestQuote = computed(() => (props.customer?.quotes || [])[0] || null);
+const latestWork = computed(() => (props.customer?.works || [])[0] || null);
+const latestInvoice = computed(() => (props.customer?.invoices || [])[0] || null);
 
 const formatDate = (value) => humanizeDate(value);
 const formatCurrency = (value) =>
     `$${Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const formatStatus = (status) => (status || '-').replace(/_/g, ' ');
+const hasValue = (value) => value !== null && value !== undefined;
 
 const propertyTypes = [
     { id: 'physical', name: 'Physical' },
@@ -609,7 +614,103 @@ const deleteProperty = (property) => {
             </div>
             <div>
                 <CardNoHeader>
-                    <template #title>Contact information</template>
+                    <template #title>Apercu client</template>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="rounded-sm border border-stone-200 p-3 dark:border-neutral-700">
+                            <div class="text-xs text-stone-500 dark:text-neutral-400">Devis</div>
+                            <div class="mt-1 text-sm font-semibold text-stone-800 dark:text-neutral-200">
+                                {{ stats?.quotes ?? 0 }}
+                            </div>
+                        </div>
+                        <div class="rounded-sm border border-stone-200 p-3 dark:border-neutral-700">
+                            <div class="text-xs text-stone-500 dark:text-neutral-400">Chantiers actifs</div>
+                            <div class="mt-1 text-sm font-semibold text-stone-800 dark:text-neutral-200">
+                                {{ stats?.active_works ?? 0 }}
+                            </div>
+                        </div>
+                        <div class="rounded-sm border border-stone-200 p-3 dark:border-neutral-700">
+                            <div class="text-xs text-stone-500 dark:text-neutral-400">Chantiers</div>
+                            <div class="mt-1 text-sm font-semibold text-stone-800 dark:text-neutral-200">
+                                {{ stats?.jobs ?? 0 }}
+                            </div>
+                        </div>
+                        <div class="rounded-sm border border-stone-200 p-3 dark:border-neutral-700">
+                            <div class="text-xs text-stone-500 dark:text-neutral-400">Factures</div>
+                            <div class="mt-1 text-sm font-semibold text-stone-800 dark:text-neutral-200">
+                                {{ stats?.invoices ?? 0 }}
+                            </div>
+                        </div>
+                        <div class="rounded-sm border border-stone-200 p-3 dark:border-neutral-700">
+                            <div class="text-xs text-stone-500 dark:text-neutral-400">Demandes</div>
+                            <div class="mt-1 text-sm font-semibold text-stone-800 dark:text-neutral-200">
+                                {{ stats?.requests ?? 0 }}
+                            </div>
+                        </div>
+                        <div class="rounded-sm border border-stone-200 p-3 dark:border-neutral-700">
+                            <div class="text-xs text-stone-500 dark:text-neutral-400">Solde du</div>
+                            <div class="mt-1 text-sm font-semibold text-stone-800 dark:text-neutral-200">
+                                {{ formatCurrency(billing?.summary?.balance_due) }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-4 space-y-3 text-sm">
+                        <div class="rounded-sm border border-stone-200 px-3 py-2 dark:border-neutral-700">
+                            <div class="text-xs uppercase text-stone-500 dark:text-neutral-400">Dernier devis</div>
+                            <div v-if="latestQuote">
+                                <Link
+                                    :href="route('customer.quote.show', latestQuote.id)"
+                                    class="font-medium text-stone-800 hover:underline dark:text-neutral-200"
+                                >
+                                    {{ latestQuote.number ? `Devis ${latestQuote.number}` : 'Devis' }}
+                                </Link>
+                                <div class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
+                                    {{ formatStatus(latestQuote.status) }} | {{ formatDate(latestQuote.created_at) }}
+                                </div>
+                                <div v-if="hasValue(latestQuote.total)" class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
+                                    Total {{ formatCurrency(latestQuote.total) }}
+                                </div>
+                            </div>
+                            <div v-else class="text-xs text-stone-500 dark:text-neutral-400">Aucun devis.</div>
+                        </div>
+                        <div class="rounded-sm border border-stone-200 px-3 py-2 dark:border-neutral-700">
+                            <div class="text-xs uppercase text-stone-500 dark:text-neutral-400">Dernier chantier</div>
+                            <div v-if="latestWork">
+                                <Link
+                                    :href="route('work.show', latestWork.id)"
+                                    class="font-medium text-stone-800 hover:underline dark:text-neutral-200"
+                                >
+                                    {{ latestWork.job_title || 'Chantier' }}
+                                </Link>
+                                <div class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
+                                    {{ formatStatus(latestWork.status) }} | {{ formatDate(latestWork.start_date || latestWork.created_at) }}
+                                </div>
+                            </div>
+                            <div v-else class="text-xs text-stone-500 dark:text-neutral-400">Aucun chantier.</div>
+                        </div>
+                        <div class="rounded-sm border border-stone-200 px-3 py-2 dark:border-neutral-700">
+                            <div class="text-xs uppercase text-stone-500 dark:text-neutral-400">Derniere facture</div>
+                            <div v-if="latestInvoice">
+                                <Link
+                                    :href="route('invoice.show', latestInvoice.id)"
+                                    class="font-medium text-stone-800 hover:underline dark:text-neutral-200"
+                                >
+                                    {{ latestInvoice.number ? `Facture ${latestInvoice.number}` : 'Facture' }}
+                                </Link>
+                                <div class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
+                                    {{ formatStatus(latestInvoice.status) }} | {{ formatDate(latestInvoice.created_at) }}
+                                </div>
+                                <div v-if="hasValue(latestInvoice.total)" class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
+                                    Total {{ formatCurrency(latestInvoice.total) }}
+                                </div>
+                            </div>
+                            <div v-else class="text-xs text-stone-500 dark:text-neutral-400">Aucune facture.</div>
+                        </div>
+                    </div>
+                </CardNoHeader>
+                <CardNoHeader>
+                    <template #title>Coordonnees</template>
                     <DescriptionList :item="customer" />
                 </CardNoHeader>
                 <CardNoHeader class="mt-5">
@@ -625,7 +726,7 @@ const deleteProperty = (property) => {
                                 {{ tag }}
                             </span>
                         </div>
-                        <div v-else class="text-sm text-stone-500 dark:text-neutral-400">No tags yet.</div>
+                        <div v-else class="text-sm text-stone-500 dark:text-neutral-400">Aucun tag.</div>
 
                         <div class="flex justify-end">
                             <button
@@ -633,14 +734,14 @@ const deleteProperty = (property) => {
                                 @click="startEditTags"
                                 class="py-2 px-2.5 inline-flex items-center gap-x-2 text-xs font-semibold rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 focus:outline-none focus:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700"
                             >
-                                Edit
+                                Modifier
                             </button>
                         </div>
                     </div>
 
                     <form v-else class="space-y-3" @submit.prevent="submitTags">
                         <div>
-                            <FloatingInput v-model="tagsForm.tags" label="Tags (comma separated)" />
+                            <FloatingInput v-model="tagsForm.tags" label="Tags (separes par virgules)" />
                             <InputError class="mt-1" :message="tagsForm.errors.tags" />
                         </div>
                         <div class="flex items-center justify-end gap-2">
@@ -649,20 +750,20 @@ const deleteProperty = (property) => {
                                 @click="cancelEditTags"
                                 class="py-2 px-2.5 inline-flex items-center gap-x-2 text-xs font-semibold rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 focus:outline-none focus:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700"
                             >
-                                Cancel
+                                Annuler
                             </button>
                             <button
                                 type="submit"
                                 :disabled="tagsForm.processing"
                                 class="py-2 px-2.5 inline-flex items-center gap-x-2 text-xs font-semibold rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-green-500"
                             >
-                                Save
+                                Enregistrer
                             </button>
                         </div>
                     </form>
                 </CardNoHeader>
                 <CardNoHeader class="mt-5">
-                    <template #title>Auto validation</template>
+                    <template #title>Validation auto</template>
 
                     <form class="space-y-3" @submit.prevent="submitAutoValidation">
                         <div class="space-y-2">
@@ -670,7 +771,7 @@ const deleteProperty = (property) => {
                                 for="customer-auto-accept-quotes"
                                 class="flex items-center justify-between gap-3 text-sm text-stone-700 dark:text-neutral-200"
                             >
-                                <span>Auto validate quotes</span>
+                                <span>Validation auto des devis</span>
                                 <input
                                     id="customer-auto-accept-quotes"
                                     type="checkbox"
@@ -684,7 +785,7 @@ const deleteProperty = (property) => {
                                 for="customer-auto-validate-jobs"
                                 class="flex items-center justify-between gap-3 text-sm text-stone-700 dark:text-neutral-200"
                             >
-                                <span>Auto validate jobs</span>
+                                <span>Validation auto des chantiers</span>
                                 <input
                                     id="customer-auto-validate-jobs"
                                     type="checkbox"
@@ -698,7 +799,7 @@ const deleteProperty = (property) => {
                                 for="customer-auto-validate-tasks"
                                 class="flex items-center justify-between gap-3 text-sm text-stone-700 dark:text-neutral-200"
                             >
-                                <span>Auto validate tasks</span>
+                                <span>Validation auto des taches</span>
                                 <input
                                     id="customer-auto-validate-tasks"
                                     type="checkbox"
@@ -712,7 +813,7 @@ const deleteProperty = (property) => {
                                 for="customer-auto-validate-invoices"
                                 class="flex items-center justify-between gap-3 text-sm text-stone-700 dark:text-neutral-200"
                             >
-                                <span>Auto validate invoices</span>
+                                <span>Validation auto des factures</span>
                                 <input
                                     id="customer-auto-validate-invoices"
                                     type="checkbox"
@@ -730,13 +831,13 @@ const deleteProperty = (property) => {
                                 :disabled="autoValidationForm.processing"
                                 class="py-2 px-2.5 inline-flex items-center gap-x-2 text-xs font-semibold rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-green-500"
                             >
-                                Save
+                                Enregistrer
                             </button>
                         </div>
                     </form>
                 </CardNoHeader>
                 <CardNoHeader class="mt-5">
-                    <template #title>Last client interaction</template>
+                    <template #title>Derniere interaction client</template>
 
                     <div v-if="lastInteraction" class="space-y-1 text-sm">
                         <div class="text-xs uppercase text-stone-500 dark:text-neutral-400">
@@ -746,26 +847,26 @@ const deleteProperty = (property) => {
                             {{ lastInteraction.description || lastInteraction.action }}
                         </div>
                     </div>
-                    <div v-else class="text-sm text-stone-500 dark:text-neutral-400">No interactions yet.</div>
+                    <div v-else class="text-sm text-stone-500 dark:text-neutral-400">Aucune interaction.</div>
                 </CardNoHeader>
                 <Card class="mt-5">
-                    <template #title>Billing history</template>
+                    <template #title>Historique facturation</template>
 
                     <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
                         <div class="rounded-sm border border-stone-200 p-3 dark:border-neutral-700">
-                            <div class="text-xs text-stone-500 dark:text-neutral-400">Invoiced</div>
+                            <div class="text-xs text-stone-500 dark:text-neutral-400">Facture</div>
                             <div class="mt-1 text-sm font-semibold text-stone-800 dark:text-neutral-200">
                                 {{ formatCurrency(billing?.summary?.total_invoiced) }}
                             </div>
                         </div>
                         <div class="rounded-sm border border-stone-200 p-3 dark:border-neutral-700">
-                            <div class="text-xs text-stone-500 dark:text-neutral-400">Paid</div>
+                            <div class="text-xs text-stone-500 dark:text-neutral-400">Encaisse</div>
                             <div class="mt-1 text-sm font-semibold text-stone-800 dark:text-neutral-200">
                                 {{ formatCurrency(billing?.summary?.total_paid) }}
                             </div>
                         </div>
                         <div class="rounded-sm border border-stone-200 p-3 dark:border-neutral-700">
-                            <div class="text-xs text-stone-500 dark:text-neutral-400">Balance due</div>
+                            <div class="text-xs text-stone-500 dark:text-neutral-400">Solde du</div>
                             <div class="mt-1 text-sm font-semibold text-stone-800 dark:text-neutral-200">
                                 {{ formatCurrency(billing?.summary?.balance_due) }}
                             </div>
@@ -773,7 +874,7 @@ const deleteProperty = (property) => {
                     </div>
 
                     <div class="mt-5">
-                        <h3 class="text-sm font-semibold text-stone-800 dark:text-neutral-200">Recent payments</h3>
+                        <h3 class="text-sm font-semibold text-stone-800 dark:text-neutral-200">Paiements recents</h3>
                         <div class="mt-3 space-y-2 text-sm">
                             <div
                                 v-for="payment in billing?.recentPayments || []"
@@ -788,9 +889,9 @@ const deleteProperty = (property) => {
                                     >
                                         {{ payment.invoice.number || 'Invoice' }}
                                     </Link>
-                                    <div v-else class="font-medium text-stone-800 dark:text-neutral-200">Payment</div>
+                                    <div v-else class="font-medium text-stone-800 dark:text-neutral-200">Paiement</div>
                                     <div class="mt-0.5 text-xs text-stone-500 dark:text-neutral-400">
-                                        Paid {{ formatDate(payment.paid_at || payment.created_at) }}
+                                        Paye {{ formatDate(payment.paid_at || payment.created_at) }}
                                     </div>
                                 </div>
                                 <div class="text-right">
@@ -806,17 +907,17 @@ const deleteProperty = (property) => {
                                 v-if="!(billing?.recentPayments || []).length"
                                 class="text-sm text-stone-500 dark:text-neutral-400"
                             >
-                                No payments yet.
+                                Aucun paiement.
                             </div>
                         </div>
                     </div>
                 </Card>
                 <Card class="mt-5">
-                    <template #title>Internal notes</template>
+                    <template #title>Notes internes</template>
 
                     <div v-if="!editingNotes" class="space-y-3">
                         <p class="text-sm text-stone-700 whitespace-pre-wrap dark:text-neutral-200">
-                            {{ customer.description || 'No notes yet.' }}
+                            {{ customer.description || 'Aucune note.' }}
                         </p>
                         <div class="flex justify-end">
                             <button
@@ -824,14 +925,14 @@ const deleteProperty = (property) => {
                                 @click="startEditNotes"
                                 class="py-2 px-2.5 inline-flex items-center gap-x-2 text-xs font-semibold rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 focus:outline-none focus:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700"
                             >
-                                Edit
+                                Modifier
                             </button>
                         </div>
                     </div>
 
                     <form v-else class="space-y-3" @submit.prevent="submitNotes">
                         <div>
-                            <FloatingTextarea v-model="notesForm.description" label="Internal notes" />
+                            <FloatingTextarea v-model="notesForm.description" label="Notes internes" />
                             <InputError class="mt-1" :message="notesForm.errors.description" />
                         </div>
                         <div class="flex items-center justify-end gap-2">
@@ -840,14 +941,14 @@ const deleteProperty = (property) => {
                                 @click="cancelEditNotes"
                                 class="py-2 px-2.5 inline-flex items-center gap-x-2 text-xs font-semibold rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 focus:outline-none focus:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700"
                             >
-                                Cancel
+                                Annuler
                             </button>
                             <button
                                 type="submit"
                                 :disabled="notesForm.processing"
                                 class="py-2 px-2.5 inline-flex items-center gap-x-2 text-xs font-semibold rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-green-500"
                             >
-                                Save
+                                Enregistrer
                             </button>
                         </div>
                     </form>

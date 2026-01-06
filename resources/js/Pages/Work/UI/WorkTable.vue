@@ -63,6 +63,7 @@ const statusLabels = {
 };
 
 const formatStatus = (status) => statusLabels[status] || status || 'Planifie';
+const resolveStatus = (status) => status || 'scheduled';
 
 const filterPayload = () => {
     const payload = {
@@ -296,12 +297,18 @@ const createInvoice = (work) => {
                                 <span
                                     class="py-1.5 px-2 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-full"
                                     :class="{
-                                        'bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-200': ['to_schedule', 'scheduled'].includes(work.status || 'scheduled'),
-                                        'bg-blue-100 text-blue-800 dark:bg-blue-500/20 dark:text-blue-200': ['en_route', 'in_progress'].includes(work.status),
-                                        'bg-indigo-100 text-indigo-800 dark:bg-indigo-500/20 dark:text-indigo-200': ['tech_complete', 'pending_review'].includes(work.status),
-                                        'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-200': ['validated', 'auto_validated', 'closed', 'completed'].includes(work.status),
-                                        'bg-rose-100 text-rose-800 dark:bg-rose-500/20 dark:text-rose-200': work.status === 'dispute',
-                                        'bg-stone-200 text-stone-700 dark:bg-neutral-700 dark:text-neutral-300': work.status === 'cancelled',
+                                        'bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-200': resolveStatus(work.status) === 'to_schedule',
+                                        'bg-yellow-100 text-yellow-800 dark:bg-yellow-500/20 dark:text-yellow-200': resolveStatus(work.status) === 'scheduled',
+                                        'bg-sky-100 text-sky-800 dark:bg-sky-500/20 dark:text-sky-200': resolveStatus(work.status) === 'en_route',
+                                        'bg-blue-100 text-blue-800 dark:bg-blue-500/20 dark:text-blue-200': resolveStatus(work.status) === 'in_progress',
+                                        'bg-indigo-100 text-indigo-800 dark:bg-indigo-500/20 dark:text-indigo-200': resolveStatus(work.status) === 'tech_complete',
+                                        'bg-violet-100 text-violet-800 dark:bg-violet-500/20 dark:text-violet-200': resolveStatus(work.status) === 'pending_review',
+                                        'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-200': resolveStatus(work.status) === 'validated',
+                                        'bg-teal-100 text-teal-800 dark:bg-teal-500/20 dark:text-teal-200': resolveStatus(work.status) === 'auto_validated',
+                                        'bg-rose-100 text-rose-800 dark:bg-rose-500/20 dark:text-rose-200': resolveStatus(work.status) === 'dispute',
+                                        'bg-slate-200 text-slate-800 dark:bg-slate-500/20 dark:text-slate-200': resolveStatus(work.status) === 'closed',
+                                        'bg-stone-200 text-stone-700 dark:bg-neutral-700 dark:text-neutral-300': resolveStatus(work.status) === 'cancelled',
+                                        'bg-lime-100 text-lime-800 dark:bg-lime-500/20 dark:text-lime-200': resolveStatus(work.status) === 'completed',
                                     }">
                                     {{ formatStatus(work.status) }}
                                 </span>
