@@ -30,6 +30,10 @@ const props = defineProps({
         type: Array,
         default: () => [],
     },
+    agendaAlerts: {
+        type: Object,
+        default: () => ({}),
+    },
     outstandingInvoices: {
         type: Array,
         default: () => [],
@@ -110,6 +114,7 @@ const formatCurrency = (value) =>
 const formatDate = (value) => humanizeDate(value);
 const tasksToday = computed(() => props.tasksToday || []);
 const worksToday = computed(() => props.worksToday || []);
+const agendaAlerts = computed(() => props.agendaAlerts || {});
 const formatTime = (value) => {
     if (!value) {
         return '';
@@ -174,7 +179,35 @@ const priorityConfig = {
         class: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-200',
     },
 };
+const autoBadgeConfig = {
+    started: {
+        label: 'Auto start',
+        class: 'bg-sky-100 text-sky-700 dark:bg-sky-500/20 dark:text-sky-200',
+    },
+    completed: {
+        label: 'Auto done',
+        class: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-200',
+    },
+};
 const resolvePriority = (task) => priorityConfig[resolvePriorityKey(task)];
+const resolveAutoBadges = (item) => {
+    const badges = [];
+    if (item?.auto_started_at) {
+        badges.push({
+            key: `${item.key}-auto-start`,
+            label: autoBadgeConfig.started.label,
+            class: autoBadgeConfig.started.class,
+        });
+    }
+    if (item?.auto_completed_at) {
+        badges.push({
+            key: `${item.key}-auto-complete`,
+            label: autoBadgeConfig.completed.label,
+            class: autoBadgeConfig.completed.class,
+        });
+    }
+    return badges;
+};
 const formatStatus = (status) => {
     if (!status) {
         return '-';
@@ -208,6 +241,48 @@ const todayItems = computed(() => {
         return dateA.getTime() - dateB.getTime();
     });
 });
+const formatAgendaCount = (count, singular, plural) =>
+    `${count} ${count === 1 ? singular : plural}`;
+const agendaAlertItems = computed(() => {
+    const alerts = agendaAlerts.value || {};
+    const tasksStarted = Number(alerts.tasks_started || 0);
+    const worksStarted = Number(alerts.works_started || 0);
+    const tasksCompleted = Number(alerts.tasks_completed || 0);
+    const worksCompleted = Number(alerts.works_completed || 0);
+    const items = [];
+
+    if (tasksStarted > 0) {
+        items.push({
+            key: 'tasks-started',
+            label: `${formatAgendaCount(tasksStarted, 'task', 'tasks')} auto-started`,
+            class: autoBadgeConfig.started.class,
+        });
+    }
+    if (worksStarted > 0) {
+        items.push({
+            key: 'works-started',
+            label: `${formatAgendaCount(worksStarted, 'job', 'jobs')} auto-started`,
+            class: autoBadgeConfig.started.class,
+        });
+    }
+    if (tasksCompleted > 0) {
+        items.push({
+            key: 'tasks-completed',
+            label: `${formatAgendaCount(tasksCompleted, 'task', 'tasks')} auto-completed at 18:00`,
+            class: autoBadgeConfig.completed.class,
+        });
+    }
+    if (worksCompleted > 0) {
+        items.push({
+            key: 'works-completed',
+            label: `${formatAgendaCount(worksCompleted, 'job', 'jobs')} auto-completed`,
+            class: autoBadgeConfig.completed.class,
+        });
+    }
+
+    return items;
+});
+const hasAgendaAlerts = computed(() => agendaAlertItems.value.length > 0);
 const customersEmpty = computed(() => stat('customers_total') <= 0);
 const catalogEmpty = computed(() => stat('products_total') <= 0);
 const quotesEmpty = computed(() => stat('quotes_total') <= 0);
@@ -704,6 +779,18 @@ const secondaryActions = computed(() => suggestionActions.value.slice(1, 5));
                             </div>
                         </div>
                         <div class="mt-4">
+                            <div v-if="hasAgendaAlerts" class="mb-3 rounded-sm border border-sky-200 bg-sky-50 p-3 text-xs text-sky-800 dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-200">
+                                <div class="font-semibold">Auto alerts today</div>
+                                <div class="mt-2 flex flex-wrap gap-2">
+                                    <span
+                                        v-for="item in agendaAlertItems"
+                                        :key="item.key"
+                                        :class="['rounded-full px-2 py-0.5 text-[11px] font-medium', item.class]"
+                                    >
+                                        {{ item.label }}
+                                    </span>
+                                </div>
+                            </div>
                             <div v-if="!todayItems.length" class="text-sm text-stone-500 dark:text-neutral-400">
                                 No tasks or jobs scheduled for today.
                             </div>
@@ -726,6 +813,13 @@ const secondaryActions = computed(() => suggestionActions.value.slice(1, 5));
                                             <div class="flex flex-col items-end gap-1">
                                                 <span :class="['rounded-full px-2 py-0.5 text-xs font-medium', resolvePriority(item).class]">
                                                     {{ resolvePriority(item).label }}
+                                                </span>
+                                                <span
+                                                    v-for="badge in resolveAutoBadges(item)"
+                                                    :key="badge.key"
+                                                    :class="['rounded-full px-2 py-0.5 text-xs font-medium', badge.class]"
+                                                >
+                                                    {{ badge.label }}
                                                 </span>
                                                 <span class="text-[11px] uppercase text-stone-400 dark:text-neutral-500">
                                                     {{ item.type === 'work' ? 'Job' : 'Task' }}

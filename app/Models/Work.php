@@ -58,6 +58,10 @@ class Work extends Model
         'billing_grouping',
         'billing_delay_days',
         'billing_date_rule',
+        'auto_started_at',
+        'auto_completed_at',
+        'start_alerted_at',
+        'end_alerted_at',
     ];
 
     public const STATUSES = [
@@ -89,6 +93,10 @@ class Work extends Model
         'start_date' => 'date',
         'end_date' => 'date',
         'completed_at' => 'datetime',
+        'auto_started_at' => 'datetime',
+        'auto_completed_at' => 'datetime',
+        'start_alerted_at' => 'datetime',
+        'end_alerted_at' => 'datetime',
         'billing_delay_days' => 'integer',
     ];
 

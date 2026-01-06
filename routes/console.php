@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Schedule;
 use App\Models\Role;
 use App\Models\User;
 use App\Models\Work;
+use App\Services\DailyAgendaService;
 use App\Services\PlatformAdminNotifier;
 use App\Services\WorkBillingService;
 
@@ -198,6 +199,13 @@ Artisan::command('platform:notifications-scan', function (PlatformAdminNotifier 
     return 0;
 })->purpose('Scan for churn risk and log notifications');
 
+Artisan::command('agenda:process', function (DailyAgendaService $service): int {
+    $result = $service->process();
+    $this->info('Agenda processed: ' . json_encode($result));
+    return 0;
+})->purpose('Auto-start tasks/jobs and send alerts');
+
 Schedule::command('platform:notifications-digest --frequency=daily')->dailyAt('08:00');
 Schedule::command('platform:notifications-digest --frequency=weekly')->weeklyOn(1, '08:00');
 Schedule::command('platform:notifications-scan')->dailyAt('07:30');
+Schedule::command('agenda:process')->everyFiveMinutes();

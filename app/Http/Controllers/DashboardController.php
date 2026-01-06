@@ -386,7 +386,17 @@ class DashboardController extends Controller
                     ->orderBy('due_date')
                     ->orderByDesc('created_at')
                     ->limit(10)
-                    ->get(['id', 'title', 'status', 'due_date', 'start_time', 'end_time', 'assigned_team_member_id'])
+                    ->get([
+                        'id',
+                        'title',
+                        'status',
+                        'due_date',
+                        'start_time',
+                        'end_time',
+                        'auto_started_at',
+                        'auto_completed_at',
+                        'assigned_team_member_id',
+                    ])
                     ->map(function ($task) {
                         return [
                             'id' => $task->id,
@@ -395,6 +405,8 @@ class DashboardController extends Controller
                             'due_date' => $task->due_date,
                             'start_time' => $task->start_time,
                             'end_time' => $task->end_time,
+                            'auto_started_at' => $task->auto_started_at,
+                            'auto_completed_at' => $task->auto_completed_at,
                             'assignee' => $task->assignee?->user ? [
                                 'name' => $task->assignee->user->name,
                             ] : null,
@@ -409,7 +421,17 @@ class DashboardController extends Controller
                     ->orderBy('start_time')
                     ->orderByDesc('created_at')
                     ->limit(12)
-                    ->get(['id', 'title', 'status', 'due_date', 'start_time', 'end_time', 'assigned_team_member_id'])
+                    ->get([
+                        'id',
+                        'title',
+                        'status',
+                        'due_date',
+                        'start_time',
+                        'end_time',
+                        'auto_started_at',
+                        'auto_completed_at',
+                        'assigned_team_member_id',
+                    ])
                     ->map(function ($task) {
                         return [
                             'id' => $task->id,
@@ -418,6 +440,8 @@ class DashboardController extends Controller
                             'due_date' => $task->due_date,
                             'start_time' => $task->start_time,
                             'end_time' => $task->end_time,
+                            'auto_started_at' => $task->auto_started_at,
+                            'auto_completed_at' => $task->auto_completed_at,
                             'assignee' => $task->assignee?->user ? [
                                 'name' => $task->assignee->user->name,
                             ] : null,
@@ -426,6 +450,7 @@ class DashboardController extends Controller
 
                 $worksQuery = Work::query()->byUser($accountId);
                 $worksToday = $this->buildWorksToday($worksQuery, $today);
+                $agendaAlerts = $this->buildAgendaAlerts($tasksQuery, $worksQuery, $today);
 
                 $seriesMonths = 6;
                 $tasksTotalSeries = $this->buildMonthlySeries($now, $seriesMonths, function ($start, $end) use ($tasksQuery) {
@@ -463,6 +488,7 @@ class DashboardController extends Controller
                     'tasks' => $tasks,
                     'tasksToday' => $tasksToday,
                     'worksToday' => $worksToday,
+                    'agendaAlerts' => $agendaAlerts,
                     'announcements' => $internalAnnouncements,
                     'quickAnnouncements' => $quickAnnouncements,
                     'kpiSeries' => $kpiSeries,
@@ -486,7 +512,17 @@ class DashboardController extends Controller
                 ->orderBy('due_date')
                 ->orderByDesc('created_at')
                 ->limit(10)
-                ->get(['id', 'title', 'status', 'due_date', 'start_time', 'end_time', 'assigned_team_member_id'])
+                ->get([
+                    'id',
+                    'title',
+                    'status',
+                    'due_date',
+                    'start_time',
+                    'end_time',
+                    'auto_started_at',
+                    'auto_completed_at',
+                    'assigned_team_member_id',
+                ])
                 ->map(function ($task) {
                     return [
                         'id' => $task->id,
@@ -495,6 +531,8 @@ class DashboardController extends Controller
                         'due_date' => $task->due_date,
                         'start_time' => $task->start_time,
                         'end_time' => $task->end_time,
+                        'auto_started_at' => $task->auto_started_at,
+                        'auto_completed_at' => $task->auto_completed_at,
                         'assignee' => $task->assignee?->user ? [
                             'name' => $task->assignee->user->name,
                         ] : null,
@@ -509,7 +547,17 @@ class DashboardController extends Controller
                 ->orderBy('start_time')
                 ->orderByDesc('created_at')
                 ->limit(12)
-                ->get(['id', 'title', 'status', 'due_date', 'start_time', 'end_time', 'assigned_team_member_id'])
+                ->get([
+                    'id',
+                    'title',
+                    'status',
+                    'due_date',
+                    'start_time',
+                    'end_time',
+                    'auto_started_at',
+                    'auto_completed_at',
+                    'assigned_team_member_id',
+                ])
                 ->map(function ($task) {
                     return [
                         'id' => $task->id,
@@ -518,6 +566,8 @@ class DashboardController extends Controller
                         'due_date' => $task->due_date,
                         'start_time' => $task->start_time,
                         'end_time' => $task->end_time,
+                        'auto_started_at' => $task->auto_started_at,
+                        'auto_completed_at' => $task->auto_completed_at,
                         'assignee' => $task->assignee?->user ? [
                             'name' => $task->assignee->user->name,
                         ] : null,
@@ -528,6 +578,7 @@ class DashboardController extends Controller
                 ->byUser($accountId)
                 ->whereHas('teamMembers', fn($query) => $query->whereKey($membership->id));
             $worksToday = $this->buildWorksToday($worksQuery, $today);
+            $agendaAlerts = $this->buildAgendaAlerts($tasksQuery, $worksQuery, $today);
 
             $seriesMonths = 6;
             $tasksTodoSeries = $this->buildMonthlySeries($now, $seriesMonths, function ($start, $end) use ($tasksQuery) {
@@ -559,6 +610,7 @@ class DashboardController extends Controller
                 'tasks' => $tasks,
                 'tasksToday' => $tasksToday,
                 'worksToday' => $worksToday,
+                'agendaAlerts' => $agendaAlerts,
                 'announcements' => $internalAnnouncements,
                 'quickAnnouncements' => $quickAnnouncements,
                 'kpiSeries' => $kpiSeries,
@@ -631,7 +683,17 @@ class DashboardController extends Controller
             ->orderBy('due_date')
             ->orderByDesc('created_at')
             ->limit(10)
-            ->get(['id', 'title', 'status', 'due_date', 'start_time', 'end_time', 'assigned_team_member_id'])
+            ->get([
+                'id',
+                'title',
+                'status',
+                'due_date',
+                'start_time',
+                'end_time',
+                'auto_started_at',
+                'auto_completed_at',
+                'assigned_team_member_id',
+            ])
             ->map(function ($task) {
                 return [
                     'id' => $task->id,
@@ -640,6 +702,8 @@ class DashboardController extends Controller
                     'due_date' => $task->due_date,
                     'start_time' => $task->start_time,
                     'end_time' => $task->end_time,
+                    'auto_started_at' => $task->auto_started_at,
+                    'auto_completed_at' => $task->auto_completed_at,
                     'assignee' => $task->assignee?->user ? [
                         'name' => $task->assignee->user->name,
                     ] : null,
@@ -654,7 +718,17 @@ class DashboardController extends Controller
             ->orderBy('start_time')
             ->orderByDesc('created_at')
             ->limit(12)
-            ->get(['id', 'title', 'status', 'due_date', 'start_time', 'end_time', 'assigned_team_member_id'])
+            ->get([
+                'id',
+                'title',
+                'status',
+                'due_date',
+                'start_time',
+                'end_time',
+                'auto_started_at',
+                'auto_completed_at',
+                'assigned_team_member_id',
+            ])
             ->map(function ($task) {
                 return [
                     'id' => $task->id,
@@ -663,6 +737,8 @@ class DashboardController extends Controller
                     'due_date' => $task->due_date,
                     'start_time' => $task->start_time,
                     'end_time' => $task->end_time,
+                    'auto_started_at' => $task->auto_started_at,
+                    'auto_completed_at' => $task->auto_completed_at,
                     'assignee' => $task->assignee?->user ? [
                         'name' => $task->assignee->user->name,
                     ] : null,
@@ -671,6 +747,7 @@ class DashboardController extends Controller
 
         $worksQuery = Work::query()->byUser($accountId);
         $worksToday = $this->buildWorksToday($worksQuery, $today);
+        $agendaAlerts = $this->buildAgendaAlerts($tasksQuery, $worksQuery, $today);
 
         $recentQuotes = Quote::byUser($userId)
             ->with('customer:id,company_name,first_name,last_name')
@@ -850,6 +927,7 @@ class DashboardController extends Controller
             'tasks' => $tasks,
             'tasksToday' => $tasksToday,
             'worksToday' => $worksToday,
+            'agendaAlerts' => $agendaAlerts,
             'revenueSeries' => $revenueSeries,
             'kpiSeries' => $kpiSeries,
             'announcements' => $internalAnnouncements,
@@ -1111,6 +1189,33 @@ class DashboardController extends Controller
         ];
     }
 
+    private function buildAgendaAlerts($tasksQuery, $worksQuery, string $today): array
+    {
+        $tasksStarted = (clone $tasksQuery)
+            ->whereNotNull('auto_started_at')
+            ->whereDate('auto_started_at', $today)
+            ->count();
+        $tasksCompleted = (clone $tasksQuery)
+            ->whereNotNull('auto_completed_at')
+            ->whereDate('auto_completed_at', $today)
+            ->count();
+        $worksStarted = (clone $worksQuery)
+            ->whereNotNull('auto_started_at')
+            ->whereDate('auto_started_at', $today)
+            ->count();
+        $worksCompleted = (clone $worksQuery)
+            ->whereNotNull('auto_completed_at')
+            ->whereDate('auto_completed_at', $today)
+            ->count();
+
+        return [
+            'tasks_started' => $tasksStarted,
+            'tasks_completed' => $tasksCompleted,
+            'works_started' => $worksStarted,
+            'works_completed' => $worksCompleted,
+        ];
+    }
+
     private function buildWorksToday($query, string $today): array
     {
         $excludedStatuses = array_merge(Work::COMPLETED_STATUSES, [Work::STATUS_CANCELLED]);
@@ -1122,7 +1227,16 @@ class DashboardController extends Controller
             ->orderBy('start_time')
             ->orderByDesc('created_at')
             ->limit(12)
-            ->get(['id', 'job_title', 'status', 'start_date', 'start_time', 'end_time'])
+            ->get([
+                'id',
+                'job_title',
+                'status',
+                'start_date',
+                'start_time',
+                'end_time',
+                'auto_started_at',
+                'auto_completed_at',
+            ])
             ->map(function ($work) {
                 return [
                     'id' => $work->id,
@@ -1131,6 +1245,8 @@ class DashboardController extends Controller
                     'due_date' => $work->start_date,
                     'start_time' => $work->start_time,
                     'end_time' => $work->end_time,
+                    'auto_started_at' => $work->auto_started_at,
+                    'auto_completed_at' => $work->auto_completed_at,
                 ];
             })
             ->values()

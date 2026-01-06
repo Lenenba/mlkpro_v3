@@ -111,6 +111,11 @@ class User extends Authenticatable
         return $this->hasMany(TeamMember::class, 'account_id');
     }
 
+    public function pushTokens(): HasMany
+    {
+        return $this->hasMany(UserPushToken::class);
+    }
+
     public function platformAdmin(): HasOne
     {
         return $this->hasOne(PlatformAdmin::class);

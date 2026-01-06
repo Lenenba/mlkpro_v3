@@ -87,6 +87,7 @@ Route::name('api.')->group(function () {
 
         Route::middleware(EnsureOnboardingIsComplete::class)->group(function () {
             Route::get('dashboard', [DashboardController::class, 'index']);
+            Route::post('push-tokens', [\App\Http\Controllers\Api\PushTokenController::class, 'store']);
             Route::post('locale', [LocaleController::class, 'update']);
             Route::get('profile', [ProfileController::class, 'edit']);
             Route::patch('profile', [ProfileController::class, 'update']);
