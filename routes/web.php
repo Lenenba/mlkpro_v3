@@ -235,6 +235,7 @@ Route::middleware(['auth', EnsureInternalUser::class])->group(function () {
     // Tasks
     Route::middleware('company.feature:tasks')->group(function () {
         Route::get('/tasks', [TaskController::class, 'index'])->name('task.index');
+        Route::get('/tasks/calendar', [DashboardController::class, 'tasksCalendar'])->name('tasks.calendar');
         Route::post('/tasks', [TaskController::class, 'store'])->name('task.store');
         Route::put('/tasks/{task}', [TaskController::class, 'update'])->name('task.update');
         Route::delete('/tasks/{task}', [TaskController::class, 'destroy'])->name('task.destroy');
@@ -245,6 +246,7 @@ Route::middleware(['auth', EnsureInternalUser::class])->group(function () {
     Route::middleware('company.feature:invoices')->group(function () {
         Route::get('/invoices', [InvoiceController::class, 'index'])->name('invoice.index');
         Route::get('/invoices/{invoice}', [InvoiceController::class, 'show'])->name('invoice.show');
+        Route::get('/invoices/{invoice}/pdf', [InvoiceController::class, 'pdf'])->name('invoice.pdf');
         Route::post('/work/{work}/invoice', [InvoiceController::class, 'storeFromWork'])->name('invoice.store-from-work');
     });
 

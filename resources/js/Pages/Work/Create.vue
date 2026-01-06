@@ -9,7 +9,6 @@ import SelectableItem from '@/Components/SelectableItem.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingTextarea from '@/Components/FloatingTextarea.vue';
-import ValidationSummary from '@/Components/ValidationSummary.vue';
 import FullCalendar from '@fullcalendar/vue3';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
@@ -18,6 +17,7 @@ import DatePicker from '@/Components/DatePicker.vue';
 import TimePicker from '@/Components/TimePicker.vue';
 import Checkbox from '@/Components/Checkbox.vue';
 import ProductTableList from '@/Components/ProductTableList.vue';
+import InputError from '@/Components/InputError.vue';
 
 const props = defineProps({
     works: Object,
@@ -541,6 +541,7 @@ onBeforeUnmount(() => {
                             <div class="col-span-2 space-x-2">
                                 <div class="mb-4" x-data="{ open: false }">
                                     <FloatingInput v-model="form.job_title" label="Titre du job" :required="true" :disabled="isLockedFromQuote" />
+                                    <InputError class="mt-1" :message="form.errors.job_title" />
                                     <FloatingTextarea v-model="form.instructions" label="Instructions" :disabled="isLockedFromQuote" />
                                 </div>
                                 <div v-if="isLockedFromQuote" class="mb-2 text-xs text-amber-600">
@@ -709,6 +710,7 @@ onBeforeUnmount(() => {
                                                             <DatePicker v-model="form.start_date" label="Date de debut" :required="true"
                                                                 placeholder="Choisir une date" />
                                                         </div>
+                                                        <InputError class="mt-1" :message="form.errors.start_date" />
                                                         <div class="flex flex-row space-x-1">
                                                             <TimePicker v-model="form.start_time" label="Heure de debut"
                                                                 placeholder="Choisir une heure" />
@@ -841,6 +843,7 @@ onBeforeUnmount(() => {
                                                 <div class="p-4 md:p-5">
                                                     <DatePicker v-model="form.start_date" label="Date de debut" :required="true"
                                                         placeholder="Choisir une date" />
+                                                    <InputError class="mt-1" :message="form.errors.start_date" />
                                                     <div class="flex flex-row space-x-1 my-4">
                                                         <TimePicker v-model="form.start_time" label="Heure de debut"
                                                             placeholder="Choisir une heure" />

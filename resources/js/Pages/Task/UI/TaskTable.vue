@@ -7,6 +7,7 @@ import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingNumberInput from '@/Components/FloatingNumberInput.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
 import FloatingTextarea from '@/Components/FloatingTextarea.vue';
+import DatePicker from '@/Components/DatePicker.vue';
 import Checkbox from '@/Components/Checkbox.vue';
 import InputError from '@/Components/InputError.vue';
 import { humanizeDate } from '@/utils/date';
@@ -111,12 +112,14 @@ const statusLabel = (status) => {
 
 const statusClasses = (status) => {
     switch (status) {
-        case 'done':
-            return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-400';
+        case 'todo':
+            return 'bg-amber-100 text-amber-800 dark:bg-amber-500/10 dark:text-amber-300';
         case 'in_progress':
             return 'bg-blue-100 text-blue-800 dark:bg-blue-500/10 dark:text-blue-400';
+        case 'done':
+            return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-400';
         default:
-            return 'bg-amber-100 text-amber-800 dark:bg-amber-500/10 dark:text-amber-300';
+            return 'bg-stone-200 text-stone-700 dark:bg-neutral-700 dark:text-neutral-300';
     }
 };
 
@@ -674,7 +677,7 @@ const submitProof = () => {
     <Modal v-if="canCreate" :title="'Add task'" :id="'hs-task-create'">
         <form class="space-y-4" @submit.prevent="submitCreate">
             <div>
-                <FloatingInput v-model="createForm.title" label="Title" />
+                <FloatingInput v-model="createForm.title" label="Title" :required="true" />
                 <InputError class="mt-1" :message="createForm.errors.title" />
             </div>
 
@@ -714,9 +717,7 @@ const submitProof = () => {
                     <InputError class="mt-1" :message="createForm.errors.status" />
                 </div>
                 <div>
-                    <label class="block text-xs text-stone-500 dark:text-neutral-400">Due date</label>
-                    <input type="date" v-model="createForm.due_date"
-                        class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200" />
+                    <DatePicker v-model="createForm.due_date" label="Due date" />
                     <InputError class="mt-1" :message="createForm.errors.due_date" />
                 </div>
                 <div v-if="teamMembers.length" class="md:col-span-2">
@@ -789,7 +790,7 @@ const submitProof = () => {
     <Modal v-if="canManage" :title="'Edit task'" :id="'hs-task-edit'">
         <form class="space-y-4" @submit.prevent="submitEdit">
             <div>
-                <FloatingInput v-model="editForm.title" label="Title" />
+                <FloatingInput v-model="editForm.title" label="Title" :required="true" />
                 <InputError class="mt-1" :message="editForm.errors.title" />
             </div>
 
@@ -829,9 +830,7 @@ const submitProof = () => {
                     <InputError class="mt-1" :message="editForm.errors.status" />
                 </div>
                 <div>
-                    <label class="block text-xs text-stone-500 dark:text-neutral-400">Due date</label>
-                    <input type="date" v-model="editForm.due_date"
-                        class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200" />
+                    <DatePicker v-model="editForm.due_date" label="Due date" />
                     <InputError class="mt-1" :message="editForm.errors.due_date" />
                 </div>
                 <div v-if="teamMembers.length" class="md:col-span-2">

@@ -1,6 +1,6 @@
 @extends('emails.layouts.base')
 
-@section('title', 'Bienvenue sur ' . ($companyName ?? config('app.name')))
+@section('title', 'Bienvenue  ' . ($companyName ?? config('app.name')))
 
 @section('content')
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0">

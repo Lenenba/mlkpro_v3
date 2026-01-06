@@ -35,11 +35,19 @@ class Task extends Model
         'start_time',
         'end_time',
         'completed_at',
+        'auto_started_at',
+        'auto_completed_at',
+        'start_alerted_at',
+        'end_alerted_at',
     ];
 
     protected $casts = [
         'due_date' => 'date',
         'completed_at' => 'datetime',
+        'auto_started_at' => 'datetime',
+        'auto_completed_at' => 'datetime',
+        'start_alerted_at' => 'datetime',
+        'end_alerted_at' => 'datetime',
         'billable' => 'boolean',
     ];
 

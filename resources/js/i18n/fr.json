@@ -2,16 +2,16 @@
   "nav": {
     "admin": "Administration",
     "tenants": "Espaces",
-    "support": "Support",
+    "support": "Assistance",
     "admins": "Administrateurs",
-    "notifications": "Notifications",
+    "notifications": "Alertes",
     "announcements": "Annonces",
     "settings": "Paramètres",
     "dashboard": "Tableau de bord",
     "customers": "Clients",
     "products": "Produits",
-    "services": "Services",
-    "categories": "Categories",
+    "services": "Prestations",
+    "categories": "Rubriques",
     "quotes": "Devis",
     "plan_scans": "Scan de plan",
     "requests": "Demandes",
@@ -58,7 +58,7 @@
   },
   "quick_create": {
     "customer": "Client",
-    "service": "Service",
+    "service": "Prestation",
     "request": "Demande",
     "quote": "Devis",
     "product": "Produit"
@@ -87,7 +87,7 @@
         "description": "Plan, paiements et historique"
       },
       "notifications": {
-        "label": "Notifications",
+        "label": "Alertes",
         "description": "Emails, alertes et préférences",
         "badge": "Bientôt"
       }
@@ -95,7 +95,7 @@
   },
   "welcome": {
     "meta": {
-      "title": "Bienvenue"
+      "title": "Bienvenue "
     },
     "nav": {
       "tagline": "Suite de gestion"
@@ -167,7 +167,7 @@
       }
     },
     "workflow": {
-      "kicker": "Workflow",
+      "kicker": "Flux de travail",
       "title": "De la demande au paiement",
       "subtitle": "Un flux simple pour garder l’équipe alignée.",
       "steps": {
@@ -327,7 +327,7 @@
         "desc": "Pour les petites equipes qui demarrent."
       },
       "pro": {
-        "label": "Pro",
+        "label": "Professionnel",
         "badge": "Recommande",
         "price": "Contactez-nous",
         "desc": "Pour les equipes en croissance et multi-activites."
@@ -397,7 +397,7 @@
         "body": "Vous pouvez demander acces, correction ou suppression via le proprietaire du compte."
       },
       "contact": {
-        "title": "8. Contact",
+        "title": "8. Contactez-nous",
         "body": "Pour les questions de confidentialite, contactez le support dans l application."
       }
     },
@@ -423,7 +423,7 @@
         "body": "Les remboursements peuvent etre consideres pour doublons ou erreurs de facturation verifiees."
       },
       "exclusions": {
-        "title": "3. Exclusions",
+        "title": "3. Cas exclus",
         "bullets": {
           "one": "Changement d avis apres usage significatif.",
           "two": "Frais tiers ou frais du processeur de paiement.",

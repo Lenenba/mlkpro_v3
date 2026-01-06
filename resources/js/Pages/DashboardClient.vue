@@ -144,23 +144,46 @@ const formatStatus = (status) => (status || 'pending').replace(/_/g, ' ');
 
 const statusClass = (status) => {
     switch (status) {
-        case 'accepted':
+        case 'to_schedule':
+            return 'bg-amber-100 text-amber-800 dark:bg-amber-500/10 dark:text-amber-400';
+        case 'scheduled':
+            return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-500/10 dark:text-yellow-400';
+        case 'en_route':
+            return 'bg-sky-100 text-sky-800 dark:bg-sky-500/10 dark:text-sky-400';
+        case 'in_progress':
+            return 'bg-blue-100 text-blue-800 dark:bg-blue-500/10 dark:text-blue-400';
+        case 'tech_complete':
+            return 'bg-indigo-100 text-indigo-800 dark:bg-indigo-500/10 dark:text-indigo-400';
+        case 'pending_review':
+            return 'bg-violet-100 text-violet-800 dark:bg-violet-500/10 dark:text-violet-400';
         case 'validated':
+            return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-400';
         case 'auto_validated':
+            return 'bg-teal-100 text-teal-800 dark:bg-teal-500/10 dark:text-teal-400';
+        case 'dispute':
+            return 'bg-rose-100 text-rose-800 dark:bg-rose-500/10 dark:text-rose-400';
         case 'closed':
+            return 'bg-slate-200 text-slate-800 dark:bg-slate-500/10 dark:text-slate-300';
+        case 'cancelled':
+            return 'bg-stone-200 text-stone-700 dark:bg-neutral-700 dark:text-neutral-300';
         case 'completed':
+            return 'bg-lime-100 text-lime-800 dark:bg-lime-500/10 dark:text-lime-400';
+        case 'accepted':
         case 'paid':
+        case 'done':
             return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-400';
         case 'sent':
-        case 'tech_complete':
             return 'bg-blue-100 text-blue-800 dark:bg-blue-500/10 dark:text-blue-400';
-        case 'pending_review':
         case 'partial':
+        case 'pending':
+        case 'todo':
             return 'bg-amber-100 text-amber-800 dark:bg-amber-500/10 dark:text-amber-400';
         case 'declined':
-        case 'dispute':
         case 'overdue':
+        case 'void':
             return 'bg-red-100 text-red-800 dark:bg-red-500/10 dark:text-red-400';
+        case 'draft':
+            return 'bg-stone-100 text-stone-700 dark:bg-neutral-700 dark:text-neutral-200';
         default:
             return 'bg-stone-100 text-stone-700 dark:bg-neutral-700 dark:text-neutral-200';
     }
