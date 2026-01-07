@@ -7,6 +7,7 @@ use App\Models\Quote;
 use App\Models\Task;
 use App\Models\Invoice;
 use App\Models\Payment;
+use App\Models\Sale;
 use App\Models\Customer;
 use App\Models\Role;
 use App\Models\Request as LeadRequest;
@@ -45,11 +46,15 @@ class CustomerController extends Controller
             'sort',
             'direction',
         ]);
-        $userId = Auth::user()->id;
+        $user = $request->user();
+        if (!$user) {
+            abort(403);
+        }
+        [, $accountId] = $this->resolveCustomerAccount($user);
 
         $baseQuery = Customer::query()
             ->filter($filters)
-            ->byUser($userId);
+            ->byUser($accountId);
 
         $sort = in_array($filters['sort'] ?? null, ['company_name', 'first_name', 'created_at', 'quotes_count', 'works_count'], true)
             ? $filters['sort']
@@ -60,9 +65,9 @@ class CustomerController extends Controller
         $customers = (clone $baseQuery)
             ->with(['properties'])
             ->withCount([
-                'quotes as quotes_count' => fn($query) => $query->where('user_id', $userId),
-                'works as works_count' => fn($query) => $query->where('user_id', $userId),
-                'invoices as invoices_count' => fn($query) => $query->where('user_id', $userId),
+                'quotes as quotes_count' => fn($query) => $query->where('user_id', $accountId),
+                'works as works_count' => fn($query) => $query->where('user_id', $accountId),
+                'invoices as invoices_count' => fn($query) => $query->where('user_id', $accountId),
             ])
             ->orderBy($sort, $direction)
             ->simplePaginate(12)
@@ -74,18 +79,18 @@ class CustomerController extends Controller
             ->whereDate('created_at', '>=', $recentThreshold)
             ->count();
         $withQuotes = (clone $baseQuery)
-            ->whereHas('quotes', fn($query) => $query->where('user_id', $userId))
+            ->whereHas('quotes', fn($query) => $query->where('user_id', $accountId))
             ->count();
         $withWorks = (clone $baseQuery)
-            ->whereHas('works', fn($query) => $query->where('user_id', $userId))
+            ->whereHas('works', fn($query) => $query->where('user_id', $accountId))
             ->count();
         $activeCount = (clone $baseQuery)
-            ->where(function ($query) use ($userId, $recentThreshold) {
-                $query->whereHas('quotes', function ($sub) use ($userId, $recentThreshold) {
-                    $sub->where('user_id', $userId)
+            ->where(function ($query) use ($accountId, $recentThreshold) {
+                $query->whereHas('quotes', function ($sub) use ($accountId, $recentThreshold) {
+                    $sub->where('user_id', $accountId)
                         ->where('created_at', '>=', $recentThreshold);
-                })->orWhereHas('works', function ($sub) use ($userId, $recentThreshold) {
-                    $sub->where('user_id', $userId)
+                })->orWhereHas('works', function ($sub) use ($accountId, $recentThreshold) {
+                    $sub->where('user_id', $accountId)
                         ->where('created_at', '>=', $recentThreshold);
                 });
             })
@@ -101,9 +106,9 @@ class CustomerController extends Controller
 
         $topCustomers = (clone $baseQuery)
             ->withCount([
-                'quotes as quotes_count' => fn($query) => $query->where('user_id', $userId),
-                'works as works_count' => fn($query) => $query->where('user_id', $userId),
-                'invoices as invoices_count' => fn($query) => $query->where('user_id', $userId),
+                'quotes as quotes_count' => fn($query) => $query->where('user_id', $accountId),
+                'works as works_count' => fn($query) => $query->where('user_id', $accountId),
+                'invoices as invoices_count' => fn($query) => $query->where('user_id', $accountId),
             ])
             ->orderByDesc('quotes_count')
             ->orderByDesc('works_count')
@@ -125,9 +130,13 @@ class CustomerController extends Controller
      */
     public function options(Request $request)
     {
-        $userId = $request->user()->id;
+        $user = $request->user();
+        if (!$user) {
+            abort(403);
+        }
+        [, $accountId] = $this->resolveCustomerAccount($user);
 
-        $customers = Customer::byUser($userId)
+        $customers = Customer::byUser($accountId)
             ->with(['properties' => function ($query) {
                 $query->orderByDesc('is_default')->orderBy('id');
             }])
@@ -171,6 +180,11 @@ class CustomerController extends Controller
      */
     public function create()
     {
+        $user = Auth::user();
+        if ($user) {
+            $this->resolveCustomerAccount($user);
+        }
+
         return $this->inertiaOrJson('Customer/Create', [
             'customer' => new Customer(),
         ]);
@@ -187,7 +201,11 @@ class CustomerController extends Controller
         $this->authorize('view', $customer);
 
         $user = $request?->user();
-        $accountId = $user?->accountOwnerId() ?? Auth::id();
+        $accountOwner = null;
+        $accountId = $user?->id ?? Auth::id();
+        if ($user) {
+            [$accountOwner, $accountId] = $this->resolveCustomerAccount($user);
+        }
 
         // Valider les filtres uniquement si la requête contient des données
         $filters = $request?->only([
@@ -212,6 +230,25 @@ class CustomerController extends Controller
             'requests' => fn($query) => $query->latest()->limit(10)->with('quote:id,number,status,customer_id'),
             'invoices' => fn($query) => $query->withSum('payments', 'amount')->latest()->limit(10),
         ]);
+
+        $sales = collect();
+        $salesSummary = null;
+        if ($accountOwner && $accountOwner->company_type === 'products') {
+            $salesQuery = Sale::query()
+                ->where('user_id', $accountId)
+                ->where('customer_id', $customer->id);
+
+            $sales = (clone $salesQuery)
+                ->latest()
+                ->limit(10)
+                ->get(['id', 'number', 'status', 'total', 'created_at']);
+
+            $salesSummary = [
+                'count' => (clone $salesQuery)->count(),
+                'total' => (float) (clone $salesQuery)->sum('total'),
+                'paid' => (float) (clone $salesQuery)->where('status', Sale::STATUS_PAID)->sum('total'),
+            ];
+        }
 
         $stats = [
             'active_works' => Work::query()
@@ -426,6 +463,8 @@ class CustomerController extends Controller
             'works' => $works,
             'filters' => $filters,
             'stats' => $stats,
+            'sales' => $sales,
+            'salesSummary' => $salesSummary,
             'schedule' => [
                 'tasks' => $tasks,
                 'upcomingJobs' => $upcomingJobs,
@@ -552,6 +591,12 @@ class CustomerController extends Controller
      */
     public function store(CustomerRequest $request)
     {
+        $user = $request->user();
+        if (!$user) {
+            abort(403);
+        }
+        [$accountOwner, $accountId] = $this->resolveCustomerAccount($user);
+
         $validated = $request->validated();
         $validated['logo'] = FileHandler::handleImageUpload('customers', $request, 'logo', 'customers/customer.png');
         $validated['header_image'] = FileHandler::handleImageUpload('customers', $request, 'header_image', 'customers/customer.png');
@@ -561,8 +606,9 @@ class CustomerController extends Controller
 
         $customerData = Arr::except($validated, ['temporary_password']);
         $customerData['portal_access'] = $portalAccess;
+        $customerData['user_id'] = $accountId;
 
-        [$customer, $portalUser] = DB::transaction(function () use ($request, $validated, $customerData, $portalAccess) {
+        [$customer, $portalUser] = DB::transaction(function () use ($validated, $customerData, $portalAccess) {
         $portalUser = null;
         if ($portalAccess) {
             $roleId = $this->resolveClientRoleId();
@@ -570,7 +616,7 @@ class CustomerController extends Controller
             $customerData['portal_user_id'] = $portalUser->id;
         }
 
-        $customer = $request->user()->customers()->create($customerData);
+        $customer = Customer::create($customerData);
 
             return [$customer, $portalUser];
         });
@@ -591,7 +637,6 @@ class CustomerController extends Controller
         ], 'Customer created');
 
         if ($portalUser) {
-            $accountOwner = User::query()->find($request->user()->accountOwnerId());
             $token = Password::broker()->createToken($portalUser);
             $portalUser->notify(new InviteUserNotification(
                 $token,

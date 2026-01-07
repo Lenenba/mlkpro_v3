@@ -29,6 +29,14 @@ const props = defineProps({
         type: Array,
         required: true,
     },
+    warehouses: {
+        type: Array,
+        default: () => [],
+    },
+    defaultWarehouseId: {
+        type: Number,
+        default: null,
+    },
 });
 
 </script>
@@ -38,7 +46,14 @@ const props = defineProps({
         <ProductStats :stats="stats" />
         <div class="grid grid-cols-1 lg:grid-cols-4 gap-2 md:gap-3 lg:gap-5 ">
             <div class="col-span-1 lg:col-span-3">
-                <ProductTable :products="products" :count="count" :categories="categories" :filters="filters" />
+                <ProductTable
+                    :products="products"
+                    :count="count"
+                    :categories="categories"
+                    :filters="filters"
+                    :warehouses="warehouses"
+                    :defaultWarehouseId="defaultWarehouseId"
+                />
             </div>
             <ProductUsageStat :items="topProducts" />
         </div>

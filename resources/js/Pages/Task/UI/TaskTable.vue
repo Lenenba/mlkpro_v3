@@ -535,9 +535,12 @@ const submitProof = () => {
                         <tr v-for="task in tasks.data" :key="task.id">
                             <td class="size-px whitespace-nowrap px-4 py-2 text-start">
                                 <div class="flex flex-col">
-                                    <span class="text-sm font-medium text-stone-800 dark:text-neutral-200">
+                                    <Link
+                                        :href="`/tasks/${task.id}`"
+                                        class="text-sm font-medium text-stone-800 hover:text-emerald-700 dark:text-neutral-200 dark:hover:text-emerald-300"
+                                    >
                                         {{ task.title }}
-                                    </span>
+                                    </Link>
                                     <span v-if="task.description" class="text-xs text-stone-500 dark:text-neutral-500 line-clamp-1">
                                         {{ task.description }}
                                     </span>

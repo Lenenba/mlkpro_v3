@@ -2,35 +2,35 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class ProductStockMovement extends Model
+class SaleItem extends Model
 {
+    use HasFactory;
+
     protected $fillable = [
+        'sale_id',
         'product_id',
         'warehouse_id',
         'lot_id',
-        'user_id',
-        'type',
+        'description',
         'quantity',
-        'note',
-        'reason',
-        'reference_type',
-        'reference_id',
-        'before_quantity',
-        'after_quantity',
-        'unit_cost',
-        'meta',
+        'price',
+        'total',
     ];
 
     protected $casts = [
         'quantity' => 'integer',
-        'before_quantity' => 'integer',
-        'after_quantity' => 'integer',
-        'unit_cost' => 'decimal:2',
-        'meta' => 'array',
+        'price' => 'decimal:2',
+        'total' => 'decimal:2',
     ];
+
+    public function sale(): BelongsTo
+    {
+        return $this->belongsTo(Sale::class);
+    }
 
     public function product(): BelongsTo
     {
@@ -45,10 +45,5 @@ class ProductStockMovement extends Model
     public function lot(): BelongsTo
     {
         return $this->belongsTo(ProductLot::class, 'lot_id');
-    }
-
-    public function user(): BelongsTo
-    {
-        return $this->belongsTo(User::class);
     }
 }

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Settings;
 
 use App\Http\Controllers\Controller;
 use App\Models\ProductCategory;
+use App\Models\Warehouse;
 use App\Services\SupplierDirectory;
 use App\Services\UsageLimitService;
 use Illuminate\Http\Request;
@@ -34,6 +35,10 @@ class CompanySettingsController extends Controller
         $suppliers = $supplierDirectory->all($supplierCountry);
         $supplierPreferences = $this->resolveSupplierPreferences($user->company_supplier_preferences, $suppliers);
         $accountId = $user->accountOwnerId();
+        $warehouses = Warehouse::query()
+            ->forAccount($accountId)
+            ->orderBy('name')
+            ->get(['id', 'name', 'code', 'address', 'city', 'state', 'postal_code', 'country', 'is_default', 'is_active']);
 
         return $this->inertiaOrJson('Settings/Company', [
             'company' => [
@@ -52,6 +57,10 @@ class CompanySettingsController extends Controller
             'usage_limits' => $usageLimits,
             'suppliers' => $suppliers,
             'supplier_preferences' => $supplierPreferences,
+            'warehouses' => $warehouses,
+            'api_tokens' => $user->tokens()
+                ->orderByDesc('created_at')
+                ->get(['id', 'name', 'abilities', 'last_used_at', 'created_at', 'expires_at']),
         ]);
     }
 

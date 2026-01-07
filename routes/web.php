@@ -7,6 +7,7 @@ use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ProductPriceLookupController;
+use App\Http\Controllers\SaleController;
 use App\Http\Controllers\ServiceController;
 use App\Http\Controllers\TaskController;
 use App\Http\Controllers\TaskMediaController;
@@ -33,6 +34,8 @@ use App\Http\Controllers\Settings\CompanySettingsController;
 use App\Http\Controllers\Settings\BillingSettingsController;
 use App\Http\Controllers\Settings\ProductCategoryController;
 use App\Http\Controllers\Settings\SubscriptionController;
+use App\Http\Controllers\Settings\ApiTokenController;
+use App\Http\Controllers\WarehouseController;
 use App\Http\Controllers\SuperAdmin\DashboardController as SuperAdminDashboardController;
 use App\Http\Controllers\SuperAdmin\TenantController as SuperAdminTenantController;
 use App\Http\Controllers\SuperAdmin\AdminController as SuperAdminAdminController;
@@ -107,6 +110,15 @@ Route::middleware(['auth', EnsureInternalUser::class])->group(function () {
     // Settings (owner only)
     Route::get('/settings/company', [CompanySettingsController::class, 'edit'])->name('settings.company.edit');
     Route::put('/settings/company', [CompanySettingsController::class, 'update'])->name('settings.company.update');
+    Route::post('/settings/api-tokens', [ApiTokenController::class, 'store'])->name('settings.api-tokens.store');
+    Route::delete('/settings/api-tokens/{token}', [ApiTokenController::class, 'destroy'])->name('settings.api-tokens.destroy');
+    Route::post('/settings/warehouses', [WarehouseController::class, 'store'])->name('settings.warehouses.store');
+    Route::put('/settings/warehouses/{warehouse}', [WarehouseController::class, 'update'])
+        ->name('settings.warehouses.update');
+    Route::patch('/settings/warehouses/{warehouse}/default', [WarehouseController::class, 'setDefault'])
+        ->name('settings.warehouses.default');
+    Route::delete('/settings/warehouses/{warehouse}', [WarehouseController::class, 'destroy'])
+        ->name('settings.warehouses.destroy');
     Route::post('/settings/categories', [ProductCategoryController::class, 'store'])->name('settings.categories.store');
     Route::patch('/settings/categories/{category}', [ProductCategoryController::class, 'update'])
         ->name('settings.categories.update');
@@ -187,6 +199,14 @@ Route::middleware(['auth', EnsureInternalUser::class])->group(function () {
         Route::resource('product', ProductController::class);
     });
 
+    // Sales Management (products)
+    Route::middleware('company.feature:sales')->group(function () {
+        Route::get('/sales', [SaleController::class, 'index'])->name('sales.index');
+        Route::get('/sales/create', [SaleController::class, 'create'])->name('sales.create');
+        Route::post('/sales', [SaleController::class, 'store'])->name('sales.store');
+        Route::get('/sales/{sale}', [SaleController::class, 'show'])->name('sales.show');
+    });
+
     // Customer Management
     Route::scopeBindings()->group(function () {
         Route::post('/customer/{customer}/properties', [CustomerPropertyController::class, 'store'])
@@ -236,6 +256,7 @@ Route::middleware(['auth', EnsureInternalUser::class])->group(function () {
     Route::middleware('company.feature:tasks')->group(function () {
         Route::get('/tasks', [TaskController::class, 'index'])->name('task.index');
         Route::get('/tasks/calendar', [DashboardController::class, 'tasksCalendar'])->name('tasks.calendar');
+        Route::get('/tasks/{task}', [TaskController::class, 'show'])->name('task.show');
         Route::post('/tasks', [TaskController::class, 'store'])->name('task.store');
         Route::put('/tasks/{task}', [TaskController::class, 'update'])->name('task.update');
         Route::delete('/tasks/{task}', [TaskController::class, 'destroy'])->name('task.destroy');

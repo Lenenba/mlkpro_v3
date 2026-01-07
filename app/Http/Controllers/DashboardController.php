@@ -17,6 +17,7 @@ use App\Models\User;
 use App\Services\UsageLimitService;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Laravel\Paddle\Cashier;
 use Laravel\Paddle\Subscription;
 
@@ -628,7 +629,7 @@ class DashboardController extends Controller
         $invoicesQuery = Invoice::byUser($userId);
 
         $inventoryValue = (clone $productsQuery)
-            ->selectRaw('COALESCE(SUM(stock * COALESCE(NULLIF(cost_price, 0), price)), 0) as value')
+            ->select(DB::raw('COALESCE(SUM(stock * COALESCE(NULLIF(cost_price, 0), price)), 0) as value'))
             ->value('value');
 
         $scheduledStatuses = [Work::STATUS_TO_SCHEDULE, Work::STATUS_SCHEDULED];
@@ -884,7 +885,7 @@ class DashboardController extends Controller
         $inventorySeries = $this->buildMonthlySeries($now, $seriesMonths, function ($start, $end) use ($productsQuery) {
             return (float) (clone $productsQuery)
                 ->whereBetween('created_at', [$start, $end])
-                ->selectRaw('COALESCE(SUM(stock * COALESCE(NULLIF(cost_price, 0), price)), 0) as value')
+                ->select(DB::raw('COALESCE(SUM(stock * COALESCE(NULLIF(cost_price, 0), price)), 0) as value'))
                 ->value('value');
         });
         $kpiSeries = [

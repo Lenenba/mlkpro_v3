@@ -10,6 +10,8 @@ class TaskMaterial extends Model
     protected $fillable = [
         'task_id',
         'product_id',
+        'warehouse_id',
+        'lot_id',
         'source_service_id',
         'label',
         'description',
@@ -37,6 +39,16 @@ class TaskMaterial extends Model
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class, 'product_id');
+    }
+
+    public function warehouse(): BelongsTo
+    {
+        return $this->belongsTo(Warehouse::class);
+    }
+
+    public function lot(): BelongsTo
+    {
+        return $this->belongsTo(ProductLot::class, 'lot_id');
     }
 
     public function sourceService(): BelongsTo

@@ -54,6 +54,13 @@ class HandleInertiaRequests extends Middleware
             $impersonator = User::query()->select(['id', 'name', 'email'])->find($impersonatorId);
         }
 
+        $teamMembership = null;
+        if ($user && !$user->isAccountOwner()) {
+            $teamMembership = $user->relationLoaded('teamMembership')
+                ? $user->teamMembership
+                : $user->teamMembership()->first();
+        }
+
         $platformAdmin = null;
         if ($user && $user->isPlatformAdmin()) {
             $platformAdmin = $user->relationLoaded('platformAdmin')
@@ -87,6 +94,10 @@ class HandleInertiaRequests extends Middleware
                         'role' => $platformAdmin->role,
                         'permissions' => $platformAdmin->permissions ?? [],
                         'is_active' => (bool) $platformAdmin->is_active,
+                    ] : null,
+                    'team' => $teamMembership ? [
+                        'role' => $teamMembership->role,
+                        'permissions' => $teamMembership->permissions ?? [],
                     ] : null,
                 ] : null,
                 'impersonator' => $impersonator,

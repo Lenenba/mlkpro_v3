@@ -30,6 +30,7 @@ class ProductRequest extends FormRequest
             'cost_price' => 'nullable|numeric|min:0',
             'margin_percent' => 'nullable|numeric|min:0|max:100',
             'description' => 'nullable|string',
+            'tracking_type' => 'nullable|in:none,lot,serial',
             'category_id' => [
                 'required',
                 Rule::exists('product_categories', 'id')->where(function ($query) use ($accountId) {

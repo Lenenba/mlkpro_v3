@@ -3,11 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Models\Product;
-use App\Models\ProductStockMovement;
 use App\Models\Task;
 use App\Models\TaskMaterial;
 use App\Models\TeamMember;
 use App\Models\Work;
+use App\Services\InventoryService;
 use App\Services\UsageLimitService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -150,7 +150,14 @@ class TaskController extends Controller
             ? ($user->id === $accountId || ($isAdminMember && $membership->hasPermission('tasks.delete')))
             : false;
 
-        $task->load(['assignee.user:id,name', 'materials.product:id,name,unit,price', 'media.user:id,name']);
+        $task->load([
+            'assignee.user:id,name',
+            'materials.product:id,name,unit,price',
+            'media.user:id,name',
+            'work.quote.property',
+            'customer.properties',
+            'customer.defaultProperty',
+        ]);
 
         if ($task->relationLoaded('media')) {
             $mediaPayload = $task->media
@@ -182,6 +189,26 @@ class TaskController extends Controller
 
             $task->setRelation('media', $mediaPayload);
         }
+
+        $property = $task->work?->quote?->property
+            ?? $task->customer?->defaultProperty
+            ?? $task->customer?->properties?->first();
+
+        $location = $property
+            ? [
+                'id' => $property->id,
+                'type' => $property->type,
+                'address' => $property->full_address,
+                'street1' => $property->street1,
+                'street2' => $property->street2,
+                'city' => $property->city,
+                'state' => $property->state,
+                'zip' => $property->zip,
+                'country' => $property->country,
+            ]
+            : null;
+
+        $task->setAttribute('location', $location);
 
         $teamMembers = collect();
         if ($canManage) {
@@ -263,6 +290,8 @@ class TaskController extends Controller
                 'integer',
                 Rule::exists('products', 'id')->where('user_id', $accountId),
             ],
+            'materials.*.warehouse_id' => 'nullable|integer',
+            'materials.*.lot_id' => 'nullable|integer',
             'materials.*.label' => 'nullable|string|max:255',
             'materials.*.description' => 'nullable|string|max:2000',
             'materials.*.unit' => 'nullable|string|max:50',
@@ -383,6 +412,8 @@ class TaskController extends Controller
                     'integer',
                     Rule::exists('products', 'id')->where('user_id', $accountId),
                 ],
+                'materials.*.warehouse_id' => 'nullable|integer',
+                'materials.*.lot_id' => 'nullable|integer',
                 'materials.*.label' => 'nullable|string|max:255',
                 'materials.*.description' => 'nullable|string|max:2000',
                 'materials.*.unit' => 'nullable|string|max:50',
@@ -534,6 +565,8 @@ class TaskController extends Controller
 
                 return [
                     'product_id' => $product?->id,
+                    'warehouse_id' => isset($material['warehouse_id']) ? (int) $material['warehouse_id'] : null,
+                    'lot_id' => isset($material['lot_id']) ? (int) $material['lot_id'] : null,
                     'source_service_id' => isset($material['source_service_id'])
                         ? (int) $material['source_service_id']
                         : null,
@@ -588,39 +621,45 @@ class TaskController extends Controller
             ->get()
             ->keyBy('id');
 
+        $inventoryService = app(InventoryService::class);
+        $defaultWarehouse = $inventoryService->resolveDefaultWarehouse($task->account_id);
         $movedIds = [];
 
-        DB::transaction(function () use ($materials, $productMap, $task, $actor, &$movedIds) {
-            foreach ($materials as $material) {
-                $product = $productMap->get($material->product_id);
-                if (!$product) {
-                    continue;
-                }
-
-                $quantity = (int) round((float) $material->quantity);
-                if ($quantity <= 0) {
-                    continue;
-                }
-
-                $product->stock = max(0, $product->stock - $quantity);
-                $product->save();
-
-                ProductStockMovement::create([
-                    'product_id' => $product->id,
-                    'user_id' => $actor?->id,
-                    'type' => 'out',
-                    'quantity' => -abs($quantity),
-                    'note' => 'Task usage',
-                ]);
-
-                $movedIds[] = $material->id;
+        foreach ($materials as $material) {
+            $product = $productMap->get($material->product_id);
+            if (!$product) {
+                continue;
             }
-        });
+
+            $quantity = (int) round((float) $material->quantity);
+            if ($quantity <= 0) {
+                continue;
+            }
+
+            $warehouseId = $material->warehouse_id ?: $defaultWarehouse->id;
+
+            $inventoryService->adjust($product, $quantity, 'out', [
+                'actor_id' => $actor?->id,
+                'warehouse_id' => $warehouseId,
+                'account_id' => $task->account_id,
+                'reason' => 'task_usage',
+                'note' => 'Task usage',
+                'reference_type' => Task::class,
+                'reference_id' => $task->id,
+            ]);
+
+            $movedIds[] = $material->id;
+        }
 
         if ($movedIds) {
             TaskMaterial::query()
                 ->whereIn('id', $movedIds)
                 ->update(['stock_moved_at' => now()]);
+
+            TaskMaterial::query()
+                ->whereIn('id', $movedIds)
+                ->whereNull('warehouse_id')
+                ->update(['warehouse_id' => $defaultWarehouse->id]);
         }
     }
 
@@ -635,40 +674,38 @@ class TaskController extends Controller
             return;
         }
 
-        DB::transaction(function () use ($productIds, $oldUsage, $newUsage, $productMap, $actor) {
-            foreach ($productIds as $productId) {
-                $product = $productMap->get($productId);
-                if (!$product) {
-                    continue;
-                }
+        $inventoryService = app(InventoryService::class);
 
-                $oldQty = (float) ($oldUsage[$productId] ?? 0);
-                $newQty = (float) ($newUsage[$productId] ?? 0);
-                $diff = $newQty - $oldQty;
-
-                if (abs($diff) < 0.01) {
-                    continue;
-                }
-
-                $deltaQuantity = (int) round($diff);
-                if ($deltaQuantity === 0) {
-                    continue;
-                }
-
-                $type = $deltaQuantity > 0 ? 'out' : 'in';
-                $delta = $deltaQuantity > 0 ? -abs($deltaQuantity) : abs($deltaQuantity);
-
-                $product->stock = max(0, $product->stock + $delta);
-                $product->save();
-
-                ProductStockMovement::create([
-                    'product_id' => $product->id,
-                    'user_id' => $actor?->id,
-                    'type' => $type,
-                    'quantity' => $delta,
-                    'note' => 'Task materials update',
-                ]);
+        foreach ($productIds as $productId) {
+            $product = $productMap->get($productId);
+            if (!$product) {
+                continue;
             }
-        });
+
+            $oldQty = (float) ($oldUsage[$productId] ?? 0);
+            $newQty = (float) ($newUsage[$productId] ?? 0);
+            $diff = $newQty - $oldQty;
+
+            if (abs($diff) < 0.01) {
+                continue;
+            }
+
+            $deltaQuantity = (int) round($diff);
+            if ($deltaQuantity === 0) {
+                continue;
+            }
+
+            $type = $deltaQuantity > 0 ? 'out' : 'in';
+            $quantity = abs($deltaQuantity);
+            $warehouse = $inventoryService->resolveDefaultWarehouse($product->user_id);
+
+            $inventoryService->adjust($product, $quantity, $type, [
+                'actor_id' => $actor?->id,
+                'warehouse' => $warehouse,
+                'account_id' => $product->user_id,
+                'reason' => 'task_materials_update',
+                'note' => 'Task materials update',
+            ]);
+        }
     }
 }

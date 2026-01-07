@@ -22,6 +22,7 @@ class TeamMemberController extends Controller
         ['id' => 'tasks.create', 'name' => 'Create tasks'],
         ['id' => 'tasks.edit', 'name' => 'Edit tasks'],
         ['id' => 'tasks.delete', 'name' => 'Delete tasks'],
+        ['id' => 'sales.manage', 'name' => 'Manage sales'],
     ];
 
     public function index()
@@ -214,11 +215,12 @@ class TeamMemberController extends Controller
             'admin' => [
                 'jobs.view',
                 'jobs.edit',
-                'tasks.view',
-                'tasks.create',
-                'tasks.edit',
-                'tasks.delete',
-            ],
+            'tasks.view',
+            'tasks.create',
+            'tasks.edit',
+            'tasks.delete',
+            'sales.manage',
+        ],
             default => [
                 'jobs.view',
                 'tasks.view',

@@ -42,6 +42,7 @@ class Product extends Model
         'is_active',
         'user_id', // Ajout pour permettre une meilleure gestion multi-utilisateurs
         'item_type',
+        'tracking_type',
     ];
 
     /**
@@ -66,6 +67,11 @@ class Product extends Model
 
     protected $appends = [
         'image_url',
+        'stock_available',
+        'stock_reserved',
+        'stock_damaged',
+        'warehouse_count',
+        'stock_value',
     ];
 
     protected static function boot()
@@ -122,6 +128,16 @@ class Product extends Model
     public function stockMovements(): HasMany
     {
         return $this->hasMany(ProductStockMovement::class)->latest();
+    }
+
+    public function inventories(): HasMany
+    {
+        return $this->hasMany(ProductInventory::class);
+    }
+
+    public function lots(): HasMany
+    {
+        return $this->hasMany(ProductLot::class);
     }
 
     /**
@@ -195,6 +211,94 @@ class Product extends Model
     }
 
     /**
+     * Get the available stock across warehouses.
+     *
+     * @return int
+     */
+    public function getStockAvailableAttribute(): int
+    {
+        $onHand = $this->getAttribute('on_hand_total');
+        $reserved = $this->getAttribute('reserved_total');
+        if ($onHand !== null || $reserved !== null) {
+            return max(0, (int) $onHand - (int) $reserved);
+        }
+
+        if ($this->relationLoaded('inventories')) {
+            return (int) $this->inventories->sum(fn (ProductInventory $inventory) => $inventory->available);
+        }
+
+        return (int) $this->stock;
+    }
+
+    /**
+     * Get the reserved stock across warehouses.
+     *
+     * @return int
+     */
+    public function getStockReservedAttribute(): int
+    {
+        $reserved = $this->getAttribute('reserved_total');
+        if ($reserved !== null) {
+            return (int) $reserved;
+        }
+
+        if ($this->relationLoaded('inventories')) {
+            return (int) $this->inventories->sum('reserved');
+        }
+
+        return 0;
+    }
+
+    /**
+     * Get the damaged stock across warehouses.
+     *
+     * @return int
+     */
+    public function getStockDamagedAttribute(): int
+    {
+        $damaged = $this->getAttribute('damaged_total');
+        if ($damaged !== null) {
+            return (int) $damaged;
+        }
+
+        if ($this->relationLoaded('inventories')) {
+            return (int) $this->inventories->sum('damaged');
+        }
+
+        return 0;
+    }
+
+    /**
+     * Get the warehouse count for this product.
+     *
+     * @return int
+     */
+    public function getWarehouseCountAttribute(): int
+    {
+        $count = $this->getAttributeFromArray('warehouse_count');
+        if ($count !== null) {
+            return (int) $count;
+        }
+
+        if ($this->relationLoaded('inventories')) {
+            return $this->inventories->count();
+        }
+
+        return 0;
+    }
+
+    /**
+     * Get the inventory value for available stock.
+     *
+     * @return float
+     */
+    public function getStockValueAttribute(): float
+    {
+        $cost = (float) ($this->cost_price ?: $this->price);
+        return round($this->stock_available * $cost, 2);
+    }
+
+    /**
      * Scope a query to filter products based on given criteria.
      *
      * @param \Illuminate\Database\Eloquent\Builder $query
@@ -210,6 +314,10 @@ class Product extends Model
                     $query->where('name', 'like', '%' . $name . '%')
                         ->orWhere('description', 'like', '%' . $name . '%');
                 })
+            )
+            ->when(
+                $filters['supplier_name'] ?? null,
+                fn(Builder $query, $supplier) => $query->where('supplier_name', 'like', '%' . $supplier . '%')
             )
             ->when(
                 $filters['category_id'] ?? null,
@@ -232,6 +340,55 @@ class Product extends Model
             ->when(
                 $filters['category_ids'] ?? null,
                 fn(Builder $query, $categoryIds) => $query->whereIn('category_id', (array) $categoryIds)
+            )
+            ->when(
+                $filters['tracking_type'] ?? null,
+                function (Builder $query, $trackingType) {
+                    if ($trackingType === 'none') {
+                        $query->where(function (Builder $query) {
+                            $query->whereNull('tracking_type')
+                                ->orWhere('tracking_type', 'none');
+                        });
+                    } else {
+                        $query->where('tracking_type', $trackingType);
+                    }
+                }
+            )
+            ->when(
+                $filters['warehouse_id'] ?? null,
+                fn(Builder $query, $warehouseId) => $query->whereHas('inventories', function (Builder $inventoryQuery) use ($warehouseId) {
+                    $inventoryQuery->where('warehouse_id', $warehouseId);
+                })
+            )
+            ->when(
+                $filters['alert'] ?? null,
+                function (Builder $query, $alert) {
+                    if ($alert === 'damaged') {
+                        $query->whereHas('inventories', function (Builder $inventoryQuery) {
+                            $inventoryQuery->where('damaged', '>', 0);
+                        });
+                    } elseif ($alert === 'reserved') {
+                        $query->whereHas('inventories', function (Builder $inventoryQuery) {
+                            $inventoryQuery->where('reserved', '>', 0);
+                        });
+                    } elseif ($alert === 'expiring') {
+                        $today = now()->toDateString();
+                        $soon = now()->addDays(30)->toDateString();
+                        $query->whereHas('lots', function (Builder $lotQuery) use ($today, $soon) {
+                            $lotQuery->whereNotNull('expires_at')
+                                ->whereDate('expires_at', '>=', $today)
+                                ->whereDate('expires_at', '<=', $soon);
+                        });
+                    } elseif ($alert === 'expired') {
+                        $today = now()->toDateString();
+                        $query->whereHas('lots', function (Builder $lotQuery) use ($today) {
+                            $lotQuery->whereNotNull('expires_at')
+                                ->whereDate('expires_at', '<', $today);
+                        });
+                    } elseif ($alert === 'reorder') {
+                        $query->whereColumn('stock', '<=', 'minimum_stock');
+                    }
+                }
             )
             ->when(
                 $filters['price_min'] ?? null,
@@ -259,6 +416,18 @@ class Product extends Model
                     $hasImage
                         ? $query->whereNotNull('image')
                         : $query->whereNull('image');
+                }
+            )
+            ->when(
+                array_key_exists('has_barcode', $filters) && $filters['has_barcode'] !== '',
+                function (Builder $query) use ($filters) {
+                    $hasBarcode = filter_var($filters['has_barcode'], FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+                    if ($hasBarcode === null) {
+                        return;
+                    }
+                    $hasBarcode
+                        ? $query->whereNotNull('barcode')
+                        : $query->whereNull('barcode');
                 }
             )
             ->when(
