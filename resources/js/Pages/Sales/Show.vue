@@ -1,7 +1,7 @@
 <script setup>
 import { computed } from 'vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
-import { Head, Link } from '@inertiajs/vue3';
+import { Head, Link, usePage } from '@inertiajs/vue3';
 import { humanizeDate } from '@/utils/date';
 
 const props = defineProps({
@@ -10,6 +10,13 @@ const props = defineProps({
         required: true,
     },
 });
+
+const page = usePage();
+const companyName = computed(() => page.props.auth?.account?.company?.name || 'Entreprise');
+const companyLogo = computed(() => page.props.auth?.account?.company?.logo_url || null);
+const sellerName = computed(() => page.props.auth?.user?.name || 'Vendeur');
+const sellerEmail = computed(() => page.props.auth?.user?.email || null);
+const sellerPhone = computed(() => page.props.auth?.user?.phone_number || null);
 
 const formatCurrency = (value) =>
     `$${Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -38,6 +45,29 @@ const customerLabel = (customer) => {
 
 const canEdit = computed(() => ['draft', 'pending'].includes(props.sale?.status));
 
+const lineCount = computed(() => props.sale?.items?.length ?? 0);
+const totalQty = computed(() =>
+    (props.sale?.items ?? []).reduce((sum, item) => sum + Number(item.quantity || 0), 0)
+);
+
+const productImage = (item) => item?.product?.image_url || item?.product?.image || null;
+const productFallback = (item) => {
+    const label = `${item?.product?.name || item?.description || 'P'}`.trim();
+    if (!label) {
+        return 'P';
+    }
+    return label.slice(0, 2).toUpperCase();
+};
+
+const companyInitials = computed(() => {
+    const name = companyName.value || '';
+    const parts = name.split(' ').filter(Boolean).slice(0, 2);
+    if (!parts.length) {
+        return 'CO';
+    }
+    return parts.map((part) => part[0]).join('').toUpperCase();
+});
+
 const formatDate = (value) => {
     if (!value) {
         return '-';
@@ -59,47 +89,76 @@ const handlePrint = () => {
         <Head title="Vente" />
 
         <div class="space-y-4">
-            <div class="flex flex-wrap items-center justify-between gap-3">
-                <div class="space-y-1">
-                    <h1 class="text-xl font-semibold text-stone-800 dark:text-neutral-100">
-                        Facture {{ sale.number || `Sale #${sale.id}` }}
-                    </h1>
-                    <div class="flex flex-wrap items-center gap-2 text-sm text-stone-600 dark:text-neutral-400">
-                        <span
-                            class="rounded-full px-2 py-0.5 text-xs font-semibold"
-                            :class="statusClasses[sale.status] || statusClasses.draft"
-                        >
-                            {{ statusLabels[sale.status] || sale.status }}
-                        </span>
-                        <span>Cree le {{ formatDate(sale.created_at) }}</span>
-                        <span v-if="sale.paid_at">Payee le {{ formatDate(sale.paid_at) }}</span>
+            <div class="print-card rounded-sm border border-stone-200 bg-stone-50 p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                <div class="flex flex-wrap items-center justify-between gap-4">
+                    <div class="flex items-center gap-3">
+                        <div class="h-12 w-12 overflow-hidden rounded-sm border border-stone-200 bg-white dark:border-neutral-700 dark:bg-neutral-800">
+                            <img
+                                v-if="companyLogo"
+                                :src="companyLogo"
+                                :alt="companyName"
+                                class="h-full w-full object-cover"
+                            >
+                            <div v-else class="flex h-full w-full items-center justify-center text-xs font-semibold text-stone-500 dark:text-neutral-400">
+                                {{ companyInitials }}
+                            </div>
+                        </div>
+                        <div class="space-y-1">
+                            <p class="text-xs uppercase tracking-wide text-stone-500 dark:text-neutral-400">
+                                {{ companyName }}
+                            </p>
+                            <h1 class="text-xl font-semibold text-stone-800 dark:text-neutral-100">
+                                Facture {{ sale.number || `Sale #${sale.id}` }}
+                            </h1>
+                            <p class="text-sm text-stone-600 dark:text-neutral-400">
+                                {{ sale.customer ? customerLabel(sale.customer) : 'Client anonyme' }}
+                            </p>
+                        </div>
                     </div>
-                    <p class="text-sm text-stone-600 dark:text-neutral-400">
-                        {{ sale.customer ? customerLabel(sale.customer) : 'Client anonyme' }}
-                    </p>
+                    <div class="space-y-1 text-sm text-stone-600 dark:text-neutral-400">
+                        <div class="flex items-center justify-end gap-2">
+                            <span
+                                class="rounded-full px-2 py-0.5 text-xs font-semibold"
+                                :class="statusClasses[sale.status] || statusClasses.draft"
+                            >
+                                {{ statusLabels[sale.status] || sale.status }}
+                            </span>
+                            <span>Cree le {{ formatDate(sale.created_at) }}</span>
+                        </div>
+                        <div v-if="sale.paid_at" class="text-right text-xs text-stone-500 dark:text-neutral-400">
+                            Payee le {{ formatDate(sale.paid_at) }}
+                        </div>
+                        <div class="text-right">
+                            <div class="text-xs uppercase tracking-wide text-stone-500 dark:text-neutral-400">Vendeur</div>
+                            <div class="text-sm font-medium text-stone-800 dark:text-neutral-100">{{ sellerName }}</div>
+                            <div v-if="sellerEmail" class="text-xs text-stone-500 dark:text-neutral-400">{{ sellerEmail }}</div>
+                            <div v-if="sellerPhone" class="text-xs text-stone-500 dark:text-neutral-400">{{ sellerPhone }}</div>
+                        </div>
+                    </div>
                 </div>
-                <div class="no-print flex flex-wrap items-center gap-2">
-                    <Link
-                        v-if="canEdit"
-                        :href="route('sales.edit', sale.id)"
-                        class="rounded-sm border border-stone-200 bg-white px-3 py-2 text-xs font-semibold text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
-                    >
-                        Modifier
-                    </Link>
-                    <button
-                        type="button"
-                        class="rounded-sm border border-stone-200 bg-white px-3 py-2 text-xs font-semibold text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
-                        @click="handlePrint"
-                    >
-                        Imprimer
-                    </button>
-                    <Link
-                        :href="route('sales.index')"
-                        class="rounded-sm border border-stone-200 bg-white px-3 py-2 text-xs font-semibold text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
-                    >
-                        Retour aux ventes
-                    </Link>
-                </div>
+            </div>
+
+            <div class="no-print flex flex-wrap items-center justify-end gap-2">
+                <Link
+                    v-if="canEdit"
+                    :href="route('sales.edit', sale.id)"
+                    class="rounded-sm border border-stone-200 bg-white px-3 py-2 text-xs font-semibold text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
+                >
+                    Modifier
+                </Link>
+                <button
+                    type="button"
+                    class="rounded-sm border border-stone-200 bg-white px-3 py-2 text-xs font-semibold text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
+                    @click="handlePrint"
+                >
+                    Imprimer
+                </button>
+                <Link
+                    :href="route('sales.index')"
+                    class="rounded-sm border border-stone-200 bg-white px-3 py-2 text-xs font-semibold text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
+                >
+                    Retour aux ventes
+                </Link>
             </div>
 
             <div class="grid gap-4 lg:grid-cols-[2fr_1fr]">
@@ -113,6 +172,7 @@ const handlePrint = () => {
                                 <tr>
                                     <th class="px-4 py-3 text-left">Produit</th>
                                     <th class="px-4 py-3 text-left">SKU</th>
+                                    <th class="px-4 py-3 text-left">Unite</th>
                                     <th class="px-4 py-3 text-right">Quantite</th>
                                     <th class="px-4 py-3 text-right">Prix</th>
                                     <th class="px-4 py-3 text-right">Total</th>
@@ -121,10 +181,38 @@ const handlePrint = () => {
                             <tbody class="divide-y divide-stone-200 dark:divide-neutral-800">
                                 <tr v-for="item in sale.items" :key="item.id">
                                     <td class="px-4 py-3 text-stone-700 dark:text-neutral-200">
-                                        {{ item.product?.name || item.description }}
+                                        <div class="flex items-center gap-3">
+                                            <div
+                                                class="h-10 w-10 overflow-hidden rounded-sm bg-stone-100 text-[10px] font-semibold text-stone-400 dark:bg-neutral-800 dark:text-neutral-500"
+                                            >
+                                                <img
+                                                    v-if="productImage(item)"
+                                                    :src="productImage(item)"
+                                                    :alt="item.product?.name || 'Produit'"
+                                                    class="h-full w-full object-cover"
+                                                >
+                                                <div v-else class="flex h-full w-full items-center justify-center">
+                                                    {{ productFallback(item) }}
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <div class="text-sm font-medium text-stone-800 dark:text-neutral-100">
+                                                    {{ item.product?.name || item.description }}
+                                                </div>
+                                                <div
+                                                    v-if="item.description && item.description !== item.product?.name"
+                                                    class="text-xs text-stone-500 dark:text-neutral-400"
+                                                >
+                                                    {{ item.description }}
+                                                </div>
+                                            </div>
+                                        </div>
                                     </td>
                                     <td class="px-4 py-3 text-stone-500 dark:text-neutral-400">
                                         {{ item.product?.sku || '-' }}
+                                    </td>
+                                    <td class="px-4 py-3 text-stone-500 dark:text-neutral-400">
+                                        {{ item.product?.unit || '-' }}
                                     </td>
                                     <td class="px-4 py-3 text-right text-stone-700 dark:text-neutral-200">
                                         {{ item.quantity }}
@@ -178,6 +266,16 @@ const handlePrint = () => {
                             <div class="flex items-center justify-between border-t border-stone-200 pt-2 dark:border-neutral-700">
                                 <span class="font-semibold">Total</span>
                                 <span class="font-semibold">{{ formatCurrency(sale.total) }}</span>
+                            </div>
+                            <div class="grid grid-cols-2 gap-2 pt-2 text-xs text-stone-500 dark:text-neutral-400">
+                                <div class="flex items-center justify-between">
+                                    <span>Lignes</span>
+                                    <span class="font-medium text-stone-700 dark:text-neutral-200">{{ lineCount }}</span>
+                                </div>
+                                <div class="flex items-center justify-between">
+                                    <span>Articles</span>
+                                    <span class="font-medium text-stone-700 dark:text-neutral-200">{{ totalQty }}</span>
+                                </div>
                             </div>
                             <div class="flex items-center justify-between text-xs text-stone-500 dark:text-neutral-400">
                                 <span>Cree</span>

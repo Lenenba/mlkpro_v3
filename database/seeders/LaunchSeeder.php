@@ -13,12 +13,14 @@ use App\Models\PlatformSetting;
 use App\Models\PlatformSupportTicket;
 use App\Models\Product;
 use App\Models\ProductCategory;
+use App\Models\ProductImage;
 use App\Models\Property;
 use App\Models\Quote;
 use App\Models\QuoteProduct;
 use App\Models\QuoteRating;
 use App\Models\Request as LeadRequest;
 use App\Models\Role;
+use App\Models\Sale;
 use App\Models\ServiceMaterial;
 use App\Models\Task;
 use App\Models\TaskMaterial;
@@ -973,6 +975,165 @@ class LaunchSeeder extends Seeder
                 'tax_rate' => 14.975,
                 'tracking_type' => 'none',
             ],
+            [
+                'name' => 'Organic granola bars',
+                'category' => 'Retail',
+                'description' => 'Snack box for checkout displays.',
+                'price' => 5.50,
+                'cost_price' => 2.10,
+                'stock' => 180,
+                'minimum_stock' => 30,
+                'sku' => 'RET-GRA-072',
+                'barcode' => '0123456789078',
+                'unit' => 'box',
+                'supplier_name' => 'MarketFresh',
+                'tax_rate' => 14.975,
+                'tracking_type' => 'none',
+                'reserved' => 10,
+                'bin_locations' => [
+                    'main' => 'R-12',
+                    'overflow' => 'O-4',
+                ],
+            ],
+            [
+                'name' => 'Sparkling water 12-pack',
+                'category' => 'Retail',
+                'description' => 'Assorted flavors for cooler displays.',
+                'price' => 9.90,
+                'cost_price' => 4.00,
+                'stock' => 120,
+                'minimum_stock' => 25,
+                'sku' => 'RET-WTR-073',
+                'barcode' => '0123456789079',
+                'unit' => 'pack',
+                'supplier_name' => 'MarketFresh',
+                'tax_rate' => 14.975,
+                'tracking_type' => 'none',
+                'secondary_stock' => 30,
+            ],
+            [
+                'name' => 'Whole bean coffee 1kg',
+                'category' => 'Products',
+                'description' => 'Medium roast coffee for bulk sales.',
+                'price' => 22.50,
+                'cost_price' => 10.50,
+                'stock' => 60,
+                'minimum_stock' => 10,
+                'sku' => 'PRO-COF-074',
+                'barcode' => '0123456789080',
+                'unit' => 'bag',
+                'supplier_name' => 'RoastWorks',
+                'tax_rate' => 14.975,
+                'tracking_type' => 'lot',
+                'reserved' => 6,
+            ],
+            [
+                'name' => 'All-purpose surface cleaner',
+                'category' => 'Cleaning',
+                'description' => 'Multi-surface spray for retail shelves.',
+                'price' => 6.80,
+                'cost_price' => 2.40,
+                'stock' => 110,
+                'minimum_stock' => 20,
+                'sku' => 'CLN-SPR-075',
+                'barcode' => '0123456789081',
+                'unit' => 'bottle',
+                'supplier_name' => 'CleanCo',
+                'tax_rate' => 14.975,
+                'tracking_type' => 'none',
+                'damaged' => 3,
+            ],
+            [
+                'name' => 'Safety goggles',
+                'category' => 'Safety',
+                'description' => 'Protective eyewear for workshop use.',
+                'price' => 12.50,
+                'cost_price' => 4.90,
+                'stock' => 45,
+                'minimum_stock' => 8,
+                'sku' => 'SFT-GOG-076',
+                'barcode' => '0123456789082',
+                'unit' => 'pair',
+                'supplier_name' => 'SafeShield',
+                'tax_rate' => 14.975,
+                'tracking_type' => 'none',
+            ],
+            [
+                'name' => 'LED bulb pack',
+                'category' => 'Electrical',
+                'description' => 'Energy efficient bulbs for retail shelves.',
+                'price' => 15.00,
+                'cost_price' => 6.20,
+                'stock' => 70,
+                'minimum_stock' => 12,
+                'sku' => 'ELC-BLB-077',
+                'barcode' => '0123456789083',
+                'unit' => 'pack',
+                'supplier_name' => 'BrightWire',
+                'tax_rate' => 14.975,
+                'tracking_type' => 'none',
+            ],
+            [
+                'name' => 'PVC pipe 2m',
+                'category' => 'Plumbing',
+                'description' => 'Standard pipe for plumbing repairs.',
+                'price' => 8.40,
+                'cost_price' => 3.10,
+                'stock' => 90,
+                'minimum_stock' => 15,
+                'sku' => 'PLM-PVC-078',
+                'barcode' => '0123456789084',
+                'unit' => 'piece',
+                'supplier_name' => 'PipePro',
+                'tax_rate' => 14.975,
+                'tracking_type' => 'none',
+            ],
+            [
+                'name' => 'Packing bubble wrap',
+                'category' => 'Packaging',
+                'description' => 'Protective wrap for shipping orders.',
+                'price' => 14.20,
+                'cost_price' => 5.60,
+                'stock' => 55,
+                'minimum_stock' => 10,
+                'sku' => 'PKG-BUB-079',
+                'barcode' => '0123456789085',
+                'unit' => 'roll',
+                'supplier_name' => 'PackRight',
+                'tax_rate' => 14.975,
+                'tracking_type' => 'none',
+                'secondary_stock' => 12,
+            ],
+            [
+                'name' => 'Desk organizer set',
+                'category' => 'Office',
+                'description' => 'Organizer trays for back office.',
+                'price' => 18.90,
+                'cost_price' => 7.00,
+                'stock' => 40,
+                'minimum_stock' => 8,
+                'sku' => 'OFF-ORG-080',
+                'barcode' => '0123456789086',
+                'unit' => 'set',
+                'supplier_name' => 'OfficeLine',
+                'tax_rate' => 14.975,
+                'tracking_type' => 'none',
+            ],
+            [
+                'name' => 'Portable barcode scanner',
+                'category' => 'Retail',
+                'description' => 'Bluetooth scanner for point of sale.',
+                'price' => 145.00,
+                'cost_price' => 92.00,
+                'stock' => 6,
+                'minimum_stock' => 2,
+                'sku' => 'RET-SCN-081',
+                'barcode' => '0123456789087',
+                'unit' => 'piece',
+                'supplier_name' => 'RetailGear',
+                'tax_rate' => 14.975,
+                'tracking_type' => 'serial',
+            ],
         ]);
 
         $productImageUrl = function (array $data): string {
@@ -994,12 +1155,13 @@ class LaunchSeeder extends Seeder
             $category = $productCategoryMap[$data['category']] ?? $productCategory;
             $imageUrl = $productImageUrl($data);
 
-            return Product::updateOrCreate(
+            $product = Product::updateOrCreate(
                 [
                     'user_id' => $productOwner->id,
                     'name' => $data['name'],
                 ],
                 [
+                    'description' => $data['description'] ?? null,
                     'category_id' => $category->id,
                     'price' => $price,
                     'cost_price' => $cost,
@@ -1017,6 +1179,19 @@ class LaunchSeeder extends Seeder
                     'item_type' => Product::ITEM_TYPE_PRODUCT,
                 ]
             );
+
+            ProductImage::updateOrCreate(
+                [
+                    'product_id' => $product->id,
+                    'is_primary' => true,
+                ],
+                [
+                    'path' => $imageUrl,
+                    'sort_order' => 1,
+                ]
+            );
+
+            return $product;
         });
 
         $inventoryService = app(InventoryService::class);
@@ -2096,6 +2271,166 @@ class LaunchSeeder extends Seeder
                 'updated_at' => $timestamp,
             ])->saveQuietly();
         };
+
+        $productCustomerRetail = Customer::updateOrCreate(
+            [
+                'email' => 'product-retail@example.com',
+            ],
+            [
+                'user_id' => $productOwner->id,
+                'first_name' => 'Lea',
+                'last_name' => 'Benoit',
+                'company_name' => 'City Market',
+                'phone' => '+14165550011',
+                'description' => 'Retail storefront customer.',
+                'salutation' => 'Mrs',
+                'billing_same_as_physical' => true,
+            ]
+        );
+
+        $productCustomerWholesale = Customer::updateOrCreate(
+            [
+                'email' => 'product-wholesale@example.com',
+            ],
+            [
+                'user_id' => $productOwner->id,
+                'first_name' => 'Theo',
+                'last_name' => 'Martin',
+                'company_name' => 'North Supplies',
+                'phone' => '+14165550012',
+                'description' => 'Wholesale customer account.',
+                'salutation' => 'Mr',
+                'billing_same_as_physical' => true,
+            ]
+        );
+
+        $productSalesCatalog = $productProducts
+            ->filter(fn($product) => ($product->tracking_type ?? 'none') === 'none' && (int) $product->stock > 0)
+            ->values();
+
+        $buildSalePayload = function (array $lines): array {
+            $items = [];
+            $subtotal = 0;
+            $taxTotal = 0;
+
+            foreach ($lines as $line) {
+                $product = $line['product'] ?? null;
+                if (!$product) {
+                    continue;
+                }
+
+                $quantity = max(1, (int) ($line['quantity'] ?? 1));
+                $price = (float) ($line['price'] ?? $product->price);
+                $lineTotal = round($price * $quantity, 2);
+                $subtotal += $lineTotal;
+
+                $taxRate = (float) ($product->tax_rate ?? 0);
+                $taxTotal += $taxRate > 0 ? round($lineTotal * ($taxRate / 100), 2) : 0;
+
+                $items[] = [
+                    'product_id' => $product->id,
+                    'description' => $line['description'] ?? $product->name,
+                    'quantity' => $quantity,
+                    'price' => $price,
+                    'total' => $lineTotal,
+                ];
+            }
+
+            return [$items, $subtotal, $taxTotal, round($subtotal + $taxTotal, 2)];
+        };
+
+        $createSale = function (string $label, ?Customer $customer, string $status, array $lines, $createdAt) use ($productOwner, $buildSalePayload, $setTimestamps) {
+            [$items, $subtotal, $taxTotal, $total] = $buildSalePayload($lines);
+            if (empty($items)) {
+                return null;
+            }
+
+            $sale = Sale::updateOrCreate(
+                [
+                    'user_id' => $productOwner->id,
+                    'notes' => $label,
+                ],
+                [
+                    'customer_id' => $customer?->id,
+                    'status' => $status,
+                    'subtotal' => $subtotal,
+                    'tax_total' => $taxTotal,
+                    'total' => $total,
+                    'paid_at' => $status === Sale::STATUS_PAID ? $createdAt : null,
+                    'notes' => $label,
+                ]
+            );
+
+            $sale->items()->delete();
+            foreach ($items as $payload) {
+                $sale->items()->create($payload);
+            }
+
+            $sale->refresh();
+            $setTimestamps($sale, $createdAt);
+            foreach ($sale->items as $item) {
+                $setTimestamps($item, $createdAt);
+            }
+
+            return $sale;
+        };
+
+        if ($productSalesCatalog->isNotEmpty()) {
+            $createSale(
+                'Seeded POS sale - Mia Builds',
+                $productCustomer,
+                Sale::STATUS_PAID,
+                [
+                    ['product' => $productSalesCatalog->get(0), 'quantity' => 3],
+                    ['product' => $productSalesCatalog->get(1), 'quantity' => 2],
+                    ['product' => $productSalesCatalog->get(2), 'quantity' => 1],
+                ],
+                $now->copy()->subDays(5)
+            );
+
+            $createSale(
+                'Seeded POS sale - City Market',
+                $productCustomerRetail,
+                Sale::STATUS_PENDING,
+                [
+                    ['product' => $productSalesCatalog->get(3), 'quantity' => 4],
+                    ['product' => $productSalesCatalog->get(4), 'quantity' => 2],
+                ],
+                $now->copy()->subDays(2)
+            );
+
+            $createSale(
+                'Seeded POS sale - Walk-in',
+                null,
+                Sale::STATUS_PAID,
+                [
+                    ['product' => $productSalesCatalog->get(5), 'quantity' => 1],
+                    ['product' => $productSalesCatalog->get(6), 'quantity' => 2],
+                ],
+                $now->copy()->subDay()
+            );
+
+            $createSale(
+                'Seeded POS sale - Draft cart',
+                $productCustomerWholesale,
+                Sale::STATUS_DRAFT,
+                [
+                    ['product' => $productSalesCatalog->get(7), 'quantity' => 3],
+                    ['product' => $productSalesCatalog->get(8), 'quantity' => 1],
+                ],
+                $now->copy()->subHours(6)
+            );
+
+            $createSale(
+                'Seeded POS sale - Cancelled order',
+                null,
+                Sale::STATUS_CANCELED,
+                [
+                    ['product' => $productSalesCatalog->get(9), 'quantity' => 2],
+                ],
+                $now->copy()->subDays(3)
+            );
+        }
 
         $suppliesCategory = ProductCategory::resolveForAccount(
             $serviceOwner->id,

@@ -24,12 +24,86 @@ class SaleController extends Controller
         $accountOwner = $this->ensureSalesAccess($user);
         $accountId = $accountOwner->id;
 
+        $filters = $request->only([
+            'search',
+            'status',
+            'customer_id',
+            'total_min',
+            'total_max',
+            'created_from',
+            'created_to',
+            'sort',
+            'direction',
+        ]);
+
+        $allowedStatuses = [
+            Sale::STATUS_DRAFT,
+            Sale::STATUS_PENDING,
+            Sale::STATUS_PAID,
+            Sale::STATUS_CANCELED,
+        ];
+
         $baseQuery = Sale::query()
-            ->where('user_id', $accountId);
+            ->where('user_id', $accountId)
+            ->when($filters['search'] ?? null, function ($query, $search) {
+                $search = trim((string) $search);
+                if ($search === '') {
+                    return;
+                }
+
+                $query->where(function ($query) use ($search) {
+                    $query->where('number', 'like', '%' . $search . '%');
+
+                    if (is_numeric($search)) {
+                        $query->orWhere('id', (int) $search);
+                    }
+
+                    $query->orWhereHas('customer', function ($customerQuery) use ($search) {
+                        $customerQuery->where('company_name', 'like', '%' . $search . '%')
+                            ->orWhere('first_name', 'like', '%' . $search . '%')
+                            ->orWhere('last_name', 'like', '%' . $search . '%')
+                            ->orWhere('email', 'like', '%' . $search . '%');
+                    });
+                });
+            })
+            ->when($filters['status'] ?? null, function ($query, $status) use ($allowedStatuses) {
+                if (in_array($status, $allowedStatuses, true)) {
+                    $query->where('status', $status);
+                }
+            })
+            ->when($filters['customer_id'] ?? null, function ($query, $customerId) {
+                if (is_numeric($customerId)) {
+                    $query->where('customer_id', $customerId);
+                }
+            })
+            ->when($filters['total_min'] ?? null, function ($query, $totalMin) {
+                if (is_numeric($totalMin)) {
+                    $query->where('total', '>=', $totalMin);
+                }
+            })
+            ->when($filters['total_max'] ?? null, function ($query, $totalMax) {
+                if (is_numeric($totalMax)) {
+                    $query->where('total', '<=', $totalMax);
+                }
+            })
+            ->when(
+                $filters['created_from'] ?? null,
+                fn($query, $createdFrom) => $query->whereDate('created_at', '>=', $createdFrom)
+            )
+            ->when(
+                $filters['created_to'] ?? null,
+                fn($query, $createdTo) => $query->whereDate('created_at', '<=', $createdTo)
+            );
+
+        $sort = in_array($filters['sort'] ?? null, ['number', 'status', 'total', 'created_at'], true)
+            ? $filters['sort']
+            : 'created_at';
+        $direction = ($filters['direction'] ?? 'desc') === 'asc' ? 'asc' : 'desc';
 
         $sales = (clone $baseQuery)
             ->with('customer:id,first_name,last_name,company_name')
-            ->orderByDesc('created_at')
+            ->withCount('items')
+            ->orderBy($sort, $direction)
             ->simplePaginate(12)
             ->withQueryString();
 
@@ -40,8 +114,15 @@ class SaleController extends Controller
         $draftCount = (clone $baseQuery)->where('status', Sale::STATUS_DRAFT)->count();
         $canceledCount = (clone $baseQuery)->where('status', Sale::STATUS_CANCELED)->count();
 
+        $customers = Customer::query()
+            ->where('user_id', $accountId)
+            ->orderBy('company_name')
+            ->get(['id', 'first_name', 'last_name', 'company_name']);
+
         return $this->inertiaOrJson('Sales/Index', [
             'sales' => $sales,
+            'filters' => $filters,
+            'customers' => $customers,
             'stats' => [
                 'total' => $totalCount,
                 'total_value' => $totalValue,
