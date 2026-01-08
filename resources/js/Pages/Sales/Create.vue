@@ -3,6 +3,8 @@ import { computed, ref } from 'vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
 import InputError from '@/Components/InputError.vue';
+import Modal from '@/Components/UI/Modal.vue';
+import CustomerQuickForm from '@/Components/QuickCreate/CustomerQuickForm.vue';
 
 const props = defineProps({
     customers: {
@@ -15,6 +17,8 @@ const props = defineProps({
     },
 });
 
+const localCustomers = ref([...props.customers]);
+
 const form = useForm({
     customer_id: '',
     status: 'draft',
@@ -24,6 +28,10 @@ const form = useForm({
 
 const page = usePage();
 const lastSaleId = computed(() => page.props.flash?.last_sale_id || null);
+
+const selectedCustomer = computed(() =>
+    localCustomers.value.find((customer) => customer.id === form.customer_id) || null
+);
 
 const searchQuery = ref('');
 const scanQuery = ref('');
@@ -156,10 +164,29 @@ const taxTotal = computed(() =>
     }, 0)
 );
 
-const total = computed(() => subtotal.value + taxTotal.value);
+const discountRate = computed(() => Number(selectedCustomer.value?.discount_rate || 0));
+const discountTotal = computed(() => subtotal.value * (discountRate.value / 100));
+const discountedTaxTotal = computed(() => taxTotal.value * (1 - discountRate.value / 100));
+const total = computed(() =>
+    Math.max(0, subtotal.value - discountTotal.value) + discountedTaxTotal.value
+);
 
 const formatCurrency = (value) =>
     `$${Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+const handleCustomerCreated = (payload) => {
+    const customer = payload?.customer;
+    if (!customer) {
+        return;
+    }
+    const existingIndex = localCustomers.value.findIndex((item) => item.id === customer.id);
+    if (existingIndex >= 0) {
+        localCustomers.value.splice(existingIndex, 1, customer);
+    } else {
+        localCustomers.value.unshift(customer);
+    }
+    form.customer_id = customer.id;
+};
 
 const resetForm = () => {
     form.reset();
@@ -287,17 +314,46 @@ const submit = () => {
                     <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
                         <div class="grid grid-cols-1 gap-4">
                             <div>
-                                <label class="text-xs text-stone-500 dark:text-neutral-400">Client</label>
+                                <div class="flex items-center justify-between">
+                                    <label class="text-xs text-stone-500 dark:text-neutral-400">Client</label>
+                                    <button
+                                        type="button"
+                                        data-hs-overlay="#pos-quick-customer"
+                                        class="text-[11px] font-semibold text-green-700 hover:underline dark:text-green-400"
+                                    >
+                                        Nouveau client
+                                    </button>
+                                </div>
                                 <select
                                     v-model.number="form.customer_id"
                                     class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
                                 >
                                     <option value="">Selectionner un client</option>
-                                    <option v-for="customer in customers" :key="customer.id" :value="customer.id">
+                                    <option v-for="customer in localCustomers" :key="customer.id" :value="customer.id">
                                         {{ customer.company_name || `${customer.first_name || ''} ${customer.last_name || ''}`.trim() || customer.email }}
                                     </option>
                                 </select>
                                 <InputError class="mt-1" :message="form.errors.customer_id" />
+                                <div
+                                    v-if="selectedCustomer"
+                                    class="mt-2 rounded-sm border border-stone-200 bg-stone-50 p-3 text-xs text-stone-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300"
+                                >
+                                    <div class="flex items-center justify-between">
+                                        <span class="font-semibold text-stone-700 dark:text-neutral-100">
+                                            {{ selectedCustomer.company_name || `${selectedCustomer.first_name || ''} ${selectedCustomer.last_name || ''}`.trim() || selectedCustomer.email }}
+                                        </span>
+                                        <span
+                                            v-if="discountRate > 0"
+                                            class="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-200"
+                                        >
+                                            Remise {{ discountRate }}%
+                                        </span>
+                                    </div>
+                                    <div class="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-stone-500 dark:text-neutral-400">
+                                        <span v-if="selectedCustomer.email">{{ selectedCustomer.email }}</span>
+                                        <span v-if="selectedCustomer.phone">{{ selectedCustomer.phone }}</span>
+                                    </div>
+                                </div>
                             </div>
                             <div>
                                 <label class="text-xs text-stone-500 dark:text-neutral-400">Statut</label>
@@ -402,7 +458,11 @@ const submit = () => {
                             </div>
                             <div class="flex items-center justify-between">
                                 <span>Taxes</span>
-                                <span class="font-medium">{{ formatCurrency(taxTotal) }}</span>
+                                <span class="font-medium">{{ formatCurrency(discountedTaxTotal) }}</span>
+                            </div>
+                            <div v-if="discountRate > 0" class="flex items-center justify-between text-emerald-700">
+                                <span>Remise ({{ discountRate }}%)</span>
+                                <span class="font-medium">- {{ formatCurrency(discountTotal) }}</span>
                             </div>
                             <div class="flex items-center justify-between border-t border-stone-200 pt-2 dark:border-neutral-700">
                                 <span class="font-semibold">Total</span>
@@ -421,5 +481,14 @@ const submit = () => {
                 </div>
             </form>
         </div>
+
+        <Modal title="Nouveau client" id="pos-quick-customer">
+            <CustomerQuickForm
+                :overlay-id="'#pos-quick-customer'"
+                submit-label="Creer le client"
+                :close-on-success="true"
+                @created="handleCustomerCreated"
+            />
+        </Modal>
     </AuthenticatedLayout>
 </template>

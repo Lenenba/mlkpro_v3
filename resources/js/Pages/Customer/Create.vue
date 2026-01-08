@@ -70,6 +70,7 @@ const form = useForm({
     billing_grouping: props.customer?.billing_grouping || 'single',
     billing_delay_days: props.customer?.billing_delay_days ?? '',
     billing_date_rule: props.customer?.billing_date_rule || '',
+    discount_rate: props.customer?.discount_rate ?? '',
     auto_accept_quotes: props.customer?.auto_accept_quotes ?? false,
     auto_validate_jobs: props.customer?.auto_validate_jobs ?? false,
     auto_validate_tasks: props.customer?.auto_validate_tasks ?? false,
@@ -319,6 +320,7 @@ const selectAddress = (details) => {
                         </h2>
                         <FloatingTextarea v-model="form.description" label="Description" />
                         <FloatingInput v-model="form.refer_by" label="Referred by" />
+                        <FloatingInput v-model="form.discount_rate" type="number" label="Remise fidelite (%)" />
                     </div>
                 </div>
                 <div

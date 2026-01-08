@@ -30,6 +30,8 @@ class Sale extends Model
         'number',
         'subtotal',
         'tax_total',
+        'discount_rate',
+        'discount_total',
         'total',
         'delivery_fee',
         'fulfillment_method',
@@ -52,6 +54,8 @@ class Sale extends Model
     protected $casts = [
         'subtotal' => 'decimal:2',
         'tax_total' => 'decimal:2',
+        'discount_rate' => 'decimal:2',
+        'discount_total' => 'decimal:2',
         'total' => 'decimal:2',
         'delivery_fee' => 'decimal:2',
         'paid_at' => 'datetime',

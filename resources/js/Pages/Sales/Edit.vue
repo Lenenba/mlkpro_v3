@@ -33,6 +33,11 @@ const form = useForm({
     })),
 });
 
+const localCustomers = ref([...props.customers]);
+const selectedCustomer = computed(() =>
+    localCustomers.value.find((customer) => customer.id === form.customer_id) || null
+);
+
 const toDateTimeLocal = (value) => {
     if (!value) {
         return '';
@@ -211,7 +216,17 @@ const taxTotal = computed(() =>
     }, 0)
 );
 
-const total = computed(() => subtotal.value + taxTotal.value);
+const discountRate = computed(() => {
+    if (selectedCustomer.value?.discount_rate !== undefined && selectedCustomer.value?.discount_rate !== null) {
+        return Number(selectedCustomer.value.discount_rate || 0);
+    }
+    return Number(props.sale.discount_rate || 0);
+});
+const discountTotal = computed(() => subtotal.value * (discountRate.value / 100));
+const discountedTaxTotal = computed(() => taxTotal.value * (1 - discountRate.value / 100));
+const total = computed(() =>
+    Math.max(0, subtotal.value - discountTotal.value) + discountedTaxTotal.value
+);
 
 const formatCurrency = (value) =>
     `$${Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -339,11 +354,31 @@ const submit = () => {
                                     class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
                                 >
                                     <option value="">Selectionner un client</option>
-                                    <option v-for="customer in customers" :key="customer.id" :value="customer.id">
+                                    <option v-for="customer in localCustomers" :key="customer.id" :value="customer.id">
                                         {{ customer.company_name || `${customer.first_name || ''} ${customer.last_name || ''}`.trim() || customer.email }}
                                     </option>
                                 </select>
                                 <InputError class="mt-1" :message="form.errors.customer_id" />
+                                <div
+                                    v-if="selectedCustomer"
+                                    class="mt-2 rounded-sm border border-stone-200 bg-stone-50 p-3 text-xs text-stone-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300"
+                                >
+                                    <div class="flex items-center justify-between">
+                                        <span class="font-semibold text-stone-700 dark:text-neutral-100">
+                                            {{ selectedCustomer.company_name || `${selectedCustomer.first_name || ''} ${selectedCustomer.last_name || ''}`.trim() || selectedCustomer.email }}
+                                        </span>
+                                        <span
+                                            v-if="discountRate > 0"
+                                            class="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-200"
+                                        >
+                                            Remise {{ discountRate }}%
+                                        </span>
+                                    </div>
+                                    <div class="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-stone-500 dark:text-neutral-400">
+                                        <span v-if="selectedCustomer.email">{{ selectedCustomer.email }}</span>
+                                        <span v-if="selectedCustomer.phone">{{ selectedCustomer.phone }}</span>
+                                    </div>
+                                </div>
                             </div>
                             <div>
                                 <label class="text-xs text-stone-500 dark:text-neutral-400">Statut</label>
@@ -472,7 +507,11 @@ const submit = () => {
                             </div>
                             <div class="flex items-center justify-between">
                                 <span>Taxes</span>
-                                <span class="font-medium">{{ formatCurrency(taxTotal) }}</span>
+                                <span class="font-medium">{{ formatCurrency(discountedTaxTotal) }}</span>
+                            </div>
+                            <div v-if="discountRate > 0" class="flex items-center justify-between text-emerald-700">
+                                <span>Remise ({{ discountRate }}%)</span>
+                                <span class="font-medium">- {{ formatCurrency(discountTotal) }}</span>
                             </div>
                             <div class="flex items-center justify-between border-t border-stone-200 pt-2 dark:border-neutral-700">
                                 <span class="font-semibold">Total</span>

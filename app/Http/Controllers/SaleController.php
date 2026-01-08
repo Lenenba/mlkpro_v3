@@ -150,7 +150,7 @@ class SaleController extends Controller
         $customers = Customer::query()
             ->where('user_id', $accountId)
             ->orderBy('company_name')
-            ->get(['id', 'first_name', 'last_name', 'company_name', 'email']);
+            ->get(['id', 'first_name', 'last_name', 'company_name', 'email', 'phone', 'discount_rate']);
 
         $products = Product::query()
             ->where('user_id', $accountId)
@@ -195,7 +195,7 @@ class SaleController extends Controller
         $customers = Customer::query()
             ->where('user_id', $accountId)
             ->orderBy('company_name')
-            ->get(['id', 'first_name', 'last_name', 'company_name', 'email']);
+            ->get(['id', 'first_name', 'last_name', 'company_name', 'email', 'phone', 'discount_rate']);
 
         $products = Product::query()
             ->where('user_id', $accountId)
@@ -279,9 +279,7 @@ class SaleController extends Controller
             ]);
         }
 
-        $reservedMap = ($previousStatus === Sale::STATUS_PENDING && $previousFulfillment !== Sale::FULFILLMENT_COMPLETED)
-            ? $previousItems->groupBy('product_id')->map(fn($rows) => (int) $rows->sum('quantity'))->toArray()
-            : [];
+        $reservedMap = [];
 
         foreach ($reservedMap as $productId => $quantity) {
             $product = $products->get($productId);
@@ -351,7 +349,18 @@ class SaleController extends Controller
             ];
         }
 
-        $total = round($subtotal + $taxTotal, 2);
+        $discountRate = 0;
+        if ($customerId) {
+            $discountRate = (float) Customer::query()
+                ->where('user_id', $accountId)
+                ->whereKey($customerId)
+                ->value('discount_rate');
+        }
+        $discountRate = min(100, max(0, $discountRate));
+        $discountTotal = round($subtotal * ($discountRate / 100), 2);
+        $discountedSubtotal = max(0, $subtotal - $discountTotal);
+        $discountedTaxTotal = round($taxTotal * (1 - ($discountRate / 100)), 2);
+        $total = round($discountedSubtotal + $discountedTaxTotal, 2);
 
         $sale = Sale::create([
             'user_id' => $accountId,
@@ -359,7 +368,9 @@ class SaleController extends Controller
             'customer_id' => $customerId,
             'status' => $validated['status'],
             'subtotal' => $subtotal,
-            'tax_total' => $taxTotal,
+            'tax_total' => $discountedTaxTotal,
+            'discount_rate' => $discountRate,
+            'discount_total' => $discountTotal,
             'total' => $total,
             'fulfillment_status' => $validated['fulfillment_status'] ?? null,
             'notes' => $validated['notes'] ?? null,
@@ -559,13 +570,26 @@ class SaleController extends Controller
             ];
         }
 
-        $total = round($subtotal + $taxTotal, 2);
+        $discountRate = 0;
+        if ($customerId) {
+            $discountRate = (float) Customer::query()
+                ->where('user_id', $accountId)
+                ->whereKey($customerId)
+                ->value('discount_rate');
+        }
+        $discountRate = min(100, max(0, $discountRate));
+        $discountTotal = round($subtotal * ($discountRate / 100), 2);
+        $discountedSubtotal = max(0, $subtotal - $discountTotal);
+        $discountedTaxTotal = round($taxTotal * (1 - ($discountRate / 100)), 2);
+        $total = round($discountedSubtotal + $discountedTaxTotal, 2);
 
         $updateData = [
             'customer_id' => $customerId,
             'status' => $validated['status'],
             'subtotal' => $subtotal,
-            'tax_total' => $taxTotal,
+            'tax_total' => $discountedTaxTotal,
+            'discount_rate' => $discountRate,
+            'discount_total' => $discountTotal,
             'total' => $total,
             'fulfillment_status' => array_key_exists('fulfillment_status', $validated)
                 ? $validated['fulfillment_status']

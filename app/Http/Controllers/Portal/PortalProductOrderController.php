@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Portal;
 use App\Http\Controllers\Controller;
 use App\Models\Customer;
 use App\Models\Product;
+use App\Models\ProductCategory;
 use App\Models\Sale;
 use App\Models\User;
 use App\Services\InventoryService;
@@ -194,6 +195,17 @@ class PortalProductOrderController extends Controller
         return 'PK-' . Str::upper(Str::random(6));
     }
 
+    private function applyCustomerDiscount(Customer $customer, float $subtotal, float $taxTotal): array
+    {
+        $discountRate = (float) ($customer->discount_rate ?? 0);
+        $discountRate = min(100, max(0, $discountRate));
+        $discountTotal = round($subtotal * ($discountRate / 100), 2);
+        $discountedSubtotal = max(0, $subtotal - $discountTotal);
+        $discountedTaxTotal = round($taxTotal * (1 - ($discountRate / 100)), 2);
+
+        return [$discountRate, $discountTotal, $discountedSubtotal, $discountedTaxTotal];
+    }
+
     public function index(Request $request)
     {
         [$customer, $owner] = $this->resolvePortalCustomer($request);
@@ -207,12 +219,17 @@ class PortalProductOrderController extends Controller
             ->get([
                 'id',
                 'name',
+                'description',
                 'image',
                 'price',
                 'sku',
+                'barcode',
                 'unit',
                 'stock',
                 'minimum_stock',
+                'supplier_name',
+                'category_id',
+                'tracking_type',
                 'tax_rate',
             ]);
 
@@ -225,18 +242,26 @@ class PortalProductOrderController extends Controller
             ])->filter()->implode(', ')
             : null;
 
+        $categories = ProductCategory::forAccount($owner->id)
+            ->active()
+            ->orderBy('name')
+            ->get(['id', 'name']);
+
         return $this->inertiaOrJson('Portal/Products/Shop', [
             'company' => [
+                'id' => $owner->id,
                 'name' => $owner->company_name,
                 'logo_url' => $owner->company_logo_url,
             ],
             'customer' => [
+                'id' => $customer->id,
                 'name' => trim(($customer->first_name ?? '') . ' ' . ($customer->last_name ?? '')),
                 'email' => $customer->email,
                 'phone' => $customer->phone,
                 'default_address' => $defaultAddress,
             ],
             'products' => $products,
+            'categories' => $categories,
             'fulfillment' => $fulfillment,
         ]);
     }
@@ -300,14 +325,20 @@ class PortalProductOrderController extends Controller
         $deliveryFee = $validated['fulfillment_method'] === 'delivery'
             ? (float) ($fulfillment['delivery_fee'] ?? 0)
             : 0;
-        $total = round($subtotal + $taxTotal + $deliveryFee, 2);
+
+        [$discountRate, $discountTotal, $discountedSubtotal, $discountedTaxTotal] =
+            $this->applyCustomerDiscount($customer, $subtotal, $taxTotal);
+
+        $total = round($discountedSubtotal + $discountedTaxTotal + $deliveryFee, 2);
 
         $sale = Sale::create([
             'user_id' => $owner->id,
             'customer_id' => $customer->id,
             'status' => Sale::STATUS_PENDING,
             'subtotal' => $subtotal,
-            'tax_total' => $taxTotal,
+            'tax_total' => $discountedTaxTotal,
+            'discount_rate' => $discountRate,
+            'discount_total' => $discountTotal,
             'delivery_fee' => $deliveryFee,
             'total' => $total,
             'fulfillment_method' => $validated['fulfillment_method'],
@@ -351,12 +382,17 @@ class PortalProductOrderController extends Controller
             ->get([
                 'id',
                 'name',
+                'description',
                 'image',
                 'price',
                 'sku',
+                'barcode',
                 'unit',
                 'stock',
                 'minimum_stock',
+                'supplier_name',
+                'category_id',
+                'tracking_type',
                 'tax_rate',
             ]);
 
@@ -369,20 +405,28 @@ class PortalProductOrderController extends Controller
             ])->filter()->implode(', ')
             : null;
 
+        $categories = ProductCategory::forAccount($owner->id)
+            ->active()
+            ->orderBy('name')
+            ->get(['id', 'name']);
+
         $sale->load(['items:id,sale_id,product_id,quantity']);
 
         return $this->inertiaOrJson('Portal/Products/Shop', [
             'company' => [
+                'id' => $owner->id,
                 'name' => $owner->company_name,
                 'logo_url' => $owner->company_logo_url,
             ],
             'customer' => [
+                'id' => $customer->id,
                 'name' => trim(($customer->first_name ?? '') . ' ' . ($customer->last_name ?? '')),
                 'email' => $customer->email,
                 'phone' => $customer->phone,
                 'default_address' => $defaultAddress,
             ],
             'products' => $products,
+            'categories' => $categories,
             'fulfillment' => $fulfillment,
             'order' => [
                 'id' => $sale->id,
@@ -400,6 +444,8 @@ class PortalProductOrderController extends Controller
                 'customer_notes' => $sale->customer_notes,
                 'substitution_allowed' => $sale->substitution_allowed,
                 'substitution_notes' => $sale->substitution_notes,
+                'discount_rate' => $sale->discount_rate,
+                'discount_total' => $sale->discount_total,
                 'items' => $sale->items->map(fn($item) => [
                     'product_id' => $item->product_id,
                     'quantity' => $item->quantity,
@@ -487,13 +533,19 @@ class PortalProductOrderController extends Controller
         $deliveryFee = $validated['fulfillment_method'] === 'delivery'
             ? (float) ($fulfillment['delivery_fee'] ?? 0)
             : 0;
-        $total = round($subtotal + $taxTotal + $deliveryFee, 2);
+
+        [$discountRate, $discountTotal, $discountedSubtotal, $discountedTaxTotal] =
+            $this->applyCustomerDiscount($customer, $subtotal, $taxTotal);
+
+        $total = round($discountedSubtotal + $discountedTaxTotal + $deliveryFee, 2);
 
         $previousScheduled = $sale->scheduled_for;
 
         $sale->update([
             'subtotal' => $subtotal,
-            'tax_total' => $taxTotal,
+            'tax_total' => $discountedTaxTotal,
+            'discount_rate' => $discountRate,
+            'discount_total' => $discountTotal,
             'delivery_fee' => $deliveryFee,
             'total' => $total,
             'fulfillment_method' => $validated['fulfillment_method'],
@@ -602,14 +654,20 @@ class PortalProductOrderController extends Controller
         $deliveryFee = $sale->fulfillment_method === 'delivery'
             ? (float) ($owner->company_fulfillment['delivery_fee'] ?? 0)
             : 0;
-        $total = round($subtotal + $taxTotal + $deliveryFee, 2);
+
+        [$discountRate, $discountTotal, $discountedSubtotal, $discountedTaxTotal] =
+            $this->applyCustomerDiscount($customer, $subtotal, $taxTotal);
+
+        $total = round($discountedSubtotal + $discountedTaxTotal + $deliveryFee, 2);
 
         $newSale = Sale::create([
             'user_id' => $owner->id,
             'customer_id' => $customer->id,
             'status' => Sale::STATUS_PENDING,
             'subtotal' => $subtotal,
-            'tax_total' => $taxTotal,
+            'tax_total' => $discountedTaxTotal,
+            'discount_rate' => $discountRate,
+            'discount_total' => $discountTotal,
             'delivery_fee' => $deliveryFee,
             'total' => $total,
             'fulfillment_method' => $sale->fulfillment_method,

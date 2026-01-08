@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\ActivityLog;
 use App\Models\Customer;
 use App\Models\Invoice;
 use App\Models\InvoiceItem;
@@ -1501,6 +1502,7 @@ class LaunchSeeder extends Seeder
                 'description' => 'Seeded customer for product demo.',
                 'salutation' => 'Mr',
                 'billing_same_as_physical' => true,
+                'discount_rate' => 5,
             ]
         );
 
@@ -2329,6 +2331,7 @@ class LaunchSeeder extends Seeder
                 'description' => 'Retail storefront customer.',
                 'salutation' => 'Mrs',
                 'billing_same_as_physical' => true,
+                'discount_rate' => 2.5,
             ]
         );
 
@@ -2345,6 +2348,7 @@ class LaunchSeeder extends Seeder
                 'description' => 'Wholesale customer account.',
                 'salutation' => 'Mr',
                 'billing_same_as_physical' => true,
+                'discount_rate' => 8,
             ]
         );
 
@@ -2383,38 +2387,70 @@ class LaunchSeeder extends Seeder
             return [$items, $subtotal, $taxTotal, round($subtotal + $taxTotal, 2)];
         };
 
-        $createSale = function (string $label, ?Customer $customer, string $status, array $lines, $createdAt, ?int $createdByUserId = null, array $fulfillment = []) use ($productOwner, $buildSalePayload, $setTimestamps) {
-            [$items, $subtotal, $taxTotal, $total] = $buildSalePayload($lines);
+        $createSale = function (string $label, ?Customer $customer, string $status, array $lines, $createdAt, ?int $createdByUserId = null, array $fulfillment = [], array $extras = []) use ($productOwner, $buildSalePayload, $setTimestamps) {
+            [$items, $subtotal, $taxTotal] = $buildSalePayload($lines);
             if (empty($items)) {
                 return null;
             }
 
             $fulfillmentMethod = $fulfillment['method'] ?? null;
             $fulfillmentStatus = $fulfillment['status'] ?? null;
+            $discountRate = (float) ($extras['discount_rate'] ?? ($customer?->discount_rate ?? 0));
+            $discountRate = min(100, max(0, $discountRate));
+            $discountTotal = round($subtotal * ($discountRate / 100), 2);
+            $discountedSubtotal = max(0, $subtotal - $discountTotal);
+            $discountedTaxTotal = round($taxTotal * (1 - ($discountRate / 100)), 2);
+            $total = round($discountedSubtotal + $discountedTaxTotal, 2);
+
+            $salePayload = [
+                'created_by_user_id' => $createdByUserId ?? $productOwner->id,
+                'customer_id' => $customer?->id,
+                'status' => $status,
+                'subtotal' => $subtotal,
+                'tax_total' => $discountedTaxTotal,
+                'discount_rate' => $discountRate,
+                'discount_total' => $discountTotal,
+                'source' => $extras['source'] ?? 'pos',
+                'total' => $total,
+                'fulfillment_method' => $fulfillmentMethod,
+                'fulfillment_status' => $fulfillmentStatus,
+                'delivery_fee' => (float) ($fulfillment['delivery_fee'] ?? 0),
+                'delivery_address' => $fulfillment['delivery_address'] ?? null,
+                'delivery_notes' => $fulfillment['delivery_notes'] ?? null,
+                'pickup_notes' => $fulfillment['pickup_notes'] ?? null,
+                'scheduled_for' => $fulfillment['scheduled_for'] ?? null,
+                'paid_at' => $status === Sale::STATUS_PAID ? $createdAt : null,
+                'notes' => $label,
+            ];
+
+            if (array_key_exists('created_by_user_id', $extras)) {
+                $salePayload['created_by_user_id'] = $extras['created_by_user_id'];
+            }
+            if (array_key_exists('customer_notes', $extras)) {
+                $salePayload['customer_notes'] = $extras['customer_notes'];
+            }
+            if (array_key_exists('substitution_allowed', $extras)) {
+                $salePayload['substitution_allowed'] = (bool) $extras['substitution_allowed'];
+            }
+            if (array_key_exists('substitution_notes', $extras)) {
+                $salePayload['substitution_notes'] = $extras['substitution_notes'];
+            }
+            if (array_key_exists('pickup_code', $extras)) {
+                $salePayload['pickup_code'] = $extras['pickup_code'];
+            }
+            if (array_key_exists('pickup_confirmed_at', $extras)) {
+                $salePayload['pickup_confirmed_at'] = $extras['pickup_confirmed_at'];
+            }
+            if (array_key_exists('pickup_confirmed_by_user_id', $extras)) {
+                $salePayload['pickup_confirmed_by_user_id'] = $extras['pickup_confirmed_by_user_id'];
+            }
 
             $sale = Sale::updateOrCreate(
                 [
                     'user_id' => $productOwner->id,
                     'notes' => $label,
                 ],
-                [
-                    'created_by_user_id' => $createdByUserId ?? $productOwner->id,
-                    'customer_id' => $customer?->id,
-                    'status' => $status,
-                    'subtotal' => $subtotal,
-                    'tax_total' => $taxTotal,
-                    'source' => 'pos',
-                    'total' => $total,
-                    'fulfillment_method' => $fulfillmentMethod,
-                    'fulfillment_status' => $fulfillmentStatus,
-                    'delivery_fee' => (float) ($fulfillment['delivery_fee'] ?? 0),
-                    'delivery_address' => $fulfillment['delivery_address'] ?? null,
-                    'delivery_notes' => $fulfillment['delivery_notes'] ?? null,
-                    'pickup_notes' => $fulfillment['pickup_notes'] ?? null,
-                    'scheduled_for' => $fulfillment['scheduled_for'] ?? null,
-                    'paid_at' => $status === Sale::STATUS_PAID ? $createdAt : null,
-                    'notes' => $label,
-                ]
+                $salePayload
             );
 
             $sale->items()->delete();
@@ -2429,6 +2465,25 @@ class LaunchSeeder extends Seeder
             }
 
             return $sale;
+        };
+
+        $seedSaleTimeline = function (?User $actor, Sale $sale, array $entries) use ($setTimestamps) {
+            foreach ($entries as $entry) {
+                $action = $entry['action'] ?? null;
+                if (!$action) {
+                    continue;
+                }
+                $log = ActivityLog::record(
+                    $actor,
+                    $sale,
+                    $action,
+                    $entry['properties'] ?? [],
+                    $entry['description'] ?? null
+                );
+                if (!empty($entry['at'])) {
+                    $setTimestamps($log, $entry['at']);
+                }
+            }
         };
 
         if ($productSalesCatalog->isNotEmpty()) {
@@ -2496,6 +2551,199 @@ class LaunchSeeder extends Seeder
                 ],
                 $now->copy()->subDays(3)
             );
+
+            $portalPending = $createSale(
+                'Seeded portal order - Preparing',
+                $productCustomer,
+                Sale::STATUS_PENDING,
+                [
+                    ['product' => $productSalesCatalog->get(0), 'quantity' => 1],
+                    ['product' => $productSalesCatalog->get(3), 'quantity' => 2],
+                ],
+                $now->copy()->subHours(8),
+                null,
+                [
+                    'method' => 'delivery',
+                    'status' => Sale::FULFILLMENT_PREPARING,
+                    'delivery_fee' => 7.5,
+                    'delivery_address' => '42 Product St, Toronto, ON',
+                    'delivery_notes' => 'Leave at reception',
+                    'scheduled_for' => $now->copy()->addHours(4),
+                ],
+                [
+                    'source' => 'portal',
+                    'created_by_user_id' => null,
+                    'customer_notes' => 'Call before delivery.',
+                    'substitution_allowed' => true,
+                    'substitution_notes' => 'Swap with store brand if needed.',
+                ]
+            );
+
+            if ($portalPending) {
+                $seedSaleTimeline($productPortalUser, $portalPending, [
+                    [
+                        'action' => 'sale_created',
+                        'at' => $portalPending->created_at,
+                        'properties' => ['source' => 'portal'],
+                    ],
+                    [
+                        'action' => 'sale_fulfillment_changed',
+                        'at' => $portalPending->created_at->copy()->addHours(1),
+                        'properties' => [
+                            'fulfillment_from' => 'pending',
+                            'fulfillment_to' => 'preparing',
+                        ],
+                    ],
+                    [
+                        'action' => 'sale_eta_updated',
+                        'at' => $portalPending->created_at->copy()->addHours(2),
+                        'properties' => [
+                            'scheduled_for' => $portalPending->scheduled_for?->format('Y-m-d H:i'),
+                        ],
+                    ],
+                ]);
+            }
+
+            $portalDelivery = $createSale(
+                'Seeded portal order - Out for delivery',
+                $productCustomer,
+                Sale::STATUS_PENDING,
+                [
+                    ['product' => $productSalesCatalog->get(2), 'quantity' => 1],
+                    ['product' => $productSalesCatalog->get(4), 'quantity' => 3],
+                ],
+                $now->copy()->subHours(4),
+                null,
+                [
+                    'method' => 'delivery',
+                    'status' => Sale::FULFILLMENT_OUT_FOR_DELIVERY,
+                    'delivery_fee' => 7.5,
+                    'delivery_address' => '42 Product St, Toronto, ON',
+                    'delivery_notes' => 'Leave at reception',
+                    'scheduled_for' => $now->copy()->addHours(2),
+                ],
+                [
+                    'source' => 'portal',
+                    'created_by_user_id' => null,
+                    'customer_notes' => 'Ring the buzzer.',
+                    'substitution_allowed' => true,
+                ]
+            );
+
+            if ($portalDelivery) {
+                $seedSaleTimeline($productPortalUser, $portalDelivery, [
+                    [
+                        'action' => 'sale_created',
+                        'at' => $portalDelivery->created_at,
+                        'properties' => ['source' => 'portal'],
+                    ],
+                    [
+                        'action' => 'sale_fulfillment_changed',
+                        'at' => $portalDelivery->created_at->copy()->addHours(2),
+                        'properties' => [
+                            'fulfillment_from' => 'pending',
+                            'fulfillment_to' => 'out_for_delivery',
+                        ],
+                    ],
+                ]);
+            }
+
+            $portalPickupReady = $createSale(
+                'Seeded portal order - Ready pickup',
+                $productCustomer,
+                Sale::STATUS_PENDING,
+                [
+                    ['product' => $productSalesCatalog->get(1), 'quantity' => 2],
+                ],
+                $now->copy()->subHours(6),
+                null,
+                [
+                    'method' => 'pickup',
+                    'status' => Sale::FULFILLMENT_READY_FOR_PICKUP,
+                    'pickup_notes' => 'Pickup counter 2',
+                ],
+                [
+                    'source' => 'portal',
+                    'created_by_user_id' => null,
+                    'pickup_code' => 'PK-SEED-READY',
+                    'customer_notes' => 'Arrive at 17:00.',
+                    'substitution_allowed' => false,
+                    'substitution_notes' => 'No substitutions.',
+                ]
+            );
+
+            if ($portalPickupReady) {
+                $seedSaleTimeline($productPortalUser, $portalPickupReady, [
+                    [
+                        'action' => 'sale_created',
+                        'at' => $portalPickupReady->created_at,
+                        'properties' => ['source' => 'portal'],
+                    ],
+                    [
+                        'action' => 'sale_fulfillment_changed',
+                        'at' => $portalPickupReady->created_at->copy()->addHours(2),
+                        'properties' => [
+                            'fulfillment_from' => 'pending',
+                            'fulfillment_to' => 'ready_for_pickup',
+                        ],
+                    ],
+                ]);
+            }
+
+            $portalPickupDone = $createSale(
+                'Seeded portal order - Pickup complete',
+                $productCustomer,
+                Sale::STATUS_PAID,
+                [
+                    ['product' => $productSalesCatalog->get(5), 'quantity' => 1],
+                ],
+                $now->copy()->subHours(3),
+                null,
+                [
+                    'method' => 'pickup',
+                    'status' => Sale::FULFILLMENT_COMPLETED,
+                    'pickup_notes' => 'Fast pickup lane',
+                ],
+                [
+                    'source' => 'portal',
+                    'created_by_user_id' => null,
+                    'pickup_code' => 'PK-SEED-DONE',
+                    'pickup_confirmed_at' => $now->copy()->subHours(1),
+                    'pickup_confirmed_by_user_id' => $productSellerUser->id,
+                    'customer_notes' => 'No bag needed.',
+                    'substitution_allowed' => false,
+                ]
+            );
+
+            if ($portalPickupDone) {
+                $seedSaleTimeline($productPortalUser, $portalPickupDone, [
+                    [
+                        'action' => 'sale_created',
+                        'at' => $portalPickupDone->created_at,
+                        'properties' => ['source' => 'portal'],
+                    ],
+                    [
+                        'action' => 'sale_fulfillment_changed',
+                        'at' => $portalPickupDone->created_at->copy()->addHours(1),
+                        'properties' => [
+                            'fulfillment_from' => 'pending',
+                            'fulfillment_to' => 'ready_for_pickup',
+                        ],
+                    ],
+                    [
+                        'action' => 'sale_pickup_confirmed',
+                        'at' => $portalPickupDone->pickup_confirmed_at,
+                    ],
+                    [
+                        'action' => 'sale_fulfillment_changed',
+                        'at' => $portalPickupDone->pickup_confirmed_at,
+                        'properties' => [
+                            'fulfillment_from' => 'ready_for_pickup',
+                            'fulfillment_to' => 'completed',
+                        ],
+                    ],
+                ]);
+            }
         }
 
         $suppliesCategory = ProductCategory::resolveForAccount(

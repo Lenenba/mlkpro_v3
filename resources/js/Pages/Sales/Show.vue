@@ -321,6 +321,10 @@ const canConfirmPickup = computed(() =>
                                 <span>Taxes</span>
                                 <span class="font-medium">{{ formatCurrency(sale.tax_total) }}</span>
                             </div>
+                            <div v-if="Number(sale.discount_total || 0) > 0" class="flex items-center justify-between text-emerald-700">
+                                <span>Remise ({{ sale.discount_rate || 0 }}%)</span>
+                                <span class="font-medium">- {{ formatCurrency(sale.discount_total) }}</span>
+                            </div>
                             <div v-if="Number(sale.delivery_fee || 0) > 0" class="flex items-center justify-between">
                                 <span>Livraison</span>
                                 <span class="font-medium">{{ formatCurrency(sale.delivery_fee) }}</span>

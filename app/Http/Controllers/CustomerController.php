@@ -834,7 +834,7 @@ class CustomerController extends Controller
         if (!$user) {
             abort(403);
         }
-        [$accountOwner, $accountId] = $this->resolveCustomerAccount($user);
+        [$accountOwner, $accountId] = $this->resolveCustomerAccount($user, true);
 
         $validated = $request->validated();
         $validated['logo'] = FileHandler::handleImageUpload('customers', $request, 'logo', 'customers/customer.png');
@@ -908,6 +908,7 @@ class CustomerController extends Controller
                 'last_name' => $customer->last_name,
                 'email' => $customer->email,
                 'phone' => $customer->phone,
+                'discount_rate' => $customer->discount_rate,
             ],
             'property_id' => $property?->id,
             'properties' => $propertyData,
@@ -1003,7 +1004,7 @@ class CustomerController extends Controller
         return redirect()->route('customer.index')->with('success', 'Customer deleted successfully.');
     }
 
-    private function resolveCustomerAccount(User $user): array
+    private function resolveCustomerAccount(User $user, bool $allowPos = false): array
     {
         $ownerId = $user->accountOwnerId();
         $owner = $ownerId === $user->id
@@ -1022,7 +1023,9 @@ class CustomerController extends Controller
                 $membership = $user->relationLoaded('teamMembership')
                     ? $user->teamMembership
                     : $user->teamMembership()->first();
-                if (!$membership || !$membership->hasPermission('sales.manage')) {
+                $canManage = $membership?->hasPermission('sales.manage') ?? false;
+                $canPos = $allowPos ? ($membership?->hasPermission('sales.pos') ?? false) : false;
+                if (!$membership || (!$canManage && !$canPos)) {
                     abort(403);
                 }
             }

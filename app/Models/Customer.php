@@ -41,6 +41,7 @@ class Customer extends Model
         'billing_grouping',
         'billing_delay_days',
         'billing_date_rule',
+        'discount_rate',
         'auto_accept_quotes',
         'auto_validate_jobs',
         'auto_validate_tasks',
@@ -65,6 +66,7 @@ class Customer extends Model
         'auto_validate_invoices' => 'boolean',
         'tags' => 'array',
         'billing_delay_days' => 'integer',
+        'discount_rate' => 'decimal:2',
     ];
 
     protected $appends = [
