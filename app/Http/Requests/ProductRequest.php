@@ -50,6 +50,7 @@ class ProductRequest extends FormRequest
             'barcode' => 'nullable|string|max:100',
             'unit' => 'nullable|string|max:50',
             'supplier_name' => 'nullable|string|max:255',
+            'supplier_email' => 'nullable|email|max:255',
             'tax_rate' => 'nullable|numeric|min:0|max:100',
             'is_active' => 'nullable|boolean',
             'image' => 'nullable|image|mimes:jpg,png,jpeg,webp|max:5000',

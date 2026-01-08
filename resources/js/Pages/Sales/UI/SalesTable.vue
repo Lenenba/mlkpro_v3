@@ -72,11 +72,12 @@ const statusClasses = {
 };
 
 const fulfillmentLabels = {
-    pending: 'En attente',
+    pending: 'Commande recue',
     preparing: 'Preparation',
     out_for_delivery: 'En cours de livraison',
     ready_for_pickup: 'Pret a retirer',
-    completed: 'Terminee',
+    completed: 'Livree',
+    confirmed: 'Confirmee',
 };
 
 const fulfillmentClasses = {
@@ -85,6 +86,7 @@ const fulfillmentClasses = {
     out_for_delivery: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-200',
     ready_for_pickup: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-500/10 dark:text-indigo-200',
     completed: 'bg-stone-100 text-stone-600 dark:bg-neutral-800 dark:text-neutral-300',
+    confirmed: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-200',
 };
 
 const filterPayload = () => {
@@ -209,13 +211,16 @@ const paymentLabel = (sale) => statusLabels[sale?.status] || sale?.status || '';
 const canQuickUpdate = (sale) =>
     props.enableStatusUpdate
     && sale
-    && !['paid', 'canceled'].includes(sale.status)
-    && sale.fulfillment_status !== 'completed';
+    && !['paid', 'canceled'].includes(sale.status);
+
+const canChangeFulfillment = (sale) =>
+    canQuickUpdate(sale)
+    && !['completed', 'confirmed'].includes(sale.fulfillment_status);
 
 const fulfillmentOptionsFor = (sale) => {
     if (sale?.fulfillment_method === 'pickup') {
         return [
-            { value: 'pending', label: 'En attente' },
+            { value: 'pending', label: 'Commande recue' },
             { value: 'preparing', label: 'Preparation' },
             { value: 'ready_for_pickup', label: 'Pret a retirer' },
             { value: 'completed', label: 'Terminee' },
@@ -223,14 +228,14 @@ const fulfillmentOptionsFor = (sale) => {
     }
     if (sale?.fulfillment_method === 'delivery') {
         return [
-            { value: 'pending', label: 'En attente' },
+            { value: 'pending', label: 'Commande recue' },
             { value: 'preparing', label: 'Preparation' },
             { value: 'out_for_delivery', label: 'En cours de livraison' },
             { value: 'completed', label: 'Terminee' },
         ];
     }
     return [
-        { value: 'pending', label: 'En attente' },
+        { value: 'pending', label: 'Commande recue' },
         { value: 'preparing', label: 'Preparation' },
         { value: 'out_for_delivery', label: 'En cours de livraison' },
         { value: 'ready_for_pickup', label: 'Pret a retirer' },
@@ -285,6 +290,16 @@ const markCanceled = (sale) => {
     }
     updateStatus(sale, { status: 'canceled' });
 };
+
+const canMarkPaid = (sale) =>
+    sale
+    && !['paid', 'canceled'].includes(sale.status)
+    && (!sale.fulfillment_method || ['completed', 'confirmed'].includes(sale.fulfillment_status));
+
+const canMarkCanceled = (sale) =>
+    sale
+    && !['paid', 'canceled'].includes(sale.status)
+    && !['completed', 'confirmed'].includes(sale.fulfillment_status);
 </script>
 
 <template>
@@ -461,7 +476,7 @@ const markCanceled = (sale) => {
                                         <select
                                             class="w-full rounded-sm border border-stone-200 bg-white px-2 py-1 text-[11px] text-stone-700 focus:border-green-500 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
                                             :value="sale.fulfillment_status || ''"
-                                            :disabled="isUpdating(sale)"
+                                            :disabled="isUpdating(sale) || !canChangeFulfillment(sale)"
                                             @change="updateFulfillment(sale, $event.target.value)"
                                         >
                                             <option value="">Statut commande</option>
@@ -477,7 +492,7 @@ const markCanceled = (sale) => {
                                             <button
                                                 type="button"
                                                 class="rounded-sm border border-emerald-200 bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-700 hover:bg-emerald-100 disabled:opacity-60"
-                                                :disabled="isUpdating(sale)"
+                                                :disabled="isUpdating(sale) || !canMarkPaid(sale)"
                                                 @click="markPaid(sale)"
                                             >
                                                 Payee
@@ -485,7 +500,7 @@ const markCanceled = (sale) => {
                                             <button
                                                 type="button"
                                                 class="rounded-sm border border-red-200 bg-red-50 px-2 py-1 text-[11px] font-semibold text-red-600 hover:bg-red-100 disabled:opacity-60"
-                                                :disabled="isUpdating(sale)"
+                                                :disabled="isUpdating(sale) || !canMarkCanceled(sale)"
                                                 @click="markCanceled(sale)"
                                             >
                                                 Annuler

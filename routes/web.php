@@ -198,6 +198,8 @@ Route::middleware(['auth', EnsureInternalUser::class])->group(function () {
         Route::post('/product/{product}/duplicate', [ProductController::class, 'duplicate'])->name('product.duplicate');
         Route::put('/product/{product}/quick-update', [ProductController::class, 'quickUpdate'])->name('product.quick-update');
         Route::post('/product/{product}/adjust-stock', [ProductController::class, 'adjustStock'])->name('product.adjust-stock');
+        Route::post('/product/{product}/supplier-email', [ProductController::class, 'requestSupplierStock'])
+            ->name('product.supplier-email');
         Route::get('/product/export/csv', [ProductController::class, 'export'])->name('product.export');
         Route::post('/product/import/csv', [ProductController::class, 'import'])->name('product.import');
         Route::resource('product', ProductController::class);
@@ -294,6 +296,7 @@ Route::middleware(['auth', EnsureClientUser::class])
         Route::post('/orders', [PortalProductOrderController::class, 'store'])->name('orders.store');
         Route::get('/orders/{sale}/edit', [PortalProductOrderController::class, 'edit'])->name('orders.edit');
         Route::put('/orders/{sale}', [PortalProductOrderController::class, 'update'])->name('orders.update');
+        Route::post('/orders/{sale}/confirm', [PortalProductOrderController::class, 'confirmReceipt'])->name('orders.confirm');
         Route::delete('/orders/{sale}', [PortalProductOrderController::class, 'destroy'])->name('orders.destroy');
         Route::post('/orders/{sale}/reorder', [PortalProductOrderController::class, 'reorder'])->name('orders.reorder');
         Route::post('/quotes/{quote}/accept', [PortalQuoteController::class, 'accept'])->name('quotes.accept');

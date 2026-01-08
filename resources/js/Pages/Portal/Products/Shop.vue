@@ -42,6 +42,32 @@ const cartRestored = ref(false);
 
 const order = computed(() => props.order || null);
 const isEditing = computed(() => Boolean(order.value?.id));
+const paymentStatusLabels = {
+    draft: 'Brouillon',
+    pending: 'En attente',
+    paid: 'Payee',
+    canceled: 'Annulee',
+};
+const fulfillmentLabels = {
+    pending: 'Commande recue',
+    preparing: 'Preparation',
+    out_for_delivery: 'En cours de livraison',
+    ready_for_pickup: 'Pret a retirer',
+    completed: 'Livree',
+    confirmed: 'Confirmee',
+};
+const orderStatusLabel = computed(() => {
+    if (!order.value?.fulfillment_status) {
+        return 'Commande recue';
+    }
+    if (order.value.fulfillment_status === 'completed' && !order.value.delivery_confirmed_at) {
+        return 'Livree - a confirmer';
+    }
+    return fulfillmentLabels[order.value.fulfillment_status] || order.value.fulfillment_status;
+});
+const paymentStatusLabel = computed(() =>
+    paymentStatusLabels[order.value?.status] || order.value?.status || 'En attente'
+);
 const canEditOrder = computed(() => {
     if (!isEditing.value) {
         return true;
@@ -59,6 +85,9 @@ const pickupQrUrl = computed(() => {
 });
 const showPickupQr = computed(() =>
     order.value?.fulfillment_method === 'pickup' && order.value?.fulfillment_status === 'ready_for_pickup'
+);
+const canConfirmReceipt = computed(() =>
+    order.value?.fulfillment_status === 'completed' && !order.value?.delivery_confirmed_at
 );
 
 const search = ref('');
@@ -253,6 +282,9 @@ const form = useForm({
     substitution_notes: '',
     items: [],
 });
+const confirmForm = useForm({
+    proof: null,
+});
 
 const subtotal = computed(() =>
     cart.value.reduce((sum, entry) => sum + Number(entry.product.price || 0) * entry.quantity, 0)
@@ -417,6 +449,23 @@ const submitOrder = () => {
     });
 };
 
+const handleProofSelected = (event) => {
+    const file = event.target?.files?.[0] || null;
+    confirmForm.proof = file;
+};
+
+const submitReceiptConfirm = () => {
+    if (!order.value?.id || !canConfirmReceipt.value) {
+        return;
+    }
+    confirmForm.post(route('portal.orders.confirm', order.value.id), {
+        preserveScroll: true,
+        onSuccess: () => {
+            confirmForm.reset();
+        },
+    });
+};
+
 const cancelOrder = () => {
     if (!isEditing.value || !order.value?.id || isLocked.value) {
         return;
@@ -474,6 +523,55 @@ const cancelOrder = () => {
             </div>
             <div v-if="isLocked" class="rounded-sm border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
                 Cette commande est deja en livraison ou finalisee. Les modifications sont bloquees.
+            </div>
+            <div v-if="isEditing" class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                <div class="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                        <p class="text-xs uppercase tracking-wide text-stone-500 dark:text-neutral-400">Statut commande</p>
+                        <p class="text-lg font-semibold text-stone-800 dark:text-neutral-100">
+                            {{ orderStatusLabel }}
+                        </p>
+                        <p v-if="order?.delivery_confirmed_at" class="text-xs text-stone-500 dark:text-neutral-400">
+                            Confirmee le {{ formatDateTime(order.delivery_confirmed_at) }}
+                        </p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="rounded-full border border-stone-200 bg-stone-50 px-2 py-1 text-xs font-semibold text-stone-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200">
+                            Paiement: {{ paymentStatusLabel }}
+                        </span>
+                    </div>
+                </div>
+                <div v-if="order?.delivery_proof_url" class="mt-3">
+                    <p class="text-xs uppercase tracking-wide text-stone-500 dark:text-neutral-400">Photo livraison</p>
+                    <img
+                        :src="order.delivery_proof_url"
+                        alt="Photo livraison"
+                        class="mt-2 h-40 w-full rounded-sm border border-stone-200 object-cover dark:border-neutral-700"
+                    >
+                </div>
+                <div v-if="canConfirmReceipt" class="mt-4 rounded-sm border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
+                    <p class="font-semibold">Confirmer la reception</p>
+                    <p class="text-xs text-emerald-700">Ajoutez une photo si besoin, puis confirmez.</p>
+                    <div class="mt-2 flex flex-wrap items-center gap-2">
+                        <input
+                            type="file"
+                            accept="image/*"
+                            class="text-xs text-stone-600 file:mr-2 file:rounded-sm file:border-0 file:bg-white file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-stone-700"
+                            @change="handleProofSelected"
+                        >
+                        <button
+                            type="button"
+                            class="rounded-sm bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
+                            :disabled="confirmForm.processing"
+                            @click="submitReceiptConfirm"
+                        >
+                            Confirmer
+                        </button>
+                    </div>
+                    <div v-if="confirmForm.errors.proof" class="mt-1 text-xs text-red-600">
+                        {{ confirmForm.errors.proof }}
+                    </div>
+                </div>
             </div>
 
             <div class="grid grid-cols-1 gap-4 lg:grid-cols-[260px_1fr]">

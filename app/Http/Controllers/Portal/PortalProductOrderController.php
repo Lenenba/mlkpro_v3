@@ -85,6 +85,7 @@ class PortalProductOrderController extends Controller
             Sale::FULFILLMENT_OUT_FOR_DELIVERY,
             Sale::FULFILLMENT_READY_FOR_PICKUP,
             Sale::FULFILLMENT_COMPLETED,
+            Sale::FULFILLMENT_CONFIRMED,
         ];
 
         if ($sale->fulfillment_status && in_array($sale->fulfillment_status, $blocked, true)) {
@@ -474,6 +475,8 @@ class PortalProductOrderController extends Controller
                 'can_edit' => $this->canEditSale($sale),
                 'pickup_code' => $sale->pickup_code,
                 'pickup_confirmed_at' => $sale->pickup_confirmed_at?->toIso8601String(),
+                'delivery_confirmed_at' => $sale->delivery_confirmed_at?->toIso8601String(),
+                'delivery_proof_url' => $sale->delivery_proof_url,
                 'customer_notes' => $sale->customer_notes,
                 'substitution_allowed' => $sale->substitution_allowed,
                 'substitution_notes' => $sale->substitution_notes,
@@ -605,7 +608,7 @@ class PortalProductOrderController extends Controller
 
         if (
             $sale->status === Sale::STATUS_PENDING
-            && $sale->fulfillment_status !== Sale::FULFILLMENT_COMPLETED
+            && !in_array($sale->fulfillment_status, [Sale::FULFILLMENT_COMPLETED, Sale::FULFILLMENT_CONFIRMED], true)
         ) {
             $this->applyReservations($sale, $itemsPayload, $owner->id, $currentItems);
         }
@@ -623,6 +626,52 @@ class PortalProductOrderController extends Controller
         return redirect()
             ->route('portal.orders.edit', $sale)
             ->with('success', 'Commande mise a jour.');
+    }
+
+    public function confirmReceipt(Request $request, Sale $sale)
+    {
+        [$customer, $owner, $sale] = $this->resolvePortalSale($request, $sale);
+
+        if ($sale->status === Sale::STATUS_CANCELED) {
+            return redirect()
+                ->route('portal.orders.edit', $sale)
+                ->with('error', 'Commande annulee.');
+        }
+
+        if ($sale->fulfillment_status !== Sale::FULFILLMENT_COMPLETED) {
+            return redirect()
+                ->route('portal.orders.edit', $sale)
+                ->with('error', 'La commande n est pas encore livree.');
+        }
+
+        if ($sale->delivery_confirmed_at) {
+            return redirect()
+                ->route('portal.orders.edit', $sale)
+                ->with('success', 'Commande deja confirmee.');
+        }
+
+        $validated = $request->validate([
+            'proof' => 'nullable|image|max:4096',
+        ]);
+
+        $proofPath = null;
+        if (!empty($validated['proof'])) {
+            $proofPath = $validated['proof']->store('sales/deliveries', 'public');
+        }
+
+        $sale->forceFill([
+            'fulfillment_status' => Sale::FULFILLMENT_CONFIRMED,
+            'delivery_confirmed_at' => now(),
+            'delivery_confirmed_by_user_id' => $request->user()?->id,
+            'delivery_proof' => $proofPath ?: $sale->delivery_proof,
+        ])->save();
+
+        app(SaleTimelineService::class)->record($request->user(), $sale, 'sale_delivery_confirmed');
+        $this->notifyInternalOrder($owner, $sale, 'Commande confirmee', 'Le client a confirme la reception.');
+
+        return redirect()
+            ->route('portal.orders.edit', $sale)
+            ->with('success', 'Merci. Votre commande est confirmee.');
     }
 
     public function destroy(Request $request, Sale $sale)

@@ -36,6 +36,7 @@ class Product extends Model
         'barcode',
         'unit',
         'supplier_name',
+        'supplier_email',
         'cost_price',
         'margin_percent',
         'tax_rate',

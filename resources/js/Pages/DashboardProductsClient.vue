@@ -80,11 +80,12 @@ const formatDateTime = (value) => {
 const orderLabel = (sale) => sale?.number || `Commande #${sale?.id || '-'}`;
 
 const fulfillmentLabels = {
-    pending: 'En attente',
+    pending: 'Commande recue',
     preparing: 'Preparation',
     out_for_delivery: 'En cours de livraison',
     ready_for_pickup: 'Pret a retirer',
-    completed: 'Terminee',
+    completed: 'Livree',
+    confirmed: 'Confirmee',
 };
 
 const fulfillmentBadge = {
@@ -93,16 +94,37 @@ const fulfillmentBadge = {
     out_for_delivery: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-200',
     ready_for_pickup: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-500/10 dark:text-indigo-200',
     completed: 'bg-stone-100 text-stone-600 dark:bg-neutral-800 dark:text-neutral-300',
+    confirmed: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-200',
 };
 
-const fulfillmentLabel = (sale) =>
-    fulfillmentLabels[sale?.fulfillment_status] || (sale?.fulfillment_method === 'delivery' ? 'Livraison' : 'En attente');
+const fulfillmentLabel = (sale) => {
+    if (!sale?.fulfillment_status) {
+        return 'Commande recue';
+    }
+    if (sale.fulfillment_status === 'completed' && !sale.delivery_confirmed_at) {
+        return 'Livree - a confirmer';
+    }
+    return fulfillmentLabels[sale.fulfillment_status] || sale.fulfillment_status;
+};
+
+const orderActionLabel = (sale) => {
+    if (!sale) {
+        return null;
+    }
+    if (sale.fulfillment_status === 'completed' && !sale.delivery_confirmed_at) {
+        return 'Confirmer';
+    }
+    if (canEditOrder(sale)) {
+        return 'Modifier';
+    }
+    return 'Voir';
+};
 
 const canEditOrder = (sale) => {
     if (!sale || sale.status === 'canceled') {
         return false;
     }
-    const blocked = ['out_for_delivery', 'ready_for_pickup', 'completed'];
+    const blocked = ['out_for_delivery', 'ready_for_pickup', 'completed', 'confirmed'];
     return !blocked.includes(sale.fulfillment_status);
 };
 </script>
@@ -171,11 +193,11 @@ const canEditOrder = (sale) => {
                                     {{ fulfillmentLabel(sale) }}
                                 </span>
                                 <Link
-                                    v-if="canEditOrder(sale)"
+                                    v-if="sale.status !== 'canceled'"
                                     :href="route('portal.orders.edit', sale.id)"
                                     class="mt-2 block text-[11px] font-semibold text-green-700 hover:underline dark:text-green-400"
                                 >
-                                    Modifier
+                                    {{ orderActionLabel(sale) }}
                                 </Link>
                             </div>
                         </div>

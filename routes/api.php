@@ -151,6 +151,7 @@ Route::name('api.')->group(function () {
                 Route::post('product/{product}/duplicate', [ProductController::class, 'duplicate']);
                 Route::put('product/{product}/quick-update', [ProductController::class, 'quickUpdate']);
                 Route::post('product/{product}/adjust-stock', [ProductController::class, 'adjustStock']);
+                Route::post('product/{product}/supplier-email', [ProductController::class, 'requestSupplierStock']);
                 Route::get('product/export/csv', [ProductController::class, 'export']);
                 Route::post('product/import/csv', [ProductController::class, 'import']);
                 Route::apiResource('product', ProductController::class);

@@ -482,6 +482,11 @@ class SaleController extends Controller
         $discountedTaxTotal = round($taxTotal * (1 - ($discountRate / 100)), 2);
         $total = round($discountedSubtotal + $discountedTaxTotal, 2);
 
+        $fulfillmentStatus = $validated['fulfillment_status'] ?? null;
+        if ($validated['status'] === Sale::STATUS_PAID && !$this->isFulfillmentComplete($fulfillmentStatus)) {
+            $fulfillmentStatus = Sale::FULFILLMENT_COMPLETED;
+        }
+
         $sale = Sale::create([
             'user_id' => $accountId,
             'created_by_user_id' => $user->id,
@@ -492,7 +497,7 @@ class SaleController extends Controller
             'discount_rate' => $discountRate,
             'discount_total' => $discountTotal,
             'total' => $total,
-            'fulfillment_status' => $validated['fulfillment_status'] ?? null,
+            'fulfillment_status' => $fulfillmentStatus,
             'notes' => $validated['notes'] ?? null,
             'scheduled_for' => $validated['scheduled_for'] ?? null,
             'paid_at' => $validated['status'] === Sale::STATUS_PAID ? now() : null,
@@ -505,7 +510,7 @@ class SaleController extends Controller
 
         if (
             $sale->status === Sale::STATUS_PENDING
-            && $sale->fulfillment_status !== Sale::FULFILLMENT_COMPLETED
+            && !$this->isFulfillmentComplete($sale->fulfillment_status)
         ) {
             $this->applyReservations($sale, $itemsPayload, $accountId, []);
         }
@@ -522,7 +527,7 @@ class SaleController extends Controller
 
         if (
             $sale->status === Sale::STATUS_PAID
-            || $sale->fulfillment_status === Sale::FULFILLMENT_COMPLETED
+            || $this->isFulfillmentComplete($sale->fulfillment_status)
         ) {
             $inventoryService = app(InventoryService::class);
             $warehouse = $inventoryService->resolveDefaultWarehouse($accountId);
@@ -575,7 +580,7 @@ class SaleController extends Controller
             ]);
         }
 
-        if ($sale->fulfillment_status === Sale::FULFILLMENT_COMPLETED) {
+        if ($this->isFulfillmentComplete($sale->fulfillment_status)) {
             throw ValidationException::withMessages([
                 'status' => 'Vente deja livree.',
             ]);
@@ -723,6 +728,29 @@ class SaleController extends Controller
             $updateData['scheduled_for'] = $validated['scheduled_for'];
         }
 
+        if (
+            $updateData['status'] === Sale::STATUS_PAID
+            && !$this->isFulfillmentComplete($updateData['fulfillment_status'])
+        ) {
+            if (!$sale->fulfillment_method) {
+                $updateData['fulfillment_status'] = Sale::FULFILLMENT_COMPLETED;
+            } else {
+                throw ValidationException::withMessages([
+                    'status' => 'Le paiement est autorise apres livraison ou retrait.',
+                ]);
+            }
+        }
+        if ($updateData['fulfillment_status'] === Sale::FULFILLMENT_CONFIRMED
+            && $sale->fulfillment_status !== Sale::FULFILLMENT_COMPLETED) {
+            throw ValidationException::withMessages([
+                'fulfillment_status' => 'La confirmation est possible apres la livraison.',
+            ]);
+        }
+        if ($updateData['fulfillment_status'] === Sale::FULFILLMENT_CONFIRMED && !$sale->delivery_confirmed_at) {
+            $updateData['delivery_confirmed_at'] = now();
+            $updateData['delivery_confirmed_by_user_id'] = $user->id;
+        }
+
         $sale->update($updateData);
 
         $sale->items()->delete();
@@ -731,9 +759,9 @@ class SaleController extends Controller
         }
 
         $wasPending = $previousStatus === Sale::STATUS_PENDING
-            && $previousFulfillment !== Sale::FULFILLMENT_COMPLETED;
+            && !$this->isFulfillmentComplete($previousFulfillment);
         $isPending = $sale->status === Sale::STATUS_PENDING
-            && $sale->fulfillment_status !== Sale::FULFILLMENT_COMPLETED;
+            && !$this->isFulfillmentComplete($sale->fulfillment_status);
 
         if ($isPending) {
             $currentItems = $wasPending ? $previousItems : [];
@@ -753,11 +781,11 @@ class SaleController extends Controller
         }
 
         $inventoryAlreadyApplied = $previousStatus === Sale::STATUS_PAID
-            || $previousFulfillment === Sale::FULFILLMENT_COMPLETED;
+            || $this->isFulfillmentComplete($previousFulfillment);
 
         if (
             !$inventoryAlreadyApplied
-            && ($sale->status === Sale::STATUS_PAID || $sale->fulfillment_status === Sale::FULFILLMENT_COMPLETED)
+            && ($sale->status === Sale::STATUS_PAID || $this->isFulfillmentComplete($sale->fulfillment_status))
         ) {
             $inventoryService = app(InventoryService::class);
             $warehouse = $inventoryService->resolveDefaultWarehouse($accountId);
@@ -837,12 +865,6 @@ class SaleController extends Controller
             ]);
         }
 
-        if ($sale->fulfillment_status === Sale::FULFILLMENT_COMPLETED) {
-            throw ValidationException::withMessages([
-                'status' => 'Commande deja livree.',
-            ]);
-        }
-
         $validated = $request->validate([
             'status' => ['nullable', Rule::in([
                 Sale::STATUS_DRAFT,
@@ -865,6 +887,22 @@ class SaleController extends Controller
         $nextFulfillment = array_key_exists('fulfillment_status', $validated) && $validated['fulfillment_status'] !== null
             ? $validated['fulfillment_status']
             : $sale->fulfillment_status;
+        $fulfillmentChanging = array_key_exists('fulfillment_status', $validated)
+            && $nextFulfillment !== $sale->fulfillment_status;
+        $scheduledChanging = array_key_exists('scheduled_for', $validated);
+
+        if ($this->isFulfillmentComplete($sale->fulfillment_status)) {
+            if ($fulfillmentChanging || $scheduledChanging) {
+                throw ValidationException::withMessages([
+                    'fulfillment_status' => 'Commande deja livree.',
+                ]);
+            }
+            if ($nextStatus === Sale::STATUS_CANCELED) {
+                throw ValidationException::withMessages([
+                    'status' => 'Commande deja livree.',
+                ]);
+            }
+        }
 
         if ($sale->fulfillment_method === 'pickup' && $nextFulfillment === Sale::FULFILLMENT_OUT_FOR_DELIVERY) {
             throw ValidationException::withMessages([
@@ -875,6 +913,22 @@ class SaleController extends Controller
             throw ValidationException::withMessages([
                 'fulfillment_status' => 'Statut retrait invalide pour une livraison.',
             ]);
+        }
+        if ($fulfillmentChanging
+            && $nextFulfillment === Sale::FULFILLMENT_CONFIRMED
+            && $sale->fulfillment_status !== Sale::FULFILLMENT_COMPLETED) {
+            throw ValidationException::withMessages([
+                'fulfillment_status' => 'La confirmation est possible apres la livraison.',
+            ]);
+        }
+        if ($nextStatus === Sale::STATUS_PAID && !$this->isFulfillmentComplete($nextFulfillment)) {
+            if (!$sale->fulfillment_method) {
+                $nextFulfillment = Sale::FULFILLMENT_COMPLETED;
+            } else {
+                throw ValidationException::withMessages([
+                    'status' => 'Le paiement est autorise apres livraison ou retrait.',
+                ]);
+            }
         }
 
         if ($nextStatus === Sale::STATUS_CANCELED) {
@@ -899,6 +953,10 @@ class SaleController extends Controller
         if (array_key_exists('scheduled_for', $validated)) {
             $updateData['scheduled_for'] = $validated['scheduled_for'];
         }
+        if ($nextFulfillment === Sale::FULFILLMENT_CONFIRMED && !$sale->delivery_confirmed_at) {
+            $updateData['delivery_confirmed_at'] = now();
+            $updateData['delivery_confirmed_by_user_id'] = $user->id;
+        }
 
         $sale->update($updateData);
 
@@ -908,9 +966,9 @@ class SaleController extends Controller
         ])->values()->all();
 
         $wasPending = $previousStatus === Sale::STATUS_PENDING
-            && $previousFulfillment !== Sale::FULFILLMENT_COMPLETED;
+            && !$this->isFulfillmentComplete($previousFulfillment);
         $isPending = $sale->status === Sale::STATUS_PENDING
-            && $sale->fulfillment_status !== Sale::FULFILLMENT_COMPLETED;
+            && !$this->isFulfillmentComplete($sale->fulfillment_status);
 
         if ($isPending) {
             $currentItems = $wasPending ? $previousItems : [];
@@ -930,11 +988,11 @@ class SaleController extends Controller
         }
 
         $inventoryAlreadyApplied = $previousStatus === Sale::STATUS_PAID
-            || $previousFulfillment === Sale::FULFILLMENT_COMPLETED;
+            || $this->isFulfillmentComplete($previousFulfillment);
 
         if (
             !$inventoryAlreadyApplied
-            && ($sale->status === Sale::STATUS_PAID || $sale->fulfillment_status === Sale::FULFILLMENT_COMPLETED)
+            && ($sale->status === Sale::STATUS_PAID || $this->isFulfillmentComplete($sale->fulfillment_status))
         ) {
             $inventoryService = app(InventoryService::class);
             $warehouse = $inventoryService->resolveDefaultWarehouse($accountId);
@@ -1034,12 +1092,12 @@ class SaleController extends Controller
             'pickup_confirmed_by_user_id' => $user->id,
         ])->save();
 
-        if ($previousStatus === Sale::STATUS_PENDING && $previousFulfillment !== Sale::FULFILLMENT_COMPLETED) {
+        if ($previousStatus === Sale::STATUS_PENDING && !$this->isFulfillmentComplete($previousFulfillment)) {
             $this->applyReservations($sale, [], $accountId, $previousItems);
         }
 
         $inventoryAlreadyApplied = $previousStatus === Sale::STATUS_PAID
-            || $previousFulfillment === Sale::FULFILLMENT_COMPLETED;
+            || $this->isFulfillmentComplete($previousFulfillment);
 
         if (!$inventoryAlreadyApplied) {
             $inventoryService = app(InventoryService::class);
@@ -1148,7 +1206,13 @@ class SaleController extends Controller
             Sale::FULFILLMENT_OUT_FOR_DELIVERY,
             Sale::FULFILLMENT_READY_FOR_PICKUP,
             Sale::FULFILLMENT_COMPLETED,
+            Sale::FULFILLMENT_CONFIRMED,
         ];
+    }
+
+    private function isFulfillmentComplete(?string $status): bool
+    {
+        return in_array($status, [Sale::FULFILLMENT_COMPLETED, Sale::FULFILLMENT_CONFIRMED], true);
     }
 
     private function applyReservations(Sale $sale, array $itemsPayload, int $accountId, $currentItems = null): void

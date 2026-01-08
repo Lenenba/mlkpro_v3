@@ -1,6 +1,6 @@
 <script setup>
 import { computed } from 'vue';
-import { Head, Link } from '@inertiajs/vue3';
+import { Head, Link, router } from '@inertiajs/vue3';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import Card from '@/Components/UI/Card.vue';
 import { humanizeDate } from '@/utils/date';
@@ -107,6 +107,18 @@ const stockSignalClasses = {
 };
 
 const formatDate = (value) => humanizeDate(value);
+
+const requestSupplierStock = (product) => {
+    if (!product?.supplier_email) {
+        return;
+    }
+    if (!confirm('Demander un reapprovisionnement au fournisseur ?')) {
+        return;
+    }
+    router.post(route('product.supplier-email', product.id), {}, {
+        preserveScroll: true,
+    });
+};
 </script>
 
 <template>
@@ -238,20 +250,33 @@ const formatDate = (value) => humanizeDate(value);
                         <div v-if="!stockAlerts.length" class="text-stone-500 dark:text-neutral-400">
                             Aucun produit critique.
                         </div>
-                        <div v-else class="space-y-2">
-                            <div v-for="product in stockAlerts" :key="product.id" class="flex items-center justify-between">
-                                <div>
-                                    <p class="text-sm font-semibold text-stone-800 dark:text-neutral-200">{{ product.name }}</p>
-                                    <p class="text-xs text-stone-500 dark:text-neutral-400">Stock {{ product.stock }} / min {{ product.minimum_stock }}</p>
+                        <div v-else class="space-y-3">
+                            <div v-for="product in stockAlerts" :key="product.id" class="space-y-2">
+                                <div class="flex items-center justify-between">
+                                    <div>
+                                        <p class="text-sm font-semibold text-stone-800 dark:text-neutral-200">{{ product.name }}</p>
+                                        <p class="text-xs text-stone-500 dark:text-neutral-400">Stock {{ product.stock }} / min {{ product.minimum_stock }}</p>
+                                    </div>
+                                    <span
+                                        class="rounded-full px-2 py-1 text-[10px] font-semibold"
+                                        :class="product.stock <= 0
+                                            ? 'bg-red-100 text-red-700 dark:bg-red-500/10 dark:text-red-300'
+                                            : 'bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300'"
+                                    >
+                                        {{ product.stock <= 0 ? 'Rupture' : 'Bas' }}
+                                    </span>
                                 </div>
-                                <span
-                                    class="rounded-full px-2 py-1 text-[10px] font-semibold"
-                                    :class="product.stock <= 0
-                                        ? 'bg-red-100 text-red-700 dark:bg-red-500/10 dark:text-red-300'
-                                        : 'bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300'"
-                                >
-                                    {{ product.stock <= 0 ? 'Rupture' : 'Bas' }}
-                                </span>
+                                <div class="flex items-center justify-between text-xs text-stone-500 dark:text-neutral-400">
+                                    <span>{{ product.supplier_name || 'Fournisseur inconnu' }}</span>
+                                    <button
+                                        type="button"
+                                        class="rounded-sm border border-stone-200 bg-white px-2 py-1 text-[11px] font-semibold text-stone-700 hover:bg-stone-50 disabled:opacity-60 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
+                                        :disabled="!product.supplier_email"
+                                        @click="requestSupplierStock(product)"
+                                    >
+                                        Demander stock
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>

@@ -27,11 +27,12 @@ class SaleNotificationService
         ];
 
         $fulfillmentLabels = [
-            'pending' => 'En attente',
+            'pending' => 'Commande recue',
             'preparing' => 'Preparation',
             'out_for_delivery' => 'En cours de livraison',
             'ready_for_pickup' => 'Pret a retirer',
-            'completed' => 'Terminee',
+            'completed' => 'Livree',
+            'confirmed' => 'Confirmee',
         ];
 
         $title = 'Mise a jour de commande';

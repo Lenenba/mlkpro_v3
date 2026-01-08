@@ -49,11 +49,12 @@ class SaleTimelineService
         ];
 
         $fulfillmentLabels = [
-            'pending' => 'En attente',
+            'pending' => 'Commande recue',
             'preparing' => 'Preparation',
             'out_for_delivery' => 'En cours de livraison',
             'ready_for_pickup' => 'Pret a retirer',
-            'completed' => 'Terminee',
+            'completed' => 'Livree',
+            'confirmed' => 'Confirmee',
         ];
 
         return match ($action) {
@@ -62,6 +63,7 @@ class SaleTimelineService
             'sale_canceled' => 'Commande annulee',
             'sale_reordered' => 'Commande recommendee',
             'sale_pickup_confirmed' => 'Retrait confirme',
+            'sale_delivery_confirmed' => 'Reception confirmee',
             'sale_eta_updated' => !empty($properties['scheduled_for'])
                 ? 'Nouvelle estimation: ' . $properties['scheduled_for']
                 : 'Nouvelle estimation enregistree',

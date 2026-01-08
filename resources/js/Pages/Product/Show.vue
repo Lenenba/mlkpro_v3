@@ -1,6 +1,6 @@
 <script setup>
 import { computed } from 'vue';
-import { Head, Link } from '@inertiajs/vue3';
+import { Head, Link, router } from '@inertiajs/vue3';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import Card from '@/Components/UI/Card.vue';
 import { humanizeDate } from '@/utils/date';
@@ -113,6 +113,31 @@ const alerts = computed(() => {
 
     return items;
 });
+
+const lowStockActive = computed(() => {
+    const onHand = totalOnHand.value;
+    const minStock = Number(props.product?.minimum_stock || 0);
+    if (minStock <= 0) {
+        return onHand <= 0;
+    }
+    return onHand <= minStock;
+});
+
+const canRequestSupplier = computed(() =>
+    lowStockActive.value && Boolean(props.product?.supplier_email)
+);
+
+const requestSupplierStock = () => {
+    if (!canRequestSupplier.value) {
+        return;
+    }
+    if (!confirm('Demander un reapprovisionnement au fournisseur ?')) {
+        return;
+    }
+    router.post(route('product.supplier-email', props.product.id), {}, {
+        preserveScroll: true,
+    });
+};
 
 const kpiCards = computed(() => ([
     {
@@ -269,6 +294,19 @@ const formatDate = (value) => humanizeDate(value);
                                 {{ alert.label }}
                             </span>
                         </div>
+                        <div class="mt-3 flex flex-wrap items-center gap-2">
+                            <button
+                                type="button"
+                                class="rounded-sm border border-stone-200 bg-white px-3 py-1.5 text-xs font-semibold text-stone-700 hover:bg-stone-50 disabled:opacity-60 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
+                                :disabled="!canRequestSupplier"
+                                @click="requestSupplierStock"
+                            >
+                                Demander stock fournisseur
+                            </button>
+                            <span v-if="lowStockActive && !product.supplier_email" class="text-[11px] text-stone-400">
+                                Ajoutez un email fournisseur pour envoyer la demande.
+                            </span>
+                        </div>
                     </Card>
 
                     <Card v-if="inventoryList.length" class="rise-in" :style="{ animationDelay: '160ms' }">
@@ -349,6 +387,17 @@ const formatDate = (value) => humanizeDate(value);
                             <dt class="text-stone-500 dark:text-neutral-400">Supplier</dt>
                             <dd class="text-end text-stone-800 dark:text-neutral-200">
                                 {{ product.supplier_name || '-' }}
+                            </dd>
+                            <dt class="text-stone-500 dark:text-neutral-400">Supplier email</dt>
+                            <dd class="text-end text-stone-800 dark:text-neutral-200">
+                                <a
+                                    v-if="product.supplier_email"
+                                    class="text-green-700 hover:underline dark:text-green-400"
+                                    :href="`mailto:${product.supplier_email}`"
+                                >
+                                    {{ product.supplier_email }}
+                                </a>
+                                <span v-else>-</span>
                             </dd>
                         </dl>
                     </Card>

@@ -106,12 +106,36 @@ const fulfillmentLabel = computed(() => {
 });
 
 const fulfillmentStatusLabels = {
-    pending: 'En attente',
+    pending: 'Commande recue',
     preparing: 'Preparation',
     out_for_delivery: 'En cours de livraison',
     ready_for_pickup: 'Pret a retirer',
-    completed: 'Terminee',
+    completed: 'Livree',
+    confirmed: 'Confirmee',
 };
+
+const fulfillmentStatusClasses = {
+    pending: 'bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-200',
+    preparing: 'bg-sky-100 text-sky-700 dark:bg-sky-500/10 dark:text-sky-200',
+    out_for_delivery: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-200',
+    ready_for_pickup: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-500/10 dark:text-indigo-200',
+    completed: 'bg-stone-100 text-stone-600 dark:bg-neutral-800 dark:text-neutral-300',
+    confirmed: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-200',
+};
+
+const orderStatusLabel = computed(() => {
+    if (props.sale?.fulfillment_status) {
+        return fulfillmentStatusLabels[props.sale.fulfillment_status] || props.sale.fulfillment_status;
+    }
+    return statusLabels[props.sale?.status] || props.sale?.status || '';
+});
+const orderStatusClass = computed(() => {
+    if (props.sale?.fulfillment_status) {
+        return fulfillmentStatusClasses[props.sale.fulfillment_status] || statusClasses.draft;
+    }
+    return statusClasses[props.sale?.status] || statusClasses.draft;
+});
+const paymentStatusLabel = computed(() => statusLabels[props.sale?.status] || props.sale?.status || '');
 
 const pickupCode = computed(() => props.sale?.pickup_code || null);
 const pickupQrUrl = computed(() => {
@@ -168,9 +192,15 @@ const canConfirmPickup = computed(() =>
                         <div class="flex items-center justify-end gap-2">
                             <span
                                 class="rounded-full px-2 py-0.5 text-xs font-semibold"
+                                :class="orderStatusClass"
+                            >
+                                Commande: {{ orderStatusLabel }}
+                            </span>
+                            <span
+                                class="rounded-full px-2 py-0.5 text-xs font-semibold"
                                 :class="statusClasses[sale.status] || statusClasses.draft"
                             >
-                                {{ statusLabels[sale.status] || sale.status }}
+                                Paiement: {{ paymentStatusLabel }}
                             </span>
                             <span>Cree le {{ formatDate(sale.created_at) }}</span>
                         </div>
@@ -305,12 +335,20 @@ const canConfirmPickup = computed(() =>
                     <div class="print-card rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
                         <div class="flex items-center justify-between">
                             <span class="text-sm text-stone-500 dark:text-neutral-400">Resume</span>
-                            <span
-                                class="rounded-full px-2 py-1 text-xs font-semibold"
-                                :class="statusClasses[sale.status] || statusClasses.draft"
-                            >
-                                {{ statusLabels[sale.status] || sale.status }}
-                            </span>
+                            <div class="flex flex-wrap items-center gap-2">
+                                <span
+                                    class="rounded-full px-2 py-1 text-xs font-semibold"
+                                    :class="orderStatusClass"
+                                >
+                                    {{ orderStatusLabel }}
+                                </span>
+                                <span
+                                    class="rounded-full px-2 py-1 text-xs font-semibold"
+                                    :class="statusClasses[sale.status] || statusClasses.draft"
+                                >
+                                    Paiement: {{ paymentStatusLabel }}
+                                </span>
+                            </div>
                         </div>
                         <div class="mt-3 space-y-2 text-sm text-stone-700 dark:text-neutral-200">
                             <div class="flex items-center justify-between">
@@ -380,6 +418,9 @@ const canConfirmPickup = computed(() =>
                             <div v-if="sale.scheduled_for">
                                 Horaire souhaite: {{ formatDateTime(sale.scheduled_for) }}
                             </div>
+                            <div v-if="sale.delivery_confirmed_at">
+                                Confirmee le {{ formatDateTime(sale.delivery_confirmed_at) }}
+                            </div>
                         </div>
                     </div>
 
@@ -413,6 +454,25 @@ const canConfirmPickup = computed(() =>
                                 :src="pickupQrUrl"
                                 :alt="`QR ${pickupCode}`"
                                 class="h-40 w-40 rounded-sm border border-stone-200 bg-white object-contain p-2 dark:border-neutral-700"
+                            >
+                        </div>
+                    </div>
+
+                    <div
+                        v-if="sale.delivery_proof_url"
+                        class="print-card rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900"
+                    >
+                        <div class="flex items-center justify-between">
+                            <span class="text-sm text-stone-500 dark:text-neutral-400">Photo livraison</span>
+                            <span class="text-xs text-stone-500 dark:text-neutral-400">
+                                {{ sale.delivery_confirmed_at ? formatDateTime(sale.delivery_confirmed_at) : '' }}
+                            </span>
+                        </div>
+                        <div class="mt-3">
+                            <img
+                                :src="sale.delivery_proof_url"
+                                alt="Photo livraison"
+                                class="h-44 w-full rounded-sm border border-stone-200 object-cover dark:border-neutral-700"
                             >
                         </div>
                     </div>

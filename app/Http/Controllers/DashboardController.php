@@ -85,6 +85,7 @@ class DashboardController extends Controller
                         'fulfillment_method',
                         'fulfillment_status',
                         'scheduled_for',
+                        'delivery_confirmed_at',
                     ]);
 
                 $pendingOrders = (clone $salesQuery)
@@ -94,6 +95,8 @@ class DashboardController extends Controller
                             ->orWhereIn('fulfillment_status', [
                                 Sale::FULFILLMENT_PENDING,
                                 Sale::FULFILLMENT_PREPARING,
+                                Sale::FULFILLMENT_READY_FOR_PICKUP,
+                                Sale::FULFILLMENT_COMPLETED,
                             ]);
                     })
                     ->latest()
@@ -107,6 +110,7 @@ class DashboardController extends Controller
                         'fulfillment_method',
                         'fulfillment_status',
                         'scheduled_for',
+                        'delivery_confirmed_at',
                     ]);
 
                 $inDeliveryOrders = (clone $salesQuery)
@@ -124,6 +128,7 @@ class DashboardController extends Controller
                         'fulfillment_method',
                         'fulfillment_status',
                         'scheduled_for',
+                        'delivery_confirmed_at',
                     ]);
 
                 $now = now();
@@ -151,6 +156,7 @@ class DashboardController extends Controller
                         'fulfillment_method',
                         'fulfillment_status',
                         'scheduled_for',
+                        'delivery_confirmed_at',
                     ]);
 
                 return $this->inertiaOrJson('DashboardProductsClient', [
@@ -552,7 +558,7 @@ class DashboardController extends Controller
                 })
                 ->orderBy('stock')
                 ->limit(8)
-                ->get(['id', 'name', 'stock', 'minimum_stock', 'image']);
+                ->get(['id', 'name', 'stock', 'minimum_stock', 'image', 'supplier_name', 'supplier_email']);
 
             $topSales = SaleItem::query()
                 ->select('sale_items.product_id', DB::raw('SUM(sale_items.quantity) as quantity'))

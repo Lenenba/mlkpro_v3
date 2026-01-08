@@ -50,6 +50,7 @@ const form = useForm({
     barcode: props.product?.barcode || '',
     unit: props.product?.unit || '',
     supplier_name: props.product?.supplier_name || '',
+    supplier_email: props.product?.supplier_email || '',
     tax_rate: props.product?.tax_rate || 0,
     is_active: props.product?.is_active ?? true,
 });
@@ -431,6 +432,7 @@ const buttonLabel = computed(() => (props.product ? 'Update Product' : 'Create P
                         <FloatingSelect v-model="form.tracking_type" label="Tracking" :options="trackingOptions" />
                         <FloatingSelect v-model="form.unit" label="Unit" :options="unitOptions" />
                         <FloatingInput v-model="form.supplier_name" label="Supplier" />
+                        <FloatingInput v-model="form.supplier_email" label="Supplier email" />
                         <FloatingNumberInput v-model="form.tax_rate" label="Tax rate (%)" :step="0.01" />
                         <div class="flex items-center gap-x-2">
                             <Checkbox v-model:checked="form.is_active" />

@@ -6,9 +6,13 @@ use App\Models\Product;
 use App\Models\ProductInventory;
 use App\Models\ProductLot;
 use App\Models\ProductStockMovement;
+use App\Models\TeamMember;
+use App\Models\User;
+use App\Notifications\LowStockNotification;
 use App\Models\Warehouse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Notification;
 
 class InventoryService
 {
@@ -278,6 +282,50 @@ class InventoryService
             ->get(['on_hand', 'reserved']);
 
         $available = $inventories->sum(fn (ProductInventory $inventory) => max(0, $inventory->on_hand - $inventory->reserved));
+        $previousStock = (int) $product->stock;
         $product->forceFill(['stock' => $available])->save();
+
+        $this->notifyLowStockIfNeeded($product, $previousStock, (int) $available);
+    }
+
+    private function notifyLowStockIfNeeded(Product $product, int $previousStock, int $currentStock): void
+    {
+        $minimumStock = (int) $product->minimum_stock;
+        if ($minimumStock <= 0) {
+            return;
+        }
+        if ($previousStock > $minimumStock && $currentStock <= $minimumStock) {
+            $this->sendLowStockAlert($product, $currentStock, $minimumStock);
+        }
+    }
+
+    private function sendLowStockAlert(Product $product, int $currentStock, int $minimumStock): void
+    {
+        $owner = User::query()
+            ->select(['id', 'company_type'])
+            ->find($product->user_id);
+        if (!$owner || $owner->company_type !== 'products') {
+            return;
+        }
+
+        $teamMembers = TeamMember::query()
+            ->forAccount($owner->id)
+            ->active()
+            ->get(['user_id', 'permissions']);
+
+        $userIds = $teamMembers
+            ->filter(fn (TeamMember $member) => $member->hasPermission('sales.manage') || $member->hasPermission('sales.pos'))
+            ->pluck('user_id')
+            ->push($owner->id)
+            ->unique()
+            ->filter()
+            ->values();
+
+        if ($userIds->isEmpty()) {
+            return;
+        }
+
+        $users = User::query()->whereIn('id', $userIds)->get(['id', 'email']);
+        Notification::send($users, new LowStockNotification($product, $currentStock, $minimumStock));
     }
 }

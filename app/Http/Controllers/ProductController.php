@@ -12,9 +12,11 @@ use App\Models\Warehouse;
 use App\Http\Requests\ProductRequest;
 use App\Services\InventoryService;
 use App\Services\UsageLimitService;
+use App\Notifications\SupplierStockRequestNotification;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -669,6 +671,41 @@ class ProductController extends Controller
         return redirect()->back()->with('success', 'Stock updated successfully.');
     }
 
+    public function requestSupplierStock(Request $request, Product $product)
+    {
+        $this->authorize('update', $product);
+        $this->ensureProductItem($product);
+        $user = $request->user();
+        if (!$user) {
+            abort(403);
+        }
+        $accountId = $this->ensureProductOwner($user);
+        if ($product->user_id !== $accountId) {
+            abort(404);
+        }
+
+        $validated = $request->validate([
+            'supplier_email' => 'nullable|email|max:255',
+            'message' => 'nullable|string|max:2000',
+        ]);
+
+        $supplierEmail = $validated['supplier_email'] ?? $product->supplier_email;
+        if (!$supplierEmail) {
+            throw ValidationException::withMessages([
+                'supplier_email' => 'Email fournisseur requis.',
+            ]);
+        }
+
+        Notification::route('mail', $supplierEmail)
+            ->notify(new SupplierStockRequestNotification($product, $user, $validated['message'] ?? null));
+
+        ActivityLog::record($user, $product, 'supplier_stock_request', [
+            'supplier_email' => $supplierEmail,
+        ], 'Supplier stock request sent');
+
+        return redirect()->back()->with('success', 'Email fournisseur envoye.');
+    }
+
     /**
      * Bulk actions on products.
      */
@@ -850,6 +887,7 @@ class ProductController extends Controller
                 'barcode',
                 'unit',
                 'supplier_name',
+                'supplier_email',
                 'price',
                 'cost_price',
                 'margin_percent',
@@ -874,6 +912,7 @@ class ProductController extends Controller
                             $product->barcode,
                             $product->unit,
                             $product->supplier_name,
+                            $product->supplier_email,
                             $product->price,
                             $product->cost_price,
                             $product->margin_percent,
@@ -971,6 +1010,7 @@ class ProductController extends Controller
                 'barcode' => $dataRow['barcode'] ?? null,
                 'unit' => $dataRow['unit'] ?? null,
                 'supplier_name' => $dataRow['supplier_name'] ?? null,
+                'supplier_email' => $dataRow['supplier_email'] ?? null,
                 'price' => $dataRow['price'] ?? 0,
                 'cost_price' => $dataRow['cost_price'] ?? 0,
                 'margin_percent' => $dataRow['margin_percent'] ?? 0,

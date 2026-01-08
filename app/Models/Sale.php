@@ -21,6 +21,7 @@ class Sale extends Model
     public const FULFILLMENT_OUT_FOR_DELIVERY = 'out_for_delivery';
     public const FULFILLMENT_READY_FOR_PICKUP = 'ready_for_pickup';
     public const FULFILLMENT_COMPLETED = 'completed';
+    public const FULFILLMENT_CONFIRMED = 'confirmed';
 
     protected $fillable = [
         'user_id',
@@ -43,6 +44,9 @@ class Sale extends Model
         'pickup_code',
         'pickup_confirmed_at',
         'pickup_confirmed_by_user_id',
+        'delivery_confirmed_at',
+        'delivery_confirmed_by_user_id',
+        'delivery_proof',
         'customer_notes',
         'substitution_allowed',
         'substitution_notes',
@@ -61,7 +65,12 @@ class Sale extends Model
         'paid_at' => 'datetime',
         'scheduled_for' => 'datetime',
         'pickup_confirmed_at' => 'datetime',
+        'delivery_confirmed_at' => 'datetime',
         'substitution_allowed' => 'boolean',
+    ];
+
+    protected $appends = [
+        'delivery_proof_url',
     ];
 
     protected static function boot()
@@ -95,8 +104,25 @@ class Sale extends Model
         return $this->belongsTo(User::class, 'pickup_confirmed_by_user_id');
     }
 
+    public function deliveryConfirmedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'delivery_confirmed_by_user_id');
+    }
+
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function getDeliveryProofUrlAttribute(): ?string
+    {
+        if (!$this->delivery_proof) {
+            return null;
+        }
+        if (str_starts_with($this->delivery_proof, 'http://') || str_starts_with($this->delivery_proof, 'https://')) {
+            return $this->delivery_proof;
+        }
+
+        return \Illuminate\Support\Facades\Storage::disk('public')->url($this->delivery_proof);
     }
 }
