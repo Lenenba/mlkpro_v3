@@ -7,7 +7,9 @@ use App\Models\Customer;
 use App\Models\Product;
 use App\Models\ProductCategory;
 use App\Models\Sale;
+use App\Models\TeamMember;
 use App\Models\User;
+use App\Notifications\OrderStatusNotification;
 use App\Services\InventoryService;
 use App\Services\SaleTimelineService;
 use Illuminate\Http\Request;
@@ -195,6 +197,35 @@ class PortalProductOrderController extends Controller
         return 'PK-' . Str::upper(Str::random(6));
     }
 
+    private function notifyInternalOrder(User $owner, Sale $sale, string $title, string $message): void
+    {
+        $teamMembers = TeamMember::query()
+            ->forAccount($owner->id)
+            ->active()
+            ->get(['user_id', 'permissions']);
+
+        $userIds = $teamMembers
+            ->filter(fn(TeamMember $member) => $member->hasPermission('sales.manage') || $member->hasPermission('sales.pos'))
+            ->pluck('user_id')
+            ->push($owner->id)
+            ->unique()
+            ->filter()
+            ->values();
+
+        if ($userIds->isEmpty()) {
+            return;
+        }
+
+        $users = User::query()
+            ->whereIn('id', $userIds)
+            ->get(['id']);
+
+        $actionUrl = route('sales.edit', $sale);
+        foreach ($users as $user) {
+            $user->notify(new OrderStatusNotification($sale, $title, $message, $actionUrl));
+        }
+    }
+
     private function applyCustomerDiscount(Customer $customer, float $subtotal, float $taxTotal): array
     {
         $discountRate = (float) ($customer->discount_rate ?? 0);
@@ -362,6 +393,8 @@ class PortalProductOrderController extends Controller
         app(SaleTimelineService::class)->record($request->user(), $sale, 'sale_created', [
             'fulfillment_method' => $sale->fulfillment_method,
         ]);
+
+        $this->notifyInternalOrder($owner, $sale, 'Nouvelle commande', 'Une nouvelle commande client est arrivee.');
 
         return redirect()
             ->route('portal.orders.index')
@@ -585,6 +618,8 @@ class PortalProductOrderController extends Controller
             ]);
         }
 
+        $this->notifyInternalOrder($owner, $sale, 'Commande modifiee', 'Le client a mis a jour sa commande.');
+
         return redirect()
             ->route('portal.orders.edit', $sale)
             ->with('success', 'Commande mise a jour.');
@@ -607,6 +642,8 @@ class PortalProductOrderController extends Controller
         ]);
 
         app(SaleTimelineService::class)->record($request->user(), $sale, 'sale_canceled');
+
+        $this->notifyInternalOrder($owner, $sale, 'Commande annulee', 'Le client a annule sa commande.');
 
         return redirect()
             ->route('portal.orders.index')
@@ -689,6 +726,8 @@ class PortalProductOrderController extends Controller
         $this->applyReservations($newSale, $itemsPayload, $owner->id);
 
         app(SaleTimelineService::class)->record($request->user(), $newSale, 'sale_reordered');
+
+        $this->notifyInternalOrder($owner, $newSale, 'Nouvelle commande', 'Un client vient de recommander.');
 
         return redirect()
             ->route('portal.orders.edit', $newSale)

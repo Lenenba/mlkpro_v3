@@ -21,13 +21,26 @@ const localCustomers = ref([...props.customers]);
 
 const form = useForm({
     customer_id: '',
-    status: 'draft',
+    status: 'pending',
     notes: '',
     items: [],
 });
 
 const page = usePage();
 const lastSaleId = computed(() => page.props.flash?.last_sale_id || null);
+
+const statusOptions = [
+    {
+        value: 'pending',
+        label: 'Commande',
+        description: 'A payer plus tard ou en preparation',
+    },
+    {
+        value: 'paid',
+        label: 'Vente payee',
+        description: 'Paiement immediat termine',
+    },
+];
 
 const selectedCustomer = computed(() =>
     localCustomers.value.find((customer) => customer.id === form.customer_id) || null
@@ -356,16 +369,47 @@ const submit = () => {
                                 </div>
                             </div>
                             <div>
-                                <label class="text-xs text-stone-500 dark:text-neutral-400">Statut</label>
-                                <select
-                                    v-model="form.status"
-                                    class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
-                                >
-                                    <option value="draft">Brouillon</option>
-                                    <option value="pending">En attente</option>
-                                    <option value="paid">Payee</option>
-                                    <option value="canceled">Annulee</option>
-                                </select>
+                                <label class="text-xs text-stone-500 dark:text-neutral-400">Type</label>
+                                <div class="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                                    <button
+                                        v-for="option in statusOptions"
+                                        :key="option.value"
+                                        type="button"
+                                        class="rounded-sm border px-3 py-2 text-left transition"
+                                        :class="form.status === option.value
+                                            ? 'border-green-500 bg-green-50 text-green-700'
+                                            : 'border-stone-200 text-stone-600 hover:border-stone-300 dark:border-neutral-700 dark:text-neutral-300'"
+                                        @click="form.status = option.value"
+                                    >
+                                        <div class="flex items-center gap-2 text-sm font-semibold">
+                                            <span
+                                                class="inline-flex h-7 w-7 items-center justify-center rounded-sm border border-stone-200 bg-white text-stone-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
+                                            >
+                                                <svg v-if="option.value === 'pending'" class="size-4" xmlns="http://www.w3.org/2000/svg"
+                                                    viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                                    stroke-linecap="round" stroke-linejoin="round">
+                                                    <path d="M3 3h18v18H3z" />
+                                                    <path d="M7 7h10" />
+                                                    <path d="M7 12h6" />
+                                                    <path d="M7 17h4" />
+                                                </svg>
+                                                <svg v-else class="size-4" xmlns="http://www.w3.org/2000/svg"
+                                                    viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                                    stroke-linecap="round" stroke-linejoin="round">
+                                                    <path d="M12 20h9" />
+                                                    <path d="M12 4h9" />
+                                                    <path d="M4 12h16" />
+                                                    <path d="M4 6h2" />
+                                                    <path d="M4 18h2" />
+                                                </svg>
+                                            </span>
+                                            <span>{{ option.label }}</span>
+                                        </div>
+                                        <p class="mt-1 text-[11px] text-stone-500 dark:text-neutral-400">
+                                            {{ option.description }}
+                                        </p>
+                                    </button>
+                                </div>
                                 <InputError class="mt-1" :message="form.errors.status" />
                             </div>
                         </div>
@@ -476,7 +520,7 @@ const submit = () => {
                         :disabled="form.processing || !form.items.length"
                         class="w-full rounded-sm border border-transparent bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50"
                     >
-                        Enregistrer la vente
+                        {{ form.status === 'paid' ? 'Enregistrer la vente' : 'Enregistrer la commande' }}
                     </button>
                 </div>
             </form>

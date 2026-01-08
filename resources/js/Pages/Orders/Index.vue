@@ -1,11 +1,11 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, Link } from '@inertiajs/vue3';
-import SalesStats from '@/Components/UI/SalesStats.vue';
+import OrdersStats from '@/Components/UI/OrdersStats.vue';
 import SalesTable from '@/Pages/Sales/UI/SalesTable.vue';
 
 const props = defineProps({
-    sales: {
+    orders: {
         type: Object,
         required: true,
     },
@@ -26,33 +26,38 @@ const props = defineProps({
 
 <template>
     <AuthenticatedLayout>
-        <Head title="Ventes payees" />
+        <Head title="Commandes" />
 
         <div class="space-y-4">
-            <SalesStats :stats="stats" />
+            <OrdersStats :stats="stats" />
 
             <div class="flex flex-wrap items-center justify-between gap-3">
                 <div class="space-y-1">
-                    <h1 class="text-xl font-semibold text-stone-800 dark:text-neutral-100">Ventes payees</h1>
+                    <h1 class="text-xl font-semibold text-stone-800 dark:text-neutral-100">Commandes</h1>
                     <p class="text-sm text-stone-600 dark:text-neutral-400">
-                        Suivez les ventes encaissees de votre boutique.
+                        Suivez les commandes clients jusqu a la livraison.
                     </p>
                 </div>
                 <Link
                     :href="route('sales.create')"
                     class="rounded-sm border border-transparent bg-green-600 px-3 py-2 text-sm font-medium text-white hover:bg-green-700"
                 >
-                    Nouvelle vente
+                    Nouvelle commande
                 </Link>
             </div>
 
             <SalesTable
-                :sales="sales"
+                :sales="orders"
                 :filters="filters"
                 :customers="customers"
+                route-name="orders.index"
+                :show-fulfillment-status="true"
+                :enable-status-update="true"
                 :status-options="[
-                    { value: '', label: 'Toutes les ventes' },
-                    { value: 'paid', label: 'Payee' },
+                    { value: '', label: 'Tous les statuts' },
+                    { value: 'pending', label: 'En attente' },
+                    { value: 'draft', label: 'Brouillon' },
+                    { value: 'canceled', label: 'Annulee' },
                 ]"
             />
         </div>

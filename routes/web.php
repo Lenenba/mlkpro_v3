@@ -30,6 +30,7 @@ use App\Http\Controllers\PublicQuoteController;
 use App\Http\Controllers\PublicWorkController;
 use App\Http\Controllers\PublicWorkProofController;
 use App\Http\Controllers\PublicTaskMediaController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\Settings\CompanySettingsController;
 use App\Http\Controllers\Settings\BillingSettingsController;
 use App\Http\Controllers\Settings\ProductCategoryController;
@@ -100,6 +101,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+    Route::post('/notifications/read-all', [NotificationController::class, 'markAllRead'])
+        ->name('notifications.read-all');
 });
 
 // Internal User Routes
@@ -202,11 +205,13 @@ Route::middleware(['auth', EnsureInternalUser::class])->group(function () {
 
     // Sales Management (products)
     Route::middleware('company.feature:sales')->group(function () {
+        Route::get('/orders', [SaleController::class, 'ordersIndex'])->name('orders.index');
         Route::get('/sales', [SaleController::class, 'index'])->name('sales.index');
         Route::get('/sales/create', [SaleController::class, 'create'])->name('sales.create');
         Route::get('/sales/{sale}/edit', [SaleController::class, 'edit'])->name('sales.edit');
         Route::post('/sales', [SaleController::class, 'store'])->name('sales.store');
         Route::put('/sales/{sale}', [SaleController::class, 'update'])->name('sales.update');
+        Route::patch('/sales/{sale}/status', [SaleController::class, 'updateStatus'])->name('sales.status.update');
         Route::post('/sales/{sale}/pickup-confirm', [SaleController::class, 'confirmPickup'])
             ->name('sales.pickup.confirm');
         Route::get('/sales/{sale}', [SaleController::class, 'show'])->name('sales.show');

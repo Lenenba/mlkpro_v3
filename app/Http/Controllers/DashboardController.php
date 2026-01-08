@@ -487,7 +487,7 @@ class DashboardController extends Controller
 
             $salesBaseQuery = Sale::query()
                 ->where('user_id', $accountId)
-                ->where('status', '!=', Sale::STATUS_CANCELED)
+                ->where('status', Sale::STATUS_PAID)
                 ->when($restrictSales, fn($query) => $query->where('created_by_user_id', $user->id));
             $salesTodayQuery = (clone $salesBaseQuery)->whereDate('created_at', $today);
             $salesMonthQuery = (clone $salesBaseQuery)
@@ -558,7 +558,7 @@ class DashboardController extends Controller
                 ->select('sale_items.product_id', DB::raw('SUM(sale_items.quantity) as quantity'))
                 ->join('sales', 'sale_items.sale_id', '=', 'sales.id')
                 ->where('sales.user_id', $accountId)
-                ->where('sales.status', '!=', Sale::STATUS_CANCELED)
+                ->where('sales.status', Sale::STATUS_PAID)
                 ->when($restrictSales, fn($query) => $query->where('sales.created_by_user_id', $user->id))
                 ->groupBy('sale_items.product_id')
                 ->orderByDesc('quantity')

@@ -16,6 +16,22 @@ const props = defineProps({
         type: Array,
         default: () => [],
     },
+    routeName: {
+        type: String,
+        default: 'sales.index',
+    },
+    statusOptions: {
+        type: Array,
+        default: () => [],
+    },
+    showFulfillmentStatus: {
+        type: Boolean,
+        default: false,
+    },
+    enableStatusUpdate: {
+        type: Boolean,
+        default: false,
+    },
 });
 
 const filterForm = useForm({
@@ -32,13 +48,14 @@ const filterForm = useForm({
 
 const showAdvanced = ref(false);
 
-const statusOptions = [
+const defaultStatusOptions = [
     { value: '', label: 'Tous les statuts' },
     { value: 'draft', label: 'Brouillon' },
     { value: 'pending', label: 'En attente' },
     { value: 'paid', label: 'Payee' },
     { value: 'canceled', label: 'Annulee' },
 ];
+const statusOptions = props.statusOptions.length ? props.statusOptions : defaultStatusOptions;
 
 const statusLabels = {
     draft: 'Brouillon',
@@ -52,6 +69,22 @@ const statusClasses = {
     pending: 'bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-200',
     paid: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-200',
     canceled: 'bg-red-100 text-red-700 dark:bg-red-500/10 dark:text-red-200',
+};
+
+const fulfillmentLabels = {
+    pending: 'En attente',
+    preparing: 'Preparation',
+    out_for_delivery: 'En cours de livraison',
+    ready_for_pickup: 'Pret a retirer',
+    completed: 'Terminee',
+};
+
+const fulfillmentClasses = {
+    pending: 'bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-200',
+    preparing: 'bg-sky-100 text-sky-700 dark:bg-sky-500/10 dark:text-sky-200',
+    out_for_delivery: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-200',
+    ready_for_pickup: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-500/10 dark:text-indigo-200',
+    completed: 'bg-stone-100 text-stone-600 dark:bg-neutral-800 dark:text-neutral-300',
 };
 
 const filterPayload = () => {
@@ -83,7 +116,7 @@ const autoFilter = () => {
         clearTimeout(filterTimeout);
     }
     filterTimeout = setTimeout(() => {
-        router.get(route('sales.index'), filterPayload(), {
+        router.get(route(props.routeName), filterPayload(), {
             preserveState: true,
             preserveScroll: true,
             replace: true,
@@ -144,6 +177,114 @@ const customerLabel = (sale) => {
 };
 
 const canEdit = (sale) => ['draft', 'pending'].includes(sale?.status);
+
+const statusLabel = (sale) => {
+    if (!sale) {
+        return '';
+    }
+    if (sale.status === 'paid' || sale.status === 'canceled') {
+        return statusLabels[sale.status] || sale.status;
+    }
+    if (sale.fulfillment_status) {
+        return fulfillmentLabels[sale.fulfillment_status] || sale.fulfillment_status;
+    }
+    return statusLabels[sale.status] || sale.status;
+};
+
+const statusBadgeClass = (sale) => {
+    if (!sale) {
+        return statusClasses.draft;
+    }
+    if (sale.status === 'paid' || sale.status === 'canceled') {
+        return statusClasses[sale.status] || statusClasses.draft;
+    }
+    if (sale.fulfillment_status) {
+        return fulfillmentClasses[sale.fulfillment_status] || statusClasses.pending;
+    }
+    return statusClasses[sale.status] || statusClasses.draft;
+};
+
+const paymentLabel = (sale) => statusLabels[sale?.status] || sale?.status || '';
+
+const canQuickUpdate = (sale) =>
+    props.enableStatusUpdate
+    && sale
+    && !['paid', 'canceled'].includes(sale.status)
+    && sale.fulfillment_status !== 'completed';
+
+const fulfillmentOptionsFor = (sale) => {
+    if (sale?.fulfillment_method === 'pickup') {
+        return [
+            { value: 'pending', label: 'En attente' },
+            { value: 'preparing', label: 'Preparation' },
+            { value: 'ready_for_pickup', label: 'Pret a retirer' },
+            { value: 'completed', label: 'Terminee' },
+        ];
+    }
+    if (sale?.fulfillment_method === 'delivery') {
+        return [
+            { value: 'pending', label: 'En attente' },
+            { value: 'preparing', label: 'Preparation' },
+            { value: 'out_for_delivery', label: 'En cours de livraison' },
+            { value: 'completed', label: 'Terminee' },
+        ];
+    }
+    return [
+        { value: 'pending', label: 'En attente' },
+        { value: 'preparing', label: 'Preparation' },
+        { value: 'out_for_delivery', label: 'En cours de livraison' },
+        { value: 'ready_for_pickup', label: 'Pret a retirer' },
+        { value: 'completed', label: 'Terminee' },
+    ];
+};
+
+const updating = ref({});
+
+const isUpdating = (sale) => Boolean(updating.value[sale?.id]);
+
+const refreshTable = () => {
+    router.get(route(props.routeName), filterPayload(), {
+        preserveState: true,
+        preserveScroll: true,
+        replace: true,
+    });
+};
+
+const updateStatus = (sale, payload) => {
+    if (!sale?.id) {
+        return;
+    }
+    updating.value = { ...updating.value, [sale.id]: true };
+    router.patch(route('sales.status.update', sale.id), payload, {
+        preserveScroll: true,
+        onSuccess: () => refreshTable(),
+        onFinish: () => {
+            updating.value = { ...updating.value, [sale.id]: false };
+        },
+    });
+};
+
+const updateFulfillment = (sale, value) => {
+    const nextValue = value || null;
+    if ((sale?.fulfillment_status || null) === nextValue) {
+        return;
+    }
+    updateStatus(sale, { fulfillment_status: nextValue });
+};
+
+const markPaid = (sale) => {
+    if (!sale || sale.status === 'paid') {
+        return;
+    }
+    updateStatus(sale, { status: 'paid' });
+};
+
+const markCanceled = (sale) => {
+    if (!sale || sale.status === 'canceled') {
+        return;
+    }
+    updateStatus(sale, { status: 'canceled' });
+};
 </script>
 
 <template>
@@ -303,12 +444,55 @@ const canEdit = (sale) => ['draft', 'pending'].includes(sale?.status);
                                 </span>
                             </td>
                             <td class="size-px whitespace-nowrap px-4 py-2">
-                                <span
-                                    class="py-1.5 px-2 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-full"
-                                    :class="statusClasses[sale.status] || statusClasses.draft"
-                                >
-                                    {{ statusLabels[sale.status] || sale.status }}
-                                </span>
+                                <div class="space-y-1">
+                                    <span
+                                        class="py-1.5 px-2 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-full"
+                                        :class="statusBadgeClass(sale)"
+                                    >
+                                        {{ statusLabel(sale) }}
+                                    </span>
+                                    <div
+                                        v-if="showFulfillmentStatus && sale.status !== 'paid' && sale.status !== 'canceled'"
+                                        class="text-[10px] text-stone-500 dark:text-neutral-400"
+                                    >
+                                        Paiement: {{ paymentLabel(sale) }}
+                                    </div>
+                                    <div v-if="canQuickUpdate(sale)" class="mt-2 space-y-1">
+                                        <select
+                                            class="w-full rounded-sm border border-stone-200 bg-white px-2 py-1 text-[11px] text-stone-700 focus:border-green-500 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
+                                            :value="sale.fulfillment_status || ''"
+                                            :disabled="isUpdating(sale)"
+                                            @change="updateFulfillment(sale, $event.target.value)"
+                                        >
+                                            <option value="">Statut commande</option>
+                                            <option
+                                                v-for="option in fulfillmentOptionsFor(sale)"
+                                                :key="option.value"
+                                                :value="option.value"
+                                            >
+                                                {{ option.label }}
+                                            </option>
+                                        </select>
+                                        <div class="flex flex-wrap items-center gap-1">
+                                            <button
+                                                type="button"
+                                                class="rounded-sm border border-emerald-200 bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-700 hover:bg-emerald-100 disabled:opacity-60"
+                                                :disabled="isUpdating(sale)"
+                                                @click="markPaid(sale)"
+                                            >
+                                                Payee
+                                            </button>
+                                            <button
+                                                type="button"
+                                                class="rounded-sm border border-red-200 bg-red-50 px-2 py-1 text-[11px] font-semibold text-red-600 hover:bg-red-100 disabled:opacity-60"
+                                                :disabled="isUpdating(sale)"
+                                                @click="markCanceled(sale)"
+                                            >
+                                                Annuler
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
                             </td>
                             <td class="size-px whitespace-nowrap px-4 py-2">
                                 <span class="text-sm text-stone-600 dark:text-neutral-300">
@@ -349,7 +533,7 @@ const canEdit = (sale) => ['draft', 'pending'].includes(sale?.status);
                                             </Link>
                                             <Link v-if="canEdit(sale)" :href="route('sales.edit', sale.id)"
                                                 class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
-                                                Reprendre
+                                                Modifier
                                             </Link>
                                         </div>
                                     </div>

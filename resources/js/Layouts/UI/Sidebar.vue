@@ -5,6 +5,7 @@ import LinkAncor from "@/Components/UI/LinkAncor.vue";
 import { Link, router, usePage } from '@inertiajs/vue3';
 import MenuDropdown from "@/Components/UI/LinkAncor2.vue";
 import QuickCreateModals from "@/Components/QuickCreate/QuickCreateModals.vue";
+import NotificationBell from "@/Components/UI/NotificationBell.vue";
 import { isFeatureEnabled } from '@/utils/features';
 
 const page = usePage()
@@ -29,6 +30,9 @@ const isSeller = computed(() => teamRole.value === 'seller');
 const userName = computed(() => page.props.auth?.user?.name || '');
 const userEmail = computed(() => page.props.auth?.user?.email || '');
 const avatarUrl = computed(() => page.props.auth?.user?.profile_picture || '');
+const unreadCount = computed(() => page.props.notifications?.unread_count || 0);
+const hasUnread = computed(() => unreadCount.value > 0);
+const showNotifications = computed(() => Boolean(page.props.notifications));
 const avatarInitial = computed(() => {
     const label = (userName.value || userEmail.value || '?').trim();
     return label.length ? label[0].toUpperCase() : '?';
@@ -268,6 +272,24 @@ const setLocale = (locale) => {
                                 <!-- End Item -->
 
                                 <!-- Item -->
+                                <LinkAncor v-if="companyType === 'products' && hasFeature('sales') && canSales" :label="$t('nav.orders')" :href="'orders.index'"
+                                    :active="route().current('orders.*')">
+                                    <template #icon>
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round"
+                                            class="lucide lucide-clipboard-list">
+                                            <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+                                            <rect x="8" y="2" width="8" height="4" rx="1" />
+                                            <path d="M9 12h6" />
+                                            <path d="M9 16h6" />
+                                            <path d="M9 8h6" />
+                                        </svg>
+                                    </template>
+                                </LinkAncor>
+                                <!-- End Item -->
+
+                                <!-- Item -->
                                 <LinkAncor v-if="companyType === 'products' && hasFeature('sales') && canSales" :label="$t('nav.sales')" :href="isSeller ? 'sales.create' : 'sales.index'"
                                     :active="route().current('sales.*')">
                                     <template #icon>
@@ -441,6 +463,15 @@ const setLocale = (locale) => {
                                         {{ avatarInitial }}
                                     </div>
                                     <span
+                                        v-if="hasUnread"
+                                        class="absolute -top-0 -end-0 flex size-2">
+                                        <span
+                                            class="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-75"></span>
+                                        <span
+                                            class="relative inline-flex h-2 w-2 rounded-full bg-amber-500 ring-2 ring-stone-100 dark:ring-neutral-800"></span>
+                                    </span>
+                                    <span
+                                        v-else
                                         class="absolute -bottom-0 -end-0 block size-2 rounded-full ring-2 ring-stone-100 bg-green-500 dark:ring-neutral-800"></span>
                                 </button>
 
@@ -456,6 +487,25 @@ const setLocale = (locale) => {
                                         </div>
                                         <div v-if="page.props.auth?.account?.company?.name" class="mt-1 text-xs text-stone-500 dark:text-neutral-400 truncate">
                                             {{ $t('account.company_label') }}: {{ page.props.auth.account.company.name }}
+                                        </div>
+                                    </div>
+                                    <div v-if="showNotifications" class="px-2 pb-2">
+                                        <div
+                                            class="flex items-center justify-between rounded-sm border border-stone-200 bg-stone-50 px-2.5 py-2 text-sm text-stone-700 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200">
+                                            <div class="flex items-center gap-x-2">
+                                                <svg class="size-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                                    viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                                    stroke-linecap="round" stroke-linejoin="round">
+                                                    <path d="M10 5a2 2 0 1 1 4 0" />
+                                                    <path d="M6 8a6 6 0 0 1 12 0c0 7 3 7 3 7H3s3 0 3-7" />
+                                                    <path d="M10 21a2 2 0 0 0 4 0" />
+                                                </svg>
+                                                <span>{{ $t('nav.notifications') }}</span>
+                                            </div>
+                                            <NotificationBell
+                                                button-class="relative inline-flex size-7 items-center justify-center rounded-sm border border-stone-200 bg-white text-stone-600 hover:bg-stone-100 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
+                                                badge-class="absolute -top-1 -end-1 rounded-full bg-amber-500 px-1.5 text-[10px] font-semibold text-white"
+                                            />
                                         </div>
                                     </div>
                                     <div class="p-1">

@@ -82,6 +82,25 @@ class HandleInertiaRequests extends Middleware
             'enabled' => false,
             'message' => '',
         ]);
+        $notifications = null;
+        if ($user) {
+            $notifications = [
+                'unread_count' => $user->unreadNotifications()->count(),
+                'items' => $user->notifications()
+                    ->latest()
+                    ->limit(6)
+                    ->get()
+                    ->map(fn($notification) => [
+                        'id' => $notification->id,
+                        'title' => $notification->data['title'] ?? 'Notification',
+                        'message' => $notification->data['message'] ?? '',
+                        'action_url' => $notification->data['action_url'] ?? null,
+                        'created_at' => $notification->created_at?->toIso8601String(),
+                        'read_at' => $notification->read_at?->toIso8601String(),
+                    ])
+                    ->values(),
+            ];
+        }
 
         return [
             ...parent::share($request),
@@ -115,6 +134,7 @@ class HandleInertiaRequests extends Middleware
             'platform' => [
                 'maintenance' => $maintenance,
             ],
+            'notifications' => $notifications,
             'locale' => app()->getLocale(),
             'locales' => ['fr', 'en'],
             'flash' => [

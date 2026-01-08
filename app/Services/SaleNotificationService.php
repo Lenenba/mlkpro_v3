@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Sale;
 use App\Notifications\ActionEmailNotification;
+use App\Notifications\OrderStatusNotification;
 
 class SaleNotificationService
 {
@@ -13,6 +14,10 @@ class SaleNotificationService
         if (!$customer) {
             return;
         }
+        $owner = $sale->relationLoaded('user')
+            ? $sale->user
+            : $sale->user()->select(['id', 'company_type'])->first();
+        $isProductCompany = $owner?->company_type === 'products';
 
         $statusLabels = [
             'draft' => 'Brouillon',
@@ -61,23 +66,35 @@ class SaleNotificationService
 
         $actionUrl = route('portal.orders.edit', $sale);
 
-        $customer->notify(new ActionEmailNotification(
-            $title,
-            $intro,
-            $details,
-            $actionUrl,
-            'Voir la commande'
-        ));
+        $message = $intro ?? 'Votre commande a ete mise a jour.';
+        if ($customer->portal_user_id) {
+            $portalUser = $customer->relationLoaded('portalUser')
+                ? $customer->portalUser
+                : $customer->portalUser()->first();
+            if ($portalUser) {
+                $portalUser->notify(new OrderStatusNotification($sale, $title, $message));
+            }
+        }
 
-        if (!empty($customer->phone)) {
-            $smsMessage = $intro ? "{$title}: {$intro}" : "{$title}: {$details['Statut']}";
-            app(SmsNotificationService::class)->send($customer->phone, $smsMessage);
+        if (!$isProductCompany) {
+            $customer->notify(new ActionEmailNotification(
+                $title,
+                $intro,
+                $details,
+                $actionUrl,
+                'Voir la commande'
+            ));
+
+            if (!empty($customer->phone)) {
+                $smsMessage = $intro ? "{$title}: {$intro}" : "{$title}: {$details['Statut']}";
+                app(SmsNotificationService::class)->send($customer->phone, $smsMessage);
+            }
         }
 
         if ($customer->portal_user_id) {
             app(PushNotificationService::class)->sendToUsers([$customer->portal_user_id], [
                 'title' => $title,
-                'body' => $intro ?? 'Votre commande a ete mise a jour.',
+                'body' => $message,
                 'data' => [
                     'sale_id' => $sale->id,
                     'status' => $sale->status,

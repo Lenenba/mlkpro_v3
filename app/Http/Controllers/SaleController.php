@@ -24,8 +24,9 @@ class SaleController extends Controller
         if (!$user) {
             abort(401);
         }
-        [$accountOwner, $canManage] = $this->resolveSalesAccess($user);
+        [$accountOwner, $canManage, $canPos] = $this->resolveSalesAccess($user);
         $accountId = $accountOwner->id;
+        $canAccessAll = $canManage || $canPos;
 
         $filters = $request->only([
             'search',
@@ -38,17 +39,16 @@ class SaleController extends Controller
             'sort',
             'direction',
         ]);
+        $filters['status'] = Sale::STATUS_PAID;
 
         $allowedStatuses = [
-            Sale::STATUS_DRAFT,
-            Sale::STATUS_PENDING,
             Sale::STATUS_PAID,
-            Sale::STATUS_CANCELED,
         ];
 
         $baseQuery = Sale::query()
             ->where('user_id', $accountId)
-            ->when(!$canManage, fn($query) => $query->where('created_by_user_id', $user->id))
+            ->where('status', Sale::STATUS_PAID)
+            ->when(!$canAccessAll, fn($query) => $query->where('created_by_user_id', $user->id))
             ->when($filters['search'] ?? null, function ($query, $search) {
                 $search = trim((string) $search);
                 if ($search === '') {
@@ -114,9 +114,9 @@ class SaleController extends Controller
         $totalCount = (clone $baseQuery)->count();
         $totalValue = (float) (clone $baseQuery)->sum('total');
         $paidValue = (float) (clone $baseQuery)->where('status', Sale::STATUS_PAID)->sum('total');
-        $pendingCount = (clone $baseQuery)->where('status', Sale::STATUS_PENDING)->count();
-        $draftCount = (clone $baseQuery)->where('status', Sale::STATUS_DRAFT)->count();
-        $canceledCount = (clone $baseQuery)->where('status', Sale::STATUS_CANCELED)->count();
+        $pendingCount = 0;
+        $draftCount = 0;
+        $canceledCount = 0;
 
         $customers = Customer::query()
             ->where('user_id', $accountId)
@@ -131,6 +131,125 @@ class SaleController extends Controller
                 'total' => $totalCount,
                 'total_value' => $totalValue,
                 'paid_value' => $paidValue,
+                'pending' => $pendingCount,
+                'draft' => $draftCount,
+                'canceled' => $canceledCount,
+            ],
+        ]);
+    }
+
+    public function ordersIndex(Request $request)
+    {
+        $user = $request->user();
+        if (!$user) {
+            abort(401);
+        }
+        [$accountOwner, $canManage, $canPos] = $this->resolveSalesAccess($user);
+        $accountId = $accountOwner->id;
+        $canAccessAll = $canManage || $canPos;
+
+        $filters = $request->only([
+            'search',
+            'status',
+            'customer_id',
+            'total_min',
+            'total_max',
+            'created_from',
+            'created_to',
+            'sort',
+            'direction',
+        ]);
+
+        $allowedStatuses = [
+            Sale::STATUS_DRAFT,
+            Sale::STATUS_PENDING,
+            Sale::STATUS_CANCELED,
+        ];
+
+        $baseQuery = Sale::query()
+            ->where('user_id', $accountId)
+            ->whereIn('status', $allowedStatuses)
+            ->when(!$canAccessAll, fn($query) => $query->where('created_by_user_id', $user->id))
+            ->when($filters['search'] ?? null, function ($query, $search) {
+                $search = trim((string) $search);
+                if ($search === '') {
+                    return;
+                }
+
+                $query->where(function ($query) use ($search) {
+                    $query->where('number', 'like', '%' . $search . '%');
+
+                    if (is_numeric($search)) {
+                        $query->orWhere('id', (int) $search);
+                    }
+
+                    $query->orWhereHas('customer', function ($customerQuery) use ($search) {
+                        $customerQuery->where('company_name', 'like', '%' . $search . '%')
+                            ->orWhere('first_name', 'like', '%' . $search . '%')
+                            ->orWhere('last_name', 'like', '%' . $search . '%')
+                            ->orWhere('email', 'like', '%' . $search . '%');
+                    });
+                });
+            })
+            ->when($filters['status'] ?? null, function ($query, $status) use ($allowedStatuses) {
+                if (in_array($status, $allowedStatuses, true)) {
+                    $query->where('status', $status);
+                }
+            })
+            ->when($filters['customer_id'] ?? null, function ($query, $customerId) {
+                if (is_numeric($customerId)) {
+                    $query->where('customer_id', $customerId);
+                }
+            })
+            ->when($filters['total_min'] ?? null, function ($query, $totalMin) {
+                if (is_numeric($totalMin)) {
+                    $query->where('total', '>=', $totalMin);
+                }
+            })
+            ->when($filters['total_max'] ?? null, function ($query, $totalMax) {
+                if (is_numeric($totalMax)) {
+                    $query->where('total', '<=', $totalMax);
+                }
+            })
+            ->when(
+                $filters['created_from'] ?? null,
+                fn($query, $createdFrom) => $query->whereDate('created_at', '>=', $createdFrom)
+            )
+            ->when(
+                $filters['created_to'] ?? null,
+                fn($query, $createdTo) => $query->whereDate('created_at', '<=', $createdTo)
+            );
+
+        $sort = in_array($filters['sort'] ?? null, ['number', 'status', 'total', 'created_at'], true)
+            ? $filters['sort']
+            : 'created_at';
+        $direction = ($filters['direction'] ?? 'desc') === 'asc' ? 'asc' : 'desc';
+
+        $orders = (clone $baseQuery)
+            ->with('customer:id,first_name,last_name,company_name')
+            ->withCount('items')
+            ->orderBy($sort, $direction)
+            ->simplePaginate(12)
+            ->withQueryString();
+
+        $totalCount = (clone $baseQuery)->count();
+        $totalValue = (float) (clone $baseQuery)->sum('total');
+        $pendingCount = (clone $baseQuery)->where('status', Sale::STATUS_PENDING)->count();
+        $draftCount = (clone $baseQuery)->where('status', Sale::STATUS_DRAFT)->count();
+        $canceledCount = (clone $baseQuery)->where('status', Sale::STATUS_CANCELED)->count();
+
+        $customers = Customer::query()
+            ->where('user_id', $accountId)
+            ->orderBy('company_name')
+            ->get(['id', 'first_name', 'last_name', 'company_name']);
+
+        return $this->inertiaOrJson('Orders/Index', [
+            'orders' => $orders,
+            'filters' => $filters,
+            'customers' => $customers,
+            'stats' => [
+                'total' => $totalCount,
+                'total_value' => $totalValue,
                 'pending' => $pendingCount,
                 'draft' => $draftCount,
                 'canceled' => $canceledCount,
@@ -182,13 +301,14 @@ class SaleController extends Controller
         if (!$user) {
             abort(401);
         }
-        [$accountOwner, $canManage] = $this->resolveSalesAccess($user);
+        [$accountOwner, $canManage, $canPos] = $this->resolveSalesAccess($user);
         $accountId = $accountOwner->id;
+        $canAccessAll = $canManage || $canPos;
 
         if ($sale->user_id !== $accountId) {
             abort(404);
         }
-        if (!$canManage && $sale->created_by_user_id !== $user->id) {
+        if (!$canAccessAll && $sale->created_by_user_id !== $user->id) {
             abort(404);
         }
 
@@ -438,13 +558,14 @@ class SaleController extends Controller
         if (!$user) {
             abort(401);
         }
-        [$accountOwner, $canManage] = $this->resolveSalesAccess($user);
+        [$accountOwner, $canManage, $canPos] = $this->resolveSalesAccess($user);
         $accountId = $accountOwner->id;
+        $canAccessAll = $canManage || $canPos;
 
         if ($sale->user_id !== $accountId) {
             abort(404);
         }
-        if (!$canManage && $sale->created_by_user_id !== $user->id) {
+        if (!$canAccessAll && $sale->created_by_user_id !== $user->id) {
             abort(404);
         }
 
@@ -693,19 +814,201 @@ class SaleController extends Controller
             ->with('success', 'Vente mise a jour.');
     }
 
+    public function updateStatus(Request $request, Sale $sale)
+    {
+        $user = $request->user();
+        if (!$user) {
+            abort(401);
+        }
+        [$accountOwner, $canManage, $canPos] = $this->resolveSalesAccess($user);
+        $accountId = $accountOwner->id;
+        $canAccessAll = $canManage || $canPos;
+
+        if ($sale->user_id !== $accountId) {
+            abort(404);
+        }
+        if (!$canAccessAll && $sale->created_by_user_id !== $user->id) {
+            abort(404);
+        }
+
+        if (in_array($sale->status, [Sale::STATUS_PAID, Sale::STATUS_CANCELED], true)) {
+            throw ValidationException::withMessages([
+                'status' => 'Commande deja finalisee.',
+            ]);
+        }
+
+        if ($sale->fulfillment_status === Sale::FULFILLMENT_COMPLETED) {
+            throw ValidationException::withMessages([
+                'status' => 'Commande deja livree.',
+            ]);
+        }
+
+        $validated = $request->validate([
+            'status' => ['nullable', Rule::in([
+                Sale::STATUS_DRAFT,
+                Sale::STATUS_PENDING,
+                Sale::STATUS_PAID,
+                Sale::STATUS_CANCELED,
+            ])],
+            'fulfillment_status' => ['nullable', Rule::in($this->allowedFulfillmentStatuses())],
+            'scheduled_for' => 'nullable|date',
+        ]);
+
+        if (!array_key_exists('status', $validated) && !array_key_exists('fulfillment_status', $validated)
+            && !array_key_exists('scheduled_for', $validated)) {
+            return redirect()->back();
+        }
+
+        $nextStatus = array_key_exists('status', $validated) && $validated['status'] !== null
+            ? $validated['status']
+            : $sale->status;
+        $nextFulfillment = array_key_exists('fulfillment_status', $validated) && $validated['fulfillment_status'] !== null
+            ? $validated['fulfillment_status']
+            : $sale->fulfillment_status;
+
+        if ($sale->fulfillment_method === 'pickup' && $nextFulfillment === Sale::FULFILLMENT_OUT_FOR_DELIVERY) {
+            throw ValidationException::withMessages([
+                'fulfillment_status' => 'Statut livraison invalide pour un retrait.',
+            ]);
+        }
+        if ($sale->fulfillment_method === 'delivery' && $nextFulfillment === Sale::FULFILLMENT_READY_FOR_PICKUP) {
+            throw ValidationException::withMessages([
+                'fulfillment_status' => 'Statut retrait invalide pour une livraison.',
+            ]);
+        }
+
+        if ($nextStatus === Sale::STATUS_CANCELED) {
+            $nextFulfillment = null;
+        }
+
+        if ($sale->status === Sale::STATUS_DRAFT && $nextStatus === Sale::STATUS_DRAFT && $nextFulfillment) {
+            $nextStatus = Sale::STATUS_PENDING;
+        }
+
+        $previousStatus = $sale->status;
+        $previousFulfillment = $sale->fulfillment_status;
+        $previousScheduled = $sale->scheduled_for;
+        $previousItems = $sale->items()->get(['product_id', 'quantity']);
+
+        $updateData = [
+            'status' => $nextStatus,
+            'fulfillment_status' => $nextFulfillment,
+            'paid_at' => $nextStatus === Sale::STATUS_PAID ? now() : null,
+        ];
+
+        if (array_key_exists('scheduled_for', $validated)) {
+            $updateData['scheduled_for'] = $validated['scheduled_for'];
+        }
+
+        $sale->update($updateData);
+
+        $itemsPayload = $previousItems->map(fn($item) => [
+            'product_id' => $item->product_id,
+            'quantity' => (int) $item->quantity,
+        ])->values()->all();
+
+        $wasPending = $previousStatus === Sale::STATUS_PENDING
+            && $previousFulfillment !== Sale::FULFILLMENT_COMPLETED;
+        $isPending = $sale->status === Sale::STATUS_PENDING
+            && $sale->fulfillment_status !== Sale::FULFILLMENT_COMPLETED;
+
+        if ($isPending) {
+            $currentItems = $wasPending ? $previousItems : [];
+            $this->applyReservations($sale, $itemsPayload, $accountId, $currentItems);
+        } elseif ($wasPending) {
+            $this->applyReservations($sale, [], $accountId, $previousItems);
+        }
+
+        if (
+            $sale->fulfillment_method === 'pickup'
+            && $sale->fulfillment_status === Sale::FULFILLMENT_READY_FOR_PICKUP
+            && !$sale->pickup_code
+        ) {
+            $sale->forceFill([
+                'pickup_code' => $this->generatePickupCode(),
+            ])->save();
+        }
+
+        $inventoryAlreadyApplied = $previousStatus === Sale::STATUS_PAID
+            || $previousFulfillment === Sale::FULFILLMENT_COMPLETED;
+
+        if (
+            !$inventoryAlreadyApplied
+            && ($sale->status === Sale::STATUS_PAID || $sale->fulfillment_status === Sale::FULFILLMENT_COMPLETED)
+        ) {
+            $inventoryService = app(InventoryService::class);
+            $warehouse = $inventoryService->resolveDefaultWarehouse($accountId);
+            $productIds = $previousItems->pluck('product_id')->unique()->values();
+            $products = Product::query()
+                ->where('user_id', $accountId)
+                ->whereIn('id', $productIds)
+                ->get()
+                ->keyBy('id');
+
+            foreach ($previousItems as $item) {
+                $product = $products->get($item->product_id);
+                if (!$product) {
+                    continue;
+                }
+                $this->applyInventoryForProduct(
+                    $product,
+                    (int) $item->quantity,
+                    $inventoryService,
+                    $sale,
+                    $warehouse
+                );
+            }
+        }
+
+        $timeline = app(SaleTimelineService::class);
+        $changes = [];
+        if ($previousStatus !== $sale->status) {
+            $timeline->record($user, $sale, 'sale_status_changed', [
+                'status_from' => $previousStatus,
+                'status_to' => $sale->status,
+            ]);
+            $changes['status'] = true;
+        }
+
+        if ($previousFulfillment !== $sale->fulfillment_status) {
+            $timeline->record($user, $sale, 'sale_fulfillment_changed', [
+                'fulfillment_from' => $previousFulfillment,
+                'fulfillment_to' => $sale->fulfillment_status,
+            ]);
+            $changes['fulfillment_status'] = true;
+        }
+
+        if ($previousScheduled?->toDateTimeString() !== $sale->scheduled_for?->toDateTimeString()) {
+            $timeline->record($user, $sale, 'sale_eta_updated', [
+                'scheduled_for' => $sale->scheduled_for?->format('Y-m-d H:i'),
+            ]);
+            $changes['scheduled_for'] = true;
+        }
+
+        if ($changes) {
+            $sale->loadMissing('customer');
+            app(SaleNotificationService::class)->notifyStatusChange($sale, $changes);
+        }
+
+        return redirect()
+            ->back()
+            ->with('success', 'Statut mis a jour.');
+    }
+
     public function confirmPickup(Request $request, Sale $sale)
     {
         $user = $request->user();
         if (!$user) {
             abort(401);
         }
-        [$accountOwner, $canManage] = $this->resolveSalesAccess($user);
+        [$accountOwner, $canManage, $canPos] = $this->resolveSalesAccess($user);
         $accountId = $accountOwner->id;
+        $canAccessAll = $canManage || $canPos;
 
         if ($sale->user_id !== $accountId) {
             abort(404);
         }
-        if (!$canManage && $sale->created_by_user_id !== $user->id) {
+        if (!$canAccessAll && $sale->created_by_user_id !== $user->id) {
             abort(404);
         }
 
@@ -786,13 +1089,14 @@ class SaleController extends Controller
         if (!$user) {
             abort(401);
         }
-        [$accountOwner, $canManage] = $this->resolveSalesAccess($user);
+        [$accountOwner, $canManage, $canPos] = $this->resolveSalesAccess($user);
         $accountId = $accountOwner->id;
+        $canAccessAll = $canManage || $canPos;
 
         if (!$accountId || $sale->user_id !== $accountId) {
             abort(404);
         }
-        if (!$canManage && $sale->created_by_user_id !== $user->id) {
+        if (!$canAccessAll && $sale->created_by_user_id !== $user->id) {
             abort(404);
         }
 
