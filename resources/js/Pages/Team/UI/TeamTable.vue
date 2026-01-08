@@ -130,10 +130,15 @@ const statusBadge = (member) =>
         ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-400'
         : 'bg-stone-100 text-stone-700 dark:bg-neutral-700 dark:text-neutral-200';
 
-const roleBadge = (member) =>
-    member.role === 'admin'
-        ? 'bg-sky-100 text-sky-800 dark:bg-sky-500/10 dark:text-sky-400'
-        : 'bg-amber-100 text-amber-800 dark:bg-amber-500/10 dark:text-amber-300';
+const roleBadge = (member) => {
+    if (member.role === 'admin') {
+        return 'bg-sky-100 text-sky-800 dark:bg-sky-500/10 dark:text-sky-400';
+    }
+    if (member.role === 'seller') {
+        return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-300';
+    }
+    return 'bg-amber-100 text-amber-800 dark:bg-amber-500/10 dark:text-amber-300';
+};
 
 const formatDate = (value) => humanizeDate(value) || String(value || '');
 </script>
@@ -322,6 +327,7 @@ const formatDate = (value) => humanizeDate(value) || String(value || '');
                         class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
                         <option value="admin">Administrator</option>
                         <option value="member">Team member</option>
+                        <option value="seller">Seller (POS)</option>
                     </select>
                     <InputError class="mt-1" :message="createForm.errors.role" />
                 </div>
@@ -383,6 +389,7 @@ const formatDate = (value) => humanizeDate(value) || String(value || '');
                         class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
                         <option value="admin">Administrator</option>
                         <option value="member">Team member</option>
+                        <option value="seller">Seller (POS)</option>
                     </select>
                     <InputError class="mt-1" :message="editForm.errors.role" />
                 </div>

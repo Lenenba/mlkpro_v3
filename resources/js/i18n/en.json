@@ -10,6 +10,8 @@
         "dashboard": "Dashboard",
         "customers": "Customers",
         "products": "Products",
+        "sales": "Sales",
+        "orders": "Orders",
         "services": "Services",
         "categories": "Categories",
         "quotes": "Quotes",

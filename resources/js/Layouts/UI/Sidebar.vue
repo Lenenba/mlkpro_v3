@@ -5,6 +5,7 @@ import LinkAncor from "@/Components/UI/LinkAncor.vue";
 import { Link, router, usePage } from '@inertiajs/vue3';
 import MenuDropdown from "@/Components/UI/LinkAncor2.vue";
 import QuickCreateModals from "@/Components/QuickCreate/QuickCreateModals.vue";
+import NotificationBell from "@/Components/UI/NotificationBell.vue";
 import { isFeatureEnabled } from '@/utils/features';
 
 const page = usePage()
@@ -16,13 +17,22 @@ const isClient = computed(() => Boolean(page.props.auth?.account?.is_client));
 const isSuperadmin = computed(() => Boolean(page.props.auth?.account?.is_superadmin));
 const isPlatformAdmin = computed(() => Boolean(page.props.auth?.account?.is_platform_admin));
 const platformPermissions = computed(() => page.props.auth?.account?.platform?.permissions || []);
+const teamPermissions = computed(() => page.props.auth?.account?.team?.permissions || []);
+const teamRole = computed(() => page.props.auth?.account?.team?.role || null);
 const featureFlags = computed(() => page.props.auth?.account?.features || {});
 const hasFeature = (key) => isFeatureEnabled(featureFlags.value, key);
 const showPlatformNav = computed(() => isSuperadmin.value || isPlatformAdmin.value);
 const canPlatform = (permission) => isSuperadmin.value || platformPermissions.value.includes(permission);
+const canSales = computed(() =>
+    isOwner.value || teamPermissions.value.includes('sales.manage') || teamPermissions.value.includes('sales.pos')
+);
+const isSeller = computed(() => teamRole.value === 'seller');
 const userName = computed(() => page.props.auth?.user?.name || '');
 const userEmail = computed(() => page.props.auth?.user?.email || '');
 const avatarUrl = computed(() => page.props.auth?.user?.profile_picture || '');
+const unreadCount = computed(() => page.props.notifications?.unread_count || 0);
+const hasUnread = computed(() => unreadCount.value > 0);
+const showNotifications = computed(() => Boolean(page.props.notifications));
 const avatarInitial = computed(() => {
     const label = (userName.value || userEmail.value || '?').trim();
     return label.length ? label[0].toUpperCase() : '?';
@@ -187,7 +197,7 @@ const setLocale = (locale) => {
                                     </LinkAncor>
                                 </template>
                                 <template v-else>
-                                <MenuDropdown v-if="!isClient" active-item="/profile">
+                                <MenuDropdown v-if="!isClient && !isSeller" active-item="/profile">
                                     <template #toggle-icon>
                                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
                                             viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
@@ -217,7 +227,23 @@ const setLocale = (locale) => {
                                 <!-- End Item -->
 
                                 <!-- Item -->
-                                <LinkAncor v-if="showServices && page.props.auth.account?.is_owner" :label="$t('nav.customers')" :href="'customer.index'"
+                                <LinkAncor v-if="isClient && companyType === 'products'" label="Commander" :href="'portal.orders.index'"
+                                    :active="route().current('portal.orders.*')">
+                                    <template #icon>
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round"
+                                            class="lucide lucide-shopping-bag">
+                                            <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" />
+                                            <path d="M3 6h18" />
+                                            <path d="M16 10a4 4 0 0 1-8 0" />
+                                        </svg>
+                                    </template>
+                                </LinkAncor>
+                                <!-- End Item -->
+
+                                <!-- Item -->
+                                <LinkAncor v-if="((showServices && isOwner) || (companyType === 'products' && hasFeature('sales') && canSales)) && !isSeller" :label="$t('nav.customers')" :href="'customer.index'"
                                     :active="route().current('customer.index')">
                                     <template #icon>
                                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-contact"><path d="M16 2v2"/><path d="M7 22v-2a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v2"/><path d="M8 2v2"/><circle cx="12" cy="11" r="3"/><rect x="3" y="4" width="18" height="18" rx="2"/></svg>
@@ -226,7 +252,7 @@ const setLocale = (locale) => {
                                 <!-- End Item -->
 
                                 <!-- Item -->
-                                <LinkAncor v-if="showProducts && hasFeature('products') && page.props.auth.account?.is_owner" :label="$t('nav.products')" :href="'product.index'"
+                                <LinkAncor v-if="showProducts && hasFeature('products') && (isOwner || canSales) && !isSeller" :label="$t('nav.products')" :href="'product.index'"
                                     :active="route().current('product.index')">
                                     <template #icon>
                                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
@@ -246,7 +272,41 @@ const setLocale = (locale) => {
                                 <!-- End Item -->
 
                                 <!-- Item -->
-                                <LinkAncor v-if="showServices && hasFeature('services') && page.props.auth.account?.is_owner" :label="$t('nav.services')" :href="'service.index'"
+                                <LinkAncor v-if="companyType === 'products' && hasFeature('sales') && canSales" :label="$t('nav.orders')" :href="'orders.index'"
+                                    :active="route().current('orders.*')">
+                                    <template #icon>
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round"
+                                            class="lucide lucide-clipboard-list">
+                                            <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+                                            <rect x="8" y="2" width="8" height="4" rx="1" />
+                                            <path d="M9 12h6" />
+                                            <path d="M9 16h6" />
+                                            <path d="M9 8h6" />
+                                        </svg>
+                                    </template>
+                                </LinkAncor>
+                                <!-- End Item -->
+
+                                <!-- Item -->
+                                <LinkAncor v-if="companyType === 'products' && hasFeature('sales') && canSales" :label="$t('nav.sales')" :href="isSeller ? 'sales.create' : 'sales.index'"
+                                    :active="route().current('sales.*')">
+                                    <template #icon>
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round"
+                                            class="lucide lucide-shopping-cart">
+                                            <circle cx="8" cy="21" r="1" />
+                                            <circle cx="19" cy="21" r="1" />
+                                            <path d="M2.05 2.05h2l2.6 12.4a2 2 0 0 0 2 1.6h9.6a2 2 0 0 0 2-1.6l1.2-6.4H6.2" />
+                                        </svg>
+                                    </template>
+                                </LinkAncor>
+                                <!-- End Item -->
+
+                                <!-- Item -->
+                                <LinkAncor v-if="showServices && hasFeature('services') && page.props.auth.account?.is_owner && !isSeller" :label="$t('nav.services')" :href="'service.index'"
                                     :active="route().current('service.index')">
                                     <template #icon>
                                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
@@ -274,7 +334,7 @@ const setLocale = (locale) => {
                                 </LinkAncor>
                                 <!-- End Item -->
                                 <!-- Item -->
-                                <LinkAncor v-if="showServices && hasFeature('quotes') && page.props.auth.account?.is_owner" :label="$t('nav.quotes')" :href="'quote.index'"
+                                <LinkAncor v-if="showServices && hasFeature('quotes') && page.props.auth.account?.is_owner && !isSeller" :label="$t('nav.quotes')" :href="'quote.index'"
                                     :active="route().current('quote.index') || route().current('customer.quote.*')">
                                     <template #icon>
                                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
@@ -290,7 +350,7 @@ const setLocale = (locale) => {
                                 </LinkAncor>
                                 <!-- End Item -->
                                 <!-- Item -->
-                                <LinkAncor v-if="showServices && hasFeature('plan_scans') && page.props.auth.account?.is_owner" :label="$t('nav.plan_scans')" :href="'plan-scans.index'"
+                                <LinkAncor v-if="showServices && hasFeature('plan_scans') && page.props.auth.account?.is_owner && !isSeller" :label="$t('nav.plan_scans')" :href="'plan-scans.index'"
                                     :active="route().current('plan-scans.*')">
                                     <template #icon>
                                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
@@ -304,7 +364,7 @@ const setLocale = (locale) => {
                                 </LinkAncor>
                                 <!-- End Item -->
                                 <!-- Item -->
-                                <LinkAncor v-if="showServices && hasFeature('requests') && page.props.auth.account?.is_owner" :label="$t('nav.requests')" :href="'request.index'"
+                                <LinkAncor v-if="showServices && hasFeature('requests') && page.props.auth.account?.is_owner && !isSeller" :label="$t('nav.requests')" :href="'request.index'"
                                     :active="route().current('request.*')">
                                     <template #icon>
                                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
@@ -319,7 +379,7 @@ const setLocale = (locale) => {
                                 </LinkAncor>
                                 <!-- End Item -->
                                 <!-- Item -->
-                                <LinkAncor v-if="showServices && hasFeature('jobs') && !isClient" :label="$t('nav.jobs')" :href="'jobs.index'"
+                                <LinkAncor v-if="showServices && hasFeature('jobs') && !isClient && !isSeller" :label="$t('nav.jobs')" :href="'jobs.index'"
                                     :active="route().current('jobs.index') || route().current('work.*')">
                                     <template #icon>
                                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
@@ -335,7 +395,7 @@ const setLocale = (locale) => {
                                 <!-- End Item -->
 
                                 <!-- Item -->
-                                <LinkAncor v-if="hasFeature('tasks') && !isClient" :label="$t('nav.tasks')" :href="'task.index'"
+                                <LinkAncor v-if="hasFeature('tasks') && !isClient && !isSeller" :label="$t('nav.tasks')" :href="'task.index'"
                                     :active="route().current('task.*')">
                                     <template #icon>
                                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
@@ -350,7 +410,7 @@ const setLocale = (locale) => {
                                 <!-- End Item -->
 
                                 <!-- Item -->
-                                <LinkAncor v-if="hasFeature('team_members') && page.props.auth.account?.is_owner" :label="$t('nav.team')" :href="'team.index'"
+                                <LinkAncor v-if="hasFeature('team_members') && page.props.auth.account?.is_owner && !isSeller" :label="$t('nav.team')" :href="'team.index'"
                                     :active="route().current('team.*')">
                                     <template #icon>
                                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
@@ -366,7 +426,7 @@ const setLocale = (locale) => {
                                 </LinkAncor>
                                 <!-- End Item -->
                                 <!-- Item -->
-                                <LinkAncor v-if="showServices && hasFeature('invoices') && page.props.auth.account?.is_owner" :label="$t('nav.invoices')" :href="'invoice.index'"
+                                <LinkAncor v-if="showServices && hasFeature('invoices') && page.props.auth.account?.is_owner && !isSeller" :label="$t('nav.invoices')" :href="'invoice.index'"
                                     :active="route().current('invoice.*')">
                                     <template #icon>
                                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
@@ -403,6 +463,15 @@ const setLocale = (locale) => {
                                         {{ avatarInitial }}
                                     </div>
                                     <span
+                                        v-if="hasUnread"
+                                        class="absolute -top-0 -end-0 flex size-2">
+                                        <span
+                                            class="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-75"></span>
+                                        <span
+                                            class="relative inline-flex h-2 w-2 rounded-full bg-amber-500 ring-2 ring-stone-100 dark:ring-neutral-800"></span>
+                                    </span>
+                                    <span
+                                        v-else
                                         class="absolute -bottom-0 -end-0 block size-2 rounded-full ring-2 ring-stone-100 bg-green-500 dark:ring-neutral-800"></span>
                                 </button>
 
@@ -418,6 +487,25 @@ const setLocale = (locale) => {
                                         </div>
                                         <div v-if="page.props.auth?.account?.company?.name" class="mt-1 text-xs text-stone-500 dark:text-neutral-400 truncate">
                                             {{ $t('account.company_label') }}: {{ page.props.auth.account.company.name }}
+                                        </div>
+                                    </div>
+                                    <div v-if="showNotifications" class="px-2 pb-2">
+                                        <div
+                                            class="flex items-center justify-between rounded-sm border border-stone-200 bg-stone-50 px-2.5 py-2 text-sm text-stone-700 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200">
+                                            <div class="flex items-center gap-x-2">
+                                                <svg class="size-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                                    viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                                    stroke-linecap="round" stroke-linejoin="round">
+                                                    <path d="M10 5a2 2 0 1 1 4 0" />
+                                                    <path d="M6 8a6 6 0 0 1 12 0c0 7 3 7 3 7H3s3 0 3-7" />
+                                                    <path d="M10 21a2 2 0 0 0 4 0" />
+                                                </svg>
+                                                <span>{{ $t('nav.notifications') }}</span>
+                                            </div>
+                                            <NotificationBell
+                                                button-class="relative inline-flex size-7 items-center justify-center rounded-sm border border-stone-200 bg-white text-stone-600 hover:bg-stone-100 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
+                                                badge-class="absolute -top-1 -end-1 rounded-full bg-amber-500 px-1.5 text-[10px] font-semibold text-white"
+                                            />
                                         </div>
                                     </div>
                                     <div class="p-1">
@@ -506,5 +594,5 @@ const setLocale = (locale) => {
             </div>
         </div>
     </aside>
-    <QuickCreateModals v-if="!isClient && !showPlatformNav" />
+    <QuickCreateModals v-if="!isClient && !showPlatformNav && !isSeller" />
 </template>

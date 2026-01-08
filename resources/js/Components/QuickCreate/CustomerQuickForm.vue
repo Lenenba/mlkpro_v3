@@ -29,6 +29,7 @@ const form = reactive({
     email: '',
     phone: '',
     company_name: '',
+    discount_rate: '',
     portal_access: true,
     description: '',
     refer_by: '',
@@ -107,6 +108,7 @@ const resetForm = () => {
     form.email = '';
     form.phone = '';
     form.company_name = '';
+    form.discount_rate = '';
     form.description = '';
     form.refer_by = '';
     form.portal_access = true;
@@ -155,6 +157,7 @@ const submit = async () => {
         email: form.email,
         phone: form.phone,
         company_name: form.company_name,
+        discount_rate: form.discount_rate ? Number(form.discount_rate) : 0,
         portal_access: form.portal_access,
         description: form.description,
         refer_by: form.refer_by,
@@ -262,6 +265,7 @@ const selectAddress = (details) => {
             <FloatingInput v-model="form.company_name" label="Company name" />
             <FloatingInput v-model="form.email" label="Email" :required="true" />
             <FloatingInput v-model="form.phone" label="Phone" />
+            <FloatingInput v-model="form.discount_rate" type="number" label="Remise fidelite (%)" />
         </div>
         <div class="flex items-start gap-2">
             <input id="quick-customer-portal-access" type="checkbox" v-model="form.portal_access"

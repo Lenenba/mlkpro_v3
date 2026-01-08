@@ -40,6 +40,7 @@ const form = reactive({
     minimum_stock: 0,
     unit: '',
     supplier_name: '',
+    supplier_email: '',
     tax_rate: 0,
     is_active: true,
     description: '',
@@ -272,6 +273,7 @@ const resetForm = () => {
     form.minimum_stock = 0;
     form.unit = '';
     form.supplier_name = '';
+    form.supplier_email = '';
     form.tax_rate = 0;
     form.is_active = true;
     form.description = '';
@@ -311,6 +313,7 @@ const submit = async () => {
         minimum_stock: form.minimum_stock,
         unit: form.unit,
         supplier_name: form.supplier_name,
+        supplier_email: form.supplier_email,
         tax_rate: form.tax_rate,
         is_active: form.is_active,
         description: form.description,
@@ -371,6 +374,7 @@ const submit = async () => {
             <FloatingInput v-model="form.sku" label="SKU" />
             <FloatingSelect v-model="form.unit" label="Unit" :options="unitOptions" />
             <FloatingInput v-model="form.supplier_name" label="Supplier" />
+            <FloatingInput v-model="form.supplier_email" label="Supplier email" />
             <FloatingNumberInput v-model="form.tax_rate" label="Tax rate (%)" :step="0.01" />
         </div>
 

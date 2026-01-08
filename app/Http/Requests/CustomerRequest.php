@@ -64,6 +64,7 @@ class CustomerRequest extends FormRequest
             ],
             'billing_delay_days' => 'nullable|integer|min:0|max:365',
             'billing_date_rule' => 'nullable|string|max:50',
+            'discount_rate' => 'nullable|numeric|min:0|max:100',
             'auto_accept_quotes' => 'nullable|boolean',
             'auto_validate_jobs' => 'nullable|boolean',
             'auto_validate_tasks' => 'nullable|boolean',

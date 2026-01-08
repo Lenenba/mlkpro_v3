@@ -1,6 +1,7 @@
 <script setup>
-import { computed, watch } from 'vue';
-import { Head, useForm } from '@inertiajs/vue3';
+import { computed, ref, watch } from 'vue';
+import { Head, router, useForm } from '@inertiajs/vue3';
+import axios from 'axios';
 import SettingsLayout from '@/Layouts/SettingsLayout.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import InputError from '@/Components/InputError.vue';
@@ -26,6 +27,14 @@ const props = defineProps({
     usage_limits: {
         type: Object,
         default: () => ({ items: [] }),
+    },
+    warehouses: {
+        type: Array,
+        default: () => [],
+    },
+    api_tokens: {
+        type: Array,
+        default: () => [],
     },
 });
 
@@ -148,6 +157,14 @@ const form = useForm({
     company_city: '',
     company_city_other: '',
     company_type: props.company.company_type || 'services',
+    fulfillment_delivery_enabled: props.company.fulfillment?.delivery_enabled ?? true,
+    fulfillment_pickup_enabled: props.company.fulfillment?.pickup_enabled ?? true,
+    fulfillment_delivery_fee: props.company.fulfillment?.delivery_fee ?? '',
+    fulfillment_delivery_zone: props.company.fulfillment?.delivery_zone ?? '',
+    fulfillment_pickup_address: props.company.fulfillment?.pickup_address ?? '',
+    fulfillment_prep_time_minutes: props.company.fulfillment?.prep_time_minutes ?? 30,
+    fulfillment_delivery_notes: props.company.fulfillment?.delivery_notes ?? '',
+    fulfillment_pickup_notes: props.company.fulfillment?.pickup_notes ?? '',
     supplier_enabled: initialEnabledSuppliers,
     supplier_preferred: initialPreferredSuppliers,
 });
@@ -155,6 +172,181 @@ const form = useForm({
 const categoryForm = useForm({
     name: '',
 });
+
+const warehouseForm = ref({
+    name: '',
+    code: '',
+    address: '',
+    city: '',
+    state: '',
+    postal_code: '',
+    country: '',
+    is_default: false,
+    is_active: true,
+});
+const warehouseErrors = ref({});
+const warehouseSaving = ref(false);
+const editingWarehouseId = ref(null);
+const warehouseEditForm = ref({
+    name: '',
+    code: '',
+    address: '',
+    city: '',
+    state: '',
+    postal_code: '',
+    country: '',
+    is_active: true,
+});
+const warehouseEditErrors = ref({});
+const warehouseEditSaving = ref(false);
+
+const resetWarehouseForm = () => {
+    warehouseForm.value = {
+        name: '',
+        code: '',
+        address: '',
+        city: '',
+        state: '',
+        postal_code: '',
+        country: '',
+        is_default: false,
+        is_active: true,
+    };
+    warehouseErrors.value = {};
+};
+
+const createWarehouse = async () => {
+    warehouseSaving.value = true;
+    warehouseErrors.value = {};
+    try {
+        await axios.post(route('settings.warehouses.store'), warehouseForm.value, {
+            headers: { Accept: 'application/json' },
+        });
+        resetWarehouseForm();
+        router.reload({ only: ['warehouses'] });
+    } catch (error) {
+        warehouseErrors.value = error?.response?.data?.errors || { form: ['Unable to create warehouse.'] };
+    } finally {
+        warehouseSaving.value = false;
+    }
+};
+
+const startWarehouseEdit = (warehouse) => {
+    editingWarehouseId.value = warehouse.id;
+    warehouseEditErrors.value = {};
+    warehouseEditForm.value = {
+        name: warehouse.name || '',
+        code: warehouse.code || '',
+        address: warehouse.address || '',
+        city: warehouse.city || '',
+        state: warehouse.state || '',
+        postal_code: warehouse.postal_code || '',
+        country: warehouse.country || '',
+        is_active: warehouse.is_active !== false,
+    };
+};
+
+const cancelWarehouseEdit = () => {
+    editingWarehouseId.value = null;
+    warehouseEditErrors.value = {};
+};
+
+const saveWarehouseEdit = async (warehouseId) => {
+    warehouseEditSaving.value = true;
+    warehouseEditErrors.value = {};
+    try {
+        await axios.put(route('settings.warehouses.update', warehouseId), warehouseEditForm.value, {
+            headers: { Accept: 'application/json' },
+        });
+        editingWarehouseId.value = null;
+        router.reload({ only: ['warehouses'] });
+    } catch (error) {
+        warehouseEditErrors.value = error?.response?.data?.errors || { form: ['Unable to update warehouse.'] };
+    } finally {
+        warehouseEditSaving.value = false;
+    }
+};
+
+const setDefaultWarehouse = async (warehouseId) => {
+    try {
+        await axios.patch(route('settings.warehouses.default', warehouseId), {}, {
+            headers: { Accept: 'application/json' },
+        });
+        router.reload({ only: ['warehouses'] });
+    } catch (error) {
+        warehouseErrors.value = error?.response?.data?.errors || { form: ['Unable to set default warehouse.'] };
+    }
+};
+
+const deleteWarehouse = async (warehouse) => {
+    if (!confirm(`Delete warehouse "${warehouse.name}"?`)) {
+        return;
+    }
+    try {
+        await axios.delete(route('settings.warehouses.destroy', warehouse.id), {
+            headers: { Accept: 'application/json' },
+        });
+        router.reload({ only: ['warehouses'] });
+    } catch (error) {
+        warehouseErrors.value = error?.response?.data?.errors || { form: ['Unable to delete warehouse.'] };
+    }
+};
+
+const apiTokenForm = ref({
+    name: '',
+    type: 'public',
+    expires_at: '',
+});
+const apiTokenErrors = ref({});
+const apiTokenSaving = ref(false);
+const apiTokenPlain = ref('');
+
+const createApiToken = async () => {
+    apiTokenSaving.value = true;
+    apiTokenErrors.value = {};
+    apiTokenPlain.value = '';
+    try {
+        const response = await axios.post(route('settings.api-tokens.store'), apiTokenForm.value, {
+            headers: { Accept: 'application/json' },
+        });
+        apiTokenPlain.value = response?.data?.plain_text_token || '';
+        apiTokenForm.value = { name: '', type: 'public', expires_at: '' };
+        router.reload({ only: ['api_tokens'] });
+    } catch (error) {
+        apiTokenErrors.value = error?.response?.data?.errors || { form: ['Unable to create token.'] };
+    } finally {
+        apiTokenSaving.value = false;
+    }
+};
+
+const revokeApiToken = async (tokenId) => {
+    if (!confirm('Revoke this token?')) {
+        return;
+    }
+    try {
+        await axios.delete(route('settings.api-tokens.destroy', tokenId), {
+            headers: { Accept: 'application/json' },
+        });
+        router.reload({ only: ['api_tokens'] });
+    } catch (error) {
+        apiTokenErrors.value = error?.response?.data?.errors || { form: ['Unable to revoke token.'] };
+    }
+};
+
+const formatTokenDate = (value) => {
+    if (!value) {
+        return '--';
+    }
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? '--' : date.toLocaleDateString();
+};
+
+const formatAbilities = (abilities) => {
+    if (!Array.isArray(abilities) || !abilities.length) {
+        return '--';
+    }
+    return abilities.join(', ');
+};
 
 const countryPreset = resolveSelectValue(props.company.company_country, COUNTRY_OPTIONS);
 form.company_country = countryPreset.select || '';
@@ -246,6 +438,28 @@ const submit = () => {
                 company_city: normalizeText(city),
             };
 
+            payload.company_fulfillment = {
+                delivery_enabled: Boolean(data.fulfillment_delivery_enabled),
+                pickup_enabled: Boolean(data.fulfillment_pickup_enabled),
+                delivery_fee: data.fulfillment_delivery_fee !== '' ? Number(data.fulfillment_delivery_fee) : null,
+                delivery_zone: normalizeText(data.fulfillment_delivery_zone),
+                pickup_address: normalizeText(data.fulfillment_pickup_address),
+                prep_time_minutes: data.fulfillment_prep_time_minutes !== ''
+                    ? Number(data.fulfillment_prep_time_minutes)
+                    : null,
+                delivery_notes: normalizeText(data.fulfillment_delivery_notes),
+                pickup_notes: normalizeText(data.fulfillment_pickup_notes),
+            };
+
+            delete payload.fulfillment_delivery_enabled;
+            delete payload.fulfillment_pickup_enabled;
+            delete payload.fulfillment_delivery_fee;
+            delete payload.fulfillment_delivery_zone;
+            delete payload.fulfillment_pickup_address;
+            delete payload.fulfillment_prep_time_minutes;
+            delete payload.fulfillment_delivery_notes;
+            delete payload.fulfillment_pickup_notes;
+
             if (data.company_logo instanceof File) {
                 payload.company_logo = data.company_logo;
             } else {
@@ -305,6 +519,8 @@ const usageStatusClass = (status) => {
     }
     return 'text-emerald-600';
 };
+
+const isProductCompany = computed(() => form.company_type === 'products');
 
 const preferredLimit = 2;
 const isPreferredDisabled = (key) => {
@@ -409,6 +625,60 @@ const isPreferredDisabled = (key) => {
                         <InputError class="mt-1" :message="form.errors.company_type" />
                     </div>
 
+                    <div v-if="isProductCompany" class="rounded-sm border border-stone-200 bg-stone-50 p-4 space-y-3 dark:border-neutral-700 dark:bg-neutral-900">
+                        <div>
+                            <h3 class="text-sm font-semibold text-stone-800 dark:text-neutral-200">Livraison & retrait</h3>
+                            <p class="text-xs text-stone-500 dark:text-neutral-400">
+                                Parametrez les options proposees aux clients pour commander.
+                            </p>
+                        </div>
+                        <div class="flex flex-wrap gap-4 text-sm text-stone-700 dark:text-neutral-200">
+                            <label class="flex items-center gap-2">
+                                <input type="checkbox" v-model="form.fulfillment_delivery_enabled" />
+                                <span>Livraison active</span>
+                            </label>
+                            <label class="flex items-center gap-2">
+                                <input type="checkbox" v-model="form.fulfillment_pickup_enabled" />
+                                <span>Retrait en magasin</span>
+                            </label>
+                        </div>
+                        <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+                            <div>
+                                <FloatingInput v-model="form.fulfillment_delivery_fee" label="Frais de livraison (optionnel)" />
+                                <InputError class="mt-1" :message="form.errors['company_fulfillment.delivery_fee']" />
+                            </div>
+                            <div>
+                                <FloatingInput v-model="form.fulfillment_prep_time_minutes" label="Temps de preparation (minutes)" />
+                                <InputError class="mt-1" :message="form.errors['company_fulfillment.prep_time_minutes']" />
+                            </div>
+                            <div class="md:col-span-2">
+                                <FloatingInput v-model="form.fulfillment_delivery_zone" label="Zone de livraison (optionnel)" />
+                                <InputError class="mt-1" :message="form.errors['company_fulfillment.delivery_zone']" />
+                            </div>
+                            <div class="md:col-span-2">
+                                <label class="block text-xs text-stone-500 dark:text-neutral-400">Adresse de retrait</label>
+                                <textarea v-model="form.fulfillment_pickup_address"
+                                    class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
+                                    rows="2" />
+                                <InputError class="mt-1" :message="form.errors['company_fulfillment.pickup_address']" />
+                            </div>
+                            <div class="md:col-span-2">
+                                <label class="block text-xs text-stone-500 dark:text-neutral-400">Notes livraison (optionnel)</label>
+                                <textarea v-model="form.fulfillment_delivery_notes"
+                                    class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
+                                    rows="2" />
+                                <InputError class="mt-1" :message="form.errors['company_fulfillment.delivery_notes']" />
+                            </div>
+                            <div class="md:col-span-2">
+                                <label class="block text-xs text-stone-500 dark:text-neutral-400">Notes retrait (optionnel)</label>
+                                <textarea v-model="form.fulfillment_pickup_notes"
+                                    class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
+                                    rows="2" />
+                                <InputError class="mt-1" :message="form.errors['company_fulfillment.pickup_notes']" />
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="flex justify-end">
                         <button type="button" @click="submit" :disabled="form.processing"
                             class="py-2 px-3 text-sm font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:pointer-events-none">
@@ -446,6 +716,209 @@ const isPreferredDisabled = (key) => {
                             class="w-full md:w-auto py-2 px-3 text-sm font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:pointer-events-none">
                             Ajouter
                         </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex flex-col bg-white border border-stone-200 shadow-sm rounded-sm overflow-hidden dark:bg-neutral-800 dark:border-neutral-700">
+                <div class="p-4 space-y-4">
+                    <div>
+                        <h2 class="text-lg font-semibold text-stone-800 dark:text-neutral-100">Entrepots</h2>
+                        <p class="mt-1 text-sm text-stone-600 dark:text-neutral-400">
+                            Gere vos emplacements de stock et choisis un entrepot par defaut.
+                        </p>
+                    </div>
+
+                    <div v-if="warehouseErrors.form" class="text-xs text-red-600">{{ warehouseErrors.form[0] }}</div>
+
+                    <div class="space-y-3">
+                        <div v-if="!props.warehouses.length" class="text-sm text-stone-500 dark:text-neutral-400">
+                            Aucun entrepot pour le moment.
+                        </div>
+                        <div v-for="warehouse in props.warehouses" :key="warehouse.id"
+                            class="rounded-sm border border-stone-200 p-3 dark:border-neutral-700">
+                            <div class="flex flex-wrap items-start justify-between gap-3">
+                                <div>
+                                    <div class="flex items-center gap-2">
+                                        <span class="font-medium text-stone-800 dark:text-neutral-200">
+                                            {{ warehouse.name }}
+                                        </span>
+                                        <span v-if="warehouse.is_default"
+                                            class="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300">
+                                            Defaut
+                                        </span>
+                                    </div>
+                                    <div class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
+                                        {{ warehouse.code || 'Sans code' }}
+                                        <span v-if="warehouse.city"> · {{ warehouse.city }}</span>
+                                        <span v-if="warehouse.country"> · {{ warehouse.country }}</span>
+                                    </div>
+                                </div>
+                                <div class="flex flex-wrap items-center gap-2">
+                                    <button v-if="!warehouse.is_default" type="button"
+                                        class="text-xs font-semibold text-green-700 hover:text-green-800 dark:text-green-400"
+                                        @click="setDefaultWarehouse(warehouse.id)">
+                                        Definir par defaut
+                                    </button>
+                                    <button type="button"
+                                        class="text-xs font-semibold text-stone-600 hover:text-stone-800 dark:text-neutral-300"
+                                        @click="startWarehouseEdit(warehouse)">
+                                        Modifier
+                                    </button>
+                                    <button type="button"
+                                        class="text-xs font-semibold text-red-600 hover:text-red-700"
+                                        @click="deleteWarehouse(warehouse)">
+                                        Supprimer
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div v-if="editingWarehouseId === warehouse.id" class="mt-4 space-y-3">
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                    <div>
+                                        <FloatingInput v-model="warehouseEditForm.name" label="Nom" />
+                                        <InputError class="mt-1" :message="warehouseEditErrors.name?.[0]" />
+                                    </div>
+                                    <div>
+                                        <FloatingInput v-model="warehouseEditForm.code" label="Code" />
+                                        <InputError class="mt-1" :message="warehouseEditErrors.code?.[0]" />
+                                    </div>
+                                    <FloatingInput v-model="warehouseEditForm.address" label="Adresse" />
+                                    <FloatingInput v-model="warehouseEditForm.city" label="Ville" />
+                                    <FloatingInput v-model="warehouseEditForm.state" label="Province / Etat" />
+                                    <FloatingInput v-model="warehouseEditForm.postal_code" label="Code postal" />
+                                    <FloatingInput v-model="warehouseEditForm.country" label="Pays" />
+                                </div>
+                                <label class="flex items-center gap-2 text-xs text-stone-600 dark:text-neutral-400">
+                                    <input type="checkbox" v-model="warehouseEditForm.is_active" />
+                                    Entrepot actif
+                                </label>
+                                <div class="flex items-center justify-end gap-2">
+                                    <button type="button" class="text-xs text-stone-500 hover:text-stone-700"
+                                        @click="cancelWarehouseEdit">
+                                        Annuler
+                                    </button>
+                                    <button type="button"
+                                        class="inline-flex items-center rounded-sm bg-green-600 px-3 py-2 text-xs font-semibold text-white hover:bg-green-700 disabled:opacity-60"
+                                        :disabled="warehouseEditSaving"
+                                        @click="saveWarehouseEdit(warehouse.id)">
+                                        Enregistrer
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="border-t border-stone-200 pt-4 dark:border-neutral-700">
+                        <h3 class="text-sm font-semibold text-stone-700 dark:text-neutral-200">Ajouter un entrepot</h3>
+                        <div class="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div>
+                                <FloatingInput v-model="warehouseForm.name" label="Nom" />
+                                <InputError class="mt-1" :message="warehouseErrors.name?.[0]" />
+                            </div>
+                            <div>
+                                <FloatingInput v-model="warehouseForm.code" label="Code" />
+                                <InputError class="mt-1" :message="warehouseErrors.code?.[0]" />
+                            </div>
+                            <FloatingInput v-model="warehouseForm.address" label="Adresse" />
+                            <FloatingInput v-model="warehouseForm.city" label="Ville" />
+                            <FloatingInput v-model="warehouseForm.state" label="Province / Etat" />
+                            <FloatingInput v-model="warehouseForm.postal_code" label="Code postal" />
+                            <FloatingInput v-model="warehouseForm.country" label="Pays" />
+                        </div>
+                        <div class="mt-3 flex flex-wrap items-center gap-4 text-xs text-stone-600 dark:text-neutral-400">
+                            <label class="flex items-center gap-2">
+                                <input type="checkbox" v-model="warehouseForm.is_default" />
+                                Definir comme defaut
+                            </label>
+                            <label class="flex items-center gap-2">
+                                <input type="checkbox" v-model="warehouseForm.is_active" />
+                                Entrepot actif
+                            </label>
+                        </div>
+                        <div class="mt-3 flex justify-end">
+                            <button type="button"
+                                class="inline-flex items-center rounded-sm bg-green-600 px-3 py-2 text-xs font-semibold text-white hover:bg-green-700 disabled:opacity-60"
+                                :disabled="warehouseSaving"
+                                @click="createWarehouse">
+                                Ajouter
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex flex-col bg-white border border-stone-200 shadow-sm rounded-sm overflow-hidden dark:bg-neutral-800 dark:border-neutral-700">
+                <div class="p-4 space-y-4">
+                    <div>
+                        <h2 class="text-lg font-semibold text-stone-800 dark:text-neutral-100">Acces API</h2>
+                        <p class="mt-1 text-sm text-stone-600 dark:text-neutral-400">
+                            Genere des tokens publics ou prives pour connecter des outils externes.
+                        </p>
+                    </div>
+
+                    <div v-if="apiTokenPlain" class="rounded-sm border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-700">
+                        Nouveau token: <span class="font-semibold">{{ apiTokenPlain }}</span>
+                        <div class="mt-1 text-[11px]">Copiez ce token maintenant, il ne sera plus visible.</div>
+                    </div>
+
+                    <div v-if="apiTokenErrors.form" class="text-xs text-red-600">{{ apiTokenErrors.form[0] }}</div>
+
+                    <div class="space-y-3">
+                        <div v-if="!props.api_tokens.length" class="text-sm text-stone-500 dark:text-neutral-400">
+                            Aucun token pour le moment.
+                        </div>
+                        <div v-for="token in props.api_tokens" :key="token.id"
+                            class="rounded-sm border border-stone-200 p-3 text-xs text-stone-600 dark:border-neutral-700 dark:text-neutral-300">
+                            <div class="flex flex-wrap items-center justify-between gap-2">
+                                <div class="text-sm font-medium text-stone-800 dark:text-neutral-200">
+                                    {{ token.name }}
+                                </div>
+                                <button type="button"
+                                    class="text-xs font-semibold text-red-600 hover:text-red-700"
+                                    @click="revokeApiToken(token.id)">
+                                    Revoquer
+                                </button>
+                            </div>
+                            <div class="mt-2 grid grid-cols-1 md:grid-cols-3 gap-2">
+                                <div>Scopes: {{ formatAbilities(token.abilities) }}</div>
+                                <div>Creer: {{ formatTokenDate(token.created_at) }}</div>
+                                <div>Expire: {{ formatTokenDate(token.expires_at) }}</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="border-t border-stone-200 pt-4 dark:border-neutral-700">
+                        <h3 class="text-sm font-semibold text-stone-700 dark:text-neutral-200">Creer un token</h3>
+                        <div class="mt-3 grid grid-cols-1 md:grid-cols-3 gap-3">
+                            <div>
+                                <FloatingInput v-model="apiTokenForm.name" label="Nom du token" />
+                                <InputError class="mt-1" :message="apiTokenErrors.name?.[0]" />
+                            </div>
+                            <div>
+                                <label class="block text-xs text-stone-500 dark:text-neutral-400">Type</label>
+                                <select v-model="apiTokenForm.type"
+                                    class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
+                                    <option value="public">Public (lecture)</option>
+                                    <option value="private">Prive (lecture/ecriture)</option>
+                                </select>
+                                <InputError class="mt-1" :message="apiTokenErrors.type?.[0]" />
+                            </div>
+                            <div>
+                                <label class="block text-xs text-stone-500 dark:text-neutral-400">Expiration</label>
+                                <input type="date" v-model="apiTokenForm.expires_at"
+                                    class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200" />
+                                <InputError class="mt-1" :message="apiTokenErrors.expires_at?.[0]" />
+                            </div>
+                        </div>
+                        <div class="mt-3 flex justify-end">
+                            <button type="button"
+                                class="inline-flex items-center rounded-sm bg-green-600 px-3 py-2 text-xs font-semibold text-white hover:bg-green-700 disabled:opacity-60"
+                                :disabled="apiTokenSaving"
+                                @click="createApiToken">
+                                Generer
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>

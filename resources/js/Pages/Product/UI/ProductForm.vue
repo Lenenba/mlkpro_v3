@@ -2,6 +2,7 @@
 import { useForm } from '@inertiajs/vue3';
 import axios from 'axios';
 import { computed, ref, watch } from 'vue';
+import { humanizeDate } from '@/utils/date';
 import productCard from '@/Components/UI/ProductCard2.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
@@ -39,6 +40,7 @@ const form = useForm({
     cost_price: props.product?.cost_price || 0,
     margin_percent: props.product?.margin_percent || 0,
     minimum_stock: props.product?.minimum_stock || 0,
+    tracking_type: props.product?.tracking_type || 'none',
     description: props.product?.description || '',
     image: props.product?.image_url || props.product?.image || '',
     image_url: props.product?.image_url || '',
@@ -48,6 +50,7 @@ const form = useForm({
     barcode: props.product?.barcode || '',
     unit: props.product?.unit || '',
     supplier_name: props.product?.supplier_name || '',
+    supplier_email: props.product?.supplier_email || '',
     tax_rate: props.product?.tax_rate || 0,
     is_active: props.product?.is_active ?? true,
 });
@@ -58,6 +61,17 @@ const unitOptions = [
     { id: 'm2', name: 'm2' },
     { id: 'other', name: 'Other' },
 ];
+
+const trackingOptions = [
+    { id: 'none', name: 'Standard (no lot/serial)' },
+    { id: 'lot', name: 'Lot tracking' },
+    { id: 'serial', name: 'Serial tracking' },
+];
+
+const formatNumber = (value) =>
+    Number(value || 0).toLocaleString(undefined, { maximumFractionDigits: 0 });
+
+const formatRelativeDate = (value) => humanizeDate(value);
 
 const categoryOptions = ref(Array.isArray(props.categories) ? [...props.categories] : []);
 
@@ -92,6 +106,70 @@ const marginPreview = computed(() => {
     }
     return ((form.price - form.cost_price) / form.price) * 100;
 });
+
+const lotItems = computed(() => {
+    if (!Array.isArray(props.product?.lots)) {
+        return [];
+    }
+    return [...props.product.lots].sort((a, b) => {
+        const aDate = a?.expires_at ? new Date(a.expires_at).getTime() : Number.MAX_SAFE_INTEGER;
+        const bDate = b?.expires_at ? new Date(b.expires_at).getTime() : Number.MAX_SAFE_INTEGER;
+        return aDate - bDate;
+    });
+});
+
+const isLotExpired = (lot) => {
+    if (!lot?.expires_at) {
+        return false;
+    }
+    return new Date(lot.expires_at).getTime() < Date.now();
+};
+
+const isLotExpiringSoon = (lot) => {
+    if (!lot?.expires_at) {
+        return false;
+    }
+    const expiry = new Date(lot.expires_at).getTime();
+    const now = Date.now();
+    const soon = now + (1000 * 60 * 60 * 24 * 30);
+    return expiry >= now && expiry <= soon;
+};
+
+const getLotStatus = (lot) => {
+    if (isLotExpired(lot)) {
+        return 'Expired';
+    }
+    if (isLotExpiringSoon(lot)) {
+        return 'Expiring soon';
+    }
+    return 'Active';
+};
+
+const lotStatusClasses = {
+    expired: 'bg-red-100 text-red-700 dark:bg-red-500/10 dark:text-red-300',
+    expiring: 'bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300',
+    active: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300',
+};
+
+const getLotStatusClass = (lot) => {
+    if (isLotExpired(lot)) {
+        return lotStatusClasses.expired;
+    }
+    if (isLotExpiringSoon(lot)) {
+        return lotStatusClasses.expiring;
+    }
+    return lotStatusClasses.active;
+};
+
+const getLotLabel = (lot) => {
+    if (lot?.serial_number) {
+        return `Serial ${lot.serial_number}`;
+    }
+    if (lot?.lot_number) {
+        return `Lot ${lot.lot_number}`;
+    }
+    return 'Lot';
+};
 
 watch([() => form.price, () => form.cost_price], () => {
     if (form.price > 0) {
@@ -351,8 +429,10 @@ const buttonLabel = computed(() => (props.product ? 'Update Product' : 'Create P
                         </div>
                         <FloatingInput v-model="form.sku" label="SKU" />
                         <FloatingInput v-model="form.barcode" label="Barcode" />
+                        <FloatingSelect v-model="form.tracking_type" label="Tracking" :options="trackingOptions" />
                         <FloatingSelect v-model="form.unit" label="Unit" :options="unitOptions" />
                         <FloatingInput v-model="form.supplier_name" label="Supplier" />
+                        <FloatingInput v-model="form.supplier_email" label="Supplier email" />
                         <FloatingNumberInput v-model="form.tax_rate" label="Tax rate (%)" :step="0.01" />
                         <div class="flex items-center gap-x-2">
                             <Checkbox v-model:checked="form.is_active" />
@@ -380,6 +460,70 @@ const buttonLabel = computed(() => (props.product ? 'Update Product' : 'Create P
                         <FloatingNumberInput v-model="form.margin_percent" label="Margin (%)" :step="0.01" />
                         <FloatingNumberInput v-model="form.stock" label="Stock" :required="true" />
                         <FloatingNumberInput v-model="form.minimum_stock" label="Minimum stock" :required="true" />
+                    </div>
+                </productCard>
+
+                <productCard v-if="props.product?.inventories?.length">
+                    <template #title>
+                        Inventory
+                    </template>
+
+                    <div class="space-y-3 text-sm text-stone-600 dark:text-neutral-300">
+                        <div v-for="inventory in props.product.inventories" :key="inventory.id"
+                            class="rounded-sm border border-stone-200 p-3 dark:border-neutral-700">
+                            <div class="flex items-center justify-between">
+                                <div class="font-medium text-stone-700 dark:text-neutral-200">
+                                    {{ inventory.warehouse?.name || 'Warehouse' }}
+                                </div>
+                                <span class="text-xs text-stone-500 dark:text-neutral-400">
+                                    Bin {{ inventory.bin_location || '—' }}
+                                </span>
+                            </div>
+                            <div class="mt-2 grid grid-cols-2 gap-2 text-xs text-stone-500 dark:text-neutral-400">
+                                <div>On hand: {{ formatNumber(inventory.on_hand) }}</div>
+                                <div>Reserved: {{ formatNumber(inventory.reserved) }}</div>
+                                <div>Damaged: {{ formatNumber(inventory.damaged) }}</div>
+                                <div>Min: {{ formatNumber(inventory.minimum_stock) }}</div>
+                            </div>
+                        </div>
+                    </div>
+                </productCard>
+
+                <productCard v-if="Array.isArray(props.product?.lots)">
+                    <template #title>
+                        Lots & Serials
+                    </template>
+
+                    <div v-if="!lotItems.length" class="text-xs text-stone-500 dark:text-neutral-400">
+                        No lots or serials yet.
+                    </div>
+                    <div v-else class="space-y-2">
+                        <div v-for="lot in lotItems" :key="lot.id"
+                            class="rounded-sm border border-stone-200 p-3 text-sm text-stone-600 dark:border-neutral-700 dark:text-neutral-300">
+                            <div class="flex items-center justify-between gap-2">
+                                <div class="font-medium text-stone-700 dark:text-neutral-200">
+                                    {{ getLotLabel(lot) }}
+                                </div>
+                                <span class="rounded-full px-2 py-1 text-[10px] font-semibold"
+                                    :class="getLotStatusClass(lot)">
+                                    {{ getLotStatus(lot) }}
+                                </span>
+                            </div>
+                            <div class="mt-2 grid grid-cols-1 gap-2 text-xs text-stone-500 dark:text-neutral-400">
+                                <div>
+                                    Warehouse: {{ lot.warehouse?.name || 'Warehouse' }}
+                                </div>
+                                <div>
+                                    Quantity: {{ formatNumber(lot.quantity) }}
+                                </div>
+                                <div v-if="lot.received_at">
+                                    Received {{ formatRelativeDate(lot.received_at) }}
+                                </div>
+                                <div v-if="lot.expires_at">
+                                    Expires {{ formatRelativeDate(lot.expires_at) }}
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </productCard>
 

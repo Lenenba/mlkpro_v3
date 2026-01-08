@@ -66,7 +66,7 @@ const registerForm = useForm({
     password_confirmation: '',
 });
 
-const SECTOR_OPTIONS = [
+const SERVICE_SECTOR_OPTIONS = [
     { id: '', name: 'Selectionner un secteur' },
     { id: 'menuiserie', name: 'Menuiserie' },
     { id: 'plomberie', name: 'Plomberie' },
@@ -77,6 +77,19 @@ const SECTOR_OPTIONS = [
     { id: 'paysagisme', name: 'Paysagisme' },
     { id: 'climatisation', name: 'Climatisation' },
     { id: 'nettoyage', name: 'Nettoyage' },
+    { id: '__other__', name: 'Autre...' },
+];
+
+const PRODUCT_SECTOR_OPTIONS = [
+    { id: '', name: 'Selectionner un type de commerce' },
+    { id: 'retail', name: 'Commerce de detail' },
+    { id: 'wholesale', name: 'Commerce de gros' },
+    { id: 'grocery', name: 'Epicerie' },
+    { id: 'convenience', name: 'Depanneur' },
+    { id: 'specialty', name: 'Boutique specialisee' },
+    { id: 'pharmacy', name: 'Pharmacie / parapharmacie' },
+    { id: 'electronics', name: 'Electronique' },
+    { id: 'home_hardware', name: 'Maison & bricolage' },
     { id: '__other__', name: 'Autre...' },
 ];
 
@@ -109,7 +122,9 @@ const form = useForm({
     accept_terms: false,
 });
 
-const sectorPreset = resolveSelectValue(preset.value.company_sector, SECTOR_OPTIONS);
+const sectorOptions = computed(() => (form.company_type === 'products' ? PRODUCT_SECTOR_OPTIONS : SERVICE_SECTOR_OPTIONS));
+
+const sectorPreset = resolveSelectValue(preset.value.company_sector, sectorOptions.value);
 form.company_sector = sectorPreset.select;
 form.company_sector_other = sectorPreset.other;
 
@@ -279,12 +294,22 @@ watch(
     }
 );
 
+watch(
+    () => form.company_type,
+    () => {
+        const currentValue = form.company_sector === '__other__' ? form.company_sector_other : form.company_sector;
+        const resolved = resolveSelectValue(currentValue, sectorOptions.value);
+        form.company_sector = resolved.select;
+        form.company_sector_other = resolved.other;
+    }
+);
+
 const companyTypeLabel = computed(() => (form.company_type === 'products' ? 'Entreprise de produits' : 'Entreprise de services'));
 const companySectorLabel = computed(() => {
     if (form.company_sector === '__other__') {
         return form.company_sector_other || 'Autre';
     }
-    const match = SECTOR_OPTIONS.find((option) => option.id === form.company_sector);
+    const match = sectorOptions.value.find((option) => option.id === form.company_sector);
     return match?.name || form.company_sector || '-';
 });
 
@@ -590,10 +615,12 @@ const closeTerms = () => {
 
                         <div v-else-if="step === stepIds.sector" class="space-y-3">
                         <div>
-                            <label class="block text-xs text-stone-500 dark:text-neutral-400">Secteur d'activite</label>
+                            <label class="block text-xs text-stone-500 dark:text-neutral-400">
+                                {{ form.company_type === 'products' ? 'Type de commerce' : "Secteur d'activite" }}
+                            </label>
                             <select v-model="form.company_sector"
                                 class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
-                                <option v-for="option in SECTOR_OPTIONS" :key="option.id" :value="option.id">
+                                <option v-for="option in sectorOptions" :key="option.id" :value="option.id">
                                     {{ option.name }}
                                 </option>
                             </select>
@@ -606,7 +633,12 @@ const closeTerms = () => {
                             </p>
                         </div>
                         <div class="rounded-sm border border-stone-200 bg-stone-50 p-3 text-sm text-stone-700 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200">
-                            Des categories de services seront creees automatiquement, y compris pour un secteur ajoute.
+                            <span v-if="form.company_type === 'products'">
+                                Le module Ventes sera active pour vendre vos produits via la plateforme.
+                            </span>
+                            <span v-else>
+                                Des categories de services seront creees automatiquement, y compris pour un secteur ajoute.
+                            </span>
                         </div>
                     </div>
 

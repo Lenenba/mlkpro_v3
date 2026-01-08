@@ -1,6 +1,6 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
-import { Head, Link, router, useForm } from '@inertiajs/vue3';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 import Header from './UI/Header.vue';
 import Card from '@/Components/UI/Card.vue';
@@ -35,7 +35,28 @@ const props = defineProps({
         type: Object,
         default: null,
     },
+    sales: {
+        type: Array,
+        default: () => [],
+    },
+    salesSummary: {
+        type: Object,
+        default: null,
+    },
+    salesInsights: {
+        type: Object,
+        default: null,
+    },
+    topProducts: {
+        type: Array,
+        default: () => [],
+    },
 });
+
+const page = usePage();
+const companyType = computed(() => page.props.auth?.account?.company?.type ?? null);
+const showSales = computed(() => companyType.value === 'products');
+const showServiceOps = computed(() => companyType.value !== 'products');
 
 const properties = computed(() => props.customer?.properties || []);
 const tags = computed(() => props.customer?.tags || []);
@@ -46,8 +67,63 @@ const latestInvoice = computed(() => (props.customer?.invoices || [])[0] || null
 const formatDate = (value) => humanizeDate(value);
 const formatCurrency = (value) =>
     `$${Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const formatNumber = (value, fractionDigits = 0) =>
+    Number(value || 0).toLocaleString(undefined, {
+        minimumFractionDigits: fractionDigits,
+        maximumFractionDigits: fractionDigits,
+    });
 const formatStatus = (status) => (status || '-').replace(/_/g, ' ');
 const hasValue = (value) => value !== null && value !== undefined;
+const topProducts = computed(() => props.topProducts || []);
+
+const purchaseCards = computed(() => {
+    const insights = props.salesInsights || {};
+    const numberLabel = (value, fractionDigits = 0) => {
+        if (!hasValue(value)) {
+            return '-';
+        }
+        return Number(value).toLocaleString(undefined, {
+            minimumFractionDigits: fractionDigits,
+            maximumFractionDigits: fractionDigits,
+        });
+    };
+    const preferred = [insights.preferred_day, insights.preferred_period].filter(Boolean).join(' • ');
+
+    return [
+        {
+            label: 'Dernier achat',
+            value: insights.last_purchase_at ? formatDate(insights.last_purchase_at) : '-',
+        },
+        {
+            label: 'Jours depuis',
+            value: hasValue(insights.days_since_last_purchase)
+                ? `${numberLabel(insights.days_since_last_purchase)} j`
+                : '-',
+        },
+        {
+            label: 'Achat moyen',
+            value: formatCurrency(insights.average_order_value || 0),
+        },
+        {
+            label: 'Articles moyens',
+            value: hasValue(insights.average_items) ? numberLabel(insights.average_items, 1) : '-',
+        },
+        {
+            label: 'Cadence moyenne',
+            value: hasValue(insights.purchase_frequency_days)
+                ? `${numberLabel(insights.purchase_frequency_days, 1)} j`
+                : '-',
+        },
+        {
+            label: 'Achats 30 jours',
+            value: numberLabel(insights.recent_30_count || 0),
+        },
+        {
+            label: 'Habitude',
+            value: preferred || '-',
+        },
+    ];
+});
 
 const propertyTypes = [
     { id: 'physical', name: 'Physical' },
@@ -287,6 +363,124 @@ const deleteProperty = (property) => {
             <div class="md:col-span-2">
                 <Header :customer="customer" />
 
+                <Card v-if="showSales" class="mt-5">
+                    <template #title>
+                        <div class="flex items-center justify-between gap-3">
+                            <span>Sales</span>
+                            <Link
+                                :href="route('sales.index')"
+                                class="text-xs font-semibold text-green-700 hover:underline dark:text-green-400"
+                            >
+                                View all
+                            </Link>
+                        </div>
+                    </template>
+
+                    <div class="grid grid-cols-1 gap-3 md:grid-cols-3">
+                        <div class="rounded-sm border border-stone-200 bg-stone-50 p-3 text-sm text-stone-700 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200">
+                            <div class="text-xs uppercase text-stone-400">Sales</div>
+                            <div class="mt-1 text-lg font-semibold">{{ salesSummary?.count || 0 }}</div>
+                        </div>
+                        <div class="rounded-sm border border-stone-200 bg-stone-50 p-3 text-sm text-stone-700 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200">
+                            <div class="text-xs uppercase text-stone-400">Paid</div>
+                            <div class="mt-1 text-lg font-semibold">{{ formatCurrency(salesSummary?.paid || 0) }}</div>
+                        </div>
+                        <div class="rounded-sm border border-stone-200 bg-stone-50 p-3 text-sm text-stone-700 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200">
+                            <div class="text-xs uppercase text-stone-400">Total</div>
+                            <div class="mt-1 text-lg font-semibold">{{ formatCurrency(salesSummary?.total || 0) }}</div>
+                        </div>
+                    </div>
+
+                    <div class="mt-4">
+                        <div v-if="!sales.length" class="text-sm text-stone-500 dark:text-neutral-400">
+                            No sales for this customer yet.
+                        </div>
+                        <div v-else class="divide-y divide-stone-200 dark:divide-neutral-700">
+                            <div v-for="sale in sales" :key="sale.id" class="flex items-center justify-between gap-3 py-3 text-sm">
+                                <div>
+                                    <Link
+                                        :href="route('sales.show', sale.id)"
+                                        class="font-semibold text-stone-800 hover:underline dark:text-neutral-200"
+                                    >
+                                        {{ sale.number || `Sale #${sale.id}` }}
+                                    </Link>
+                                    <div class="text-xs text-stone-500 dark:text-neutral-400">
+                                        {{ formatDate(sale.created_at) }}
+                                    </div>
+                                </div>
+                                <div class="text-right">
+                                    <div class="font-semibold text-stone-800 dark:text-neutral-200">
+                                        {{ formatCurrency(sale.total) }}
+                                    </div>
+                                    <div class="text-xs text-stone-500 dark:text-neutral-400">
+                                        {{ formatStatus(sale.status) }}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </Card>
+
+                <Card v-if="showSales" class="mt-5">
+                    <template #title>Habitudes d'achat</template>
+
+                    <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                        <div
+                            v-for="card in purchaseCards"
+                            :key="card.label"
+                            class="rounded-sm border border-stone-200 bg-stone-50 p-3 text-sm text-stone-700 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
+                        >
+                            <div class="text-xs uppercase text-stone-400">{{ card.label }}</div>
+                            <div class="mt-1 text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                                {{ card.value }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-5">
+                        <h3 class="text-sm font-semibold text-stone-800 dark:text-neutral-200">Produits favoris</h3>
+
+                        <div v-if="topProducts.length" class="mt-3 space-y-2">
+                            <div
+                                v-for="product in topProducts"
+                                :key="product.id"
+                                class="flex items-center justify-between gap-3 rounded-sm border border-stone-200 px-3 py-2 text-sm dark:border-neutral-700"
+                            >
+                                <div class="flex items-center gap-3">
+                                    <div
+                                        class="flex h-12 w-12 items-center justify-center overflow-hidden rounded-sm border border-stone-200 bg-white text-xs font-semibold text-stone-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300"
+                                    >
+                                        <img
+                                            v-if="product.image"
+                                            :src="product.image"
+                                            :alt="product.name || 'Produit'"
+                                            class="h-full w-full object-cover"
+                                        />
+                                        <span v-else>{{ (product.name || 'P').charAt(0).toUpperCase() }}</span>
+                                    </div>
+                                    <div>
+                                        <div class="text-sm font-medium text-stone-800 dark:text-neutral-200">
+                                            {{ product.name || 'Produit' }}
+                                        </div>
+                                        <div class="text-xs text-stone-500 dark:text-neutral-400">
+                                            {{ product.sku || 'SKU -' }}
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="text-right">
+                                    <div class="text-sm font-semibold text-stone-800 dark:text-neutral-200">
+                                        {{ formatNumber(product.quantity) }}
+                                    </div>
+                                    <div class="text-xs text-stone-500 dark:text-neutral-400">
+                                        {{ formatCurrency(product.total) }}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div v-else class="mt-2 text-sm text-stone-500 dark:text-neutral-400">Aucun achat recent.</div>
+                    </div>
+                </Card>
+
                 <Card class="mt-5">
                     <template #title>
                         <div class="flex items-center justify-between gap-3">
@@ -503,9 +697,9 @@ const deleteProperty = (property) => {
                     </ul>
                 </Card>
 
-                <CardNav class="mt-5" :customer="customer" :stats="stats" />
+                <CardNav v-if="showServiceOps" class="mt-5" :customer="customer" :stats="stats" />
 
-                <Card class="mt-5">
+                <Card v-if="showServiceOps" class="mt-5">
                     <template #title>Schedule</template>
 
                     <div class="space-y-5">
@@ -613,7 +807,7 @@ const deleteProperty = (property) => {
                 </Card>
             </div>
             <div>
-                <CardNoHeader>
+                <CardNoHeader v-if="showServiceOps">
                     <template #title>Apercu client</template>
 
                     <div class="grid grid-cols-2 gap-3">
@@ -762,7 +956,7 @@ const deleteProperty = (property) => {
                         </div>
                     </form>
                 </CardNoHeader>
-                <CardNoHeader class="mt-5">
+                <CardNoHeader v-if="showServiceOps" class="mt-5">
                     <template #title>Validation auto</template>
 
                     <form class="space-y-3" @submit.prevent="submitAutoValidation">
@@ -849,7 +1043,7 @@ const deleteProperty = (property) => {
                     </div>
                     <div v-else class="text-sm text-stone-500 dark:text-neutral-400">Aucune interaction.</div>
                 </CardNoHeader>
-                <Card class="mt-5">
+                <Card v-if="showServiceOps" class="mt-5">
                     <template #title>Historique facturation</template>
 
                     <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">

@@ -7,16 +7,21 @@ use App\Models\Work;
 use App\Models\Invoice;
 use App\Models\Payment;
 use App\Models\Product;
+use App\Models\ProductInventory;
+use App\Models\ProductLot;
 use App\Models\Customer;
 use App\Models\ActivityLog;
 use App\Models\Task;
 use App\Models\TeamMember;
+use App\Models\Sale;
+use App\Models\SaleItem;
 use App\Models\PlanScan;
 use App\Models\PlatformAnnouncement;
 use App\Models\User;
 use App\Services\UsageLimitService;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Laravel\Paddle\Cashier;
 use Laravel\Paddle\Subscription;
 
@@ -51,6 +56,118 @@ class DashboardController extends Controller
                     'taskProofs' => [],
                     'quoteRatingsDue' => [],
                     'workRatingsDue' => [],
+                ]);
+            }
+
+            $accountOwner = User::query()->select(['id', 'company_type', 'company_name'])->find($customer->user_id);
+            if ($accountOwner?->company_type === 'products') {
+                $customerId = $customer->id;
+                $salesQuery = Sale::query()
+                    ->where('user_id', $accountOwner->id)
+                    ->where('customer_id', $customerId);
+
+                $stats = [
+                    'orders_total' => (clone $salesQuery)->count(),
+                    'orders_pending' => (clone $salesQuery)->where('status', Sale::STATUS_PENDING)->count(),
+                    'orders_paid' => (clone $salesQuery)->where('status', Sale::STATUS_PAID)->count(),
+                    'amount_paid' => (float) (clone $salesQuery)->where('status', Sale::STATUS_PAID)->sum('total'),
+                ];
+
+                $recentSales = (clone $salesQuery)
+                    ->latest()
+                    ->limit(8)
+                    ->get([
+                        'id',
+                        'number',
+                        'status',
+                        'total',
+                        'created_at',
+                        'fulfillment_method',
+                        'fulfillment_status',
+                        'scheduled_for',
+                        'delivery_confirmed_at',
+                    ]);
+
+                $pendingOrders = (clone $salesQuery)
+                    ->where('status', '!=', Sale::STATUS_CANCELED)
+                    ->where(function ($query) {
+                        $query->whereNull('fulfillment_status')
+                            ->orWhereIn('fulfillment_status', [
+                                Sale::FULFILLMENT_PENDING,
+                                Sale::FULFILLMENT_PREPARING,
+                                Sale::FULFILLMENT_READY_FOR_PICKUP,
+                                Sale::FULFILLMENT_COMPLETED,
+                            ]);
+                    })
+                    ->latest()
+                    ->limit(6)
+                    ->get([
+                        'id',
+                        'number',
+                        'status',
+                        'total',
+                        'created_at',
+                        'fulfillment_method',
+                        'fulfillment_status',
+                        'scheduled_for',
+                        'delivery_confirmed_at',
+                    ]);
+
+                $inDeliveryOrders = (clone $salesQuery)
+                    ->where('status', '!=', Sale::STATUS_CANCELED)
+                    ->where('fulfillment_method', 'delivery')
+                    ->where('fulfillment_status', Sale::FULFILLMENT_OUT_FOR_DELIVERY)
+                    ->latest()
+                    ->limit(6)
+                    ->get([
+                        'id',
+                        'number',
+                        'status',
+                        'total',
+                        'created_at',
+                        'fulfillment_method',
+                        'fulfillment_status',
+                        'scheduled_for',
+                        'delivery_confirmed_at',
+                    ]);
+
+                $now = now();
+                $deliveryAlerts = (clone $salesQuery)
+                    ->where('status', '!=', Sale::STATUS_CANCELED)
+                    ->where('fulfillment_method', 'delivery')
+                    ->where(function ($query) use ($now) {
+                        $query->where('fulfillment_status', Sale::FULFILLMENT_OUT_FOR_DELIVERY)
+                            ->orWhere(function ($sub) use ($now) {
+                                $sub->whereNotNull('scheduled_for')
+                                    ->whereBetween('scheduled_for', [
+                                        $now->copy()->subMinutes(30),
+                                        $now->copy()->addHours(6),
+                                    ]);
+                            });
+                    })
+                    ->orderByRaw('scheduled_for is null, scheduled_for asc')
+                    ->limit(6)
+                    ->get([
+                        'id',
+                        'number',
+                        'status',
+                        'total',
+                        'created_at',
+                        'fulfillment_method',
+                        'fulfillment_status',
+                        'scheduled_for',
+                        'delivery_confirmed_at',
+                    ]);
+
+                return $this->inertiaOrJson('DashboardProductsClient', [
+                    'company' => [
+                        'name' => $accountOwner->company_name,
+                    ],
+                    'stats' => $stats,
+                    'sales' => $recentSales,
+                    'pendingOrders' => $pendingOrders,
+                    'inDeliveryOrders' => $inDeliveryOrders,
+                    'deliveryAlerts' => $deliveryAlerts,
                 ]);
             }
 
@@ -369,6 +486,127 @@ class DashboardController extends Controller
                 ->first();
         }
 
+        if ($accountOwner?->company_type === 'products') {
+            $restrictSales = $membership
+                && !$membership->hasPermission('sales.manage')
+                && $membership->hasPermission('sales.pos');
+
+            $salesBaseQuery = Sale::query()
+                ->where('user_id', $accountId)
+                ->where('status', Sale::STATUS_PAID)
+                ->when($restrictSales, fn($query) => $query->where('created_by_user_id', $user->id));
+            $salesTodayQuery = (clone $salesBaseQuery)->whereDate('created_at', $today);
+            $salesMonthQuery = (clone $salesBaseQuery)
+                ->whereBetween('created_at', [$now->copy()->startOfMonth(), $now->copy()->endOfMonth()]);
+
+            $productsQuery = Product::query()
+                ->products()
+                ->byUser($accountId);
+
+            $stats = [
+                'sales_today' => (clone $salesTodayQuery)->count(),
+                'sales_month' => (clone $salesMonthQuery)->count(),
+                'revenue_today' => (float) (clone $salesTodayQuery)
+                    ->where('status', Sale::STATUS_PAID)
+                    ->sum('total'),
+                'revenue_month' => (float) (clone $salesMonthQuery)
+                    ->where('status', Sale::STATUS_PAID)
+                    ->sum('total'),
+                'inventory_value' => (float) (clone $productsQuery)
+                    ->select(DB::raw('COALESCE(SUM(stock * COALESCE(NULLIF(cost_price, 0), price)), 0) as value'))
+                    ->value('value'),
+                'products_total' => (clone $productsQuery)->count(),
+                'low_stock' => (clone $productsQuery)
+                    ->whereColumn('stock', '<=', 'minimum_stock')
+                    ->where('stock', '>', 0)
+                    ->count(),
+                'out_of_stock' => (clone $productsQuery)
+                    ->where('stock', '<=', 0)
+                    ->count(),
+            ];
+
+            $stats['reserved_total'] = (int) ProductInventory::query()
+                ->whereHas('product', fn($query) => $query->where('user_id', $accountId))
+                ->sum('reserved');
+            $stats['damaged_total'] = (int) ProductInventory::query()
+                ->whereHas('product', fn($query) => $query->where('user_id', $accountId))
+                ->sum('damaged');
+
+            $expiringDate = $now->copy()->addDays(30)->toDateString();
+            $stats['expired_lots'] = (int) ProductLot::query()
+                ->whereHas('product', fn($query) => $query->where('user_id', $accountId))
+                ->whereNotNull('expires_at')
+                ->whereDate('expires_at', '<', $today)
+                ->count();
+            $stats['expiring_lots'] = (int) ProductLot::query()
+                ->whereHas('product', fn($query) => $query->where('user_id', $accountId))
+                ->whereNotNull('expires_at')
+                ->whereDate('expires_at', '>=', $today)
+                ->whereDate('expires_at', '<=', $expiringDate)
+                ->count();
+
+            $recentSales = (clone $salesBaseQuery)
+                ->with('customer:id,first_name,last_name,company_name')
+                ->latest()
+                ->limit(8)
+                ->get(['id', 'number', 'status', 'total', 'created_at', 'customer_id']);
+
+            $stockAlerts = (clone $productsQuery)
+                ->where(function ($query) {
+                    $query->where('stock', '<=', 0)
+                        ->orWhereColumn('stock', '<=', 'minimum_stock');
+                })
+                ->orderBy('stock')
+                ->limit(8)
+                ->get(['id', 'name', 'stock', 'minimum_stock', 'image', 'supplier_name', 'supplier_email']);
+
+            $topSales = SaleItem::query()
+                ->select('sale_items.product_id', DB::raw('SUM(sale_items.quantity) as quantity'))
+                ->join('sales', 'sale_items.sale_id', '=', 'sales.id')
+                ->where('sales.user_id', $accountId)
+                ->where('sales.status', Sale::STATUS_PAID)
+                ->when($restrictSales, fn($query) => $query->where('sales.created_by_user_id', $user->id))
+                ->groupBy('sale_items.product_id')
+                ->orderByDesc('quantity')
+                ->limit(6)
+                ->get();
+
+            $topProducts = collect();
+            if ($topSales->isNotEmpty()) {
+                $productMap = Product::query()
+                    ->whereIn('id', $topSales->pluck('product_id'))
+                    ->get(['id', 'name', 'image'])
+                    ->keyBy('id');
+
+                $topProducts = $topSales->map(function ($row) use ($productMap) {
+                    $product = $productMap->get($row->product_id);
+
+                    return [
+                        'id' => $row->product_id,
+                        'name' => $product?->name ?? 'Product',
+                        'image_url' => $product?->image_url,
+                        'quantity' => (int) $row->quantity,
+                    ];
+                })->values();
+            }
+
+            if ($membership) {
+                return $this->inertiaOrJson('DashboardProductsTeam', [
+                    'stats' => $stats,
+                    'recentSales' => $recentSales,
+                    'stockAlerts' => $stockAlerts,
+                    'topProducts' => $topProducts,
+                ]);
+            }
+
+            return $this->inertiaOrJson('DashboardProductsOwner', [
+                'stats' => $stats,
+                'recentSales' => $recentSales,
+                'stockAlerts' => $stockAlerts,
+                'topProducts' => $topProducts,
+            ]);
+        }
+
         if ($membership) {
             if ($membership->role === 'admin') {
                 $tasksQuery = Task::query()->forAccount($accountId);
@@ -628,7 +866,7 @@ class DashboardController extends Controller
         $invoicesQuery = Invoice::byUser($userId);
 
         $inventoryValue = (clone $productsQuery)
-            ->selectRaw('COALESCE(SUM(stock * COALESCE(NULLIF(cost_price, 0), price)), 0) as value')
+            ->select(DB::raw('COALESCE(SUM(stock * COALESCE(NULLIF(cost_price, 0), price)), 0) as value'))
             ->value('value');
 
         $scheduledStatuses = [Work::STATUS_TO_SCHEDULE, Work::STATUS_SCHEDULED];
@@ -884,7 +1122,7 @@ class DashboardController extends Controller
         $inventorySeries = $this->buildMonthlySeries($now, $seriesMonths, function ($start, $end) use ($productsQuery) {
             return (float) (clone $productsQuery)
                 ->whereBetween('created_at', [$start, $end])
-                ->selectRaw('COALESCE(SUM(stock * COALESCE(NULLIF(cost_price, 0), price)), 0) as value')
+                ->select(DB::raw('COALESCE(SUM(stock * COALESCE(NULLIF(cost_price, 0), price)), 0) as value'))
                 ->value('value');
         });
         $kpiSeries = [

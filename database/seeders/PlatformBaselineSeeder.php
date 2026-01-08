@@ -63,6 +63,7 @@ class PlatformBaselineSeeder extends Seeder
             'invoices',
             'jobs',
             'products',
+            'sales',
             'services',
             'tasks',
             'team_members',

@@ -24,6 +24,18 @@ const props = defineProps({
         type: Number,
         required: true,
     },
+    warehouses: {
+        type: Array,
+        default: () => [],
+    },
+    defaultWarehouseId: {
+        type: Number,
+        default: null,
+    },
+    canEdit: {
+        type: Boolean,
+        default: false,
+    },
 });
 
 const normalizeArray = (value) => {
@@ -44,13 +56,20 @@ const filterForm = useForm({
     price_max: props.filters?.price_max ?? '',
     stock_min: props.filters?.stock_min ?? '',
     stock_max: props.filters?.stock_max ?? '',
+    supplier_name: props.filters?.supplier_name ?? '',
     has_image: props.filters?.has_image ?? '',
+    has_barcode: props.filters?.has_barcode ?? '',
     created_from: props.filters?.created_from ?? '',
     created_to: props.filters?.created_to ?? '',
     status: props.filters?.status ?? '',
+    tracking_type: props.filters?.tracking_type ?? '',
+    warehouse_id: props.filters?.warehouse_id ?? '',
+    alert: props.filters?.alert ?? '',
     sort: props.filters?.sort ?? 'created_at',
     direction: props.filters?.direction ?? 'desc',
 });
+
+const canEdit = computed(() => Boolean(props.canEdit));
 
 const showAdvanced = ref(false);
 
@@ -63,10 +82,15 @@ const filterPayload = () => {
         price_max: filterForm.price_max,
         stock_min: filterForm.stock_min,
         stock_max: filterForm.stock_max,
+        supplier_name: filterForm.supplier_name,
         has_image: filterForm.has_image,
+        has_barcode: filterForm.has_barcode,
         created_from: filterForm.created_from,
         created_to: filterForm.created_to,
         status: filterForm.status,
+        tracking_type: filterForm.tracking_type,
+        warehouse_id: filterForm.warehouse_id,
+        alert: filterForm.alert,
         sort: filterForm.sort,
         direction: filterForm.direction,
     };
@@ -113,10 +137,15 @@ watch(() => [
     filterForm.price_max,
     filterForm.stock_min,
     filterForm.stock_max,
+    filterForm.supplier_name,
     filterForm.has_image,
+    filterForm.has_barcode,
     filterForm.created_from,
     filterForm.created_to,
     filterForm.status,
+    filterForm.tracking_type,
+    filterForm.warehouse_id,
+    filterForm.alert,
     filterForm.sort,
     filterForm.direction,
 ], () => {
@@ -131,10 +160,15 @@ const clearFilters = () => {
     filterForm.price_max = '';
     filterForm.stock_min = '';
     filterForm.stock_max = '';
+    filterForm.supplier_name = '';
     filterForm.has_image = '';
+    filterForm.has_barcode = '';
     filterForm.created_from = '';
     filterForm.created_to = '';
     filterForm.status = '';
+    filterForm.tracking_type = '';
+    filterForm.warehouse_id = '';
+    filterForm.alert = '';
     filterForm.sort = 'created_at';
     filterForm.direction = 'desc';
     autoFilter();
@@ -148,11 +182,94 @@ const formatCurrency = (value) =>
 const formatNumber = (value) =>
     Number(value || 0).toLocaleString(undefined, { maximumFractionDigits: 0 });
 
+const formatPercent = (value) =>
+    `${Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}%`;
+
+const activeWarehouses = computed(() =>
+    (props.warehouses || []).filter((warehouse) => warehouse.is_active !== false)
+);
+
+const getAvailableStock = (product) =>
+    Number(product.stock_available ?? product.stock ?? 0);
+
+const getReservedStock = (product) =>
+    Number(product.stock_reserved ?? 0);
+
+const getDamagedStock = (product) =>
+    Number(product.stock_damaged ?? 0);
+
+const getStockValue = (product) =>
+    Number(product.stock_value ?? 0);
+
+const getTrackingLabel = (product) => {
+    if (product.tracking_type === 'lot') {
+        return 'Lot';
+    }
+    if (product.tracking_type === 'serial') {
+        return 'Serial';
+    }
+    return 'Standard';
+};
+
+const getLotCount = (product) =>
+    Number(product.lots_count ?? 0);
+
+const getExpiringLotCount = (product) =>
+    Number(product.expiring_lot_count ?? 0);
+
+const getExpiredLotCount = (product) =>
+    Number(product.expired_lot_count ?? 0);
+
+const getNextExpiry = (product) =>
+    product?.next_expiry_at || null;
+
+const getPrimaryInventory = (product) => {
+    if (Array.isArray(product?.inventories) && product.inventories.length) {
+        return product.inventories[0];
+    }
+    return null;
+};
+
 const isLowStock = (product) =>
-    product.stock > 0 && product.stock <= product.minimum_stock;
+    getAvailableStock(product) > 0 && getAvailableStock(product) <= product.minimum_stock;
 
 const isOutOfStock = (product) =>
-    product.stock <= 0;
+    getAvailableStock(product) <= 0;
+
+const alertBadgeClasses = {
+    danger: 'bg-red-100 text-red-800 dark:bg-red-500/10 dark:text-red-400',
+    warning: 'bg-amber-100 text-amber-800 dark:bg-amber-500/10 dark:text-amber-400',
+    info: 'bg-sky-100 text-sky-800 dark:bg-sky-500/10 dark:text-sky-300',
+};
+
+const getAlertBadges = (product) => {
+    const alerts = [];
+    const damaged = getDamagedStock(product);
+    const reserved = getReservedStock(product);
+    const expiredLots = getExpiredLotCount(product);
+    const expiringLots = getExpiringLotCount(product);
+
+    if (isOutOfStock(product)) {
+        alerts.push({ label: 'Out of stock', tone: 'danger' });
+    } else if (isLowStock(product)) {
+        alerts.push({ label: 'Low stock', tone: 'warning' });
+    }
+
+    if (damaged > 0) {
+        alerts.push({ label: `Damaged ${formatNumber(damaged)}`, tone: 'danger' });
+    }
+    if (reserved > 0) {
+        alerts.push({ label: `Reserved ${formatNumber(reserved)}`, tone: 'info' });
+    }
+    if (expiredLots > 0) {
+        alerts.push({ label: `Expired ${formatNumber(expiredLots)}`, tone: 'danger' });
+    }
+    if (expiringLots > 0) {
+        alerts.push({ label: `Expiring ${formatNumber(expiringLots)}`, tone: 'warning' });
+    }
+
+    return alerts;
+};
 
 const toggleSort = (column) => {
     if (filterForm.sort === column) {
@@ -220,7 +337,7 @@ const inlineForm = useForm({
 const startInlineEdit = (product) => {
     editingId.value = product.id;
     inlineForm.price = product.price ?? 0;
-    inlineForm.stock = product.stock ?? 0;
+    inlineForm.stock = getAvailableStock(product);
     inlineForm.minimum_stock = product.minimum_stock ?? 0;
 };
 
@@ -271,15 +388,38 @@ const duplicateProduct = (product) => {
 };
 
 const activeProduct = ref(null);
+const reasonOptions = [
+    { value: 'manual', label: 'Manual' },
+    { value: 'purchase', label: 'Purchase' },
+    { value: 'sale', label: 'Sale' },
+    { value: 'return', label: 'Return' },
+    { value: 'audit', label: 'Audit' },
+    { value: 'transfer', label: 'Transfer' },
+];
 const adjustForm = useForm({
     type: 'in',
     quantity: 1,
     note: '',
+    reason: 'manual',
+    warehouse_id: props.defaultWarehouseId ?? '',
+    lot_number: '',
+    serial_number: '',
+    expires_at: '',
+    received_at: '',
+    unit_cost: '',
 });
 
 const openAdjust = (product) => {
     activeProduct.value = product;
     adjustForm.reset();
+    adjustForm.type = 'in';
+    adjustForm.reason = 'manual';
+    adjustForm.warehouse_id = getPrimaryInventory(product)?.warehouse_id ?? props.defaultWarehouseId ?? '';
+    adjustForm.lot_number = '';
+    adjustForm.serial_number = '';
+    adjustForm.expires_at = '';
+    adjustForm.received_at = '';
+    adjustForm.unit_cost = '';
     if (window.HSOverlay) {
         window.HSOverlay.open('#hs-pro-stock-adjust');
     }
@@ -349,25 +489,27 @@ const submitImport = () => {
                         class="py-2 px-2.5 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700">
                         Filters
                     </button>
-                    <a :href="exportUrl"
-                        class="py-2 px-2.5 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700">
-                        Export CSV
-                    </a>
-                    <button type="button" data-hs-overlay="#hs-pro-import"
-                        class="py-2 px-2.5 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700">
-                        Import CSV
-                    </button>
-                    <button type="button"
-                        class="py-2 px-2.5 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:ring-2 focus:ring-green-500"
-                        data-hs-overlay="#hs-pro-dasadpm">
-                        <svg class="hidden sm:block shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" width="24"
-                            height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                            stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M5 12h14" />
-                            <path d="M12 5v14" />
-                        </svg>
-                        Add product
-                    </button>
+                    <template v-if="canEdit">
+                        <a :href="exportUrl"
+                            class="py-2 px-2.5 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700">
+                            Export CSV
+                        </a>
+                        <button type="button" data-hs-overlay="#hs-pro-import"
+                            class="py-2 px-2.5 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700">
+                            Import CSV
+                        </button>
+                        <button type="button"
+                            class="py-2 px-2.5 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:ring-2 focus:ring-green-500"
+                            data-hs-overlay="#hs-pro-dasadpm">
+                            <svg class="hidden sm:block shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" width="24"
+                                height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M5 12h14" />
+                                <path d="M12 5v14" />
+                            </svg>
+                            Add product
+                        </button>
+                    </template>
                 </div>
             </div>
 
@@ -379,6 +521,33 @@ const submitImport = () => {
                         <option value="in">In stock</option>
                         <option value="low">Low stock</option>
                         <option value="out">Out of stock</option>
+                    </select>
+
+                    <select v-model="filterForm.alert"
+                        class="py-2 ps-3 pe-8 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
+                        <option value="">All alerts</option>
+                        <option value="damaged">Damaged</option>
+                        <option value="reserved">Reserved</option>
+                        <option value="expiring">Expiring soon</option>
+                        <option value="expired">Expired</option>
+                        <option value="reorder">Reorder point</option>
+                    </select>
+
+                    <select v-model="filterForm.tracking_type"
+                        class="py-2 ps-3 pe-8 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
+                        <option value="">All tracking</option>
+                        <option value="none">Standard</option>
+                        <option value="lot">Lot tracked</option>
+                        <option value="serial">Serial tracked</option>
+                    </select>
+
+                    <select v-model="filterForm.warehouse_id"
+                        class="py-2 ps-3 pe-8 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-600 focus:ring-green-600 disabled:opacity-60 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
+                        :disabled="!warehouses.length">
+                        <option value="">All warehouses</option>
+                        <option v-for="warehouse in warehouses" :key="warehouse.id" :value="warehouse.id">
+                            {{ warehouse.name }}{{ warehouse.is_default ? ' (Default)' : '' }}
+                        </option>
                     </select>
 
                     <select v-model="filterForm.status"
@@ -401,7 +570,7 @@ const submitImport = () => {
                     </button>
                 </div>
 
-                <div v-if="selected.length" class="flex items-center gap-2">
+                <div v-if="canEdit && selected.length" class="flex items-center gap-2">
                     <span class="text-xs text-stone-500 dark:text-neutral-400">
                         {{ selected.length }} selected
                     </span>
@@ -446,6 +615,15 @@ const submitImport = () => {
                 <input type="number" step="1" v-model="filterForm.stock_max"
                     class="py-2 px-3 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
                     placeholder="Stock max">
+                <input type="text" v-model="filterForm.supplier_name"
+                    class="py-2 px-3 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
+                    placeholder="Supplier name">
+                <select v-model="filterForm.has_barcode"
+                    class="py-2 ps-3 pe-8 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
+                    <option value="">All barcodes</option>
+                    <option value="1">With barcode</option>
+                    <option value="0">Without barcode</option>
+                </select>
                 <input type="date" v-model="filterForm.created_from"
                     class="py-2 px-3 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
                     placeholder="Created from">
@@ -468,7 +646,7 @@ const submitImport = () => {
             <thead>
                 <tr class="border-t border-stone-200 dark:border-neutral-700">
                     <th scope="col" class="px-4 py-2 w-10">
-                        <input ref="selectAllRef" type="checkbox" :checked="allSelected" @change="toggleAll"
+                        <input v-if="canEdit" ref="selectAllRef" type="checkbox" :checked="allSelected" @change="toggleAll"
                             class="rounded border-stone-300 text-green-600 shadow-sm focus:ring-green-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-green-400 dark:focus:ring-green-400" />
                     </th>
                     <th scope="col" class="min-w-[230px]">
@@ -493,10 +671,10 @@ const submitImport = () => {
                             Stock status
                         </div>
                     </th>
-                    <th scope="col" class="min-w-36">
+                    <th scope="col" class="min-w-48">
                         <button type="button" @click="toggleSort('price')"
                             class="px-5 py-2.5 text-start w-full flex items-center gap-x-1 text-sm font-normal text-stone-500 hover:text-stone-700 focus:outline-none dark:text-neutral-500 dark:hover:text-neutral-300">
-                            Price
+                            Pricing
                             <svg v-if="filterForm.sort === 'price'" class="size-3" xmlns="http://www.w3.org/2000/svg"
                                 viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                                 stroke-linecap="round" stroke-linejoin="round"
@@ -505,15 +683,10 @@ const submitImport = () => {
                             </svg>
                         </button>
                     </th>
-                    <th scope="col" class="min-w-[165px]">
-                        <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
-                            Category
-                        </div>
-                    </th>
-                    <th scope="col" class="min-w-[155px]">
+                    <th scope="col" class="min-w-[220px]">
                         <button type="button" @click="toggleSort('stock')"
                             class="px-5 py-2.5 text-start w-full flex items-center gap-x-1 text-sm font-normal text-stone-500 hover:text-stone-700 focus:outline-none dark:text-neutral-500 dark:hover:text-neutral-300">
-                            Stock
+                            Inventory
                             <svg v-if="filterForm.sort === 'stock'" class="size-3" xmlns="http://www.w3.org/2000/svg"
                                 viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                                 stroke-linecap="round" stroke-linejoin="round"
@@ -521,6 +694,26 @@ const submitImport = () => {
                                 <path d="m6 9 6 6 6-6" />
                             </svg>
                         </button>
+                    </th>
+                    <th scope="col" class="min-w-[180px]">
+                        <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
+                            Tracking / Lots
+                        </div>
+                    </th>
+                    <th scope="col" class="min-w-[180px]">
+                        <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
+                            Alerts
+                        </div>
+                    </th>
+                    <th scope="col" class="min-w-[200px]">
+                        <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
+                            Supplier / Location
+                        </div>
+                    </th>
+                    <th scope="col" class="min-w-[165px]">
+                        <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
+                            Category
+                        </div>
                     </th>
                     <th scope="col"></th>
                 </tr>
@@ -533,19 +726,35 @@ const submitImport = () => {
                         'bg-red-50/40 dark:bg-red-500/5': isOutOfStock(product),
                     }">
                     <td class="size-px whitespace-nowrap px-4 py-2">
-                        <Checkbox v-model:checked="selected" :value="product.id" />
+                        <Checkbox v-if="canEdit" v-model:checked="selected" :value="product.id" />
                     </td>
                     <td class="size-px whitespace-nowrap px-4 py-2">
                         <div class="w-full flex items-center gap-x-3">
                             <img class="shrink-0 size-10 rounded-sm" :src="product.image_url || product.image"
                                 alt="Product Image">
-                            <div class="flex flex-col">
-                                <span class="text-sm text-stone-600 dark:text-neutral-300">
+                            <div class="flex flex-col gap-1">
+                                <Link
+                                    :href="route('product.show', product.id)"
+                                    class="text-sm font-medium text-stone-700 hover:underline dark:text-neutral-200"
+                                >
                                     {{ product.name }}
-                                </span>
-                                <span class="text-xs text-stone-500 dark:text-neutral-500">
+                                </Link>
+                                <div class="text-xs text-stone-500 dark:text-neutral-500">
                                     {{ product.sku || product.number || 'No SKU' }}
-                                </span>
+                                    <span v-if="product.barcode" class="ml-2">
+                                        - Barcode {{ product.barcode }}
+                                    </span>
+                                </div>
+                                <div class="flex flex-wrap items-center gap-1">
+                                    <span
+                                        class="py-1 px-2 rounded-full text-[10px] font-medium bg-stone-100 text-stone-700 dark:bg-neutral-700 dark:text-neutral-200">
+                                        {{ getTrackingLabel(product) }}
+                                    </span>
+                                    <span v-if="product.unit"
+                                        class="py-1 px-2 rounded-full text-[10px] font-medium bg-stone-100 text-stone-700 dark:bg-neutral-700 dark:text-neutral-200">
+                                        Unit {{ product.unit }}
+                                    </span>
+                                </div>
                             </div>
                         </div>
                     </td>
@@ -574,40 +783,111 @@ const submitImport = () => {
                         </span>
                     </td>
                     <td class="size-px whitespace-nowrap px-4 py-2">
-                        <div v-if="editingId === product.id" class="flex items-center gap-2">
+                        <div v-if="editingId === product.id" class="space-y-1">
                             <input type="number" step="0.01" v-model="inlineForm.price"
                                 class="w-28 py-1.5 px-2 bg-white border border-stone-200 rounded-sm text-xs text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
+                            <div class="text-xs text-stone-500 dark:text-neutral-500">
+                                Cost {{ formatCurrency(product.cost_price) }}
+                            </div>
+                            <div class="text-xs text-stone-500 dark:text-neutral-500">
+                                Margin {{ formatPercent(product.margin_percent) }}
+                            </div>
                         </div>
-                        <span v-else class="text-sm text-stone-600 dark:text-neutral-400">
-                            {{ formatCurrency(product.price) }}
-                        </span>
+                        <div v-else class="space-y-1">
+                            <div class="text-sm text-stone-600 dark:text-neutral-400">
+                                {{ formatCurrency(product.price) }}
+                            </div>
+                            <div class="text-xs text-stone-500 dark:text-neutral-500">
+                                Cost {{ formatCurrency(product.cost_price) }}
+                            </div>
+                            <div class="text-xs text-stone-500 dark:text-neutral-500">
+                                Margin {{ formatPercent(product.margin_percent) }}
+                            </div>
+                        </div>
+                    </td>
+                    <td class="size-px whitespace-nowrap px-4 py-2">
+                        <div v-if="editingId === product.id" class="space-y-2">
+                            <input type="number" step="1" v-model="inlineForm.stock"
+                                class="w-24 py-1.5 px-2 bg-white border border-stone-200 rounded-sm text-xs text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
+                                placeholder="Available">
+                            <input type="number" step="1" v-model="inlineForm.minimum_stock"
+                                class="w-24 py-1.5 px-2 bg-white border border-stone-200 rounded-sm text-xs text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
+                                placeholder="Min">
+                        </div>
+                        <div v-else class="space-y-1">
+                            <div class="flex flex-wrap items-center gap-2">
+                                <span
+                                    class="py-1.5 px-2 inline-flex items-center gap-x-1.5 text-xs font-medium bg-stone-100 text-stone-800 rounded-full dark:bg-neutral-700 dark:text-neutral-200">
+                                    Avail {{ formatNumber(getAvailableStock(product)) }}
+                                </span>
+                                <span class="text-xs text-stone-500 dark:text-neutral-500">
+                                    Min {{ formatNumber(product.minimum_stock) }}
+                                </span>
+                            </div>
+                            <div class="text-xs text-stone-500 dark:text-neutral-500">
+                                Reserved {{ formatNumber(getReservedStock(product)) }} - Damaged {{ formatNumber(getDamagedStock(product)) }}
+                            </div>
+                            <div class="text-xs text-stone-500 dark:text-neutral-500">
+                                Value {{ formatCurrency(getStockValue(product)) }} - {{ formatNumber(product.warehouse_count || 0) }} wh
+                            </div>
+                        </div>
+                    </td>
+                    <td class="size-px whitespace-nowrap px-4 py-2">
+                        <div class="space-y-1">
+                            <div class="text-sm text-stone-600 dark:text-neutral-300">
+                                {{ getTrackingLabel(product) }}
+                            </div>
+                            <div class="text-xs text-stone-500 dark:text-neutral-500">
+                                <span v-if="product.tracking_type === 'lot'">
+                                    Lots {{ formatNumber(getLotCount(product)) }}
+                                </span>
+                                <span v-else-if="product.tracking_type === 'serial'">
+                                    Serials {{ formatNumber(getLotCount(product)) }}
+                                </span>
+                                <span v-else>
+                                    No lots
+                                </span>
+                            </div>
+                            <div v-if="getNextExpiry(product)" class="text-xs text-stone-500 dark:text-neutral-500">
+                                Next exp {{ formatDate(getNextExpiry(product)) }}
+                            </div>
+                        </div>
+                    </td>
+                    <td class="size-px whitespace-nowrap px-4 py-2">
+                        <div v-if="getAlertBadges(product).length" class="flex flex-wrap gap-1">
+                            <span v-for="alert in getAlertBadges(product)" :key="alert.label"
+                                class="py-1 px-2 rounded-full text-[10px] font-medium"
+                                :class="alertBadgeClasses[alert.tone]">
+                                {{ alert.label }}
+                            </span>
+                        </div>
+                        <div v-else class="text-xs text-stone-400 dark:text-neutral-500">
+                            No alerts
+                        </div>
+                    </td>
+                    <td class="size-px whitespace-nowrap px-4 py-2">
+                        <div class="space-y-1">
+                            <div class="text-sm text-stone-600 dark:text-neutral-300">
+                                {{ product.supplier_name || 'No supplier' }}
+                            </div>
+                            <div v-if="getPrimaryInventory(product)" class="text-xs text-stone-500 dark:text-neutral-500">
+                                {{ getPrimaryInventory(product)?.warehouse?.name || 'Main warehouse' }}
+                                <span v-if="getPrimaryInventory(product)?.bin_location">
+                                    - Bin {{ getPrimaryInventory(product)?.bin_location }}
+                                </span>
+                            </div>
+                            <div v-else class="text-xs text-stone-400 dark:text-neutral-500">
+                                No location set
+                            </div>
+                        </div>
                     </td>
                     <td class="size-px whitespace-nowrap px-4 py-2">
                         <span class="inline-flex items-center gap-x-1 text-sm text-stone-600 dark:text-neutral-400">
                             {{ product.category ? product.category.name : 'Uncategorized' }}
                         </span>
                     </td>
-                    <td class="size-px whitespace-nowrap px-4 py-2">
-                        <div v-if="editingId === product.id" class="space-y-2">
-                            <input type="number" step="1" v-model="inlineForm.stock"
-                                class="w-24 py-1.5 px-2 bg-white border border-stone-200 rounded-sm text-xs text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
-                                placeholder="Stock">
-                            <input type="number" step="1" v-model="inlineForm.minimum_stock"
-                                class="w-24 py-1.5 px-2 bg-white border border-stone-200 rounded-sm text-xs text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
-                                placeholder="Min">
-                        </div>
-                        <div v-else class="space-y-1">
-                            <span
-                                class="py-1.5 px-2 inline-flex items-center gap-x-1.5 text-xs font-medium bg-stone-100 text-stone-800 rounded-full dark:bg-neutral-700 dark:text-neutral-200">
-                                {{ formatNumber(product.stock) }}
-                            </span>
-                            <div class="text-xs text-stone-500 dark:text-neutral-500">
-                                Min {{ formatNumber(product.minimum_stock) }}
-                            </div>
-                        </div>
-                    </td>
                     <td class="size-px whitespace-nowrap px-4 py-2 text-end">
-                        <div v-if="editingId === product.id" class="flex items-center justify-end gap-2">
+                        <div v-if="editingId === product.id && canEdit" class="flex items-center justify-end gap-2">
                             <button type="button" @click="saveInlineEdit"
                                 class="py-1.5 px-2 text-xs font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700">
                                 Save
@@ -617,53 +897,69 @@ const submitImport = () => {
                                 Cancel
                             </button>
                         </div>
-                        <div v-else class="hs-dropdown [--auto-close:inside] [--placement:bottom-right] relative inline-flex">
-                            <button type="button"
-                                class="size-7 inline-flex justify-center items-center gap-x-2 rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-50 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700"
-                                aria-haspopup="menu" aria-expanded="false" aria-label="Dropdown">
-                                <svg class="shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
-                                    viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                                    stroke-linecap="round" stroke-linejoin="round">
-                                    <circle cx="12" cy="12" r="1" />
-                                    <circle cx="12" cy="5" r="1" />
-                                    <circle cx="12" cy="19" r="1" />
-                                </svg>
-                            </button>
+                        <div v-else>
+                            <div v-if="canEdit" class="hs-dropdown [--auto-close:inside] [--placement:bottom-right] relative inline-flex">
+                                <button type="button"
+                                    class="size-7 inline-flex justify-center items-center gap-x-2 rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-50 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700"
+                                    aria-haspopup="menu" aria-expanded="false" aria-label="Dropdown">
+                                    <svg class="shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                        viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                        stroke-linecap="round" stroke-linejoin="round">
+                                        <circle cx="12" cy="12" r="1" />
+                                        <circle cx="12" cy="5" r="1" />
+                                        <circle cx="12" cy="19" r="1" />
+                                    </svg>
+                                </button>
 
-                            <div class="hs-dropdown-menu hs-dropdown-open:opacity-100 w-32 transition-[opacity,margin] duration opacity-0 hidden z-10 bg-white rounded-sm shadow-[0_10px_40px_10px_rgba(0,0,0,0.08)] dark:shadow-[0_10px_40px_10px_rgba(0,0,0,0.2)] dark:bg-neutral-900"
-                                role="menu" aria-orientation="vertical">
-                                <div class="p-1">
-                                    <button type="button" @click="startInlineEdit(product)"
-                                        class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
-                                        Quick edit
-                                    </button>
-                                    <button type="button" @click="openAdjust(product)"
-                                        class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
-                                        Adjust stock
-                                    </button>
-                                    <button type="button" @click="duplicateProduct(product)"
-                                        class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
-                                        Duplicate
-                                    </button>
-                                    <button type="button" @click="toggleArchive(product)"
-                                        class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
-                                        {{ product.is_active ? 'Archive' : 'Restore' }}
-                                    </button>
-                                    <button type="button" :data-hs-overlay="'#hs-pro-edit' + product.id"
-                                        class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
-                                        Edit
-                                    </button>
-                                    <div class="my-1 border-t border-stone-200 dark:border-neutral-800"></div>
-                                    <button type="button" @click="destroyProduct(product)"
-                                        class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-neutral-800">
-                                        Delete
-                                    </button>
+                                <div class="hs-dropdown-menu hs-dropdown-open:opacity-100 w-32 transition-[opacity,margin] duration opacity-0 hidden z-10 bg-white rounded-sm shadow-[0_10px_40px_10px_rgba(0,0,0,0.08)] dark:shadow-[0_10px_40px_10px_rgba(0,0,0,0.2)] dark:bg-neutral-900"
+                                    role="menu" aria-orientation="vertical">
+                                    <div class="p-1">
+                                        <Link
+                                            :href="route('product.show', product.id)"
+                                            class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800"
+                                        >
+                                            View
+                                        </Link>
+                                        <button type="button" @click="startInlineEdit(product)"
+                                            class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
+                                            Quick edit
+                                        </button>
+                                        <button type="button" @click="openAdjust(product)"
+                                            class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
+                                            Adjust stock
+                                        </button>
+                                        <button type="button" @click="duplicateProduct(product)"
+                                            class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
+                                            Duplicate
+                                        </button>
+                                        <button type="button" @click="toggleArchive(product)"
+                                            class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
+                                            {{ product.is_active ? 'Archive' : 'Restore' }}
+                                        </button>
+                                        <button type="button" :data-hs-overlay="'#hs-pro-edit' + product.id"
+                                            class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
+                                            Edit
+                                        </button>
+                                        <div class="my-1 border-t border-stone-200 dark:border-neutral-800"></div>
+                                        <button type="button" @click="destroyProduct(product)"
+                                            class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-neutral-800">
+                                            Delete
+                                        </button>
+                                    </div>
                                 </div>
+                            </div>
+                            <div v-else>
+                                <Link
+                                    :href="route('product.show', product.id)"
+                                    class="text-xs font-semibold text-green-700 hover:underline dark:text-green-400"
+                                >
+                                    Voir
+                                </Link>
                             </div>
                         </div>
                     </td>
 
-                    <Modal :title="'Edit product'" :id="'hs-pro-edit' + product.id">
+                    <Modal v-if="canEdit" :title="'Edit product'" :id="'hs-pro-edit' + product.id">
                         <ProductForm :product="product" :categories="categories" :id="'hs-pro-edit' + product.id" />
                     </Modal>
                 </tr>
@@ -717,11 +1013,11 @@ const submitImport = () => {
         </div>
     </div>
 
-    <Modal :title="'Add product'" :id="'hs-pro-dasadpm'">
+    <Modal v-if="canEdit" :title="'Add product'" :id="'hs-pro-dasadpm'">
         <ProductForm :product="product" :categories="categories" :id="'hs-pro-dasadpm'" />
     </Modal>
 
-    <Modal :title="'Import products'" :id="'hs-pro-import'">
+    <Modal v-if="canEdit" :title="'Import products'" :id="'hs-pro-import'">
         <form @submit.prevent="submitImport" class="space-y-4">
             <div>
                 <label class="block text-sm font-medium text-stone-700 dark:text-neutral-300">CSV file</label>
@@ -741,7 +1037,7 @@ const submitImport = () => {
         </form>
     </Modal>
 
-    <Modal :title="'Adjust stock'" :id="'hs-pro-stock-adjust'">
+    <Modal v-if="canEdit" :title="'Adjust stock'" :id="'hs-pro-stock-adjust'">
         <div v-if="activeProduct" class="space-y-4">
             <div class="flex flex-wrap items-center justify-between gap-2">
                 <div>
@@ -749,11 +1045,19 @@ const submitImport = () => {
                     <div class="text-sm font-medium text-stone-800 dark:text-neutral-200">{{ activeProduct.name }}</div>
                 </div>
                 <div class="text-sm text-stone-500 dark:text-neutral-400">
-                    Current stock: <span class="font-medium text-stone-800 dark:text-neutral-200">{{ activeProduct.stock }}</span>
+                    <span class="font-medium text-stone-800 dark:text-neutral-200">
+                        Avail {{ formatNumber(getAvailableStock(activeProduct)) }}
+                    </span>
+                    <span class="ml-2 text-xs text-stone-500 dark:text-neutral-400">
+                        Reserved {{ formatNumber(getReservedStock(activeProduct)) }}
+                    </span>
+                    <span class="ml-2 text-xs text-stone-500 dark:text-neutral-400">
+                        Damaged {{ formatNumber(getDamagedStock(activeProduct)) }}
+                    </span>
                 </div>
             </div>
 
-            <div v-if="activeProduct.stock <= activeProduct.minimum_stock" class="text-xs text-amber-600">
+            <div v-if="getAvailableStock(activeProduct) <= activeProduct.minimum_stock" class="text-xs text-amber-600">
                 Low stock alert. Minimum is {{ activeProduct.minimum_stock }}.
             </div>
 
@@ -764,13 +1068,56 @@ const submitImport = () => {
                         <option value="in">Stock in</option>
                         <option value="out">Stock out</option>
                         <option value="adjust">Adjust</option>
+                        <option value="damage">Damage</option>
+                        <option value="spoilage">Spoilage</option>
                     </select>
                     <input type="number" step="1" v-model="adjustForm.quantity"
                         class="py-2 px-3 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
                         :placeholder="adjustForm.type === 'adjust' ? 'Quantity change' : 'Quantity'">
+                    <select v-model="adjustForm.warehouse_id"
+                        class="py-2 px-3 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-600 focus:ring-green-600 disabled:opacity-60 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
+                        :disabled="!activeWarehouses.length">
+                        <option value="">Select warehouse</option>
+                        <option v-for="warehouse in activeWarehouses" :key="warehouse.id" :value="warehouse.id">
+                            {{ warehouse.name }}{{ warehouse.is_default ? ' (Default)' : '' }}
+                        </option>
+                    </select>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <select v-model="adjustForm.reason"
+                        class="py-2 px-3 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
+                        <option v-for="reason in reasonOptions" :key="reason.value" :value="reason.value">
+                            {{ reason.label }}
+                        </option>
+                    </select>
+                    <input type="number" step="0.01" v-model="adjustForm.unit_cost"
+                        class="py-2 px-3 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
+                        placeholder="Unit cost (optional)">
                     <input type="text" v-model="adjustForm.note"
                         class="py-2 px-3 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
                         placeholder="Note (optional)">
+                </div>
+                <div v-if="activeProduct.tracking_type === 'lot'" class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <input type="text" v-model="adjustForm.lot_number"
+                        class="py-2 px-3 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
+                        placeholder="Lot number">
+                    <input type="date" v-model="adjustForm.expires_at"
+                        class="py-2 px-3 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
+                        placeholder="Expires at">
+                    <input type="date" v-model="adjustForm.received_at"
+                        class="py-2 px-3 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
+                        placeholder="Received at">
+                </div>
+                <div v-else-if="activeProduct.tracking_type === 'serial'" class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <input type="text" v-model="adjustForm.serial_number"
+                        class="py-2 px-3 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
+                        placeholder="Serial number">
+                    <div class="md:col-span-2 text-xs text-stone-500 dark:text-neutral-400 flex items-center">
+                        Serial-tracked items are adjusted one at a time.
+                    </div>
+                </div>
+                <div v-if="!activeWarehouses.length" class="text-xs text-amber-600">
+                    Add a warehouse in settings before adjusting stock.
                 </div>
                 <div class="flex justify-end gap-2">
                     <button type="button" data-hs-overlay="#hs-pro-stock-adjust"
@@ -795,10 +1142,14 @@ const submitImport = () => {
                         class="flex items-center justify-between rounded-sm border border-stone-200 px-3 py-2 text-sm dark:border-neutral-700">
                         <div>
                             <div class="text-xs uppercase text-stone-500 dark:text-neutral-400">
-                                {{ movement.type }} - {{ formatDate(movement.created_at) }}
+                                {{ movement.type }}
+                                <span v-if="movement.warehouse"> - {{ movement.warehouse.name }}</span>
+                                <span v-if="movement.lot?.lot_number"> - Lot {{ movement.lot.lot_number }}</span>
+                                <span v-else-if="movement.lot?.serial_number"> - SN {{ movement.lot.serial_number }}</span>
+                                - {{ formatDate(movement.created_at) }}
                             </div>
                             <div class="text-sm text-stone-700 dark:text-neutral-300">
-                                {{ movement.note || 'No note' }}
+                                {{ movement.reason || movement.note || 'No note' }}
                             </div>
                         </div>
                         <div

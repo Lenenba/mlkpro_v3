@@ -7,6 +7,8 @@ use App\Models\Quote;
 use App\Models\Task;
 use App\Models\Invoice;
 use App\Models\Payment;
+use App\Models\Sale;
+use App\Models\SaleItem;
 use App\Models\Customer;
 use App\Models\Role;
 use App\Models\Request as LeadRequest;
@@ -45,11 +47,15 @@ class CustomerController extends Controller
             'sort',
             'direction',
         ]);
-        $userId = Auth::user()->id;
+        $user = $request->user();
+        if (!$user) {
+            abort(403);
+        }
+        [, $accountId] = $this->resolveCustomerAccount($user);
 
         $baseQuery = Customer::query()
             ->filter($filters)
-            ->byUser($userId);
+            ->byUser($accountId);
 
         $sort = in_array($filters['sort'] ?? null, ['company_name', 'first_name', 'created_at', 'quotes_count', 'works_count'], true)
             ? $filters['sort']
@@ -60,9 +66,9 @@ class CustomerController extends Controller
         $customers = (clone $baseQuery)
             ->with(['properties'])
             ->withCount([
-                'quotes as quotes_count' => fn($query) => $query->where('user_id', $userId),
-                'works as works_count' => fn($query) => $query->where('user_id', $userId),
-                'invoices as invoices_count' => fn($query) => $query->where('user_id', $userId),
+                'quotes as quotes_count' => fn($query) => $query->where('user_id', $accountId),
+                'works as works_count' => fn($query) => $query->where('user_id', $accountId),
+                'invoices as invoices_count' => fn($query) => $query->where('user_id', $accountId),
             ])
             ->orderBy($sort, $direction)
             ->simplePaginate(12)
@@ -74,18 +80,18 @@ class CustomerController extends Controller
             ->whereDate('created_at', '>=', $recentThreshold)
             ->count();
         $withQuotes = (clone $baseQuery)
-            ->whereHas('quotes', fn($query) => $query->where('user_id', $userId))
+            ->whereHas('quotes', fn($query) => $query->where('user_id', $accountId))
             ->count();
         $withWorks = (clone $baseQuery)
-            ->whereHas('works', fn($query) => $query->where('user_id', $userId))
+            ->whereHas('works', fn($query) => $query->where('user_id', $accountId))
             ->count();
         $activeCount = (clone $baseQuery)
-            ->where(function ($query) use ($userId, $recentThreshold) {
-                $query->whereHas('quotes', function ($sub) use ($userId, $recentThreshold) {
-                    $sub->where('user_id', $userId)
+            ->where(function ($query) use ($accountId, $recentThreshold) {
+                $query->whereHas('quotes', function ($sub) use ($accountId, $recentThreshold) {
+                    $sub->where('user_id', $accountId)
                         ->where('created_at', '>=', $recentThreshold);
-                })->orWhereHas('works', function ($sub) use ($userId, $recentThreshold) {
-                    $sub->where('user_id', $userId)
+                })->orWhereHas('works', function ($sub) use ($accountId, $recentThreshold) {
+                    $sub->where('user_id', $accountId)
                         ->where('created_at', '>=', $recentThreshold);
                 });
             })
@@ -101,9 +107,9 @@ class CustomerController extends Controller
 
         $topCustomers = (clone $baseQuery)
             ->withCount([
-                'quotes as quotes_count' => fn($query) => $query->where('user_id', $userId),
-                'works as works_count' => fn($query) => $query->where('user_id', $userId),
-                'invoices as invoices_count' => fn($query) => $query->where('user_id', $userId),
+                'quotes as quotes_count' => fn($query) => $query->where('user_id', $accountId),
+                'works as works_count' => fn($query) => $query->where('user_id', $accountId),
+                'invoices as invoices_count' => fn($query) => $query->where('user_id', $accountId),
             ])
             ->orderByDesc('quotes_count')
             ->orderByDesc('works_count')
@@ -125,9 +131,13 @@ class CustomerController extends Controller
      */
     public function options(Request $request)
     {
-        $userId = $request->user()->id;
+        $user = $request->user();
+        if (!$user) {
+            abort(403);
+        }
+        [, $accountId] = $this->resolveCustomerAccount($user);
 
-        $customers = Customer::byUser($userId)
+        $customers = Customer::byUser($accountId)
             ->with(['properties' => function ($query) {
                 $query->orderByDesc('is_default')->orderBy('id');
             }])
@@ -171,6 +181,11 @@ class CustomerController extends Controller
      */
     public function create()
     {
+        $user = Auth::user();
+        if ($user) {
+            $this->resolveCustomerAccount($user);
+        }
+
         return $this->inertiaOrJson('Customer/Create', [
             'customer' => new Customer(),
         ]);
@@ -187,7 +202,12 @@ class CustomerController extends Controller
         $this->authorize('view', $customer);
 
         $user = $request?->user();
-        $accountId = $user?->accountOwnerId() ?? Auth::id();
+        $accountOwner = null;
+        $accountId = $user?->id ?? Auth::id();
+        if ($user) {
+            [$accountOwner, $accountId] = $this->resolveCustomerAccount($user);
+        }
+        $isProductAccount = $accountOwner && $accountOwner->company_type === 'products';
 
         // Valider les filtres uniquement si la requête contient des données
         $filters = $request?->only([
@@ -196,236 +216,423 @@ class CustomerController extends Controller
             'month',
         ]) ?? [];
 
-        // Fetch works for the retrieved customers
-        $works = Work::with(['products', 'ratings', 'customer'])
-            ->byCustomer($customer->id)
-            ->byUser($accountId)
-            ->filter($filters)
-            ->latest()
-            ->paginate(10) // Paginer avec 10 résultats par page
-            ->withQueryString(); // Conserver les paramètres de requête dans l'URL
+        $works = collect();
+        if (!$isProductAccount) {
+            // Fetch works for the retrieved customers
+            $works = Work::with(['products', 'ratings', 'customer'])
+                ->byCustomer($customer->id)
+                ->byUser($accountId)
+                ->filter($filters)
+                ->latest()
+                ->paginate(10)
+                ->withQueryString();
+        }
 
-        $customer->load([
-            'properties',
-            'quotes' => fn($query) => $query->latest()->limit(10),
-            'works' => fn($query) => $query->with('invoice')->latest()->limit(10),
-            'requests' => fn($query) => $query->latest()->limit(10)->with('quote:id,number,status,customer_id'),
-            'invoices' => fn($query) => $query->withSum('payments', 'amount')->latest()->limit(10),
-        ]);
+        $customer->load(['properties']);
+        if (!$isProductAccount) {
+            $customer->load([
+                'quotes' => fn($query) => $query->latest()->limit(10),
+                'works' => fn($query) => $query->with('invoice')->latest()->limit(10),
+                'requests' => fn($query) => $query->latest()->limit(10)->with('quote:id,number,status,customer_id'),
+                'invoices' => fn($query) => $query->withSum('payments', 'amount')->latest()->limit(10),
+            ]);
+        }
 
-        $stats = [
-            'active_works' => Work::query()
-                ->where('customer_id', $customer->id)
+        $sales = collect();
+        $salesSummary = null;
+        $salesInsights = null;
+        $topProducts = collect();
+        if ($accountOwner && $accountOwner->company_type === 'products') {
+            $salesQuery = Sale::query()
                 ->where('user_id', $accountId)
-                ->whereDate('end_date', '>=', now()->toDateString())
-                ->count(),
-            'requests' => LeadRequest::query()
-                ->where('customer_id', $customer->id)
-                ->where('user_id', $accountId)
-                ->count(),
-            'quotes' => Quote::query()
-                ->where('customer_id', $customer->id)
-                ->where('user_id', $accountId)
-                ->whereNull('archived_at')
-                ->count(),
-            'jobs' => Work::query()
-                ->where('customer_id', $customer->id)
-                ->where('user_id', $accountId)
-                ->count(),
-            'invoices' => Invoice::query()
-                ->where('customer_id', $customer->id)
-                ->where('user_id', $accountId)
-                ->count(),
-        ];
+                ->where('customer_id', $customer->id);
 
-        $tasks = Task::query()
-            ->forAccount($accountId)
-            ->where('customer_id', $customer->id)
-            ->with(['assignee.user:id,name'])
-            ->orderByRaw('CASE WHEN due_date IS NULL THEN 1 ELSE 0 END')
-            ->orderBy('due_date')
-            ->orderByDesc('created_at')
-            ->limit(8)
-            ->get([
-                'id',
-                'title',
-                'status',
-                'due_date',
-                'completed_at',
-                'assigned_team_member_id',
-            ])
-            ->map(fn($task) => [
-                'id' => $task->id,
-                'title' => $task->title,
-                'status' => $task->status,
-                'due_date' => $task->due_date,
-                'completed_at' => $task->completed_at,
-                'assignee' => $task->assignee?->user?->name,
-            ])
-            ->values();
+            $sales = (clone $salesQuery)
+                ->latest()
+                ->limit(10)
+                ->get(['id', 'number', 'status', 'total', 'created_at']);
 
-        $upcomingJobs = Work::query()
-            ->where('customer_id', $customer->id)
-            ->where('user_id', $accountId)
-            ->whereDate('start_date', '>=', now()->toDateString())
-            ->orderBy('start_date')
-            ->limit(8)
-            ->get([
-                'id',
-                'job_title',
-                'status',
-                'start_date',
-                'end_date',
-                'created_at',
-            ])
-            ->map(fn($work) => [
-                'id' => $work->id,
-                'job_title' => $work->job_title,
-                'status' => $work->status,
-                'start_date' => $work->start_date,
-                'end_date' => $work->end_date,
-                'created_at' => $work->created_at,
-            ])
-            ->values();
+            $salesCount = (clone $salesQuery)->count();
+            $salesTotal = (float) (clone $salesQuery)->sum('total');
+            $salesPaid = (float) (clone $salesQuery)->where('status', Sale::STATUS_PAID)->sum('total');
 
-        $recentPayments = Payment::query()
-            ->where('customer_id', $customer->id)
-            ->where('user_id', $accountId)
-            ->with('invoice:id,number')
-            ->orderByRaw('CASE WHEN paid_at IS NULL THEN 1 ELSE 0 END')
-            ->orderByDesc('paid_at')
-            ->orderByDesc('created_at')
-            ->limit(8)
-            ->get([
-                'id',
-                'invoice_id',
-                'amount',
-                'method',
-                'status',
-                'reference',
-                'paid_at',
-                'created_at',
-            ])
-            ->map(fn($payment) => [
-                'id' => $payment->id,
-                'amount' => (float) $payment->amount,
-                'method' => $payment->method,
-                'status' => $payment->status,
-                'reference' => $payment->reference,
-                'paid_at' => $payment->paid_at,
-                'created_at' => $payment->created_at,
-                'invoice' => $payment->invoice ? [
-                    'id' => $payment->invoice_id,
-                    'number' => $payment->invoice->number,
-                ] : null,
-            ])
-            ->values();
+            $salesSummary = [
+                'count' => $salesCount,
+                'total' => $salesTotal,
+                'paid' => $salesPaid,
+            ];
 
-        $totalInvoiced = (float) Invoice::query()
-            ->where('customer_id', $customer->id)
-            ->where('user_id', $accountId)
-            ->whereNotIn('status', ['void'])
-            ->sum('total');
-        $totalPaid = (float) Payment::query()
-            ->where('customer_id', $customer->id)
-            ->where('user_id', $accountId)
-            ->sum('amount');
+            $lastPurchaseAt = (clone $salesQuery)->latest()->value('created_at');
+            $daysSinceLast = $lastPurchaseAt ? now()->diffInDays($lastPurchaseAt) : null;
+            $recent30Count = (clone $salesQuery)
+                ->where('created_at', '>=', now()->subDays(30))
+                ->count();
 
-        $billing = [
-            'total_invoiced' => $totalInvoiced,
-            'total_paid' => $totalPaid,
-            'balance_due' => max(0, round($totalInvoiced - $totalPaid, 2)),
-        ];
+            $saleDates = (clone $salesQuery)
+                ->orderBy('created_at')
+                ->get(['created_at'])
+                ->pluck('created_at')
+                ->filter();
 
-        $subjectLabels = [
-            Quote::class => 'Quote',
-            Work::class => 'Job',
-            Invoice::class => 'Invoice',
-            Payment::class => 'Payment',
-            Customer::class => 'Customer',
-        ];
+            $purchaseFrequency = null;
+            $preferredDay = null;
+            $preferredPeriod = null;
 
-        $quoteIds = Quote::query()
-            ->where('customer_id', $customer->id)
-            ->where('user_id', $accountId)
-            ->latest()
-            ->limit(250)
-            ->pluck('id');
-        $workIds = Work::query()
-            ->where('customer_id', $customer->id)
-            ->where('user_id', $accountId)
-            ->latest()
-            ->limit(250)
-            ->pluck('id');
-        $invoiceIds = Invoice::query()
-            ->where('customer_id', $customer->id)
-            ->where('user_id', $accountId)
-            ->latest()
-            ->limit(250)
-            ->pluck('id');
-        $paymentIds = Payment::query()
-            ->where('customer_id', $customer->id)
-            ->where('user_id', $accountId)
-            ->latest()
-            ->limit(250)
-            ->pluck('id');
+            if ($saleDates->count() > 1) {
+                $intervals = [];
+                for ($i = 1; $i < $saleDates->count(); $i++) {
+                    $current = $saleDates[$i];
+                    $previous = $saleDates[$i - 1];
+                    if ($current && $previous) {
+                        $intervals[] = $current->diffInDays($previous);
+                    }
+                }
+                if ($intervals) {
+                    $purchaseFrequency = round(array_sum($intervals) / count($intervals), 1);
+                }
+            }
 
-        $activity = ActivityLog::query()
-            ->where(function ($query) use ($customer, $quoteIds, $workIds, $invoiceIds, $paymentIds) {
-                $query->where(function ($sub) use ($customer) {
-                    $sub->where('subject_type', Customer::class)
-                        ->where('subject_id', $customer->id);
+            if ($saleDates->isNotEmpty()) {
+                $dayLabels = [
+                    'Mon' => 'Lun',
+                    'Tue' => 'Mar',
+                    'Wed' => 'Mer',
+                    'Thu' => 'Jeu',
+                    'Fri' => 'Ven',
+                    'Sat' => 'Sam',
+                    'Sun' => 'Dim',
+                ];
+                $dayCounts = [];
+                $periodCounts = [];
+                foreach ($saleDates as $date) {
+                    if (!$date) {
+                        continue;
+                    }
+                    $dayKey = $date->format('D');
+                    $dayCounts[$dayKey] = ($dayCounts[$dayKey] ?? 0) + 1;
+
+                    $hour = (int) $date->format('H');
+                    if ($hour >= 5 && $hour < 12) {
+                        $periodKey = 'morning';
+                    } elseif ($hour >= 12 && $hour < 17) {
+                        $periodKey = 'afternoon';
+                    } elseif ($hour >= 17 && $hour < 21) {
+                        $periodKey = 'evening';
+                    } else {
+                        $periodKey = 'night';
+                    }
+                    $periodCounts[$periodKey] = ($periodCounts[$periodKey] ?? 0) + 1;
+                }
+
+                if ($dayCounts) {
+                    arsort($dayCounts);
+                    $preferredDayKey = array_key_first($dayCounts);
+                    $preferredDay = $dayLabels[$preferredDayKey] ?? $preferredDayKey;
+                }
+
+                if ($periodCounts) {
+                    $periodLabels = [
+                        'morning' => 'Matin',
+                        'afternoon' => 'Apres-midi',
+                        'evening' => 'Soiree',
+                        'night' => 'Nuit',
+                    ];
+                    arsort($periodCounts);
+                    $preferredPeriodKey = array_key_first($periodCounts);
+                    $preferredPeriod = $periodLabels[$preferredPeriodKey] ?? $preferredPeriodKey;
+                }
+            }
+
+            $itemsQuery = SaleItem::query()
+                ->whereHas('sale', function ($query) use ($accountId, $customer) {
+                    $query->where('user_id', $accountId)
+                        ->where('customer_id', $customer->id);
                 });
 
-                if ($quoteIds->isNotEmpty()) {
-                    $query->orWhere(function ($sub) use ($quoteIds) {
-                        $sub->where('subject_type', Quote::class)
-                            ->whereIn('subject_id', $quoteIds);
-                    });
-                }
+            $distinctProducts = (clone $itemsQuery)->distinct('product_id')->count('product_id');
+            $totalUnits = (int) (clone $itemsQuery)->sum('quantity');
+            $averageItems = $salesCount > 0 ? round($totalUnits / $salesCount, 1) : 0;
 
-                if ($workIds->isNotEmpty()) {
-                    $query->orWhere(function ($sub) use ($workIds) {
-                        $sub->where('subject_type', Work::class)
-                            ->whereIn('subject_id', $workIds);
-                    });
-                }
+            $topProducts = (clone $itemsQuery)
+                ->select('product_id', DB::raw('SUM(quantity) as quantity'), DB::raw('SUM(total) as total'))
+                ->whereNotNull('product_id')
+                ->groupBy('product_id')
+                ->orderByDesc('quantity')
+                ->limit(5)
+                ->with('product:id,name,sku,image')
+                ->get()
+                ->map(fn($row) => [
+                    'id' => $row->product_id,
+                    'name' => $row->product?->name,
+                    'sku' => $row->product?->sku,
+                    'image' => $row->product?->image_url ?? $row->product?->image,
+                    'quantity' => (int) $row->quantity,
+                    'total' => (float) $row->total,
+                ])
+                ->values();
 
-                if ($invoiceIds->isNotEmpty()) {
-                    $query->orWhere(function ($sub) use ($invoiceIds) {
-                        $sub->where('subject_type', Invoice::class)
-                            ->whereIn('subject_id', $invoiceIds);
-                    });
-                }
+            $salesInsights = [
+                'average_order_value' => $salesCount > 0 ? round($salesTotal / $salesCount, 2) : 0,
+                'average_items' => $averageItems,
+                'last_purchase_at' => $lastPurchaseAt,
+                'days_since_last_purchase' => $daysSinceLast,
+                'purchase_frequency_days' => $purchaseFrequency,
+                'recent_30_count' => $recent30Count,
+                'preferred_day' => $preferredDay,
+                'preferred_period' => $preferredPeriod,
+                'distinct_products' => $distinctProducts,
+            ];
+        }
 
-                if ($paymentIds->isNotEmpty()) {
-                    $query->orWhere(function ($sub) use ($paymentIds) {
-                        $sub->where('subject_type', Payment::class)
-                            ->whereIn('subject_id', $paymentIds);
+        $stats = [];
+        $tasks = collect();
+        $upcomingJobs = collect();
+        $recentPayments = collect();
+        $billing = [
+            'total_invoiced' => 0,
+            'total_paid' => 0,
+            'balance_due' => 0,
+        ];
+        $activity = collect();
+
+        if (!$isProductAccount) {
+            $stats = [
+                'active_works' => Work::query()
+                    ->where('customer_id', $customer->id)
+                    ->where('user_id', $accountId)
+                    ->whereDate('end_date', '>=', now()->toDateString())
+                    ->count(),
+                'requests' => LeadRequest::query()
+                    ->where('customer_id', $customer->id)
+                    ->where('user_id', $accountId)
+                    ->count(),
+                'quotes' => Quote::query()
+                    ->where('customer_id', $customer->id)
+                    ->where('user_id', $accountId)
+                    ->whereNull('archived_at')
+                    ->count(),
+                'jobs' => Work::query()
+                    ->where('customer_id', $customer->id)
+                    ->where('user_id', $accountId)
+                    ->count(),
+                'invoices' => Invoice::query()
+                    ->where('customer_id', $customer->id)
+                    ->where('user_id', $accountId)
+                    ->count(),
+            ];
+
+            $tasks = Task::query()
+                ->forAccount($accountId)
+                ->where('customer_id', $customer->id)
+                ->with(['assignee.user:id,name'])
+                ->orderByRaw('CASE WHEN due_date IS NULL THEN 1 ELSE 0 END')
+                ->orderBy('due_date')
+                ->orderByDesc('created_at')
+                ->limit(8)
+                ->get([
+                    'id',
+                    'title',
+                    'status',
+                    'due_date',
+                    'completed_at',
+                    'assigned_team_member_id',
+                ])
+                ->map(fn($task) => [
+                    'id' => $task->id,
+                    'title' => $task->title,
+                    'status' => $task->status,
+                    'due_date' => $task->due_date,
+                    'completed_at' => $task->completed_at,
+                    'assignee' => $task->assignee?->user?->name,
+                ])
+                ->values();
+
+            $upcomingJobs = Work::query()
+                ->where('customer_id', $customer->id)
+                ->where('user_id', $accountId)
+                ->whereDate('start_date', '>=', now()->toDateString())
+                ->orderBy('start_date')
+                ->limit(8)
+                ->get([
+                    'id',
+                    'job_title',
+                    'status',
+                    'start_date',
+                    'end_date',
+                    'created_at',
+                ])
+                ->map(fn($work) => [
+                    'id' => $work->id,
+                    'job_title' => $work->job_title,
+                    'status' => $work->status,
+                    'start_date' => $work->start_date,
+                    'end_date' => $work->end_date,
+                    'created_at' => $work->created_at,
+                ])
+                ->values();
+
+            $recentPayments = Payment::query()
+                ->where('customer_id', $customer->id)
+                ->where('user_id', $accountId)
+                ->with('invoice:id,number')
+                ->orderByRaw('CASE WHEN paid_at IS NULL THEN 1 ELSE 0 END')
+                ->orderByDesc('paid_at')
+                ->orderByDesc('created_at')
+                ->limit(8)
+                ->get([
+                    'id',
+                    'invoice_id',
+                    'amount',
+                    'method',
+                    'status',
+                    'reference',
+                    'paid_at',
+                    'created_at',
+                ])
+                ->map(fn($payment) => [
+                    'id' => $payment->id,
+                    'amount' => (float) $payment->amount,
+                    'method' => $payment->method,
+                    'status' => $payment->status,
+                    'reference' => $payment->reference,
+                    'paid_at' => $payment->paid_at,
+                    'created_at' => $payment->created_at,
+                    'invoice' => $payment->invoice ? [
+                        'id' => $payment->invoice_id,
+                        'number' => $payment->invoice->number,
+                    ] : null,
+                ])
+                ->values();
+
+            $totalInvoiced = (float) Invoice::query()
+                ->where('customer_id', $customer->id)
+                ->where('user_id', $accountId)
+                ->whereNotIn('status', ['void'])
+                ->sum('total');
+            $totalPaid = (float) Payment::query()
+                ->where('customer_id', $customer->id)
+                ->where('user_id', $accountId)
+                ->sum('amount');
+
+            $billing = [
+                'total_invoiced' => $totalInvoiced,
+                'total_paid' => $totalPaid,
+                'balance_due' => max(0, round($totalInvoiced - $totalPaid, 2)),
+            ];
+
+            $subjectLabels = [
+                Quote::class => 'Quote',
+                Work::class => 'Job',
+                Invoice::class => 'Invoice',
+                Payment::class => 'Payment',
+                Customer::class => 'Customer',
+            ];
+
+            $quoteIds = Quote::query()
+                ->where('customer_id', $customer->id)
+                ->where('user_id', $accountId)
+                ->latest()
+                ->limit(250)
+                ->pluck('id');
+            $workIds = Work::query()
+                ->where('customer_id', $customer->id)
+                ->where('user_id', $accountId)
+                ->latest()
+                ->limit(250)
+                ->pluck('id');
+            $invoiceIds = Invoice::query()
+                ->where('customer_id', $customer->id)
+                ->where('user_id', $accountId)
+                ->latest()
+                ->limit(250)
+                ->pluck('id');
+            $paymentIds = Payment::query()
+                ->where('customer_id', $customer->id)
+                ->where('user_id', $accountId)
+                ->latest()
+                ->limit(250)
+                ->pluck('id');
+
+            $activity = ActivityLog::query()
+                ->where(function ($query) use ($customer, $quoteIds, $workIds, $invoiceIds, $paymentIds) {
+                    $query->where(function ($sub) use ($customer) {
+                        $sub->where('subject_type', Customer::class)
+                            ->where('subject_id', $customer->id);
                     });
-                }
-            })
-            ->latest()
-            ->limit(12)
-            ->get(['id', 'action', 'description', 'subject_type', 'subject_id', 'created_at'])
-            ->map(function ($log) use ($subjectLabels) {
-                return [
-                    'id' => $log->id,
-                    'action' => $log->action,
-                    'description' => $log->description,
-                    'subject_type' => $log->subject_type,
-                    'subject_id' => $log->subject_id,
-                    'subject' => $subjectLabels[$log->subject_type] ?? 'Item',
-                    'created_at' => $log->created_at,
-                ];
-            })
-            ->values();
+
+                    if ($quoteIds->isNotEmpty()) {
+                        $query->orWhere(function ($sub) use ($quoteIds) {
+                            $sub->where('subject_type', Quote::class)
+                                ->whereIn('subject_id', $quoteIds);
+                        });
+                    }
+
+                    if ($workIds->isNotEmpty()) {
+                        $query->orWhere(function ($sub) use ($workIds) {
+                            $sub->where('subject_type', Work::class)
+                                ->whereIn('subject_id', $workIds);
+                        });
+                    }
+
+                    if ($invoiceIds->isNotEmpty()) {
+                        $query->orWhere(function ($sub) use ($invoiceIds) {
+                            $sub->where('subject_type', Invoice::class)
+                                ->whereIn('subject_id', $invoiceIds);
+                        });
+                    }
+
+                    if ($paymentIds->isNotEmpty()) {
+                        $query->orWhere(function ($sub) use ($paymentIds) {
+                            $sub->where('subject_type', Payment::class)
+                                ->whereIn('subject_id', $paymentIds);
+                        });
+                    }
+                })
+                ->latest()
+                ->limit(12)
+                ->get(['id', 'action', 'description', 'subject_type', 'subject_id', 'created_at'])
+                ->map(function ($log) use ($subjectLabels) {
+                    return [
+                        'id' => $log->id,
+                        'action' => $log->action,
+                        'description' => $log->description,
+                        'subject_type' => $log->subject_type,
+                        'subject_id' => $log->subject_id,
+                        'subject' => $subjectLabels[$log->subject_type] ?? 'Item',
+                        'created_at' => $log->created_at,
+                    ];
+                })
+                ->values();
+        } else {
+            $activity = ActivityLog::query()
+                ->where('subject_type', Customer::class)
+                ->where('subject_id', $customer->id)
+                ->latest()
+                ->limit(12)
+                ->get(['id', 'action', 'description', 'subject_type', 'subject_id', 'created_at'])
+                ->map(function ($log) {
+                    return [
+                        'id' => $log->id,
+                        'action' => $log->action,
+                        'description' => $log->description,
+                        'subject_type' => $log->subject_type,
+                        'subject_id' => $log->subject_id,
+                        'subject' => 'Customer',
+                        'created_at' => $log->created_at,
+                    ];
+                })
+                ->values();
+        }
 
         return $this->inertiaOrJson('Customer/Show', [
             'customer' => $customer,
             'works' => $works,
             'filters' => $filters,
             'stats' => $stats,
+            'sales' => $sales,
+            'salesSummary' => $salesSummary,
+            'salesInsights' => $salesInsights,
+            'topProducts' => $topProducts,
             'schedule' => [
                 'tasks' => $tasks,
                 'upcomingJobs' => $upcomingJobs,
@@ -552,6 +759,12 @@ class CustomerController extends Controller
      */
     public function store(CustomerRequest $request)
     {
+        $user = $request->user();
+        if (!$user) {
+            abort(403);
+        }
+        [$accountOwner, $accountId] = $this->resolveCustomerAccount($user);
+
         $validated = $request->validated();
         $validated['logo'] = FileHandler::handleImageUpload('customers', $request, 'logo', 'customers/customer.png');
         $validated['header_image'] = FileHandler::handleImageUpload('customers', $request, 'header_image', 'customers/customer.png');
@@ -561,16 +774,17 @@ class CustomerController extends Controller
 
         $customerData = Arr::except($validated, ['temporary_password']);
         $customerData['portal_access'] = $portalAccess;
+        $customerData['user_id'] = $accountId;
 
-        [$customer, $portalUser] = DB::transaction(function () use ($request, $validated, $customerData, $portalAccess) {
-        $portalUser = null;
-        if ($portalAccess) {
-            $roleId = $this->resolveClientRoleId();
-            $portalUser = $this->createPortalUser($validated, $roleId);
-            $customerData['portal_user_id'] = $portalUser->id;
-        }
+        [$customer, $portalUser] = DB::transaction(function () use ($validated, $customerData, $portalAccess) {
+            $portalUser = null;
+            if ($portalAccess) {
+                $roleId = $this->resolveClientRoleId();
+                $portalUser = $this->createPortalUser($validated, $roleId);
+                $customerData['portal_user_id'] = $portalUser->id;
+            }
 
-        $customer = $request->user()->customers()->create($customerData);
+            $customer = Customer::create($customerData);
 
             return [$customer, $portalUser];
         });
@@ -591,7 +805,6 @@ class CustomerController extends Controller
         ], 'Customer created');
 
         if ($portalUser) {
-            $accountOwner = User::query()->find($request->user()->accountOwnerId());
             $token = Password::broker()->createToken($portalUser);
             $portalUser->notify(new InviteUserNotification(
                 $token,
@@ -617,6 +830,12 @@ class CustomerController extends Controller
      */
     public function storeQuick(CustomerRequest $request)
     {
+        $user = $request->user();
+        if (!$user) {
+            abort(403);
+        }
+        [$accountOwner, $accountId] = $this->resolveCustomerAccount($user, true);
+
         $validated = $request->validated();
         $validated['logo'] = FileHandler::handleImageUpload('customers', $request, 'logo', 'customers/customer.png');
         $validated['header_image'] = FileHandler::handleImageUpload('customers', $request, 'header_image', 'customers/customer.png');
@@ -626,8 +845,9 @@ class CustomerController extends Controller
 
         $customerData = Arr::except($validated, ['temporary_password']);
         $customerData['portal_access'] = $portalAccess;
+        $customerData['user_id'] = $accountId;
 
-        [$customer, $portalUser] = DB::transaction(function () use ($request, $validated, $customerData, $portalAccess) {
+        [$customer, $portalUser] = DB::transaction(function () use ($validated, $customerData, $portalAccess) {
             $portalUser = null;
             if ($portalAccess) {
                 $roleId = $this->resolveClientRoleId();
@@ -635,7 +855,7 @@ class CustomerController extends Controller
                 $customerData['portal_user_id'] = $portalUser->id;
             }
 
-            $customer = $request->user()->customers()->create($customerData);
+            $customer = Customer::create($customerData);
 
             return [$customer, $portalUser];
         });
@@ -656,7 +876,6 @@ class CustomerController extends Controller
         ], 'Customer created');
 
         if ($portalUser) {
-            $accountOwner = User::query()->find($request->user()->accountOwnerId());
             $token = Password::broker()->createToken($portalUser);
             $portalUser->notify(new InviteUserNotification(
                 $token,
@@ -689,6 +908,7 @@ class CustomerController extends Controller
                 'last_name' => $customer->last_name,
                 'email' => $customer->email,
                 'phone' => $customer->phone,
+                'discount_rate' => $customer->discount_rate,
             ],
             'property_id' => $property?->id,
             'properties' => $propertyData,
@@ -782,6 +1002,37 @@ class CustomerController extends Controller
         }
 
         return redirect()->route('customer.index')->with('success', 'Customer deleted successfully.');
+    }
+
+    private function resolveCustomerAccount(User $user, bool $allowPos = false): array
+    {
+        $ownerId = $user->accountOwnerId();
+        $owner = $ownerId === $user->id
+            ? $user
+            : User::query()
+                ->select(['id', 'company_type', 'company_name', 'company_logo'])
+                ->find($ownerId);
+
+        if (!$owner) {
+            abort(403);
+        }
+
+        $accountId = $user->id;
+        if ($owner->company_type === 'products') {
+            if ($user->id !== $owner->id) {
+                $membership = $user->relationLoaded('teamMembership')
+                    ? $user->teamMembership
+                    : $user->teamMembership()->first();
+                $canManage = $membership?->hasPermission('sales.manage') ?? false;
+                $canPos = $allowPos ? ($membership?->hasPermission('sales.pos') ?? false) : false;
+                if (!$membership || (!$canManage && !$canPos)) {
+                    abort(403);
+                }
+            }
+            $accountId = $owner->id;
+        }
+
+        return [$owner, $accountId];
     }
 
     private function resolveClientRoleId(): int

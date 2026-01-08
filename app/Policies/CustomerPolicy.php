@@ -29,6 +29,23 @@ class CustomerPolicy
      */
     public function view (User $user, Customer $customer): bool
     {
-        return $user->accountOwnerId() === $customer->user_id;
+        if ($user->accountOwnerId() !== $customer->user_id) {
+            return false;
+        }
+
+        if ($user->id === $customer->user_id) {
+            return true;
+        }
+
+        $owner = User::query()->select(['id', 'company_type'])->find($customer->user_id);
+        if ($owner?->company_type !== 'products') {
+            return true;
+        }
+
+        $membership = $user->relationLoaded('teamMembership')
+            ? $user->teamMembership
+            : $user->teamMembership()->first();
+
+        return $membership?->hasPermission('sales.manage') ?? false;
     }
 }

@@ -37,7 +37,17 @@ class HandleInertiaRequests extends Middleware
 
         $accountOwner = null;
         $accountFeatures = null;
-        if ($user && $ownerId) {
+        if ($user && $user->isClient()) {
+            $customer = $user->relationLoaded('customerProfile')
+                ? $user->customerProfile
+                : $user->customerProfile()->first();
+            if ($customer) {
+                $accountOwner = User::query()
+                    ->select(['id', 'company_name', 'company_type', 'company_logo', 'onboarding_completed_at'])
+                    ->find($customer->user_id);
+            }
+        }
+        if (!$accountOwner && $user && $ownerId) {
             $accountOwner = $ownerId === $user->id
                 ? $user
                 : User::query()
@@ -54,6 +64,13 @@ class HandleInertiaRequests extends Middleware
             $impersonator = User::query()->select(['id', 'name', 'email'])->find($impersonatorId);
         }
 
+        $teamMembership = null;
+        if ($user && !$user->isAccountOwner()) {
+            $teamMembership = $user->relationLoaded('teamMembership')
+                ? $user->teamMembership
+                : $user->teamMembership()->first();
+        }
+
         $platformAdmin = null;
         if ($user && $user->isPlatformAdmin()) {
             $platformAdmin = $user->relationLoaded('platformAdmin')
@@ -65,13 +82,32 @@ class HandleInertiaRequests extends Middleware
             'enabled' => false,
             'message' => '',
         ]);
+        $notifications = null;
+        if ($user) {
+            $notifications = [
+                'unread_count' => $user->unreadNotifications()->count(),
+                'items' => $user->notifications()
+                    ->latest()
+                    ->limit(6)
+                    ->get()
+                    ->map(fn($notification) => [
+                        'id' => $notification->id,
+                        'title' => $notification->data['title'] ?? 'Notification',
+                        'message' => $notification->data['message'] ?? '',
+                        'action_url' => $notification->data['action_url'] ?? null,
+                        'created_at' => $notification->created_at?->toIso8601String(),
+                        'read_at' => $notification->read_at?->toIso8601String(),
+                    ])
+                    ->values(),
+            ];
+        }
 
         return [
             ...parent::share($request),
             'auth' => [
                 'user' => $user,
                 'account' => $user ? [
-                    'owner_id' => $ownerId,
+                    'owner_id' => $accountOwner?->id ?? $ownerId,
                     'is_owner' => $user->isAccountOwner(),
                     'is_client' => $user->isClient(),
                     'is_superadmin' => $user->isSuperadmin(),
@@ -88,18 +124,24 @@ class HandleInertiaRequests extends Middleware
                         'permissions' => $platformAdmin->permissions ?? [],
                         'is_active' => (bool) $platformAdmin->is_active,
                     ] : null,
+                    'team' => $teamMembership ? [
+                        'role' => $teamMembership->role,
+                        'permissions' => $teamMembership->permissions ?? [],
+                    ] : null,
                 ] : null,
                 'impersonator' => $impersonator,
             ],
             'platform' => [
                 'maintenance' => $maintenance,
             ],
+            'notifications' => $notifications,
             'locale' => app()->getLocale(),
             'locales' => ['fr', 'en'],
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
                 'error' => fn () => $request->session()->get('error'),
                 'warning' => fn () => $request->session()->get('warning'),
+                'last_sale_id' => fn () => $request->session()->get('last_sale_id'),
             ],
         ];
     }

@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\ActivityLog;
 use App\Models\Customer;
 use App\Models\Invoice;
 use App\Models\InvoiceItem;
@@ -13,12 +14,14 @@ use App\Models\PlatformSetting;
 use App\Models\PlatformSupportTicket;
 use App\Models\Product;
 use App\Models\ProductCategory;
+use App\Models\ProductImage;
 use App\Models\Property;
 use App\Models\Quote;
 use App\Models\QuoteProduct;
 use App\Models\QuoteRating;
 use App\Models\Request as LeadRequest;
 use App\Models\Role;
+use App\Models\Sale;
 use App\Models\ServiceMaterial;
 use App\Models\Task;
 use App\Models\TaskMaterial;
@@ -26,10 +29,12 @@ use App\Models\TaskMedia;
 use App\Models\TeamMember;
 use App\Models\Transaction;
 use App\Models\User;
+use App\Models\Warehouse;
 use App\Models\Work;
 use App\Models\WorkChecklistItem;
 use App\Models\WorkMedia;
 use App\Models\WorkRating;
+use App\Services\InventoryService;
 use App\Services\WorkBillingService;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
@@ -212,9 +217,26 @@ class LaunchSeeder extends Seeder
                 'company_city' => 'Toronto',
                 'company_type' => 'products',
                 'onboarding_completed_at' => $now,
+                'company_fulfillment' => [
+                    'delivery_enabled' => true,
+                    'pickup_enabled' => true,
+                    'delivery_fee' => 7.5,
+                    'delivery_zone' => 'Greater Toronto Area',
+                    'pickup_address' => '125 King St W, Toronto, ON',
+                    'prep_time_minutes' => 25,
+                    'delivery_notes' => 'Delivery within 24 hours',
+                    'pickup_notes' => 'Show your order number at pickup',
+                ],
                 'payment_methods' => ['cash', 'card'],
             ]
         );
+        $productOwnerFeatures = (array) ($productOwner->company_features ?? []);
+        if (!array_key_exists('sales', $productOwnerFeatures)) {
+            $productOwnerFeatures['sales'] = true;
+        }
+        $productOwner->update([
+            'company_features' => $productOwnerFeatures,
+        ]);
 
         // Module coverage seed accounts.
         $serviceLiteOwner = User::updateOrCreate(
@@ -524,8 +546,51 @@ class LaunchSeeder extends Seeder
             ]
         );
 
+        $productSellerUser = User::updateOrCreate(
+            ['email' => 'seller.products@example.com'],
+            [
+                'name' => 'Product Seller',
+                'password' => Hash::make('password'),
+                'role_id' => $employeeRoleId,
+                'email_verified_at' => $now,
+            ]
+        );
+
+        $productSellerMember = TeamMember::updateOrCreate(
+            [
+                'account_id' => $productOwner->id,
+                'user_id' => $productSellerUser->id,
+            ],
+            [
+                'role' => 'seller',
+                'permissions' => [
+                    'sales.pos',
+                ],
+                'is_active' => true,
+            ]
+        );
+
         $serviceCategory = ProductCategory::resolveForAccount($serviceOwner->id, $serviceOwner->id, 'Services');
-        $productCategory = ProductCategory::resolveForAccount($productOwner->id, $productOwner->id, 'Products');
+        $productCategoryNames = [
+            'Products',
+            'Cleaning',
+            'Safety',
+            'Tools',
+            'Electrical',
+            'Plumbing',
+            'Packaging',
+            'Retail',
+            'Office',
+        ];
+        $productCategoryMap = [];
+        foreach ($productCategoryNames as $name) {
+            $productCategoryMap[$name] = ProductCategory::resolveForAccount(
+                $productOwner->id,
+                $productOwner->id,
+                $name
+            );
+        }
+        $productCategory = $productCategoryMap['Products'];
 
         $serviceProducts = collect([
             ['name' => 'Window cleaning', 'price' => 120],
@@ -547,25 +612,806 @@ class LaunchSeeder extends Seeder
             );
         });
 
-        $productProducts = collect([
-            ['name' => 'Safety gloves', 'price' => 15, 'stock' => 120],
-            ['name' => 'Cleaning kit', 'price' => 85, 'stock' => 40],
-            ['name' => 'Ladder set', 'price' => 350, 'stock' => 12],
-        ])->map(function ($data) use ($productOwner, $productCategory) {
-            return Product::updateOrCreate(
+        $productSeedData = collect([
+            [
+                'name' => 'Safety gloves',
+                'category' => 'Safety',
+                'price' => 15,
+                'cost_price' => 4,
+                'stock' => 120,
+                'minimum_stock' => 20,
+                'sku' => 'SUP-GLV-001',
+                'barcode' => '0123456789051',
+                'unit' => 'pair',
+                'supplier_name' => 'SecurePro',
+                'tax_rate' => 5.0,
+                'tracking_type' => 'none',
+                'reserved' => 8,
+                'secondary_stock' => 30,
+                'bin_locations' => [
+                    'main' => 'A-01',
+                    'overflow' => 'B-08',
+                ],
+            ],
+            [
+                'name' => 'Cleaning kit',
+                'category' => 'Cleaning',
+                'price' => 85,
+                'cost_price' => 45,
+                'stock' => 40,
+                'minimum_stock' => 10,
+                'sku' => 'KIT-CLN-002',
+                'barcode' => '0123456789052',
+                'unit' => 'kit',
+                'supplier_name' => 'CleanCo',
+                'tax_rate' => 14.975,
+                'tracking_type' => 'lot',
+                'damaged' => 2,
+                'bin_locations' => [
+                    'main' => 'C-03',
+                ],
+            ],
+            [
+                'name' => 'Ladder set',
+                'category' => 'Tools',
+                'price' => 350,
+                'cost_price' => 220,
+                'stock' => 12,
+                'minimum_stock' => 3,
+                'sku' => 'EQP-LAD-010',
+                'barcode' => '0123456789053',
+                'unit' => 'set',
+                'supplier_name' => 'LiftIt',
+                'tax_rate' => 14.975,
+                'tracking_type' => 'serial',
+                'reserved' => 1,
+                'bin_locations' => [
+                    'main' => 'E-12',
+                    'overflow' => 'E-15',
+                ],
+            ],
+            [
+                'name' => 'Microfiber cloth pack',
+                'category' => 'Cleaning',
+                'price' => 9.50,
+                'cost_price' => 3.50,
+                'stock' => 180,
+                'minimum_stock' => 25,
+                'sku' => 'CLN-MIC-011',
+                'barcode' => '0123456789054',
+                'unit' => 'pack',
+                'supplier_name' => 'CleanCo',
+                'tax_rate' => 14.975,
+                'tracking_type' => 'none',
+                'secondary_stock' => 40,
+            ],
+            [
+                'name' => 'Glass cleaner 1L',
+                'category' => 'Cleaning',
+                'price' => 7.25,
+                'cost_price' => 2.90,
+                'stock' => 60,
+                'minimum_stock' => 20,
+                'sku' => 'CLN-GLS-012',
+                'barcode' => '0123456789055',
+                'unit' => 'bottle',
+                'supplier_name' => 'BrightChem',
+                'tax_rate' => 14.975,
+                'tracking_type' => 'lot',
+                'damaged' => 1,
+            ],
+            [
+                'name' => 'Disinfectant spray',
+                'category' => 'Cleaning',
+                'price' => 6.80,
+                'cost_price' => 2.40,
+                'stock' => 75,
+                'minimum_stock' => 18,
+                'sku' => 'CLN-DIS-013',
+                'barcode' => '0123456789056',
+                'unit' => 'bottle',
+                'supplier_name' => 'SafeChem',
+                'tax_rate' => 14.975,
+                'tracking_type' => 'lot',
+            ],
+            [
+                'name' => 'Trash bags roll',
+                'category' => 'Packaging',
+                'price' => 5.25,
+                'cost_price' => 1.80,
+                'stock' => 200,
+                'minimum_stock' => 35,
+                'sku' => 'PKG-TRH-020',
+                'barcode' => '0123456789057',
+                'unit' => 'roll',
+                'supplier_name' => 'PackRight',
+                'tax_rate' => 14.975,
+                'tracking_type' => 'none',
+                'secondary_stock' => 60,
+            ],
+            [
+                'name' => 'Safety goggles',
+                'category' => 'Safety',
+                'price' => 18,
+                'cost_price' => 6,
+                'stock' => 80,
+                'minimum_stock' => 12,
+                'sku' => 'SAF-GOG-021',
+                'barcode' => '0123456789058',
+                'unit' => 'piece',
+                'supplier_name' => 'SecurePro',
+                'tax_rate' => 5.0,
+                'tracking_type' => 'none',
+            ],
+            [
+                'name' => 'Ear protection',
+                'category' => 'Safety',
+                'price' => 22,
+                'cost_price' => 9,
+                'stock' => 50,
+                'minimum_stock' => 8,
+                'sku' => 'SAF-EAR-022',
+                'barcode' => '0123456789059',
+                'unit' => 'piece',
+                'supplier_name' => 'SecurePro',
+                'tax_rate' => 5.0,
+                'tracking_type' => 'none',
+            ],
+            [
+                'name' => 'Work boots',
+                'category' => 'Safety',
+                'price' => 75,
+                'cost_price' => 42,
+                'stock' => 25,
+                'minimum_stock' => 6,
+                'sku' => 'SAF-BOT-023',
+                'barcode' => '0123456789060',
+                'unit' => 'pair',
+                'supplier_name' => 'WorkWear',
+                'tax_rate' => 5.0,
+                'tracking_type' => 'none',
+            ],
+            [
+                'name' => 'Cordless drill',
+                'category' => 'Tools',
+                'price' => 140,
+                'cost_price' => 92,
+                'stock' => 8,
+                'minimum_stock' => 2,
+                'sku' => 'TLS-DRL-030',
+                'barcode' => '0123456789061',
+                'unit' => 'piece',
+                'supplier_name' => 'ToolHub',
+                'tax_rate' => 14.975,
+                'tracking_type' => 'serial',
+            ],
+            [
+                'name' => 'Hammer',
+                'category' => 'Tools',
+                'price' => 18,
+                'cost_price' => 7,
+                'stock' => 70,
+                'minimum_stock' => 10,
+                'sku' => 'TLS-HMR-031',
+                'barcode' => '0123456789062',
+                'unit' => 'piece',
+                'supplier_name' => 'ToolHub',
+                'tax_rate' => 14.975,
+                'tracking_type' => 'none',
+            ],
+            [
+                'name' => 'Measuring tape',
+                'category' => 'Tools',
+                'price' => 9.90,
+                'cost_price' => 3.90,
+                'stock' => 90,
+                'minimum_stock' => 12,
+                'sku' => 'TLS-TAP-032',
+                'barcode' => '0123456789063',
+                'unit' => 'piece',
+                'supplier_name' => 'ToolHub',
+                'tax_rate' => 14.975,
+                'tracking_type' => 'none',
+            ],
+            [
+                'name' => 'Extension cord 10m',
+                'category' => 'Electrical',
+                'price' => 24,
+                'cost_price' => 11,
+                'stock' => 55,
+                'minimum_stock' => 10,
+                'sku' => 'ELE-COR-040',
+                'barcode' => '0123456789064',
+                'unit' => 'piece',
+                'supplier_name' => 'VoltSupply',
+                'tax_rate' => 14.975,
+                'tracking_type' => 'none',
+            ],
+            [
+                'name' => 'LED bulb pack',
+                'category' => 'Electrical',
+                'price' => 12,
+                'cost_price' => 5,
+                'stock' => 100,
+                'minimum_stock' => 15,
+                'sku' => 'ELE-LMP-041',
+                'barcode' => '0123456789065',
+                'unit' => 'pack',
+                'supplier_name' => 'VoltSupply',
+                'tax_rate' => 14.975,
+                'tracking_type' => 'none',
+            ],
+            [
+                'name' => 'Fuse kit',
+                'category' => 'Electrical',
+                'price' => 16,
+                'cost_price' => 6.50,
+                'stock' => 40,
+                'minimum_stock' => 8,
+                'sku' => 'ELE-FUS-042',
+                'barcode' => '0123456789066',
+                'unit' => 'kit',
+                'supplier_name' => 'VoltSupply',
+                'tax_rate' => 14.975,
+                'tracking_type' => 'none',
+            ],
+            [
+                'name' => 'Copper pipe 1m',
+                'category' => 'Plumbing',
+                'price' => 14,
+                'cost_price' => 8,
+                'stock' => 110,
+                'minimum_stock' => 20,
+                'sku' => 'PLB-COP-050',
+                'barcode' => '0123456789067',
+                'unit' => 'piece',
+                'supplier_name' => 'PipeWorks',
+                'tax_rate' => 14.975,
+                'tracking_type' => 'none',
+            ],
+            [
+                'name' => 'PVC elbow 90deg',
+                'category' => 'Plumbing',
+                'price' => 2.50,
+                'cost_price' => 0.70,
+                'stock' => 160,
+                'minimum_stock' => 30,
+                'sku' => 'PLB-ELB-051',
+                'barcode' => '0123456789068',
+                'unit' => 'piece',
+                'supplier_name' => 'PipeWorks',
+                'tax_rate' => 14.975,
+                'tracking_type' => 'none',
+            ],
+            [
+                'name' => 'Plumber tape roll',
+                'category' => 'Plumbing',
+                'price' => 3.80,
+                'cost_price' => 1.10,
+                'stock' => 120,
+                'minimum_stock' => 25,
+                'sku' => 'PLB-TAP-052',
+                'barcode' => '0123456789069',
+                'unit' => 'roll',
+                'supplier_name' => 'PipeWorks',
+                'tax_rate' => 14.975,
+                'tracking_type' => 'none',
+            ],
+            [
+                'name' => 'Barcode scanner',
+                'category' => 'Retail',
+                'price' => 210,
+                'cost_price' => 150,
+                'stock' => 6,
+                'minimum_stock' => 2,
+                'sku' => 'RET-SCN-060',
+                'barcode' => '0123456789070',
+                'unit' => 'piece',
+                'supplier_name' => 'RetailGear',
+                'tax_rate' => 14.975,
+                'tracking_type' => 'serial',
+            ],
+            [
+                'name' => 'POS terminal',
+                'category' => 'Retail',
+                'price' => 480,
+                'cost_price' => 360,
+                'stock' => 4,
+                'minimum_stock' => 1,
+                'sku' => 'RET-POS-061',
+                'barcode' => '0123456789071',
+                'unit' => 'piece',
+                'supplier_name' => 'RetailGear',
+                'tax_rate' => 14.975,
+                'tracking_type' => 'serial',
+            ],
+            [
+                'name' => 'Receipt paper roll',
+                'category' => 'Retail',
+                'price' => 4.20,
+                'cost_price' => 1.40,
+                'stock' => 150,
+                'minimum_stock' => 20,
+                'sku' => 'RET-PAP-062',
+                'barcode' => '0123456789072',
+                'unit' => 'roll',
+                'supplier_name' => 'RetailGear',
+                'tax_rate' => 14.975,
+                'tracking_type' => 'none',
+                'reserved' => 20,
+            ],
+            [
+                'name' => 'Shelf label pack',
+                'category' => 'Retail',
+                'price' => 6.60,
+                'cost_price' => 2.00,
+                'stock' => 90,
+                'minimum_stock' => 15,
+                'sku' => 'RET-LBL-063',
+                'barcode' => '0123456789073',
+                'unit' => 'pack',
+                'supplier_name' => 'RetailGear',
+                'tax_rate' => 14.975,
+                'tracking_type' => 'none',
+            ],
+            [
+                'name' => 'Packaging tape',
+                'category' => 'Packaging',
+                'price' => 3.30,
+                'cost_price' => 0.90,
+                'stock' => 130,
+                'minimum_stock' => 25,
+                'sku' => 'PKG-TAP-064',
+                'barcode' => '0123456789074',
+                'unit' => 'roll',
+                'supplier_name' => 'PackRight',
+                'tax_rate' => 14.975,
+                'tracking_type' => 'none',
+            ],
+            [
+                'name' => 'Shipping boxes 50x40',
+                'category' => 'Packaging',
+                'price' => 8.90,
+                'cost_price' => 3.40,
+                'stock' => 60,
+                'minimum_stock' => 12,
+                'sku' => 'PKG-BOX-065',
+                'barcode' => '0123456789075',
+                'unit' => 'box',
+                'supplier_name' => 'PackRight',
+                'tax_rate' => 14.975,
+                'tracking_type' => 'none',
+            ],
+            [
+                'name' => 'Office label printer',
+                'category' => 'Office',
+                'price' => 195,
+                'cost_price' => 130,
+                'stock' => 5,
+                'minimum_stock' => 2,
+                'sku' => 'OFF-PRN-070',
+                'barcode' => '0123456789076',
+                'unit' => 'piece',
+                'supplier_name' => 'OfficeLine',
+                'tax_rate' => 14.975,
+                'tracking_type' => 'serial',
+            ],
+            [
+                'name' => 'Inventory clipboard',
+                'category' => 'Office',
+                'price' => 7.40,
+                'cost_price' => 2.60,
+                'stock' => 80,
+                'minimum_stock' => 20,
+                'sku' => 'OFF-CLP-071',
+                'barcode' => '0123456789077',
+                'unit' => 'piece',
+                'supplier_name' => 'OfficeLine',
+                'tax_rate' => 14.975,
+                'tracking_type' => 'none',
+            ],
+            [
+                'name' => 'Organic granola bars',
+                'category' => 'Retail',
+                'description' => 'Snack box for checkout displays.',
+                'price' => 5.50,
+                'cost_price' => 2.10,
+                'stock' => 180,
+                'minimum_stock' => 30,
+                'sku' => 'RET-GRA-072',
+                'barcode' => '0123456789078',
+                'unit' => 'box',
+                'supplier_name' => 'MarketFresh',
+                'tax_rate' => 14.975,
+                'tracking_type' => 'none',
+                'reserved' => 10,
+                'bin_locations' => [
+                    'main' => 'R-12',
+                    'overflow' => 'O-4',
+                ],
+            ],
+            [
+                'name' => 'Sparkling water 12-pack',
+                'category' => 'Retail',
+                'description' => 'Assorted flavors for cooler displays.',
+                'price' => 9.90,
+                'cost_price' => 4.00,
+                'stock' => 120,
+                'minimum_stock' => 25,
+                'sku' => 'RET-WTR-073',
+                'barcode' => '0123456789079',
+                'unit' => 'pack',
+                'supplier_name' => 'MarketFresh',
+                'tax_rate' => 14.975,
+                'tracking_type' => 'none',
+                'secondary_stock' => 30,
+            ],
+            [
+                'name' => 'Whole bean coffee 1kg',
+                'category' => 'Products',
+                'description' => 'Medium roast coffee for bulk sales.',
+                'price' => 22.50,
+                'cost_price' => 10.50,
+                'stock' => 60,
+                'minimum_stock' => 10,
+                'sku' => 'PRO-COF-074',
+                'barcode' => '0123456789080',
+                'unit' => 'bag',
+                'supplier_name' => 'RoastWorks',
+                'tax_rate' => 14.975,
+                'tracking_type' => 'lot',
+                'reserved' => 6,
+            ],
+            [
+                'name' => 'All-purpose surface cleaner',
+                'category' => 'Cleaning',
+                'description' => 'Multi-surface spray for retail shelves.',
+                'price' => 6.80,
+                'cost_price' => 2.40,
+                'stock' => 110,
+                'minimum_stock' => 20,
+                'sku' => 'CLN-SPR-075',
+                'barcode' => '0123456789081',
+                'unit' => 'bottle',
+                'supplier_name' => 'CleanCo',
+                'tax_rate' => 14.975,
+                'tracking_type' => 'none',
+                'damaged' => 3,
+            ],
+            [
+                'name' => 'Safety goggles',
+                'category' => 'Safety',
+                'description' => 'Protective eyewear for workshop use.',
+                'price' => 12.50,
+                'cost_price' => 4.90,
+                'stock' => 45,
+                'minimum_stock' => 8,
+                'sku' => 'SFT-GOG-076',
+                'barcode' => '0123456789082',
+                'unit' => 'pair',
+                'supplier_name' => 'SafeShield',
+                'tax_rate' => 14.975,
+                'tracking_type' => 'none',
+            ],
+            [
+                'name' => 'LED bulb pack',
+                'category' => 'Electrical',
+                'description' => 'Energy efficient bulbs for retail shelves.',
+                'price' => 15.00,
+                'cost_price' => 6.20,
+                'stock' => 70,
+                'minimum_stock' => 12,
+                'sku' => 'ELC-BLB-077',
+                'barcode' => '0123456789083',
+                'unit' => 'pack',
+                'supplier_name' => 'BrightWire',
+                'tax_rate' => 14.975,
+                'tracking_type' => 'none',
+            ],
+            [
+                'name' => 'PVC pipe 2m',
+                'category' => 'Plumbing',
+                'description' => 'Standard pipe for plumbing repairs.',
+                'price' => 8.40,
+                'cost_price' => 3.10,
+                'stock' => 90,
+                'minimum_stock' => 15,
+                'sku' => 'PLM-PVC-078',
+                'barcode' => '0123456789084',
+                'unit' => 'piece',
+                'supplier_name' => 'PipePro',
+                'tax_rate' => 14.975,
+                'tracking_type' => 'none',
+            ],
+            [
+                'name' => 'Packing bubble wrap',
+                'category' => 'Packaging',
+                'description' => 'Protective wrap for shipping orders.',
+                'price' => 14.20,
+                'cost_price' => 5.60,
+                'stock' => 55,
+                'minimum_stock' => 10,
+                'sku' => 'PKG-BUB-079',
+                'barcode' => '0123456789085',
+                'unit' => 'roll',
+                'supplier_name' => 'PackRight',
+                'tax_rate' => 14.975,
+                'tracking_type' => 'none',
+                'secondary_stock' => 12,
+            ],
+            [
+                'name' => 'Desk organizer set',
+                'category' => 'Office',
+                'description' => 'Organizer trays for back office.',
+                'price' => 18.90,
+                'cost_price' => 7.00,
+                'stock' => 40,
+                'minimum_stock' => 8,
+                'sku' => 'OFF-ORG-080',
+                'barcode' => '0123456789086',
+                'unit' => 'set',
+                'supplier_name' => 'OfficeLine',
+                'tax_rate' => 14.975,
+                'tracking_type' => 'none',
+            ],
+            [
+                'name' => 'Portable barcode scanner',
+                'category' => 'Retail',
+                'description' => 'Bluetooth scanner for point of sale.',
+                'price' => 145.00,
+                'cost_price' => 92.00,
+                'stock' => 6,
+                'minimum_stock' => 2,
+                'sku' => 'RET-SCN-081',
+                'barcode' => '0123456789087',
+                'unit' => 'piece',
+                'supplier_name' => 'RetailGear',
+                'tax_rate' => 14.975,
+                'tracking_type' => 'serial',
+            ],
+        ]);
+
+        $unsplashPhotoIds = [
+            '1500530855697-b586d89ba3ee',
+            '1523275335684-37898b6baf30',
+            '1503602642458-232111445657',
+            '1496307042754-b4aa456c4a2d',
+            '1498050108023-c5249f4df085',
+            '1489515217757-5fd1be406fef',
+            '1473186578172-c141e6798cf4',
+            '1469474968028-56623f02e42e',
+            '1488998427799-e3362cec87c3',
+            '1497366216548-37526070297c',
+        ];
+
+        $productImageUrl = function (array $data) use ($unsplashPhotoIds): string {
+            $seed = trim(($data['sku'] ?? '') . ' ' . ($data['name'] ?? '') . ' ' . ($data['category'] ?? 'product'));
+            $hash = (int) sprintf('%u', crc32($seed));
+            $photoId = $unsplashPhotoIds[$hash % count($unsplashPhotoIds)];
+            return "https://images.unsplash.com/photo-{$photoId}?auto=format&fit=crop&w=800&q=80";
+        };
+
+        $productSeedMap = $productSeedData->keyBy('name');
+
+        $productProducts = $productSeedData->map(function ($data) use ($productOwner, $productCategory, $productCategoryMap, $productImageUrl) {
+            $price = (float) $data['price'];
+            $cost = (float) $data['cost_price'];
+            $margin = $price > 0 ? round((($price - $cost) / $price) * 100, 2) : 0;
+            $category = $productCategoryMap[$data['category']] ?? $productCategory;
+            $imageUrl = $productImageUrl($data);
+
+            $product = Product::updateOrCreate(
                 [
                     'user_id' => $productOwner->id,
                     'name' => $data['name'],
                 ],
                 [
-                    'category_id' => $productCategory->id,
-                    'price' => $data['price'],
-                    'stock' => $data['stock'],
-                    'minimum_stock' => 5,
+                    'description' => $data['description'] ?? null,
+                    'category_id' => $category->id,
+                    'price' => $price,
+                    'cost_price' => $cost,
+                    'margin_percent' => $margin,
+                    'stock' => 0,
+                    'minimum_stock' => $data['minimum_stock'],
+                    'sku' => $data['sku'],
+                    'barcode' => $data['barcode'],
+                    'unit' => $data['unit'],
+                    'supplier_name' => $data['supplier_name'],
+                    'tax_rate' => $data['tax_rate'],
+                    'image' => $imageUrl,
+                    'is_active' => true,
+                    'tracking_type' => $data['tracking_type'],
                     'item_type' => Product::ITEM_TYPE_PRODUCT,
                 ]
             );
+
+            ProductImage::updateOrCreate(
+                [
+                    'product_id' => $product->id,
+                    'is_primary' => true,
+                ],
+                [
+                    'path' => $imageUrl,
+                    'sort_order' => 1,
+                ]
+            );
+
+            return $product;
         });
+
+        $inventoryService = app(InventoryService::class);
+        $productMainWarehouse = $inventoryService->resolveDefaultWarehouse($productOwner->id);
+        $productOverflowWarehouse = Warehouse::updateOrCreate(
+            ['user_id' => $productOwner->id, 'code' => 'OVERFLOW'],
+            [
+                'name' => 'Overflow warehouse',
+                'is_default' => false,
+                'is_active' => true,
+            ]
+        );
+
+        $productWarehouseMap = [
+            'main' => $productMainWarehouse,
+            'overflow' => $productOverflowWarehouse,
+        ];
+
+        $productInventoryPlans = [
+            'Cleaning kit' => [
+                'lots' => [
+                    [
+                        'warehouse' => 'main',
+                        'lot_number' => 'LOT-CLN-001',
+                        'quantity' => 25,
+                        'expires_at' => $now->copy()->addDays(18),
+                        'received_at' => $now->copy()->subDays(10),
+                    ],
+                    [
+                        'warehouse' => 'main',
+                        'lot_number' => 'LOT-CLN-002',
+                        'quantity' => 15,
+                        'expires_at' => $now->copy()->subDays(6),
+                        'received_at' => $now->copy()->subDays(40),
+                    ],
+                ],
+                'damaged' => [
+                    'warehouse' => 'main',
+                    'quantity' => 2,
+                    'lot_number' => 'LOT-CLN-001',
+                ],
+            ],
+        ];
+
+        foreach ($productProducts as $product) {
+            $data = $productSeedMap->get($product->name);
+            if (!$data) {
+                continue;
+            }
+
+            $hasSeedMovements = $product->stockMovements()->exists();
+            $hasSeedLots = $product->lots()->exists();
+
+            if ($hasSeedMovements || $hasSeedLots) {
+                continue;
+            }
+
+            $inventoryService->ensureInventory($product, $productMainWarehouse);
+            $inventoryService->ensureInventory($product, $productOverflowWarehouse);
+
+            $plan = $productInventoryPlans[$product->name] ?? null;
+            $seedStock = (int) $data['stock'];
+            $trackingType = $data['tracking_type'] ?? 'none';
+            $primaryLotNumber = null;
+
+            if ($plan && !empty($plan['lots'])) {
+                foreach ($plan['lots'] as $lot) {
+                    $warehouse = $productWarehouseMap[$lot['warehouse']] ?? $productMainWarehouse;
+                    $inventoryService->adjust($product, (int) $lot['quantity'], 'in', [
+                        'warehouse' => $warehouse,
+                        'reason' => 'seed',
+                        'note' => 'Seeded lot stock',
+                        'lot_number' => $lot['lot_number'] ?? null,
+                        'expires_at' => $lot['expires_at'] ?? null,
+                        'received_at' => $lot['received_at'] ?? null,
+                    ]);
+                }
+            } elseif ($trackingType === 'lot' && $seedStock > 0) {
+                $mainLot = max(1, (int) round($seedStock * 0.6));
+                $overflowLot = max(0, $seedStock - $mainLot);
+                $primaryLotNumber = $data['sku'] . '-A';
+
+                $inventoryService->adjust($product, $mainLot, 'in', [
+                    'warehouse' => $productMainWarehouse,
+                    'reason' => 'seed',
+                    'note' => 'Seeded lot stock',
+                    'lot_number' => $primaryLotNumber,
+                    'expires_at' => $now->copy()->addDays(20),
+                    'received_at' => $now->copy()->subDays(12),
+                ]);
+
+                if ($overflowLot > 0) {
+                    $inventoryService->adjust($product, $overflowLot, 'in', [
+                        'warehouse' => $productOverflowWarehouse,
+                        'reason' => 'seed',
+                        'note' => 'Seeded lot stock',
+                        'lot_number' => $data['sku'] . '-B',
+                        'expires_at' => $now->copy()->addMonths(6),
+                        'received_at' => $now->copy()->subDays(30),
+                    ]);
+                }
+            } elseif ($trackingType === 'serial' && $seedStock > 0) {
+                $mainCount = max(1, (int) round($seedStock * 0.7));
+                for ($i = 1; $i <= $seedStock; $i += 1) {
+                    $warehouse = $i <= $mainCount ? $productMainWarehouse : $productOverflowWarehouse;
+                    $inventoryService->adjust($product, 1, 'in', [
+                        'warehouse' => $warehouse,
+                        'reason' => 'seed',
+                        'note' => 'Seeded serial stock',
+                        'serial_number' => sprintf('%s-%03d', $data['sku'], $i),
+                    ]);
+                }
+            } elseif ($seedStock > 0) {
+                $secondaryStock = (int) ($data['secondary_stock'] ?? 0);
+                if ($secondaryStock <= 0) {
+                    $secondaryStock = (int) floor($seedStock * 0.25);
+                }
+                $mainStock = max(0, $seedStock - $secondaryStock);
+
+                if ($mainStock > 0) {
+                    $inventoryService->adjust($product, $mainStock, 'in', [
+                        'warehouse' => $productMainWarehouse,
+                        'reason' => 'seed',
+                        'note' => 'Seeded stock',
+                    ]);
+                }
+
+                if ($secondaryStock > 0) {
+                    $inventoryService->adjust($product, $secondaryStock, 'in', [
+                        'warehouse' => $productOverflowWarehouse,
+                        'reason' => 'seed',
+                        'note' => 'Seeded overflow stock',
+                    ]);
+                }
+            }
+
+            if (!empty($plan['damaged'])) {
+                $warehouse = $productWarehouseMap[$plan['damaged']['warehouse']] ?? $productMainWarehouse;
+                $inventoryService->adjust($product, (int) $plan['damaged']['quantity'], 'damage', [
+                    'warehouse' => $warehouse,
+                    'reason' => 'seed',
+                    'note' => 'Seeded damaged stock',
+                    'lot_number' => $plan['damaged']['lot_number'] ?? null,
+                ]);
+            } elseif (!empty($data['damaged'])) {
+                $inventoryService->adjust($product, (int) $data['damaged'], 'damage', [
+                    'warehouse' => $productMainWarehouse,
+                    'reason' => 'seed',
+                    'note' => 'Seeded damaged stock',
+                    'lot_number' => $primaryLotNumber,
+                ]);
+            }
+
+            if (!empty($data['reserved'])) {
+                $inventory = $inventoryService->ensureInventory($product, $productMainWarehouse);
+                $inventory->update([
+                    'reserved' => (int) $data['reserved'],
+                ]);
+            }
+
+            if (!empty($data['bin_locations'])) {
+                foreach ($data['bin_locations'] as $warehouseKey => $binLocation) {
+                    $warehouse = $productWarehouseMap[$warehouseKey] ?? null;
+                    if (!$warehouse) {
+                        continue;
+                    }
+                    $inventory = $inventoryService->ensureInventory($product, $warehouse);
+                    $inventory->update([
+                        'bin_location' => $binLocation,
+                    ]);
+                }
+            }
+
+            $inventoryService->recalculateProductStock($product);
+        }
 
         $serviceCustomer = Customer::updateOrCreate(
             [
@@ -656,6 +1502,7 @@ class LaunchSeeder extends Seeder
                 'description' => 'Seeded customer for product demo.',
                 'salutation' => 'Mr',
                 'billing_same_as_physical' => true,
+                'discount_rate' => 5,
             ]
         );
 
@@ -1470,6 +2317,434 @@ class LaunchSeeder extends Seeder
                 'updated_at' => $timestamp,
             ])->saveQuietly();
         };
+
+        $productCustomerRetail = Customer::updateOrCreate(
+            [
+                'email' => 'product-retail@example.com',
+            ],
+            [
+                'user_id' => $productOwner->id,
+                'first_name' => 'Lea',
+                'last_name' => 'Benoit',
+                'company_name' => 'City Market',
+                'phone' => '+14165550011',
+                'description' => 'Retail storefront customer.',
+                'salutation' => 'Mrs',
+                'billing_same_as_physical' => true,
+                'discount_rate' => 2.5,
+            ]
+        );
+
+        $productCustomerWholesale = Customer::updateOrCreate(
+            [
+                'email' => 'product-wholesale@example.com',
+            ],
+            [
+                'user_id' => $productOwner->id,
+                'first_name' => 'Theo',
+                'last_name' => 'Martin',
+                'company_name' => 'North Supplies',
+                'phone' => '+14165550012',
+                'description' => 'Wholesale customer account.',
+                'salutation' => 'Mr',
+                'billing_same_as_physical' => true,
+                'discount_rate' => 8,
+            ]
+        );
+
+        $productSalesCatalog = $productProducts
+            ->filter(fn($product) => ($product->tracking_type ?? 'none') === 'none' && (int) $product->stock > 0)
+            ->values();
+
+        $buildSalePayload = function (array $lines): array {
+            $items = [];
+            $subtotal = 0;
+            $taxTotal = 0;
+
+            foreach ($lines as $line) {
+                $product = $line['product'] ?? null;
+                if (!$product) {
+                    continue;
+                }
+
+                $quantity = max(1, (int) ($line['quantity'] ?? 1));
+                $price = (float) ($line['price'] ?? $product->price);
+                $lineTotal = round($price * $quantity, 2);
+                $subtotal += $lineTotal;
+
+                $taxRate = (float) ($product->tax_rate ?? 0);
+                $taxTotal += $taxRate > 0 ? round($lineTotal * ($taxRate / 100), 2) : 0;
+
+                $items[] = [
+                    'product_id' => $product->id,
+                    'description' => $line['description'] ?? $product->name,
+                    'quantity' => $quantity,
+                    'price' => $price,
+                    'total' => $lineTotal,
+                ];
+            }
+
+            return [$items, $subtotal, $taxTotal, round($subtotal + $taxTotal, 2)];
+        };
+
+        $createSale = function (string $label, ?Customer $customer, string $status, array $lines, $createdAt, ?int $createdByUserId = null, array $fulfillment = [], array $extras = []) use ($productOwner, $buildSalePayload, $setTimestamps) {
+            [$items, $subtotal, $taxTotal] = $buildSalePayload($lines);
+            if (empty($items)) {
+                return null;
+            }
+
+            $fulfillmentMethod = $fulfillment['method'] ?? null;
+            $fulfillmentStatus = $fulfillment['status'] ?? null;
+            $discountRate = (float) ($extras['discount_rate'] ?? ($customer?->discount_rate ?? 0));
+            $discountRate = min(100, max(0, $discountRate));
+            $discountTotal = round($subtotal * ($discountRate / 100), 2);
+            $discountedSubtotal = max(0, $subtotal - $discountTotal);
+            $discountedTaxTotal = round($taxTotal * (1 - ($discountRate / 100)), 2);
+            $total = round($discountedSubtotal + $discountedTaxTotal, 2);
+
+            $salePayload = [
+                'created_by_user_id' => $createdByUserId ?? $productOwner->id,
+                'customer_id' => $customer?->id,
+                'status' => $status,
+                'subtotal' => $subtotal,
+                'tax_total' => $discountedTaxTotal,
+                'discount_rate' => $discountRate,
+                'discount_total' => $discountTotal,
+                'source' => $extras['source'] ?? 'pos',
+                'total' => $total,
+                'fulfillment_method' => $fulfillmentMethod,
+                'fulfillment_status' => $fulfillmentStatus,
+                'delivery_fee' => (float) ($fulfillment['delivery_fee'] ?? 0),
+                'delivery_address' => $fulfillment['delivery_address'] ?? null,
+                'delivery_notes' => $fulfillment['delivery_notes'] ?? null,
+                'pickup_notes' => $fulfillment['pickup_notes'] ?? null,
+                'scheduled_for' => $fulfillment['scheduled_for'] ?? null,
+                'paid_at' => $status === Sale::STATUS_PAID ? $createdAt : null,
+                'notes' => $label,
+            ];
+
+            if (array_key_exists('created_by_user_id', $extras)) {
+                $salePayload['created_by_user_id'] = $extras['created_by_user_id'];
+            }
+            if (array_key_exists('customer_notes', $extras)) {
+                $salePayload['customer_notes'] = $extras['customer_notes'];
+            }
+            if (array_key_exists('substitution_allowed', $extras)) {
+                $salePayload['substitution_allowed'] = (bool) $extras['substitution_allowed'];
+            }
+            if (array_key_exists('substitution_notes', $extras)) {
+                $salePayload['substitution_notes'] = $extras['substitution_notes'];
+            }
+            if (array_key_exists('pickup_code', $extras)) {
+                $salePayload['pickup_code'] = $extras['pickup_code'];
+            }
+            if (array_key_exists('pickup_confirmed_at', $extras)) {
+                $salePayload['pickup_confirmed_at'] = $extras['pickup_confirmed_at'];
+            }
+            if (array_key_exists('pickup_confirmed_by_user_id', $extras)) {
+                $salePayload['pickup_confirmed_by_user_id'] = $extras['pickup_confirmed_by_user_id'];
+            }
+
+            $sale = Sale::updateOrCreate(
+                [
+                    'user_id' => $productOwner->id,
+                    'notes' => $label,
+                ],
+                $salePayload
+            );
+
+            $sale->items()->delete();
+            foreach ($items as $payload) {
+                $sale->items()->create($payload);
+            }
+
+            $sale->refresh();
+            $setTimestamps($sale, $createdAt);
+            foreach ($sale->items as $item) {
+                $setTimestamps($item, $createdAt);
+            }
+
+            return $sale;
+        };
+
+        $seedSaleTimeline = function (?User $actor, Sale $sale, array $entries) use ($setTimestamps) {
+            foreach ($entries as $entry) {
+                $action = $entry['action'] ?? null;
+                if (!$action) {
+                    continue;
+                }
+                $log = ActivityLog::record(
+                    $actor,
+                    $sale,
+                    $action,
+                    $entry['properties'] ?? [],
+                    $entry['description'] ?? null
+                );
+                if (!empty($entry['at'])) {
+                    $setTimestamps($log, $entry['at']);
+                }
+            }
+        };
+
+        if ($productSalesCatalog->isNotEmpty()) {
+            $createSale(
+                'Seeded POS sale - Mia Builds',
+                $productCustomer,
+                Sale::STATUS_PAID,
+                [
+                    ['product' => $productSalesCatalog->get(0), 'quantity' => 3],
+                    ['product' => $productSalesCatalog->get(1), 'quantity' => 2],
+                    ['product' => $productSalesCatalog->get(2), 'quantity' => 1],
+                ],
+                $now->copy()->subDays(5),
+                null,
+                [
+                    'method' => 'delivery',
+                    'status' => Sale::FULFILLMENT_OUT_FOR_DELIVERY,
+                    'delivery_fee' => 7.5,
+                    'delivery_address' => '42 Product St, Toronto, ON',
+                    'delivery_notes' => 'Leave at reception',
+                    'scheduled_for' => $now->copy()->addHours(3),
+                ]
+            );
+
+            $createSale(
+                'Seeded POS sale - City Market',
+                $productCustomerRetail,
+                Sale::STATUS_PENDING,
+                [
+                    ['product' => $productSalesCatalog->get(3), 'quantity' => 4],
+                    ['product' => $productSalesCatalog->get(4), 'quantity' => 2],
+                ],
+                $now->copy()->subDays(2)
+            );
+
+            $createSale(
+                'Seeded POS sale - Walk-in',
+                null,
+                Sale::STATUS_PAID,
+                [
+                    ['product' => $productSalesCatalog->get(5), 'quantity' => 1],
+                    ['product' => $productSalesCatalog->get(6), 'quantity' => 2],
+                ],
+                $now->copy()->subDay(),
+                $productSellerUser->id
+            );
+
+            $createSale(
+                'Seeded POS sale - Draft cart',
+                $productCustomerWholesale,
+                Sale::STATUS_DRAFT,
+                [
+                    ['product' => $productSalesCatalog->get(7), 'quantity' => 3],
+                    ['product' => $productSalesCatalog->get(8), 'quantity' => 1],
+                ],
+                $now->copy()->subHours(6)
+            );
+
+            $createSale(
+                'Seeded POS sale - Cancelled order',
+                null,
+                Sale::STATUS_CANCELED,
+                [
+                    ['product' => $productSalesCatalog->get(9), 'quantity' => 2],
+                ],
+                $now->copy()->subDays(3)
+            );
+
+            $portalPending = $createSale(
+                'Seeded portal order - Preparing',
+                $productCustomer,
+                Sale::STATUS_PENDING,
+                [
+                    ['product' => $productSalesCatalog->get(0), 'quantity' => 1],
+                    ['product' => $productSalesCatalog->get(3), 'quantity' => 2],
+                ],
+                $now->copy()->subHours(8),
+                null,
+                [
+                    'method' => 'delivery',
+                    'status' => Sale::FULFILLMENT_PREPARING,
+                    'delivery_fee' => 7.5,
+                    'delivery_address' => '42 Product St, Toronto, ON',
+                    'delivery_notes' => 'Leave at reception',
+                    'scheduled_for' => $now->copy()->addHours(4),
+                ],
+                [
+                    'source' => 'portal',
+                    'created_by_user_id' => null,
+                    'customer_notes' => 'Call before delivery.',
+                    'substitution_allowed' => true,
+                    'substitution_notes' => 'Swap with store brand if needed.',
+                ]
+            );
+
+            if ($portalPending) {
+                $seedSaleTimeline($productPortalUser, $portalPending, [
+                    [
+                        'action' => 'sale_created',
+                        'at' => $portalPending->created_at,
+                        'properties' => ['source' => 'portal'],
+                    ],
+                    [
+                        'action' => 'sale_fulfillment_changed',
+                        'at' => $portalPending->created_at->copy()->addHours(1),
+                        'properties' => [
+                            'fulfillment_from' => 'pending',
+                            'fulfillment_to' => 'preparing',
+                        ],
+                    ],
+                    [
+                        'action' => 'sale_eta_updated',
+                        'at' => $portalPending->created_at->copy()->addHours(2),
+                        'properties' => [
+                            'scheduled_for' => $portalPending->scheduled_for?->format('Y-m-d H:i'),
+                        ],
+                    ],
+                ]);
+            }
+
+            $portalDelivery = $createSale(
+                'Seeded portal order - Out for delivery',
+                $productCustomer,
+                Sale::STATUS_PENDING,
+                [
+                    ['product' => $productSalesCatalog->get(2), 'quantity' => 1],
+                    ['product' => $productSalesCatalog->get(4), 'quantity' => 3],
+                ],
+                $now->copy()->subHours(4),
+                null,
+                [
+                    'method' => 'delivery',
+                    'status' => Sale::FULFILLMENT_OUT_FOR_DELIVERY,
+                    'delivery_fee' => 7.5,
+                    'delivery_address' => '42 Product St, Toronto, ON',
+                    'delivery_notes' => 'Leave at reception',
+                    'scheduled_for' => $now->copy()->addHours(2),
+                ],
+                [
+                    'source' => 'portal',
+                    'created_by_user_id' => null,
+                    'customer_notes' => 'Ring the buzzer.',
+                    'substitution_allowed' => true,
+                ]
+            );
+
+            if ($portalDelivery) {
+                $seedSaleTimeline($productPortalUser, $portalDelivery, [
+                    [
+                        'action' => 'sale_created',
+                        'at' => $portalDelivery->created_at,
+                        'properties' => ['source' => 'portal'],
+                    ],
+                    [
+                        'action' => 'sale_fulfillment_changed',
+                        'at' => $portalDelivery->created_at->copy()->addHours(2),
+                        'properties' => [
+                            'fulfillment_from' => 'pending',
+                            'fulfillment_to' => 'out_for_delivery',
+                        ],
+                    ],
+                ]);
+            }
+
+            $portalPickupReady = $createSale(
+                'Seeded portal order - Ready pickup',
+                $productCustomer,
+                Sale::STATUS_PENDING,
+                [
+                    ['product' => $productSalesCatalog->get(1), 'quantity' => 2],
+                ],
+                $now->copy()->subHours(6),
+                null,
+                [
+                    'method' => 'pickup',
+                    'status' => Sale::FULFILLMENT_READY_FOR_PICKUP,
+                    'pickup_notes' => 'Pickup counter 2',
+                ],
+                [
+                    'source' => 'portal',
+                    'created_by_user_id' => null,
+                    'pickup_code' => 'PK-SEED-READY',
+                    'customer_notes' => 'Arrive at 17:00.',
+                    'substitution_allowed' => false,
+                    'substitution_notes' => 'No substitutions.',
+                ]
+            );
+
+            if ($portalPickupReady) {
+                $seedSaleTimeline($productPortalUser, $portalPickupReady, [
+                    [
+                        'action' => 'sale_created',
+                        'at' => $portalPickupReady->created_at,
+                        'properties' => ['source' => 'portal'],
+                    ],
+                    [
+                        'action' => 'sale_fulfillment_changed',
+                        'at' => $portalPickupReady->created_at->copy()->addHours(2),
+                        'properties' => [
+                            'fulfillment_from' => 'pending',
+                            'fulfillment_to' => 'ready_for_pickup',
+                        ],
+                    ],
+                ]);
+            }
+
+            $portalPickupDone = $createSale(
+                'Seeded portal order - Pickup complete',
+                $productCustomer,
+                Sale::STATUS_PAID,
+                [
+                    ['product' => $productSalesCatalog->get(5), 'quantity' => 1],
+                ],
+                $now->copy()->subHours(3),
+                null,
+                [
+                    'method' => 'pickup',
+                    'status' => Sale::FULFILLMENT_COMPLETED,
+                    'pickup_notes' => 'Fast pickup lane',
+                ],
+                [
+                    'source' => 'portal',
+                    'created_by_user_id' => null,
+                    'pickup_code' => 'PK-SEED-DONE',
+                    'pickup_confirmed_at' => $now->copy()->subHours(1),
+                    'pickup_confirmed_by_user_id' => $productSellerUser->id,
+                    'customer_notes' => 'No bag needed.',
+                    'substitution_allowed' => false,
+                ]
+            );
+
+            if ($portalPickupDone) {
+                $seedSaleTimeline($productPortalUser, $portalPickupDone, [
+                    [
+                        'action' => 'sale_created',
+                        'at' => $portalPickupDone->created_at,
+                        'properties' => ['source' => 'portal'],
+                    ],
+                    [
+                        'action' => 'sale_fulfillment_changed',
+                        'at' => $portalPickupDone->created_at->copy()->addHours(1),
+                        'properties' => [
+                            'fulfillment_from' => 'pending',
+                            'fulfillment_to' => 'ready_for_pickup',
+                        ],
+                    ],
+                    [
+                        'action' => 'sale_pickup_confirmed',
+                        'at' => $portalPickupDone->pickup_confirmed_at,
+                    ],
+                    [
+                        'action' => 'sale_fulfillment_changed',
+                        'at' => $portalPickupDone->pickup_confirmed_at,
+                        'properties' => [
+                            'fulfillment_from' => 'ready_for_pickup',
+                            'fulfillment_to' => 'completed',
+                        ],
+                    ],
+                ]);
+            }
+        }
 
         $suppliesCategory = ProductCategory::resolveForAccount(
             $serviceOwner->id,

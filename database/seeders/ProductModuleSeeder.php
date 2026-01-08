@@ -6,13 +6,14 @@ use App\Models\Customer;
 use App\Models\Product;
 use App\Models\ProductCategory;
 use App\Models\ProductImage;
-use App\Models\ProductStockMovement;
 use App\Models\ProductWork;
 use App\Models\Property;
 use App\Models\Quote;
 use App\Models\QuoteProduct;
 use App\Models\User;
+use App\Models\Warehouse;
 use App\Models\Work;
+use App\Services\InventoryService;
 use Illuminate\Database\Seeder;
 
 class ProductModuleSeeder extends Seeder
@@ -44,7 +45,37 @@ class ProductModuleSeeder extends Seeder
             $categories[$name] = ProductCategory::resolveForAccount($user->id, $user->id, $name);
         }
 
+        $inventoryService = app(InventoryService::class);
+        $mainWarehouse = $inventoryService->resolveDefaultWarehouse($user->id);
+        $overflowWarehouse = Warehouse::updateOrCreate(
+            ['user_id' => $user->id, 'code' => 'OVERFLOW'],
+            [
+                'name' => 'Overflow warehouse',
+                'is_default' => false,
+                'is_active' => true,
+            ]
+        );
+
         $now = now();
+        $unsplashPhotoIds = [
+            '1500530855697-b586d89ba3ee',
+            '1523275335684-37898b6baf30',
+            '1503602642458-232111445657',
+            '1496307042754-b4aa456c4a2d',
+            '1498050108023-c5249f4df085',
+            '1489515217757-5fd1be406fef',
+            '1473186578172-c141e6798cf4',
+            '1469474968028-56623f02e42e',
+            '1488998427799-e3362cec87c3',
+            '1497366216548-37526070297c',
+        ];
+
+        $resolveProductImage = function (array $data) use ($unsplashPhotoIds): string {
+            $seed = trim(($data['sku'] ?? '') . ' ' . ($data['name'] ?? '') . ' ' . ($data['category'] ?? 'product'));
+            $hash = (int) sprintf('%u', crc32($seed));
+            $photoId = $unsplashPhotoIds[$hash % count($unsplashPhotoIds)];
+            return "https://images.unsplash.com/photo-{$photoId}?auto=format&fit=crop&w=800&q=80";
+        };
         $seedProducts = [
             [
                 'name' => 'Concrete Mix',
@@ -208,12 +239,123 @@ class ProductModuleSeeder extends Seeder
             ],
         ];
 
+        $warehouseMap = [
+            'main' => $mainWarehouse,
+            'overflow' => $overflowWarehouse,
+        ];
+
+        $inventoryPlans = [
+            'MAT-001' => [
+                'tracking_type' => 'lot',
+                'lots' => [
+                    [
+                        'warehouse' => 'main',
+                        'lot_number' => 'LOT-MAT-001A',
+                        'quantity' => 30,
+                        'expires_at' => $now->copy()->addMonths(8),
+                        'received_at' => $now->copy()->subDays(12),
+                    ],
+                    [
+                        'warehouse' => 'overflow',
+                        'lot_number' => 'LOT-MAT-001B',
+                        'quantity' => 20,
+                        'expires_at' => $now->copy()->addMonths(2),
+                        'received_at' => $now->copy()->subDays(25),
+                    ],
+                ],
+                'reserved' => [
+                    [
+                        'warehouse' => 'main',
+                        'quantity' => 5,
+                    ],
+                ],
+                'bins' => [
+                    'main' => 'A-01',
+                    'overflow' => 'B-04',
+                ],
+            ],
+            'FIN-002' => [
+                'tracking_type' => 'lot',
+                'lots' => [
+                    [
+                        'warehouse' => 'main',
+                        'lot_number' => 'LOT-FIN-002A',
+                        'quantity' => 5,
+                        'expires_at' => $now->copy()->addDays(12),
+                        'received_at' => $now->copy()->subDays(5),
+                    ],
+                    [
+                        'warehouse' => 'main',
+                        'lot_number' => 'LOT-FIN-002B',
+                        'quantity' => 3,
+                        'expires_at' => $now->copy()->addMonths(5),
+                        'received_at' => $now->copy()->subDays(30),
+                    ],
+                ],
+                'damaged' => [
+                    'warehouse' => 'main',
+                    'quantity' => 1,
+                ],
+                'bins' => [
+                    'main' => 'C-02',
+                ],
+            ],
+            'EQP-010' => [
+                'tracking_type' => 'serial',
+                'serials' => [
+                    [
+                        'warehouse' => 'main',
+                        'serial_number' => 'SN-EQP-010-01',
+                    ],
+                    [
+                        'warehouse' => 'main',
+                        'serial_number' => 'SN-EQP-010-02',
+                    ],
+                ],
+                'bins' => [
+                    'main' => 'E-01',
+                ],
+            ],
+            'SUP-014' => [
+                'tracking_type' => 'none',
+                'secondary_stock' => 40,
+                'reserved' => [
+                    [
+                        'warehouse' => 'main',
+                        'quantity' => 12,
+                    ],
+                ],
+                'bins' => [
+                    'main' => 'D-11',
+                    'overflow' => 'D-12',
+                ],
+            ],
+            'FIN-120' => [
+                'tracking_type' => 'lot',
+                'lots' => [
+                    [
+                        'warehouse' => 'main',
+                        'lot_number' => 'LOT-FIN-120A',
+                        'quantity' => 4,
+                        'expires_at' => $now->copy()->addMonths(4),
+                        'received_at' => $now->copy()->subDays(14),
+                    ],
+                ],
+                'bins' => [
+                    'main' => 'F-01',
+                ],
+            ],
+        ];
+
         $productsBySku = [];
         foreach ($seedProducts as $data) {
             $category = $categories[$data['category']];
             $price = (float) $data['price'];
             $cost = (float) $data['cost_price'];
             $margin = $price > 0 ? round((($price - $cost) / $price) * 100, 2) : 0;
+            $plan = $inventoryPlans[$data['sku']] ?? [];
+            $trackingType = $plan['tracking_type'] ?? 'none';
+            $imageUrl = $resolveProductImage($data);
 
             $product = Product::updateOrCreate(
                 ['user_id' => $user->id, 'sku' => $data['sku']],
@@ -221,17 +363,18 @@ class ProductModuleSeeder extends Seeder
                     'name' => $data['name'],
                     'description' => $data['name'] . ' seeded for product module validation.',
                     'category_id' => $category->id,
-                    'stock' => $data['stock'],
+                    'stock' => 0,
                     'minimum_stock' => $data['minimum_stock'],
                     'price' => $price,
                     'cost_price' => $cost,
                     'margin_percent' => $margin,
                     'tax_rate' => $data['tax_rate'],
-                    'image' => $data['image'],
+                    'image' => $imageUrl,
                     'barcode' => $data['barcode'],
                     'unit' => $data['unit'],
                     'supplier_name' => $data['supplier_name'],
                     'is_active' => $data['is_active'],
+                    'tracking_type' => $trackingType,
                 ]
             );
 
@@ -240,29 +383,96 @@ class ProductModuleSeeder extends Seeder
                 'updated_at' => $data['created_at'],
             ])->save();
 
-            if ($data['image']) {
+            if ($imageUrl) {
                 ProductImage::updateOrCreate(
                     ['product_id' => $product->id, 'is_primary' => true],
-                    ['path' => $data['image'], 'is_primary' => true, 'sort_order' => 0]
+                    ['path' => $imageUrl, 'is_primary' => true, 'sort_order' => 0]
                 );
             }
 
-            if ($product->stockMovements()->count() === 0) {
-                ProductStockMovement::create([
-                    'product_id' => $product->id,
-                    'user_id' => $user->id,
-                    'type' => 'in',
-                    'quantity' => max(1, (int) ($data['stock'] / 2)),
-                    'note' => 'Initial stock',
-                ]);
+            $hasSeedMovements = $product->stockMovements()->exists();
+            $hasSeedLots = $product->lots()->exists();
 
-                ProductStockMovement::create([
-                    'product_id' => $product->id,
-                    'user_id' => $user->id,
-                    'type' => 'out',
-                    'quantity' => -max(1, (int) ($data['stock'] / 4)),
-                    'note' => 'Usage for jobs',
-                ]);
+            if (!$hasSeedMovements && !$hasSeedLots) {
+                $seedStock = (int) $data['stock'];
+
+                $inventoryService->ensureInventory($product, $mainWarehouse);
+                $inventoryService->ensureInventory($product, $overflowWarehouse);
+
+                if (!empty($plan['lots'])) {
+                    foreach ($plan['lots'] as $lot) {
+                        $warehouse = $warehouseMap[$lot['warehouse']] ?? $mainWarehouse;
+                        $inventoryService->adjust($product, (int) $lot['quantity'], 'in', [
+                            'warehouse' => $warehouse,
+                            'reason' => 'seed',
+                            'note' => 'Seeded lot stock',
+                            'lot_number' => $lot['lot_number'] ?? null,
+                            'expires_at' => $lot['expires_at'] ?? null,
+                            'received_at' => $lot['received_at'] ?? null,
+                        ]);
+                    }
+                } elseif (!empty($plan['serials'])) {
+                    foreach ($plan['serials'] as $serial) {
+                        $warehouse = $warehouseMap[$serial['warehouse']] ?? $mainWarehouse;
+                        $inventoryService->adjust($product, 1, 'in', [
+                            'warehouse' => $warehouse,
+                            'reason' => 'seed',
+                            'note' => 'Seeded serial stock',
+                            'serial_number' => $serial['serial_number'] ?? null,
+                        ]);
+                    }
+                } elseif ($seedStock > 0) {
+                    $secondaryStock = (int) ($plan['secondary_stock'] ?? 0);
+                    $mainStock = max(0, $seedStock - $secondaryStock);
+                    if ($mainStock > 0) {
+                        $inventoryService->adjust($product, $mainStock, 'in', [
+                            'warehouse' => $mainWarehouse,
+                            'reason' => 'seed',
+                            'note' => 'Seeded stock',
+                        ]);
+                    }
+                    if ($secondaryStock > 0) {
+                        $inventoryService->adjust($product, $secondaryStock, 'in', [
+                            'warehouse' => $overflowWarehouse,
+                            'reason' => 'seed',
+                            'note' => 'Seeded overflow stock',
+                        ]);
+                    }
+                }
+
+                if (!empty($plan['damaged'])) {
+                    $warehouse = $warehouseMap[$plan['damaged']['warehouse']] ?? $mainWarehouse;
+                    $inventoryService->adjust($product, (int) $plan['damaged']['quantity'], 'damage', [
+                        'warehouse' => $warehouse,
+                        'reason' => 'seed',
+                        'note' => 'Seeded damaged stock',
+                    ]);
+                }
+
+                if (!empty($plan['reserved'])) {
+                    foreach ($plan['reserved'] as $reservation) {
+                        $warehouse = $warehouseMap[$reservation['warehouse']] ?? $mainWarehouse;
+                        $inventory = $inventoryService->ensureInventory($product, $warehouse);
+                        $inventory->update([
+                            'reserved' => (int) $reservation['quantity'],
+                        ]);
+                    }
+                }
+
+                if (!empty($plan['bins'])) {
+                    foreach ($plan['bins'] as $warehouseKey => $binLocation) {
+                        $warehouse = $warehouseMap[$warehouseKey] ?? null;
+                        if (!$warehouse) {
+                            continue;
+                        }
+                        $inventory = $inventoryService->ensureInventory($product, $warehouse);
+                        $inventory->update([
+                            'bin_location' => $binLocation,
+                        ]);
+                    }
+                }
+
+                $inventoryService->recalculateProductStock($product);
             }
 
             $productsBySku[$data['sku']] = $product;

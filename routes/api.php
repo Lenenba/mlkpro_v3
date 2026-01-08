@@ -41,6 +41,7 @@ use App\Http\Controllers\Api\SuperAdmin\DashboardController as SuperAdminDashboa
 use App\Http\Controllers\Api\SuperAdmin\PlatformSettingsController as SuperAdminPlatformSettingsController;
 use App\Http\Controllers\Api\SuperAdmin\SupportController as SuperAdminSupportController;
 use App\Http\Controllers\Api\SuperAdmin\TenantController as SuperAdminTenantController;
+use App\Http\Controllers\Api\Integration\InventoryController as IntegrationInventoryController;
 use App\Http\Middleware\EnsureClientUser;
 use App\Http\Middleware\EnsureInternalUser;
 use App\Http\Middleware\EnsureNotSuspended;
@@ -150,9 +151,19 @@ Route::name('api.')->group(function () {
                 Route::post('product/{product}/duplicate', [ProductController::class, 'duplicate']);
                 Route::put('product/{product}/quick-update', [ProductController::class, 'quickUpdate']);
                 Route::post('product/{product}/adjust-stock', [ProductController::class, 'adjustStock']);
+                Route::post('product/{product}/supplier-email', [ProductController::class, 'requestSupplierStock']);
                 Route::get('product/export/csv', [ProductController::class, 'export']);
                 Route::post('product/import/csv', [ProductController::class, 'import']);
                 Route::apiResource('product', ProductController::class);
+            });
+
+            Route::prefix('integrations')->group(function () {
+                Route::get('products', [IntegrationInventoryController::class, 'products']);
+                Route::get('products/{product}', [IntegrationInventoryController::class, 'product']);
+                Route::get('warehouses', [IntegrationInventoryController::class, 'warehouses']);
+                Route::get('movements', [IntegrationInventoryController::class, 'movements']);
+                Route::get('alerts', [IntegrationInventoryController::class, 'alerts']);
+                Route::post('products/{product}/adjust', [IntegrationInventoryController::class, 'adjust']);
             });
 
             Route::middleware('company.feature:services')->group(function () {

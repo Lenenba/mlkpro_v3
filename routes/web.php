@@ -7,6 +7,7 @@ use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ProductPriceLookupController;
+use App\Http\Controllers\SaleController;
 use App\Http\Controllers\ServiceController;
 use App\Http\Controllers\TaskController;
 use App\Http\Controllers\TaskMediaController;
@@ -29,10 +30,13 @@ use App\Http\Controllers\PublicQuoteController;
 use App\Http\Controllers\PublicWorkController;
 use App\Http\Controllers\PublicWorkProofController;
 use App\Http\Controllers\PublicTaskMediaController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\Settings\CompanySettingsController;
 use App\Http\Controllers\Settings\BillingSettingsController;
 use App\Http\Controllers\Settings\ProductCategoryController;
 use App\Http\Controllers\Settings\SubscriptionController;
+use App\Http\Controllers\Settings\ApiTokenController;
+use App\Http\Controllers\WarehouseController;
 use App\Http\Controllers\SuperAdmin\DashboardController as SuperAdminDashboardController;
 use App\Http\Controllers\SuperAdmin\TenantController as SuperAdminTenantController;
 use App\Http\Controllers\SuperAdmin\AdminController as SuperAdminAdminController;
@@ -42,6 +46,7 @@ use App\Http\Controllers\SuperAdmin\SupportTicketController as SuperAdminSupport
 use App\Http\Controllers\SuperAdmin\AnnouncementController as SuperAdminAnnouncementController;
 use App\Http\Controllers\CustomerPropertyController;
 use App\Http\Controllers\Portal\PortalInvoiceController;
+use App\Http\Controllers\Portal\PortalProductOrderController;
 use App\Http\Controllers\Portal\PortalQuoteController;
 use App\Http\Controllers\Portal\PortalRatingController;
 use App\Http\Controllers\Portal\PortalTaskMediaController;
@@ -96,6 +101,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+    Route::post('/notifications/read-all', [NotificationController::class, 'markAllRead'])
+        ->name('notifications.read-all');
 });
 
 // Internal User Routes
@@ -107,6 +114,15 @@ Route::middleware(['auth', EnsureInternalUser::class])->group(function () {
     // Settings (owner only)
     Route::get('/settings/company', [CompanySettingsController::class, 'edit'])->name('settings.company.edit');
     Route::put('/settings/company', [CompanySettingsController::class, 'update'])->name('settings.company.update');
+    Route::post('/settings/api-tokens', [ApiTokenController::class, 'store'])->name('settings.api-tokens.store');
+    Route::delete('/settings/api-tokens/{token}', [ApiTokenController::class, 'destroy'])->name('settings.api-tokens.destroy');
+    Route::post('/settings/warehouses', [WarehouseController::class, 'store'])->name('settings.warehouses.store');
+    Route::put('/settings/warehouses/{warehouse}', [WarehouseController::class, 'update'])
+        ->name('settings.warehouses.update');
+    Route::patch('/settings/warehouses/{warehouse}/default', [WarehouseController::class, 'setDefault'])
+        ->name('settings.warehouses.default');
+    Route::delete('/settings/warehouses/{warehouse}', [WarehouseController::class, 'destroy'])
+        ->name('settings.warehouses.destroy');
     Route::post('/settings/categories', [ProductCategoryController::class, 'store'])->name('settings.categories.store');
     Route::patch('/settings/categories/{category}', [ProductCategoryController::class, 'update'])
         ->name('settings.categories.update');
@@ -182,9 +198,25 @@ Route::middleware(['auth', EnsureInternalUser::class])->group(function () {
         Route::post('/product/{product}/duplicate', [ProductController::class, 'duplicate'])->name('product.duplicate');
         Route::put('/product/{product}/quick-update', [ProductController::class, 'quickUpdate'])->name('product.quick-update');
         Route::post('/product/{product}/adjust-stock', [ProductController::class, 'adjustStock'])->name('product.adjust-stock');
+        Route::post('/product/{product}/supplier-email', [ProductController::class, 'requestSupplierStock'])
+            ->name('product.supplier-email');
         Route::get('/product/export/csv', [ProductController::class, 'export'])->name('product.export');
         Route::post('/product/import/csv', [ProductController::class, 'import'])->name('product.import');
         Route::resource('product', ProductController::class);
+    });
+
+    // Sales Management (products)
+    Route::middleware('company.feature:sales')->group(function () {
+        Route::get('/orders', [SaleController::class, 'ordersIndex'])->name('orders.index');
+        Route::get('/sales', [SaleController::class, 'index'])->name('sales.index');
+        Route::get('/sales/create', [SaleController::class, 'create'])->name('sales.create');
+        Route::get('/sales/{sale}/edit', [SaleController::class, 'edit'])->name('sales.edit');
+        Route::post('/sales', [SaleController::class, 'store'])->name('sales.store');
+        Route::put('/sales/{sale}', [SaleController::class, 'update'])->name('sales.update');
+        Route::patch('/sales/{sale}/status', [SaleController::class, 'updateStatus'])->name('sales.status.update');
+        Route::post('/sales/{sale}/pickup-confirm', [SaleController::class, 'confirmPickup'])
+            ->name('sales.pickup.confirm');
+        Route::get('/sales/{sale}', [SaleController::class, 'show'])->name('sales.show');
     });
 
     // Customer Management
@@ -236,6 +268,7 @@ Route::middleware(['auth', EnsureInternalUser::class])->group(function () {
     Route::middleware('company.feature:tasks')->group(function () {
         Route::get('/tasks', [TaskController::class, 'index'])->name('task.index');
         Route::get('/tasks/calendar', [DashboardController::class, 'tasksCalendar'])->name('tasks.calendar');
+        Route::get('/tasks/{task}', [TaskController::class, 'show'])->name('task.show');
         Route::post('/tasks', [TaskController::class, 'store'])->name('task.store');
         Route::put('/tasks/{task}', [TaskController::class, 'update'])->name('task.update');
         Route::delete('/tasks/{task}', [TaskController::class, 'destroy'])->name('task.destroy');
@@ -259,6 +292,13 @@ Route::middleware(['auth', EnsureClientUser::class])
     ->prefix('portal')
     ->name('portal.')
     ->group(function () {
+        Route::get('/orders', [PortalProductOrderController::class, 'index'])->name('orders.index');
+        Route::post('/orders', [PortalProductOrderController::class, 'store'])->name('orders.store');
+        Route::get('/orders/{sale}/edit', [PortalProductOrderController::class, 'edit'])->name('orders.edit');
+        Route::put('/orders/{sale}', [PortalProductOrderController::class, 'update'])->name('orders.update');
+        Route::post('/orders/{sale}/confirm', [PortalProductOrderController::class, 'confirmReceipt'])->name('orders.confirm');
+        Route::delete('/orders/{sale}', [PortalProductOrderController::class, 'destroy'])->name('orders.destroy');
+        Route::post('/orders/{sale}/reorder', [PortalProductOrderController::class, 'reorder'])->name('orders.reorder');
         Route::post('/quotes/{quote}/accept', [PortalQuoteController::class, 'accept'])->name('quotes.accept');
         Route::post('/quotes/{quote}/decline', [PortalQuoteController::class, 'decline'])->name('quotes.decline');
         Route::post('/works/{work}/validate', [PortalWorkController::class, 'validateWork'])->name('works.validate');

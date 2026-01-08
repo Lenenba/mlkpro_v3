@@ -138,6 +138,16 @@ class OnboardingController extends Controller
             $this->seedSectorCategories($accountOwner, $creator, $validated['company_sector'] ?? null);
         }
 
+        if ($validated['company_type'] === 'products') {
+            $features = (array) ($accountOwner->company_features ?? []);
+            if (!array_key_exists('sales', $features)) {
+                $features['sales'] = true;
+            }
+            $accountOwner->update([
+                'company_features' => $features,
+            ]);
+        }
+
         $invitePasswords = [];
         foreach (($validated['invites'] ?? []) as $invite) {
             $plainPassword = Str::random(14);

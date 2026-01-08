@@ -1,11 +1,3 @@
-<script setup>
-import { usePage } from '@inertiajs/vue3';
-// Récupération de l'utilisateur depuis `usePage`
-const page = usePage();
-const user = page.props.auth.user; // Accès direct à l'utilisateur dans la page
-</script>
-
-
 <template>
     <!-- ========== HEADER ========== -->
     <header

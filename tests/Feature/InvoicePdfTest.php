@@ -97,6 +97,6 @@ test('invoice pdf download is forbidden for non-owners', function () {
     expect($invoice)->not->toBeNull();
 
     $this->actingAs($otherUser)
-        ->get(route('invoice.pdf', $invoice))
+        ->getJson(route('invoice.pdf', $invoice))
         ->assertForbidden();
 });

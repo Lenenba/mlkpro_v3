@@ -56,6 +56,7 @@ class EnsureCompanyFeature
             'invoices' => 'Invoices',
             'jobs' => 'Jobs',
             'products' => 'Products',
+            'sales' => 'Sales',
             'services' => 'Services',
             'tasks' => 'Tasks',
             'team_members' => 'Team members',

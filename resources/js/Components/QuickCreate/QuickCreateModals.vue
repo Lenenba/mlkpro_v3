@@ -16,6 +16,7 @@ const canProducts = computed(() => isFeatureEnabled(featureFlags.value, 'product
 const canServices = computed(() => isFeatureEnabled(featureFlags.value, 'services'));
 const canQuotes = computed(() => isFeatureEnabled(featureFlags.value, 'quotes'));
 const canRequests = computed(() => isFeatureEnabled(featureFlags.value, 'requests'));
+const canSales = computed(() => isFeatureEnabled(featureFlags.value, 'sales'));
 
 const customers = ref([]);
 const categories = ref([]);
@@ -84,7 +85,7 @@ const handleCategoryCreated = (category) => {
 };
 
 onMounted(() => {
-    if (canQuotes.value || canRequests.value) {
+    if (canQuotes.value || canRequests.value || canSales.value) {
         fetchCustomers();
     }
     if (canProducts.value || canServices.value) {
