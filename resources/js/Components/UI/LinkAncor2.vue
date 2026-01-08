@@ -17,15 +17,19 @@ const showServices = computed(() => companyType.value !== 'products');
 const showProducts = computed(() => true);
 const isOwner = computed(() => Boolean(page.props.auth?.account?.is_owner));
 const teamPermissions = computed(() => page.props.auth?.account?.team?.permissions || []);
+const teamRole = computed(() => page.props.auth?.account?.team?.role || null);
 const featureFlags = computed(() => page.props.auth?.account?.features || {});
 const hasFeature = (key) => isFeatureEnabled(featureFlags.value, key);
-const canSales = computed(() => isOwner.value || teamPermissions.value.includes('sales.manage'));
+const canSales = computed(() =>
+    isOwner.value || teamPermissions.value.includes('sales.manage') || teamPermissions.value.includes('sales.pos')
+);
+const isSeller = computed(() => teamRole.value === 'seller');
 
 const menuItems = computed(() => {
     locale.value;
     const items = [];
 
-    if ((isOwner.value && showServices.value) || (companyType.value === 'products' && hasFeature('sales') && canSales.value)) {
+    if (!isSeller.value && ((isOwner.value && showServices.value) || (companyType.value === 'products' && hasFeature('sales') && canSales.value))) {
         items.push({
             label: t('quick_create.customer'),
             overlay: '#hs-quick-create-customer',

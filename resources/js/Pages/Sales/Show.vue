@@ -14,9 +14,10 @@ const props = defineProps({
 const page = usePage();
 const companyName = computed(() => page.props.auth?.account?.company?.name || 'Entreprise');
 const companyLogo = computed(() => page.props.auth?.account?.company?.logo_url || null);
-const sellerName = computed(() => page.props.auth?.user?.name || 'Vendeur');
-const sellerEmail = computed(() => page.props.auth?.user?.email || null);
-const sellerPhone = computed(() => page.props.auth?.user?.phone_number || null);
+const createdBy = computed(() => props.sale?.created_by || null);
+const sellerName = computed(() => createdBy.value?.name || page.props.auth?.user?.name || 'Vendeur');
+const sellerEmail = computed(() => createdBy.value?.email || page.props.auth?.user?.email || null);
+const sellerPhone = computed(() => createdBy.value?.phone_number || page.props.auth?.user?.phone_number || null);
 
 const formatCurrency = (value) =>
     `$${Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -79,9 +80,57 @@ const formatDate = (value) => {
     return date.toLocaleDateString();
 };
 
+const formatDateTime = (value) => {
+    if (!value) {
+        return '-';
+    }
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+        return '-';
+    }
+    return date.toLocaleString();
+};
+
 const handlePrint = () => {
     window.print();
 };
+
+const fulfillmentLabel = computed(() => {
+    if (props.sale?.fulfillment_method === 'delivery') {
+        return 'Livraison';
+    }
+    if (props.sale?.fulfillment_method === 'pickup') {
+        return 'Retrait';
+    }
+    return 'Commande';
+});
+
+const fulfillmentStatusLabels = {
+    pending: 'En attente',
+    preparing: 'Preparation',
+    out_for_delivery: 'En cours de livraison',
+    ready_for_pickup: 'Pret a retirer',
+    completed: 'Terminee',
+};
+
+const pickupCode = computed(() => props.sale?.pickup_code || null);
+const pickupQrUrl = computed(() => {
+    if (!pickupCode.value) {
+        return null;
+    }
+    return `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(pickupCode.value)}`;
+});
+const showPickupQr = computed(() =>
+    props.sale?.fulfillment_method === 'pickup'
+    && props.sale?.fulfillment_status === 'ready_for_pickup'
+    && pickupQrUrl.value
+);
+const pickupConfirmedBy = computed(() => props.sale?.pickup_confirmed_by || null);
+const canConfirmPickup = computed(() =>
+    props.sale?.fulfillment_method === 'pickup'
+    && props.sale?.fulfillment_status === 'ready_for_pickup'
+    && !props.sale?.pickup_confirmed_at
+);
 </script>
 
 <template>
@@ -145,6 +194,15 @@ const handlePrint = () => {
                     class="rounded-sm border border-stone-200 bg-white px-3 py-2 text-xs font-semibold text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
                 >
                     Modifier
+                </Link>
+                <Link
+                    v-if="canConfirmPickup"
+                    :href="route('sales.pickup.confirm', sale.id)"
+                    method="post"
+                    as="button"
+                    class="rounded-sm bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700"
+                >
+                    Confirmer retrait
                 </Link>
                 <button
                     type="button"
@@ -263,6 +321,10 @@ const handlePrint = () => {
                                 <span>Taxes</span>
                                 <span class="font-medium">{{ formatCurrency(sale.tax_total) }}</span>
                             </div>
+                            <div v-if="Number(sale.delivery_fee || 0) > 0" class="flex items-center justify-between">
+                                <span>Livraison</span>
+                                <span class="font-medium">{{ formatCurrency(sale.delivery_fee) }}</span>
+                            </div>
                             <div class="flex items-center justify-between border-t border-stone-200 pt-2 dark:border-neutral-700">
                                 <span class="font-semibold">Total</span>
                                 <span class="font-semibold">{{ formatCurrency(sale.total) }}</span>
@@ -285,6 +347,87 @@ const handlePrint = () => {
                                 <span>Payee</span>
                                 <span>{{ humanizeDate(sale.paid_at) }}</span>
                             </div>
+                        </div>
+                    </div>
+
+                    <div
+                        v-if="sale.fulfillment_method || sale.delivery_address || sale.pickup_notes || sale.delivery_notes || sale.scheduled_for"
+                        class="print-card rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900"
+                    >
+                        <div class="flex items-center justify-between">
+                            <span class="text-sm text-stone-500 dark:text-neutral-400">Livraison</span>
+                            <span class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                                {{ fulfillmentLabel }}
+                            </span>
+                        </div>
+                        <div class="mt-3 space-y-1 text-sm text-stone-700 dark:text-neutral-200">
+                            <div v-if="sale.fulfillment_status" class="text-xs text-stone-500 dark:text-neutral-400">
+                                Statut: {{ fulfillmentStatusLabels[sale.fulfillment_status] || sale.fulfillment_status }}
+                            </div>
+                            <div v-if="sale.fulfillment_method === 'delivery' && sale.delivery_address">
+                                Adresse: {{ sale.delivery_address }}
+                            </div>
+                            <div v-if="sale.fulfillment_method === 'delivery' && sale.delivery_notes">
+                                Notes: {{ sale.delivery_notes }}
+                            </div>
+                            <div v-if="sale.fulfillment_method === 'pickup' && sale.pickup_notes">
+                                Notes: {{ sale.pickup_notes }}
+                            </div>
+                            <div v-if="sale.scheduled_for">
+                                Horaire souhaite: {{ formatDateTime(sale.scheduled_for) }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div
+                        v-if="sale.fulfillment_method === 'pickup'"
+                        class="print-card rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900"
+                    >
+                        <div class="flex items-center justify-between">
+                            <span class="text-sm text-stone-500 dark:text-neutral-400">Retrait</span>
+                            <span class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                                {{ fulfillmentStatusLabels[sale.fulfillment_status] || 'Retrait' }}
+                            </span>
+                        </div>
+                        <div class="mt-3 space-y-2 text-sm text-stone-700 dark:text-neutral-200">
+                            <div v-if="pickupCode" class="flex items-center justify-between">
+                                <span class="text-xs uppercase text-stone-500 dark:text-neutral-400">Code</span>
+                                <span class="font-semibold text-stone-800 dark:text-neutral-100">{{ pickupCode }}</span>
+                            </div>
+                            <div v-else class="text-xs text-stone-500 dark:text-neutral-400">
+                                Code de retrait en attente.
+                            </div>
+                            <div v-if="sale.pickup_confirmed_at">
+                                Retire le {{ formatDateTime(sale.pickup_confirmed_at) }}
+                            </div>
+                            <div v-if="pickupConfirmedBy?.name" class="text-xs text-stone-500 dark:text-neutral-400">
+                                Confirme par {{ pickupConfirmedBy.name }}
+                            </div>
+                        </div>
+                        <div v-if="showPickupQr" class="mt-3 flex justify-center">
+                            <img
+                                :src="pickupQrUrl"
+                                :alt="`QR ${pickupCode}`"
+                                class="h-40 w-40 rounded-sm border border-stone-200 bg-white object-contain p-2 dark:border-neutral-700"
+                            >
+                        </div>
+                    </div>
+
+                    <div
+                        v-if="sale.source === 'portal' || sale.customer_notes || sale.substitution_notes"
+                        class="print-card rounded-sm border border-stone-200 bg-white p-4 text-sm text-stone-700 shadow-sm dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
+                    >
+                        <p class="text-xs uppercase text-stone-500 dark:text-neutral-400">Notes client</p>
+                        <div class="mt-2 space-y-2">
+                            <p v-if="sale.customer_notes">{{ sale.customer_notes }}</p>
+                            <p v-else class="text-xs text-stone-500 dark:text-neutral-400">Aucune note specifique.</p>
+                            <div class="text-xs text-stone-500 dark:text-neutral-400">
+                                Substitutions:
+                                <span class="font-semibold text-stone-700 dark:text-neutral-200">
+                                    {{ sale.substitution_allowed === false ? 'Non autorisees' : 'Autorisees' }}
+                                </span>
+                            </div>
+                            <p v-if="sale.substitution_notes">{{ sale.substitution_notes }}</p>
                         </div>
                     </div>
 

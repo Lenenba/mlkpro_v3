@@ -76,7 +76,82 @@ class DashboardController extends Controller
                 $recentSales = (clone $salesQuery)
                     ->latest()
                     ->limit(8)
-                    ->get(['id', 'number', 'status', 'total', 'created_at']);
+                    ->get([
+                        'id',
+                        'number',
+                        'status',
+                        'total',
+                        'created_at',
+                        'fulfillment_method',
+                        'fulfillment_status',
+                        'scheduled_for',
+                    ]);
+
+                $pendingOrders = (clone $salesQuery)
+                    ->where('status', '!=', Sale::STATUS_CANCELED)
+                    ->where(function ($query) {
+                        $query->whereNull('fulfillment_status')
+                            ->orWhereIn('fulfillment_status', [
+                                Sale::FULFILLMENT_PENDING,
+                                Sale::FULFILLMENT_PREPARING,
+                            ]);
+                    })
+                    ->latest()
+                    ->limit(6)
+                    ->get([
+                        'id',
+                        'number',
+                        'status',
+                        'total',
+                        'created_at',
+                        'fulfillment_method',
+                        'fulfillment_status',
+                        'scheduled_for',
+                    ]);
+
+                $inDeliveryOrders = (clone $salesQuery)
+                    ->where('status', '!=', Sale::STATUS_CANCELED)
+                    ->where('fulfillment_method', 'delivery')
+                    ->where('fulfillment_status', Sale::FULFILLMENT_OUT_FOR_DELIVERY)
+                    ->latest()
+                    ->limit(6)
+                    ->get([
+                        'id',
+                        'number',
+                        'status',
+                        'total',
+                        'created_at',
+                        'fulfillment_method',
+                        'fulfillment_status',
+                        'scheduled_for',
+                    ]);
+
+                $now = now();
+                $deliveryAlerts = (clone $salesQuery)
+                    ->where('status', '!=', Sale::STATUS_CANCELED)
+                    ->where('fulfillment_method', 'delivery')
+                    ->where(function ($query) use ($now) {
+                        $query->where('fulfillment_status', Sale::FULFILLMENT_OUT_FOR_DELIVERY)
+                            ->orWhere(function ($sub) use ($now) {
+                                $sub->whereNotNull('scheduled_for')
+                                    ->whereBetween('scheduled_for', [
+                                        $now->copy()->subMinutes(30),
+                                        $now->copy()->addHours(6),
+                                    ]);
+                            });
+                    })
+                    ->orderByRaw('scheduled_for is null, scheduled_for asc')
+                    ->limit(6)
+                    ->get([
+                        'id',
+                        'number',
+                        'status',
+                        'total',
+                        'created_at',
+                        'fulfillment_method',
+                        'fulfillment_status',
+                        'scheduled_for',
+                    ]);
 
                 return $this->inertiaOrJson('DashboardProductsClient', [
                     'company' => [
@@ -84,6 +159,9 @@ class DashboardController extends Controller
                     ],
                     'stats' => $stats,
                     'sales' => $recentSales,
+                    'pendingOrders' => $pendingOrders,
+                    'inDeliveryOrders' => $inDeliveryOrders,
+                    'deliveryAlerts' => $deliveryAlerts,
                 ]);
             }
 
@@ -403,9 +481,14 @@ class DashboardController extends Controller
         }
 
         if ($accountOwner?->company_type === 'products') {
+            $restrictSales = $membership
+                && !$membership->hasPermission('sales.manage')
+                && $membership->hasPermission('sales.pos');
+
             $salesBaseQuery = Sale::query()
                 ->where('user_id', $accountId)
-                ->where('status', '!=', Sale::STATUS_CANCELED);
+                ->where('status', '!=', Sale::STATUS_CANCELED)
+                ->when($restrictSales, fn($query) => $query->where('created_by_user_id', $user->id));
             $salesTodayQuery = (clone $salesBaseQuery)->whereDate('created_at', $today);
             $salesMonthQuery = (clone $salesBaseQuery)
                 ->whereBetween('created_at', [$now->copy()->startOfMonth(), $now->copy()->endOfMonth()]);
@@ -476,6 +559,7 @@ class DashboardController extends Controller
                 ->join('sales', 'sale_items.sale_id', '=', 'sales.id')
                 ->where('sales.user_id', $accountId)
                 ->where('sales.status', '!=', Sale::STATUS_CANCELED)
+                ->when($restrictSales, fn($query) => $query->where('sales.created_by_user_id', $user->id))
                 ->groupBy('sale_items.product_id')
                 ->orderByDesc('quantity')
                 ->limit(6)

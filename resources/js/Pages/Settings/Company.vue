@@ -157,6 +157,14 @@ const form = useForm({
     company_city: '',
     company_city_other: '',
     company_type: props.company.company_type || 'services',
+    fulfillment_delivery_enabled: props.company.fulfillment?.delivery_enabled ?? true,
+    fulfillment_pickup_enabled: props.company.fulfillment?.pickup_enabled ?? true,
+    fulfillment_delivery_fee: props.company.fulfillment?.delivery_fee ?? '',
+    fulfillment_delivery_zone: props.company.fulfillment?.delivery_zone ?? '',
+    fulfillment_pickup_address: props.company.fulfillment?.pickup_address ?? '',
+    fulfillment_prep_time_minutes: props.company.fulfillment?.prep_time_minutes ?? 30,
+    fulfillment_delivery_notes: props.company.fulfillment?.delivery_notes ?? '',
+    fulfillment_pickup_notes: props.company.fulfillment?.pickup_notes ?? '',
     supplier_enabled: initialEnabledSuppliers,
     supplier_preferred: initialPreferredSuppliers,
 });
@@ -430,6 +438,28 @@ const submit = () => {
                 company_city: normalizeText(city),
             };
 
+            payload.company_fulfillment = {
+                delivery_enabled: Boolean(data.fulfillment_delivery_enabled),
+                pickup_enabled: Boolean(data.fulfillment_pickup_enabled),
+                delivery_fee: data.fulfillment_delivery_fee !== '' ? Number(data.fulfillment_delivery_fee) : null,
+                delivery_zone: normalizeText(data.fulfillment_delivery_zone),
+                pickup_address: normalizeText(data.fulfillment_pickup_address),
+                prep_time_minutes: data.fulfillment_prep_time_minutes !== ''
+                    ? Number(data.fulfillment_prep_time_minutes)
+                    : null,
+                delivery_notes: normalizeText(data.fulfillment_delivery_notes),
+                pickup_notes: normalizeText(data.fulfillment_pickup_notes),
+            };
+
+            delete payload.fulfillment_delivery_enabled;
+            delete payload.fulfillment_pickup_enabled;
+            delete payload.fulfillment_delivery_fee;
+            delete payload.fulfillment_delivery_zone;
+            delete payload.fulfillment_pickup_address;
+            delete payload.fulfillment_prep_time_minutes;
+            delete payload.fulfillment_delivery_notes;
+            delete payload.fulfillment_pickup_notes;
+
             if (data.company_logo instanceof File) {
                 payload.company_logo = data.company_logo;
             } else {
@@ -489,6 +519,8 @@ const usageStatusClass = (status) => {
     }
     return 'text-emerald-600';
 };
+
+const isProductCompany = computed(() => form.company_type === 'products');
 
 const preferredLimit = 2;
 const isPreferredDisabled = (key) => {
@@ -591,6 +623,60 @@ const isPreferredDisabled = (key) => {
                             </label>
                         </div>
                         <InputError class="mt-1" :message="form.errors.company_type" />
+                    </div>
+
+                    <div v-if="isProductCompany" class="rounded-sm border border-stone-200 bg-stone-50 p-4 space-y-3 dark:border-neutral-700 dark:bg-neutral-900">
+                        <div>
+                            <h3 class="text-sm font-semibold text-stone-800 dark:text-neutral-200">Livraison & retrait</h3>
+                            <p class="text-xs text-stone-500 dark:text-neutral-400">
+                                Parametrez les options proposees aux clients pour commander.
+                            </p>
+                        </div>
+                        <div class="flex flex-wrap gap-4 text-sm text-stone-700 dark:text-neutral-200">
+                            <label class="flex items-center gap-2">
+                                <input type="checkbox" v-model="form.fulfillment_delivery_enabled" />
+                                <span>Livraison active</span>
+                            </label>
+                            <label class="flex items-center gap-2">
+                                <input type="checkbox" v-model="form.fulfillment_pickup_enabled" />
+                                <span>Retrait en magasin</span>
+                            </label>
+                        </div>
+                        <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+                            <div>
+                                <FloatingInput v-model="form.fulfillment_delivery_fee" label="Frais de livraison (optionnel)" />
+                                <InputError class="mt-1" :message="form.errors['company_fulfillment.delivery_fee']" />
+                            </div>
+                            <div>
+                                <FloatingInput v-model="form.fulfillment_prep_time_minutes" label="Temps de preparation (minutes)" />
+                                <InputError class="mt-1" :message="form.errors['company_fulfillment.prep_time_minutes']" />
+                            </div>
+                            <div class="md:col-span-2">
+                                <FloatingInput v-model="form.fulfillment_delivery_zone" label="Zone de livraison (optionnel)" />
+                                <InputError class="mt-1" :message="form.errors['company_fulfillment.delivery_zone']" />
+                            </div>
+                            <div class="md:col-span-2">
+                                <label class="block text-xs text-stone-500 dark:text-neutral-400">Adresse de retrait</label>
+                                <textarea v-model="form.fulfillment_pickup_address"
+                                    class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
+                                    rows="2" />
+                                <InputError class="mt-1" :message="form.errors['company_fulfillment.pickup_address']" />
+                            </div>
+                            <div class="md:col-span-2">
+                                <label class="block text-xs text-stone-500 dark:text-neutral-400">Notes livraison (optionnel)</label>
+                                <textarea v-model="form.fulfillment_delivery_notes"
+                                    class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
+                                    rows="2" />
+                                <InputError class="mt-1" :message="form.errors['company_fulfillment.delivery_notes']" />
+                            </div>
+                            <div class="md:col-span-2">
+                                <label class="block text-xs text-stone-500 dark:text-neutral-400">Notes retrait (optionnel)</label>
+                                <textarea v-model="form.fulfillment_pickup_notes"
+                                    class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
+                                    rows="2" />
+                                <InputError class="mt-1" :message="form.errors['company_fulfillment.pickup_notes']" />
+                            </div>
+                        </div>
                     </div>
 
                     <div class="flex justify-end">

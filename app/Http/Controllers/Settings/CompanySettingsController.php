@@ -49,6 +49,7 @@ class CompanySettingsController extends Controller
                 'company_province' => $user->company_province,
                 'company_city' => $user->company_city,
                 'company_type' => $user->company_type,
+                'fulfillment' => $user->company_fulfillment ?? null,
             ],
             'categories' => ProductCategory::forAccount($accountId)
                 ->active()
@@ -84,6 +85,15 @@ class CompanySettingsController extends Controller
             'company_province' => 'nullable|string|max:255',
             'company_city' => 'nullable|string|max:255',
             'company_type' => 'required|string|in:services,products',
+            'company_fulfillment' => 'nullable|array',
+            'company_fulfillment.delivery_enabled' => 'nullable|boolean',
+            'company_fulfillment.pickup_enabled' => 'nullable|boolean',
+            'company_fulfillment.delivery_fee' => 'nullable|numeric|min:0',
+            'company_fulfillment.delivery_zone' => 'nullable|string|max:255',
+            'company_fulfillment.pickup_address' => 'nullable|string|max:500',
+            'company_fulfillment.prep_time_minutes' => 'nullable|integer|min:0|max:1440',
+            'company_fulfillment.delivery_notes' => 'nullable|string|max:500',
+            'company_fulfillment.pickup_notes' => 'nullable|string|max:500',
             'supplier_enabled' => 'nullable|array',
             'supplier_enabled.*' => ['string', Rule::in($supplierKeys)],
             'supplier_preferred' => 'nullable|array',
@@ -133,6 +143,7 @@ class CompanySettingsController extends Controller
                 'enabled' => $enabledSuppliers,
                 'preferred' => $preferredSuppliers,
             ],
+            'company_fulfillment' => $validated['company_fulfillment'] ?? $user->company_fulfillment,
         ]);
 
         if ($this->shouldReturnJson($request)) {

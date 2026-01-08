@@ -141,6 +141,30 @@ class InventoryService
         });
     }
 
+    public function adjustReserved(Product $product, int $quantity, array $context = []): void
+    {
+        $accountId = $context['account_id'] ?? $product->user_id;
+        $warehouseId = $context['warehouse_id'] ?? null;
+        $warehouse = $context['warehouse'] ?? $this->resolveWarehouse($product, $warehouseId, $accountId);
+
+        DB::transaction(function () use ($product, $quantity, $context, $warehouse) {
+            $inventory = $this->ensureInventory($product, $warehouse);
+            $before = (int) $inventory->reserved;
+            $next = max(0, $before + $quantity);
+
+            if ($next === $before) {
+                return;
+            }
+
+            $inventory->reserved = $next;
+            $inventory->save();
+
+            if (!($context['skip_sync'] ?? false)) {
+                $this->syncProductStock($product->fresh());
+            }
+        });
+    }
+
     public function recalculateProductStock(Product $product): void
     {
         $this->syncProductStock($product);
@@ -166,7 +190,7 @@ class InventoryService
 
     public function ensureInventory(Product $product, Warehouse $warehouse): ProductInventory
     {
-        return ProductInventory::firstOrCreate(
+        $inventory = ProductInventory::firstOrCreate(
             [
                 'product_id' => $product->id,
                 'warehouse_id' => $warehouse->id,
@@ -179,6 +203,14 @@ class InventoryService
                 'reorder_point' => (int) $product->minimum_stock,
             ]
         );
+
+        if ($inventory->wasRecentlyCreated && (int) $inventory->on_hand === 0 && (int) $product->stock > 0) {
+            $inventory->on_hand = (int) $product->stock;
+            $inventory->save();
+            $this->syncProductStock($product->fresh());
+        }
+
+        return $inventory;
     }
 
     private function resolveLot(Product $product, Warehouse $warehouse, array $context, int $delta): ?ProductLot

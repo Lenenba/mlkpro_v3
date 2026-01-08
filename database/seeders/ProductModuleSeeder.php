@@ -57,14 +57,24 @@ class ProductModuleSeeder extends Seeder
         );
 
         $now = now();
-        $resolveProductImage = function (array $data): string {
-            $keyword = trim(($data['name'] ?? '') . ' ' . ($data['category'] ?? 'product'));
-            $keyword = preg_replace('/[^a-z0-9 ]+/i', ' ', $keyword);
-            $keyword = trim(preg_replace('/\s+/', ' ', $keyword));
-            if ($keyword === '') {
-                $keyword = 'product';
-            }
-            return 'https://source.unsplash.com/800x800/?' . rawurlencode($keyword);
+        $unsplashPhotoIds = [
+            '1500530855697-b586d89ba3ee',
+            '1523275335684-37898b6baf30',
+            '1503602642458-232111445657',
+            '1496307042754-b4aa456c4a2d',
+            '1498050108023-c5249f4df085',
+            '1489515217757-5fd1be406fef',
+            '1473186578172-c141e6798cf4',
+            '1469474968028-56623f02e42e',
+            '1488998427799-e3362cec87c3',
+            '1497366216548-37526070297c',
+        ];
+
+        $resolveProductImage = function (array $data) use ($unsplashPhotoIds): string {
+            $seed = trim(($data['sku'] ?? '') . ' ' . ($data['name'] ?? '') . ' ' . ($data['category'] ?? 'product'));
+            $hash = (int) sprintf('%u', crc32($seed));
+            $photoId = $unsplashPhotoIds[$hash % count($unsplashPhotoIds)];
+            return "https://images.unsplash.com/photo-{$photoId}?auto=format&fit=crop&w=800&q=80";
         };
         $seedProducts = [
             [

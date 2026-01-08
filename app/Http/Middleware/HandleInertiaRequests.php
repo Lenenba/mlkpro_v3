@@ -37,7 +37,17 @@ class HandleInertiaRequests extends Middleware
 
         $accountOwner = null;
         $accountFeatures = null;
-        if ($user && $ownerId) {
+        if ($user && $user->isClient()) {
+            $customer = $user->relationLoaded('customerProfile')
+                ? $user->customerProfile
+                : $user->customerProfile()->first();
+            if ($customer) {
+                $accountOwner = User::query()
+                    ->select(['id', 'company_name', 'company_type', 'company_logo', 'onboarding_completed_at'])
+                    ->find($customer->user_id);
+            }
+        }
+        if (!$accountOwner && $user && $ownerId) {
             $accountOwner = $ownerId === $user->id
                 ? $user
                 : User::query()
@@ -78,7 +88,7 @@ class HandleInertiaRequests extends Middleware
             'auth' => [
                 'user' => $user,
                 'account' => $user ? [
-                    'owner_id' => $ownerId,
+                    'owner_id' => $accountOwner?->id ?? $ownerId,
                     'is_owner' => $user->isAccountOwner(),
                     'is_client' => $user->isClient(),
                     'is_superadmin' => $user->isSuperadmin(),

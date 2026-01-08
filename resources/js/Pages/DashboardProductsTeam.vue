@@ -134,7 +134,7 @@ const kpiTone = {
                                     {{ sale.number || `Sale #${sale.id}` }}
                                 </p>
                                 <p class="text-xs text-stone-500 dark:text-neutral-400">
-                                    {{ customerLabel(sale) }} • {{ formatDate(sale.created_at) }}
+                                    {{ customerLabel(sale) }} - {{ formatDate(sale.created_at) }}
                                 </p>
                             </div>
                             <div class="text-right">

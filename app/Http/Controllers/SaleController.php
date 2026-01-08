@@ -9,7 +9,10 @@ use App\Models\Sale;
 use App\Models\User;
 use App\Models\Warehouse;
 use App\Services\InventoryService;
+use App\Services\SaleNotificationService;
+use App\Services\SaleTimelineService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
@@ -21,7 +24,7 @@ class SaleController extends Controller
         if (!$user) {
             abort(401);
         }
-        $accountOwner = $this->ensureSalesAccess($user);
+        [$accountOwner, $canManage] = $this->resolveSalesAccess($user);
         $accountId = $accountOwner->id;
 
         $filters = $request->only([
@@ -45,6 +48,7 @@ class SaleController extends Controller
 
         $baseQuery = Sale::query()
             ->where('user_id', $accountId)
+            ->when(!$canManage, fn($query) => $query->where('created_by_user_id', $user->id))
             ->when($filters['search'] ?? null, function ($query, $search) {
                 $search = trim((string) $search);
                 if ($search === '') {
@@ -140,7 +144,7 @@ class SaleController extends Controller
         if (!$user) {
             abort(401);
         }
-        $accountOwner = $this->ensureSalesAccess($user);
+        [$accountOwner] = $this->resolveSalesAccess($user);
         $accountId = $accountOwner->id;
 
         $customers = Customer::query()
@@ -178,10 +182,13 @@ class SaleController extends Controller
         if (!$user) {
             abort(401);
         }
-        $accountOwner = $this->ensureSalesAccess($user);
+        [$accountOwner, $canManage] = $this->resolveSalesAccess($user);
         $accountId = $accountOwner->id;
 
         if ($sale->user_id !== $accountId) {
+            abort(404);
+        }
+        if (!$canManage && $sale->created_by_user_id !== $user->id) {
             abort(404);
         }
 
@@ -225,7 +232,7 @@ class SaleController extends Controller
         if (!$user) {
             abort(401);
         }
-        $accountOwner = $this->ensureSalesAccess($user);
+        [$accountOwner] = $this->resolveSalesAccess($user);
         $accountId = $accountOwner->id;
 
         $validated = $request->validate([
@@ -236,7 +243,9 @@ class SaleController extends Controller
                 Sale::STATUS_PAID,
                 Sale::STATUS_CANCELED,
             ])],
+            'fulfillment_status' => ['nullable', Rule::in($this->allowedFulfillmentStatuses())],
             'notes' => 'nullable|string|max:2000',
+            'scheduled_for' => 'nullable|date',
             'items' => 'required|array|min:1',
             'items.*.product_id' => 'required|exists:products,id',
             'items.*.quantity' => 'required|integer|min:1',
@@ -268,6 +277,17 @@ class SaleController extends Controller
             throw ValidationException::withMessages([
                 'items' => 'Certains produits sont invalides pour ce compte.',
             ]);
+        }
+
+        $reservedMap = ($previousStatus === Sale::STATUS_PENDING && $previousFulfillment !== Sale::FULFILLMENT_COMPLETED)
+            ? $previousItems->groupBy('product_id')->map(fn($rows) => (int) $rows->sum('quantity'))->toArray()
+            : [];
+
+        foreach ($reservedMap as $productId => $quantity) {
+            $product = $products->get($productId);
+            if ($product) {
+                $product->stock = (int) $product->stock + $quantity;
+            }
         }
 
         $errors = [];
@@ -335,20 +355,44 @@ class SaleController extends Controller
 
         $sale = Sale::create([
             'user_id' => $accountId,
+            'created_by_user_id' => $user->id,
             'customer_id' => $customerId,
             'status' => $validated['status'],
             'subtotal' => $subtotal,
             'tax_total' => $taxTotal,
             'total' => $total,
+            'fulfillment_status' => $validated['fulfillment_status'] ?? null,
             'notes' => $validated['notes'] ?? null,
+            'scheduled_for' => $validated['scheduled_for'] ?? null,
             'paid_at' => $validated['status'] === Sale::STATUS_PAID ? now() : null,
+            'source' => 'pos',
         ]);
 
         foreach ($itemsPayload as $payload) {
             $sale->items()->create($payload);
         }
 
-        if ($validated['status'] === Sale::STATUS_PAID) {
+        if (
+            $sale->status === Sale::STATUS_PENDING
+            && $sale->fulfillment_status !== Sale::FULFILLMENT_COMPLETED
+        ) {
+            $this->applyReservations($sale, $itemsPayload, $accountId, []);
+        }
+
+        if (
+            $sale->fulfillment_method === 'pickup'
+            && $sale->fulfillment_status === Sale::FULFILLMENT_READY_FOR_PICKUP
+            && !$sale->pickup_code
+        ) {
+            $sale->forceFill([
+                'pickup_code' => $this->generatePickupCode(),
+            ])->save();
+        }
+
+        if (
+            $sale->status === Sale::STATUS_PAID
+            || $sale->fulfillment_status === Sale::FULFILLMENT_COMPLETED
+        ) {
             $inventoryService = app(InventoryService::class);
             $warehouse = $inventoryService->resolveDefaultWarehouse($accountId);
 
@@ -367,6 +411,10 @@ class SaleController extends Controller
             }
         }
 
+        app(SaleTimelineService::class)->record($user, $sale, 'sale_created', [
+            'source' => 'pos',
+        ]);
+
         return redirect()
             ->route('sales.create')
             ->with('success', 'Vente creee.')
@@ -379,10 +427,13 @@ class SaleController extends Controller
         if (!$user) {
             abort(401);
         }
-        $accountOwner = $this->ensureSalesAccess($user);
+        [$accountOwner, $canManage] = $this->resolveSalesAccess($user);
         $accountId = $accountOwner->id;
 
         if ($sale->user_id !== $accountId) {
+            abort(404);
+        }
+        if (!$canManage && $sale->created_by_user_id !== $user->id) {
             abort(404);
         }
 
@@ -392,6 +443,17 @@ class SaleController extends Controller
             ]);
         }
 
+        if ($sale->fulfillment_status === Sale::FULFILLMENT_COMPLETED) {
+            throw ValidationException::withMessages([
+                'status' => 'Vente deja livree.',
+            ]);
+        }
+
+        $previousStatus = $sale->status;
+        $previousFulfillment = $sale->fulfillment_status;
+        $previousScheduled = $sale->scheduled_for;
+        $previousItems = $sale->items()->get(['product_id', 'quantity']);
+
         $validated = $request->validate([
             'customer_id' => 'nullable|exists:customers,id',
             'status' => ['required', Rule::in([
@@ -400,7 +462,9 @@ class SaleController extends Controller
                 Sale::STATUS_PAID,
                 Sale::STATUS_CANCELED,
             ])],
+            'fulfillment_status' => ['nullable', Rule::in($this->allowedFulfillmentStatuses())],
             'notes' => 'nullable|string|max:2000',
+            'scheduled_for' => 'nullable|date',
             'items' => 'required|array|min:1',
             'items.*.product_id' => 'required|exists:products,id',
             'items.*.quantity' => 'required|integer|min:1',
@@ -497,22 +561,59 @@ class SaleController extends Controller
 
         $total = round($subtotal + $taxTotal, 2);
 
-        $sale->update([
+        $updateData = [
             'customer_id' => $customerId,
             'status' => $validated['status'],
             'subtotal' => $subtotal,
             'tax_total' => $taxTotal,
             'total' => $total,
+            'fulfillment_status' => array_key_exists('fulfillment_status', $validated)
+                ? $validated['fulfillment_status']
+                : $sale->fulfillment_status,
             'notes' => $validated['notes'] ?? null,
             'paid_at' => $validated['status'] === Sale::STATUS_PAID ? now() : null,
-        ]);
+        ];
+
+        if (array_key_exists('scheduled_for', $validated)) {
+            $updateData['scheduled_for'] = $validated['scheduled_for'];
+        }
+
+        $sale->update($updateData);
 
         $sale->items()->delete();
         foreach ($itemsPayload as $payload) {
             $sale->items()->create($payload);
         }
 
-        if ($validated['status'] === Sale::STATUS_PAID) {
+        $wasPending = $previousStatus === Sale::STATUS_PENDING
+            && $previousFulfillment !== Sale::FULFILLMENT_COMPLETED;
+        $isPending = $sale->status === Sale::STATUS_PENDING
+            && $sale->fulfillment_status !== Sale::FULFILLMENT_COMPLETED;
+
+        if ($isPending) {
+            $currentItems = $wasPending ? $previousItems : [];
+            $this->applyReservations($sale, $itemsPayload, $accountId, $currentItems);
+        } elseif ($wasPending) {
+            $this->applyReservations($sale, [], $accountId, $previousItems);
+        }
+
+        if (
+            $sale->fulfillment_method === 'pickup'
+            && $sale->fulfillment_status === Sale::FULFILLMENT_READY_FOR_PICKUP
+            && !$sale->pickup_code
+        ) {
+            $sale->forceFill([
+                'pickup_code' => $this->generatePickupCode(),
+            ])->save();
+        }
+
+        $inventoryAlreadyApplied = $previousStatus === Sale::STATUS_PAID
+            || $previousFulfillment === Sale::FULFILLMENT_COMPLETED;
+
+        if (
+            !$inventoryAlreadyApplied
+            && ($sale->status === Sale::STATUS_PAID || $sale->fulfillment_status === Sale::FULFILLMENT_COMPLETED)
+        ) {
             $inventoryService = app(InventoryService::class);
             $warehouse = $inventoryService->resolveDefaultWarehouse($accountId);
 
@@ -531,9 +632,128 @@ class SaleController extends Controller
             }
         }
 
+        $timeline = app(SaleTimelineService::class);
+        $timeline->record($user, $sale, 'sale_updated');
+
+        $changes = [];
+        if ($previousStatus !== $sale->status) {
+            $timeline->record($user, $sale, 'sale_status_changed', [
+                'status_from' => $previousStatus,
+                'status_to' => $sale->status,
+            ]);
+            $changes['status'] = true;
+        }
+
+        if ($previousFulfillment !== $sale->fulfillment_status) {
+            $timeline->record($user, $sale, 'sale_fulfillment_changed', [
+                'fulfillment_from' => $previousFulfillment,
+                'fulfillment_to' => $sale->fulfillment_status,
+            ]);
+            $changes['fulfillment_status'] = true;
+        }
+
+        if ($previousScheduled?->toDateTimeString() !== $sale->scheduled_for?->toDateTimeString()) {
+            $timeline->record($user, $sale, 'sale_eta_updated', [
+                'scheduled_for' => $sale->scheduled_for?->format('Y-m-d H:i'),
+            ]);
+            $changes['scheduled_for'] = true;
+        }
+
+        if ($changes) {
+            $sale->loadMissing('customer');
+            app(SaleNotificationService::class)->notifyStatusChange($sale, $changes);
+        }
+
         return redirect()
             ->route('sales.show', $sale)
             ->with('success', 'Vente mise a jour.');
+    }
+
+    public function confirmPickup(Request $request, Sale $sale)
+    {
+        $user = $request->user();
+        if (!$user) {
+            abort(401);
+        }
+        [$accountOwner, $canManage] = $this->resolveSalesAccess($user);
+        $accountId = $accountOwner->id;
+
+        if ($sale->user_id !== $accountId) {
+            abort(404);
+        }
+        if (!$canManage && $sale->created_by_user_id !== $user->id) {
+            abort(404);
+        }
+
+        if ($sale->fulfillment_method !== 'pickup') {
+            return redirect()
+                ->back()
+                ->with('error', 'Cette vente n est pas en mode retrait.');
+        }
+
+        if ($sale->fulfillment_status !== Sale::FULFILLMENT_READY_FOR_PICKUP) {
+            return redirect()
+                ->back()
+                ->with('error', 'La commande n est pas prete.');
+        }
+
+        $previousStatus = $sale->status;
+        $previousFulfillment = $sale->fulfillment_status;
+        $previousItems = $sale->items()->get(['product_id', 'quantity']);
+
+        $sale->forceFill([
+            'fulfillment_status' => Sale::FULFILLMENT_COMPLETED,
+            'pickup_confirmed_at' => now(),
+            'pickup_confirmed_by_user_id' => $user->id,
+        ])->save();
+
+        if ($previousStatus === Sale::STATUS_PENDING && $previousFulfillment !== Sale::FULFILLMENT_COMPLETED) {
+            $this->applyReservations($sale, [], $accountId, $previousItems);
+        }
+
+        $inventoryAlreadyApplied = $previousStatus === Sale::STATUS_PAID
+            || $previousFulfillment === Sale::FULFILLMENT_COMPLETED;
+
+        if (!$inventoryAlreadyApplied) {
+            $inventoryService = app(InventoryService::class);
+            $warehouse = $inventoryService->resolveDefaultWarehouse($accountId);
+            $productIds = $previousItems->pluck('product_id')->unique()->values();
+            $products = Product::query()
+                ->where('user_id', $accountId)
+                ->whereIn('id', $productIds)
+                ->get()
+                ->keyBy('id');
+
+            foreach ($previousItems as $item) {
+                $product = $products->get($item->product_id);
+                if (!$product) {
+                    continue;
+                }
+                $this->applyInventoryForProduct(
+                    $product,
+                    (int) $item->quantity,
+                    $inventoryService,
+                    $sale,
+                    $warehouse
+                );
+            }
+        }
+
+        $timeline = app(SaleTimelineService::class);
+        $timeline->record($user, $sale, 'sale_pickup_confirmed');
+        $timeline->record($user, $sale, 'sale_fulfillment_changed', [
+            'fulfillment_from' => $previousFulfillment,
+            'fulfillment_to' => $sale->fulfillment_status,
+        ]);
+
+        $sale->loadMissing('customer');
+        app(SaleNotificationService::class)->notifyStatusChange($sale, [
+            'fulfillment_status' => true,
+        ]);
+
+        return redirect()
+            ->back()
+            ->with('success', 'Retrait confirme.');
     }
 
     public function show(Request $request, Sale $sale)
@@ -542,16 +762,21 @@ class SaleController extends Controller
         if (!$user) {
             abort(401);
         }
-        $accountOwner = $this->ensureSalesAccess($user);
+        [$accountOwner, $canManage] = $this->resolveSalesAccess($user);
         $accountId = $accountOwner->id;
 
         if (!$accountId || $sale->user_id !== $accountId) {
+            abort(404);
+        }
+        if (!$canManage && $sale->created_by_user_id !== $user->id) {
             abort(404);
         }
 
         $sale->load([
             'customer:id,first_name,last_name,company_name,email,phone',
             'items.product:id,name,sku,unit,image',
+            'createdBy:id,name,email,phone_number',
+            'pickupConfirmedBy:id,name,email,phone_number',
         ]);
 
         return $this->inertiaOrJson('Sales/Show', [
@@ -559,7 +784,7 @@ class SaleController extends Controller
         ]);
     }
 
-    private function ensureSalesAccess(User $user): User
+    private function resolveSalesAccess(User $user): array
     {
         $ownerId = $user->accountOwnerId();
         $owner = $ownerId === $user->id
@@ -570,16 +795,90 @@ class SaleController extends Controller
             abort(403);
         }
 
-        if ($user->id !== $owner->id) {
+        $canManage = $user->id === $owner->id;
+        $canPos = $canManage;
+
+        if (!$canManage) {
             $membership = $user->relationLoaded('teamMembership')
                 ? $user->teamMembership
                 : $user->teamMembership()->first();
-            if (!$membership || !$membership->hasPermission('sales.manage')) {
+            $canManage = $membership?->hasPermission('sales.manage') ?? false;
+            $canPos = $membership?->hasPermission('sales.pos') ?? false;
+            if (!$canManage && !$canPos) {
                 abort(403);
             }
         }
 
-        return $owner;
+        return [$owner, $canManage, $canPos];
+    }
+
+    private function allowedFulfillmentStatuses(): array
+    {
+        return [
+            Sale::FULFILLMENT_PENDING,
+            Sale::FULFILLMENT_PREPARING,
+            Sale::FULFILLMENT_OUT_FOR_DELIVERY,
+            Sale::FULFILLMENT_READY_FOR_PICKUP,
+            Sale::FULFILLMENT_COMPLETED,
+        ];
+    }
+
+    private function applyReservations(Sale $sale, array $itemsPayload, int $accountId, $currentItems = null): void
+    {
+        $inventoryService = app(InventoryService::class);
+        $warehouse = $inventoryService->resolveDefaultWarehouse($accountId);
+
+        if ($currentItems !== null) {
+            $current = collect($currentItems);
+        } else {
+            $current = $sale->relationLoaded('items')
+                ? $sale->items
+                : $sale->items()->get(['product_id', 'quantity']);
+        }
+
+        $currentMap = $current->groupBy('product_id')
+            ->map(fn($rows) => (int) $rows->sum('quantity'))
+            ->toArray();
+
+        $nextMap = collect($itemsPayload)
+            ->groupBy('product_id')
+            ->map(fn($rows) => (int) collect($rows)->sum('quantity'))
+            ->toArray();
+
+        $productIds = array_values(array_unique(array_merge(array_keys($currentMap), array_keys($nextMap))));
+        if (!$productIds) {
+            return;
+        }
+
+        $products = Product::query()
+            ->where('user_id', $accountId)
+            ->whereIn('id', $productIds)
+            ->get()
+            ->keyBy('id');
+
+        foreach ($productIds as $productId) {
+            $product = $products->get($productId);
+            if (!$product) {
+                continue;
+            }
+
+            $oldQty = (int) ($currentMap[$productId] ?? 0);
+            $newQty = (int) ($nextMap[$productId] ?? 0);
+            $delta = $newQty - $oldQty;
+
+            if ($delta !== 0) {
+                $inventoryService->adjustReserved($product, $delta, [
+                    'warehouse' => $warehouse,
+                    'reference' => $sale,
+                    'reason' => 'sale_reservation',
+                ]);
+            }
+        }
+    }
+
+    private function generatePickupCode(): string
+    {
+        return 'PK-' . Str::upper(Str::random(6));
     }
 
     private function applyInventoryForProduct(

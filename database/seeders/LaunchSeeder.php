@@ -216,6 +216,16 @@ class LaunchSeeder extends Seeder
                 'company_city' => 'Toronto',
                 'company_type' => 'products',
                 'onboarding_completed_at' => $now,
+                'company_fulfillment' => [
+                    'delivery_enabled' => true,
+                    'pickup_enabled' => true,
+                    'delivery_fee' => 7.5,
+                    'delivery_zone' => 'Greater Toronto Area',
+                    'pickup_address' => '125 King St W, Toronto, ON',
+                    'prep_time_minutes' => 25,
+                    'delivery_notes' => 'Delivery within 24 hours',
+                    'pickup_notes' => 'Show your order number at pickup',
+                ],
                 'payment_methods' => ['cash', 'card'],
             ]
         );
@@ -530,6 +540,30 @@ class LaunchSeeder extends Seeder
                     'jobs.view',
                     'tasks.view',
                     'tasks.edit',
+                ],
+                'is_active' => true,
+            ]
+        );
+
+        $productSellerUser = User::updateOrCreate(
+            ['email' => 'seller.products@example.com'],
+            [
+                'name' => 'Product Seller',
+                'password' => Hash::make('password'),
+                'role_id' => $employeeRoleId,
+                'email_verified_at' => $now,
+            ]
+        );
+
+        $productSellerMember = TeamMember::updateOrCreate(
+            [
+                'account_id' => $productOwner->id,
+                'user_id' => $productSellerUser->id,
+            ],
+            [
+                'role' => 'seller',
+                'permissions' => [
+                    'sales.pos',
                 ],
                 'is_active' => true,
             ]
@@ -1136,14 +1170,24 @@ class LaunchSeeder extends Seeder
             ],
         ]);
 
-        $productImageUrl = function (array $data): string {
-            $keyword = trim(($data['name'] ?? '') . ' ' . ($data['category'] ?? 'product'));
-            $keyword = preg_replace('/[^a-z0-9 ]+/i', ' ', $keyword);
-            $keyword = trim(preg_replace('/\s+/', ' ', $keyword));
-            if ($keyword === '') {
-                $keyword = 'product';
-            }
-            return 'https://source.unsplash.com/800x800/?' . rawurlencode($keyword);
+        $unsplashPhotoIds = [
+            '1500530855697-b586d89ba3ee',
+            '1523275335684-37898b6baf30',
+            '1503602642458-232111445657',
+            '1496307042754-b4aa456c4a2d',
+            '1498050108023-c5249f4df085',
+            '1489515217757-5fd1be406fef',
+            '1473186578172-c141e6798cf4',
+            '1469474968028-56623f02e42e',
+            '1488998427799-e3362cec87c3',
+            '1497366216548-37526070297c',
+        ];
+
+        $productImageUrl = function (array $data) use ($unsplashPhotoIds): string {
+            $seed = trim(($data['sku'] ?? '') . ' ' . ($data['name'] ?? '') . ' ' . ($data['category'] ?? 'product'));
+            $hash = (int) sprintf('%u', crc32($seed));
+            $photoId = $unsplashPhotoIds[$hash % count($unsplashPhotoIds)];
+            return "https://images.unsplash.com/photo-{$photoId}?auto=format&fit=crop&w=800&q=80";
         };
 
         $productSeedMap = $productSeedData->keyBy('name');
@@ -2339,11 +2383,14 @@ class LaunchSeeder extends Seeder
             return [$items, $subtotal, $taxTotal, round($subtotal + $taxTotal, 2)];
         };
 
-        $createSale = function (string $label, ?Customer $customer, string $status, array $lines, $createdAt) use ($productOwner, $buildSalePayload, $setTimestamps) {
+        $createSale = function (string $label, ?Customer $customer, string $status, array $lines, $createdAt, ?int $createdByUserId = null, array $fulfillment = []) use ($productOwner, $buildSalePayload, $setTimestamps) {
             [$items, $subtotal, $taxTotal, $total] = $buildSalePayload($lines);
             if (empty($items)) {
                 return null;
             }
+
+            $fulfillmentMethod = $fulfillment['method'] ?? null;
+            $fulfillmentStatus = $fulfillment['status'] ?? null;
 
             $sale = Sale::updateOrCreate(
                 [
@@ -2351,11 +2398,20 @@ class LaunchSeeder extends Seeder
                     'notes' => $label,
                 ],
                 [
+                    'created_by_user_id' => $createdByUserId ?? $productOwner->id,
                     'customer_id' => $customer?->id,
                     'status' => $status,
                     'subtotal' => $subtotal,
                     'tax_total' => $taxTotal,
+                    'source' => 'pos',
                     'total' => $total,
+                    'fulfillment_method' => $fulfillmentMethod,
+                    'fulfillment_status' => $fulfillmentStatus,
+                    'delivery_fee' => (float) ($fulfillment['delivery_fee'] ?? 0),
+                    'delivery_address' => $fulfillment['delivery_address'] ?? null,
+                    'delivery_notes' => $fulfillment['delivery_notes'] ?? null,
+                    'pickup_notes' => $fulfillment['pickup_notes'] ?? null,
+                    'scheduled_for' => $fulfillment['scheduled_for'] ?? null,
                     'paid_at' => $status === Sale::STATUS_PAID ? $createdAt : null,
                     'notes' => $label,
                 ]
@@ -2385,7 +2441,16 @@ class LaunchSeeder extends Seeder
                     ['product' => $productSalesCatalog->get(1), 'quantity' => 2],
                     ['product' => $productSalesCatalog->get(2), 'quantity' => 1],
                 ],
-                $now->copy()->subDays(5)
+                $now->copy()->subDays(5),
+                null,
+                [
+                    'method' => 'delivery',
+                    'status' => Sale::FULFILLMENT_OUT_FOR_DELIVERY,
+                    'delivery_fee' => 7.5,
+                    'delivery_address' => '42 Product St, Toronto, ON',
+                    'delivery_notes' => 'Leave at reception',
+                    'scheduled_for' => $now->copy()->addHours(3),
+                ]
             );
 
             $createSale(
@@ -2407,7 +2472,8 @@ class LaunchSeeder extends Seeder
                     ['product' => $productSalesCatalog->get(5), 'quantity' => 1],
                     ['product' => $productSalesCatalog->get(6), 'quantity' => 2],
                 ],
-                $now->copy()->subDay()
+                $now->copy()->subDay(),
+                $productSellerUser->id
             );
 
             $createSale(

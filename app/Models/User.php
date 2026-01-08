@@ -49,6 +49,7 @@ class User extends Authenticatable
         'company_features',
         'company_limits',
         'company_supplier_preferences',
+        'company_fulfillment',
         'is_suspended',
         'suspended_at',
         'suspension_reason',
@@ -81,6 +82,7 @@ class User extends Authenticatable
             'company_features' => 'array',
             'company_limits' => 'array',
             'company_supplier_preferences' => 'array',
+            'company_fulfillment' => 'array',
             'is_suspended' => 'boolean',
             'suspended_at' => 'datetime',
         ];

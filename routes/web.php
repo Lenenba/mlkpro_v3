@@ -45,6 +45,7 @@ use App\Http\Controllers\SuperAdmin\SupportTicketController as SuperAdminSupport
 use App\Http\Controllers\SuperAdmin\AnnouncementController as SuperAdminAnnouncementController;
 use App\Http\Controllers\CustomerPropertyController;
 use App\Http\Controllers\Portal\PortalInvoiceController;
+use App\Http\Controllers\Portal\PortalProductOrderController;
 use App\Http\Controllers\Portal\PortalQuoteController;
 use App\Http\Controllers\Portal\PortalRatingController;
 use App\Http\Controllers\Portal\PortalTaskMediaController;
@@ -206,6 +207,8 @@ Route::middleware(['auth', EnsureInternalUser::class])->group(function () {
         Route::get('/sales/{sale}/edit', [SaleController::class, 'edit'])->name('sales.edit');
         Route::post('/sales', [SaleController::class, 'store'])->name('sales.store');
         Route::put('/sales/{sale}', [SaleController::class, 'update'])->name('sales.update');
+        Route::post('/sales/{sale}/pickup-confirm', [SaleController::class, 'confirmPickup'])
+            ->name('sales.pickup.confirm');
         Route::get('/sales/{sale}', [SaleController::class, 'show'])->name('sales.show');
     });
 
@@ -282,6 +285,12 @@ Route::middleware(['auth', EnsureClientUser::class])
     ->prefix('portal')
     ->name('portal.')
     ->group(function () {
+        Route::get('/orders', [PortalProductOrderController::class, 'index'])->name('orders.index');
+        Route::post('/orders', [PortalProductOrderController::class, 'store'])->name('orders.store');
+        Route::get('/orders/{sale}/edit', [PortalProductOrderController::class, 'edit'])->name('orders.edit');
+        Route::put('/orders/{sale}', [PortalProductOrderController::class, 'update'])->name('orders.update');
+        Route::delete('/orders/{sale}', [PortalProductOrderController::class, 'destroy'])->name('orders.destroy');
+        Route::post('/orders/{sale}/reorder', [PortalProductOrderController::class, 'reorder'])->name('orders.reorder');
         Route::post('/quotes/{quote}/accept', [PortalQuoteController::class, 'accept'])->name('quotes.accept');
         Route::post('/quotes/{quote}/decline', [PortalQuoteController::class, 'decline'])->name('quotes.decline');
         Route::post('/works/{work}/validate', [PortalWorkController::class, 'validateWork'])->name('works.validate');

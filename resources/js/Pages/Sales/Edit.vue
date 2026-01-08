@@ -22,6 +22,8 @@ const props = defineProps({
 const form = useForm({
     customer_id: props.sale.customer_id || '',
     status: props.sale.status || 'draft',
+    fulfillment_status: props.sale.fulfillment_status || null,
+    scheduled_for: '',
     notes: props.sale.notes || '',
     items: (props.sale.items || []).map((item) => ({
         product_id: item.product_id,
@@ -29,6 +31,53 @@ const form = useForm({
         price: item.price,
         description: item.description || item.product?.name || '',
     })),
+});
+
+const toDateTimeLocal = (value) => {
+    if (!value) {
+        return '';
+    }
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+        return '';
+    }
+    const pad = (number) => String(number).padStart(2, '0');
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+};
+
+form.scheduled_for = toDateTimeLocal(props.sale.scheduled_for);
+
+const fulfillmentMethod = computed(() => props.sale.fulfillment_method || null);
+const fulfillmentOptions = computed(() => {
+    if (!fulfillmentMethod.value) {
+        return [];
+    }
+
+    if (fulfillmentMethod.value === 'pickup') {
+        return [
+            { value: 'pending', label: 'En attente' },
+            { value: 'preparing', label: 'Preparation' },
+            { value: 'ready_for_pickup', label: 'Pret a retirer' },
+            { value: 'completed', label: 'Terminee' },
+        ];
+    }
+
+    return [
+        { value: 'pending', label: 'En attente' },
+        { value: 'preparing', label: 'Preparation' },
+        { value: 'out_for_delivery', label: 'En cours de livraison' },
+        { value: 'completed', label: 'Terminee' },
+    ];
+});
+
+const fulfillmentMethodLabel = computed(() => {
+    if (fulfillmentMethod.value === 'delivery') {
+        return 'Livraison';
+    }
+    if (fulfillmentMethod.value === 'pickup') {
+        return 'Retrait';
+    }
+    return null;
 });
 
 const searchQuery = ref('');
@@ -308,6 +357,30 @@ const submit = () => {
                                     <option value="canceled">Annulee</option>
                                 </select>
                                 <InputError class="mt-1" :message="form.errors.status" />
+                            </div>
+                            <div v-if="fulfillmentOptions.length">
+                                <label class="text-xs text-stone-500 dark:text-neutral-400">
+                                    Statut {{ fulfillmentMethodLabel || 'livraison' }}
+                                </label>
+                                <select
+                                    v-model="form.fulfillment_status"
+                                    class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
+                                >
+                                    <option :value="null">Selectionner</option>
+                                    <option v-for="option in fulfillmentOptions" :key="option.value" :value="option.value">
+                                        {{ option.label }}
+                                    </option>
+                                </select>
+                                <InputError class="mt-1" :message="form.errors.fulfillment_status" />
+                            </div>
+                            <div>
+                                <label class="text-xs text-stone-500 dark:text-neutral-400">Horaire souhaite (ETA)</label>
+                                <input
+                                    v-model="form.scheduled_for"
+                                    type="datetime-local"
+                                    class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
+                                />
+                                <InputError class="mt-1" :message="form.errors.scheduled_for" />
                             </div>
                         </div>
                     </div>

@@ -23,6 +23,7 @@ class TeamMemberController extends Controller
         ['id' => 'tasks.edit', 'name' => 'Edit tasks'],
         ['id' => 'tasks.delete', 'name' => 'Delete tasks'],
         ['id' => 'sales.manage', 'name' => 'Manage sales'],
+        ['id' => 'sales.pos', 'name' => 'POS access only'],
     ];
 
     public function index()
@@ -45,7 +46,7 @@ class TeamMemberController extends Controller
                 'total' => $teamMembers->count(),
                 'active' => $teamMembers->where('is_active', true)->count(),
                 'admins' => $teamMembers->where('role', 'admin')->count(),
-                'members' => $teamMembers->where('role', 'member')->count(),
+                'members' => $teamMembers->whereIn('role', ['member', 'seller'])->count(),
             ],
         ]);
     }
@@ -64,7 +65,7 @@ class TeamMemberController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|string|lowercase|email|max:255|unique:users,email',
-            'role' => 'required|string|in:admin,member',
+            'role' => 'required|string|in:admin,member,seller',
             'title' => 'nullable|string|max:255',
             'phone' => 'nullable|string|max:255',
             'permissions' => 'nullable|array',
@@ -138,7 +139,7 @@ class TeamMemberController extends Controller
             'name' => 'nullable|string|max:255',
             'email' => 'nullable|string|lowercase|email|max:255|unique:users,email,' . $teamMember->user_id,
             'password' => 'nullable|string|min:8',
-            'role' => 'nullable|string|in:admin,member',
+            'role' => 'nullable|string|in:admin,member,seller',
             'title' => 'nullable|string|max:255',
             'phone' => 'nullable|string|max:255',
             'permissions' => 'nullable|array',
@@ -221,6 +222,9 @@ class TeamMemberController extends Controller
             'tasks.delete',
             'sales.manage',
         ],
+            'seller' => [
+                'sales.pos',
+            ],
             default => [
                 'jobs.view',
                 'tasks.view',
