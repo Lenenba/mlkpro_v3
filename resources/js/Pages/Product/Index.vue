@@ -29,6 +29,10 @@ const props = defineProps({
         type: Array,
         required: true,
     },
+    canEdit: {
+        type: Boolean,
+        default: false,
+    },
     warehouses: {
         type: Array,
         default: () => [],
@@ -53,6 +57,7 @@ const props = defineProps({
                     :filters="filters"
                     :warehouses="warehouses"
                     :defaultWarehouseId="defaultWarehouseId"
+                    :canEdit="canEdit"
                 />
             </div>
             <ProductUsageStat :items="topProducts" />

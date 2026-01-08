@@ -2,9 +2,14 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, Link } from '@inertiajs/vue3';
 import { humanizeDate } from '@/utils/date';
+import SalesStats from '@/Components/UI/SalesStats.vue';
 
 const props = defineProps({
     sales: {
+        type: Object,
+        required: true,
+    },
+    stats: {
         type: Object,
         required: true,
     },
@@ -42,6 +47,8 @@ const customerLabel = (sale) => {
         <Head title="Ventes" />
 
         <div class="space-y-4">
+            <SalesStats :stats="stats" />
+
             <div class="flex flex-wrap items-center justify-between gap-3">
                 <div class="space-y-1">
                     <h1 class="text-xl font-semibold text-stone-800 dark:text-neutral-100">Ventes</h1>
@@ -101,12 +108,21 @@ const customerLabel = (sale) => {
                                     {{ humanizeDate(sale.created_at) }}
                                 </td>
                                 <td class="px-4 py-3 text-right">
-                                    <Link
-                                        :href="route('sales.show', sale.id)"
-                                        class="text-xs font-semibold text-green-700 hover:underline dark:text-green-400"
-                                    >
-                                        Voir
-                                    </Link>
+                                    <div class="flex items-center justify-end gap-3">
+                                        <Link
+                                            :href="route('sales.show', sale.id)"
+                                            class="text-xs font-semibold text-green-700 hover:underline dark:text-green-400"
+                                        >
+                                            Voir
+                                        </Link>
+                                        <Link
+                                            v-if="sale.status === 'draft' || sale.status === 'pending'"
+                                            :href="route('sales.edit', sale.id)"
+                                            class="text-xs font-semibold text-stone-600 hover:underline dark:text-neutral-300"
+                                        >
+                                            Reprendre
+                                        </Link>
+                                    </div>
                                 </td>
                             </tr>
                         </tbody>

@@ -1,10 +1,14 @@
 <script setup>
 import { computed, ref } from 'vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
-import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
+import { Head, Link, useForm } from '@inertiajs/vue3';
 import InputError from '@/Components/InputError.vue';
 
 const props = defineProps({
+    sale: {
+        type: Object,
+        required: true,
+    },
     customers: {
         type: Array,
         default: () => [],
@@ -16,14 +20,16 @@ const props = defineProps({
 });
 
 const form = useForm({
-    customer_id: '',
-    status: 'draft',
-    notes: '',
-    items: [],
+    customer_id: props.sale.customer_id || '',
+    status: props.sale.status || 'draft',
+    notes: props.sale.notes || '',
+    items: (props.sale.items || []).map((item) => ({
+        product_id: item.product_id,
+        quantity: item.quantity,
+        price: item.price,
+        description: item.description || item.product?.name || '',
+    })),
 });
-
-const page = usePage();
-const lastSaleId = computed(() => page.props.flash?.last_sale_id || null);
 
 const searchQuery = ref('');
 const scanQuery = ref('');
@@ -161,50 +167,41 @@ const total = computed(() => subtotal.value + taxTotal.value);
 const formatCurrency = (value) =>
     `$${Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-const resetForm = () => {
-    form.reset();
-    form.clearErrors();
-    searchQuery.value = '';
-    scanQuery.value = '';
-    scanError.value = '';
-};
-
 const submit = () => {
-    form.post(route('sales.store'), {
+    form.put(route('sales.update', props.sale.id), {
         preserveScroll: true,
-        onSuccess: () => resetForm(),
     });
 };
 </script>
 
 <template>
     <AuthenticatedLayout>
-        <Head title="Nouvelle vente" />
+        <Head title="Modifier vente" />
 
         <div class="space-y-4">
             <div class="flex flex-wrap items-center justify-between gap-3">
                 <div class="space-y-1">
-                    <h1 class="text-xl font-semibold text-stone-800 dark:text-neutral-100">Nouvelle vente</h1>
+                    <h1 class="text-xl font-semibold text-stone-800 dark:text-neutral-100">
+                        Modifier {{ sale.number || `Sale #${sale.id}` }}
+                    </h1>
                     <p class="text-sm text-stone-600 dark:text-neutral-400">
-                        Selectionnez des produits pour generer la facture.
+                        Mettez a jour la vente et son statut.
                     </p>
                 </div>
-                <Link
-                    :href="route('sales.index')"
-                    class="rounded-sm border border-stone-200 bg-white px-3 py-2 text-xs font-semibold text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
-                >
-                    Retour aux ventes
-                </Link>
-            </div>
-
-            <div
-                v-if="lastSaleId"
-                class="rounded-sm border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-200"
-            >
-                Vente enregistree.
-                <Link :href="route('sales.show', lastSaleId)" class="font-semibold underline">
-                    Voir et imprimer
-                </Link>
+                <div class="flex flex-wrap items-center gap-2">
+                    <Link
+                        :href="route('sales.show', sale.id)"
+                        class="rounded-sm border border-stone-200 bg-white px-3 py-2 text-xs font-semibold text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
+                    >
+                        Voir la vente
+                    </Link>
+                    <Link
+                        :href="route('sales.index')"
+                        class="rounded-sm border border-stone-200 bg-white px-3 py-2 text-xs font-semibold text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
+                    >
+                        Retour aux ventes
+                    </Link>
+                </div>
             </div>
 
             <form @submit.prevent="submit" class="grid grid-cols-1 gap-4 lg:grid-cols-[2fr_1fr]">
@@ -416,7 +413,7 @@ const submit = () => {
                         :disabled="form.processing || !form.items.length"
                         class="w-full rounded-sm border border-transparent bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50"
                     >
-                        Enregistrer la vente
+                        Mettre a jour
                     </button>
                 </div>
             </form>

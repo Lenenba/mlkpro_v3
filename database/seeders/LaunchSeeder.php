@@ -975,13 +975,24 @@ class LaunchSeeder extends Seeder
             ],
         ]);
 
+        $productImageUrl = function (array $data): string {
+            $keyword = trim(($data['name'] ?? '') . ' ' . ($data['category'] ?? 'product'));
+            $keyword = preg_replace('/[^a-z0-9 ]+/i', ' ', $keyword);
+            $keyword = trim(preg_replace('/\s+/', ' ', $keyword));
+            if ($keyword === '') {
+                $keyword = 'product';
+            }
+            return 'https://source.unsplash.com/800x800/?' . rawurlencode($keyword);
+        };
+
         $productSeedMap = $productSeedData->keyBy('name');
 
-        $productProducts = $productSeedData->map(function ($data) use ($productOwner, $productCategory, $productCategoryMap) {
+        $productProducts = $productSeedData->map(function ($data) use ($productOwner, $productCategory, $productCategoryMap, $productImageUrl) {
             $price = (float) $data['price'];
             $cost = (float) $data['cost_price'];
             $margin = $price > 0 ? round((($price - $cost) / $price) * 100, 2) : 0;
             $category = $productCategoryMap[$data['category']] ?? $productCategory;
+            $imageUrl = $productImageUrl($data);
 
             return Product::updateOrCreate(
                 [
@@ -1000,6 +1011,7 @@ class LaunchSeeder extends Seeder
                     'unit' => $data['unit'],
                     'supplier_name' => $data['supplier_name'],
                     'tax_rate' => $data['tax_rate'],
+                    'image' => $imageUrl,
                     'is_active' => true,
                     'tracking_type' => $data['tracking_type'],
                     'item_type' => Product::ITEM_TYPE_PRODUCT,

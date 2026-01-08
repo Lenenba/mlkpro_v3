@@ -24,15 +24,32 @@ class SaleController extends Controller
         $accountOwner = $this->ensureSalesAccess($user);
         $accountId = $accountOwner->id;
 
-        $sales = Sale::query()
-            ->where('user_id', $accountId)
+        $baseQuery = Sale::query()
+            ->where('user_id', $accountId);
+
+        $sales = (clone $baseQuery)
             ->with('customer:id,first_name,last_name,company_name')
             ->orderByDesc('created_at')
             ->simplePaginate(12)
             ->withQueryString();
 
+        $totalCount = (clone $baseQuery)->count();
+        $totalValue = (float) (clone $baseQuery)->sum('total');
+        $paidValue = (float) (clone $baseQuery)->where('status', Sale::STATUS_PAID)->sum('total');
+        $pendingCount = (clone $baseQuery)->where('status', Sale::STATUS_PENDING)->count();
+        $draftCount = (clone $baseQuery)->where('status', Sale::STATUS_DRAFT)->count();
+        $canceledCount = (clone $baseQuery)->where('status', Sale::STATUS_CANCELED)->count();
+
         return $this->inertiaOrJson('Sales/Index', [
             'sales' => $sales,
+            'stats' => [
+                'total' => $totalCount,
+                'total_value' => $totalValue,
+                'paid_value' => $paidValue,
+                'pending' => $pendingCount,
+                'draft' => $draftCount,
+                'canceled' => $canceledCount,
+            ],
         ]);
     }
 
@@ -57,14 +74,65 @@ class SaleController extends Controller
             ->get([
                 'id',
                 'name',
+                'image',
                 'price',
+                'sku',
+                'barcode',
                 'stock',
+                'minimum_stock',
                 'tax_rate',
                 'unit',
                 'tracking_type',
             ]);
 
         return $this->inertiaOrJson('Sales/Create', [
+            'customers' => $customers,
+            'products' => $products,
+        ]);
+    }
+
+    public function edit(Request $request, Sale $sale)
+    {
+        $user = $request->user();
+        if (!$user) {
+            abort(401);
+        }
+        $accountOwner = $this->ensureSalesAccess($user);
+        $accountId = $accountOwner->id;
+
+        if ($sale->user_id !== $accountId) {
+            abort(404);
+        }
+
+        $customers = Customer::query()
+            ->where('user_id', $accountId)
+            ->orderBy('company_name')
+            ->get(['id', 'first_name', 'last_name', 'company_name', 'email']);
+
+        $products = Product::query()
+            ->where('user_id', $accountId)
+            ->where('item_type', Product::ITEM_TYPE_PRODUCT)
+            ->orderBy('name')
+            ->get([
+                'id',
+                'name',
+                'image',
+                'price',
+                'sku',
+                'barcode',
+                'stock',
+                'minimum_stock',
+                'tax_rate',
+                'unit',
+                'tracking_type',
+            ]);
+
+        $sale->load([
+            'items.product:id,name,sku,unit,image',
+        ]);
+
+        return $this->inertiaOrJson('Sales/Edit', [
+            'sale' => $sale,
             'customers' => $customers,
             'products' => $products,
         ]);
@@ -219,8 +287,172 @@ class SaleController extends Controller
         }
 
         return redirect()
+            ->route('sales.create')
+            ->with('success', 'Vente creee.')
+            ->with('last_sale_id', $sale->id);
+    }
+
+    public function update(Request $request, Sale $sale)
+    {
+        $user = $request->user();
+        if (!$user) {
+            abort(401);
+        }
+        $accountOwner = $this->ensureSalesAccess($user);
+        $accountId = $accountOwner->id;
+
+        if ($sale->user_id !== $accountId) {
+            abort(404);
+        }
+
+        if (in_array($sale->status, [Sale::STATUS_PAID, Sale::STATUS_CANCELED], true)) {
+            throw ValidationException::withMessages([
+                'status' => 'Vente deja finalisee.',
+            ]);
+        }
+
+        $validated = $request->validate([
+            'customer_id' => 'nullable|exists:customers,id',
+            'status' => ['required', Rule::in([
+                Sale::STATUS_DRAFT,
+                Sale::STATUS_PENDING,
+                Sale::STATUS_PAID,
+                Sale::STATUS_CANCELED,
+            ])],
+            'notes' => 'nullable|string|max:2000',
+            'items' => 'required|array|min:1',
+            'items.*.product_id' => 'required|exists:products,id',
+            'items.*.quantity' => 'required|integer|min:1',
+            'items.*.price' => 'required|numeric|min:0',
+            'items.*.description' => 'nullable|string|max:255',
+        ]);
+
+        $customerId = $validated['customer_id'] ?? null;
+        if ($customerId) {
+            $customerExists = Customer::query()
+                ->where('user_id', $accountId)
+                ->whereKey($customerId)
+                ->exists();
+            if (!$customerExists) {
+                throw ValidationException::withMessages([
+                    'customer_id' => 'Client invalide pour ce compte.',
+                ]);
+            }
+        }
+
+        $productIds = collect($validated['items'])->pluck('product_id')->unique()->values();
+        $products = Product::query()
+            ->where('user_id', $accountId)
+            ->whereIn('id', $productIds)
+            ->get()
+            ->keyBy('id');
+
+        if ($products->count() !== $productIds->count()) {
+            throw ValidationException::withMessages([
+                'items' => 'Certains produits sont invalides pour ce compte.',
+            ]);
+        }
+
+        $errors = [];
+        foreach ($validated['items'] as $index => $item) {
+            $product = $products->get($item['product_id']);
+            if (!$product) {
+                $errors["items.{$index}.product_id"] = 'Produit introuvable.';
+                continue;
+            }
+
+            $quantity = (int) $item['quantity'];
+            $available = (int) $product->stock;
+            if ($quantity > $available) {
+                $errors["items.{$index}.quantity"] = 'Stock insuffisant pour ce produit.';
+            }
+
+            if ($product->tracking_type === 'serial') {
+                $serialAvailable = ProductLot::query()
+                    ->where('product_id', $product->id)
+                    ->whereNotNull('serial_number')
+                    ->where('quantity', '>', 0)
+                    ->count();
+                if ($quantity > $serialAvailable) {
+                    $errors["items.{$index}.quantity"] = 'Pas assez de numeros de serie disponibles.';
+                }
+            } elseif ($product->tracking_type === 'lot') {
+                $lotAvailable = (int) ProductLot::query()
+                    ->where('product_id', $product->id)
+                    ->sum('quantity');
+                if ($quantity > $lotAvailable) {
+                    $errors["items.{$index}.quantity"] = 'Stock de lot insuffisant pour ce produit.';
+                }
+            }
+        }
+
+        if ($errors) {
+            throw ValidationException::withMessages($errors);
+        }
+
+        $subtotal = 0;
+        $taxTotal = 0;
+        $itemsPayload = [];
+
+        foreach ($validated['items'] as $item) {
+            $product = $products->get($item['product_id']);
+            $quantity = (int) $item['quantity'];
+            $price = (float) $item['price'];
+            $lineTotal = round($price * $quantity, 2);
+            $subtotal += $lineTotal;
+
+            $taxRate = (float) ($product?->tax_rate ?? 0);
+            $lineTax = $taxRate > 0 ? round($lineTotal * ($taxRate / 100), 2) : 0;
+            $taxTotal += $lineTax;
+
+            $itemsPayload[] = [
+                'product_id' => $product?->id,
+                'description' => $item['description'] ?? $product?->name ?? null,
+                'quantity' => $quantity,
+                'price' => $price,
+                'total' => $lineTotal,
+            ];
+        }
+
+        $total = round($subtotal + $taxTotal, 2);
+
+        $sale->update([
+            'customer_id' => $customerId,
+            'status' => $validated['status'],
+            'subtotal' => $subtotal,
+            'tax_total' => $taxTotal,
+            'total' => $total,
+            'notes' => $validated['notes'] ?? null,
+            'paid_at' => $validated['status'] === Sale::STATUS_PAID ? now() : null,
+        ]);
+
+        $sale->items()->delete();
+        foreach ($itemsPayload as $payload) {
+            $sale->items()->create($payload);
+        }
+
+        if ($validated['status'] === Sale::STATUS_PAID) {
+            $inventoryService = app(InventoryService::class);
+            $warehouse = $inventoryService->resolveDefaultWarehouse($accountId);
+
+            foreach ($itemsPayload as $payload) {
+                $product = $products->get($payload['product_id']);
+                if (!$product) {
+                    continue;
+                }
+                $this->applyInventoryForProduct(
+                    $product,
+                    (int) $payload['quantity'],
+                    $inventoryService,
+                    $sale,
+                    $warehouse
+                );
+            }
+        }
+
+        return redirect()
             ->route('sales.show', $sale)
-            ->with('success', 'Vente creee.');
+            ->with('success', 'Vente mise a jour.');
     }
 
     public function show(Request $request, Sale $sale)
@@ -237,8 +469,8 @@ class SaleController extends Controller
         }
 
         $sale->load([
-            'customer:id,first_name,last_name,company_name,email',
-            'items.product:id,name,unit',
+            'customer:id,first_name,last_name,company_name,email,phone',
+            'items.product:id,name,sku,unit,image',
         ]);
 
         return $this->inertiaOrJson('Sales/Show', [

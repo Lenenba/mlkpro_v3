@@ -57,6 +57,15 @@ class ProductModuleSeeder extends Seeder
         );
 
         $now = now();
+        $resolveProductImage = function (array $data): string {
+            $keyword = trim(($data['name'] ?? '') . ' ' . ($data['category'] ?? 'product'));
+            $keyword = preg_replace('/[^a-z0-9 ]+/i', ' ', $keyword);
+            $keyword = trim(preg_replace('/\s+/', ' ', $keyword));
+            if ($keyword === '') {
+                $keyword = 'product';
+            }
+            return 'https://source.unsplash.com/800x800/?' . rawurlencode($keyword);
+        };
         $seedProducts = [
             [
                 'name' => 'Concrete Mix',
@@ -336,6 +345,7 @@ class ProductModuleSeeder extends Seeder
             $margin = $price > 0 ? round((($price - $cost) / $price) * 100, 2) : 0;
             $plan = $inventoryPlans[$data['sku']] ?? [];
             $trackingType = $plan['tracking_type'] ?? 'none';
+            $imageUrl = $resolveProductImage($data);
 
             $product = Product::updateOrCreate(
                 ['user_id' => $user->id, 'sku' => $data['sku']],
@@ -349,7 +359,7 @@ class ProductModuleSeeder extends Seeder
                     'cost_price' => $cost,
                     'margin_percent' => $margin,
                     'tax_rate' => $data['tax_rate'],
-                    'image' => $data['image'],
+                    'image' => $imageUrl,
                     'barcode' => $data['barcode'],
                     'unit' => $data['unit'],
                     'supplier_name' => $data['supplier_name'],
@@ -363,10 +373,10 @@ class ProductModuleSeeder extends Seeder
                 'updated_at' => $data['created_at'],
             ])->save();
 
-            if ($data['image']) {
+            if ($imageUrl) {
                 ProductImage::updateOrCreate(
                     ['product_id' => $product->id, 'is_primary' => true],
-                    ['path' => $data['image'], 'is_primary' => true, 'sort_order' => 0]
+                    ['path' => $imageUrl, 'is_primary' => true, 'sort_order' => 0]
                 );
             }
 

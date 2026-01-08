@@ -122,6 +122,11 @@ class Customer extends Model
         return $this->hasMany(Invoice::class);
     }
 
+    public function sales(): HasMany
+    {
+        return $this->hasMany(Sale::class);
+    }
+
     public function requests(): HasMany
     {
         return $this->hasMany(Request::class)->orderByDesc('created_at');

@@ -32,6 +32,10 @@ const props = defineProps({
         type: Number,
         default: null,
     },
+    canEdit: {
+        type: Boolean,
+        default: false,
+    },
 });
 
 const normalizeArray = (value) => {
@@ -64,6 +68,8 @@ const filterForm = useForm({
     sort: props.filters?.sort ?? 'created_at',
     direction: props.filters?.direction ?? 'desc',
 });
+
+const canEdit = computed(() => Boolean(props.canEdit));
 
 const showAdvanced = ref(false);
 
@@ -483,25 +489,27 @@ const submitImport = () => {
                         class="py-2 px-2.5 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700">
                         Filters
                     </button>
-                    <a :href="exportUrl"
-                        class="py-2 px-2.5 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700">
-                        Export CSV
-                    </a>
-                    <button type="button" data-hs-overlay="#hs-pro-import"
-                        class="py-2 px-2.5 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700">
-                        Import CSV
-                    </button>
-                    <button type="button"
-                        class="py-2 px-2.5 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:ring-2 focus:ring-green-500"
-                        data-hs-overlay="#hs-pro-dasadpm">
-                        <svg class="hidden sm:block shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" width="24"
-                            height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                            stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M5 12h14" />
-                            <path d="M12 5v14" />
-                        </svg>
-                        Add product
-                    </button>
+                    <template v-if="canEdit">
+                        <a :href="exportUrl"
+                            class="py-2 px-2.5 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700">
+                            Export CSV
+                        </a>
+                        <button type="button" data-hs-overlay="#hs-pro-import"
+                            class="py-2 px-2.5 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700">
+                            Import CSV
+                        </button>
+                        <button type="button"
+                            class="py-2 px-2.5 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:ring-2 focus:ring-green-500"
+                            data-hs-overlay="#hs-pro-dasadpm">
+                            <svg class="hidden sm:block shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" width="24"
+                                height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M5 12h14" />
+                                <path d="M12 5v14" />
+                            </svg>
+                            Add product
+                        </button>
+                    </template>
                 </div>
             </div>
 
@@ -562,7 +570,7 @@ const submitImport = () => {
                     </button>
                 </div>
 
-                <div v-if="selected.length" class="flex items-center gap-2">
+                <div v-if="canEdit && selected.length" class="flex items-center gap-2">
                     <span class="text-xs text-stone-500 dark:text-neutral-400">
                         {{ selected.length }} selected
                     </span>
@@ -638,7 +646,7 @@ const submitImport = () => {
             <thead>
                 <tr class="border-t border-stone-200 dark:border-neutral-700">
                     <th scope="col" class="px-4 py-2 w-10">
-                        <input ref="selectAllRef" type="checkbox" :checked="allSelected" @change="toggleAll"
+                        <input v-if="canEdit" ref="selectAllRef" type="checkbox" :checked="allSelected" @change="toggleAll"
                             class="rounded border-stone-300 text-green-600 shadow-sm focus:ring-green-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-green-400 dark:focus:ring-green-400" />
                     </th>
                     <th scope="col" class="min-w-[230px]">
@@ -718,16 +726,19 @@ const submitImport = () => {
                         'bg-red-50/40 dark:bg-red-500/5': isOutOfStock(product),
                     }">
                     <td class="size-px whitespace-nowrap px-4 py-2">
-                        <Checkbox v-model:checked="selected" :value="product.id" />
+                        <Checkbox v-if="canEdit" v-model:checked="selected" :value="product.id" />
                     </td>
                     <td class="size-px whitespace-nowrap px-4 py-2">
                         <div class="w-full flex items-center gap-x-3">
                             <img class="shrink-0 size-10 rounded-sm" :src="product.image_url || product.image"
                                 alt="Product Image">
                             <div class="flex flex-col gap-1">
-                                <span class="text-sm text-stone-600 dark:text-neutral-300">
+                                <Link
+                                    :href="route('product.show', product.id)"
+                                    class="text-sm font-medium text-stone-700 hover:underline dark:text-neutral-200"
+                                >
                                     {{ product.name }}
-                                </span>
+                                </Link>
                                 <div class="text-xs text-stone-500 dark:text-neutral-500">
                                     {{ product.sku || product.number || 'No SKU' }}
                                     <span v-if="product.barcode" class="ml-2">
@@ -876,7 +887,7 @@ const submitImport = () => {
                         </span>
                     </td>
                     <td class="size-px whitespace-nowrap px-4 py-2 text-end">
-                        <div v-if="editingId === product.id" class="flex items-center justify-end gap-2">
+                        <div v-if="editingId === product.id && canEdit" class="flex items-center justify-end gap-2">
                             <button type="button" @click="saveInlineEdit"
                                 class="py-1.5 px-2 text-xs font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700">
                                 Save
@@ -886,53 +897,69 @@ const submitImport = () => {
                                 Cancel
                             </button>
                         </div>
-                        <div v-else class="hs-dropdown [--auto-close:inside] [--placement:bottom-right] relative inline-flex">
-                            <button type="button"
-                                class="size-7 inline-flex justify-center items-center gap-x-2 rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-50 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700"
-                                aria-haspopup="menu" aria-expanded="false" aria-label="Dropdown">
-                                <svg class="shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
-                                    viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                                    stroke-linecap="round" stroke-linejoin="round">
-                                    <circle cx="12" cy="12" r="1" />
-                                    <circle cx="12" cy="5" r="1" />
-                                    <circle cx="12" cy="19" r="1" />
-                                </svg>
-                            </button>
+                        <div v-else>
+                            <div v-if="canEdit" class="hs-dropdown [--auto-close:inside] [--placement:bottom-right] relative inline-flex">
+                                <button type="button"
+                                    class="size-7 inline-flex justify-center items-center gap-x-2 rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-50 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700"
+                                    aria-haspopup="menu" aria-expanded="false" aria-label="Dropdown">
+                                    <svg class="shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                        viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                        stroke-linecap="round" stroke-linejoin="round">
+                                        <circle cx="12" cy="12" r="1" />
+                                        <circle cx="12" cy="5" r="1" />
+                                        <circle cx="12" cy="19" r="1" />
+                                    </svg>
+                                </button>
 
-                            <div class="hs-dropdown-menu hs-dropdown-open:opacity-100 w-32 transition-[opacity,margin] duration opacity-0 hidden z-10 bg-white rounded-sm shadow-[0_10px_40px_10px_rgba(0,0,0,0.08)] dark:shadow-[0_10px_40px_10px_rgba(0,0,0,0.2)] dark:bg-neutral-900"
-                                role="menu" aria-orientation="vertical">
-                                <div class="p-1">
-                                    <button type="button" @click="startInlineEdit(product)"
-                                        class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
-                                        Quick edit
-                                    </button>
-                                    <button type="button" @click="openAdjust(product)"
-                                        class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
-                                        Adjust stock
-                                    </button>
-                                    <button type="button" @click="duplicateProduct(product)"
-                                        class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
-                                        Duplicate
-                                    </button>
-                                    <button type="button" @click="toggleArchive(product)"
-                                        class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
-                                        {{ product.is_active ? 'Archive' : 'Restore' }}
-                                    </button>
-                                    <button type="button" :data-hs-overlay="'#hs-pro-edit' + product.id"
-                                        class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
-                                        Edit
-                                    </button>
-                                    <div class="my-1 border-t border-stone-200 dark:border-neutral-800"></div>
-                                    <button type="button" @click="destroyProduct(product)"
-                                        class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-neutral-800">
-                                        Delete
-                                    </button>
+                                <div class="hs-dropdown-menu hs-dropdown-open:opacity-100 w-32 transition-[opacity,margin] duration opacity-0 hidden z-10 bg-white rounded-sm shadow-[0_10px_40px_10px_rgba(0,0,0,0.08)] dark:shadow-[0_10px_40px_10px_rgba(0,0,0,0.2)] dark:bg-neutral-900"
+                                    role="menu" aria-orientation="vertical">
+                                    <div class="p-1">
+                                        <Link
+                                            :href="route('product.show', product.id)"
+                                            class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800"
+                                        >
+                                            View
+                                        </Link>
+                                        <button type="button" @click="startInlineEdit(product)"
+                                            class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
+                                            Quick edit
+                                        </button>
+                                        <button type="button" @click="openAdjust(product)"
+                                            class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
+                                            Adjust stock
+                                        </button>
+                                        <button type="button" @click="duplicateProduct(product)"
+                                            class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
+                                            Duplicate
+                                        </button>
+                                        <button type="button" @click="toggleArchive(product)"
+                                            class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
+                                            {{ product.is_active ? 'Archive' : 'Restore' }}
+                                        </button>
+                                        <button type="button" :data-hs-overlay="'#hs-pro-edit' + product.id"
+                                            class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
+                                            Edit
+                                        </button>
+                                        <div class="my-1 border-t border-stone-200 dark:border-neutral-800"></div>
+                                        <button type="button" @click="destroyProduct(product)"
+                                            class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-neutral-800">
+                                            Delete
+                                        </button>
+                                    </div>
                                 </div>
+                            </div>
+                            <div v-else>
+                                <Link
+                                    :href="route('product.show', product.id)"
+                                    class="text-xs font-semibold text-green-700 hover:underline dark:text-green-400"
+                                >
+                                    Voir
+                                </Link>
                             </div>
                         </div>
                     </td>
 
-                    <Modal :title="'Edit product'" :id="'hs-pro-edit' + product.id">
+                    <Modal v-if="canEdit" :title="'Edit product'" :id="'hs-pro-edit' + product.id">
                         <ProductForm :product="product" :categories="categories" :id="'hs-pro-edit' + product.id" />
                     </Modal>
                 </tr>
@@ -986,11 +1013,11 @@ const submitImport = () => {
         </div>
     </div>
 
-    <Modal :title="'Add product'" :id="'hs-pro-dasadpm'">
+    <Modal v-if="canEdit" :title="'Add product'" :id="'hs-pro-dasadpm'">
         <ProductForm :product="product" :categories="categories" :id="'hs-pro-dasadpm'" />
     </Modal>
 
-    <Modal :title="'Import products'" :id="'hs-pro-import'">
+    <Modal v-if="canEdit" :title="'Import products'" :id="'hs-pro-import'">
         <form @submit.prevent="submitImport" class="space-y-4">
             <div>
                 <label class="block text-sm font-medium text-stone-700 dark:text-neutral-300">CSV file</label>
@@ -1010,7 +1037,7 @@ const submitImport = () => {
         </form>
     </Modal>
 
-    <Modal :title="'Adjust stock'" :id="'hs-pro-stock-adjust'">
+    <Modal v-if="canEdit" :title="'Adjust stock'" :id="'hs-pro-stock-adjust'">
         <div v-if="activeProduct" class="space-y-4">
             <div class="flex flex-wrap items-center justify-between gap-2">
                 <div>

@@ -203,7 +203,9 @@ Route::middleware(['auth', EnsureInternalUser::class])->group(function () {
     Route::middleware('company.feature:sales')->group(function () {
         Route::get('/sales', [SaleController::class, 'index'])->name('sales.index');
         Route::get('/sales/create', [SaleController::class, 'create'])->name('sales.create');
+        Route::get('/sales/{sale}/edit', [SaleController::class, 'edit'])->name('sales.edit');
         Route::post('/sales', [SaleController::class, 'store'])->name('sales.store');
+        Route::put('/sales/{sale}', [SaleController::class, 'update'])->name('sales.update');
         Route::get('/sales/{sale}', [SaleController::class, 'show'])->name('sales.show');
     });
 

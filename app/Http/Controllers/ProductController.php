@@ -7,6 +7,7 @@ use App\Utils\FileHandler;
 use Illuminate\Http\Request;
 use App\Models\ProductCategory;
 use App\Models\ActivityLog;
+use App\Models\User;
 use App\Models\Warehouse;
 use App\Http\Requests\ProductRequest;
 use App\Services\InventoryService;
@@ -48,9 +49,11 @@ class ProductController extends Controller
             'sort',
             'direction',
         ]);
-        $user = Auth::user();
-        $userId = $user?->id ?? Auth::id();
-        $accountId = $user?->accountOwnerId() ?? $userId;
+        $user = $request?->user() ?? Auth::user();
+        if (!$user) {
+            abort(403);
+        }
+        [, $accountId, $canEdit] = $this->resolveProductAccount($user);
 
         $today = now()->toDateString();
         $expiringDate = now()->addDays(30)->toDateString();
@@ -58,7 +61,7 @@ class ProductController extends Controller
         $baseQuery = Product::query()
             ->products()
             ->filter($filters)
-            ->byUser($userId)
+            ->byUser($accountId)
             ->withSum('inventories as on_hand_total', 'on_hand')
             ->withSum('inventories as reserved_total', 'reserved')
             ->withSum('inventories as damaged_total', 'damaged')
@@ -137,14 +140,14 @@ class ProductController extends Controller
         if ($productIds->isNotEmpty()) {
             $quoteUsage = DB::table('quote_products')
                 ->join('quotes', 'quote_products.quote_id', '=', 'quotes.id')
-                ->where('quotes.user_id', $userId)
+                ->where('quotes.user_id', $accountId)
                 ->whereIn('quote_products.product_id', $productIds)
                 ->select('quote_products.product_id', DB::raw('SUM(quote_products.quantity) as quantity'))
                 ->groupBy('quote_products.product_id');
 
             $workUsage = DB::table('product_works')
                 ->join('works', 'product_works.work_id', '=', 'works.id')
-                ->where('works.user_id', $userId)
+                ->where('works.user_id', $accountId)
                 ->whereIn('product_works.product_id', $productIds)
                 ->select('product_works.product_id', DB::raw('SUM(product_works.quantity) as quantity'))
                 ->groupBy('product_works.product_id');
@@ -191,6 +194,7 @@ class ProductController extends Controller
             'topProducts' => $topProducts,
             'warehouses' => $warehouses,
             'defaultWarehouseId' => $defaultWarehouseId,
+            'canEdit' => $canEdit,
         ]);
     }
 
@@ -200,7 +204,10 @@ class ProductController extends Controller
     public function options()
     {
         $user = Auth::user();
-        $accountId = $user?->accountOwnerId() ?? Auth::id();
+        if (!$user) {
+            abort(403);
+        }
+        $accountId = $this->ensureProductOwner($user);
 
         return response()->json([
             'categories' => ProductCategory::forAccount($accountId)
@@ -216,7 +223,10 @@ class ProductController extends Controller
     public function create()
     {
         $user = Auth::user();
-        $accountId = $user?->accountOwnerId() ?? Auth::id();
+        if (!$user) {
+            abort(403);
+        }
+        $accountId = $this->ensureProductOwner($user);
 
         return $this->inertiaOrJson('Product/Create', [
             'categories' => ProductCategory::forAccount($accountId)
@@ -231,9 +241,12 @@ class ProductController extends Controller
      */
     public function store(ProductRequest $request)
     {
-        app(UsageLimitService::class)->enforceLimit($request->user(), 'products');
-
-        $accountId = $request->user()?->accountOwnerId() ?? $request->user()?->id;
+        $user = $request->user();
+        if (!$user) {
+            abort(403);
+        }
+        $accountId = $this->ensureProductOwner($user);
+        app(UsageLimitService::class)->enforceLimit($user, 'products');
         $validated = $request->validated();
         $validated['item_type'] = Product::ITEM_TYPE_PRODUCT;
         $validated['image'] = FileHandler::handleImageUpload('products', $request, 'image', 'products/product.jpg');
@@ -287,9 +300,12 @@ class ProductController extends Controller
      */
     public function storeQuick(ProductRequest $request)
     {
-        app(UsageLimitService::class)->enforceLimit($request->user(), 'products');
-
-        $accountId = $request->user()?->accountOwnerId() ?? $request->user()?->id;
+        $user = $request->user();
+        if (!$user) {
+            abort(403);
+        }
+        $accountId = $this->ensureProductOwner($user);
+        app(UsageLimitService::class)->enforceLimit($user, 'products');
         $validated = $request->validated();
         $validated['item_type'] = Product::ITEM_TYPE_PRODUCT;
         $validated['image'] = FileHandler::handleImageUpload('products', $request, 'image', 'products/product.jpg');
@@ -347,7 +363,7 @@ class ProductController extends Controller
         if (!$user) {
             abort(403);
         }
-        $accountId = $user->accountOwnerId();
+        $accountId = $this->ensureProductOwner($user);
         $creatorId = $user->id;
 
         $validated = $request->validate([
@@ -447,20 +463,24 @@ class ProductController extends Controller
     public function show(Product $product)
     {
         try {
-            $this->authorize('update', $product);
+            $this->authorize('view', $product);
         } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
             if ($this->shouldReturnJson()) {
                 return response()->json([
-                    'message' => 'You are not authorized to edit this product.',
+                    'message' => 'You are not authorized to view this product.',
                 ], 403);
             }
 
-            return redirect()->back()->with('error', 'You are not authorized to edit this product.');
+            return redirect()->back()->with('error', 'You are not authorized to view this product.');
         }
 
         $this->ensureProductItem($product);
 
-        $accountId = Auth::user()?->accountOwnerId() ?? Auth::id();
+        $user = Auth::user();
+        if (!$user) {
+            abort(403);
+        }
+        [, $accountId, $canEdit] = $this->resolveProductAccount($user);
         $warehouses = Warehouse::query()
             ->forAccount($accountId)
             ->orderBy('name')
@@ -485,6 +505,7 @@ class ProductController extends Controller
                 ->get(['id', 'name']),
             'warehouses' => $warehouses,
             'defaultWarehouseId' => $defaultWarehouseId,
+            'canEdit' => $canEdit,
         ]);
     }
 
@@ -887,8 +908,11 @@ class ProductController extends Controller
         }
 
         $user = $request->user();
-        $accountId = $user?->accountOwnerId() ?? Auth::id();
-        $creatorId = $user?->id ?? Auth::id();
+        if (!$user) {
+            abort(403);
+        }
+        $accountId = $this->ensureProductOwner($user);
+        $creatorId = $user->id;
         $inventoryService = app(InventoryService::class);
         $warehouse = $inventoryService->resolveDefaultWarehouse($accountId);
 
@@ -1134,6 +1158,45 @@ class ProductController extends Controller
         }
 
         return redirect()->route('product.index')->with('success', 'Product deleted successfully.');
+    }
+
+    private function resolveProductAccount(User $user): array
+    {
+        $ownerId = $user->accountOwnerId();
+        $owner = $ownerId === $user->id
+            ? $user
+            : User::query()
+                ->select(['id', 'company_type'])
+                ->find($ownerId);
+
+        if (!$owner) {
+            abort(403);
+        }
+
+        $canEdit = $user->id === $owner->id;
+        $accountId = $user->id;
+        if ($owner->company_type === 'products') {
+            if (!$canEdit) {
+                $membership = $user->relationLoaded('teamMembership')
+                    ? $user->teamMembership
+                    : $user->teamMembership()->first();
+                if (!$membership || !$membership->hasPermission('sales.manage')) {
+                    abort(403);
+                }
+            }
+            $accountId = $owner->id;
+        }
+
+        return [$owner, $accountId, $canEdit];
+    }
+
+    private function ensureProductOwner(User $user): int
+    {
+        if (!$user->isAccountOwner()) {
+            abort(403);
+        }
+
+        return $user->accountOwnerId();
     }
 
     private function ensureProductItem(Product $product): void
