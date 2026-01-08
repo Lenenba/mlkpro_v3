@@ -176,27 +176,35 @@ class OnboardingController extends Controller
         }
 
         if (!$wasOnboarded && $accountOwner->email) {
-            $accountOwner->notify(new WelcomeEmailNotification($accountOwner));
+            try {
+                $accountOwner->notify(new WelcomeEmailNotification($accountOwner));
+            } catch (\Throwable $exception) {
+                report($exception);
+            }
         }
 
         if (!$wasOnboarded) {
-            $notifier = app(PlatformAdminNotifier::class);
-            $inviteCount = count($validated['invites'] ?? []);
+            try {
+                $notifier = app(PlatformAdminNotifier::class);
+                $inviteCount = count($validated['invites'] ?? []);
 
-            $notifier->notify('onboarding_completed', 'Onboarding completed', [
-                'intro' => ($accountOwner->company_name ?: $accountOwner->email) . ' finished onboarding.',
-                'details' => [
-                    ['label' => 'Company', 'value' => $accountOwner->company_name ?: 'Not set'],
-                    ['label' => 'Owner', 'value' => $accountOwner->email ?: 'Unknown'],
-                    ['label' => 'Type', 'value' => $accountOwner->company_type ?: 'Not set'],
-                    ['label' => 'Sector', 'value' => $accountOwner->company_sector ?: 'Not set'],
-                    ['label' => 'Team invites', 'value' => (string) $inviteCount],
-                ],
-                'actionUrl' => route('superadmin.tenants.show', $accountOwner->id),
-                'actionLabel' => 'View tenant',
-                'reference' => 'onboarding:' . $accountOwner->id,
-                'severity' => 'success',
-            ]);
+                $notifier->notify('onboarding_completed', 'Onboarding completed', [
+                    'intro' => ($accountOwner->company_name ?: $accountOwner->email) . ' finished onboarding.',
+                    'details' => [
+                        ['label' => 'Company', 'value' => $accountOwner->company_name ?: 'Not set'],
+                        ['label' => 'Owner', 'value' => $accountOwner->email ?: 'Unknown'],
+                        ['label' => 'Type', 'value' => $accountOwner->company_type ?: 'Not set'],
+                        ['label' => 'Sector', 'value' => $accountOwner->company_sector ?: 'Not set'],
+                        ['label' => 'Team invites', 'value' => (string) $inviteCount],
+                    ],
+                    'actionUrl' => route('superadmin.tenants.show', $accountOwner->id),
+                    'actionLabel' => 'View tenant',
+                    'reference' => 'onboarding:' . $accountOwner->id,
+                    'severity' => 'success',
+                ]);
+            } catch (\Throwable $exception) {
+                report($exception);
+            }
         }
 
         if ($this->shouldReturnJson($request)) {

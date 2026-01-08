@@ -298,6 +298,92 @@ class PortalProductOrderController extends Controller
         ]);
     }
 
+    public function history(Request $request)
+    {
+        [$customer, $owner] = $this->resolvePortalCustomer($request);
+
+        $filters = $request->only(['status']);
+        $allowedStatuses = [
+            Sale::STATUS_PENDING,
+            Sale::STATUS_PAID,
+            Sale::STATUS_CANCELED,
+        ];
+
+        $baseQuery = Sale::query()
+            ->where('user_id', $owner->id)
+            ->where('customer_id', $customer->id)
+            ->when($filters['status'] ?? null, function ($query, $status) use ($allowedStatuses) {
+                if (in_array($status, $allowedStatuses, true)) {
+                    $query->where('status', $status);
+                }
+            });
+
+        $orders = (clone $baseQuery)
+            ->latest()
+            ->select([
+                'id',
+                'number',
+                'status',
+                'total',
+                'created_at',
+                'fulfillment_method',
+                'fulfillment_status',
+                'scheduled_for',
+                'delivery_confirmed_at',
+            ])
+            ->withCount('items')
+            ->simplePaginate(12);
+
+        $orders->through(fn(Sale $sale) => $this->formatOrderSummary($sale));
+
+        return response()->json([
+            'orders' => $orders,
+            'filters' => $filters,
+            'stats' => [
+                'total' => (clone $baseQuery)->count(),
+                'pending' => (clone $baseQuery)->where('status', Sale::STATUS_PENDING)->count(),
+                'paid' => (clone $baseQuery)->where('status', Sale::STATUS_PAID)->count(),
+                'canceled' => (clone $baseQuery)->where('status', Sale::STATUS_CANCELED)->count(),
+            ],
+        ]);
+    }
+
+    public function show(Request $request, Sale $sale)
+    {
+        [$customer, $owner, $sale] = $this->resolvePortalSale($request, $sale);
+        $fulfillment = $this->normalizeFulfillment($owner->company_fulfillment, $owner);
+        $timeline = app(SaleTimelineService::class)->buildTimeline($sale);
+
+        $sale->load(['items.product:id,name,sku,barcode,unit,image,price']);
+
+        $defaultAddress = $customer->defaultProperty?->street1
+            ? collect([
+                $customer->defaultProperty->street1,
+                $customer->defaultProperty->city,
+                $customer->defaultProperty->state,
+                $customer->defaultProperty->zip,
+            ])->filter()->implode(', ')
+            : null;
+
+        return response()->json([
+            'company' => [
+                'id' => $owner->id,
+                'name' => $owner->company_name,
+                'logo_url' => $owner->company_logo_url,
+            ],
+            'customer' => [
+                'id' => $customer->id,
+                'name' => trim(($customer->first_name ?? '') . ' ' . ($customer->last_name ?? '')),
+                'email' => $customer->email,
+                'phone' => $customer->phone,
+                'default_address' => $defaultAddress,
+            ],
+            'fulfillment' => $fulfillment,
+            'order' => $this->formatOrderDetail($sale),
+            'timeline' => $timeline,
+        ]);
+    }
+
     public function store(Request $request)
     {
         [$customer, $owner] = $this->resolvePortalCustomer($request);
@@ -396,6 +482,15 @@ class PortalProductOrderController extends Controller
         ]);
 
         $this->notifyInternalOrder($owner, $sale, 'Nouvelle commande', 'Une nouvelle commande client est arrivee.');
+
+        if ($this->shouldReturnJson($request)) {
+            $sale->load(['items.product:id,name,sku,barcode,unit,image,price']);
+
+            return response()->json([
+                'message' => 'Commande envoyee. Nous preparons votre commande.',
+                'order' => $this->formatOrderDetail($sale),
+            ], 201);
+        }
 
         return redirect()
             ->route('portal.orders.index')
@@ -496,6 +591,11 @@ class PortalProductOrderController extends Controller
         [$customer, $owner, $sale] = $this->resolvePortalSale($request, $sale);
 
         if (!$this->canEditSale($sale)) {
+            if ($this->shouldReturnJson($request)) {
+                return response()->json([
+                    'message' => 'Commande deja en livraison.',
+                ], 422);
+            }
             return redirect()
                 ->route('portal.orders.index')
                 ->with('error', 'Commande deja en livraison.');
@@ -623,6 +723,15 @@ class PortalProductOrderController extends Controller
 
         $this->notifyInternalOrder($owner, $sale, 'Commande modifiee', 'Le client a mis a jour sa commande.');
 
+        if ($this->shouldReturnJson($request)) {
+            $sale->load(['items.product:id,name,sku,barcode,unit,image,price']);
+
+            return response()->json([
+                'message' => 'Commande mise a jour.',
+                'order' => $this->formatOrderDetail($sale),
+            ]);
+        }
+
         return redirect()
             ->route('portal.orders.edit', $sale)
             ->with('success', 'Commande mise a jour.');
@@ -633,18 +742,33 @@ class PortalProductOrderController extends Controller
         [$customer, $owner, $sale] = $this->resolvePortalSale($request, $sale);
 
         if ($sale->status === Sale::STATUS_CANCELED) {
+            if ($this->shouldReturnJson($request)) {
+                return response()->json([
+                    'message' => 'Commande annulee.',
+                ], 422);
+            }
             return redirect()
                 ->route('portal.orders.edit', $sale)
                 ->with('error', 'Commande annulee.');
         }
 
         if ($sale->fulfillment_status !== Sale::FULFILLMENT_COMPLETED) {
+            if ($this->shouldReturnJson($request)) {
+                return response()->json([
+                    'message' => 'La commande n est pas encore livree.',
+                ], 422);
+            }
             return redirect()
                 ->route('portal.orders.edit', $sale)
                 ->with('error', 'La commande n est pas encore livree.');
         }
 
         if ($sale->delivery_confirmed_at) {
+            if ($this->shouldReturnJson($request)) {
+                return response()->json([
+                    'message' => 'Commande deja confirmee.',
+                ], 422);
+            }
             return redirect()
                 ->route('portal.orders.edit', $sale)
                 ->with('success', 'Commande deja confirmee.');
@@ -669,6 +793,15 @@ class PortalProductOrderController extends Controller
         app(SaleTimelineService::class)->record($request->user(), $sale, 'sale_delivery_confirmed');
         $this->notifyInternalOrder($owner, $sale, 'Commande confirmee', 'Le client a confirme la reception.');
 
+        if ($this->shouldReturnJson($request)) {
+            $sale->load(['items.product:id,name,sku,barcode,unit,image,price']);
+
+            return response()->json([
+                'message' => 'Merci. Votre commande est confirmee.',
+                'order' => $this->formatOrderDetail($sale),
+            ]);
+        }
+
         return redirect()
             ->route('portal.orders.edit', $sale)
             ->with('success', 'Merci. Votre commande est confirmee.');
@@ -676,9 +809,14 @@ class PortalProductOrderController extends Controller
 
     public function destroy(Request $request, Sale $sale)
     {
-        [, , $sale] = $this->resolvePortalSale($request, $sale);
+        [, $owner, $sale] = $this->resolvePortalSale($request, $sale);
 
         if (!$this->canEditSale($sale)) {
+            if ($this->shouldReturnJson($request)) {
+                return response()->json([
+                    'message' => 'Commande deja en livraison.',
+                ], 422);
+            }
             return redirect()
                 ->route('portal.orders.index')
                 ->with('error', 'Commande deja en livraison.');
@@ -694,6 +832,13 @@ class PortalProductOrderController extends Controller
 
         $this->notifyInternalOrder($owner, $sale, 'Commande annulee', 'Le client a annule sa commande.');
 
+        if ($this->shouldReturnJson($request)) {
+            return response()->json([
+                'message' => 'Commande annulee.',
+                'order' => $this->formatOrderDetail($sale),
+            ]);
+        }
+
         return redirect()
             ->route('portal.orders.index')
             ->with('success', 'Commande annulee.');
@@ -705,6 +850,11 @@ class PortalProductOrderController extends Controller
 
         $items = $sale->items()->get(['product_id', 'quantity']);
         if ($items->isEmpty()) {
+            if ($this->shouldReturnJson($request)) {
+                return response()->json([
+                    'message' => 'Aucun article a recommander.',
+                ], 422);
+            }
             return redirect()
                 ->route('portal.orders.index')
                 ->with('error', 'Aucun article a recommander.');
@@ -720,6 +870,11 @@ class PortalProductOrderController extends Controller
             ->keyBy('id');
 
         if ($products->count() !== $productIds->count()) {
+            if ($this->shouldReturnJson($request)) {
+                return response()->json([
+                    'message' => 'Certains produits ne sont plus disponibles.',
+                ], 422);
+            }
             return redirect()
                 ->route('portal.orders.index')
                 ->with('error', 'Certains produits ne sont plus disponibles.');
@@ -732,6 +887,11 @@ class PortalProductOrderController extends Controller
 
         [$itemsPayload, $subtotal, $taxTotal, $errors] = $this->buildOrderPayload($lines, $products);
         if ($errors) {
+            if ($this->shouldReturnJson($request)) {
+                return response()->json([
+                    'message' => 'Stock insuffisant pour recommander.',
+                ], 422);
+            }
             return redirect()
                 ->route('portal.orders.index')
                 ->with('error', 'Stock insuffisant pour recommander.');
@@ -778,8 +938,88 @@ class PortalProductOrderController extends Controller
 
         $this->notifyInternalOrder($owner, $newSale, 'Nouvelle commande', 'Un client vient de recommander.');
 
+        if ($this->shouldReturnJson($request)) {
+            $newSale->load(['items.product:id,name,sku,barcode,unit,image,price']);
+
+            return response()->json([
+                'message' => 'Commande recommendee.',
+                'order' => $this->formatOrderDetail($newSale),
+            ], 201);
+        }
+
         return redirect()
             ->route('portal.orders.edit', $newSale)
             ->with('success', 'Commande recommendee.');
+    }
+
+    private function formatOrderSummary(Sale $sale): array
+    {
+        return [
+            'id' => $sale->id,
+            'number' => $sale->number,
+            'status' => $sale->status,
+            'total' => $sale->total,
+            'created_at' => $sale->created_at?->toIso8601String(),
+            'fulfillment_method' => $sale->fulfillment_method,
+            'fulfillment_status' => $sale->fulfillment_status,
+            'scheduled_for' => $sale->scheduled_for?->toIso8601String(),
+            'delivery_confirmed_at' => $sale->delivery_confirmed_at?->toIso8601String(),
+            'items_count' => $sale->items_count ?? ($sale->relationLoaded('items') ? $sale->items->count() : null),
+            'can_edit' => $this->canEditSale($sale),
+        ];
+    }
+
+    private function formatOrderDetail(Sale $sale): array
+    {
+        $items = $sale->relationLoaded('items')
+            ? $sale->items
+            : $sale->items()->get();
+
+        return [
+            'id' => $sale->id,
+            'number' => $sale->number,
+            'status' => $sale->status,
+            'fulfillment_method' => $sale->fulfillment_method,
+            'fulfillment_status' => $sale->fulfillment_status,
+            'delivery_address' => $sale->delivery_address,
+            'delivery_notes' => $sale->delivery_notes,
+            'pickup_notes' => $sale->pickup_notes,
+            'scheduled_for' => $sale->scheduled_for?->toIso8601String(),
+            'can_edit' => $this->canEditSale($sale),
+            'pickup_code' => $sale->pickup_code,
+            'pickup_confirmed_at' => $sale->pickup_confirmed_at?->toIso8601String(),
+            'delivery_confirmed_at' => $sale->delivery_confirmed_at?->toIso8601String(),
+            'delivery_proof_url' => $sale->delivery_proof_url,
+            'customer_notes' => $sale->customer_notes,
+            'substitution_allowed' => $sale->substitution_allowed,
+            'substitution_notes' => $sale->substitution_notes,
+            'discount_rate' => $sale->discount_rate,
+            'discount_total' => $sale->discount_total,
+            'delivery_fee' => $sale->delivery_fee,
+            'subtotal' => $sale->subtotal,
+            'tax_total' => $sale->tax_total,
+            'total' => $sale->total,
+            'items' => $items->map(function ($item) {
+                $product = $item->relationLoaded('product') ? $item->product : null;
+                return [
+                    'id' => $item->id,
+                    'product_id' => $item->product_id,
+                    'description' => $item->description,
+                    'quantity' => $item->quantity,
+                    'price' => $item->price,
+                    'total' => $item->total,
+                    'product' => $product ? [
+                        'id' => $product->id,
+                        'name' => $product->name,
+                        'sku' => $product->sku,
+                        'barcode' => $product->barcode,
+                        'unit' => $product->unit,
+                        'image' => $product->image,
+                        'image_url' => $product->image_url,
+                        'price' => $product->price,
+                    ] : null,
+                ];
+            })->values(),
+        ];
     }
 }

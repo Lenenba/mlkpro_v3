@@ -19,6 +19,17 @@ class AuthController extends Controller
     private function buildMeta(User $user): array
     {
         $ownerId = $user->accountOwnerId();
+
+        if ($user->isClient()) {
+            $customer = $user->relationLoaded('customerProfile')
+                ? $user->customerProfile
+                : $user->customerProfile()->first();
+
+            if ($customer?->user_id) {
+                $ownerId = $customer->user_id;
+            }
+        }
+
         $owner = $ownerId === $user->id
             ? $user
             : User::query()

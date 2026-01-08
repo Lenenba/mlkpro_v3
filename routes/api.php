@@ -31,6 +31,9 @@ use App\Http\Controllers\Portal\PortalRatingController;
 use App\Http\Controllers\Portal\PortalTaskMediaController;
 use App\Http\Controllers\Portal\PortalWorkController;
 use App\Http\Controllers\Portal\PortalWorkProofController;
+use App\Http\Controllers\Portal\PortalProductOrderController;
+use App\Http\Controllers\Portal\PortalNotificationController;
+use App\Http\Controllers\SaleController;
 use App\Http\Controllers\Settings\CompanySettingsController;
 use App\Http\Controllers\Settings\BillingSettingsController;
 use App\Http\Controllers\Settings\ProductCategoryController;
@@ -68,6 +71,18 @@ Route::name('api.')->group(function () {
         ->prefix('portal')
         ->group(function () {
             Route::get('dashboard', [DashboardController::class, 'index']);
+            Route::get('orders', [PortalProductOrderController::class, 'index']);
+            Route::get('orders/history', [PortalProductOrderController::class, 'history']);
+            Route::get('orders/{sale}', [PortalProductOrderController::class, 'show']);
+            Route::get('orders/{sale}/edit', [PortalProductOrderController::class, 'edit']);
+            Route::post('orders', [PortalProductOrderController::class, 'store']);
+            Route::put('orders/{sale}', [PortalProductOrderController::class, 'update']);
+            Route::post('orders/{sale}/confirm', [PortalProductOrderController::class, 'confirmReceipt']);
+            Route::delete('orders/{sale}', [PortalProductOrderController::class, 'destroy']);
+            Route::post('orders/{sale}/reorder', [PortalProductOrderController::class, 'reorder']);
+            Route::get('notifications', [PortalNotificationController::class, 'index']);
+            Route::post('notifications/read-all', [PortalNotificationController::class, 'markAllRead']);
+            Route::post('notifications/{notification}/read', [PortalNotificationController::class, 'markRead']);
             Route::post('quotes/{quote}/accept', [PortalQuoteController::class, 'accept']);
             Route::post('quotes/{quote}/decline', [PortalQuoteController::class, 'decline']);
             Route::post('works/{work}/validate', [PortalWorkController::class, 'validateWork']);
@@ -172,6 +187,17 @@ Route::name('api.')->group(function () {
                 Route::get('services/categories', [ServiceController::class, 'categories']);
 
                 Route::apiResource('service', ServiceController::class)->only(['index', 'store', 'update', 'destroy']);
+            });
+
+            Route::middleware('company.feature:sales')->group(function () {
+                Route::get('orders', [SaleController::class, 'ordersIndex']);
+                Route::get('sales', [SaleController::class, 'index']);
+                Route::get('sales/create', [SaleController::class, 'create']);
+                Route::post('sales', [SaleController::class, 'store']);
+                Route::get('sales/{sale}', [SaleController::class, 'show']);
+                Route::put('sales/{sale}', [SaleController::class, 'update']);
+                Route::patch('sales/{sale}/status', [SaleController::class, 'updateStatus']);
+                Route::post('sales/{sale}/pickup-confirm', [SaleController::class, 'confirmPickup']);
             });
 
             Route::get('customers/options', [CustomerController::class, 'options']);
