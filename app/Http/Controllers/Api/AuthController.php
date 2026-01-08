@@ -27,6 +27,13 @@ class AuthController extends Controller
 
         $features = $owner ? app(CompanyFeatureService::class)->resolveEffectiveFeatures($owner) : [];
 
+        $teamMembership = null;
+        if (!$user->isAccountOwner()) {
+            $teamMembership = $user->relationLoaded('teamMembership')
+                ? $user->teamMembership
+                : $user->teamMembership()->first();
+        }
+
         $platformAdmin = null;
         if ($user->isPlatformAdmin()) {
             $platformAdmin = $user->relationLoaded('platformAdmin')
@@ -52,6 +59,10 @@ class AuthController extends Controller
                 'role' => $platformAdmin->role,
                 'permissions' => $platformAdmin->permissions ?? [],
                 'is_active' => (bool) $platformAdmin->is_active,
+            ] : null,
+            'team' => $teamMembership ? [
+                'role' => $teamMembership->role,
+                'permissions' => $teamMembership->permissions ?? [],
             ] : null,
         ];
     }
@@ -84,7 +95,7 @@ class AuthController extends Controller
         }
         $deviceName = Str::limit($deviceName, 80, '');
 
-        $user->loadMissing(['role', 'platformAdmin']);
+        $user->loadMissing(['role', 'platformAdmin', 'teamMembership']);
         $token = $user->createToken($deviceName);
 
         return response()->json([
@@ -130,7 +141,7 @@ class AuthController extends Controller
         }
         $deviceName = Str::limit($deviceName, 80, '');
 
-        $user->loadMissing(['role', 'platformAdmin']);
+        $user->loadMissing(['role', 'platformAdmin', 'teamMembership']);
         $token = $user->createToken($deviceName);
 
         return response()->json([
@@ -225,7 +236,7 @@ class AuthController extends Controller
     {
         $user = $request->user();
         if ($user) {
-            $user->loadMissing(['role', 'platformAdmin']);
+            $user->loadMissing(['role', 'platformAdmin', 'teamMembership']);
         }
 
         return response()->json([
