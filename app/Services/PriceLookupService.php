@@ -42,6 +42,7 @@ class PriceLookupService
         $city = $context['city'] ?? null;
 
         $location = trim(implode(', ', array_filter([$city, $province, $country])));
+        $suppliers = $context['suppliers'] ?? $this->supplierDirectory->all($country);
         $cacheKey = 'price_lookup:' . md5($query . '|' . implode(',', $supplierKeys) . '|' . $location);
 
         $cached = Cache::get($cacheKey);
@@ -54,7 +55,7 @@ class PriceLookupService
             return [];
         }
 
-        $normalized = $this->normalizeResults($results, $supplierKeys);
+        $normalized = $this->normalizeResults($results, $supplierKeys, $suppliers);
         if ($normalized) {
             Cache::put($cacheKey, $normalized, now()->addHours(12));
         }
@@ -89,7 +90,7 @@ class PriceLookupService
         return $results;
     }
 
-    private function normalizeResults(array $results, array $supplierKeys): array
+    private function normalizeResults(array $results, array $supplierKeys, array $suppliers): array
     {
         $entries = [];
 
@@ -120,9 +121,9 @@ class PriceLookupService
                 }
 
                 $domain = parse_url($link, PHP_URL_HOST);
-                $supplier = $domain ? $this->supplierDirectory->findByDomain($domain) : null;
+                $supplier = $domain ? $this->findSupplierByDomain($suppliers, $domain) : null;
                 if (!$supplier) {
-                    $supplier = $this->findSupplierByName($store['name'] ?? null, $supplierKeys);
+                    $supplier = $this->findSupplierByName($suppliers, $store['name'] ?? null, $supplierKeys);
                 }
                 if (!$supplier) {
                     continue;
@@ -216,14 +217,34 @@ class PriceLookupService
         return $url . $separator . 'api_key=' . urlencode((string) config('services.serpapi.key'));
     }
 
-    private function findSupplierByName(?string $name, array $supplierKeys): ?array
+    private function findSupplierByDomain(array $suppliers, string $domain): ?array
+    {
+        $domain = strtolower($domain);
+
+        foreach ($suppliers as $supplier) {
+            if (!is_array($supplier)) {
+                continue;
+            }
+            $domains = $supplier['domains'] ?? [];
+            foreach ($domains as $candidate) {
+                $candidate = strtolower((string) $candidate);
+                if ($domain === $candidate || str_ends_with($domain, '.' . $candidate)) {
+                    return $supplier;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private function findSupplierByName(array $suppliers, ?string $name, array $supplierKeys): ?array
     {
         if (!$name) {
             return null;
         }
 
         $needle = strtolower($name);
-        foreach (config('suppliers.suppliers', []) as $supplier) {
+        foreach ($suppliers as $supplier) {
             $key = $supplier['key'] ?? null;
             $supplierName = strtolower((string) ($supplier['name'] ?? ''));
             if (!$key || !$supplierName) {

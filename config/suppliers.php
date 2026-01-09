@@ -2,6 +2,7 @@
 
 return [
     'default_country' => 'Canada',
+    'preferred_limit' => 4,
     'suppliers' => [
         [
             'key' => 'home_depot_ca',

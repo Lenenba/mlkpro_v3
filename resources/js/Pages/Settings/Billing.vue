@@ -3,7 +3,7 @@ import { computed, onMounted, ref, watch } from 'vue';
 import axios from 'axios';
 import { Head, router, useForm } from '@inertiajs/vue3';
 import SettingsLayout from '@/Layouts/SettingsLayout.vue';
-import Checkbox from '@/Components/Checkbox.vue';
+import SettingsTabs from '@/Components/SettingsTabs.vue';
 
 const props = defineProps({
     availableMethods: {
@@ -78,6 +78,29 @@ const subscriptionStatusLabel = computed(() => {
     }
 
     return 'inactif';
+});
+
+const tabPrefix = 'settings-billing';
+const tabs = [
+    { id: 'plans', label: 'Abonnement', description: 'Plans et statut' },
+    { id: 'payment', label: 'Paiement', description: 'Carte et factures' },
+];
+
+const resolveInitialTab = () => {
+    if (typeof window === 'undefined') {
+        return tabs[0].id;
+    }
+    const stored = window.sessionStorage.getItem(`${tabPrefix}-tab`);
+    return tabs.some((tab) => tab.id === stored) ? stored : tabs[0].id;
+};
+
+const activeTab = ref(resolveInitialTab());
+
+watch(activeTab, (value) => {
+    if (typeof window === 'undefined') {
+        return;
+    }
+    window.sessionStorage.setItem(`${tabPrefix}-tab`, value);
 });
 
 const submit = () => {
@@ -277,7 +300,20 @@ watch(
 
     <SettingsLayout active="billing">
         <div class="w-full max-w-6xl space-y-4">
-            <div class="flex flex-col bg-white border border-stone-200 shadow-sm rounded-sm overflow-hidden dark:bg-neutral-800 dark:border-neutral-700">
+            <SettingsTabs
+                v-model="activeTab"
+                :tabs="tabs"
+                :id-prefix="tabPrefix"
+                aria-label="Sections de facturation"
+            />
+
+            <div
+                v-show="activeTab === 'plans'"
+                :id="`${tabPrefix}-panel-plans`"
+                role="tabpanel"
+                :aria-labelledby="`${tabPrefix}-tab-plans`"
+                class="flex flex-col bg-white border border-stone-200 shadow-sm rounded-sm overflow-hidden dark:bg-neutral-800 dark:border-neutral-700"
+            >
                 <div class="p-4 space-y-4">
                     <div class="flex flex-wrap items-start justify-between gap-4">
                         <div>
@@ -286,11 +322,6 @@ watch(
                                 Choisissez un plan mensuel pour activer toutes les fonctionnalites.
                             </p>
                         </div>
-                        <button v-if="hasSubscription" type="button" @click="startPaymentMethodUpdate"
-                            :disabled="paymentMethodIsLoading"
-                            class="py-2 px-3 text-sm font-medium rounded-sm border border-stone-200 text-stone-700 hover:bg-stone-50 disabled:opacity-60 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700">
-                            Mettre a jour la carte
-                        </button>
                     </div>
 
                     <div v-if="!paddle?.api_enabled" class="rounded-sm border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
@@ -378,6 +409,58 @@ watch(
                                 </button>
                             </div>
                         </div>
+                    </div>
+                </div>
+            </div>
+
+            <div
+                v-show="activeTab === 'payment'"
+                :id="`${tabPrefix}-panel-payment`"
+                role="tabpanel"
+                :aria-labelledby="`${tabPrefix}-tab-payment`"
+                class="flex flex-col bg-white border border-stone-200 shadow-sm rounded-sm overflow-hidden dark:bg-neutral-800 dark:border-neutral-700"
+            >
+                <div class="p-4 space-y-4">
+                    <div class="flex flex-wrap items-start justify-between gap-4">
+                        <div>
+                            <h2 class="text-lg font-semibold text-stone-800 dark:text-neutral-100">Moyen de paiement</h2>
+                            <p class="mt-1 text-sm text-stone-600 dark:text-neutral-400">
+                                Gere la carte associee a votre abonnement.
+                            </p>
+                        </div>
+                        <button v-if="hasSubscription" type="button" @click="startPaymentMethodUpdate"
+                            :disabled="paymentMethodIsLoading"
+                            class="py-2 px-3 text-sm font-medium rounded-sm border border-stone-200 text-stone-700 hover:bg-stone-50 disabled:opacity-60 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700">
+                            Mettre a jour la carte
+                        </button>
+                    </div>
+
+                    <div v-if="!paddle?.api_enabled" class="rounded-sm border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
+                        Paddle API non configure. Ajoutez `PADDLE_API_KEY` dans `.env`.
+                    </div>
+                    <div v-else-if="!paddle?.js_enabled" class="rounded-sm border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
+                        Paddle.js non configure. Ajoutez `PADDLE_CLIENT_SIDE_TOKEN` (ou `PADDLE_SELLER_ID`) dans `.env`.
+                    </div>
+                    <div v-else-if="paddle?.error" class="rounded-sm border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                        {{ paddle.error }}
+                    </div>
+                    <div v-if="paddleUiError" class="rounded-sm border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                        {{ paddleUiError }}
+                    </div>
+
+                    <div v-if="checkoutStatus === 'payment-method'"
+                        class="rounded-sm border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+                        Carte mise a jour. Merci !
+                    </div>
+
+                    <div
+                        class="rounded-sm border border-stone-100 bg-stone-50 px-3 py-2 text-sm text-stone-600 dark:border-neutral-700 dark:bg-neutral-900/40 dark:text-neutral-200">
+                        <p v-if="activePlan">
+                            Abonnement actif: <strong>{{ activePlan.name }}</strong> (Statut: {{ subscriptionStatusLabel }})
+                        </p>
+                        <p v-else>
+                            Aucun abonnement actif pour le moment.
+                        </p>
                     </div>
                 </div>
             </div>

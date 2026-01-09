@@ -30,6 +30,8 @@ class ProductPriceLookupController extends Controller
         $city = $owner?->company_city;
 
         $suppliers = $supplierDirectory->all($country);
+        $customSuppliers = $this->resolveCustomSuppliers($owner?->company_supplier_preferences);
+        $suppliers = $this->mergeSuppliers($suppliers, $customSuppliers);
         $preferences = $this->resolveSupplierPreferences($owner?->company_supplier_preferences, $suppliers);
 
         $baseQuery = trim($validated['query']);
@@ -39,6 +41,7 @@ class ProductPriceLookupController extends Controller
             'country' => $country,
             'province' => $province,
             'city' => $city,
+            'suppliers' => $suppliers,
         ]);
 
         return response()->json([
@@ -54,6 +57,7 @@ class ProductPriceLookupController extends Controller
     private function resolveSupplierPreferences(?array $preferences, array $suppliers): array
     {
         $preferences = is_array($preferences) ? $preferences : [];
+        $limit = (int) config('suppliers.preferred_limit', 4);
         $keys = collect($suppliers)->pluck('key')->filter()->values()->all();
         $defaultEnabled = collect($suppliers)
             ->filter(fn (array $supplier) => !empty($supplier['default_enabled']))
@@ -66,14 +70,48 @@ class ProductPriceLookupController extends Controller
             $enabled = $keys;
         }
 
-        $preferred = $preferences['preferred'] ?? array_slice($enabled, 0, 2);
+        $preferred = $preferences['preferred'] ?? array_slice($enabled, 0, $limit);
         $preferred = array_values(array_intersect($enabled, (array) $preferred));
-        $preferred = array_slice($preferred, 0, 2);
+        $preferred = array_slice($preferred, 0, $limit);
 
         return [
             'enabled' => $enabled,
             'preferred' => $preferred,
         ];
+    }
+
+    private function resolveCustomSuppliers(?array $preferences): array
+    {
+        if (!is_array($preferences)) {
+            return [];
+        }
+
+        $custom = $preferences['custom_suppliers'] ?? [];
+        if (!is_array($custom)) {
+            return [];
+        }
+
+        return array_values(array_filter($custom, function ($supplier) {
+            return is_array($supplier) && !empty($supplier['key']);
+        }));
+    }
+
+    private function mergeSuppliers(array $suppliers, array $customSuppliers): array
+    {
+        $byKey = [];
+        foreach ($suppliers as $supplier) {
+            if (is_array($supplier) && !empty($supplier['key'])) {
+                $byKey[$supplier['key']] = $supplier;
+            }
+        }
+
+        foreach ($customSuppliers as $supplier) {
+            if (is_array($supplier) && !empty($supplier['key'])) {
+                $byKey[$supplier['key']] = $supplier;
+            }
+        }
+
+        return array_values($byKey);
     }
 
     private function resolveSupplierNames(array $suppliers, array $keys): array
