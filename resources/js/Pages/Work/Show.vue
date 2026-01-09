@@ -49,8 +49,20 @@ const isLocked = computed(() =>
     ['validated', 'auto_validated', 'closed', 'completed'].includes(props.work?.status || '')
 );
 
+const dispatchDemoEvent = (eventName) => {
+    if (typeof window === 'undefined') {
+        return;
+    }
+    window.dispatchEvent(new CustomEvent(eventName));
+};
+
 const createInvoice = () => {
-    router.post(route('invoice.store-from-work', props.work.id), {}, { preserveScroll: true });
+    router.post(route('invoice.store-from-work', props.work.id), {}, {
+        preserveScroll: true,
+        onSuccess: () => {
+            dispatchDemoEvent('demo:invoice_created');
+        },
+    });
 };
 </script>
 <template>
@@ -93,7 +105,7 @@ const createInvoice = () => {
                             class="py-2 px-3 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700">
                             Voir la facture
                         </Link>
-                        <button v-else type="button" @click="createInvoice"
+                        <button v-else type="button" @click="createInvoice" data-testid="demo-create-invoice"
                             class="py-2 px-3 text-xs font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700">
                             Creer une facture
                         </button>

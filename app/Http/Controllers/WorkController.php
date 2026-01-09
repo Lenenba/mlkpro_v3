@@ -970,7 +970,7 @@ class WorkController extends Controller
             ? $work->customer
             : Customer::query()->find($work->customer_id);
 
-        if (!$customer || (bool) ($customer->portal_access ?? true)) {
+        if (!$customer) {
             return;
         }
 

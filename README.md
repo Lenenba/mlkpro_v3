@@ -11,6 +11,40 @@
 
 - `docs/APP_GUIDE.md` - Application usage (MVP)
 - `docs/TEAM.md` - Team module details
+- `docs/DEMO_GUIDE.md` - Demo activation and guided tour
+
+## Demo Accounts & Guided Tour
+
+Enable demo mode in `.env`:
+
+```
+DEMO_ENABLED=true
+DEMO_ALLOW_RESET=true
+DEMO_ACCOUNTS_EMAIL_DOMAIN=example.test
+```
+
+Seed demo tenants:
+
+```
+php artisan demo:seed service
+php artisan demo:seed product
+php artisan demo:seed guided
+```
+
+Reset demo data (and tour progress):
+
+```
+php artisan demo:reset
+php artisan demo:reset --tenant_id=123
+```
+
+Default demo logins (password: `password`):
+
+- `service-demo@example.test`
+- `product-demo@example.test`
+- `guided-demo@example.test`
+
+For full demo details (how to launch, what is seeded, and guided tour behavior), see `docs/DEMO_GUIDE.md`.
 
 ## About Laravel
 

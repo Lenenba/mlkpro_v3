@@ -3,13 +3,18 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingTextarea from '@/Components/FloatingTextarea.vue';
-import { Link, useForm, Head } from '@inertiajs/vue3';
-import { ref } from 'vue';
+import { Link, useForm, Head, usePage } from '@inertiajs/vue3';
+import { computed, onMounted, ref } from 'vue';
 
 
 const props = defineProps({
     customer: Object,
 });
+
+const isCreating = !props.customer?.id;
+const page = usePage();
+const isGuidedDemo = computed(() => Boolean(page.props.demo?.is_guided));
+const demoPrefilled = ref(false);
 
 const Salutation = [
     { id: 'Mr', name: 'Mr' },
@@ -84,10 +89,66 @@ const submit = () => {
 
     form[props.customer?.id ? 'put' : 'post'](route(routeName, routeParams), {
         onSuccess: () => {
-            console.log('Customer saved successfully!');
+            if (isCreating && typeof window !== 'undefined') {
+                window.dispatchEvent(new CustomEvent('demo:customer_created'));
+            }
         },
     });
 };
+
+const isEmpty = (value) => !String(value || '').trim();
+
+const buildDemoEmail = () => {
+    const accountEmail = page.props.auth?.user?.email || 'guided-demo@example.test';
+    const domain = accountEmail.split('@')[1] || 'example.test';
+    const token = Date.now().toString(36).slice(-6);
+    return `guided-customer-${token}@${domain}`;
+};
+
+const shouldPrefillGuided = () => {
+    if (!isGuidedDemo.value || !isCreating || demoPrefilled.value) {
+        return false;
+    }
+    return isEmpty(form.first_name)
+        && isEmpty(form.last_name)
+        && isEmpty(form.email)
+        && isEmpty(form.salutation);
+};
+
+const prefillGuidedCustomer = () => {
+    demoPrefilled.value = true;
+    if (isEmpty(form.salutation)) {
+        form.salutation = 'Mr';
+    }
+    if (isEmpty(form.first_name)) {
+        form.first_name = 'Guided';
+    }
+    if (isEmpty(form.last_name)) {
+        form.last_name = 'Customer';
+    }
+    if (isEmpty(form.email)) {
+        form.email = buildDemoEmail();
+    }
+    if (isEmpty(form.company_name)) {
+        form.company_name = 'Guided Demo Client';
+    }
+    if (isEmpty(form.phone)) {
+        form.phone = '555-0102';
+    }
+    if (form.properties) {
+        form.properties.street1 = form.properties.street1 || '320 Demo Street';
+        form.properties.city = form.properties.city || 'Austin';
+        form.properties.state = form.properties.state || 'TX';
+        form.properties.zip = form.properties.zip || '73301';
+        form.properties.country = form.properties.country || 'US';
+    }
+};
+
+onMounted(() => {
+    if (shouldPrefillGuided()) {
+        prefillGuidedCustomer();
+    }
+});
 
 const query = ref('');
 const suggestions = ref([]);
@@ -458,7 +519,7 @@ const selectAddress = (details) => {
                         class="py-1.5 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-sm border border-green-600 text-green-600 hover:border-green-700 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:ring-2 focus:ring-green-500">
                         Save and create another
                     </button>
-                    <button type="submit"
+                    <button type="submit" data-testid="demo-customer-save"
                         class="py-1.5 ml-4 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:ring-2 focus:ring-green-500">
                         Save client
                     </button>

@@ -141,6 +141,13 @@ const statusClasses = (status) => {
 const isArchived = (quote) => Boolean(quote?.archived_at);
 const displayStatus = (quote) => (isArchived(quote) ? 'archived' : (quote?.status || 'draft'));
 
+const dispatchDemoEvent = (eventName) => {
+    if (typeof window === 'undefined') {
+        return;
+    }
+    window.dispatchEvent(new CustomEvent(eventName));
+};
+
 const toggleSort = (column) => {
     if (filterForm.sort === column) {
         filterForm.direction = filterForm.direction === 'asc' ? 'desc' : 'asc';
@@ -151,7 +158,21 @@ const toggleSort = (column) => {
 };
 
 const sendEmail = (quote) => {
-    router.post(route('quote.send.email', quote), {}, { preserveScroll: true });
+    router.post(route('quote.send.email', quote), {}, {
+        preserveScroll: true,
+        onSuccess: () => {
+            dispatchDemoEvent('demo:quote_sent');
+        },
+    });
+};
+
+const acceptQuote = (quote) => {
+    router.post(route('quote.accept', quote), {}, {
+        preserveScroll: true,
+        onSuccess: () => {
+            dispatchDemoEvent('demo:quote_accepted');
+        },
+    });
 };
 
 const archiveQuote = (quote) => {
@@ -166,7 +187,12 @@ const restoreQuote = (quote) => {
 };
 
 const convertToJob = (quote) => {
-    router.post(route('quote.convert', quote), {}, { preserveScroll: true });
+    router.post(route('quote.convert', quote), {}, {
+        preserveScroll: true,
+        onSuccess: () => {
+            dispatchDemoEvent('demo:quote_converted');
+        },
+    });
 };
 
 const startQuote = () => {
@@ -192,7 +218,7 @@ const startQuote = () => {
                                 <path d="m21 21-4.3-4.3" />
                             </svg>
                         </div>
-                        <input type="text" v-model="filterForm.search"
+                        <input type="text" v-model="filterForm.search" data-testid="demo-quote-search"
                             class="py-[7px] ps-10 pe-8 block w-full bg-white border border-stone-200 rounded-sm text-sm placeholder:text-stone-500 focus:border-green-500 focus:ring-green-600 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 dark:placeholder:text-neutral-400 dark:focus:ring-neutral-600"
                             placeholder="Search quotes, customer, or notes">
                     </div>
@@ -385,11 +411,15 @@ const startQuote = () => {
                                             Edit
                                         </Link>
                                         <div class="my-1 border-t border-stone-200 dark:border-neutral-800"></div>
-                                        <button v-if="!isArchived(quote)" type="button" @click="sendEmail(quote)"
+                                        <button v-if="!isArchived(quote)" type="button" @click="sendEmail(quote)" data-testid="demo-quote-send"
                                             class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-neutral-800">
                                             Send email
                                         </button>
-                                        <button v-if="!isArchived(quote) && quote.status !== 'accepted'" type="button" @click="convertToJob(quote)"
+                                        <button v-if="!isArchived(quote) && quote.status !== 'accepted' && quote.status !== 'declined'" type="button" @click="acceptQuote(quote)" data-testid="demo-quote-accept"
+                                            class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-emerald-600 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-neutral-800">
+                                            Accept quote
+                                        </button>
+                                        <button v-if="!isArchived(quote)" type="button" @click="convertToJob(quote)" data-testid="demo-quote-convert"
                                             class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-emerald-600 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-neutral-800">
                                             Create job
                                         </button>
@@ -458,4 +488,3 @@ const startQuote = () => {
         </div>
     </div>
 </template>
-
