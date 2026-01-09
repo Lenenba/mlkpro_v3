@@ -645,8 +645,8 @@ watch(activeTab, (value) => {
 <template>
     <Head title="Entreprise" />
 
-    <SettingsLayout active="company">
-        <div class="w-full max-w-6xl space-y-4">
+    <SettingsLayout active="company" content-class="w-full max-w-6xl">
+        <div class="w-full space-y-4">
             <div class="flex flex-wrap items-center justify-between gap-3">
                 <div>
                     <h1 class="text-xl font-semibold text-stone-800 dark:text-neutral-100">Parametres entreprise</h1>

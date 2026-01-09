@@ -1,13 +1,18 @@
 <script setup>
 import { computed } from 'vue';
-import { Link, usePage } from '@inertiajs/vue3';
+import { usePage } from '@inertiajs/vue3';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import SettingsTabs from '@/Components/SettingsTabs.vue';
 import { useI18n } from 'vue-i18n';
 
 const props = defineProps({
     active: {
         type: String,
         required: true,
+    },
+    contentClass: {
+        type: String,
+        default: 'w-full max-w-6xl',
     },
 });
 
@@ -26,7 +31,7 @@ const avatarInitial = computed(() => {
 
 const isOwner = computed(() => Boolean(page.props.auth?.account?.is_owner));
 
-const navGroups = computed(() => {
+const navTabs = computed(() => {
     locale.value;
     const groups = [
         {
@@ -79,181 +84,121 @@ const navGroups = computed(() => {
         },
     ];
 
-    return groups
+    const filteredGroups = groups
         .map((group) => ({
             ...group,
             items: group.items.filter((item) => !item.ownerOnly || isOwner.value),
         }))
         .filter((group) => group.items.length);
+
+    return filteredGroups
+        .flatMap((group) => group.items)
+        .filter((item) => item.route || item.disabled)
+        .map((item) => ({
+            id: item.id,
+            label: item.label,
+            description: item.description,
+            href: item.route ? route(item.route) : null,
+            disabled: item.disabled,
+            badge: item.badge,
+        }));
 });
 </script>
 
 <template>
     <AuthenticatedLayout>
         <div class="settings-shell">
-            <aside class="settings-panel">
-                <div class="settings-profile">
-                    <div class="settings-avatar">
-                        <img v-if="avatarUrl" :src="avatarUrl" :alt="userName" />
-                        <span v-else>{{ avatarInitial }}</span>
-                    </div>
-                    <div>
-                        <p class="settings-name">{{ userName }}</p>
-                        <p class="settings-email">{{ userEmail }}</p>
-                    </div>
-                </div>
-
-                <div v-for="group in navGroups" :key="group.label" class="settings-group">
-                    <p class="settings-group__label">{{ group.label }}</p>
-                    <div class="settings-group__list">
-                        <template v-for="item in group.items" :key="item.id">
-                            <Link v-if="!item.disabled && item.route" :href="route(item.route)"
-                                class="settings-link"
-                                :class="{ 'is-active': props.active === item.id }"
-                                :aria-current="props.active === item.id ? 'page' : null">
-                                <span class="settings-icon" aria-hidden="true">
-                                    <svg v-if="item.icon === 'user'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
-                                        fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"
-                                        stroke-linejoin="round">
-                                        <path d="M20 21a8 8 0 0 0-16 0" />
-                                        <circle cx="12" cy="7" r="4" />
-                                    </svg>
-                                    <svg v-else-if="item.icon === 'shield'" xmlns="http://www.w3.org/2000/svg"
-                                        viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
-                                        stroke-linecap="round" stroke-linejoin="round">
-                                        <path d="M12 2 3 5v6c0 5.2 3.6 10 9 11 5.4-1 9-5.8 9-11V5z" />
-                                    </svg>
-                                    <svg v-else-if="item.icon === 'building'" xmlns="http://www.w3.org/2000/svg"
-                                        viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
-                                        stroke-linecap="round" stroke-linejoin="round">
-                                        <path d="M6 22V2l6 4 6-4v20" />
-                                        <path d="M6 12h12" />
-                                        <path d="M6 18h12" />
-                                        <path d="M6 6h12" />
-                                    </svg>
-                                    <svg v-else-if="item.icon === 'card'" xmlns="http://www.w3.org/2000/svg"
-                                        viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
-                                        stroke-linecap="round" stroke-linejoin="round">
-                                        <rect x="2" y="5" width="20" height="14" rx="2" />
-                                        <line x1="2" x2="22" y1="10" y2="10" />
-                                    </svg>
-                                    <svg v-else-if="item.icon === 'bell'" xmlns="http://www.w3.org/2000/svg"
-                                        viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
-                                        stroke-linecap="round" stroke-linejoin="round">
-                                        <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 7h18s-3 0-3-7" />
-                                        <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-                                    </svg>
-                                </span>
-                                <span>
-                                    <span class="settings-link__label">{{ item.label }}</span>
-                                    <span class="settings-link__desc">{{ item.description }}</span>
-                                </span>
-                                <span v-if="item.badge" class="settings-badge">{{ item.badge }}</span>
-                            </Link>
-
-                            <div v-else class="settings-link is-disabled">
-                                <span class="settings-icon" aria-hidden="true">
-                                    <svg v-if="item.icon === 'shield'" xmlns="http://www.w3.org/2000/svg"
-                                        viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
-                                        stroke-linecap="round" stroke-linejoin="round">
-                                        <path d="M12 2 3 5v6c0 5.2 3.6 10 9 11 5.4-1 9-5.8 9-11V5z" />
-                                    </svg>
-                                    <svg v-else-if="item.icon === 'bell'" xmlns="http://www.w3.org/2000/svg"
-                                        viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
-                                        stroke-linecap="round" stroke-linejoin="round">
-                                        <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 7h18s-3 0-3-7" />
-                                        <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-                                    </svg>
-                                </span>
-                                <span>
-                                    <span class="settings-link__label">{{ item.label }}</span>
-                                    <span class="settings-link__desc">{{ item.description }}</span>
-                                </span>
-                                <span v-if="item.badge" class="settings-badge">{{ item.badge }}</span>
-                            </div>
-                        </template>
+            <header class="settings-hero">
+                <div class="settings-hero__inner" :class="props.contentClass">
+                    <div class="settings-hero__profile">
+                        <div class="settings-avatar">
+                            <img v-if="avatarUrl" :src="avatarUrl" :alt="userName" />
+                            <span v-else>{{ avatarInitial }}</span>
+                        </div>
+                        <div>
+                            <p class="settings-hero__title">{{ t('settings') }}</p>
+                            <p class="settings-hero__meta">
+                                <span>{{ userName }}</span>
+                                <span v-if="userEmail" class="settings-hero__dot">&middot;</span>
+                                <span v-if="userEmail">{{ userEmail }}</span>
+                            </p>
+                        </div>
                     </div>
                 </div>
-            </aside>
+            </header>
 
-            <section class="settings-content">
-                <slot />
-            </section>
+            <div class="settings-main" :class="props.contentClass">
+                <SettingsTabs
+                    :model-value="props.active"
+                    :tabs="navTabs"
+                    id-prefix="settings-main"
+                    aria-label="Navigation des parametres"
+                />
+
+                <section class="settings-content">
+                    <slot />
+                </section>
+            </div>
         </div>
     </AuthenticatedLayout>
 </template>
 
 <style scoped>
 .settings-shell {
-    display: grid;
-    gap: 18px;
-    margin: 0 auto;
-    max-width: 1280px;
-    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    width: 100%;
 }
 
-@media (min-width: 1024px) {
-    .settings-shell {
-        grid-template-columns: 280px minmax(0, 1fr);
-        align-items: start;
-    }
-}
-
-.settings-panel {
-    --panel-bg: #ffffff;
-    --panel-border: rgba(15, 23, 42, 0.08);
-    --panel-muted: rgba(15, 23, 42, 0.6);
-    --panel-text: #0f172a;
-    --panel-card: rgba(15, 23, 42, 0.03);
-    --panel-accent: rgba(16, 185, 129, 0.85);
-    --panel-accent-bg: rgba(16, 185, 129, 0.1);
-    --panel-link: rgba(15, 23, 42, 0.04);
-    --panel-link-hover: rgba(15, 23, 42, 0.08);
-    --panel-link-border: rgba(15, 23, 42, 0.1);
-    --panel-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
-    padding: 18px;
-    border-radius: 2px;
-    border: 1px solid var(--panel-border);
-    background: var(--panel-bg);
-    box-shadow: var(--panel-shadow);
+.settings-hero {
+    --hero-bg: #ffffff;
+    --hero-border: rgba(15, 23, 42, 0.08);
+    --hero-muted: rgba(15, 23, 42, 0.6);
+    --hero-text: #0f172a;
+    --hero-accent: rgba(16, 185, 129, 0.16);
+    display: block;
+    padding: 16px 0;
+    border-bottom: 1px solid var(--hero-border);
+    background: var(--hero-bg);
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
     font-family: inherit;
 }
 
-:global(.dark) .settings-panel {
-    --panel-bg: #0b0f14;
-    --panel-border: rgba(255, 255, 255, 0.08);
-    --panel-muted: rgba(226, 232, 240, 0.7);
-    --panel-text: #e2e8f0;
-    --panel-card: rgba(255, 255, 255, 0.06);
-    --panel-accent: rgba(16, 185, 129, 0.75);
-    --panel-accent-bg: rgba(16, 185, 129, 0.14);
-    --panel-link: rgba(15, 23, 42, 0.7);
-    --panel-link-hover: rgba(15, 23, 42, 0.9);
-    --panel-link-border: rgba(255, 255, 255, 0.08);
-    --panel-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
-    background: var(--panel-bg);
+:global(.dark) .settings-hero {
+    --hero-bg: #0b0f14;
+    --hero-border: rgba(255, 255, 255, 0.08);
+    --hero-muted: rgba(226, 232, 240, 0.7);
+    --hero-text: #e2e8f0;
+    --hero-accent: rgba(16, 185, 129, 0.2);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
 }
 
-.settings-profile {
+.settings-hero__inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin: 0 auto;
+    padding: 0 12px;
+    width: 100%;
+}
+
+.settings-hero__profile {
     display: flex;
     align-items: center;
     gap: 12px;
-    padding: 12px;
-    border-radius: 2px;
-    background: var(--panel-card);
-    border: 1px solid var(--panel-border);
-    color: var(--panel-text);
 }
 
 .settings-avatar {
-    width: 44px;
-    height: 44px;
-    border-radius: 2px;
+    width: 46px;
+    height: 46px;
+    border-radius: 8px;
     overflow: hidden;
     display: grid;
     place-items: center;
-    background: rgba(16, 185, 129, 0.15);
-    color: var(--panel-text);
+    background: var(--hero-accent);
+    color: var(--hero-text);
     font-weight: 600;
 }
 
@@ -265,97 +210,34 @@ const navGroups = computed(() => {
 
 .settings-name {
     font-weight: 600;
-    color: var(--panel-text);
+    color: var(--hero-text);
 }
 
-.settings-email {
-    font-size: 0.75rem;
-    color: var(--panel-muted);
-}
-
-.settings-group {
-    margin-top: 18px;
-}
-
-.settings-group__label {
-    font-size: 0.7rem;
-    text-transform: uppercase;
-    letter-spacing: 0.12em;
-    color: var(--panel-muted);
-    margin-bottom: 8px;
-}
-
-.settings-group__list {
-    display: grid;
-    gap: 8px;
-}
-
-.settings-link {
-    display: grid;
-    grid-template-columns: auto 1fr auto;
-    align-items: center;
-    gap: 10px;
-    padding: 10px 12px;
-    border-radius: 2px;
-    border: 1px solid var(--panel-link-border);
-    background: var(--panel-link);
-    color: var(--panel-text);
-    transition: transform 150ms ease, background 150ms ease, border-color 150ms ease;
-}
-
-.settings-link:hover {
-    transform: none;
-    background: var(--panel-link-hover);
-}
-
-.settings-link.is-active {
-    border-color: var(--panel-accent);
-    background: var(--panel-accent-bg);
-}
-
-.settings-link.is-disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-}
-
-.settings-icon {
-    width: 34px;
-    height: 34px;
-    display: grid;
-    place-items: center;
-    border-radius: 2px;
-    background: rgba(15, 23, 42, 0.06);
-    color: var(--panel-text);
-}
-
-:global(.dark) .settings-icon {
-    background: rgba(255, 255, 255, 0.08);
-}
-
-.settings-icon svg {
-    width: 18px;
-    height: 18px;
-}
-
-.settings-link__label {
-    font-size: 0.9rem;
+.settings-hero__title {
+    font-size: 0.95rem;
     font-weight: 600;
+    color: var(--hero-text);
 }
 
-.settings-link__desc {
-    display: block;
+.settings-hero__meta {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
     font-size: 0.75rem;
-    color: var(--panel-muted);
+    color: var(--hero-muted);
 }
 
-.settings-badge {
-    font-size: 0.65rem;
-    padding: 2px 8px;
-    border-radius: 2px;
-    border: 1px solid var(--panel-link-border);
-    color: var(--panel-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
+.settings-hero__dot {
+    color: var(--hero-muted);
+}
+
+.settings-main {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    width: 100%;
+    margin: 0 auto;
+    padding: 0 12px;
 }
 
 .settings-content {

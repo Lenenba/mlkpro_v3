@@ -47,57 +47,59 @@ const updatePassword = () => {
         </header>
 
         <form @submit.prevent="updatePassword" class="mt-6 space-y-6">
-            <div>
-                <InputLabel for="current_password" value="Current Password" />
+            <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div>
+                    <InputLabel for="current_password" value="Current Password" />
 
-                <TextInput
-                    id="current_password"
-                    ref="currentPasswordInput"
-                    v-model="form.current_password"
-                    type="password"
-                    class="mt-1 block w-full"
-                    autocomplete="current-password"
-                />
+                    <TextInput
+                        id="current_password"
+                        ref="currentPasswordInput"
+                        v-model="form.current_password"
+                        type="password"
+                        class="mt-1 block w-full"
+                        autocomplete="current-password"
+                    />
 
-                <InputError
-                    :message="form.errors.current_password"
-                    class="mt-2"
-                />
-            </div>
+                    <InputError
+                        :message="form.errors.current_password"
+                        class="mt-2"
+                    />
+                </div>
 
-            <div>
-                <InputLabel for="password" value="New Password" />
+                <div>
+                    <InputLabel for="password" value="New Password" />
 
-                <TextInput
-                    id="password"
-                    ref="passwordInput"
-                    v-model="form.password"
-                    type="password"
-                    class="mt-1 block w-full"
-                    autocomplete="new-password"
-                />
+                    <TextInput
+                        id="password"
+                        ref="passwordInput"
+                        v-model="form.password"
+                        type="password"
+                        class="mt-1 block w-full"
+                        autocomplete="new-password"
+                    />
 
-                <InputError :message="form.errors.password" class="mt-2" />
-            </div>
+                    <InputError :message="form.errors.password" class="mt-2" />
+                </div>
 
-            <div>
-                <InputLabel
-                    for="password_confirmation"
-                    value="Confirm Password"
-                />
+                <div class="md:col-span-2">
+                    <InputLabel
+                        for="password_confirmation"
+                        value="Confirm Password"
+                    />
 
-                <TextInput
-                    id="password_confirmation"
-                    v-model="form.password_confirmation"
-                    type="password"
-                    class="mt-1 block w-full"
-                    autocomplete="new-password"
-                />
+                    <TextInput
+                        id="password_confirmation"
+                        v-model="form.password_confirmation"
+                        type="password"
+                        class="mt-1 block w-full"
+                        autocomplete="new-password"
+                    />
 
-                <InputError
-                    :message="form.errors.password_confirmation"
-                    class="mt-2"
-                />
+                    <InputError
+                        :message="form.errors.password_confirmation"
+                        class="mt-2"
+                    />
+                </div>
             </div>
 
             <div class="flex items-center gap-4">

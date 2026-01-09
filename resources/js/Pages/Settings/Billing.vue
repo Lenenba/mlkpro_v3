@@ -298,8 +298,8 @@ watch(
 <template>
     <Head title="Facturation" />
 
-    <SettingsLayout active="billing">
-        <div class="w-full max-w-6xl space-y-4">
+    <SettingsLayout active="billing" content-class="w-full max-w-6xl">
+        <div class="w-full space-y-4">
             <SettingsTabs
                 v-model="activeTab"
                 :tabs="tabs"

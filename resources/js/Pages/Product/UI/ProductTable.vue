@@ -255,25 +255,130 @@ const getAlertBadges = (product) => {
     const expiringLots = getExpiringLotCount(product);
 
     if (isOutOfStock(product)) {
-        alerts.push({ label: 'Out of stock', tone: 'danger' });
+        alerts.push({ key: 'out', label: 'Out of stock', tone: 'danger' });
     } else if (isLowStock(product)) {
-        alerts.push({ label: 'Low stock', tone: 'warning' });
+        alerts.push({ key: 'low', label: 'Low stock', tone: 'warning' });
     }
 
     if (damaged > 0) {
-        alerts.push({ label: `Damaged ${formatNumber(damaged)}`, tone: 'danger' });
+        alerts.push({ key: 'damaged', label: `Damaged ${formatNumber(damaged)}`, tone: 'danger' });
     }
     if (reserved > 0) {
-        alerts.push({ label: `Reserved ${formatNumber(reserved)}`, tone: 'info' });
+        alerts.push({ key: 'reserved', label: `Reserved ${formatNumber(reserved)}`, tone: 'info' });
     }
     if (expiredLots > 0) {
-        alerts.push({ label: `Expired ${formatNumber(expiredLots)}`, tone: 'danger' });
+        alerts.push({ key: 'expired', label: `Expired ${formatNumber(expiredLots)}`, tone: 'danger' });
     }
     if (expiringLots > 0) {
-        alerts.push({ label: `Expiring ${formatNumber(expiringLots)}`, tone: 'warning' });
+        alerts.push({ key: 'expiring', label: `Expiring ${formatNumber(expiringLots)}`, tone: 'warning' });
     }
 
     return alerts;
+};
+
+const alertTypeLabels = {
+    out: 'Out of stock',
+    low: 'Low stock',
+    damaged: 'Damaged items',
+    reserved: 'Reserved orders',
+    expired: 'Expired lots',
+    expiring: 'Expiring lots',
+};
+
+const orderStatusLabels = {
+    pending: 'Pending',
+    draft: 'Draft',
+    paid: 'Paid',
+    canceled: 'Canceled',
+};
+
+const fulfillmentStatusLabels = {
+    pending: 'Pending',
+    preparing: 'Preparing',
+    out_for_delivery: 'Out for delivery',
+    ready_for_pickup: 'Ready for pickup',
+    completed: 'Completed',
+    confirmed: 'Confirmed',
+};
+
+const alertDetailsProduct = ref(null);
+const alertDetailsType = ref('');
+const alertDetailsTitle = computed(() => {
+    if (!alertDetailsProduct.value) {
+        return 'Alert details';
+    }
+    const label = alertTypeLabels[alertDetailsType.value] || 'Alert details';
+    return `${alertDetailsProduct.value.name} - ${label}`;
+});
+
+const openAlertDetails = (product, alertType) => {
+    alertDetailsProduct.value = product;
+    const badges = getAlertBadges(product);
+    alertDetailsType.value = alertType || badges[0]?.key || '';
+    if (window.HSOverlay) {
+        window.HSOverlay.open('#hs-pro-alert-details');
+    }
+};
+
+const getReservedOrders = (product) => (
+    Array.isArray(product?.reserved_orders) ? product.reserved_orders : []
+);
+
+const getDamagedInventories = (product) => (
+    Array.isArray(product?.inventories)
+        ? product.inventories.filter((inventory) => Number(inventory.damaged) > 0)
+        : []
+);
+
+const getDamageMovements = (product) => (
+    Array.isArray(product?.stock_movements)
+        ? product.stock_movements.filter((movement) => ['damage', 'spoilage'].includes(movement.type))
+        : []
+);
+
+const formatOrderStatus = (value, labels) => labels[value] || value || '--';
+
+const parseAlertDate = (value) => {
+    if (!value) {
+        return null;
+    }
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+        return null;
+    }
+    return date;
+};
+
+const getAlertLots = (product, type) => {
+    if (!Array.isArray(product?.lots)) {
+        return [];
+    }
+    const now = new Date();
+    const soon = new Date();
+    soon.setDate(soon.getDate() + 30);
+    return product.lots.filter((lot) => {
+        const expiresAt = parseAlertDate(lot.expires_at);
+        if (!expiresAt) {
+            return false;
+        }
+        if (type === 'expired') {
+            return expiresAt < now;
+        }
+        if (type === 'expiring') {
+            return expiresAt >= now && expiresAt <= soon;
+        }
+        return false;
+    });
+};
+
+const getLotLabel = (lot) => {
+    if (lot?.serial_number) {
+        return `SN ${lot.serial_number}`;
+    }
+    if (lot?.lot_number) {
+        return `Lot ${lot.lot_number}`;
+    }
+    return 'Lot';
 };
 
 const toggleSort = (column) => {
@@ -904,11 +1009,14 @@ const submitImport = () => {
                     </td>
                     <td class="size-px whitespace-nowrap px-4 py-2">
                         <div v-if="getAlertBadges(product).length" class="flex flex-wrap gap-1">
-                            <span v-for="alert in getAlertBadges(product)" :key="alert.label"
-                                class="py-1 px-2 rounded-full text-[10px] font-medium"
-                                :class="alertBadgeClasses[alert.tone]">
+                            <button v-for="alert in getAlertBadges(product)" :key="alert.key"
+                                type="button"
+                                class="py-1 px-2 rounded-full text-[10px] font-medium transition hover:shadow-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                                :class="alertBadgeClasses[alert.tone]"
+                                :aria-label="`Open ${alert.label} details`"
+                                @click="openAlertDetails(product, alert.key)">
                                 {{ alert.label }}
-                            </span>
+                            </button>
                         </div>
                         <div v-else class="text-xs text-stone-400 dark:text-neutral-500">
                             No alerts
@@ -1062,6 +1170,252 @@ const submitImport = () => {
             </nav>
         </div>
     </div>
+
+    <Modal :title="alertDetailsTitle" :id="'hs-pro-alert-details'">
+        <div v-if="alertDetailsProduct" class="space-y-4">
+            <div
+                class="rounded-sm border border-stone-200 bg-stone-50/60 p-3 dark:border-neutral-700 dark:bg-neutral-900/40">
+                <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                    <div class="flex items-center gap-3">
+                        <img class="size-12 rounded-sm border border-stone-200 object-cover dark:border-neutral-700"
+                            :src="alertDetailsProduct.image_url || alertDetailsProduct.image" alt="Product image">
+                        <div class="space-y-1">
+                            <Link :href="route('product.show', alertDetailsProduct.id)"
+                                class="text-sm font-semibold text-stone-800 hover:underline dark:text-neutral-100">
+                                {{ alertDetailsProduct.name }}
+                            </Link>
+                            <div class="text-xs text-stone-500 dark:text-neutral-400">
+                                {{ alertDetailsProduct.sku || alertDetailsProduct.number || 'No SKU' }}
+                                <span v-if="alertDetailsProduct.barcode" class="ml-2">
+                                    - Barcode {{ alertDetailsProduct.barcode }}
+                                </span>
+                            </div>
+                            <div class="flex flex-wrap items-center gap-1">
+                                <span
+                                    class="py-1 px-2 rounded-full text-[10px] font-medium bg-white text-stone-700 border border-stone-200 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200">
+                                    {{ getTrackingLabel(alertDetailsProduct) }}
+                                </span>
+                                <span v-if="alertDetailsProduct.unit"
+                                    class="py-1 px-2 rounded-full text-[10px] font-medium bg-white text-stone-700 border border-stone-200 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200">
+                                    Unit {{ alertDetailsProduct.unit }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex flex-wrap gap-2 text-xs text-stone-500 dark:text-neutral-400">
+                        <span class="font-semibold text-stone-700 dark:text-neutral-200">
+                            Avail {{ formatNumber(getAvailableStock(alertDetailsProduct)) }}
+                        </span>
+                        <span>Reserved {{ formatNumber(getReservedStock(alertDetailsProduct)) }}</span>
+                        <span>Damaged {{ formatNumber(getDamagedStock(alertDetailsProduct)) }}</span>
+                        <span>Min {{ formatNumber(alertDetailsProduct.minimum_stock) }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex flex-wrap gap-2">
+                <button v-for="alert in getAlertBadges(alertDetailsProduct)" :key="alert.key" type="button"
+                    class="py-1 px-2 rounded-full text-[10px] font-medium transition focus:outline-none focus:ring-2 focus:ring-green-500"
+                    :class="[
+                        alertBadgeClasses[alert.tone],
+                        alert.key === alertDetailsType ? 'ring-1 ring-green-500 shadow-sm' : 'hover:shadow-sm'
+                    ]"
+                    @click="alertDetailsType = alert.key">
+                    {{ alert.label }}
+                </button>
+            </div>
+
+            <div class="rounded-sm border border-stone-200 p-4 dark:border-neutral-700">
+                <template v-if="alertDetailsType === 'out' || alertDetailsType === 'low'">
+                    <div class="grid gap-3 md:grid-cols-4">
+                        <div class="rounded-sm border border-stone-200 p-3 dark:border-neutral-700">
+                            <div class="text-xs uppercase text-stone-500 dark:text-neutral-400">Available</div>
+                            <div class="text-lg font-semibold text-stone-800 dark:text-neutral-200">
+                                {{ formatNumber(getAvailableStock(alertDetailsProduct)) }}
+                            </div>
+                        </div>
+                        <div class="rounded-sm border border-stone-200 p-3 dark:border-neutral-700">
+                            <div class="text-xs uppercase text-stone-500 dark:text-neutral-400">Minimum</div>
+                            <div class="text-lg font-semibold text-stone-800 dark:text-neutral-200">
+                                {{ formatNumber(alertDetailsProduct.minimum_stock) }}
+                            </div>
+                        </div>
+                        <div class="rounded-sm border border-stone-200 p-3 dark:border-neutral-700">
+                            <div class="text-xs uppercase text-stone-500 dark:text-neutral-400">Reserved</div>
+                            <div class="text-lg font-semibold text-stone-800 dark:text-neutral-200">
+                                {{ formatNumber(getReservedStock(alertDetailsProduct)) }}
+                            </div>
+                        </div>
+                        <div class="rounded-sm border border-stone-200 p-3 dark:border-neutral-700">
+                            <div class="text-xs uppercase text-stone-500 dark:text-neutral-400">Damaged</div>
+                            <div class="text-lg font-semibold text-stone-800 dark:text-neutral-200">
+                                {{ formatNumber(getDamagedStock(alertDetailsProduct)) }}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-3 flex flex-wrap items-center gap-2 text-xs text-stone-500 dark:text-neutral-400">
+                        <span v-if="getAvailableStock(alertDetailsProduct) <= 0" class="text-red-600 dark:text-red-400">
+                            Stock is depleted.
+                        </span>
+                        <span v-else-if="getAvailableStock(alertDetailsProduct) <= alertDetailsProduct.minimum_stock"
+                            class="text-amber-600 dark:text-amber-400">
+                            Stock is below minimum threshold.
+                        </span>
+                        <span v-if="getNextExpiry(alertDetailsProduct)">
+                            Next expiry {{ formatDate(getNextExpiry(alertDetailsProduct)) }}
+                        </span>
+                    </div>
+                    <div class="mt-4 flex flex-wrap gap-2">
+                        <button v-if="canEdit" type="button"
+                            class="inline-flex items-center rounded-sm border border-green-600 bg-green-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-green-700"
+                            @click="openAdjust(alertDetailsProduct)">
+                            Adjust stock
+                        </button>
+                        <Link :href="route('product.show', alertDetailsProduct.id)"
+                            class="inline-flex items-center rounded-sm border border-stone-200 bg-white px-3 py-1.5 text-xs font-semibold text-stone-700 hover:bg-stone-50 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-800">
+                            View product
+                        </Link>
+                    </div>
+                </template>
+
+                <template v-else-if="alertDetailsType === 'damaged'">
+                    <div class="space-y-4">
+                        <div>
+                            <div class="text-sm font-medium text-stone-700 dark:text-neutral-200">Damaged stock</div>
+                            <div v-if="!getDamagedInventories(alertDetailsProduct).length"
+                                class="text-sm text-stone-500 dark:text-neutral-400">
+                                No damaged stock recorded for this product.
+                            </div>
+                            <div v-else class="space-y-2 pt-2">
+                                <div v-for="inventory in getDamagedInventories(alertDetailsProduct)" :key="inventory.id"
+                                    class="flex items-center justify-between rounded-sm border border-stone-200 px-3 py-2 text-sm dark:border-neutral-700">
+                                    <div>
+                                        <div class="text-xs uppercase text-stone-500 dark:text-neutral-400">
+                                            {{ inventory.warehouse?.name || 'Warehouse' }}
+                                        </div>
+                                        <div class="text-sm text-stone-700 dark:text-neutral-200">
+                                            Damaged {{ formatNumber(inventory.damaged) }}
+                                        </div>
+                                    </div>
+                                    <div class="text-xs text-stone-500 dark:text-neutral-400">
+                                        On hand {{ formatNumber(inventory.on_hand) }}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <div class="text-sm font-medium text-stone-700 dark:text-neutral-200">Recent damage movements</div>
+                            <div v-if="!getDamageMovements(alertDetailsProduct).length"
+                                class="text-sm text-stone-500 dark:text-neutral-400">
+                                No damage movements yet.
+                            </div>
+                            <div v-else class="space-y-2 pt-2">
+                                <div v-for="movement in getDamageMovements(alertDetailsProduct)" :key="movement.id"
+                                    class="flex items-center justify-between rounded-sm border border-stone-200 px-3 py-2 text-sm dark:border-neutral-700">
+                                    <div>
+                                        <div class="text-xs uppercase text-stone-500 dark:text-neutral-400">
+                                            {{ movement.type }}
+                                            <span v-if="movement.warehouse"> - {{ movement.warehouse.name }}</span>
+                                            <span v-if="movement.lot?.lot_number"> - Lot {{ movement.lot.lot_number }}</span>
+                                            <span v-else-if="movement.lot?.serial_number"> - SN {{ movement.lot.serial_number }}</span>
+                                        </div>
+                                        <div class="text-sm text-stone-700 dark:text-neutral-200">
+                                            {{ movement.reason || movement.note || 'No note' }}
+                                        </div>
+                                        <div class="text-xs text-stone-500 dark:text-neutral-400">
+                                            {{ formatDate(movement.created_at) }}
+                                        </div>
+                                    </div>
+                                    <div class="text-sm font-medium text-red-600">
+                                        {{ Math.abs(movement.quantity || 0) }}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+
+                <template v-else-if="alertDetailsType === 'reserved'">
+                    <div class="space-y-3">
+                        <div v-if="!getReservedOrders(alertDetailsProduct).length"
+                            class="text-sm text-stone-500 dark:text-neutral-400">
+                            No reserved orders for this product.
+                        </div>
+                        <div v-else class="space-y-2">
+                            <div v-for="order in getReservedOrders(alertDetailsProduct)" :key="order.id"
+                                class="rounded-sm border border-stone-200 px-3 py-3 text-sm dark:border-neutral-700">
+                                <div class="flex flex-wrap items-center justify-between gap-2">
+                                    <Link :href="route('sales.show', order.id)"
+                                        class="text-sm font-semibold text-green-700 hover:underline dark:text-green-400">
+                                        Order {{ order.number || `#${order.id}` }}
+                                    </Link>
+                                    <div class="text-xs text-stone-500 dark:text-neutral-400">
+                                        Qty {{ formatNumber(order.quantity) }}
+                                    </div>
+                                </div>
+                                <div class="pt-1 text-xs text-stone-500 dark:text-neutral-400">
+                                    {{ order.customer_name || 'Client' }}
+                                </div>
+                                <div class="flex flex-wrap gap-2 pt-2 text-xs text-stone-500 dark:text-neutral-400">
+                                    <span>Status {{ formatOrderStatus(order.status, orderStatusLabels) }}</span>
+                                    <span v-if="order.fulfillment_status">
+                                        Fulfillment {{ formatOrderStatus(order.fulfillment_status, fulfillmentStatusLabels) }}
+                                    </span>
+                                    <span v-if="order.fulfillment_method">
+                                        Method {{ order.fulfillment_method.replace('_', ' ') }}
+                                    </span>
+                                </div>
+                                <div class="flex flex-wrap gap-2 pt-2 text-xs text-stone-500 dark:text-neutral-400">
+                                    <span v-if="order.scheduled_for">Scheduled {{ formatDate(order.scheduled_for) }}</span>
+                                    <span>Created {{ formatDate(order.created_at) }}</span>
+                                </div>
+                                <div v-if="order.notes || order.delivery_notes || order.pickup_notes"
+                                    class="pt-2 text-xs text-stone-500 dark:text-neutral-400">
+                                    {{ order.notes || order.delivery_notes || order.pickup_notes }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+
+                <template v-else-if="alertDetailsType === 'expired' || alertDetailsType === 'expiring'">
+                    <div class="space-y-3">
+                        <div v-if="!getAlertLots(alertDetailsProduct, alertDetailsType).length"
+                            class="text-sm text-stone-500 dark:text-neutral-400">
+                            No lots to show for this alert.
+                        </div>
+                        <div v-else class="space-y-2">
+                            <div v-for="lot in getAlertLots(alertDetailsProduct, alertDetailsType)" :key="lot.id"
+                                class="flex flex-wrap items-center justify-between gap-2 rounded-sm border border-stone-200 px-3 py-2 text-sm dark:border-neutral-700">
+                                <div>
+                                    <div class="text-xs uppercase text-stone-500 dark:text-neutral-400">
+                                        {{ getLotLabel(lot) }}
+                                        <span v-if="lot.warehouse"> - {{ lot.warehouse.name }}</span>
+                                    </div>
+                                    <div class="text-sm text-stone-700 dark:text-neutral-200">
+                                        Qty {{ formatNumber(lot.quantity) }}
+                                    </div>
+                                </div>
+                                <div class="text-xs text-stone-500 dark:text-neutral-400">
+                                    Expires {{ formatDate(lot.expires_at) }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+
+                <template v-else>
+                    <div class="text-sm text-stone-500 dark:text-neutral-400">
+                        Select an alert to view details.
+                    </div>
+                </template>
+            </div>
+        </div>
+        <div v-else class="text-sm text-stone-500 dark:text-neutral-400">
+            Select an alert badge to view its details.
+        </div>
+    </Modal>
 
     <Modal v-if="canEdit" :title="'Add product'" :id="'hs-pro-dasadpm'">
         <ProductForm :product="product" :categories="categories" :id="'hs-pro-dasadpm'" />
