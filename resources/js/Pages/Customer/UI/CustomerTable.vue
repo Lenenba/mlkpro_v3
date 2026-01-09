@@ -28,6 +28,7 @@ const filterForm = useForm({
 });
 
 const showAdvanced = ref(false);
+const isLoading = ref(false);
 
 const filterPayload = () => {
     const payload = {
@@ -58,10 +59,14 @@ const autoFilter = () => {
         clearTimeout(filterTimeout);
     }
     filterTimeout = setTimeout(() => {
+        isLoading.value = true;
         router.get(route('customer.index'), filterPayload(), {
             preserveState: true,
             preserveScroll: true,
             replace: true,
+            onFinish: () => {
+                isLoading.value = false;
+            },
         });
     }, 300);
 };
@@ -283,6 +288,41 @@ const formatDate = (value) => humanizeDate(value);
                     </thead>
 
                     <tbody class="divide-y divide-stone-200 dark:divide-neutral-700">
+                        <template v-if="isLoading">
+                            <tr v-for="row in 6" :key="`skeleton-${row}`">
+                                <td colspan="8" class="px-4 py-3">
+                                    <div class="grid grid-cols-6 gap-4 animate-pulse">
+                                        <div class="h-3 w-32 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                                        <div class="h-3 w-28 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                                        <div class="h-3 w-24 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                                        <div class="h-3 w-20 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                                        <div class="h-3 w-16 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                                        <div class="h-3 w-20 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                                    </div>
+                                </td>
+                            </tr>
+                        </template>
+                        <template v-else>
+                        <tr v-if="!customers.data.length">
+                            <td colspan="8" class="px-4 py-10 text-center text-stone-600 dark:text-neutral-300">
+                                <div class="space-y-2">
+                                    <div class="text-sm font-semibold text-stone-700 dark:text-neutral-200">
+                                        Aucun client
+                                    </div>
+                                    <div class="text-xs text-stone-500 dark:text-neutral-400">
+                                        Ajoutez un client pour demarrer votre base.
+                                    </div>
+                                    <div class="flex justify-center pt-2">
+                                        <Link
+                                            :href="route('customer.create')"
+                                            class="inline-flex items-center rounded-sm border border-green-600 bg-green-600 px-3 py-2 text-xs font-semibold text-white hover:bg-green-700"
+                                        >
+                                            Ajouter un client
+                                        </Link>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
                         <tr v-for="customer in customers.data" :key="customer.id">
                             <td class="size-px whitespace-nowrap px-4 py-2 text-start">
                                 <Link :href="route('customer.show', customer)">
@@ -368,6 +408,7 @@ const formatDate = (value) => humanizeDate(value);
                                 </div>
                             </td>
                         </tr>
+                        </template>
                     </tbody>
                 </table>
             </div>

@@ -11,6 +11,7 @@ use App\Models\TeamMember;
 use App\Models\User;
 use App\Notifications\OrderStatusNotification;
 use App\Services\InventoryService;
+use App\Services\NotificationPreferenceService;
 use App\Services\SaleTimelineService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -219,10 +220,20 @@ class PortalProductOrderController extends Controller
 
         $users = User::query()
             ->whereIn('id', $userIds)
-            ->get(['id']);
+            ->with('teamMembership')
+            ->get(['id', 'role_id', 'notification_settings']);
 
         $actionUrl = route('sales.edit', $sale);
+        $preferences = app(NotificationPreferenceService::class);
         foreach ($users as $user) {
+            if (!$preferences->shouldNotify(
+                $user,
+                NotificationPreferenceService::CATEGORY_ORDERS,
+                NotificationPreferenceService::CHANNEL_IN_APP
+            )) {
+                continue;
+            }
+
             $user->notify(new OrderStatusNotification($sale, $title, $message, $actionUrl));
         }
     }

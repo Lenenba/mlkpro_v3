@@ -3,6 +3,7 @@
 namespace App\Notifications;
 
 use App\Models\Sale;
+use App\Services\NotificationPreferenceService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Notification;
 
@@ -29,6 +30,7 @@ class OrderStatusNotification extends Notification
             'title' => $this->title,
             'message' => $this->message,
             'action_url' => $this->actionUrl ?? route('portal.orders.edit', $this->sale),
+            'category' => NotificationPreferenceService::CATEGORY_ORDERS,
             'sale_id' => $this->sale->id,
             'sale_number' => $this->sale->number,
             'status' => $this->sale->status,

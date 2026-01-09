@@ -35,6 +35,7 @@ use App\Http\Controllers\Settings\CompanySettingsController;
 use App\Http\Controllers\Settings\BillingSettingsController;
 use App\Http\Controllers\Settings\ProductCategoryController;
 use App\Http\Controllers\Settings\SubscriptionController;
+use App\Http\Controllers\Settings\NotificationSettingsController;
 use App\Http\Controllers\Settings\ApiTokenController;
 use App\Http\Controllers\WarehouseController;
 use App\Http\Controllers\SuperAdmin\DashboardController as SuperAdminDashboardController;
@@ -132,6 +133,10 @@ Route::middleware(['auth', EnsureInternalUser::class])->group(function () {
         ->name('settings.categories.restore');
     Route::get('/settings/billing', [BillingSettingsController::class, 'edit'])->name('settings.billing.edit');
     Route::put('/settings/billing', [BillingSettingsController::class, 'update'])->name('settings.billing.update');
+    Route::get('/settings/notifications', [NotificationSettingsController::class, 'edit'])
+        ->name('settings.notifications.edit');
+    Route::put('/settings/notifications', [NotificationSettingsController::class, 'update'])
+        ->name('settings.notifications.update');
     Route::post('/settings/billing/swap', [SubscriptionController::class, 'swap'])->name('settings.billing.swap');
     Route::post('/settings/billing/portal', [SubscriptionController::class, 'portal'])->name('settings.billing.portal');
     Route::post('/settings/billing/payment-method', [SubscriptionController::class, 'paymentMethodTransaction'])

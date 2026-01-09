@@ -10,6 +10,7 @@ use App\Models\TeamMember;
 use App\Models\User;
 use App\Notifications\LowStockNotification;
 use App\Models\Warehouse;
+use App\Services\NotificationPreferenceService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
@@ -325,7 +326,22 @@ class InventoryService
             return;
         }
 
-        $users = User::query()->whereIn('id', $userIds)->get(['id', 'email']);
-        Notification::send($users, new LowStockNotification($product, $currentStock, $minimumStock));
+        $users = User::query()
+            ->whereIn('id', $userIds)
+            ->with('teamMembership')
+            ->get(['id', 'role_id', 'notification_settings', 'email']);
+
+        $preferences = app(NotificationPreferenceService::class);
+        $eligibleUsers = $users->filter(fn (User $user) => $preferences->shouldNotify(
+            $user,
+            NotificationPreferenceService::CATEGORY_STOCK,
+            NotificationPreferenceService::CHANNEL_IN_APP
+        ));
+
+        if ($eligibleUsers->isEmpty()) {
+            return;
+        }
+
+        Notification::send($eligibleUsers, new LowStockNotification($product, $currentStock, $minimumStock));
     }
 }

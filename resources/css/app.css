@@ -16,4 +16,40 @@
     max-width: 100%;
     height: auto;
   }
+
+  html[data-text-size='sm'] {
+    font-size: 14px;
+  }
+
+  html[data-text-size='md'] {
+    font-size: 16px;
+  }
+
+  html[data-text-size='lg'] {
+    font-size: 18px;
+  }
+
+  html.a11y-high-contrast {
+    filter: contrast(1.08) saturate(1.05);
+  }
+
+  html.a11y-reduce-motion *,
+  html.a11y-reduce-motion *::before,
+  html.a11y-reduce-motion *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.001ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.001ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
 }

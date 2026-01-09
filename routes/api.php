@@ -37,7 +37,9 @@ use App\Http\Controllers\SaleController;
 use App\Http\Controllers\Settings\CompanySettingsController;
 use App\Http\Controllers\Settings\BillingSettingsController;
 use App\Http\Controllers\Settings\ProductCategoryController;
+use App\Http\Controllers\Settings\NotificationSettingsController;
 use App\Http\Controllers\Settings\SubscriptionController;
+use App\Http\Controllers\Api\NotificationController as ApiNotificationController;
 use App\Http\Controllers\Api\SuperAdmin\AdminController as SuperAdminAdminController;
 use App\Http\Controllers\Api\SuperAdmin\AnnouncementController as SuperAdminAnnouncementController;
 use App\Http\Controllers\Api\SuperAdmin\DashboardController as SuperAdminDashboardController;
@@ -108,6 +110,11 @@ Route::name('api.')->group(function () {
             Route::get('profile', [ProfileController::class, 'edit']);
             Route::patch('profile', [ProfileController::class, 'update']);
             Route::delete('profile', [ProfileController::class, 'destroy']);
+            Route::get('notifications', [ApiNotificationController::class, 'index']);
+            Route::post('notifications/read-all', [ApiNotificationController::class, 'markAllRead']);
+            Route::post('notifications/{notification}/read', [ApiNotificationController::class, 'markRead']);
+            Route::get('notifications/settings', [NotificationSettingsController::class, 'edit']);
+            Route::put('notifications/settings', [NotificationSettingsController::class, 'update']);
 
             Route::prefix('settings')->group(function () {
                 Route::get('company', [CompanySettingsController::class, 'edit']);

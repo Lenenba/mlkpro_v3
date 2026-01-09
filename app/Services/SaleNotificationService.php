@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Sale;
 use App\Notifications\ActionEmailNotification;
 use App\Notifications\OrderStatusNotification;
+use App\Services\NotificationPreferenceService;
 
 class SaleNotificationService
 {
@@ -68,11 +69,17 @@ class SaleNotificationService
         $actionUrl = route('portal.orders.edit', $sale);
 
         $message = $intro ?? 'Votre commande a ete mise a jour.';
+        $preferences = app(NotificationPreferenceService::class);
+        $portalUser = null;
         if ($customer->portal_user_id) {
             $portalUser = $customer->relationLoaded('portalUser')
                 ? $customer->portalUser
                 : $customer->portalUser()->first();
-            if ($portalUser) {
+            if ($portalUser && $preferences->shouldNotify(
+                $portalUser,
+                NotificationPreferenceService::CATEGORY_ORDERS,
+                NotificationPreferenceService::CHANNEL_IN_APP
+            )) {
                 $portalUser->notify(new OrderStatusNotification($sale, $title, $message));
             }
         }
@@ -92,8 +99,12 @@ class SaleNotificationService
             }
         }
 
-        if ($customer->portal_user_id) {
-            app(PushNotificationService::class)->sendToUsers([$customer->portal_user_id], [
+        if ($portalUser && $preferences->shouldNotify(
+            $portalUser,
+            NotificationPreferenceService::CATEGORY_ORDERS,
+            NotificationPreferenceService::CHANNEL_PUSH
+        )) {
+            app(PushNotificationService::class)->sendToUsers([$portalUser->id], [
                 'title' => $title,
                 'body' => $message,
                 'data' => [

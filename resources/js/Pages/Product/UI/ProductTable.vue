@@ -72,6 +72,7 @@ const filterForm = useForm({
 const canEdit = computed(() => Boolean(props.canEdit));
 
 const showAdvanced = ref(false);
+const isLoading = ref(false);
 
 const filterPayload = () => {
     const payload = {
@@ -115,10 +116,14 @@ const autoFilter = () => {
         clearTimeout(filterTimeout);
     }
     filterTimeout = setTimeout(() => {
+        isLoading.value = true;
         router.get(route('product.index'), filterPayload(), {
             preserveState: true,
             preserveScroll: true,
             replace: true,
+            onFinish: () => {
+                isLoading.value = false;
+            },
         });
     }, 300);
 };
@@ -720,11 +725,55 @@ const submitImport = () => {
             </thead>
 
             <tbody class="divide-y divide-stone-200 dark:divide-neutral-700">
-                <tr v-for="product in products.data" :key="product.id"
-                    :class="{
-                        'bg-amber-50/40 dark:bg-amber-500/5': isLowStock(product),
-                        'bg-red-50/40 dark:bg-red-500/5': isOutOfStock(product),
-                    }">
+                <template v-if="isLoading">
+                    <tr v-for="row in 6" :key="`skeleton-${row}`">
+                        <td colspan="11" class="px-4 py-3">
+                            <div class="grid grid-cols-7 gap-4 animate-pulse">
+                                <div class="h-3 w-10 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                                <div class="h-3 w-40 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                                <div class="h-3 w-24 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                                <div class="h-3 w-28 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                                <div class="h-3 w-24 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                                <div class="h-3 w-28 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                                <div class="h-3 w-16 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                            </div>
+                        </td>
+                    </tr>
+                </template>
+                <template v-else>
+                    <tr v-if="!products.data.length">
+                        <td colspan="11" class="px-4 py-10 text-center text-stone-600 dark:text-neutral-300">
+                            <div class="space-y-2">
+                                <div class="text-sm font-semibold text-stone-700 dark:text-neutral-200">
+                                    Aucun produit
+                                </div>
+                                <div class="text-xs text-stone-500 dark:text-neutral-400">
+                                    Ajoutez un produit pour demarrer votre catalogue.
+                                </div>
+                                <div v-if="canEdit" class="flex flex-wrap justify-center gap-2 pt-2">
+                                    <button
+                                        type="button"
+                                        data-hs-overlay="#hs-pro-dasadpm"
+                                        class="inline-flex items-center rounded-sm border border-green-600 bg-green-600 px-3 py-2 text-xs font-semibold text-white hover:bg-green-700"
+                                    >
+                                        Ajouter un produit
+                                    </button>
+                                    <button
+                                        type="button"
+                                        data-hs-overlay="#hs-pro-import"
+                                        class="inline-flex items-center rounded-sm border border-stone-200 bg-white px-3 py-2 text-xs font-semibold text-stone-700 hover:bg-stone-50 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-800"
+                                    >
+                                        Importer CSV
+                                    </button>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr v-for="product in products.data" :key="product.id"
+                        :class="{
+                            'bg-amber-50/40 dark:bg-amber-500/5': isLowStock(product),
+                            'bg-red-50/40 dark:bg-red-500/5': isOutOfStock(product),
+                        }">
                     <td class="size-px whitespace-nowrap px-4 py-2">
                         <Checkbox v-if="canEdit" v-model:checked="selected" :value="product.id" />
                     </td>
@@ -963,6 +1012,7 @@ const submitImport = () => {
                         <ProductForm :product="product" :categories="categories" :id="'hs-pro-edit' + product.id" />
                     </Modal>
                 </tr>
+                </template>
             </tbody>
         </table>
         </div>
