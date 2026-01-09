@@ -529,14 +529,40 @@ const isPreferredDisabled = (key) => {
     }
     return form.supplier_preferred.length >= preferredLimit;
 };
+
+const tabs = [
+    { id: 'company', label: 'Entreprise', description: 'Identite et activite' },
+    { id: 'suppliers', label: 'Fournisseurs', description: 'Plateformes actives' },
+    { id: 'categories', label: 'Categories', description: 'Services et produits' },
+    { id: 'warehouses', label: 'Entrepots', description: 'Emplacements de stock' },
+    { id: 'api', label: 'Acces API', description: 'Tokens et permissions' },
+    { id: 'limits', label: 'Limites', description: 'Consommation du forfait' },
+];
+
+const resolveInitialTab = () => {
+    if (typeof window === 'undefined') {
+        return tabs[0].id;
+    }
+    const stored = window.sessionStorage.getItem('settings-company-tab');
+    return tabs.some((tab) => tab.id === stored) ? stored : tabs[0].id;
+};
+
+const activeTab = ref(resolveInitialTab());
+
+watch(activeTab, (value) => {
+    if (typeof window === 'undefined') {
+        return;
+    }
+    window.sessionStorage.setItem('settings-company-tab', value);
+});
 </script>
 
 <template>
     <Head title="Entreprise" />
 
     <SettingsLayout active="company">
-        <div class="w-full max-w-4xl space-y-5">
-            <div class="flex items-center justify-between">
+        <div class="w-full max-w-6xl space-y-4">
+            <div class="flex flex-wrap items-center justify-between gap-3">
                 <div>
                     <h1 class="text-xl font-semibold text-stone-800 dark:text-neutral-100">Parametres entreprise</h1>
                     <p class="mt-1 text-sm text-stone-600 dark:text-neutral-400">
@@ -545,7 +571,44 @@ const isPreferredDisabled = (key) => {
                 </div>
             </div>
 
-            <div class="flex flex-col bg-white border border-stone-200 shadow-sm rounded-sm overflow-hidden dark:bg-neutral-800 dark:border-neutral-700">
+            <div class="rounded-sm border border-stone-200 bg-white p-2 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                <div
+                    class="grid gap-2 sm:grid-cols-2 lg:grid-cols-6"
+                    role="tablist"
+                    aria-label="Sections des parametres entreprise"
+                >
+                    <button
+                        v-for="tab in tabs"
+                        :key="tab.id"
+                        type="button"
+                        role="tab"
+                        :id="`settings-tab-${tab.id}`"
+                        :aria-selected="activeTab === tab.id"
+                        :aria-controls="`settings-panel-${tab.id}`"
+                        class="flex h-full flex-col items-start rounded-sm border px-3 py-2 text-left text-xs transition"
+                        :class="activeTab === tab.id
+                            ? 'border-emerald-500 bg-emerald-50 text-emerald-800 shadow-sm dark:border-emerald-400/70 dark:bg-emerald-500/10 dark:text-emerald-200'
+                            : 'border-stone-200 bg-stone-50 text-stone-700 hover:bg-stone-100 dark:border-neutral-800 dark:bg-neutral-900/40 dark:text-neutral-200 dark:hover:bg-neutral-800'"
+                        @click="activeTab = tab.id"
+                    >
+                        <span class="text-sm font-semibold">{{ tab.label }}</span>
+                        <span
+                            class="text-[11px]"
+                            :class="activeTab === tab.id ? 'text-emerald-700/80 dark:text-emerald-200/70' : 'text-stone-500 dark:text-neutral-400'"
+                        >
+                            {{ tab.description }}
+                        </span>
+                    </button>
+                </div>
+            </div>
+
+            <div
+                v-show="activeTab === 'company'"
+                :id="`settings-panel-company`"
+                role="tabpanel"
+                :aria-labelledby="`settings-tab-company`"
+                class="flex flex-col bg-white border border-stone-200 shadow-sm rounded-sm overflow-hidden dark:bg-neutral-800 dark:border-neutral-700"
+            >
                 <div class="p-4 space-y-4">
                     <div>
                         <FloatingInput v-model="form.company_name" label="Nom de l'entreprise" />
@@ -723,6 +786,81 @@ const isPreferredDisabled = (key) => {
             <div class="flex flex-col bg-white border border-stone-200 shadow-sm rounded-sm overflow-hidden dark:bg-neutral-800 dark:border-neutral-700">
                 <div class="p-4 space-y-4">
                     <div>
+                        <h2 class="text-lg font-semibold text-stone-800 dark:text-neutral-100">Acces API</h2>
+                        <p class="mt-1 text-sm text-stone-600 dark:text-neutral-400">
+                            Genere des tokens publics ou prives pour connecter des outils externes.
+                        </p>
+                    </div>
+
+                    <div v-if="apiTokenPlain" class="rounded-sm border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-700">
+                        Nouveau token: <span class="font-semibold">{{ apiTokenPlain }}</span>
+                        <div class="mt-1 text-[11px]">Copiez ce token maintenant, il ne sera plus visible.</div>
+                    </div>
+
+                    <div v-if="apiTokenErrors.form" class="text-xs text-red-600">{{ apiTokenErrors.form[0] }}</div>
+
+                    <div class="space-y-3">
+                        <div v-if="!props.api_tokens.length" class="text-sm text-stone-500 dark:text-neutral-400">
+                            Aucun token pour le moment.
+                        </div>
+                        <div v-for="token in props.api_tokens" :key="token.id"
+                            class="rounded-sm border border-stone-200 p-3 text-xs text-stone-600 dark:border-neutral-700 dark:text-neutral-300">
+                            <div class="flex flex-wrap items-center justify-between gap-2">
+                                <div class="text-sm font-medium text-stone-800 dark:text-neutral-200">
+                                    {{ token.name }}
+                                </div>
+                                <button type="button"
+                                    class="text-xs font-semibold text-red-600 hover:text-red-700"
+                                    @click="revokeApiToken(token.id)">
+                                    Revoquer
+                                </button>
+                            </div>
+                            <div class="mt-2 grid grid-cols-1 md:grid-cols-3 gap-2">
+                                <div>Scopes: {{ formatAbilities(token.abilities) }}</div>
+                                <div>Creer: {{ formatTokenDate(token.created_at) }}</div>
+                                <div>Expire: {{ formatTokenDate(token.expires_at) }}</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="border-t border-stone-200 pt-4 dark:border-neutral-700">
+                        <h3 class="text-sm font-semibold text-stone-700 dark:text-neutral-200">Creer un token</h3>
+                        <div class="mt-3 grid grid-cols-1 md:grid-cols-3 gap-3">
+                            <div>
+                                <FloatingInput v-model="apiTokenForm.name" label="Nom du token" />
+                                <InputError class="mt-1" :message="apiTokenErrors.name?.[0]" />
+                            </div>
+                            <div>
+                                <label class="block text-xs text-stone-500 dark:text-neutral-400">Type</label>
+                                <select v-model="apiTokenForm.type"
+                                    class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
+                                    <option value="public">Public (lecture)</option>
+                                    <option value="private">Prive (lecture/ecriture)</option>
+                                </select>
+                                <InputError class="mt-1" :message="apiTokenErrors.type?.[0]" />
+                            </div>
+                            <div>
+                                <label class="block text-xs text-stone-500 dark:text-neutral-400">Expiration</label>
+                                <input type="date" v-model="apiTokenForm.expires_at"
+                                    class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200" />
+                                <InputError class="mt-1" :message="apiTokenErrors.expires_at?.[0]" />
+                            </div>
+                        </div>
+                        <div class="mt-3 flex justify-end">
+                            <button type="button"
+                                class="inline-flex items-center rounded-sm bg-green-600 px-3 py-2 text-xs font-semibold text-white hover:bg-green-700 disabled:opacity-60"
+                                :disabled="apiTokenSaving"
+                                @click="createApiToken">
+                                Generer
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex flex-col bg-white border border-stone-200 shadow-sm rounded-sm overflow-hidden dark:bg-neutral-800 dark:border-neutral-700 lg:col-span-2">
+                <div class="p-4 space-y-4">
+                    <div>
                         <h2 class="text-lg font-semibold text-stone-800 dark:text-neutral-100">Entrepots</h2>
                         <p class="mt-1 text-sm text-stone-600 dark:text-neutral-400">
                             Gere vos emplacements de stock et choisis un entrepot par defaut.
@@ -842,81 +980,6 @@ const isPreferredDisabled = (key) => {
                                 :disabled="warehouseSaving"
                                 @click="createWarehouse">
                                 Ajouter
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="flex flex-col bg-white border border-stone-200 shadow-sm rounded-sm overflow-hidden dark:bg-neutral-800 dark:border-neutral-700">
-                <div class="p-4 space-y-4">
-                    <div>
-                        <h2 class="text-lg font-semibold text-stone-800 dark:text-neutral-100">Acces API</h2>
-                        <p class="mt-1 text-sm text-stone-600 dark:text-neutral-400">
-                            Genere des tokens publics ou prives pour connecter des outils externes.
-                        </p>
-                    </div>
-
-                    <div v-if="apiTokenPlain" class="rounded-sm border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-700">
-                        Nouveau token: <span class="font-semibold">{{ apiTokenPlain }}</span>
-                        <div class="mt-1 text-[11px]">Copiez ce token maintenant, il ne sera plus visible.</div>
-                    </div>
-
-                    <div v-if="apiTokenErrors.form" class="text-xs text-red-600">{{ apiTokenErrors.form[0] }}</div>
-
-                    <div class="space-y-3">
-                        <div v-if="!props.api_tokens.length" class="text-sm text-stone-500 dark:text-neutral-400">
-                            Aucun token pour le moment.
-                        </div>
-                        <div v-for="token in props.api_tokens" :key="token.id"
-                            class="rounded-sm border border-stone-200 p-3 text-xs text-stone-600 dark:border-neutral-700 dark:text-neutral-300">
-                            <div class="flex flex-wrap items-center justify-between gap-2">
-                                <div class="text-sm font-medium text-stone-800 dark:text-neutral-200">
-                                    {{ token.name }}
-                                </div>
-                                <button type="button"
-                                    class="text-xs font-semibold text-red-600 hover:text-red-700"
-                                    @click="revokeApiToken(token.id)">
-                                    Revoquer
-                                </button>
-                            </div>
-                            <div class="mt-2 grid grid-cols-1 md:grid-cols-3 gap-2">
-                                <div>Scopes: {{ formatAbilities(token.abilities) }}</div>
-                                <div>Creer: {{ formatTokenDate(token.created_at) }}</div>
-                                <div>Expire: {{ formatTokenDate(token.expires_at) }}</div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="border-t border-stone-200 pt-4 dark:border-neutral-700">
-                        <h3 class="text-sm font-semibold text-stone-700 dark:text-neutral-200">Creer un token</h3>
-                        <div class="mt-3 grid grid-cols-1 md:grid-cols-3 gap-3">
-                            <div>
-                                <FloatingInput v-model="apiTokenForm.name" label="Nom du token" />
-                                <InputError class="mt-1" :message="apiTokenErrors.name?.[0]" />
-                            </div>
-                            <div>
-                                <label class="block text-xs text-stone-500 dark:text-neutral-400">Type</label>
-                                <select v-model="apiTokenForm.type"
-                                    class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
-                                    <option value="public">Public (lecture)</option>
-                                    <option value="private">Prive (lecture/ecriture)</option>
-                                </select>
-                                <InputError class="mt-1" :message="apiTokenErrors.type?.[0]" />
-                            </div>
-                            <div>
-                                <label class="block text-xs text-stone-500 dark:text-neutral-400">Expiration</label>
-                                <input type="date" v-model="apiTokenForm.expires_at"
-                                    class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200" />
-                                <InputError class="mt-1" :message="apiTokenErrors.expires_at?.[0]" />
-                            </div>
-                        </div>
-                        <div class="mt-3 flex justify-end">
-                            <button type="button"
-                                class="inline-flex items-center rounded-sm bg-green-600 px-3 py-2 text-xs font-semibold text-white hover:bg-green-700 disabled:opacity-60"
-                                :disabled="apiTokenSaving"
-                                @click="createApiToken">
-                                Generer
                             </button>
                         </div>
                     </div>

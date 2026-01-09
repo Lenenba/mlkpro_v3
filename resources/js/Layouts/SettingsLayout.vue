@@ -188,7 +188,7 @@ const navGroups = computed(() => {
     display: grid;
     gap: 18px;
     margin: 0 auto;
-    max-width: 1200px;
+    max-width: 1280px;
     padding: 12px;
 }
 

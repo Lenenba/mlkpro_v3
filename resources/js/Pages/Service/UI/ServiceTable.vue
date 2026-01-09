@@ -38,6 +38,7 @@ const filterForm = useForm({
 });
 
 const showAdvanced = ref(false);
+const isLoading = ref(false);
 
 const filterPayload = () => {
     const payload = {
@@ -68,10 +69,14 @@ const autoFilter = () => {
         clearTimeout(filterTimeout);
     }
     filterTimeout = setTimeout(() => {
+        isLoading.value = true;
         router.get(route('service.index'), filterPayload(), {
             preserveState: true,
             preserveScroll: true,
             replace: true,
+            onFinish: () => {
+                isLoading.value = false;
+            },
         });
     }, 300);
 };
@@ -284,6 +289,20 @@ const destroyService = (service) => {
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-stone-200 dark:divide-neutral-700">
+                        <template v-if="isLoading">
+                            <tr v-for="row in 6" :key="`skeleton-${row}`">
+                                <td colspan="7" class="px-4 py-3">
+                                    <div class="grid grid-cols-5 gap-4 animate-pulse">
+                                        <div class="h-3 w-32 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                                        <div class="h-3 w-24 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                                        <div class="h-3 w-24 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                                        <div class="h-3 w-20 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                                        <div class="h-3 w-16 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                                    </div>
+                                </td>
+                            </tr>
+                        </template>
+                        <template v-else>
                         <tr v-for="service in services.data" :key="service.id">
                             <td class="size-px whitespace-nowrap px-5 py-2">
                                 <div class="flex flex-col">
@@ -351,6 +370,7 @@ const destroyService = (service) => {
                                 No services found.
                             </td>
                         </tr>
+                        </template>
                     </tbody>
                 </table>
             </div>

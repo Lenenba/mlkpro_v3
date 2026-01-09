@@ -276,7 +276,7 @@ watch(
     <Head title="Facturation" />
 
     <SettingsLayout active="billing">
-        <div class="w-full max-w-4xl space-y-5">
+        <div class="w-full max-w-6xl space-y-4">
             <div class="flex flex-col bg-white border border-stone-200 shadow-sm rounded-sm overflow-hidden dark:bg-neutral-800 dark:border-neutral-700">
                 <div class="p-4 space-y-4">
                     <div class="flex flex-wrap items-start justify-between gap-4">

@@ -101,7 +101,7 @@ const submit = () => {
     <Head title="Notifications" />
 
     <SettingsLayout active="notifications">
-        <div class="w-full max-w-3xl space-y-5">
+        <div class="w-full max-w-5xl space-y-4">
             <div class="flex flex-wrap items-center justify-between gap-3">
                 <div>
                     <h1 class="text-xl font-semibold text-stone-800 dark:text-neutral-100">
@@ -121,7 +121,7 @@ const submit = () => {
                 </button>
             </div>
 
-            <div class="grid gap-4">
+            <div class="grid gap-4 lg:grid-cols-2 items-start">
                 <div class="rounded-sm border border-stone-200 bg-white shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
                     <div class="border-b border-stone-200 px-4 py-3 dark:border-neutral-700">
                         <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">Canaux</h2>
@@ -168,7 +168,7 @@ const submit = () => {
                     </div>
                 </div>
 
-                <div class="rounded-sm border border-stone-200 bg-white shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                <div class="rounded-sm border border-stone-200 bg-white shadow-sm dark:border-neutral-700 dark:bg-neutral-900 lg:col-span-2">
                     <div class="border-b border-stone-200 px-4 py-3 dark:border-neutral-700">
                         <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">Accessibilite</h2>
                         <p class="mt-1 text-xs text-stone-500 dark:text-neutral-400">

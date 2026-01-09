@@ -39,6 +39,7 @@ const filterForm = useForm({
 
 const showAdvanced = ref(false);
 const newQuoteCustomerId = ref('');
+const isLoading = ref(false);
 
 const filterPayload = () => {
     const payload = {
@@ -71,10 +72,14 @@ const autoFilter = () => {
         clearTimeout(filterTimeout);
     }
     filterTimeout = setTimeout(() => {
+        isLoading.value = true;
         router.get(route('quote.index'), filterPayload(), {
             preserveState: true,
             preserveScroll: true,
             replace: true,
+            onFinish: () => {
+                isLoading.value = false;
+            },
         });
     }, 300);
 };
@@ -309,6 +314,21 @@ const startQuote = () => {
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-stone-200 dark:divide-neutral-700">
+                    <template v-if="isLoading">
+                        <tr v-for="row in 6" :key="`skeleton-${row}`">
+                            <td colspan="9" class="px-4 py-3">
+                                <div class="grid grid-cols-6 gap-4 animate-pulse">
+                                    <div class="h-3 w-32 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                                    <div class="h-3 w-28 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                                    <div class="h-3 w-24 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                                    <div class="h-3 w-20 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                                    <div class="h-3 w-16 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                                    <div class="h-3 w-20 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                                </div>
+                            </td>
+                        </tr>
+                    </template>
+                    <template v-else>
                     <tr v-for="quote in quotes.data" :key="quote.id">
                         <td class="px-4 py-3">
                             <Link :href="route('customer.quote.show', quote)"
@@ -387,6 +407,7 @@ const startQuote = () => {
                             </div>
                         </td>
                     </tr>
+                    </template>
                 </tbody>
             </table>
         </div>
@@ -437,5 +458,4 @@ const startQuote = () => {
         </div>
     </div>
 </template>
-
 

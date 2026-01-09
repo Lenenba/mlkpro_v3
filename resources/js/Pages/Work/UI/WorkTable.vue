@@ -30,6 +30,7 @@ const filterForm = useForm({
 });
 
 const showAdvanced = ref(false);
+const isLoading = ref(false);
 
 const statusOptions = [
     { value: '', label: 'Tous les statuts' },
@@ -92,10 +93,14 @@ const autoFilter = () => {
         clearTimeout(filterTimeout);
     }
     filterTimeout = setTimeout(() => {
+        isLoading.value = true;
         router.get(route('work.index'), filterPayload(), {
             preserveState: true,
             preserveScroll: true,
             replace: true,
+            onFinish: () => {
+                isLoading.value = false;
+            },
         });
     }, 300);
 };
@@ -277,6 +282,21 @@ const createInvoice = (work) => {
                     </thead>
 
                     <tbody class="divide-y divide-stone-200 dark:divide-neutral-700">
+                        <template v-if="isLoading">
+                            <tr v-for="row in 6" :key="`skeleton-${row}`">
+                                <td colspan="8" class="px-4 py-3">
+                                    <div class="grid grid-cols-6 gap-4 animate-pulse">
+                                        <div class="h-3 w-32 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                                        <div class="h-3 w-28 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                                        <div class="h-3 w-24 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                                        <div class="h-3 w-20 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                                        <div class="h-3 w-16 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                                        <div class="h-3 w-20 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                                    </div>
+                                </td>
+                            </tr>
+                        </template>
+                        <template v-else>
                         <tr v-for="work in works.data" :key="work.id">
                             <td class="size-px whitespace-nowrap px-4 py-2 text-start">
                                 <Link :href="route('work.show', work.id)" class="flex flex-col hover:underline">
@@ -371,6 +391,7 @@ const createInvoice = (work) => {
                                 </div>
                             </td>
                         </tr>
+                        </template>
                     </tbody>
                 </table>
             </div>
