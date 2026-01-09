@@ -1184,21 +1184,31 @@ class LaunchSeeder extends Seeder
             '1497366216548-37526070297c',
         ];
 
-        $productImageUrl = function (array $data) use ($unsplashPhotoIds): string {
-            $seed = trim(($data['sku'] ?? '') . ' ' . ($data['name'] ?? '') . ' ' . ($data['category'] ?? 'product'));
+        $resolveSeededPhotoList = function (string $seed, int $count = 4, int $width = 900) use ($unsplashPhotoIds): array {
+            $seed = trim($seed);
             $hash = (int) sprintf('%u', crc32($seed));
-            $photoId = $unsplashPhotoIds[$hash % count($unsplashPhotoIds)];
-            return "https://images.unsplash.com/photo-{$photoId}?auto=format&fit=crop&w=800&q=80";
+            $total = count($unsplashPhotoIds);
+            $limit = max(1, min($count, $total));
+            $urls = [];
+
+            for ($i = 0; $i < $limit; $i += 1) {
+                $photoId = $unsplashPhotoIds[($hash + $i) % $total];
+                $urls[] = "https://images.unsplash.com/photo-{$photoId}?auto=format&fit=crop&w={$width}&q=80";
+            }
+
+            return array_values(array_unique($urls));
         };
 
         $productSeedMap = $productSeedData->keyBy('name');
 
-        $productProducts = $productSeedData->map(function ($data) use ($productOwner, $productCategory, $productCategoryMap, $productImageUrl) {
+        $productProducts = $productSeedData->map(function ($data) use ($productOwner, $productCategory, $productCategoryMap, $resolveSeededPhotoList) {
             $price = (float) $data['price'];
             $cost = (float) $data['cost_price'];
             $margin = $price > 0 ? round((($price - $cost) / $price) * 100, 2) : 0;
             $category = $productCategoryMap[$data['category']] ?? $productCategory;
-            $imageUrl = $productImageUrl($data);
+            $seedKey = trim(($data['sku'] ?? '') . ' ' . ($data['name'] ?? '') . ' ' . ($data['category'] ?? 'product'));
+            $imageUrls = $resolveSeededPhotoList($seedKey, 4, 900);
+            $imageUrl = $imageUrls[0] ?? null;
 
             $product = Product::updateOrCreate(
                 [
@@ -1225,16 +1235,21 @@ class LaunchSeeder extends Seeder
                 ]
             );
 
-            ProductImage::updateOrCreate(
-                [
-                    'product_id' => $product->id,
-                    'is_primary' => true,
-                ],
-                [
-                    'path' => $imageUrl,
-                    'sort_order' => 1,
-                ]
-            );
+            if (!empty($imageUrls)) {
+                ProductImage::where('product_id', $product->id)->update(['is_primary' => false]);
+                foreach ($imageUrls as $index => $url) {
+                    ProductImage::updateOrCreate(
+                        [
+                            'product_id' => $product->id,
+                            'path' => $url,
+                        ],
+                        [
+                            'is_primary' => $index === 0,
+                            'sort_order' => $index,
+                        ]
+                    );
+                }
+            }
 
             return $product;
         });
@@ -1503,6 +1518,9 @@ class LaunchSeeder extends Seeder
                 'salutation' => 'Mr',
                 'billing_same_as_physical' => true,
                 'discount_rate' => 5,
+                'tags' => ['vip', 'delivery', 'repeat'],
+                'logo' => $resolveSeededPhotoList('product-buyer@example.com-logo', 1, 320)[0] ?? null,
+                'header_image' => $resolveSeededPhotoList('product-buyer@example.com-header', 1, 1200)[0] ?? null,
             ]
         );
 
@@ -1531,6 +1549,21 @@ class LaunchSeeder extends Seeder
                 'city' => 'Toronto',
                 'state' => 'ON',
                 'zip' => 'M5V2T6',
+                'country' => 'Canada',
+            ]
+        );
+
+        Property::updateOrCreate(
+            [
+                'customer_id' => $productCustomer->id,
+                'type' => 'billing',
+                'street1' => '99 Billing Ave',
+            ],
+            [
+                'is_default' => false,
+                'city' => 'Toronto',
+                'state' => 'ON',
+                'zip' => 'M4B1B4',
                 'country' => 'Canada',
             ]
         );
@@ -2332,6 +2365,9 @@ class LaunchSeeder extends Seeder
                 'salutation' => 'Mrs',
                 'billing_same_as_physical' => true,
                 'discount_rate' => 2.5,
+                'tags' => ['retail', 'walk-in'],
+                'logo' => $resolveSeededPhotoList('product-retail@example.com-logo', 1, 320)[0] ?? null,
+                'header_image' => $resolveSeededPhotoList('product-retail@example.com-header', 1, 1200)[0] ?? null,
             ]
         );
 
@@ -2349,6 +2385,39 @@ class LaunchSeeder extends Seeder
                 'salutation' => 'Mr',
                 'billing_same_as_physical' => true,
                 'discount_rate' => 8,
+                'tags' => ['wholesale', 'b2b'],
+                'logo' => $resolveSeededPhotoList('product-wholesale@example.com-logo', 1, 320)[0] ?? null,
+                'header_image' => $resolveSeededPhotoList('product-wholesale@example.com-header', 1, 1200)[0] ?? null,
+            ]
+        );
+
+        Property::updateOrCreate(
+            [
+                'customer_id' => $productCustomerRetail->id,
+                'type' => 'physical',
+                'street1' => '10 Retail Row',
+            ],
+            [
+                'is_default' => true,
+                'city' => 'Toronto',
+                'state' => 'ON',
+                'zip' => 'M5V1K4',
+                'country' => 'Canada',
+            ]
+        );
+
+        Property::updateOrCreate(
+            [
+                'customer_id' => $productCustomerWholesale->id,
+                'type' => 'physical',
+                'street1' => '88 Supply Rd',
+            ],
+            [
+                'is_default' => true,
+                'city' => 'Ottawa',
+                'state' => 'ON',
+                'zip' => 'K1A0B1',
+                'country' => 'Canada',
             ]
         );
 

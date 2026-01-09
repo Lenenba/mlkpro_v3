@@ -16,4 +16,130 @@
     max-width: 100%;
     height: auto;
   }
+
+  html[data-text-size='sm'] {
+    font-size: 14px;
+  }
+
+  html[data-text-size='md'] {
+    font-size: 16px;
+  }
+
+  html[data-text-size='lg'] {
+    font-size: 18px;
+  }
+
+  html[data-contrast='high'],
+  html.a11y-high-contrast {
+    --a11y-hc-bg: #f8fafc;
+    --a11y-hc-surface: #ffffff;
+    --a11y-hc-card: #eef2f7;
+    --a11y-hc-border: #475569;
+    --a11y-hc-text: #0f172a;
+    --a11y-hc-muted: #334155;
+  }
+
+  html.dark[data-contrast='high'],
+  html.dark.a11y-high-contrast {
+    --a11y-hc-bg: #0b0f14;
+    --a11y-hc-surface: #111821;
+    --a11y-hc-card: #0f141b;
+    --a11y-hc-border: #5b6b7f;
+    --a11y-hc-text: #f8fafc;
+    --a11y-hc-muted: #cbd5e1;
+  }
+
+  html[data-contrast='high'] body,
+  html.a11y-high-contrast body {
+    background-color: var(--a11y-hc-bg);
+    color: var(--a11y-hc-text);
+  }
+
+  html[data-contrast='high'] .bg-stone-50,
+  html[data-contrast='high'] .bg-neutral-950,
+  html.a11y-high-contrast .bg-stone-50,
+  html.a11y-high-contrast .bg-neutral-950 {
+    background-color: var(--a11y-hc-bg) !important;
+  }
+
+  html[data-contrast='high'] .bg-white,
+  html[data-contrast='high'] .bg-stone-100,
+  html[data-contrast='high'] .bg-stone-200,
+  html[data-contrast='high'] .bg-neutral-900,
+  html[data-contrast='high'] .bg-neutral-800,
+  html[data-contrast='high'] .bg-neutral-700,
+  html.a11y-high-contrast .bg-white,
+  html.a11y-high-contrast .bg-stone-100,
+  html.a11y-high-contrast .bg-stone-200,
+  html.a11y-high-contrast .bg-neutral-900,
+  html.a11y-high-contrast .bg-neutral-800,
+  html.a11y-high-contrast .bg-neutral-700 {
+    background-color: var(--a11y-hc-surface) !important;
+  }
+
+  html[data-contrast='high'] .bg-stone-300,
+  html.a11y-high-contrast .bg-stone-300 {
+    background-color: var(--a11y-hc-card) !important;
+  }
+
+  html[data-contrast='high'] .text-stone-900,
+  html[data-contrast='high'] .text-stone-800,
+  html[data-contrast='high'] .text-stone-700,
+  html[data-contrast='high'] .text-stone-600,
+  html[data-contrast='high'] .text-neutral-100,
+  html[data-contrast='high'] .text-neutral-200,
+  html[data-contrast='high'] .text-neutral-300,
+  html.a11y-high-contrast .text-stone-900,
+  html.a11y-high-contrast .text-stone-800,
+  html.a11y-high-contrast .text-stone-700,
+  html.a11y-high-contrast .text-stone-600,
+  html.a11y-high-contrast .text-neutral-100,
+  html.a11y-high-contrast .text-neutral-200,
+  html.a11y-high-contrast .text-neutral-300 {
+    color: var(--a11y-hc-text) !important;
+  }
+
+  html[data-contrast='high'] .text-stone-500,
+  html[data-contrast='high'] .text-stone-400,
+  html[data-contrast='high'] .text-neutral-400,
+  html[data-contrast='high'] .text-neutral-500,
+  html.a11y-high-contrast .text-stone-500,
+  html.a11y-high-contrast .text-stone-400,
+  html.a11y-high-contrast .text-neutral-400,
+  html.a11y-high-contrast .text-neutral-500 {
+    color: var(--a11y-hc-muted) !important;
+  }
+
+  html[data-contrast='high'] .border-stone-100,
+  html[data-contrast='high'] .border-stone-200,
+  html[data-contrast='high'] .border-stone-300,
+  html[data-contrast='high'] .border-neutral-700,
+  html[data-contrast='high'] .border-neutral-800,
+  html.a11y-high-contrast .border-stone-100,
+  html.a11y-high-contrast .border-stone-200,
+  html.a11y-high-contrast .border-stone-300,
+  html.a11y-high-contrast .border-neutral-700,
+  html.a11y-high-contrast .border-neutral-800 {
+    border-color: var(--a11y-hc-border) !important;
+  }
+
+  html.a11y-reduce-motion *,
+  html.a11y-reduce-motion *::before,
+  html.a11y-reduce-motion *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.001ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.001ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
 }

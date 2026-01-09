@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue';
 import { Head, router, useForm } from '@inertiajs/vue3';
 import axios from 'axios';
 import SettingsLayout from '@/Layouts/SettingsLayout.vue';
+import SettingsTabs from '@/Components/SettingsTabs.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import InputError from '@/Components/InputError.vue';
 import DropzoneInput from '@/Components/DropzoneInput.vue';
@@ -35,6 +36,10 @@ const props = defineProps({
     api_tokens: {
         type: Array,
         default: () => [],
+    },
+    preferred_limit: {
+        type: Number,
+        default: 4,
     },
 });
 
@@ -138,6 +143,8 @@ const resolveSelectValue = (value, options) => {
     return { select: '__other__', other: trimmed };
 };
 
+const baseSuppliers = computed(() => (props.suppliers || []).filter((supplier) => !supplier.is_custom));
+const initialCustomSuppliers = (props.suppliers || []).filter((supplier) => supplier.is_custom);
 const supplierKeys = (props.suppliers || []).map((supplier) => supplier.key);
 const initialEnabledSuppliers = props.supplier_preferences?.enabled?.length
     ? props.supplier_preferences.enabled
@@ -167,6 +174,7 @@ const form = useForm({
     fulfillment_pickup_notes: props.company.fulfillment?.pickup_notes ?? '',
     supplier_enabled: initialEnabledSuppliers,
     supplier_preferred: initialPreferredSuppliers,
+    custom_suppliers: initialCustomSuppliers,
 });
 
 const categoryForm = useForm({
@@ -419,6 +427,77 @@ watch(
     { deep: true }
 );
 
+const suppliersList = computed(() => {
+    const list = [...(baseSuppliers.value || []), ...(form.custom_suppliers || [])];
+    const byKey = {};
+    list.forEach((supplier) => {
+        if (!supplier?.key) {
+            return;
+        }
+        byKey[supplier.key] = supplier;
+    });
+    return Object.values(byKey);
+});
+
+const customSupplierForm = ref({
+    name: '',
+    url: '',
+});
+
+const canAddCustomSupplier = computed(() => {
+    return customSupplierForm.value.name.trim().length > 0
+        && customSupplierForm.value.url.trim().length > 0;
+});
+
+const normalizeSupplierUrl = (value) => {
+    const trimmed = String(value || '').trim();
+    if (!trimmed) {
+        return '';
+    }
+    if (/^https?:\/\//i.test(trimmed)) {
+        return trimmed;
+    }
+    return `https://${trimmed}`;
+};
+
+const buildCustomSupplierKey = () => {
+    return `custom_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+};
+
+const addCustomSupplier = () => {
+    if (!canAddCustomSupplier.value) {
+        return;
+    }
+
+    let key = buildCustomSupplierKey();
+    while (suppliersList.value.some((supplier) => supplier.key === key)) {
+        key = buildCustomSupplierKey();
+    }
+
+    const name = customSupplierForm.value.name.trim();
+    const url = normalizeSupplierUrl(customSupplierForm.value.url);
+    const nextSupplier = {
+        key,
+        name,
+        url,
+        is_custom: true,
+    };
+
+    form.custom_suppliers = [...(form.custom_suppliers || []), nextSupplier];
+
+    if (!form.supplier_enabled.includes(key)) {
+        form.supplier_enabled = [...form.supplier_enabled, key];
+    }
+
+    customSupplierForm.value = { name: '', url: '' };
+};
+
+const removeCustomSupplier = (key) => {
+    form.custom_suppliers = (form.custom_suppliers || []).filter((supplier) => supplier.key !== key);
+    form.supplier_enabled = (form.supplier_enabled || []).filter((id) => id !== key);
+    form.supplier_preferred = (form.supplier_preferred || []).filter((id) => id !== key);
+};
+
 const submit = () => {
     const normalizeText = (value) => {
         const trimmed = String(value || '').trim();
@@ -437,6 +516,8 @@ const submit = () => {
                 company_province: normalizeText(province),
                 company_city: normalizeText(city),
             };
+
+            payload.custom_suppliers = data.custom_suppliers || [];
 
             payload.company_fulfillment = {
                 delivery_enabled: Boolean(data.fulfillment_delivery_enabled),
@@ -522,21 +603,51 @@ const usageStatusClass = (status) => {
 
 const isProductCompany = computed(() => form.company_type === 'products');
 
-const preferredLimit = 2;
+const preferredLimit = computed(() => {
+    const limit = Number(props.preferred_limit) || 4;
+    return limit > 0 ? limit : 4;
+});
 const isPreferredDisabled = (key) => {
     if (form.supplier_preferred.includes(key)) {
         return false;
     }
-    return form.supplier_preferred.length >= preferredLimit;
+    return form.supplier_preferred.length >= preferredLimit.value;
 };
+
+const tabPrefix = 'settings-company';
+const tabs = [
+    { id: 'company', label: 'Entreprise', description: 'Identite et activite' },
+    { id: 'suppliers', label: 'Fournisseurs', description: 'Plateformes actives' },
+    { id: 'categories', label: 'Categories', description: 'Services et produits' },
+    { id: 'warehouses', label: 'Entrepots', description: 'Emplacements de stock' },
+    { id: 'api', label: 'Acces API', description: 'Tokens et permissions' },
+    { id: 'limits', label: 'Limites', description: 'Consommation du forfait' },
+];
+
+const resolveInitialTab = () => {
+    if (typeof window === 'undefined') {
+        return tabs[0].id;
+    }
+    const stored = window.sessionStorage.getItem(`${tabPrefix}-tab`);
+    return tabs.some((tab) => tab.id === stored) ? stored : tabs[0].id;
+};
+
+const activeTab = ref(resolveInitialTab());
+
+watch(activeTab, (value) => {
+    if (typeof window === 'undefined') {
+        return;
+    }
+    window.sessionStorage.setItem(`${tabPrefix}-tab`, value);
+});
 </script>
 
 <template>
     <Head title="Entreprise" />
 
-    <SettingsLayout active="company">
-        <div class="w-full max-w-4xl space-y-5">
-            <div class="flex items-center justify-between">
+    <SettingsLayout active="company" content-class="w-full max-w-6xl">
+        <div class="w-full space-y-4">
+            <div class="flex flex-wrap items-center justify-between gap-3">
                 <div>
                     <h1 class="text-xl font-semibold text-stone-800 dark:text-neutral-100">Parametres entreprise</h1>
                     <p class="mt-1 text-sm text-stone-600 dark:text-neutral-400">
@@ -545,8 +656,27 @@ const isPreferredDisabled = (key) => {
                 </div>
             </div>
 
-            <div class="flex flex-col bg-white border border-stone-200 shadow-sm rounded-sm overflow-hidden dark:bg-neutral-800 dark:border-neutral-700">
+            <SettingsTabs
+                v-model="activeTab"
+                :tabs="tabs"
+                :id-prefix="tabPrefix"
+                aria-label="Sections des parametres entreprise"
+            />
+
+            <div
+                v-show="activeTab === 'company'"
+                :id="`${tabPrefix}-panel-company`"
+                role="tabpanel"
+                :aria-labelledby="`${tabPrefix}-tab-company`"
+                class="flex flex-col bg-white border border-stone-200 shadow-sm rounded-sm overflow-hidden dark:bg-neutral-800 dark:border-neutral-700"
+            >
                 <div class="p-4 space-y-4">
+                    <div>
+                        <h2 class="text-lg font-semibold text-stone-800 dark:text-neutral-100">Profil entreprise</h2>
+                        <p class="mt-1 text-sm text-stone-600 dark:text-neutral-400">
+                            Identite, adresse et activite de la societe.
+                        </p>
+                    </div>
                     <div>
                         <FloatingInput v-model="form.company_name" label="Nom de l'entreprise" />
                         <InputError class="mt-1" :message="form.errors.company_name" />
@@ -688,7 +818,13 @@ const isPreferredDisabled = (key) => {
                 </div>
             </div>
 
-            <div class="flex flex-col bg-white border border-stone-200 shadow-sm rounded-sm overflow-hidden dark:bg-neutral-800 dark:border-neutral-700">
+            <div
+                v-show="activeTab === 'categories'"
+                :id="`${tabPrefix}-panel-categories`"
+                role="tabpanel"
+                :aria-labelledby="`${tabPrefix}-tab-categories`"
+                class="flex flex-col bg-white border border-stone-200 shadow-sm rounded-sm overflow-hidden dark:bg-neutral-800 dark:border-neutral-700"
+            >
                 <div class="p-4 space-y-4">
                     <div>
                         <h2 class="text-lg font-semibold text-stone-800 dark:text-neutral-100">Categories de services / produits</h2>
@@ -720,7 +856,94 @@ const isPreferredDisabled = (key) => {
                 </div>
             </div>
 
-            <div class="flex flex-col bg-white border border-stone-200 shadow-sm rounded-sm overflow-hidden dark:bg-neutral-800 dark:border-neutral-700">
+            <div
+                v-show="activeTab === 'api'"
+                :id="`${tabPrefix}-panel-api`"
+                role="tabpanel"
+                :aria-labelledby="`${tabPrefix}-tab-api`"
+                class="flex flex-col bg-white border border-stone-200 shadow-sm rounded-sm overflow-hidden dark:bg-neutral-800 dark:border-neutral-700"
+            >
+                <div class="p-4 space-y-4">
+                    <div>
+                        <h2 class="text-lg font-semibold text-stone-800 dark:text-neutral-100">Acces API</h2>
+                        <p class="mt-1 text-sm text-stone-600 dark:text-neutral-400">
+                            Genere des tokens publics ou prives pour connecter des outils externes.
+                        </p>
+                    </div>
+
+                    <div v-if="apiTokenPlain" class="rounded-sm border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-700">
+                        Nouveau token: <span class="font-semibold">{{ apiTokenPlain }}</span>
+                        <div class="mt-1 text-[11px]">Copiez ce token maintenant, il ne sera plus visible.</div>
+                    </div>
+
+                    <div v-if="apiTokenErrors.form" class="text-xs text-red-600">{{ apiTokenErrors.form[0] }}</div>
+
+                    <div class="space-y-3">
+                        <div v-if="!props.api_tokens.length" class="text-sm text-stone-500 dark:text-neutral-400">
+                            Aucun token pour le moment.
+                        </div>
+                        <div v-for="token in props.api_tokens" :key="token.id"
+                            class="rounded-sm border border-stone-200 p-3 text-xs text-stone-600 dark:border-neutral-700 dark:text-neutral-300">
+                            <div class="flex flex-wrap items-center justify-between gap-2">
+                                <div class="text-sm font-medium text-stone-800 dark:text-neutral-200">
+                                    {{ token.name }}
+                                </div>
+                                <button type="button"
+                                    class="text-xs font-semibold text-red-600 hover:text-red-700"
+                                    @click="revokeApiToken(token.id)">
+                                    Revoquer
+                                </button>
+                            </div>
+                            <div class="mt-2 grid grid-cols-1 md:grid-cols-3 gap-2">
+                                <div>Scopes: {{ formatAbilities(token.abilities) }}</div>
+                                <div>Creer: {{ formatTokenDate(token.created_at) }}</div>
+                                <div>Expire: {{ formatTokenDate(token.expires_at) }}</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="border-t border-stone-200 pt-4 dark:border-neutral-700">
+                        <h3 class="text-sm font-semibold text-stone-700 dark:text-neutral-200">Creer un token</h3>
+                        <div class="mt-3 grid grid-cols-1 md:grid-cols-3 gap-3">
+                            <div>
+                                <FloatingInput v-model="apiTokenForm.name" label="Nom du token" />
+                                <InputError class="mt-1" :message="apiTokenErrors.name?.[0]" />
+                            </div>
+                            <div>
+                                <label class="block text-xs text-stone-500 dark:text-neutral-400">Type</label>
+                                <select v-model="apiTokenForm.type"
+                                    class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
+                                    <option value="public">Public (lecture)</option>
+                                    <option value="private">Prive (lecture/ecriture)</option>
+                                </select>
+                                <InputError class="mt-1" :message="apiTokenErrors.type?.[0]" />
+                            </div>
+                            <div>
+                                <label class="block text-xs text-stone-500 dark:text-neutral-400">Expiration</label>
+                                <input type="date" v-model="apiTokenForm.expires_at"
+                                    class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200" />
+                                <InputError class="mt-1" :message="apiTokenErrors.expires_at?.[0]" />
+                            </div>
+                        </div>
+                        <div class="mt-3 flex justify-end">
+                            <button type="button"
+                                class="inline-flex items-center rounded-sm bg-green-600 px-3 py-2 text-xs font-semibold text-white hover:bg-green-700 disabled:opacity-60"
+                                :disabled="apiTokenSaving"
+                                @click="createApiToken">
+                                Generer
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div
+                v-show="activeTab === 'warehouses'"
+                :id="`${tabPrefix}-panel-warehouses`"
+                role="tabpanel"
+                :aria-labelledby="`${tabPrefix}-tab-warehouses`"
+                class="flex flex-col bg-white border border-stone-200 shadow-sm rounded-sm overflow-hidden dark:bg-neutral-800 dark:border-neutral-700"
+            >
                 <div class="p-4 space-y-4">
                     <div>
                         <h2 class="text-lg font-semibold text-stone-800 dark:text-neutral-100">Entrepots</h2>
@@ -848,95 +1071,26 @@ const isPreferredDisabled = (key) => {
                 </div>
             </div>
 
-            <div class="flex flex-col bg-white border border-stone-200 shadow-sm rounded-sm overflow-hidden dark:bg-neutral-800 dark:border-neutral-700">
-                <div class="p-4 space-y-4">
-                    <div>
-                        <h2 class="text-lg font-semibold text-stone-800 dark:text-neutral-100">Acces API</h2>
-                        <p class="mt-1 text-sm text-stone-600 dark:text-neutral-400">
-                            Genere des tokens publics ou prives pour connecter des outils externes.
-                        </p>
-                    </div>
-
-                    <div v-if="apiTokenPlain" class="rounded-sm border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-700">
-                        Nouveau token: <span class="font-semibold">{{ apiTokenPlain }}</span>
-                        <div class="mt-1 text-[11px]">Copiez ce token maintenant, il ne sera plus visible.</div>
-                    </div>
-
-                    <div v-if="apiTokenErrors.form" class="text-xs text-red-600">{{ apiTokenErrors.form[0] }}</div>
-
-                    <div class="space-y-3">
-                        <div v-if="!props.api_tokens.length" class="text-sm text-stone-500 dark:text-neutral-400">
-                            Aucun token pour le moment.
-                        </div>
-                        <div v-for="token in props.api_tokens" :key="token.id"
-                            class="rounded-sm border border-stone-200 p-3 text-xs text-stone-600 dark:border-neutral-700 dark:text-neutral-300">
-                            <div class="flex flex-wrap items-center justify-between gap-2">
-                                <div class="text-sm font-medium text-stone-800 dark:text-neutral-200">
-                                    {{ token.name }}
-                                </div>
-                                <button type="button"
-                                    class="text-xs font-semibold text-red-600 hover:text-red-700"
-                                    @click="revokeApiToken(token.id)">
-                                    Revoquer
-                                </button>
-                            </div>
-                            <div class="mt-2 grid grid-cols-1 md:grid-cols-3 gap-2">
-                                <div>Scopes: {{ formatAbilities(token.abilities) }}</div>
-                                <div>Creer: {{ formatTokenDate(token.created_at) }}</div>
-                                <div>Expire: {{ formatTokenDate(token.expires_at) }}</div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="border-t border-stone-200 pt-4 dark:border-neutral-700">
-                        <h3 class="text-sm font-semibold text-stone-700 dark:text-neutral-200">Creer un token</h3>
-                        <div class="mt-3 grid grid-cols-1 md:grid-cols-3 gap-3">
-                            <div>
-                                <FloatingInput v-model="apiTokenForm.name" label="Nom du token" />
-                                <InputError class="mt-1" :message="apiTokenErrors.name?.[0]" />
-                            </div>
-                            <div>
-                                <label class="block text-xs text-stone-500 dark:text-neutral-400">Type</label>
-                                <select v-model="apiTokenForm.type"
-                                    class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
-                                    <option value="public">Public (lecture)</option>
-                                    <option value="private">Prive (lecture/ecriture)</option>
-                                </select>
-                                <InputError class="mt-1" :message="apiTokenErrors.type?.[0]" />
-                            </div>
-                            <div>
-                                <label class="block text-xs text-stone-500 dark:text-neutral-400">Expiration</label>
-                                <input type="date" v-model="apiTokenForm.expires_at"
-                                    class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200" />
-                                <InputError class="mt-1" :message="apiTokenErrors.expires_at?.[0]" />
-                            </div>
-                        </div>
-                        <div class="mt-3 flex justify-end">
-                            <button type="button"
-                                class="inline-flex items-center rounded-sm bg-green-600 px-3 py-2 text-xs font-semibold text-white hover:bg-green-700 disabled:opacity-60"
-                                :disabled="apiTokenSaving"
-                                @click="createApiToken">
-                                Generer
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="flex flex-col bg-white border border-stone-200 shadow-sm rounded-sm overflow-hidden dark:bg-neutral-800 dark:border-neutral-700">
+            <div
+                v-show="activeTab === 'suppliers'"
+                :id="`${tabPrefix}-panel-suppliers`"
+                role="tabpanel"
+                :aria-labelledby="`${tabPrefix}-tab-suppliers`"
+                class="flex flex-col bg-white border border-stone-200 shadow-sm rounded-sm overflow-hidden dark:bg-neutral-800 dark:border-neutral-700"
+            >
                 <div class="p-4 space-y-4">
                     <div>
                         <h2 class="text-lg font-semibold text-stone-800 dark:text-neutral-100">Fournisseurs (Canada)</h2>
                         <p class="mt-1 text-sm text-stone-600 dark:text-neutral-400">
-                            Choisissez vos plateformes actives et jusqu a 2 fournisseurs preferes.
+                            Choisissez vos plateformes actives et jusqu a {{ preferredLimit }} fournisseurs preferes.
                         </p>
                     </div>
 
-                    <div v-if="!suppliers.length" class="text-sm text-stone-500 dark:text-neutral-400">
+                    <div v-if="!suppliersList.length" class="text-sm text-stone-500 dark:text-neutral-400">
                         Aucun fournisseur disponible pour le moment.
                     </div>
                     <div v-else class="space-y-3">
-                        <div v-for="supplier in suppliers" :key="supplier.key"
+                        <div v-for="supplier in suppliersList" :key="supplier.key"
                             class="flex flex-col gap-2 rounded-sm border border-stone-200 p-3 text-sm text-stone-700 dark:border-neutral-700 dark:text-neutral-200">
                             <div class="flex flex-wrap items-center justify-between gap-3">
                                 <div class="flex items-center gap-2">
@@ -946,11 +1100,22 @@ const isPreferredDisabled = (key) => {
                                         v-model="form.supplier_enabled"
                                     />
                                     <span class="font-medium">{{ supplier.name }}</span>
+                                    <span v-if="supplier.is_custom"
+                                        class="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-500/10 dark:text-amber-300">
+                                        Personnalise
+                                    </span>
                                 </div>
-                                <a v-if="supplier.url" :href="supplier.url" target="_blank" rel="noopener"
-                                    class="text-xs text-green-700 hover:underline dark:text-green-400">
-                                    Visiter le site
-                                </a>
+                                <div class="flex items-center gap-2">
+                                    <a v-if="supplier.url" :href="supplier.url" target="_blank" rel="noopener"
+                                        class="text-xs text-green-700 hover:underline dark:text-green-400">
+                                        Visiter le site
+                                    </a>
+                                    <button v-if="supplier.is_custom" type="button"
+                                        class="text-xs font-semibold text-red-600 hover:text-red-700"
+                                        @click="removeCustomSupplier(supplier.key)">
+                                        Supprimer
+                                    </button>
+                                </div>
                             </div>
                             <div class="flex flex-wrap items-center gap-3 text-xs text-stone-500 dark:text-neutral-400">
                                 <label class="flex items-center gap-2">
@@ -968,11 +1133,49 @@ const isPreferredDisabled = (key) => {
                             </div>
                         </div>
                     </div>
+
+                    <div class="border-t border-stone-200 pt-4 dark:border-neutral-700">
+                        <h3 class="text-sm font-semibold text-stone-700 dark:text-neutral-200">Ajouter un fournisseur</h3>
+                        <p class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
+                            Ajoutez un fournisseur avec son lien pour l inclure dans les recherches.
+                        </p>
+                        <div class="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <FloatingInput v-model="customSupplierForm.name" label="Nom du fournisseur" />
+                            <FloatingInput v-model="customSupplierForm.url" label="Lien du fournisseur" />
+                        </div>
+                        <div class="mt-3 flex justify-end">
+                            <button
+                                type="button"
+                                class="inline-flex items-center rounded-sm bg-green-600 px-3 py-2 text-xs font-semibold text-white hover:bg-green-700 disabled:opacity-60"
+                                :disabled="!canAddCustomSupplier"
+                                @click="addCustomSupplier"
+                            >
+                                Ajouter
+                            </button>
+                        </div>
+                    </div>
                     <InputError class="mt-1" :message="form.errors.supplier_preferred" />
+
+                    <div class="flex justify-end">
+                        <button
+                            type="button"
+                            class="inline-flex items-center rounded-sm bg-green-600 px-3 py-2 text-xs font-semibold text-white hover:bg-green-700 disabled:opacity-60"
+                            :disabled="form.processing"
+                            @click="submit"
+                        >
+                            Enregistrer
+                        </button>
+                    </div>
                 </div>
             </div>
 
-            <div class="flex flex-col bg-white border border-stone-200 shadow-sm rounded-sm overflow-hidden dark:bg-neutral-800 dark:border-neutral-700">
+            <div
+                v-show="activeTab === 'limits'"
+                :id="`${tabPrefix}-panel-limits`"
+                role="tabpanel"
+                :aria-labelledby="`${tabPrefix}-tab-limits`"
+                class="flex flex-col bg-white border border-stone-200 shadow-sm rounded-sm overflow-hidden dark:bg-neutral-800 dark:border-neutral-700"
+            >
                 <div class="p-4 space-y-4">
                     <div>
                         <h2 class="text-lg font-semibold text-stone-800 dark:text-neutral-100">Limites du forfait</h2>

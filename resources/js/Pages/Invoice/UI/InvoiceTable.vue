@@ -32,6 +32,7 @@ const filterForm = useForm({
 });
 
 const showAdvanced = ref(false);
+const isLoading = ref(false);
 
 const statusOptions = [
     { value: '', label: 'All statuses' },
@@ -72,10 +73,14 @@ const autoFilter = () => {
         clearTimeout(filterTimeout);
     }
     filterTimeout = setTimeout(() => {
+        isLoading.value = true;
         router.get(route('invoice.index'), filterPayload(), {
             preserveState: true,
             preserveScroll: true,
             replace: true,
+            onFinish: () => {
+                isLoading.value = false;
+            },
         });
     }, 300);
 };
@@ -266,6 +271,21 @@ const getCustomerName = (invoice) => {
                     </thead>
 
                     <tbody class="divide-y divide-stone-200 dark:divide-neutral-700">
+                        <template v-if="isLoading">
+                            <tr v-for="row in 6" :key="`skeleton-${row}`">
+                                <td colspan="9" class="px-4 py-3">
+                                    <div class="grid grid-cols-6 gap-4 animate-pulse">
+                                        <div class="h-3 w-32 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                                        <div class="h-3 w-28 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                                        <div class="h-3 w-24 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                                        <div class="h-3 w-20 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                                        <div class="h-3 w-16 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                                        <div class="h-3 w-20 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                                    </div>
+                                </td>
+                            </tr>
+                        </template>
+                        <template v-else>
                         <tr v-for="invoice in invoices.data" :key="invoice.id">
                             <td class="size-px whitespace-nowrap px-4 py-2 text-start">
                                 <div class="flex flex-col">
@@ -348,6 +368,7 @@ const getCustomerName = (invoice) => {
                                 </div>
                             </td>
                         </tr>
+                        </template>
                     </tbody>
                 </table>
             </div>

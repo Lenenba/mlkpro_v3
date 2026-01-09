@@ -70,11 +70,19 @@ class ProductModuleSeeder extends Seeder
             '1497366216548-37526070297c',
         ];
 
-        $resolveProductImage = function (array $data) use ($unsplashPhotoIds): string {
+        $resolveProductImages = function (array $data, int $count = 4) use ($unsplashPhotoIds): array {
             $seed = trim(($data['sku'] ?? '') . ' ' . ($data['name'] ?? '') . ' ' . ($data['category'] ?? 'product'));
             $hash = (int) sprintf('%u', crc32($seed));
-            $photoId = $unsplashPhotoIds[$hash % count($unsplashPhotoIds)];
-            return "https://images.unsplash.com/photo-{$photoId}?auto=format&fit=crop&w=800&q=80";
+            $total = count($unsplashPhotoIds);
+            $limit = max(1, min($count, $total));
+            $urls = [];
+
+            for ($i = 0; $i < $limit; $i += 1) {
+                $photoId = $unsplashPhotoIds[($hash + $i) % $total];
+                $urls[] = "https://images.unsplash.com/photo-{$photoId}?auto=format&fit=crop&w=900&q=80";
+            }
+
+            return array_values(array_unique($urls));
         };
         $seedProducts = [
             [
@@ -355,7 +363,8 @@ class ProductModuleSeeder extends Seeder
             $margin = $price > 0 ? round((($price - $cost) / $price) * 100, 2) : 0;
             $plan = $inventoryPlans[$data['sku']] ?? [];
             $trackingType = $plan['tracking_type'] ?? 'none';
-            $imageUrl = $resolveProductImage($data);
+            $imageUrls = $resolveProductImages($data, 4);
+            $imageUrl = $imageUrls[0] ?? null;
 
             $product = Product::updateOrCreate(
                 ['user_id' => $user->id, 'sku' => $data['sku']],
@@ -383,11 +392,14 @@ class ProductModuleSeeder extends Seeder
                 'updated_at' => $data['created_at'],
             ])->save();
 
-            if ($imageUrl) {
-                ProductImage::updateOrCreate(
-                    ['product_id' => $product->id, 'is_primary' => true],
-                    ['path' => $imageUrl, 'is_primary' => true, 'sort_order' => 0]
-                );
+            if ($imageUrls) {
+                ProductImage::where('product_id', $product->id)->update(['is_primary' => false]);
+                foreach ($imageUrls as $index => $url) {
+                    ProductImage::updateOrCreate(
+                        ['product_id' => $product->id, 'path' => $url],
+                        ['is_primary' => $index === 0, 'sort_order' => $index]
+                    );
+                }
             }
 
             $hasSeedMovements = $product->stockMovements()->exists();
@@ -486,6 +498,9 @@ class ProductModuleSeeder extends Seeder
                 'company_name' => 'Product Demo Co',
                 'phone' => '+15551234567',
                 'billing_same_as_physical' => true,
+                'tags' => ['retail', 'demo'],
+                'logo' => $resolveProductImages(['sku' => 'CUST', 'name' => 'demo'], 1)[0] ?? null,
+                'header_image' => $resolveProductImages(['sku' => 'CUST', 'name' => 'demo', 'category' => 'header'], 1)[0] ?? null,
             ]
         );
 

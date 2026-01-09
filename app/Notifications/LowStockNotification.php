@@ -3,6 +3,7 @@
 namespace App\Notifications;
 
 use App\Models\Product;
+use App\Services\NotificationPreferenceService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Notification;
 
@@ -28,6 +29,7 @@ class LowStockNotification extends Notification
             'title' => 'Stock bas: ' . ($this->product->name ?? 'Produit'),
             'message' => "Stock {$this->currentStock} / min {$this->minimumStock}.",
             'action_url' => route('product.show', $this->product),
+            'category' => NotificationPreferenceService::CATEGORY_STOCK,
             'product_id' => $this->product->id,
         ];
     }

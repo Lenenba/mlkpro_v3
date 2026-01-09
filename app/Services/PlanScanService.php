@@ -235,6 +235,7 @@ class PlanScanService
         $province = $pricingContext['province'] ?? null;
         $city = $pricingContext['city'] ?? null;
         $enabledKeys = $pricingContext['enabled_keys'] ?? [];
+        $suppliers = $pricingContext['suppliers'] ?? [];
         $tradeLabel = $this->tradeLabel($trade);
         $limit = $pricingContext['live_lookup_limit'] ?? self::LIVE_LOOKUP_LIMIT;
         $budgetSeconds = $pricingContext['live_lookup_budget'] ?? self::LIVE_LOOKUP_BUDGET_SECONDS;
@@ -284,6 +285,7 @@ class PlanScanService
                 'country' => $country,
                 'province' => $province,
                 'city' => $city,
+                'suppliers' => $suppliers,
             ]);
             $status = $sources ? 'live' : 'missing';
 
@@ -596,6 +598,8 @@ class PlanScanService
         $owner = User::query()->find($scan->user_id);
         $country = $owner?->company_country ?: config('suppliers.default_country', 'Canada');
         $suppliers = $this->supplierDirectory->all($country);
+        $customSuppliers = $this->resolveCustomSuppliers($owner?->company_supplier_preferences);
+        $suppliers = $this->mergeSuppliers($suppliers, $customSuppliers);
         $preferences = $this->resolveSupplierPreferences($owner?->company_supplier_preferences, $suppliers);
 
         return [
@@ -642,6 +646,7 @@ class PlanScanService
     private function resolveSupplierPreferences(?array $preferences, array $suppliers): array
     {
         $preferences = is_array($preferences) ? $preferences : [];
+        $limit = (int) config('suppliers.preferred_limit', 4);
         $keys = collect($suppliers)->pluck('key')->filter()->values()->all();
         $defaultEnabled = collect($suppliers)
             ->filter(fn (array $supplier) => !empty($supplier['default_enabled']))
@@ -654,14 +659,44 @@ class PlanScanService
             $enabled = $keys;
         }
 
-        $preferred = $preferences['preferred'] ?? array_slice($enabled, 0, 2);
+        $preferred = $preferences['preferred'] ?? array_slice($enabled, 0, $limit);
         $preferred = array_values(array_intersect($enabled, (array) $preferred));
-        $preferred = array_slice($preferred, 0, 2);
+        $preferred = array_slice($preferred, 0, $limit);
 
         return [
             'enabled' => $enabled,
             'preferred' => $preferred,
         ];
+    }
+
+    private function resolveCustomSuppliers(?array $preferences): array
+    {
+        $custom = $preferences['custom_suppliers'] ?? [];
+        if (!is_array($custom)) {
+            return [];
+        }
+
+        return array_values(array_filter($custom, function ($supplier) {
+            return is_array($supplier) && !empty($supplier['key']);
+        }));
+    }
+
+    private function mergeSuppliers(array $suppliers, array $customSuppliers): array
+    {
+        $byKey = [];
+        foreach ($suppliers as $supplier) {
+            if (is_array($supplier) && !empty($supplier['key'])) {
+                $byKey[$supplier['key']] = $supplier;
+            }
+        }
+
+        foreach ($customSuppliers as $supplier) {
+            if (is_array($supplier) && !empty($supplier['key'])) {
+                $byKey[$supplier['key']] = $supplier;
+            }
+        }
+
+        return array_values($byKey);
     }
 
     private function resolveSupplierNames(array $suppliers, array $keys): array

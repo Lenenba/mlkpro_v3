@@ -6,6 +6,7 @@ use App\Models\Product;
 use App\Utils\FileHandler;
 use Illuminate\Http\Request;
 use App\Models\ProductCategory;
+use App\Models\Sale;
 use App\Models\ActivityLog;
 use App\Models\User;
 use App\Models\Warehouse;
@@ -18,6 +19,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Collection;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
@@ -104,6 +106,12 @@ class ProductController extends Controller
                 'stockMovements' => function ($query) {
                     $query->limit(5)->with(['warehouse', 'lot']);
                 },
+                'lots' => function ($query) use ($expiringDate) {
+                    $query->whereNotNull('expires_at')
+                        ->whereDate('expires_at', '<=', $expiringDate)
+                        ->orderBy('expires_at')
+                        ->with(['warehouse:id,name,code']);
+                },
             ])
             ->when($inventoryWarehouseId, function ($query, $warehouseId) {
                 $query->with(['inventories' => function ($inventoryQuery) use ($warehouseId) {
@@ -113,6 +121,14 @@ class ProductController extends Controller
             ->orderBy($sort, $direction)
             ->simplePaginate(7)
             ->withQueryString();
+
+        $productCollection = $products->getCollection();
+        $reservedOrders = $this->resolveReservedOrders($accountId, $productCollection);
+        $productCollection->transform(function (Product $product) use ($reservedOrders) {
+            $product->setAttribute('reserved_orders', $reservedOrders[$product->id] ?? []);
+            return $product;
+        });
+        $products->setCollection($productCollection);
 
         $totalCount = (clone $baseQuery)->count();
         $totalStock = (clone $baseQuery)->sum('stock');
@@ -1269,6 +1285,91 @@ class ProductController extends Controller
         }
 
         return is_array($details) ? $details : null;
+    }
+
+    private function resolveReservedOrders(int $accountId, Collection $products): array
+    {
+        $productIds = $products->pluck('id')->filter()->unique()->values();
+        if ($productIds->isEmpty()) {
+            return [];
+        }
+
+        $rows = DB::table('sale_items')
+            ->join('sales', 'sale_items.sale_id', '=', 'sales.id')
+            ->leftJoin('customers', 'sales.customer_id', '=', 'customers.id')
+            ->where('sales.user_id', $accountId)
+            ->whereIn('sale_items.product_id', $productIds)
+            ->where('sales.status', Sale::STATUS_PENDING)
+            ->where(function ($query) {
+                $query->whereNull('sales.fulfillment_status')
+                    ->orWhereNotIn('sales.fulfillment_status', [
+                        Sale::FULFILLMENT_COMPLETED,
+                        Sale::FULFILLMENT_CONFIRMED,
+                    ]);
+            })
+            ->groupBy([
+                'sale_items.product_id',
+                'sale_items.sale_id',
+                'sales.number',
+                'sales.status',
+                'sales.fulfillment_status',
+                'sales.fulfillment_method',
+                'sales.scheduled_for',
+                'sales.created_at',
+                'sales.delivery_notes',
+                'sales.pickup_notes',
+                'sales.notes',
+                'customers.company_name',
+                'customers.first_name',
+                'customers.last_name',
+            ])
+            ->orderByDesc('sales.created_at')
+            ->select([
+                'sale_items.product_id',
+                'sale_items.sale_id',
+                'sales.number',
+                'sales.status',
+                'sales.fulfillment_status',
+                'sales.fulfillment_method',
+                'sales.scheduled_for',
+                'sales.created_at',
+                'sales.delivery_notes',
+                'sales.pickup_notes',
+                'sales.notes',
+                'customers.company_name',
+                'customers.first_name',
+                'customers.last_name',
+                DB::raw('SUM(sale_items.quantity) as quantity'),
+            ])
+            ->get();
+
+        $reservedOrders = [];
+        foreach ($rows as $row) {
+            $customerName = trim((string) ($row->company_name ?? ''));
+            if ($customerName === '') {
+                $customerName = trim(trim((string) ($row->first_name ?? '')) . ' ' . trim((string) ($row->last_name ?? '')));
+            }
+            if ($customerName === '') {
+                $customerName = 'Client';
+            }
+
+            $reservedOrders[$row->product_id][] = [
+                'id' => (int) $row->sale_id,
+                'number' => $row->number,
+                'status' => $row->status,
+                'fulfillment_status' => $row->fulfillment_status,
+                'fulfillment_method' => $row->fulfillment_method,
+                'scheduled_for' => $row->scheduled_for,
+                'created_at' => $row->created_at,
+                'quantity' => (int) $row->quantity,
+                'customer_name' => $customerName,
+                'notes' => $row->notes,
+                'delivery_notes' => $row->delivery_notes,
+                'pickup_notes' => $row->pickup_notes,
+            ];
+        }
+
+        return $reservedOrders;
     }
 
 }

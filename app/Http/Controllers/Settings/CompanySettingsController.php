@@ -9,6 +9,7 @@ use App\Services\SupplierDirectory;
 use App\Services\UsageLimitService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
 class CompanySettingsController extends Controller
@@ -33,6 +34,8 @@ class CompanySettingsController extends Controller
         $supplierCountry = $request->input('company_country')
             ?: ($user->company_country ?: config('suppliers.default_country'));
         $suppliers = $supplierDirectory->all($supplierCountry);
+        $customSuppliers = $this->normalizeCustomSuppliers($user->company_supplier_preferences['custom_suppliers'] ?? [], $supplierCountry);
+        $suppliers = $this->mergeSuppliers($suppliers, $customSuppliers);
         $supplierPreferences = $this->resolveSupplierPreferences($user->company_supplier_preferences, $suppliers);
         $accountId = $user->accountOwnerId();
         $warehouses = Warehouse::query()
@@ -58,6 +61,7 @@ class CompanySettingsController extends Controller
             'usage_limits' => $usageLimits,
             'suppliers' => $suppliers,
             'supplier_preferences' => $supplierPreferences,
+            'preferred_limit' => config('suppliers.preferred_limit', 4),
             'warehouses' => $warehouses,
             'api_tokens' => $user->tokens()
                 ->orderByDesc('created_at')
@@ -75,7 +79,14 @@ class CompanySettingsController extends Controller
         $supplierDirectory = app(SupplierDirectory::class);
         $supplierCountry = $user->company_country ?: config('suppliers.default_country');
         $suppliers = $supplierDirectory->all($supplierCountry);
+        $preferredLimit = (int) config('suppliers.preferred_limit', 4);
         $supplierKeys = collect($suppliers)->pluck('key')->filter()->values()->all();
+        $preparedCustomSuppliers = $this->prepareCustomSuppliers($request->input('custom_suppliers', []));
+        if ($preparedCustomSuppliers) {
+            $request->merge(['custom_suppliers' => $preparedCustomSuppliers]);
+            $customKeys = collect($preparedCustomSuppliers)->pluck('key')->filter()->values()->all();
+            $supplierKeys = array_values(array_unique(array_merge($supplierKeys, $customKeys)));
+        }
 
         $validated = $request->validate([
             'company_name' => 'required|string|max:255',
@@ -94,6 +105,10 @@ class CompanySettingsController extends Controller
             'company_fulfillment.prep_time_minutes' => 'nullable|integer|min:0|max:1440',
             'company_fulfillment.delivery_notes' => 'nullable|string|max:500',
             'company_fulfillment.pickup_notes' => 'nullable|string|max:500',
+            'custom_suppliers' => 'nullable|array',
+            'custom_suppliers.*.key' => 'required|string|max:80',
+            'custom_suppliers.*.name' => 'required|string|max:255',
+            'custom_suppliers.*.url' => 'required|url|max:255',
             'supplier_enabled' => 'nullable|array',
             'supplier_enabled.*' => ['string', Rule::in($supplierKeys)],
             'supplier_preferred' => 'nullable|array',
@@ -109,6 +124,10 @@ class CompanySettingsController extends Controller
             }
         }
 
+        $customSuppliers = $this->normalizeCustomSuppliers($validated['custom_suppliers'] ?? [], $supplierCountry);
+        $suppliers = $this->mergeSuppliers($suppliers, $customSuppliers);
+        $supplierKeys = collect($suppliers)->pluck('key')->filter()->values()->all();
+
         $enabledSuppliers = array_values(array_unique($validated['supplier_enabled'] ?? []));
         $preferredSuppliers = array_values(array_unique($validated['supplier_preferred'] ?? []));
         if (!$enabledSuppliers) {
@@ -116,18 +135,18 @@ class CompanySettingsController extends Controller
         }
         $preferredSuppliers = array_values(array_intersect($preferredSuppliers, $enabledSuppliers));
 
-        if (count($preferredSuppliers) > 2) {
+        if (count($preferredSuppliers) > $preferredLimit) {
             if ($this->shouldReturnJson($request)) {
                 return response()->json([
                     'message' => 'Validation error.',
                     'errors' => [
-                        'supplier_preferred' => ['Selectionnez jusqu a 2 fournisseurs preferes.'],
+                        'supplier_preferred' => ["Selectionnez jusqu a {$preferredLimit} fournisseurs preferes."],
                     ],
                 ], 422);
             }
 
             return redirect()->back()->withErrors([
-                'supplier_preferred' => 'Selectionnez jusqu a 2 fournisseurs preferes.',
+                'supplier_preferred' => "Selectionnez jusqu a {$preferredLimit} fournisseurs preferes.",
             ]);
         }
 
@@ -142,6 +161,7 @@ class CompanySettingsController extends Controller
             'company_supplier_preferences' => [
                 'enabled' => $enabledSuppliers,
                 'preferred' => $preferredSuppliers,
+                'custom_suppliers' => $customSuppliers,
             ],
             'company_fulfillment' => $validated['company_fulfillment'] ?? $user->company_fulfillment,
         ]);
@@ -159,6 +179,7 @@ class CompanySettingsController extends Controller
     private function resolveSupplierPreferences(?array $preferences, array $suppliers): array
     {
         $preferences = is_array($preferences) ? $preferences : [];
+        $limit = (int) config('suppliers.preferred_limit', 4);
         $keys = collect($suppliers)->pluck('key')->filter()->values()->all();
         $defaultEnabled = collect($suppliers)
             ->filter(fn (array $supplier) => !empty($supplier['default_enabled']))
@@ -171,13 +192,101 @@ class CompanySettingsController extends Controller
             $enabled = $keys;
         }
 
-        $preferred = $preferences['preferred'] ?? array_slice($enabled, 0, 2);
+        $preferred = $preferences['preferred'] ?? array_slice($enabled, 0, $limit);
         $preferred = array_values(array_intersect($enabled, (array) $preferred));
-        $preferred = array_slice($preferred, 0, 2);
+        $preferred = array_slice($preferred, 0, $limit);
 
         return [
             'enabled' => $enabled,
             'preferred' => $preferred,
         ];
+    }
+
+    private function prepareCustomSuppliers($suppliers): array
+    {
+        if (!is_array($suppliers)) {
+            return [];
+        }
+
+        $prepared = [];
+        foreach ($suppliers as $supplier) {
+            if (!is_array($supplier)) {
+                continue;
+            }
+
+            $key = isset($supplier['key']) && $supplier['key'] !== ''
+                ? (string) $supplier['key']
+                : 'custom_' . Str::uuid()->toString();
+            $name = trim((string) ($supplier['name'] ?? ''));
+            $url = trim((string) ($supplier['url'] ?? ''));
+            if ($url && !str_starts_with($url, 'http://') && !str_starts_with($url, 'https://')) {
+                $url = 'https://' . $url;
+            }
+
+            $prepared[] = [
+                'key' => $key,
+                'name' => $name,
+                'url' => $url,
+            ];
+        }
+
+        return $prepared;
+    }
+
+    private function normalizeCustomSuppliers(array $suppliers, ?string $defaultCountry = null): array
+    {
+        $normalized = [];
+        foreach ($suppliers as $supplier) {
+            if (!is_array($supplier)) {
+                continue;
+            }
+
+            $key = trim((string) ($supplier['key'] ?? ''));
+            $name = trim((string) ($supplier['name'] ?? ''));
+            $url = trim((string) ($supplier['url'] ?? ''));
+            if ($key === '' || $name === '' || $url === '') {
+                continue;
+            }
+
+            if (!str_starts_with($url, 'http://') && !str_starts_with($url, 'https://')) {
+                $url = 'https://' . $url;
+            }
+
+            $domain = parse_url($url, PHP_URL_HOST);
+            $domain = $domain ? strtolower((string) $domain) : null;
+            if ($domain && str_starts_with($domain, 'www.')) {
+                $domain = substr($domain, 4);
+            }
+
+            $normalized[$key] = [
+                'key' => $key,
+                'name' => $name,
+                'url' => $url,
+                'domains' => $domain ? [$domain] : [],
+                'country' => $supplier['country'] ?? $defaultCountry,
+                'default_enabled' => false,
+                'is_custom' => true,
+            ];
+        }
+
+        return array_values($normalized);
+    }
+
+    private function mergeSuppliers(array $suppliers, array $customSuppliers): array
+    {
+        $byKey = [];
+        foreach ($suppliers as $supplier) {
+            if (is_array($supplier) && !empty($supplier['key'])) {
+                $byKey[$supplier['key']] = $supplier;
+            }
+        }
+
+        foreach ($customSuppliers as $supplier) {
+            if (is_array($supplier) && !empty($supplier['key'])) {
+                $byKey[$supplier['key']] = $supplier;
+            }
+        }
+
+        return array_values($byKey);
     }
 }

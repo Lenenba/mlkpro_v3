@@ -8,6 +8,7 @@ import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { createApp, h } from 'vue';
 import { ZiggyVue } from '../../vendor/tightenco/ziggy';
 import { createI18nInstance } from './i18n';
+import { applyAccessibilityPreferences, readAccessibilityPreferences } from './utils/accessibility';
 
 let i18nInstance = null;
 
@@ -19,6 +20,8 @@ const setDocumentLang = (locale) => {
         document.documentElement.lang = locale;
     }
 };
+
+applyAccessibilityPreferences(readAccessibilityPreferences());
 
 // Fonction pour initialiser Preline.js après chaque navigation
 const initializePreline = () => {

@@ -551,6 +551,13 @@ class SaleController extends Controller
             'source' => 'pos',
         ]);
 
+        if ($this->shouldReturnJson($request)) {
+            return response()->json([
+                'message' => 'Vente creee.',
+                'sale' => $this->loadSaleForResponse($sale),
+            ]);
+        }
+
         return redirect()
             ->route('sales.create')
             ->with('success', 'Vente creee.')
@@ -837,6 +844,13 @@ class SaleController extends Controller
             app(SaleNotificationService::class)->notifyStatusChange($sale, $changes);
         }
 
+        if ($this->shouldReturnJson($request)) {
+            return response()->json([
+                'message' => 'Vente mise a jour.',
+                'sale' => $this->loadSaleForResponse($sale),
+            ]);
+        }
+
         return redirect()
             ->route('sales.show', $sale)
             ->with('success', 'Vente mise a jour.');
@@ -878,6 +892,12 @@ class SaleController extends Controller
 
         if (!array_key_exists('status', $validated) && !array_key_exists('fulfillment_status', $validated)
             && !array_key_exists('scheduled_for', $validated)) {
+            if ($this->shouldReturnJson($request)) {
+                return response()->json([
+                    'message' => 'Aucune modification.',
+                    'sale' => $this->loadSaleForResponse($sale),
+                ]);
+            }
             return redirect()->back();
         }
 
@@ -1048,6 +1068,13 @@ class SaleController extends Controller
             app(SaleNotificationService::class)->notifyStatusChange($sale, $changes);
         }
 
+        if ($this->shouldReturnJson($request)) {
+            return response()->json([
+                'message' => 'Statut mis a jour.',
+                'sale' => $this->loadSaleForResponse($sale),
+            ]);
+        }
+
         return redirect()
             ->back()
             ->with('success', 'Statut mis a jour.');
@@ -1071,12 +1098,22 @@ class SaleController extends Controller
         }
 
         if ($sale->fulfillment_method !== 'pickup') {
+            if ($this->shouldReturnJson($request)) {
+                return response()->json([
+                    'message' => 'Cette vente n est pas en mode retrait.',
+                ], 422);
+            }
             return redirect()
                 ->back()
                 ->with('error', 'Cette vente n est pas en mode retrait.');
         }
 
         if ($sale->fulfillment_status !== Sale::FULFILLMENT_READY_FOR_PICKUP) {
+            if ($this->shouldReturnJson($request)) {
+                return response()->json([
+                    'message' => 'La commande n est pas prete.',
+                ], 422);
+            }
             return redirect()
                 ->back()
                 ->with('error', 'La commande n est pas prete.');
@@ -1135,6 +1172,13 @@ class SaleController extends Controller
         app(SaleNotificationService::class)->notifyStatusChange($sale, [
             'fulfillment_status' => true,
         ]);
+
+        if ($this->shouldReturnJson($request)) {
+            return response()->json([
+                'message' => 'Retrait confirme.',
+                'sale' => $this->loadSaleForResponse($sale),
+            ]);
+        }
 
         return redirect()
             ->back()
@@ -1196,6 +1240,19 @@ class SaleController extends Controller
         }
 
         return [$owner, $canManage, $canPos];
+    }
+
+    private function loadSaleForResponse(Sale $sale): Sale
+    {
+        $sale->loadMissing([
+            'customer:id,first_name,last_name,company_name,email,phone',
+            'items.product:id,name,sku,unit,image',
+            'createdBy:id,name,email,phone_number',
+            'pickupConfirmedBy:id,name,email,phone_number',
+            'deliveryConfirmedBy:id,name,email,phone_number',
+        ]);
+
+        return $sale;
     }
 
     private function allowedFulfillmentStatuses(): array

@@ -450,6 +450,9 @@ const setLocale = (locale) => {
 
                     <!-- Footer -->
                     <footer class="w-16 text-center space-y-3">
+                        <div v-if="showNotifications" class="flex justify-center">
+                            <NotificationBell />
+                        </div>
                         <!-- Account Dropdown -->
                         <div class="inline-flex justify-center w-full">
                             <div

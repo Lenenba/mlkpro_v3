@@ -1,3 +1,12 @@
+<script setup>
+import { computed } from 'vue';
+import { usePage } from '@inertiajs/vue3';
+import NotificationBell from '@/Components/UI/NotificationBell.vue';
+
+const page = usePage();
+const showNotifications = computed(() => Boolean(page.props.notifications));
+</script>
+
 <template>
     <!-- ========== HEADER ========== -->
     <header
@@ -15,6 +24,9 @@
                 </svg>
             </button>
             <!-- End Sidebar Toggle -->
+            <div v-if="showNotifications" class="flex items-center gap-2">
+                <NotificationBell />
+            </div>
         </div>
     </header>
     <!-- ========== END HEADER ========== -->

@@ -1,5 +1,5 @@
 <script setup>
-import { ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { Link, router, useForm } from '@inertiajs/vue3';
 import { humanizeDate } from '@/utils/date';
 
@@ -47,6 +47,7 @@ const filterForm = useForm({
 });
 
 const showAdvanced = ref(false);
+const isLoading = ref(false);
 
 const defaultStatusOptions = [
     { value: '', label: 'Tous les statuts' },
@@ -118,10 +119,14 @@ const autoFilter = () => {
         clearTimeout(filterTimeout);
     }
     filterTimeout = setTimeout(() => {
+        isLoading.value = true;
         router.get(route(props.routeName), filterPayload(), {
             preserveState: true,
             preserveScroll: true,
             replace: true,
+            onFinish: () => {
+                isLoading.value = false;
+            },
         });
     }, 300);
 };
@@ -248,10 +253,14 @@ const updating = ref({});
 const isUpdating = (sale) => Boolean(updating.value[sale?.id]);
 
 const refreshTable = () => {
+    isLoading.value = true;
     router.get(route(props.routeName), filterPayload(), {
         preserveState: true,
         preserveScroll: true,
         replace: true,
+        onFinish: () => {
+            isLoading.value = false;
+        },
     });
 };
 
@@ -268,6 +277,24 @@ const updateStatus = (sale, payload) => {
         },
     });
 };
+
+const emptyState = computed(() => {
+    if (props.routeName === 'orders.index') {
+        return {
+            title: 'Aucune commande',
+            description: 'Les commandes clients apparaitront ici.',
+            cta: null,
+        };
+    }
+    return {
+        title: 'Aucune vente',
+        description: 'Creez une vente ou passez par le POS pour demarrer.',
+        cta: {
+            label: 'Nouvelle vente',
+            routeName: 'sales.create',
+        },
+    };
+});
 
 const updateFulfillment = (sale, value) => {
     const nextValue = value || null;
@@ -437,12 +464,41 @@ const canMarkCanceled = (sale) =>
                     </thead>
 
                     <tbody class="divide-y divide-stone-200 dark:divide-neutral-700">
-                        <tr v-if="!sales.data.length">
-                            <td colspan="7" class="px-4 py-6 text-center text-stone-500 dark:text-neutral-400">
-                                Aucune vente pour le moment.
-                            </td>
-                        </tr>
-                        <tr v-for="sale in sales.data" :key="sale.id">
+                        <template v-if="isLoading">
+                            <tr v-for="row in 6" :key="`skeleton-${row}`">
+                                <td colspan="7" class="px-4 py-3">
+                                    <div class="grid grid-cols-6 gap-4 animate-pulse">
+                                        <div class="h-3 w-32 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                                        <div class="h-3 w-28 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                                        <div class="h-3 w-24 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                                        <div class="h-3 w-16 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                                        <div class="h-3 w-20 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                                        <div class="h-3 w-24 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                                    </div>
+                                </td>
+                            </tr>
+                        </template>
+                        <template v-else>
+                            <tr v-if="!sales.data.length">
+                                <td colspan="7" class="px-4 py-8 text-center text-stone-600 dark:text-neutral-300">
+                                    <div class="space-y-2">
+                                        <div class="text-sm font-semibold text-stone-700 dark:text-neutral-200">
+                                            {{ emptyState.title }}
+                                        </div>
+                                        <div class="text-xs text-stone-500 dark:text-neutral-400">
+                                            {{ emptyState.description }}
+                                        </div>
+                                        <Link
+                                            v-if="emptyState.cta"
+                                            :href="route(emptyState.cta.routeName)"
+                                            class="inline-flex items-center justify-center rounded-sm border border-green-600 bg-green-600 px-3 py-2 text-xs font-semibold text-white hover:bg-green-700"
+                                        >
+                                            {{ emptyState.cta.label }}
+                                        </Link>
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr v-for="sale in sales.data" :key="sale.id">
                             <td class="size-px whitespace-nowrap px-4 py-2 text-start">
                                 <Link :href="route('sales.show', sale.id)" class="flex flex-col hover:underline">
                                     <span class="text-sm text-stone-600 dark:text-neutral-300">
@@ -555,6 +611,7 @@ const canMarkCanceled = (sale) =>
                                 </div>
                             </td>
                         </tr>
+                        </template>
                     </tbody>
                 </table>
             </div>
