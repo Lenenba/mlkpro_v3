@@ -146,22 +146,34 @@ class AssistantController extends Controller
             'create_product',
             'create_service',
             'create_team_member',
+            'read_notifications',
+            'list_quotes',
+            'list_works',
+            'list_invoices',
+            'list_customers',
+            'show_quote',
+            'show_work',
+            'show_invoice',
+            'show_customer',
+            'create_task',
+            'update_task_status',
+            'assign_task',
+            'update_checklist_item',
+            'create_request',
+            'convert_request',
+            'send_invoice',
+            'remind_invoice',
+            'schedule_work',
+            'assign_work_team',
         ], true)) {
             return response()->json(
                 $workflowService->handle($interpretation, $user, $context)
             );
         }
 
-        if ($interpretation['intent'] === 'read_notifications') {
-            return response()->json([
-                'status' => 'unsupported',
-                'message' => 'Notifications are not supported yet by the assistant.',
-            ]);
-        }
-
         return response()->json([
             'status' => 'unknown',
-            'message' => 'Je peux creer et gerer des devis, factures et jobs, ainsi que creer des clients, proprietes, categories, produits/services et membres d equipe.',
+            'message' => 'Je peux creer et gerer des devis, factures et jobs, creer des clients/proprietes/categories/produits/services/membres, lire des listes et details, gerer des tasks/checklists, creer/convertir des requests, envoyer/relancer des factures et lire les notifications.',
         ]);
     }
 

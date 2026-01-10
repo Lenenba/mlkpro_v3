@@ -75,12 +75,23 @@ const messages = ref([]);
 const context = ref({});
 const transcriptHint = ref('');
 const recognitionRef = ref(null);
+const voiceReplyEnabled = ref(false);
+const autoSendVoice = ref(false);
+const lastAssistantMessage = ref('');
+const pendingAutoSend = ref(false);
 
 const storageKey = computed(() => `mlkpro_assistant_context_v2_${accountKey.value}`);
 const messagesKey = computed(() => `mlkpro_assistant_messages_v2_${accountKey.value}`);
+const voiceReplyKey = computed(() => `mlkpro_assistant_voice_reply_v2_${accountKey.value}`);
+const autoSendKey = computed(() => `mlkpro_assistant_voice_autosend_v2_${accountKey.value}`);
 
 const speechSupported = computed(() => {
     return typeof window !== 'undefined' && (window.SpeechRecognition || window.webkitSpeechRecognition);
+});
+const speechOutputSupported = computed(() => {
+    return typeof window !== 'undefined'
+        && 'speechSynthesis' in window
+        && typeof window.SpeechSynthesisUtterance !== 'undefined';
 });
 
 const scrollToBottom = async () => {
@@ -94,6 +105,8 @@ const scrollToBottom = async () => {
 const persistState = () => {
     localStorage.setItem(storageKey.value, JSON.stringify(context.value || {}));
     localStorage.setItem(messagesKey.value, JSON.stringify(messages.value || []));
+    localStorage.setItem(voiceReplyKey.value, voiceReplyEnabled.value ? '1' : '0');
+    localStorage.setItem(autoSendKey.value, autoSendVoice.value ? '1' : '0');
 };
 
 const restoreState = () => {
@@ -102,9 +115,16 @@ const restoreState = () => {
         const storedMessages = localStorage.getItem(messagesKey.value);
         context.value = storedContext ? JSON.parse(storedContext) : {};
         messages.value = storedMessages ? JSON.parse(storedMessages) : [];
+        voiceReplyEnabled.value = localStorage.getItem(voiceReplyKey.value) === '1';
+        autoSendVoice.value = localStorage.getItem(autoSendKey.value) === '1';
+        const lastAssistant = [...messages.value].reverse().find((message) => message.role === 'assistant');
+        lastAssistantMessage.value = lastAssistant?.content || '';
     } catch (error) {
         context.value = {};
         messages.value = [];
+        voiceReplyEnabled.value = false;
+        autoSendVoice.value = false;
+        lastAssistantMessage.value = '';
     }
 };
 
@@ -115,6 +135,9 @@ const addMessage = (role, content) => {
         content,
         ts: new Date().toISOString(),
     });
+    if (role === 'assistant') {
+        lastAssistantMessage.value = content || '';
+    }
     scrollToBottom();
 };
 
@@ -125,6 +148,36 @@ const formatAssistantMessage = (payload) => {
         content = content ? `${content}\n${questionText}` : questionText;
     }
     return content || 'Assistant ready.';
+};
+
+const sanitizeSpeechText = (content) => {
+    const cleaned = String(content || '')
+        .replace(/^- /gm, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+    if (cleaned.length > 500) {
+        return `${cleaned.slice(0, 500)}...`;
+    }
+
+    return cleaned;
+};
+
+const speakMessage = (content) => {
+    if (!speechOutputSupported.value || !voiceReplyEnabled.value) {
+        return;
+    }
+    const text = sanitizeSpeechText(content);
+    if (!text) {
+        return;
+    }
+
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = locale.value === 'fr' ? 'fr-FR' : 'en-US';
+    utterance.rate = 1;
+    utterance.pitch = 1;
+    window.speechSynthesis.speak(utterance);
 };
 
 const sendMessage = async () => {
@@ -161,7 +214,11 @@ const sendMessage = async () => {
             context.value = payload.context;
         }
 
-        addMessage('assistant', formatAssistantMessage(payload));
+        const assistantMessage = formatAssistantMessage(payload);
+        addMessage('assistant', assistantMessage);
+        if (voiceReplyEnabled.value) {
+            speakMessage(assistantMessage);
+        }
 
         if (payload?.action?.type === 'quote_created' && payload?.action?.quote_id) {
             router.get(route('customer.quote.edit', payload.action.quote_id));
@@ -179,6 +236,9 @@ const sendMessage = async () => {
         const data = error?.response?.data || {};
         const message = data.message || (status ? 'Assistant indisponible. Reessayez plus tard.' : 'Assistant indisponible.');
         addMessage('assistant', message);
+        if (voiceReplyEnabled.value) {
+            speakMessage(message);
+        }
     } finally {
         isLoading.value = false;
         persistState();
@@ -195,6 +255,7 @@ const toggleOpen = () => {
 const clearConversation = () => {
     context.value = {};
     messages.value = [];
+    lastAssistantMessage.value = '';
     localStorage.removeItem(storageKey.value);
     localStorage.removeItem(messagesKey.value);
 };
@@ -206,6 +267,7 @@ const stopListening = () => {
     recognitionRef.value = null;
     isListening.value = false;
     transcriptHint.value = '';
+    pendingAutoSend.value = false;
 };
 
 const startListening = () => {
@@ -222,6 +284,9 @@ const startListening = () => {
     recognition.onresult = (event) => {
         const transcript = event?.results?.[0]?.[0]?.transcript || '';
         input.value = `${input.value} ${transcript}`.trim();
+        if (autoSendVoice.value) {
+            pendingAutoSend.value = true;
+        }
     };
 
     recognition.onerror = () => {
@@ -229,6 +294,10 @@ const startListening = () => {
     };
 
     recognition.onend = () => {
+        if (pendingAutoSend.value && input.value.trim() !== '') {
+            pendingAutoSend.value = false;
+            sendMessage();
+        }
         stopListening();
     };
 
@@ -250,6 +319,7 @@ watch([messages, context], persistState, { deep: true });
 watch(accountKey, () => {
     context.value = {};
     messages.value = [];
+    lastAssistantMessage.value = '';
     restoreState();
 });
 
@@ -303,7 +373,13 @@ onMounted(() => {
 
         <div id="assistant-messages" class="flex-1 overflow-y-auto px-4 py-3 space-y-3 text-sm">
             <div v-if="messages.length === 0" class="text-stone-400">
-                Try: "Create a quote for Acme with Service A at 120 and add taxes."
+                <div>Try: "Create a quote for Acme with Service A at 120 and add taxes."</div>
+                <div class="mt-2 text-xs text-stone-400">Voice commands:</div>
+                <div class="text-xs text-stone-400 space-y-1">
+                    <div>- "Cree un devis pour Acme avec Service A a 120."</div>
+                    <div>- "Cree un job pour Jean Demo pour demain 9h."</div>
+                    <div>- "Cree un membre Marc avec droits devis ecriture."</div>
+                </div>
             </div>
             <div v-for="message in messages" :key="message.id" class="flex">
                 <div
@@ -360,6 +436,24 @@ onMounted(() => {
                     @click="sendMessage"
                 >
                     Send
+                </button>
+            </div>
+            <div class="flex items-center gap-3 text-[11px] text-stone-500">
+                <label v-if="speechOutputSupported" class="inline-flex items-center gap-1">
+                    <input v-model="voiceReplyEnabled" type="checkbox" class="rounded border-stone-300" />
+                    Voice replies
+                </label>
+                <label v-if="speechSupported" class="inline-flex items-center gap-1">
+                    <input v-model="autoSendVoice" type="checkbox" class="rounded border-stone-300" />
+                    Auto-send voice
+                </label>
+                <button
+                    v-if="speechOutputSupported && lastAssistantMessage"
+                    type="button"
+                    class="text-[11px] text-stone-500 hover:text-stone-800"
+                    @click="speakMessage(lastAssistantMessage)"
+                >
+                    Replay
                 </button>
             </div>
             <div v-if="transcriptHint" class="text-xs text-stone-400">{{ transcriptHint }}</div>

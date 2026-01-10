@@ -156,7 +156,9 @@ onBeforeUnmount(() => {
     <div v-if="hasItems" class="relative">
         <button
             ref="toggleRef"
-            class="p-2 rounded-sm hover:bg-stone-100 dark:bg-neutral-900 dark:hover:bg-neutral-800 transition"
+            class="p-2 rounded-sm hover:bg-stone-100 dark:bg-neutral-900 dark:hover:bg-neutral-800 transition quick-toggle"
+            :class="{ 'quick-toggle-active': isOpen }"
+            :aria-expanded="isOpen ? 'true' : 'false'"
             @click="toggleMenu">
             <slot name="toggle-icon">
                 <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 text-stone-400 dark:text-neutral-400"
@@ -173,10 +175,10 @@ onBeforeUnmount(() => {
                 :style="menuStyle">
                 <ul class="flex">
                     <li v-for="item in menuItems" :key="item.label"
-                        class="p-4 flex flex-col justify-center items-center hover:bg-stone-100 dark:hover:bg-neutral-800 transition cursor-pointer">
+                        class="p-4 flex flex-col justify-center items-center quick-menu-item transition cursor-pointer">
                         <button type="button" class="flex flex-col items-center w-full" @click="openItem(item)">
-                            <span class="mb-2 text-stone-500 dark:text-neutral-400" v-html="item.icon"></span>
-                            <span class="text-sm text-stone-800 dark:text-neutral-200">{{ item.label }}</span>
+                            <span class="mb-2 text-stone-500 dark:text-neutral-400 quick-menu-icon" v-html="item.icon"></span>
+                            <span class="text-sm text-stone-800 dark:text-neutral-200 quick-menu-label">{{ item.label }}</span>
                         </button>
                     </li>
                 </ul>
@@ -184,3 +186,83 @@ onBeforeUnmount(() => {
         </Teleport>
     </div>
 </template>
+
+<style scoped>
+.quick-toggle {
+    --quick-accent: #10b981;
+    --quick-glow: rgba(16, 185, 129, 0.35);
+}
+
+.quick-toggle :deep(svg) {
+    transition: color 200ms ease, transform 200ms ease, filter 200ms ease;
+}
+
+.quick-toggle-active :deep(svg) {
+    color: var(--quick-accent) !important;
+    filter: drop-shadow(0 0 6px var(--quick-glow));
+    animation: quickPulse 1.4s ease-in-out infinite, quickTilt 1.4s ease-in-out infinite;
+    transform-origin: 50% 50%;
+}
+
+.quick-toggle:hover :deep(svg) {
+    color: var(--quick-accent);
+    filter: drop-shadow(0 0 6px var(--quick-glow));
+    animation: quickPulse 1.4s ease-in-out infinite, quickTilt 1.4s ease-in-out infinite;
+    transform-origin: 50% 50%;
+}
+
+.quick-menu-item {
+    border-radius: 6px;
+}
+
+.quick-menu-item:hover {
+    background: rgba(16, 185, 129, 0.08);
+}
+
+.quick-menu-item:hover .quick-menu-icon {
+    color: var(--quick-accent);
+    filter: drop-shadow(0 0 4px var(--quick-glow));
+    transform: translateY(-2px) rotate(-4deg);
+}
+
+.quick-menu-item:hover .quick-menu-label {
+    color: #0f766e;
+}
+
+.quick-menu-icon :deep(svg) {
+    transition: color 200ms ease, transform 200ms ease, filter 200ms ease;
+}
+
+.quick-menu-label {
+    transition: color 200ms ease;
+}
+
+@keyframes quickPulse {
+    0%, 100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.08);
+    }
+}
+
+@keyframes quickTilt {
+    0%, 100% {
+        transform: rotate(0deg);
+    }
+    40% {
+        transform: rotate(10deg);
+    }
+    70% {
+        transform: rotate(-6deg);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .quick-toggle-active :deep(svg),
+    .quick-toggle:hover :deep(svg),
+    .quick-menu-item:hover .quick-menu-icon :deep(svg) {
+        animation: none;
+    }
+}
+</style>

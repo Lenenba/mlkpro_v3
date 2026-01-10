@@ -30,6 +30,8 @@ const props = defineProps({
 
 const emit = defineEmits(['submitted']); // Déclare l'événement "submitted"
 const overlayTarget = computed(() => (props.id ? `#${props.id}` : null));
+const initialImageUrl = ref(props.product?.image_url || '');
+const initialImage = ref(props.product?.image_url || props.product?.image || '');
 
 // Initialize the form
 const form = useForm({
@@ -54,6 +56,15 @@ const form = useForm({
     tax_rate: props.product?.tax_rate || 0,
     is_active: props.product?.is_active ?? true,
 });
+
+watch(
+    () => props.product,
+    (value) => {
+        initialImageUrl.value = value?.image_url || '';
+        initialImage.value = value?.image_url || value?.image || '';
+    },
+    { immediate: true }
+);
 
 const unitOptions = [
     { id: 'piece', name: 'Piece' },
@@ -362,7 +373,21 @@ const submit = () => {
         .transform((data) => ({
             ...data,
             image: data.image instanceof File ? data.image : null,
-            image_url: data.image instanceof File ? null : (data.image_url || (typeof data.image === 'string' ? data.image : null)),
+            image_url: (() => {
+                if (data.image instanceof File) {
+                    return null;
+                }
+                const candidate = (data.image_url || (typeof data.image === 'string' ? data.image : ''))
+                    ?.toString()
+                    .trim();
+                if (!candidate) {
+                    return null;
+                }
+                if (candidate === initialImageUrl.value || candidate === initialImage.value) {
+                    return null;
+                }
+                return candidate;
+            })(),
             images: data.images?.filter((file) => file instanceof File) || [],
             remove_image_ids: data.remove_image_ids || [],
         }))
