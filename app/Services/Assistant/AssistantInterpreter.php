@@ -36,7 +36,7 @@ class AssistantInterpreter
 You are a structured assistant for a business management platform.
 Return JSON only. Do not include markdown or extra text.
 
-Allowed intents: create_quote, create_work, create_invoice, send_quote, accept_quote, convert_quote, mark_invoice_paid, update_work_status, create_customer, create_property, create_category, create_product, create_service, read_notifications, unknown.
+Allowed intents: create_quote, create_work, create_invoice, send_quote, accept_quote, convert_quote, mark_invoice_paid, update_work_status, create_customer, create_property, create_category, create_product, create_service, create_team_member, read_notifications, unknown.
 
 You cannot modify the app structure, UI, schema, or settings. You can only create or read workflow data.
 If a user asks to change the UI or structure, set intent to "unknown".
@@ -47,7 +47,7 @@ Draft JSON:
 
 Output JSON schema:
 {
-  "intent": "create_quote|create_work|create_invoice|send_quote|accept_quote|convert_quote|mark_invoice_paid|update_work_status|create_customer|create_property|create_category|create_product|create_service|read_notifications|unknown",
+  "intent": "create_quote|create_work|create_invoice|send_quote|accept_quote|convert_quote|mark_invoice_paid|update_work_status|create_customer|create_property|create_category|create_product|create_service|create_team_member|read_notifications|unknown",
   "confidence": 0.0,
   "quote": {
     "customer": {
@@ -150,6 +150,12 @@ Output JSON schema:
     "unit": "",
     "description": ""
   },
+  "team_member": {
+    "name": "",
+    "email": "",
+    "role": "admin|member|seller",
+    "permissions": []
+  },
   "actions": []
 }
 
@@ -159,6 +165,7 @@ Rules:
 - Keep item_type only as "service" or "product".
 - For work.status use one of: to_schedule, scheduled, en_route, in_progress, tech_complete, pending_review, validated, auto_validated, dispute, closed, cancelled, completed.
 - For action intents, fill targets with any provided quote/work/invoice ids or numbers.
+- For team_member.permissions, only use permission ids: quotes.view, quotes.create, quotes.edit, quotes.send, jobs.view, jobs.edit, tasks.view, tasks.create, tasks.edit, tasks.delete, sales.manage, sales.pos.
 - If intent is not clear, set intent to "unknown".
 PROMPT;
     }
@@ -201,6 +208,7 @@ PROMPT;
             'create_category',
             'create_product',
             'create_service',
+            'create_team_member',
             'read_notifications',
             'unknown',
         ];
@@ -219,6 +227,7 @@ PROMPT;
         $property = $this->normalizeProperty($data['property'] ?? []);
         $category = $this->normalizeCategory($data['category'] ?? []);
         $product = $this->normalizeProduct($data['product'] ?? []);
+        $teamMember = $this->normalizeTeamMember($data['team_member'] ?? []);
 
         return [
             'intent' => $intent,
@@ -231,6 +240,7 @@ PROMPT;
             'property' => $property,
             'category' => $category,
             'product' => $product,
+            'team_member' => $teamMember,
             'actions' => array_values(array_filter(Arr::wrap($data['actions'] ?? []))),
         ];
     }
@@ -401,6 +411,26 @@ PROMPT;
             'category' => $this->cleanString($product['category'] ?? null),
             'unit' => $this->cleanString($product['unit'] ?? null),
             'description' => $this->cleanString($product['description'] ?? null),
+        ];
+    }
+
+    private function normalizeTeamMember($member): array
+    {
+        $member = is_array($member) ? $member : [];
+        $permissions = Arr::wrap($member['permissions'] ?? []);
+        $cleanPermissions = [];
+        foreach ($permissions as $permission) {
+            $permission = $this->cleanString($permission);
+            if ($permission !== '') {
+                $cleanPermissions[] = $permission;
+            }
+        }
+
+        return [
+            'name' => $this->cleanString($member['name'] ?? null),
+            'email' => $this->cleanString($member['email'] ?? null),
+            'role' => $this->cleanString($member['role'] ?? null),
+            'permissions' => array_values(array_unique($cleanPermissions)),
         ];
     }
 

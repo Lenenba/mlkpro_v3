@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Quote;
+use App\Models\TeamMember;
 use App\Models\ActivityLog;
 use App\Notifications\SendQuoteNotification;
 use Illuminate\Support\Facades\Auth;
@@ -11,8 +12,23 @@ class QuoteEmaillingController extends Controller
 {
     public function __invoke(Quote $quote)
     {
-        if ($quote->user_id !== Auth::id()) {
+        $user = Auth::user();
+        if (!$user) {
             abort(403);
+        }
+
+        $accountId = $user->accountOwnerId() ?? $user->id;
+        if ($quote->user_id !== $accountId) {
+            abort(403);
+        }
+
+        if ($user->id !== $accountId) {
+            $membership = $user->relationLoaded('teamMembership')
+                ? $user->teamMembership
+                : $user->teamMembership()->first();
+            if (!$membership || !$this->canSendQuote($membership)) {
+                abort(403);
+            }
         }
 
         if ($quote->isArchived()) {
@@ -65,5 +81,14 @@ class QuoteEmaillingController extends Controller
         }
 
         return redirect()->back()->with('success', 'Quote sent successfully to ' . $quote->customer->email);
+    }
+
+    private function canSendQuote(?TeamMember $membership): bool
+    {
+        if (!$membership) {
+            return false;
+        }
+
+        return $membership->hasPermission('quotes.send') || $membership->hasPermission('quotes.edit');
     }
 }

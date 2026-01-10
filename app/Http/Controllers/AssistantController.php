@@ -69,6 +69,8 @@ class AssistantController extends Controller
             ]);
         }
 
+        $context['last_message'] = $validated['message'];
+
         if (!config('services.openai.key')) {
             return response()->json([
                 'status' => 'error',
@@ -143,6 +145,7 @@ class AssistantController extends Controller
             'create_category',
             'create_product',
             'create_service',
+            'create_team_member',
         ], true)) {
             return response()->json(
                 $workflowService->handle($interpretation, $user, $context)
@@ -158,7 +161,7 @@ class AssistantController extends Controller
 
         return response()->json([
             'status' => 'unknown',
-            'message' => 'Je peux creer et gerer des devis, factures et jobs, ainsi que creer des clients, proprietes, categories et produits/services.',
+            'message' => 'Je peux creer et gerer des devis, factures et jobs, ainsi que creer des clients, proprietes, categories, produits/services et membres d equipe.',
         ]);
     }
 

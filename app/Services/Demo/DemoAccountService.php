@@ -124,6 +124,7 @@ class DemoAccountService
             'services' => true,
             'team_members' => true,
             'sales' => true,
+            'assistant' => true,
         ];
     }
 

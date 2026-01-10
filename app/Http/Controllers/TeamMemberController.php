@@ -22,6 +22,10 @@ class TeamMemberController extends Controller
         ['id' => 'tasks.create', 'name' => 'Create tasks'],
         ['id' => 'tasks.edit', 'name' => 'Edit tasks'],
         ['id' => 'tasks.delete', 'name' => 'Delete tasks'],
+        ['id' => 'quotes.view', 'name' => 'View quotes'],
+        ['id' => 'quotes.create', 'name' => 'Create quotes'],
+        ['id' => 'quotes.edit', 'name' => 'Edit quotes'],
+        ['id' => 'quotes.send', 'name' => 'Send quotes'],
         ['id' => 'sales.manage', 'name' => 'Manage sales'],
         ['id' => 'sales.pos', 'name' => 'POS access only'],
     ];
@@ -220,6 +224,10 @@ class TeamMemberController extends Controller
             'tasks.create',
             'tasks.edit',
             'tasks.delete',
+            'quotes.view',
+            'quotes.create',
+            'quotes.edit',
+            'quotes.send',
             'sales.manage',
         ],
             'seller' => [

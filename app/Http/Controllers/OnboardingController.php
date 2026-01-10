@@ -302,6 +302,10 @@ class OnboardingController extends Controller
                 'tasks.create',
                 'tasks.edit',
                 'tasks.delete',
+                'quotes.view',
+                'quotes.create',
+                'quotes.edit',
+                'quotes.send',
             ],
             'member' => [
                 'jobs.view',

@@ -96,6 +96,7 @@ class PlatformSettingsController extends BaseSuperAdminController
             'services',
             'tasks',
             'team_members',
+            'assistant',
         ];
         $limitsPayload = [];
         $inputLimits = $validated['plan_limits'] ?? [];

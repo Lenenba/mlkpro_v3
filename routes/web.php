@@ -119,7 +119,9 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
 
     // Onboarding (account setup)
     Route::post('/onboarding', [OnboardingController::class, 'store'])->name('onboarding.store');
-    Route::post('/assistant/message', [AssistantController::class, 'message'])->name('assistant.message');
+    Route::post('/assistant/message', [AssistantController::class, 'message'])
+        ->middleware('company.feature:assistant')
+        ->name('assistant.message');
 
     // Settings (owner only)
     Route::get('/settings/company', [CompanySettingsController::class, 'edit'])->name('settings.company.edit');

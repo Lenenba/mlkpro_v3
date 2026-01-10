@@ -11,21 +11,42 @@ use App\Models\ProductCategory;
 use App\Models\Property;
 use App\Models\Quote;
 use App\Models\QuoteProduct;
+use App\Models\Role;
+use App\Models\TeamMember;
 use App\Models\User;
 use App\Models\Work;
 use App\Models\WorkChecklistItem;
 use App\Models\Transaction;
 use App\Notifications\SendQuoteNotification;
+use App\Notifications\InviteUserNotification;
 use App\Services\TaskBillingService;
 use App\Services\UsageLimitService;
 use App\Services\WorkBillingService;
 use App\Services\WorkScheduleService;
 use Carbon\Carbon;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Password;
+use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
 
 class AssistantWorkflowService
 {
+    private const TEAM_PERMISSION_KEYS = [
+        'jobs.view',
+        'jobs.edit',
+        'tasks.view',
+        'tasks.create',
+        'tasks.edit',
+        'tasks.delete',
+        'quotes.view',
+        'quotes.create',
+        'quotes.edit',
+        'quotes.send',
+        'sales.manage',
+        'sales.pos',
+    ];
+
     public function handle(array $interpretation, User $user, array $context = []): array
     {
         $intent = $interpretation['intent'] ?? 'unknown';
@@ -42,9 +63,10 @@ class AssistantWorkflowService
             'create_property' => $this->handleCreateProperty($interpretation, $user, $context),
             'create_category' => $this->handleCreateCategory($interpretation, $user, $context),
             'create_product', 'create_service' => $this->handleCreateProduct($interpretation, $user, $context),
+            'create_team_member' => $this->handleCreateTeamMember($interpretation, $user, $context),
             default => [
                 'status' => 'unknown',
-                'message' => 'Je peux creer et gerer des devis, factures et jobs, ainsi que creer des clients, proprietes, categories et produits/services.',
+                'message' => 'Je peux creer et gerer des devis, factures et jobs, ainsi que creer des clients, proprietes, categories, produits/services et membres d equipe.',
             ],
         };
     }
@@ -61,6 +83,7 @@ class AssistantWorkflowService
             'convert_quote' => $this->executeConvertQuote($pendingAction['payload'] ?? [], $user),
             'mark_invoice_paid' => $this->executeMarkInvoicePaid($pendingAction['payload'] ?? [], $user),
             'update_work_status' => $this->executeUpdateWorkStatus($pendingAction['payload'] ?? [], $user),
+            'create_team_member' => $this->executeCreateTeamMember($pendingAction['payload'] ?? [], $user),
             default => [
                 'status' => 'unknown',
                 'message' => 'Action inconnue.',
@@ -72,6 +95,7 @@ class AssistantWorkflowService
     {
         $draft = is_array($context['draft'] ?? null) ? $context['draft'] : [];
         $draft = $this->mergeCustomerDraft($draft, $interpretation['customer'] ?? []);
+        $draft = $this->applyAnswerToCustomerDraft($draft, $context);
 
         $questions = [];
         if ($draft['first_name'] === '') {
@@ -132,6 +156,7 @@ class AssistantWorkflowService
     {
         $draft = is_array($context['draft'] ?? null) ? $context['draft'] : [];
         $draft = $this->mergePropertyDraft($draft, $interpretation['property'] ?? []);
+        $draft = $this->applyAnswerToPropertyDraft($draft, $context);
 
         $accountId = $user->accountOwnerId() ?? $user->id;
         $customerDraft = $draft['customer'] ?? [];
@@ -328,6 +353,69 @@ class AssistantWorkflowService
                 'draft' => null,
             ],
         ];
+    }
+
+    private function handleCreateTeamMember(array $interpretation, User $user, array $context): array
+    {
+        if (!$user->isAccountOwner()) {
+            return [
+                'status' => 'not_allowed',
+                'message' => 'Seul le proprietaire du compte peut creer des membres.',
+            ];
+        }
+
+        $draft = is_array($context['draft'] ?? null) ? $context['draft'] : [];
+        $draft = $this->mergeTeamMemberDraft($draft, $interpretation['team_member'] ?? []);
+        $draft = $this->applyAnswerToTeamMemberDraft($draft, $context);
+
+        $questions = [];
+        if (($draft['name'] ?? '') === '') {
+            $questions[] = 'Quel est le nom du membre ?';
+        }
+        if (($draft['email'] ?? '') === '') {
+            $questions[] = 'Quel est son email ?';
+        }
+
+        if ($questions) {
+            return $this->needsInput('create_team_member', $draft, $questions);
+        }
+
+        $email = strtolower(trim((string) ($draft['email'] ?? '')));
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $draft['email'] = $email;
+            return $this->needsInput('create_team_member', $draft, [
+                'Merci de donner un email valide.',
+            ]);
+        }
+        $draft['email'] = $email;
+
+        if (User::query()->where('email', $email)->exists()) {
+            return $this->needsInput('create_team_member', $draft, [
+                'Cet email est deja utilise. Merci de donner un autre email.',
+            ]);
+        }
+
+        $role = $this->normalizeTeamRole($draft['role'] ?? '');
+        $permissions = $this->resolveTeamPermissions($draft, $context);
+        if (!$permissions) {
+            $permissions = $this->defaultTeamPermissions($role);
+        }
+
+        $summary = $this->buildTeamMemberSummary($draft['name'], $email, $role, $permissions);
+        $pendingAction = [
+            'type' => 'create_team_member',
+            'payload' => [
+                'name' => $draft['name'],
+                'email' => $email,
+                'role' => $role,
+                'title' => $draft['title'] ?? null,
+                'phone' => $draft['phone'] ?? null,
+                'permissions' => $permissions,
+            ],
+            'summary' => $summary,
+        ];
+
+        return $this->needsConfirmation($summary, $pendingAction);
     }
 
     private function handleCreateWork(array $interpretation, User $user, array $context): array
@@ -808,6 +896,88 @@ class AssistantWorkflowService
             'action' => [
                 'type' => 'invoice_created',
                 'invoice_id' => $invoice->id,
+            ],
+            'context' => [
+                'pending_action' => null,
+            ],
+        ];
+    }
+
+    private function executeCreateTeamMember(array $payload, User $user): array
+    {
+        if (!$user->isAccountOwner()) {
+            return [
+                'status' => 'not_allowed',
+                'message' => 'Seul le proprietaire du compte peut creer des membres.',
+            ];
+        }
+
+        app(UsageLimitService::class)->enforceLimit($user, 'team_members');
+
+        $name = trim((string) ($payload['name'] ?? ''));
+        $email = strtolower(trim((string) ($payload['email'] ?? '')));
+        if ($name === '' || $email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            return [
+                'status' => 'error',
+                'message' => 'Nom ou email invalide pour le membre.',
+            ];
+        }
+
+        if (User::query()->where('email', $email)->exists()) {
+            return [
+                'status' => 'error',
+                'message' => 'Cet email est deja utilise.',
+            ];
+        }
+
+        $role = $this->normalizeTeamRole($payload['role'] ?? '');
+        $permissions = $this->filterTeamPermissions(Arr::wrap($payload['permissions'] ?? []));
+        if (!$permissions) {
+            $permissions = $this->defaultTeamPermissions($role);
+        }
+
+        $roleId = Role::query()->where('name', 'employee')->value('id');
+        if (!$roleId) {
+            $roleId = Role::create([
+                'name' => 'employee',
+                'description' => 'Employee role',
+            ])->id;
+        }
+
+        $memberUser = User::create([
+            'name' => $name,
+            'email' => $email,
+            'password' => Hash::make(Str::random(32)),
+            'role_id' => $roleId,
+            'email_verified_at' => now(),
+            'must_change_password' => true,
+        ]);
+
+        $teamMember = TeamMember::create([
+            'account_id' => $user->id,
+            'user_id' => $memberUser->id,
+            'role' => $role,
+            'title' => $payload['title'] ?? null,
+            'phone' => $payload['phone'] ?? null,
+            'permissions' => $permissions,
+            'is_active' => true,
+        ]);
+
+        $token = Password::broker()->createToken($memberUser);
+        $memberUser->notify(new InviteUserNotification(
+            $token,
+            $user->company_name ?: config('app.name'),
+            $user->company_logo_url,
+            'team'
+        ));
+
+        return [
+            'status' => 'created',
+            'message' => 'Membre cree. Invitation envoyee par email.',
+            'action' => [
+                'type' => 'team_member_created',
+                'team_member_id' => $teamMember->id,
+                'user_id' => $memberUser->id,
             ],
             'context' => [
                 'pending_action' => null,
@@ -1314,6 +1484,160 @@ class AssistantWorkflowService
         return $merged;
     }
 
+    private function mergeTeamMemberDraft(array $base, array $updates): array
+    {
+        $updates = is_array($updates) ? $updates : [];
+        $merged = $base;
+        foreach (['name', 'email', 'role', 'title', 'phone'] as $key) {
+            $value = $updates[$key] ?? null;
+            $value = is_string($value) ? trim($value) : $value;
+            if ($value === '' || $value === null) {
+                continue;
+            }
+            $merged[$key] = $value;
+        }
+
+        if (array_key_exists('permissions', $updates)) {
+            $basePermissions = Arr::wrap($merged['permissions'] ?? []);
+            $updatePermissions = Arr::wrap($updates['permissions']);
+            $permissions = array_filter(array_map(function ($permission) {
+                return is_string($permission) ? trim($permission) : '';
+            }, array_merge($basePermissions, $updatePermissions)));
+            $merged['permissions'] = array_values(array_unique($permissions));
+        }
+
+        return $merged;
+    }
+
+    private function applyAnswerToCustomerDraft(array $draft, array $context): array
+    {
+        [$answer, $questions] = $this->extractAnswerAndQuestions($context);
+        if ($answer === '' || !$questions) {
+            return $draft;
+        }
+
+        $normalized = $this->normalizeAnswerValue($answer);
+        $email = filter_var($answer, FILTER_VALIDATE_EMAIL) ? $answer : null;
+
+        foreach ($questions as $question) {
+            $lower = strtolower($question);
+            if (str_contains($lower, 'email') && ($draft['email'] ?? '') === '' && $email) {
+                $draft['email'] = $email;
+                continue;
+            }
+
+            if (str_contains($lower, 'prenom') && ($draft['first_name'] ?? '') === '') {
+                $draft['first_name'] = $normalized;
+                continue;
+            }
+
+            if (str_contains($lower, 'nom') && !str_contains($lower, 'prenom') && ($draft['last_name'] ?? '') === '') {
+                $draft['last_name'] = $normalized;
+            }
+        }
+
+        if (($draft['first_name'] ?? '') === '' && ($draft['last_name'] ?? '') === '' && count($questions) === 1) {
+            $parts = preg_split('/\s+/', $normalized, 2);
+            if (count($parts) === 2) {
+                $draft['first_name'] = $parts[0];
+                $draft['last_name'] = $parts[1];
+            }
+        }
+
+        return $draft;
+    }
+
+    private function applyAnswerToTeamMemberDraft(array $draft, array $context): array
+    {
+        [$answer, $questions] = $this->extractAnswerAndQuestions($context);
+        if ($answer === '' || !$questions) {
+            return $draft;
+        }
+
+        $normalized = $this->normalizeAnswerValue($answer);
+        $email = filter_var($answer, FILTER_VALIDATE_EMAIL) ? strtolower($answer) : null;
+
+        foreach ($questions as $question) {
+            $lower = strtolower($question);
+            if (str_contains($lower, 'email') && ($draft['email'] ?? '') === '' && $email) {
+                $draft['email'] = $email;
+                continue;
+            }
+
+            if (str_contains($lower, 'nom') && ($draft['name'] ?? '') === '') {
+                $draft['name'] = $normalized;
+            }
+        }
+
+        return $draft;
+    }
+
+    private function applyAnswerToPropertyDraft(array $draft, array $context): array
+    {
+        [$answer, $questions] = $this->extractAnswerAndQuestions($context);
+        if ($answer === '' || !$questions) {
+            return $draft;
+        }
+
+        $normalized = $this->normalizeAnswerValue($answer);
+        $draft['customer'] = $this->applyAnswerToCustomerDraft($draft['customer'] ?? [], $context);
+
+        foreach ($questions as $question) {
+            $lower = strtolower($question);
+            if (str_contains($lower, 'ville') && ($draft['city'] ?? '') === '') {
+                $draft['city'] = $normalized;
+                continue;
+            }
+
+            if ((str_contains($lower, 'adresse') || str_contains($lower, 'address') || str_contains($lower, 'rue'))
+                && ($draft['street1'] ?? '') === '') {
+                $draft['street1'] = $normalized;
+                continue;
+            }
+
+            if ((str_contains($lower, 'code postal') || str_contains($lower, 'zip'))
+                && ($draft['zip'] ?? '') === '') {
+                $draft['zip'] = $normalized;
+                continue;
+            }
+
+            if ((str_contains($lower, 'province') || str_contains($lower, 'etat') || str_contains($lower, 'state'))
+                && ($draft['state'] ?? '') === '') {
+                $draft['state'] = $normalized;
+                continue;
+            }
+
+            if (str_contains($lower, 'pays') && ($draft['country'] ?? '') === '') {
+                $draft['country'] = $normalized;
+            }
+        }
+
+        return $draft;
+    }
+
+    private function extractAnswerAndQuestions(array $context): array
+    {
+        $answer = trim((string) ($context['last_message'] ?? ''));
+        $questions = $context['questions'] ?? [];
+        if (!is_array($questions)) {
+            $questions = [];
+        }
+
+        $questions = array_values(array_filter(array_map(function ($question) {
+            return is_string($question) ? trim($question) : '';
+        }, $questions)));
+
+        return [$answer, $questions];
+    }
+
+    private function normalizeAnswerValue(string $answer): string
+    {
+        $trimmed = trim($answer);
+        $trimmed = preg_replace('/^(ville|city|adresse|address|code postal|zip|state|province)\s*[:=-]?\s*/i', '', $trimmed);
+
+        return trim((string) $trimmed);
+    }
+
     private function mergeWorkDraft(array $base, array $updates): array
     {
         $updates = is_array($updates) ? $updates : [];
@@ -1486,6 +1810,20 @@ class AssistantWorkflowService
         }
 
         return $payload;
+    }
+
+    private function buildTeamMemberSummary(string $name, string $email, string $role, array $permissions): string
+    {
+        $summary = [];
+        $summary[] = 'Resume du membre:';
+        $summary[] = 'Nom: ' . ($name !== '' ? $name : 'Membre');
+        $summary[] = 'Email: ' . $email;
+        $summary[] = 'Role: ' . $role;
+        if ($permissions) {
+            $summary[] = 'Permissions: ' . implode(', ', $permissions);
+        }
+
+        return implode("\n", $summary);
     }
 
     private function buildWorkSummary(?Customer $customer, array $draftCustomer, array $draft, array $items, string $status): string
@@ -1863,6 +2201,117 @@ class AssistantWorkflowService
         return $user->company_type === 'products' ? 'product' : 'service';
     }
 
+    private function normalizeTeamRole(?string $role): string
+    {
+        $value = strtolower(trim((string) $role));
+        if ($value === 'admin') {
+            return 'admin';
+        }
+
+        if (in_array($value, ['seller', 'sales', 'vendeur'], true)) {
+            return 'seller';
+        }
+
+        return 'member';
+    }
+
+    private function resolveTeamPermissions(array $draft, array $context): array
+    {
+        $permissions = Arr::wrap($draft['permissions'] ?? []);
+        $resolved = [];
+
+        foreach ($permissions as $permission) {
+            $permission = strtolower(trim((string) $permission));
+            if ($permission === '') {
+                continue;
+            }
+
+            if (in_array($permission, self::TEAM_PERMISSION_KEYS, true)) {
+                $resolved[] = $permission;
+                continue;
+            }
+
+            if (in_array($permission, ['quote_write', 'quotes.write', 'quote_edit', 'devis_ecriture'], true)) {
+                $resolved = array_merge($resolved, ['quotes.view', 'quotes.create', 'quotes.edit']);
+                continue;
+            }
+
+            if (in_array($permission, ['quote_view', 'quotes.view', 'devis_view'], true)) {
+                $resolved[] = 'quotes.view';
+                continue;
+            }
+
+            if (in_array($permission, ['quote_send', 'quotes.send', 'devis_envoyer'], true)) {
+                $resolved[] = 'quotes.send';
+            }
+        }
+
+        if (!$resolved) {
+            $message = strtolower(trim((string) ($context['last_message'] ?? '')));
+            if ($message !== '') {
+                $hasQuotes = str_contains($message, 'devis') || str_contains($message, 'quote');
+                $hasWrite = preg_match('/\b(ecrit|ecriture|ecritures|write|edit|modifier|creation|creer|create)\b/', $message) === 1;
+                $hasSend = preg_match('/\b(envoy|send|email)\b/', $message) === 1;
+                $hasView = preg_match('/\b(voir|view|lire)\b/', $message) === 1;
+
+                if ($hasQuotes) {
+                    $resolved[] = 'quotes.view';
+                    if ($hasWrite) {
+                        $resolved[] = 'quotes.create';
+                        $resolved[] = 'quotes.edit';
+                    } elseif ($hasView) {
+                        $resolved[] = 'quotes.view';
+                    }
+
+                    if ($hasSend) {
+                        $resolved[] = 'quotes.send';
+                    }
+                }
+            }
+        }
+
+        return $this->filterTeamPermissions($resolved);
+    }
+
+    private function filterTeamPermissions(array $permissions): array
+    {
+        $filtered = [];
+        foreach ($permissions as $permission) {
+            if (in_array($permission, self::TEAM_PERMISSION_KEYS, true)) {
+                $filtered[] = $permission;
+            }
+        }
+
+        return array_values(array_unique($filtered));
+    }
+
+    private function defaultTeamPermissions(string $role): array
+    {
+        return match ($role) {
+            'admin' => [
+                'jobs.view',
+                'jobs.edit',
+                'tasks.view',
+                'tasks.create',
+                'tasks.edit',
+                'tasks.delete',
+                'quotes.view',
+                'quotes.create',
+                'quotes.edit',
+                'quotes.send',
+                'sales.manage',
+            ],
+            'seller' => [
+                'sales.pos',
+            ],
+            default => [
+                'jobs.view',
+                'tasks.view',
+                'tasks.edit',
+            ],
+        };
+    }
+
     private function needsConfirmation(string $summary, array $pendingAction): array
     {
         return [
@@ -1999,6 +2448,7 @@ class AssistantWorkflowService
             'context' => [
                 'intent' => $intent,
                 'draft' => $draft,
+                'questions' => array_values(array_unique($questions)),
             ],
         ];
     }

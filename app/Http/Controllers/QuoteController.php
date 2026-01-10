@@ -43,7 +43,10 @@ class QuoteController extends Controller
             'direction',
         ]);
 
-        $userId = Auth::id();
+        $user = Auth::user();
+        $accountId = $user?->accountOwnerId() ?? Auth::id();
+
+        $this->authorize('viewAny', Quote::class);
 
         $statusFilter = $filters['status'] ?? null;
         $showArchived = $statusFilter === 'archived';
@@ -56,8 +59,8 @@ class QuoteController extends Controller
             ->filter($filtersForQuery)
             ->when(
                 $showArchived,
-                fn($query) => $query->byUserWithArchived($userId)->archived(),
-                fn($query) => $query->byUser($userId)
+                fn($query) => $query->byUserWithArchived($accountId)->archived(),
+                fn($query) => $query->byUser($accountId)
             );
 
         $sort = in_array($filters['sort'] ?? null, ['created_at', 'total', 'status', 'number', 'job_title'], true)
@@ -95,7 +98,7 @@ class QuoteController extends Controller
             ->limit(5)
             ->get(['id', 'number', 'customer_id', 'status', 'total', 'created_at']);
 
-        $customers = Customer::byUser($userId)
+        $customers = Customer::byUser($accountId)
             ->orderBy('company_name')
             ->get(['id', 'company_name', 'first_name', 'last_name']);
 
@@ -111,7 +114,12 @@ class QuoteController extends Controller
 
     public function create(Request $request, Customer $customer)
     {
-        if($customer->user_id !== Auth::user()->id){
+        $user = $request->user();
+        $accountOwnerId = $user?->accountOwnerId() ?? Auth::id();
+
+        $this->authorize('create', Quote::class);
+
+        if ($customer->user_id !== $accountOwnerId) {
             abort(403);
         }
 
@@ -121,12 +129,15 @@ class QuoteController extends Controller
             $propertyId = null;
         }
 
-        $itemType = Auth::user()?->company_type === 'products'
+        $accountOwner = $accountOwnerId === ($user?->id ?? null)
+            ? $user
+            : User::query()->find($accountOwnerId);
+
+        $itemType = $accountOwner?->company_type === 'products'
             ? Product::ITEM_TYPE_PRODUCT
             : Product::ITEM_TYPE_SERVICE;
 
-        $accountOwnerId = $request->user()?->accountOwnerId() ?? Auth::id();
-        $accountOwner = User::query()->find($accountOwnerId);
+        $accountOwner = $accountOwner ?? User::query()->find($accountOwnerId);
         $templateService = app(TemplateService::class);
         $templateDefaults = $templateService->resolveQuoteDefaults($accountOwner);
         $templateExamples = $templateService->resolveQuoteExamples($accountOwner);
@@ -153,9 +164,6 @@ class QuoteController extends Controller
         $this->authorize('edit', $quote);
 
         $customer = $quote->customer->load('properties');
-        $itemType = Auth::user()?->company_type === 'products'
-            ? Product::ITEM_TYPE_PRODUCT
-            : Product::ITEM_TYPE_SERVICE;
 
         return $this->inertiaOrJson('Quote/Create', [
             'quote' => $quote->load('products', 'taxes'),
@@ -172,9 +180,17 @@ class QuoteController extends Controller
      */
     public function store(Request $request)
     {
+        $this->authorize('create', Quote::class);
+
         app(UsageLimitService::class)->enforceLimit($request->user(), 'quotes');
 
-        $itemType = Auth::user()?->company_type === 'products'
+        $user = $request->user();
+        $accountId = $user?->accountOwnerId() ?? Auth::id();
+        $accountOwner = $accountId === ($user?->id ?? null)
+            ? $user
+            : User::query()->find($accountId);
+
+        $itemType = $accountOwner?->company_type === 'products'
             ? Product::ITEM_TYPE_PRODUCT
             : Product::ITEM_TYPE_SERVICE;
 
@@ -187,7 +203,7 @@ class QuoteController extends Controller
             'product.*.id' => [
                 'nullable',
                 Rule::exists('products', 'id')
-                    ->where('user_id', Auth::id()),
+                    ->where('user_id', $accountId),
             ],
             'product.*.item_type' => ['nullable', Rule::in([Product::ITEM_TYPE_PRODUCT, Product::ITEM_TYPE_SERVICE])],
             'product.*.name' => 'required_without:product.*.id|string',
@@ -202,7 +218,7 @@ class QuoteController extends Controller
             'taxes.*' => ['integer', Rule::exists('taxes', 'id')],
         ]);
 
-        $customer = Customer::byUser(Auth::id())->findOrFail($validated['customer_id']);
+        $customer = Customer::byUser($accountId)->findOrFail($validated['customer_id']);
 
         $propertyId = $validated['property_id'] ?? null;
         if ($propertyId && !$customer->properties()->whereKey($propertyId)->exists()) {
@@ -218,9 +234,8 @@ class QuoteController extends Controller
             return back()->withErrors(['property_id' => 'Invalid property for this customer.']);
         }
 
-        $accountId = $request->user()?->accountOwnerId() ?? Auth::id();
         $creatorId = $request->user()?->id ?? Auth::id();
-        $items = collect($this->buildQuoteItems($validated['product'], $itemType, Auth::id(), $accountId, $creatorId));
+        $items = collect($this->buildQuoteItems($validated['product'], $itemType, $accountId, $accountId, $creatorId));
 
         $subtotal = $items->sum('total');
         $selectedTaxes = Tax::whereIn('id', $validated['taxes'] ?? [])->get();
@@ -240,9 +255,9 @@ class QuoteController extends Controller
         }
 
         $quote = null;
-        DB::transaction(function () use (&$quote, $customer, $propertyId, $validated, $items, $subtotal, $total, $deposit, $taxLines) {
+        DB::transaction(function () use (&$quote, $customer, $propertyId, $validated, $items, $subtotal, $total, $deposit, $taxLines, $accountId) {
             $quote = $customer->quotes()->create([
-                'user_id' => Auth::id(),
+                'user_id' => $accountId,
                 'property_id' => $propertyId,
                 'job_title' => $validated['job_title'],
                 'subtotal' => $subtotal,
@@ -295,7 +310,13 @@ class QuoteController extends Controller
 
     public function update(Request $request, Quote $quote)
     {
-        $itemType = Auth::user()?->company_type === 'products'
+        $user = $request->user();
+        $accountId = $user?->accountOwnerId() ?? Auth::id();
+        $accountOwner = $accountId === ($user?->id ?? null)
+            ? $user
+            : User::query()->find($accountId);
+
+        $itemType = $accountOwner?->company_type === 'products'
             ? Product::ITEM_TYPE_PRODUCT
             : Product::ITEM_TYPE_SERVICE;
 
@@ -308,7 +329,7 @@ class QuoteController extends Controller
             'product.*.id' => [
                 'nullable',
                 Rule::exists('products', 'id')
-                    ->where('user_id', Auth::id()),
+                    ->where('user_id', $accountId),
             ],
             'product.*.item_type' => ['nullable', Rule::in([Product::ITEM_TYPE_PRODUCT, Product::ITEM_TYPE_SERVICE])],
             'product.*.name' => 'required_without:product.*.id|string',
@@ -325,7 +346,7 @@ class QuoteController extends Controller
 
         $this->authorize('edit', $quote);
 
-        $customer = Customer::byUser(Auth::id())->findOrFail($validated['customer_id']);
+        $customer = Customer::byUser($accountId)->findOrFail($validated['customer_id']);
         $propertyId = $validated['property_id'] ?? null;
         if ($propertyId && !$customer->properties()->whereKey($propertyId)->exists()) {
             if ($this->shouldReturnJson($request)) {
@@ -340,9 +361,8 @@ class QuoteController extends Controller
             return back()->withErrors(['property_id' => 'Invalid property for this customer.']);
         }
 
-        $accountId = $request->user()?->accountOwnerId() ?? Auth::id();
         $creatorId = $request->user()?->id ?? Auth::id();
-        $items = collect($this->buildQuoteItems($validated['product'], $itemType, Auth::id(), $accountId, $creatorId));
+        $items = collect($this->buildQuoteItems($validated['product'], $itemType, $accountId, $accountId, $creatorId));
 
         $subtotal = $items->sum('total');
         $selectedTaxes = Tax::whereIn('id', $validated['taxes'] ?? [])->get();
@@ -422,7 +442,7 @@ class QuoteController extends Controller
 
     public function accept(Request $request, Quote $quote)
     {
-        $this->authorize('show', $quote);
+        $this->authorize('edit', $quote);
 
         if ($quote->isArchived()) {
             if ($this->shouldReturnJson($request)) {
@@ -586,7 +606,13 @@ class QuoteController extends Controller
     {
         $this->authorize('show', $quote);
 
-        $itemType = Auth::user()?->company_type === 'products'
+        $user = Auth::user();
+        $accountId = $user?->accountOwnerId() ?? Auth::id();
+        $accountOwner = $accountId === ($user?->id ?? null)
+            ? $user
+            : User::query()->find($accountId);
+
+        $itemType = $accountOwner?->company_type === 'products'
             ? Product::ITEM_TYPE_PRODUCT
             : Product::ITEM_TYPE_SERVICE;
 
@@ -610,7 +636,7 @@ class QuoteController extends Controller
 
         return $this->inertiaOrJson('Quote/Show', [
             'quote' => $quote,
-            'products' => Product::byUser(Auth::id())->where('item_type', $itemType)->get(),
+            'products' => Product::byUser($accountId)->where('item_type', $itemType)->get(),
             'taxes' => Tax::all(),
         ]);
     }
@@ -659,7 +685,7 @@ class QuoteController extends Controller
 
     public function convertToWork(Quote $quote)
     {
-        $this->authorize('show', $quote);
+        $this->authorize('edit', $quote);
 
         if ($quote->isArchived()) {
             if ($this->shouldReturnJson()) {
@@ -694,7 +720,7 @@ class QuoteController extends Controller
 
         $work = DB::transaction(function () use ($quote) {
             $work = Work::create([
-                'user_id' => Auth::id(),
+                'user_id' => $quote->user_id,
                 'customer_id' => $quote->customer_id,
                 'quote_id' => $quote->id,
                 'job_title' => $quote->job_title,
