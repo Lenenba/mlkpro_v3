@@ -1,5 +1,5 @@
 <script setup>
-import { ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { Link, router, useForm } from '@inertiajs/vue3';
 import StarRating from '@/Components/UI/StarRating.vue';
 import { humanizeDate } from '@/utils/date';
@@ -33,8 +33,11 @@ const filterForm = useForm({
 
 const showAdvanced = ref(false);
 const isLoading = ref(false);
+const isViewSwitching = ref(false);
 const allowedViews = ['table', 'cards'];
 const viewMode = ref('table');
+const isBusy = computed(() => isLoading.value || isViewSwitching.value);
+let viewSwitchTimeout;
 
 if (typeof window !== 'undefined') {
     const storedView = window.localStorage.getItem('invoice_view_mode');
@@ -51,6 +54,13 @@ const setViewMode = (mode) => {
     if (typeof window !== 'undefined') {
         window.localStorage.setItem('invoice_view_mode', mode);
     }
+    isViewSwitching.value = true;
+    if (viewSwitchTimeout) {
+        clearTimeout(viewSwitchTimeout);
+    }
+    viewSwitchTimeout = setTimeout(() => {
+        isViewSwitching.value = false;
+    }, 220);
 };
 
 const statusOptions = [
@@ -372,7 +382,7 @@ const getStatusMeta = (invoice) => statusMeta[invoice?.status] || statusMeta.dra
                     </thead>
 
                     <tbody class="divide-y divide-stone-200 dark:divide-neutral-700">
-                        <template v-if="isLoading">
+                        <template v-if="isBusy">
                             <tr v-for="row in 6" :key="`skeleton-${row}`">
                                 <td colspan="9" class="px-4 py-3">
                                     <div class="grid grid-cols-6 gap-4 animate-pulse">
@@ -508,14 +518,25 @@ const getStatusMeta = (invoice) => statusMeta[invoice?.status] || statusMeta.dra
         </div>
 
         <div v-else class="space-y-3">
-            <div v-if="isLoading" class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            <div v-if="isBusy" class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
                 <div v-for="row in 6" :key="`card-skeleton-${row}`"
                     class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-800">
-                    <div class="space-y-3 animate-pulse">
-                        <div class="h-4 w-1/2 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
-                        <div class="h-3 w-1/3 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
-                        <div class="h-3 w-3/4 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
-                        <div class="h-3 w-2/3 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                    <div class="space-y-4 animate-pulse">
+                        <div class="flex items-start justify-between gap-2">
+                            <div class="space-y-2">
+                                <div class="h-3 w-32 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                                <div class="h-3 w-24 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                            </div>
+                            <div class="h-5 w-20 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <div class="h-3 w-full rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                            <div class="h-3 w-full rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <div class="h-4 w-20 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                            <div class="h-4 w-24 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                        </div>
                     </div>
                 </div>
             </div>

@@ -97,6 +97,7 @@ const setViewMode = (mode) => {
     if (typeof window !== 'undefined') {
         window.localStorage.setItem('task_view_mode', mode);
     }
+    isLoading.value = true;
     autoFilter();
 };
 
@@ -924,9 +925,39 @@ const submitProof = () => {
         <div
             v-if="viewMode === 'board'"
             class="overflow-x-auto"
-            :class="isLoading ? 'opacity-60 pointer-events-none' : ''"
         >
-            <div class="min-w-[720px] grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <div v-if="isLoading" class="min-w-[720px] grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                <div
+                    v-for="status in boardStatuses"
+                    :key="`skeleton-${status}`"
+                    class="flex flex-col rounded-sm border border-stone-200 bg-stone-50 shadow-sm dark:border-neutral-700 dark:bg-neutral-900"
+                >
+                    <div class="flex items-center justify-between border-b border-stone-200 px-3 py-2 dark:border-neutral-700">
+                        <span class="text-xs font-semibold uppercase text-stone-400 dark:text-neutral-500">
+                            {{ statusLabel(status) || status }}
+                        </span>
+                        <div class="h-4 w-8 rounded-sm bg-stone-200 dark:bg-neutral-800"></div>
+                    </div>
+                    <div class="space-y-2 p-3 animate-pulse">
+                        <div v-for="row in 3" :key="`skeleton-${status}-${row}`"
+                            class="rounded-sm border border-stone-200 bg-white p-3 dark:border-neutral-700 dark:bg-neutral-800">
+                            <div class="flex items-start gap-2">
+                                <div class="size-6 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                                <div class="flex-1 space-y-2">
+                                    <div class="h-3 w-3/4 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                                    <div class="h-3 w-1/2 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                                </div>
+                            </div>
+                            <div class="mt-3 flex flex-wrap gap-2">
+                                <div class="h-4 w-14 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
+                                <div class="h-4 w-20 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
+                                <div class="h-4 w-16 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div v-else class="min-w-[720px] grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 <div
                     v-for="status in boardStatuses"
                     :key="status"
@@ -1107,8 +1138,41 @@ const submitProof = () => {
     <div
         v-else-if="viewMode === 'schedule'"
         class="grid gap-4 lg:grid-cols-[2fr_1fr]"
-        :class="isLoading ? 'opacity-60 pointer-events-none' : ''"
     >
+        <template v-if="isLoading">
+            <div class="space-y-3">
+                <div class="rounded-sm border border-stone-200 bg-white px-3 py-3 dark:border-neutral-700 dark:bg-neutral-800">
+                    <div class="flex items-center justify-between animate-pulse">
+                        <div class="h-4 w-24 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                        <div class="h-6 w-32 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
+                    </div>
+                </div>
+                <div class="space-y-2 animate-pulse">
+                    <div v-for="row in 4" :key="`schedule-skeleton-${row}`"
+                        class="rounded-sm border border-stone-200 bg-white p-3 shadow-sm dark:border-neutral-700 dark:bg-neutral-800">
+                        <div class="h-3 w-1/2 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                        <div class="mt-2 h-3 w-2/3 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                        <div class="mt-3 flex flex-wrap gap-2">
+                            <div class="h-4 w-16 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
+                            <div class="h-4 w-20 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
+                            <div class="h-4 w-14 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                <div class="flex items-center justify-between animate-pulse">
+                    <div class="size-8 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                    <div class="h-4 w-24 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                    <div class="size-8 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                </div>
+                <div class="mt-4 grid grid-cols-7 gap-2 animate-pulse">
+                    <div v-for="day in 14" :key="`calendar-skeleton-${day}`"
+                        class="h-6 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                </div>
+            </div>
+        </template>
+        <template v-else>
             <div class="space-y-4">
                 <div v-if="taskList.length" class="flex flex-wrap items-center justify-between gap-2 rounded-sm border border-stone-200 bg-white px-3 py-2 text-xs text-stone-500 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-400">
                     <div class="flex items-center gap-2">
@@ -1459,7 +1523,8 @@ const submitProof = () => {
                     </span>
                 </div>
             </div>
-        </div>
+        </template>
+    </div>
 
         <div v-else
             class="overflow-x-auto [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-stone-100 [&::-webkit-scrollbar-thumb]:bg-stone-300 dark:[&::-webkit-scrollbar-track]:bg-neutral-700 dark:[&::-webkit-scrollbar-thumb]:bg-neutral-500">

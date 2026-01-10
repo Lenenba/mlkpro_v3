@@ -37,8 +37,11 @@ const filterForm = useForm({
 
 const showAdvanced = ref(false);
 const isLoading = ref(false);
+const isViewSwitching = ref(false);
 const allowedViews = ['table', 'cards'];
 const viewMode = ref('table');
+const isBusy = computed(() => isLoading.value || isViewSwitching.value);
+let viewSwitchTimeout;
 
 if (typeof window !== 'undefined') {
     const storedView = window.localStorage.getItem('customer_view_mode');
@@ -55,6 +58,13 @@ const setViewMode = (mode) => {
     if (typeof window !== 'undefined') {
         window.localStorage.setItem('customer_view_mode', mode);
     }
+    isViewSwitching.value = true;
+    if (viewSwitchTimeout) {
+        clearTimeout(viewSwitchTimeout);
+    }
+    viewSwitchTimeout = setTimeout(() => {
+        isViewSwitching.value = false;
+    }, 220);
 };
 
 const filterPayload = () => {
@@ -476,7 +486,7 @@ const getCustomerInitials = (customer) => {
                     </thead>
 
                     <tbody class="divide-y divide-stone-200 dark:divide-neutral-700">
-                        <template v-if="isLoading">
+                        <template v-if="isBusy">
                             <tr v-for="row in 6" :key="`skeleton-${row}`">
                                 <td colspan="9" class="px-4 py-3">
                                     <div class="grid grid-cols-7 gap-4 animate-pulse">
@@ -617,14 +627,27 @@ const getCustomerInitials = (customer) => {
         </div>
 
         <div v-else class="space-y-3">
-            <div v-if="isLoading" class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            <div v-if="isBusy" class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
                 <div v-for="row in 6" :key="`card-skeleton-${row}`"
                     class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-800">
-                    <div class="space-y-3 animate-pulse">
-                        <div class="h-4 w-1/2 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
-                        <div class="h-3 w-1/3 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
-                        <div class="h-3 w-3/4 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
-                        <div class="h-3 w-2/3 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                    <div class="space-y-4 animate-pulse">
+                        <div class="flex items-center gap-3">
+                            <div class="size-11 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                            <div class="flex-1 space-y-2">
+                                <div class="h-3 w-3/4 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                                <div class="h-3 w-1/2 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <div class="h-3 w-full rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                            <div class="h-3 w-full rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                            <div class="h-3 w-full rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                            <div class="h-3 w-full rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                        </div>
+                        <div class="flex flex-wrap gap-2">
+                            <div class="h-5 w-20 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
+                            <div class="h-5 w-16 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -651,8 +674,7 @@ const getCustomerInitials = (customer) => {
                 <div
                     v-for="customer in customers.data"
                     :key="customer.id"
-                    class="rounded-sm border border-stone-200 border-l-4 bg-white p-4 shadow-sm transition-shadow hover:shadow-md dark:border-neutral-700 dark:bg-neutral-800"
-                    :class="customer.is_active ? 'border-l-emerald-500/80' : 'border-l-stone-300'"
+                    class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md dark:border-neutral-700 dark:bg-neutral-800"
                 >
                     <div class="flex items-start justify-between gap-3">
                         <div class="flex items-start gap-3 min-w-0">
