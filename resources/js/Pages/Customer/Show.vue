@@ -360,7 +360,7 @@ const deleteProperty = (property) => {
     <Head :title="customer.company_name || `${customer.first_name || ''} ${customer.last_name || ''}`.trim() || 'Customer'" />
     <AuthenticatedLayout>
         <div class="grid grid-cols-1 gap-5 md:grid-cols-3">
-            <div class="md:col-span-2">
+            <div class="md:col-span-2 rise-stagger">
                 <Header :customer="customer" />
 
                 <Card v-if="showSales" class="mt-5">
@@ -806,7 +806,7 @@ const deleteProperty = (property) => {
                     </div>
                 </Card>
             </div>
-            <div>
+            <div class="rise-stagger">
                 <CardNoHeader v-if="showServiceOps">
                     <template #title>Apercu client</template>
 

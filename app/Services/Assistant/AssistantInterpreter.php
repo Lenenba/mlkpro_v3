@@ -36,7 +36,7 @@ class AssistantInterpreter
 You are a structured assistant for a business management platform.
 Return JSON only. Do not include markdown or extra text.
 
-Allowed intents: create_quote, create_work, create_invoice, send_quote, accept_quote, convert_quote, mark_invoice_paid, update_work_status, create_customer, create_property, create_category, create_product, create_service, create_team_member, read_notifications, unknown.
+Allowed intents: create_quote, create_work, create_invoice, send_quote, accept_quote, convert_quote, mark_invoice_paid, update_work_status, create_customer, create_property, create_category, create_product, create_service, create_team_member, read_notifications, list_quotes, list_works, list_invoices, list_customers, show_quote, show_work, show_invoice, show_customer, create_task, update_task_status, assign_task, update_checklist_item, create_request, convert_request, send_invoice, remind_invoice, schedule_work, assign_work_team, unknown.
 
 You cannot modify the app structure, UI, schema, or settings. You can only create or read workflow data.
 If a user asks to change the UI or structure, set intent to "unknown".
@@ -58,6 +58,7 @@ Output JSON schema:
       "email": "",
       "phone": ""
     },
+    "status": "",
     "items": [
       {
         "name": "",
@@ -110,7 +111,10 @@ Output JSON schema:
     "work_id": null,
     "work_number": "",
     "invoice_id": null,
-    "invoice_number": ""
+    "invoice_number": "",
+    "task_id": null,
+    "request_id": null,
+    "checklist_item_id": null
   },
   "customer": {
     "name": "",
@@ -150,11 +154,47 @@ Output JSON schema:
     "unit": "",
     "description": ""
   },
+  "task": {
+    "title": "",
+    "description": "",
+    "status": "",
+    "due_date": "",
+    "assignee": {
+      "name": "",
+      "email": ""
+    }
+  },
+  "checklist_item": {
+    "title": "",
+    "status": ""
+  },
+  "request": {
+    "title": "",
+    "service_type": "",
+    "description": "",
+    "channel": "",
+    "urgency": "",
+    "contact_name": "",
+    "contact_email": "",
+    "contact_phone": "",
+    "country": "",
+    "state": "",
+    "city": "",
+    "street1": "",
+    "street2": "",
+    "postal_code": ""
+  },
   "team_member": {
     "name": "",
     "email": "",
     "role": "admin|member|seller",
     "permissions": []
+  },
+  "team_members": [],
+  "filters": {
+    "search": "",
+    "status": "",
+    "limit": null
   },
   "actions": []
 }
@@ -210,6 +250,24 @@ PROMPT;
             'create_service',
             'create_team_member',
             'read_notifications',
+            'list_quotes',
+            'list_works',
+            'list_invoices',
+            'list_customers',
+            'show_quote',
+            'show_work',
+            'show_invoice',
+            'show_customer',
+            'create_task',
+            'update_task_status',
+            'assign_task',
+            'update_checklist_item',
+            'create_request',
+            'convert_request',
+            'send_invoice',
+            'remind_invoice',
+            'schedule_work',
+            'assign_work_team',
             'unknown',
         ];
         if (!in_array($intent, $allowed, true)) {
@@ -228,6 +286,11 @@ PROMPT;
         $category = $this->normalizeCategory($data['category'] ?? []);
         $product = $this->normalizeProduct($data['product'] ?? []);
         $teamMember = $this->normalizeTeamMember($data['team_member'] ?? []);
+        $task = $this->normalizeTask($data['task'] ?? []);
+        $checklistItem = $this->normalizeChecklistItem($data['checklist_item'] ?? []);
+        $request = $this->normalizeRequest($data['request'] ?? []);
+        $teamMembers = $this->normalizeTeamMembers($data['team_members'] ?? []);
+        $filters = $this->normalizeFilters($data['filters'] ?? []);
 
         return [
             'intent' => $intent,
@@ -240,7 +303,12 @@ PROMPT;
             'property' => $property,
             'category' => $category,
             'product' => $product,
+            'task' => $task,
+            'checklist_item' => $checklistItem,
+            'request' => $request,
             'team_member' => $teamMember,
+            'team_members' => $teamMembers,
+            'filters' => $filters,
             'actions' => array_values(array_filter(Arr::wrap($data['actions'] ?? []))),
         ];
     }
@@ -266,6 +334,7 @@ PROMPT;
                 'email' => $this->cleanString($customer['email'] ?? null),
                 'phone' => $this->cleanString($customer['phone'] ?? null),
             ],
+            'status' => $this->cleanString($quote['status'] ?? null),
             'items' => $normalizedItems,
             'taxes' => $taxes,
             'notes' => $this->cleanString($quote['notes'] ?? null),
@@ -324,6 +393,9 @@ PROMPT;
             'work_number' => $this->cleanString($targets['work_number'] ?? null),
             'invoice_id' => isset($targets['invoice_id']) && is_numeric($targets['invoice_id']) ? (int) $targets['invoice_id'] : null,
             'invoice_number' => $this->cleanString($targets['invoice_number'] ?? null),
+            'task_id' => isset($targets['task_id']) && is_numeric($targets['task_id']) ? (int) $targets['task_id'] : null,
+            'request_id' => isset($targets['request_id']) && is_numeric($targets['request_id']) ? (int) $targets['request_id'] : null,
+            'checklist_item_id' => isset($targets['checklist_item_id']) && is_numeric($targets['checklist_item_id']) ? (int) $targets['checklist_item_id'] : null,
         ];
     }
 
@@ -431,6 +503,88 @@ PROMPT;
             'email' => $this->cleanString($member['email'] ?? null),
             'role' => $this->cleanString($member['role'] ?? null),
             'permissions' => array_values(array_unique($cleanPermissions)),
+        ];
+    }
+
+    private function normalizeTeamMembers($members): array
+    {
+        $members = Arr::wrap($members);
+        $normalized = [];
+        foreach ($members as $member) {
+            if (!is_array($member)) {
+                continue;
+            }
+            $normalized[] = [
+                'name' => $this->cleanString($member['name'] ?? null),
+                'email' => $this->cleanString($member['email'] ?? null),
+                'role' => $this->cleanString($member['role'] ?? null),
+            ];
+        }
+
+        return array_values(array_filter($normalized, function (array $member) {
+            return $member['name'] !== '' || $member['email'] !== '';
+        }));
+    }
+
+    private function normalizeTask($task): array
+    {
+        $task = is_array($task) ? $task : [];
+        $assignee = is_array($task['assignee'] ?? null) ? $task['assignee'] : [];
+
+        return [
+            'title' => $this->cleanString($task['title'] ?? null),
+            'description' => $this->cleanString($task['description'] ?? null),
+            'status' => $this->cleanString($task['status'] ?? null),
+            'due_date' => $this->cleanString($task['due_date'] ?? null),
+            'assignee' => [
+                'name' => $this->cleanString($assignee['name'] ?? null),
+                'email' => $this->cleanString($assignee['email'] ?? null),
+            ],
+        ];
+    }
+
+    private function normalizeChecklistItem($item): array
+    {
+        $item = is_array($item) ? $item : [];
+
+        return [
+            'title' => $this->cleanString($item['title'] ?? null),
+            'status' => $this->cleanString($item['status'] ?? null),
+        ];
+    }
+
+    private function normalizeRequest($request): array
+    {
+        $request = is_array($request) ? $request : [];
+
+        return [
+            'title' => $this->cleanString($request['title'] ?? null),
+            'service_type' => $this->cleanString($request['service_type'] ?? null),
+            'description' => $this->cleanString($request['description'] ?? null),
+            'channel' => $this->cleanString($request['channel'] ?? null),
+            'urgency' => $this->cleanString($request['urgency'] ?? null),
+            'contact_name' => $this->cleanString($request['contact_name'] ?? null),
+            'contact_email' => $this->cleanString($request['contact_email'] ?? null),
+            'contact_phone' => $this->cleanString($request['contact_phone'] ?? null),
+            'country' => $this->cleanString($request['country'] ?? null),
+            'state' => $this->cleanString($request['state'] ?? null),
+            'city' => $this->cleanString($request['city'] ?? null),
+            'street1' => $this->cleanString($request['street1'] ?? null),
+            'street2' => $this->cleanString($request['street2'] ?? null),
+            'postal_code' => $this->cleanString($request['postal_code'] ?? null),
+        ];
+    }
+
+    private function normalizeFilters($filters): array
+    {
+        $filters = is_array($filters) ? $filters : [];
+        $limit = $filters['limit'] ?? null;
+        $limit = is_numeric($limit) ? (int) $limit : null;
+
+        return [
+            'search' => $this->cleanString($filters['search'] ?? null),
+            'status' => $this->cleanString($filters['status'] ?? null),
+            'limit' => $limit,
         ];
     }
 

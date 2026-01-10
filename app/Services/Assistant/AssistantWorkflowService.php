@@ -11,22 +11,30 @@ use App\Models\ProductCategory;
 use App\Models\Property;
 use App\Models\Quote;
 use App\Models\QuoteProduct;
+use App\Models\Request as LeadRequest;
 use App\Models\Role;
+use App\Models\Task;
+use App\Models\TaskMaterial;
 use App\Models\TeamMember;
 use App\Models\User;
 use App\Models\Work;
 use App\Models\WorkChecklistItem;
 use App\Models\Transaction;
+use App\Notifications\ActionEmailNotification;
 use App\Notifications\SendQuoteNotification;
 use App\Notifications\InviteUserNotification;
+use App\Services\InventoryService;
 use App\Services\TaskBillingService;
+use App\Services\TemplateService;
 use App\Services\UsageLimitService;
 use App\Services\WorkBillingService;
 use App\Services\WorkScheduleService;
 use Carbon\Carbon;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
 
@@ -64,9 +72,28 @@ class AssistantWorkflowService
             'create_category' => $this->handleCreateCategory($interpretation, $user, $context),
             'create_product', 'create_service' => $this->handleCreateProduct($interpretation, $user, $context),
             'create_team_member' => $this->handleCreateTeamMember($interpretation, $user, $context),
+            'read_notifications' => $this->handleReadNotifications($interpretation, $user),
+            'list_quotes' => $this->handleListQuotes($interpretation, $user, $context),
+            'list_works' => $this->handleListWorks($interpretation, $user, $context),
+            'list_invoices' => $this->handleListInvoices($interpretation, $user, $context),
+            'list_customers' => $this->handleListCustomers($interpretation, $user, $context),
+            'show_quote' => $this->handleShowQuote($interpretation, $user, $context),
+            'show_work' => $this->handleShowWork($interpretation, $user, $context),
+            'show_invoice' => $this->handleShowInvoice($interpretation, $user, $context),
+            'show_customer' => $this->handleShowCustomer($interpretation, $user, $context),
+            'create_task' => $this->handleCreateTask($interpretation, $user, $context),
+            'update_task_status' => $this->handleUpdateTaskStatus($interpretation, $user, $context),
+            'assign_task' => $this->handleAssignTask($interpretation, $user, $context),
+            'update_checklist_item' => $this->handleUpdateChecklistItem($interpretation, $user, $context),
+            'create_request' => $this->handleCreateRequest($interpretation, $user, $context),
+            'convert_request' => $this->handleConvertRequest($interpretation, $user, $context),
+            'send_invoice' => $this->handleSendInvoice($interpretation, $user, $context),
+            'remind_invoice' => $this->handleRemindInvoice($interpretation, $user, $context),
+            'schedule_work' => $this->handleScheduleWork($interpretation, $user, $context),
+            'assign_work_team' => $this->handleAssignWorkTeam($interpretation, $user, $context),
             default => [
                 'status' => 'unknown',
-                'message' => 'Je peux creer et gerer des devis, factures et jobs, ainsi que creer des clients, proprietes, categories, produits/services et membres d equipe.',
+                'message' => 'Je peux creer et gerer des devis, factures et jobs, creer des clients/proprietes/categories/produits/services/membres, lire des listes et details, gerer des tasks/checklists, creer/convertir des requests, envoyer/relancer des factures et lire les notifications.',
             ],
         };
     }
@@ -84,6 +111,13 @@ class AssistantWorkflowService
             'mark_invoice_paid' => $this->executeMarkInvoicePaid($pendingAction['payload'] ?? [], $user),
             'update_work_status' => $this->executeUpdateWorkStatus($pendingAction['payload'] ?? [], $user),
             'create_team_member' => $this->executeCreateTeamMember($pendingAction['payload'] ?? [], $user),
+            'update_task_status' => $this->executeUpdateTaskStatus($pendingAction['payload'] ?? [], $user),
+            'assign_task' => $this->executeAssignTask($pendingAction['payload'] ?? [], $user),
+            'convert_request' => $this->executeConvertRequest($pendingAction['payload'] ?? [], $user),
+            'send_invoice' => $this->executeSendInvoice($pendingAction['payload'] ?? [], $user),
+            'remind_invoice' => $this->executeRemindInvoice($pendingAction['payload'] ?? [], $user),
+            'schedule_work' => $this->executeScheduleWork($pendingAction['payload'] ?? [], $user),
+            'assign_work_team' => $this->executeAssignWorkTeam($pendingAction['payload'] ?? [], $user),
             default => [
                 'status' => 'unknown',
                 'message' => 'Action inconnue.',
@@ -762,6 +796,1029 @@ class AssistantWorkflowService
         return $this->needsConfirmation($summary, $pendingAction);
     }
 
+    private function handleReadNotifications(array $interpretation, User $user): array
+    {
+        $limit = $this->resolveListLimit($interpretation['filters'] ?? []);
+        $notifications = $user->notifications()
+            ->latest()
+            ->limit($limit)
+            ->get();
+        $unreadCount = $user->unreadNotifications()->count();
+
+        if ($notifications->isEmpty()) {
+            return [
+                'status' => 'ok',
+                'message' => 'Aucune notification pour le moment.',
+            ];
+        }
+
+        $lines = [];
+        $lines[] = 'Vous avez ' . $unreadCount . ' notification(s) non lue(s).';
+        $lines[] = 'Dernieres notifications:';
+
+        foreach ($notifications as $notification) {
+            $title = (string) ($notification->data['title'] ?? 'Notification');
+            $message = (string) ($notification->data['message'] ?? '');
+            $dateLabel = $notification->created_at ? $notification->created_at->toDateString() : '';
+
+            $line = '- ' . $title;
+            if ($message !== '') {
+                $line .= ' - ' . $message;
+            }
+            if ($dateLabel !== '') {
+                $line .= ' (' . $dateLabel . ')';
+            }
+            $lines[] = $line;
+        }
+
+        return [
+            'status' => 'ok',
+            'message' => implode("\n", $lines),
+        ];
+    }
+
+    private function handleListQuotes(array $interpretation, User $user, array $context): array
+    {
+        if (!Gate::forUser($user)->allows('viewAny', Quote::class)) {
+            return [
+                'status' => 'not_allowed',
+                'message' => 'Acces refuse aux devis.',
+            ];
+        }
+
+        $accountId = $user->accountOwnerId() ?? $user->id;
+        $filters = $this->normalizeListFilters($interpretation);
+        $status = $this->normalizeQuoteStatus($interpretation['quote']['status'] ?? $filters['status']);
+        $archivedOnly = $status === 'archived';
+        if ($status && $status !== 'archived') {
+            $filters['status'] = $status;
+        }
+
+        $customer = $this->resolveCustomer($accountId, $interpretation['customer'] ?? []);
+        if ($customer) {
+            $filters['customer_id'] = $customer->id;
+        }
+
+        $limit = $this->resolveListLimit($interpretation['filters'] ?? []);
+        $query = $archivedOnly
+            ? Quote::byUserWithArchived($accountId)->whereNotNull('archived_at')
+            : Quote::byUser($accountId);
+
+        $quotes = $query
+            ->filter($filters)
+            ->with('customer')
+            ->orderByDesc('created_at')
+            ->limit($limit)
+            ->get();
+
+        if ($quotes->isEmpty()) {
+            return [
+                'status' => 'ok',
+                'message' => 'Aucun devis trouve.',
+            ];
+        }
+
+        $lines = [];
+        $lines[] = 'Devis:';
+        foreach ($quotes as $quote) {
+            $label = $quote->number ?? $quote->id;
+            $customerLabel = $this->formatCustomerLabel(
+                $quote->customer?->first_name ?? '',
+                $quote->customer?->last_name ?? '',
+                $quote->customer?->company_name ?? '',
+                $quote->customer?->email ?? ''
+            );
+            $line = '- ' . $label . ' | ' . $quote->status;
+            $line .= ' | ' . $this->formatMoney((float) ($quote->total ?? 0));
+            if ($customerLabel !== '') {
+                $line .= ' | ' . $customerLabel;
+            }
+            if ($quote->job_title) {
+                $line .= ' | ' . $quote->job_title;
+            }
+            $lines[] = $line;
+        }
+
+        return [
+            'status' => 'ok',
+            'message' => implode("\n", $lines),
+        ];
+    }
+
+    private function handleListWorks(array $interpretation, User $user, array $context): array
+    {
+        $accountId = $user->accountOwnerId() ?? $user->id;
+        $membership = $user->id !== $accountId
+            ? TeamMember::query()->forAccount($accountId)->active()->where('user_id', $user->id)->first()
+            : null;
+
+        if ($user->id !== $accountId) {
+            if (!$membership || (!$membership->hasPermission('jobs.view') && !$membership->hasPermission('jobs.edit'))) {
+                return [
+                    'status' => 'not_allowed',
+                    'message' => 'Acces refuse aux jobs.',
+                ];
+            }
+        }
+
+        $filters = $this->normalizeListFilters($interpretation);
+        $status = $this->normalizeWorkStatus($interpretation['work']['status'] ?? $filters['status']);
+        if ($status) {
+            $filters['status'] = $status;
+        }
+
+        $customer = $this->resolveCustomer($accountId, $interpretation['customer'] ?? []);
+        if ($customer) {
+            $filters['customer_id'] = $customer->id;
+        }
+
+        $limit = $this->resolveListLimit($interpretation['filters'] ?? []);
+        $query = Work::byUser($accountId)->filter($filters);
+        if ($membership) {
+            $query->whereHas('teamMembers', fn($sub) => $sub->whereKey($membership->id));
+        }
+
+        $works = $query
+            ->with('customer')
+            ->orderByDesc('created_at')
+            ->limit($limit)
+            ->get();
+
+        if ($works->isEmpty()) {
+            return [
+                'status' => 'ok',
+                'message' => 'Aucun job trouve.',
+            ];
+        }
+
+        $lines = [];
+        $lines[] = 'Jobs:';
+        foreach ($works as $work) {
+            $label = $work->number ?? $work->id;
+            $customerLabel = $this->formatCustomerLabel(
+                $work->customer?->first_name ?? '',
+                $work->customer?->last_name ?? '',
+                $work->customer?->company_name ?? '',
+                $work->customer?->email ?? ''
+            );
+            $dateLabel = $work->start_date ? Carbon::parse($work->start_date)->toDateString() : '';
+            $line = '- ' . $label . ' | ' . $work->status;
+            if ($dateLabel !== '') {
+                $line .= ' | ' . $dateLabel;
+            }
+            if ($customerLabel !== '') {
+                $line .= ' | ' . $customerLabel;
+            }
+            if ($work->job_title) {
+                $line .= ' | ' . $work->job_title;
+            }
+            $lines[] = $line;
+        }
+
+        return [
+            'status' => 'ok',
+            'message' => implode("\n", $lines),
+        ];
+    }
+
+    private function handleListInvoices(array $interpretation, User $user, array $context): array
+    {
+        $accountId = $user->accountOwnerId() ?? $user->id;
+        if ($user->id !== $accountId) {
+            return [
+                'status' => 'not_allowed',
+                'message' => 'Acces refuse aux factures.',
+            ];
+        }
+
+        $filters = $this->normalizeListFilters($interpretation);
+        $status = $this->normalizeInvoiceStatus($interpretation['invoice']['status'] ?? $filters['status']);
+        if ($status) {
+            $filters['status'] = $status;
+        }
+
+        $customer = $this->resolveCustomer($accountId, $interpretation['customer'] ?? []);
+        if ($customer) {
+            $filters['customer_id'] = $customer->id;
+        }
+
+        $limit = $this->resolveListLimit($interpretation['filters'] ?? []);
+        $invoices = Invoice::byUser($accountId)
+            ->filter($filters)
+            ->with('customer')
+            ->withSum('payments', 'amount')
+            ->orderByDesc('created_at')
+            ->limit($limit)
+            ->get();
+
+        if ($invoices->isEmpty()) {
+            return [
+                'status' => 'ok',
+                'message' => 'Aucune facture trouvee.',
+            ];
+        }
+
+        $lines = [];
+        $lines[] = 'Factures:';
+        foreach ($invoices as $invoice) {
+            $label = $invoice->number ?? $invoice->id;
+            $customerLabel = $this->formatCustomerLabel(
+                $invoice->customer?->first_name ?? '',
+                $invoice->customer?->last_name ?? '',
+                $invoice->customer?->company_name ?? '',
+                $invoice->customer?->email ?? ''
+            );
+            $total = (float) ($invoice->total ?? 0);
+            $paid = (float) ($invoice->amount_paid ?? 0);
+            $balance = max(0, round($total - $paid, 2));
+
+            $line = '- ' . $label . ' | ' . $invoice->status;
+            $line .= ' | total ' . $this->formatMoney($total);
+            $line .= ' | reste ' . $this->formatMoney($balance);
+            if ($customerLabel !== '') {
+                $line .= ' | ' . $customerLabel;
+            }
+            $lines[] = $line;
+        }
+
+        return [
+            'status' => 'ok',
+            'message' => implode("\n", $lines),
+        ];
+    }
+
+    private function handleListCustomers(array $interpretation, User $user, array $context): array
+    {
+        [, $accountId] = $this->resolveCustomerAccount($user);
+        if (!$accountId) {
+            return [
+                'status' => 'not_allowed',
+                'message' => 'Acces refuse aux clients.',
+            ];
+        }
+
+        $filters = $this->normalizeListFilters($interpretation);
+        if ($filters['search'] !== '') {
+            $filters['name'] = $filters['search'];
+        }
+
+        $customerFilter = $interpretation['customer'] ?? [];
+        if (($filters['name'] ?? '') === '' && is_array($customerFilter)) {
+            $name = trim((string) ($customerFilter['company_name'] ?? ''));
+            if ($name === '') {
+                $name = trim((string) ($customerFilter['first_name'] ?? '') . ' ' . (string) ($customerFilter['last_name'] ?? ''));
+            }
+            if ($name !== '') {
+                $filters['name'] = $name;
+            }
+        }
+
+        $limit = $this->resolveListLimit($interpretation['filters'] ?? []);
+        $customers = Customer::byUser($accountId)
+            ->filter($filters)
+            ->orderByDesc('created_at')
+            ->limit($limit)
+            ->get();
+
+        if ($customers->isEmpty()) {
+            return [
+                'status' => 'ok',
+                'message' => 'Aucun client trouve.',
+            ];
+        }
+
+        $lines = [];
+        $lines[] = 'Clients:';
+        foreach ($customers as $customer) {
+            $label = $customer->number ?? $customer->id;
+            $customerLabel = $this->formatCustomerLabel(
+                $customer->first_name ?? '',
+                $customer->last_name ?? '',
+                $customer->company_name ?? '',
+                $customer->email ?? ''
+            );
+            $line = '- ' . $label;
+            if ($customerLabel !== '') {
+                $line .= ' | ' . $customerLabel;
+            }
+            if ($customer->phone) {
+                $line .= ' | ' . $customer->phone;
+            }
+            $lines[] = $line;
+        }
+
+        return [
+            'status' => 'ok',
+            'message' => implode("\n", $lines),
+        ];
+    }
+
+    private function handleShowQuote(array $interpretation, User $user, array $context): array
+    {
+        $accountId = $user->accountOwnerId() ?? $user->id;
+        $targets = is_array($interpretation['targets'] ?? null) ? $interpretation['targets'] : [];
+        $quote = $this->resolveQuote($accountId, $context, $targets);
+
+        if (!$quote) {
+            return $this->needsInput('show_quote', [], [
+                'Quel devis souhaitez-vous consulter ?',
+            ]);
+        }
+
+        if (!Gate::forUser($user)->allows('show', $quote)) {
+            return [
+                'status' => 'not_allowed',
+                'message' => 'Acces refuse a ce devis.',
+            ];
+        }
+
+        $quote->loadMissing('customer', 'products');
+        $customerLabel = $this->formatCustomerLabel(
+            $quote->customer?->first_name ?? '',
+            $quote->customer?->last_name ?? '',
+            $quote->customer?->company_name ?? '',
+            $quote->customer?->email ?? ''
+        );
+        $label = $quote->number ?? $quote->id;
+
+        $lines = [];
+        $lines[] = 'Devis ' . $label . ':';
+        $lines[] = 'Statut: ' . $quote->status;
+        $lines[] = 'Total: ' . $this->formatMoney((float) ($quote->total ?? 0));
+        if ($customerLabel !== '') {
+            $lines[] = 'Client: ' . $customerLabel;
+        }
+        if ($quote->job_title) {
+            $lines[] = 'Job: ' . $quote->job_title;
+        }
+        $lines[] = 'Lignes: ' . $quote->products->count();
+
+        return [
+            'status' => 'ok',
+            'message' => implode("\n", $lines),
+        ];
+    }
+
+    private function handleShowWork(array $interpretation, User $user, array $context): array
+    {
+        $accountId = $user->accountOwnerId() ?? $user->id;
+        $targets = is_array($interpretation['targets'] ?? null) ? $interpretation['targets'] : [];
+        $work = $this->resolveWork($accountId, $context, $targets);
+
+        if (!$work) {
+            return $this->needsInput('show_work', [], [
+                'Quel job souhaitez-vous consulter ?',
+            ]);
+        }
+
+        if (!Gate::forUser($user)->allows('view', $work)) {
+            return [
+                'status' => 'not_allowed',
+                'message' => 'Acces refuse a ce job.',
+            ];
+        }
+
+        $work->loadMissing('customer', 'invoice');
+        $customerLabel = $this->formatCustomerLabel(
+            $work->customer?->first_name ?? '',
+            $work->customer?->last_name ?? '',
+            $work->customer?->company_name ?? '',
+            $work->customer?->email ?? ''
+        );
+        $label = $work->number ?? $work->id;
+
+        $lines = [];
+        $lines[] = 'Job ' . $label . ':';
+        $lines[] = 'Statut: ' . $work->status;
+        if ($work->start_date) {
+            $lines[] = 'Date: ' . Carbon::parse($work->start_date)->toDateString();
+        }
+        if ($work->job_title) {
+            $lines[] = 'Titre: ' . $work->job_title;
+        }
+        if ($customerLabel !== '') {
+            $lines[] = 'Client: ' . $customerLabel;
+        }
+        if ($work->invoice) {
+            $lines[] = 'Facture: ' . ($work->invoice->number ?? $work->invoice->id);
+        }
+
+        return [
+            'status' => 'ok',
+            'message' => implode("\n", $lines),
+        ];
+    }
+
+    private function handleShowInvoice(array $interpretation, User $user, array $context): array
+    {
+        $accountId = $user->accountOwnerId() ?? $user->id;
+        if ($user->id !== $accountId) {
+            return [
+                'status' => 'not_allowed',
+                'message' => 'Acces refuse aux factures.',
+            ];
+        }
+
+        $targets = is_array($interpretation['targets'] ?? null) ? $interpretation['targets'] : [];
+        $invoice = $this->resolveInvoice($accountId, $context, $targets);
+        if (!$invoice) {
+            return $this->needsInput('show_invoice', [], [
+                'Quelle facture souhaitez-vous consulter ?',
+            ]);
+        }
+
+        $invoice->loadMissing('customer', 'payments');
+        $label = $invoice->number ?? $invoice->id;
+        $customerLabel = $this->formatCustomerLabel(
+            $invoice->customer?->first_name ?? '',
+            $invoice->customer?->last_name ?? '',
+            $invoice->customer?->company_name ?? '',
+            $invoice->customer?->email ?? ''
+        );
+        $total = (float) ($invoice->total ?? 0);
+        $paid = (float) $invoice->payments->sum('amount');
+        $balance = max(0, round($total - $paid, 2));
+
+        $lines = [];
+        $lines[] = 'Facture ' . $label . ':';
+        $lines[] = 'Statut: ' . $invoice->status;
+        $lines[] = 'Total: ' . $this->formatMoney($total);
+        $lines[] = 'Paye: ' . $this->formatMoney($paid);
+        $lines[] = 'Reste: ' . $this->formatMoney($balance);
+        if ($customerLabel !== '') {
+            $lines[] = 'Client: ' . $customerLabel;
+        }
+
+        return [
+            'status' => 'ok',
+            'message' => implode("\n", $lines),
+        ];
+    }
+
+    private function handleShowCustomer(array $interpretation, User $user, array $context): array
+    {
+        $accountId = $user->accountOwnerId() ?? $user->id;
+        $customer = $this->resolveCustomer($accountId, $interpretation['customer'] ?? []);
+        if (!$customer && !empty($context['current_customer']['id'])) {
+            $customer = Customer::byUser($accountId)->whereKey((int) $context['current_customer']['id'])->first();
+        }
+
+        if (!$customer) {
+            return $this->needsInput('show_customer', [], [
+                'Quel client souhaitez-vous consulter ?',
+            ]);
+        }
+
+        if (!Gate::forUser($user)->allows('view', $customer)) {
+            return [
+                'status' => 'not_allowed',
+                'message' => 'Acces refuse a ce client.',
+            ];
+        }
+
+        $customer->loadCount(['quotes', 'works', 'invoices']);
+        $label = $customer->number ?? $customer->id;
+        $customerLabel = $this->formatCustomerLabel(
+            $customer->first_name ?? '',
+            $customer->last_name ?? '',
+            $customer->company_name ?? '',
+            $customer->email ?? ''
+        );
+
+        $lines = [];
+        $lines[] = 'Client ' . $label . ':';
+        if ($customerLabel !== '') {
+            $lines[] = $customerLabel;
+        }
+        if ($customer->phone) {
+            $lines[] = 'Tel: ' . $customer->phone;
+        }
+        $lines[] = 'Devis: ' . $customer->quotes_count;
+        $lines[] = 'Jobs: ' . $customer->works_count;
+        $lines[] = 'Factures: ' . $customer->invoices_count;
+
+        return [
+            'status' => 'ok',
+            'message' => implode("\n", $lines),
+        ];
+    }
+
+    private function handleCreateTask(array $interpretation, User $user, array $context): array
+    {
+        if (!Gate::forUser($user)->allows('create', Task::class)) {
+            return [
+                'status' => 'not_allowed',
+                'message' => 'Acces refuse pour creer une tache.',
+            ];
+        }
+
+        $draft = is_array($context['draft'] ?? null) ? $context['draft'] : [];
+        $draft = $this->mergeTaskDraft($draft, $interpretation['task'] ?? []);
+        $draft = $this->applyAnswerToTaskDraft($draft, $context);
+
+        $questions = [];
+        if (($draft['title'] ?? '') === '') {
+            $questions[] = 'Quel est le titre de la tache ?';
+        }
+        if (($draft['status'] ?? '') !== '' && !$this->normalizeTaskStatus($draft['status'] ?? '')) {
+            $questions[] = 'Quel statut pour la tache ?';
+        }
+        if (($draft['due_date'] ?? '') !== '' && !$this->isValidDate($draft['due_date'] ?? '')) {
+            $questions[] = 'Quelle est la date d echeance (YYYY-MM-DD) ?';
+        }
+
+        if ($questions) {
+            return $this->needsInput('create_task', $draft, $questions);
+        }
+
+        $accountId = $user->accountOwnerId() ?? $user->id;
+        $targets = is_array($interpretation['targets'] ?? null) ? $interpretation['targets'] : [];
+        $work = $this->resolveWork($accountId, $context, $targets);
+
+        $assigneeInterpretation = $interpretation;
+        if (!is_array($assigneeInterpretation['task'] ?? null)) {
+            $assigneeInterpretation['task'] = [];
+        }
+        if (!empty($draft['assignee']) && empty($assigneeInterpretation['task']['assignee'])) {
+            $assigneeInterpretation['task']['assignee'] = $draft['assignee'];
+        }
+        $assigneeId = $this->resolveSingleTeamMemberId($accountId, $assigneeInterpretation);
+        $status = $this->normalizeTaskStatus($draft['status'] ?? '') ?: 'todo';
+        $dueDate = $this->parseDate($draft['due_date'] ?? null);
+
+        app(UsageLimitService::class)->enforceLimit($user, 'tasks');
+
+        $task = Task::create([
+            'account_id' => $accountId,
+            'created_by_user_id' => $user->id,
+            'assigned_team_member_id' => $assigneeId,
+            'customer_id' => $work?->customer_id,
+            'work_id' => $work?->id,
+            'title' => $draft['title'],
+            'description' => $draft['description'] ?: null,
+            'status' => $status,
+            'due_date' => $dueDate,
+            'completed_at' => $status === 'done' ? now() : null,
+        ]);
+
+        if ($status === 'done') {
+            app(TaskBillingService::class)->handleTaskCompleted($task, $user);
+        }
+
+        return [
+            'status' => 'created',
+            'message' => 'Tache creee.',
+            'action' => [
+                'type' => 'task_created',
+                'task_id' => $task->id,
+            ],
+            'context' => [
+                'intent' => null,
+                'draft' => null,
+            ],
+        ];
+    }
+
+    private function handleUpdateTaskStatus(array $interpretation, User $user, array $context): array
+    {
+        $accountId = $user->accountOwnerId() ?? $user->id;
+        $targets = is_array($interpretation['targets'] ?? null) ? $interpretation['targets'] : [];
+        $taskData = $interpretation['task'] ?? [];
+
+        $task = $this->resolveTask($accountId, $context, $targets, $taskData);
+        if (!$task) {
+            return $this->needsInput('update_task_status', [], [
+                'Quelle tache faut-il mettre a jour ?',
+            ]);
+        }
+
+        $status = $this->normalizeTaskStatus($taskData['status'] ?? '');
+        if (!$status) {
+            return $this->needsInput('update_task_status', [], [
+                'Quel statut souhaitez-vous appliquer a la tache ?',
+            ]);
+        }
+
+        if ($task->status === 'done') {
+            return [
+                'status' => 'not_allowed',
+                'message' => 'Cette tache est verrouillee apres completion.',
+            ];
+        }
+
+        $summary = 'Changer le statut de la tache ' . ($task->title ?: $task->id)
+            . ' de ' . $task->status . ' vers ' . $status . '.';
+        $pendingAction = [
+            'type' => 'update_task_status',
+            'payload' => [
+                'task_id' => $task->id,
+                'status' => $status,
+            ],
+            'summary' => $summary,
+        ];
+
+        return $this->needsConfirmation($summary, $pendingAction);
+    }
+
+    private function handleAssignTask(array $interpretation, User $user, array $context): array
+    {
+        $accountId = $user->accountOwnerId() ?? $user->id;
+        $targets = is_array($interpretation['targets'] ?? null) ? $interpretation['targets'] : [];
+        $taskData = $interpretation['task'] ?? [];
+
+        $task = $this->resolveTask($accountId, $context, $targets, $taskData);
+        if (!$task) {
+            return $this->needsInput('assign_task', [], [
+                'Quelle tache faut-il assigner ?',
+            ]);
+        }
+
+        $assigneeId = $this->resolveSingleTeamMemberId($accountId, $interpretation);
+        if (!$assigneeId) {
+            return $this->needsInput('assign_task', [], [
+                'A quel membre faut-il assigner la tache ?',
+            ]);
+        }
+
+        if ($task->status === 'done') {
+            return [
+                'status' => 'not_allowed',
+                'message' => 'Cette tache est verrouillee apres completion.',
+            ];
+        }
+
+        $summary = 'Assigner la tache ' . ($task->title ?: $task->id) . ' au membre ' . $assigneeId . '.';
+        $pendingAction = [
+            'type' => 'assign_task',
+            'payload' => [
+                'task_id' => $task->id,
+                'assignee_id' => $assigneeId,
+            ],
+            'summary' => $summary,
+        ];
+
+        return $this->needsConfirmation($summary, $pendingAction);
+    }
+
+    private function handleUpdateChecklistItem(array $interpretation, User $user, array $context): array
+    {
+        $accountId = $user->accountOwnerId() ?? $user->id;
+        $targets = is_array($interpretation['targets'] ?? null) ? $interpretation['targets'] : [];
+        $work = $this->resolveWork($accountId, $context, $targets);
+
+        if (!$work) {
+            return $this->needsInput('update_checklist_item', [], [
+                'Pour quel job faut-il mettre a jour la checklist ?',
+            ]);
+        }
+
+        if (!Gate::forUser($user)->allows('update', $work)) {
+            return [
+                'status' => 'not_allowed',
+                'message' => 'Acces refuse a ce job.',
+            ];
+        }
+
+        $item = $this->resolveChecklistItem($work, $targets, $interpretation['checklist_item'] ?? []);
+        if (!$item) {
+            return $this->needsInput('update_checklist_item', [], [
+                'Quel item de checklist faut-il mettre a jour ?',
+            ]);
+        }
+
+        $status = $this->normalizeChecklistStatus($interpretation['checklist_item']['status'] ?? '');
+        if (!$status) {
+            return $this->needsInput('update_checklist_item', [], [
+                'Quel statut appliquer a la checklist (pending/done) ?',
+            ]);
+        }
+
+        $item->status = $status;
+        $item->completed_at = $status === 'done' ? now() : null;
+        $item->save();
+
+        return [
+            'status' => 'created',
+            'message' => 'Checklist mise a jour.',
+            'context' => [
+                'intent' => null,
+                'draft' => null,
+            ],
+        ];
+    }
+
+    private function handleCreateRequest(array $interpretation, User $user, array $context): array
+    {
+        $draft = is_array($context['draft'] ?? null) ? $context['draft'] : [];
+        $draft = $this->mergeRequestDraft($draft, $interpretation['request'] ?? []);
+        $draft = $this->applyAnswerToRequestDraft($draft, $context);
+
+        $questions = [];
+        if (($draft['title'] ?? '') === '' && ($draft['service_type'] ?? '') === '' && ($draft['contact_name'] ?? '') === '') {
+            $questions[] = 'Quel est le titre ou le type de service de la request ?';
+        }
+        if (($draft['contact_email'] ?? '') !== '' && !filter_var($draft['contact_email'], FILTER_VALIDATE_EMAIL)) {
+            $questions[] = 'Merci de donner un email de contact valide.';
+        }
+
+        if ($questions) {
+            return $this->needsInput('create_request', $draft, $questions);
+        }
+
+        $accountId = $user->accountOwnerId() ?? $user->id;
+        app(UsageLimitService::class)->enforceLimit($user, 'requests');
+
+        $customer = $this->resolveCustomer($accountId, $interpretation['customer'] ?? []);
+        $lead = LeadRequest::create([
+            'user_id' => $accountId,
+            'customer_id' => $customer?->id,
+            'external_customer_id' => $draft['external_customer_id'] ?? null,
+            'channel' => $draft['channel'] ?? null,
+            'status' => LeadRequest::STATUS_NEW,
+            'service_type' => $draft['service_type'] ?? null,
+            'urgency' => $draft['urgency'] ?? null,
+            'title' => $draft['title'] ?? null,
+            'description' => $draft['description'] ?? null,
+            'contact_name' => $draft['contact_name'] ?? null,
+            'contact_email' => $draft['contact_email'] ?? null,
+            'contact_phone' => $draft['contact_phone'] ?? null,
+            'country' => $draft['country'] ?? null,
+            'state' => $draft['state'] ?? null,
+            'city' => $draft['city'] ?? null,
+            'street1' => $draft['street1'] ?? null,
+            'street2' => $draft['street2'] ?? null,
+            'postal_code' => $draft['postal_code'] ?? null,
+        ]);
+
+        ActivityLog::record($user, $lead, 'created', [
+            'customer_id' => $lead->customer_id,
+            'title' => $lead->title,
+            'service_type' => $lead->service_type,
+        ], 'Request created by assistant');
+
+        return [
+            'status' => 'created',
+            'message' => 'Request creee.',
+            'action' => [
+                'type' => 'request_created',
+                'request_id' => $lead->id,
+            ],
+            'context' => [
+                'intent' => null,
+                'draft' => null,
+            ],
+        ];
+    }
+
+    private function handleConvertRequest(array $interpretation, User $user, array $context): array
+    {
+        $accountId = $user->accountOwnerId() ?? $user->id;
+        $targets = is_array($interpretation['targets'] ?? null) ? $interpretation['targets'] : [];
+        $request = $this->resolveRequest($accountId, $targets, $interpretation['request'] ?? [], $interpretation['filters'] ?? []);
+
+        if (!$request) {
+            return $this->needsInput('convert_request', [], [
+                'Quelle request faut-il convertir en devis ?',
+            ]);
+        }
+
+        $customer = null;
+        if ($request->customer_id) {
+            $customer = Customer::byUser($accountId)->whereKey($request->customer_id)->first();
+        }
+        if (!$customer) {
+            $customer = $this->resolveCustomer($accountId, $interpretation['customer'] ?? []);
+        }
+
+        if (!$customer) {
+            return $this->needsInput('convert_request', [], [
+                'Pour quel client faut-il creer le devis ?',
+            ]);
+        }
+
+        $summary = 'Convertir la request ' . $request->id . ' en devis pour ' . ($customer->company_name ?: $customer->email) . '.';
+        $pendingAction = [
+            'type' => 'convert_request',
+            'payload' => [
+                'request_id' => $request->id,
+                'customer_id' => $customer->id,
+                'job_title' => $interpretation['work']['job_title'] ?? ($request->title ?? $request->service_type ?? 'New Quote'),
+            ],
+            'summary' => $summary,
+        ];
+
+        return $this->needsConfirmation($summary, $pendingAction);
+    }
+
+    private function handleSendInvoice(array $interpretation, User $user, array $context): array
+    {
+        $accountId = $user->accountOwnerId() ?? $user->id;
+        if ($user->id !== $accountId) {
+            return [
+                'status' => 'not_allowed',
+                'message' => 'Acces refuse aux factures.',
+            ];
+        }
+
+        $targets = is_array($interpretation['targets'] ?? null) ? $interpretation['targets'] : [];
+        $invoice = $this->resolveInvoice($accountId, $context, $targets);
+        if (!$invoice) {
+            return $this->needsInput('send_invoice', [], [
+                'Quelle facture faut-il envoyer ?',
+            ]);
+        }
+
+        $invoice->loadMissing('customer');
+        if (!$invoice->customer || !$invoice->customer->email) {
+            return [
+                'status' => 'needs_input',
+                'message' => 'Email client manquant pour envoyer la facture.',
+                'questions' => ['Ajoutez un email client puis reessayez.'],
+            ];
+        }
+
+        if ($invoice->status === 'void') {
+            return [
+                'status' => 'not_allowed',
+                'message' => 'Cette facture est annulee.',
+            ];
+        }
+
+        $summary = 'Envoyer la facture ' . ($invoice->number ?? $invoice->id) . ' a ' . $invoice->customer->email . '.';
+        $pendingAction = [
+            'type' => 'send_invoice',
+            'payload' => [
+                'invoice_id' => $invoice->id,
+            ],
+            'summary' => $summary,
+        ];
+
+        return $this->needsConfirmation($summary, $pendingAction);
+    }
+
+    private function handleRemindInvoice(array $interpretation, User $user, array $context): array
+    {
+        $accountId = $user->accountOwnerId() ?? $user->id;
+        if ($user->id !== $accountId) {
+            return [
+                'status' => 'not_allowed',
+                'message' => 'Acces refuse aux factures.',
+            ];
+        }
+
+        $targets = is_array($interpretation['targets'] ?? null) ? $interpretation['targets'] : [];
+        $invoice = $this->resolveInvoice($accountId, $context, $targets);
+        if (!$invoice) {
+            return $this->needsInput('remind_invoice', [], [
+                'Quelle facture faut-il relancer ?',
+            ]);
+        }
+
+        $invoice->loadMissing('customer');
+        if (!$invoice->customer || !$invoice->customer->email) {
+            return [
+                'status' => 'needs_input',
+                'message' => 'Email client manquant pour relancer la facture.',
+                'questions' => ['Ajoutez un email client puis reessayez.'],
+            ];
+        }
+
+        if ($invoice->balance_due <= 0) {
+            return [
+                'status' => 'created',
+                'message' => 'Facture deja payee.',
+            ];
+        }
+
+        $summary = 'Relancer la facture ' . ($invoice->number ?? $invoice->id) . ' a ' . $invoice->customer->email . '.';
+        $pendingAction = [
+            'type' => 'remind_invoice',
+            'payload' => [
+                'invoice_id' => $invoice->id,
+            ],
+            'summary' => $summary,
+        ];
+
+        return $this->needsConfirmation($summary, $pendingAction);
+    }
+
+    private function handleScheduleWork(array $interpretation, User $user, array $context): array
+    {
+        $accountId = $user->accountOwnerId() ?? $user->id;
+        $targets = is_array($interpretation['targets'] ?? null) ? $interpretation['targets'] : [];
+        $work = $this->resolveWork($accountId, $context, $targets);
+
+        if (!$work) {
+            return $this->needsInput('schedule_work', [], [
+                'Quel job faut-il planifier ?',
+            ]);
+        }
+
+        if (!Gate::forUser($user)->allows('update', $work)) {
+            return [
+                'status' => 'not_allowed',
+                'message' => 'Acces refuse a ce job.',
+            ];
+        }
+
+        $draft = $interpretation['work'] ?? [];
+        $startDate = trim((string) ($draft['start_date'] ?? ''));
+        $endDate = trim((string) ($draft['end_date'] ?? ''));
+        $startTime = trim((string) ($draft['start_time'] ?? ''));
+        $endTime = trim((string) ($draft['end_time'] ?? ''));
+        $status = $this->normalizeWorkStatus($draft['status'] ?? '');
+
+        $questions = [];
+        if ($startDate === '') {
+            $questions[] = 'Quelle est la date de debut du job ?';
+        } elseif (!$this->isValidDate($startDate)) {
+            $questions[] = 'Quelle est la date de debut (format YYYY-MM-DD) ?';
+        }
+        if ($endDate !== '' && !$this->isValidDate($endDate)) {
+            $questions[] = 'Quelle est la date de fin (format YYYY-MM-DD) ?';
+        }
+        if ($startTime !== '' && !$this->parseTime($startTime)) {
+            $questions[] = 'Quelle est l heure de debut (format HH:MM) ?';
+        }
+        if ($endTime !== '' && !$this->parseTime($endTime)) {
+            $questions[] = 'Quelle est l heure de fin (format HH:MM) ?';
+        }
+        if (($draft['status'] ?? '') !== '' && !$status) {
+            $questions[] = 'Quel statut pour le job ?';
+        }
+
+        if ($questions) {
+            return $this->needsInput('schedule_work', $draft, $questions);
+        }
+
+        $teamMemberIds = $this->resolveTeamMemberIds($accountId, $interpretation);
+        $summary = 'Planifier le job ' . ($work->number ?? $work->id) . ' le ' . $startDate;
+        if ($startTime !== '') {
+            $summary .= ' a ' . $startTime;
+        }
+        if ($endTime !== '') {
+            $summary .= ' -> ' . $endTime;
+        }
+        if ($teamMemberIds) {
+            $summary .= '. Equipe: ' . implode(', ', $teamMemberIds) . '.';
+        }
+
+        $pendingAction = [
+            'type' => 'schedule_work',
+            'payload' => [
+                'work_id' => $work->id,
+                'start_date' => $startDate,
+                'end_date' => $endDate,
+                'start_time' => $startTime,
+                'end_time' => $endTime,
+                'status' => $status,
+                'team_member_ids' => $teamMemberIds,
+            ],
+            'summary' => $summary,
+        ];
+
+        return $this->needsConfirmation($summary, $pendingAction);
+    }
+
+    private function handleAssignWorkTeam(array $interpretation, User $user, array $context): array
+    {
+        $accountId = $user->accountOwnerId() ?? $user->id;
+        $targets = is_array($interpretation['targets'] ?? null) ? $interpretation['targets'] : [];
+        $work = $this->resolveWork($accountId, $context, $targets);
+
+        if (!$work) {
+            return $this->needsInput('assign_work_team', [], [
+                'Quel job faut-il assigner ?',
+            ]);
+        }
+
+        if (!Gate::forUser($user)->allows('update', $work)) {
+            return [
+                'status' => 'not_allowed',
+                'message' => 'Acces refuse a ce job.',
+            ];
+        }
+
+        $teamMemberIds = $this->resolveTeamMemberIds($accountId, $interpretation);
+        if (!$teamMemberIds) {
+            return $this->needsInput('assign_work_team', [], [
+                'Quel(s) membre(s) faut-il assigner ?',
+            ]);
+        }
+
+        $summary = 'Assigner le job ' . ($work->number ?? $work->id) . ' aux membres ' . implode(', ', $teamMemberIds) . '.';
+        $pendingAction = [
+            'type' => 'assign_work_team',
+            'payload' => [
+                'work_id' => $work->id,
+                'team_member_ids' => $teamMemberIds,
+            ],
+            'summary' => $summary,
+        ];
+
+        return $this->needsConfirmation($summary, $pendingAction);
+    }
+
     private function executeCreateWork(array $payload, User $user): array
     {
         $accountId = $user->accountOwnerId() ?? $user->id;
@@ -1397,6 +2454,475 @@ class AssistantWorkflowService
         ];
     }
 
+    private function executeUpdateTaskStatus(array $payload, User $user): array
+    {
+        $accountId = $user->accountOwnerId() ?? $user->id;
+        $taskId = $payload['task_id'] ?? null;
+        $status = $payload['status'] ?? null;
+
+        if (!$taskId || !$status) {
+            return [
+                'status' => 'error',
+                'message' => 'Tache ou statut manquant.',
+            ];
+        }
+
+        $task = Task::forAccount($accountId)->with('materials')->find($taskId);
+        if (!$task) {
+            return [
+                'status' => 'error',
+                'message' => 'Tache introuvable.',
+            ];
+        }
+
+        if (!Gate::forUser($user)->allows('update', $task)) {
+            return [
+                'status' => 'not_allowed',
+                'message' => 'Acces refuse a cette tache.',
+            ];
+        }
+
+        if ($task->status === 'done') {
+            return [
+                'status' => 'not_allowed',
+                'message' => 'Cette tache est verrouillee apres completion.',
+            ];
+        }
+
+        $normalizedStatus = $this->normalizeTaskStatus((string) $status);
+        if (!$normalizedStatus) {
+            return [
+                'status' => 'error',
+                'message' => 'Statut de tache invalide.',
+            ];
+        }
+
+        $wasInProgress = $task->status === 'in_progress';
+        $wasDone = $task->status === 'done';
+        $isDone = $normalizedStatus === 'done';
+
+        $task->status = $normalizedStatus;
+        $task->completed_at = $isDone ? ($task->completed_at ?? now()) : null;
+        $task->save();
+
+        if (!$wasInProgress && $normalizedStatus === 'in_progress') {
+            $this->applyTaskMaterialStock($task, $user);
+        }
+
+        if (!$wasDone && $isDone) {
+            app(TaskBillingService::class)->handleTaskCompleted($task, $user);
+        }
+
+        return [
+            'status' => 'created',
+            'message' => 'Tache mise a jour.',
+            'action' => [
+                'type' => 'task_updated',
+                'task_id' => $task->id,
+            ],
+            'context' => [
+                'pending_action' => null,
+            ],
+        ];
+    }
+
+    private function executeAssignTask(array $payload, User $user): array
+    {
+        $accountId = $user->accountOwnerId() ?? $user->id;
+        $taskId = $payload['task_id'] ?? null;
+        $assigneeId = $payload['assignee_id'] ?? null;
+
+        if (!$taskId || !$assigneeId) {
+            return [
+                'status' => 'error',
+                'message' => 'Tache ou membre manquant.',
+            ];
+        }
+
+        $task = Task::forAccount($accountId)->find($taskId);
+        if (!$task) {
+            return [
+                'status' => 'error',
+                'message' => 'Tache introuvable.',
+            ];
+        }
+
+        if (!Gate::forUser($user)->allows('update', $task)) {
+            return [
+                'status' => 'not_allowed',
+                'message' => 'Acces refuse a cette tache.',
+            ];
+        }
+
+        if ($task->status === 'done') {
+            return [
+                'status' => 'not_allowed',
+                'message' => 'Cette tache est verrouillee apres completion.',
+            ];
+        }
+
+        $assignee = TeamMember::query()
+            ->forAccount($accountId)
+            ->active()
+            ->whereKey((int) $assigneeId)
+            ->first();
+
+        if (!$assignee) {
+            return [
+                'status' => 'error',
+                'message' => 'Membre introuvable.',
+            ];
+        }
+
+        $task->assigned_team_member_id = $assignee->id;
+        $task->save();
+
+        return [
+            'status' => 'created',
+            'message' => 'Tache assignee.',
+            'action' => [
+                'type' => 'task_updated',
+                'task_id' => $task->id,
+            ],
+            'context' => [
+                'pending_action' => null,
+            ],
+        ];
+    }
+
+    private function executeConvertRequest(array $payload, User $user): array
+    {
+        $accountId = $user->accountOwnerId() ?? $user->id;
+        $requestId = $payload['request_id'] ?? null;
+        $customerId = $payload['customer_id'] ?? null;
+        $jobTitle = $payload['job_title'] ?? null;
+
+        if (!$requestId || !$customerId) {
+            return [
+                'status' => 'error',
+                'message' => 'Request ou client manquant.',
+            ];
+        }
+
+        $request = LeadRequest::query()->where('user_id', $accountId)->find($requestId);
+        if (!$request) {
+            return [
+                'status' => 'error',
+                'message' => 'Request introuvable.',
+            ];
+        }
+
+        if ($request->status === LeadRequest::STATUS_CONVERTED && $request->quote) {
+            return [
+                'status' => 'created',
+                'message' => 'Request deja convertie.',
+                'action' => [
+                    'type' => 'quote_created',
+                    'quote_id' => $request->quote->id,
+                ],
+                'context' => [
+                    'pending_action' => null,
+                ],
+            ];
+        }
+
+        $customer = Customer::byUser($accountId)->find($customerId);
+        if (!$customer) {
+            return [
+                'status' => 'error',
+                'message' => 'Client introuvable.',
+            ];
+        }
+
+        app(UsageLimitService::class)->enforceLimit($user, 'quotes');
+
+        $propertyId = $customer->properties()->value('id');
+        $title = $jobTitle ?: ($request->title ?? $request->service_type ?? 'New Quote');
+
+        $quote = Quote::create([
+            'user_id' => $accountId,
+            'customer_id' => $customer->id,
+            'property_id' => $propertyId,
+            'job_title' => $title,
+            'status' => 'draft',
+            'request_id' => $request->id,
+            'notes' => $request->description,
+        ]);
+
+        $request->update([
+            'status' => LeadRequest::STATUS_CONVERTED,
+            'converted_at' => now(),
+        ]);
+
+        ActivityLog::record($user, $request, 'converted', [
+            'quote_id' => $quote->id,
+            'customer_id' => $quote->customer_id,
+        ], 'Request converted to quote by assistant');
+
+        ActivityLog::record($user, $quote, 'created', [
+            'request_id' => $request->id,
+            'customer_id' => $quote->customer_id,
+            'assistant' => true,
+        ], 'Quote created from request by assistant');
+
+        return [
+            'status' => 'created',
+            'message' => 'Request convertie en devis.',
+            'action' => [
+                'type' => 'quote_created',
+                'quote_id' => $quote->id,
+            ],
+            'context' => [
+                'pending_action' => null,
+            ],
+        ];
+    }
+
+    private function executeSendInvoice(array $payload, User $user): array
+    {
+        $accountId = $user->accountOwnerId() ?? $user->id;
+        $invoiceId = $payload['invoice_id'] ?? null;
+
+        if (!$invoiceId) {
+            return [
+                'status' => 'error',
+                'message' => 'Facture manquante.',
+            ];
+        }
+
+        $invoice = Invoice::byUser($accountId)->with('customer')->find($invoiceId);
+        if (!$invoice) {
+            return [
+                'status' => 'error',
+                'message' => 'Facture introuvable.',
+            ];
+        }
+
+        if ($invoice->status === 'void') {
+            return [
+                'status' => 'error',
+                'message' => 'Cette facture est annulee.',
+            ];
+        }
+
+        $this->sendInvoiceNotification($invoice, 'New invoice available', 'A new invoice is available.');
+
+        if ($invoice->status === 'draft') {
+            $invoice->status = 'sent';
+            $invoice->save();
+        }
+
+        ActivityLog::record($user, $invoice, 'sent', [
+            'assistant' => true,
+        ], 'Invoice sent by assistant');
+
+        return [
+            'status' => 'created',
+            'message' => 'Facture envoyee.',
+            'context' => [
+                'pending_action' => null,
+            ],
+        ];
+    }
+
+    private function executeRemindInvoice(array $payload, User $user): array
+    {
+        $accountId = $user->accountOwnerId() ?? $user->id;
+        $invoiceId = $payload['invoice_id'] ?? null;
+
+        if (!$invoiceId) {
+            return [
+                'status' => 'error',
+                'message' => 'Facture manquante.',
+            ];
+        }
+
+        $invoice = Invoice::byUser($accountId)->with('customer')->find($invoiceId);
+        if (!$invoice) {
+            return [
+                'status' => 'error',
+                'message' => 'Facture introuvable.',
+            ];
+        }
+
+        if ($invoice->balance_due <= 0) {
+            return [
+                'status' => 'created',
+                'message' => 'Facture deja payee.',
+                'context' => [
+                    'pending_action' => null,
+                ],
+            ];
+        }
+
+        $this->sendInvoiceNotification($invoice, 'Invoice reminder', 'This is a reminder for your invoice.');
+
+        ActivityLog::record($user, $invoice, 'reminded', [
+            'assistant' => true,
+        ], 'Invoice reminder sent by assistant');
+
+        return [
+            'status' => 'created',
+            'message' => 'Relance envoyee.',
+            'context' => [
+                'pending_action' => null,
+            ],
+        ];
+    }
+
+    private function executeScheduleWork(array $payload, User $user): array
+    {
+        $accountId = $user->accountOwnerId() ?? $user->id;
+        $workId = $payload['work_id'] ?? null;
+
+        if (!$workId) {
+            return [
+                'status' => 'error',
+                'message' => 'Job manquant.',
+            ];
+        }
+
+        $work = Work::byUser($accountId)->find($workId);
+        if (!$work) {
+            return [
+                'status' => 'error',
+                'message' => 'Job introuvable.',
+            ];
+        }
+
+        if (!Gate::forUser($user)->allows('update', $work)) {
+            return [
+                'status' => 'not_allowed',
+                'message' => 'Acces refuse a ce job.',
+            ];
+        }
+
+        $startDate = $this->parseDate($payload['start_date'] ?? null);
+        if (!$startDate) {
+            return [
+                'status' => 'error',
+                'message' => 'Date de debut invalide.',
+            ];
+        }
+
+        $endDate = $this->parseDate($payload['end_date'] ?? null);
+        $startTime = $this->parseTime($payload['start_time'] ?? null);
+        $endTime = $this->parseTime($payload['end_time'] ?? null);
+        $status = $this->normalizeWorkStatus((string) ($payload['status'] ?? ''));
+
+        $work->start_date = $startDate;
+        $work->end_date = $endDate;
+        $work->start_time = $startTime;
+        $work->end_time = $endTime;
+        if ($status) {
+            $work->status = $status;
+        } elseif ($work->status === Work::STATUS_TO_SCHEDULE) {
+            $work->status = Work::STATUS_SCHEDULED;
+        }
+        $work->save();
+
+        $teamMemberIds = Arr::wrap($payload['team_member_ids'] ?? []);
+        $teamMemberIds = collect($teamMemberIds)->map(fn($id) => (int) $id)->filter()->unique()->values()->all();
+        if ($teamMemberIds) {
+            $validIds = TeamMember::query()
+                ->forAccount($accountId)
+                ->whereIn('id', $teamMemberIds)
+                ->pluck('id')
+                ->all();
+            if ($validIds) {
+                $work->teamMembers()->syncWithoutDetaching($validIds);
+            }
+        }
+
+        ActivityLog::record($user, $work, 'updated', [
+            'assistant' => true,
+            'start_date' => $work->start_date,
+        ], 'Job scheduled by assistant');
+
+        $this->autoScheduleTasksForWork($work, $user);
+
+        return [
+            'status' => 'created',
+            'message' => 'Job planifie.',
+            'action' => [
+                'type' => 'work_updated',
+                'work_id' => $work->id,
+            ],
+            'context' => [
+                'pending_action' => null,
+            ],
+        ];
+    }
+
+    private function executeAssignWorkTeam(array $payload, User $user): array
+    {
+        $accountId = $user->accountOwnerId() ?? $user->id;
+        $workId = $payload['work_id'] ?? null;
+        $teamMemberIds = Arr::wrap($payload['team_member_ids'] ?? []);
+
+        if (!$workId) {
+            return [
+                'status' => 'error',
+                'message' => 'Job manquant.',
+            ];
+        }
+
+        $work = Work::byUser($accountId)->find($workId);
+        if (!$work) {
+            return [
+                'status' => 'error',
+                'message' => 'Job introuvable.',
+            ];
+        }
+
+        if (!Gate::forUser($user)->allows('update', $work)) {
+            return [
+                'status' => 'not_allowed',
+                'message' => 'Acces refuse a ce job.',
+            ];
+        }
+
+        $teamMemberIds = collect($teamMemberIds)->map(fn($id) => (int) $id)->filter()->unique()->values()->all();
+        if (!$teamMemberIds) {
+            return [
+                'status' => 'error',
+                'message' => 'Aucun membre fourni.',
+            ];
+        }
+
+        $validIds = TeamMember::query()
+            ->forAccount($accountId)
+            ->whereIn('id', $teamMemberIds)
+            ->pluck('id')
+            ->all();
+
+        if (!$validIds) {
+            return [
+                'status' => 'error',
+                'message' => 'Aucun membre valide.',
+            ];
+        }
+
+        $work->teamMembers()->syncWithoutDetaching($validIds);
+
+        ActivityLog::record($user, $work, 'updated', [
+            'assistant' => true,
+            'team_members' => $validIds,
+        ], 'Job assigned by assistant');
+
+        return [
+            'status' => 'created',
+            'message' => 'Equipe assignee.',
+            'action' => [
+                'type' => 'work_updated',
+                'work_id' => $work->id,
+            ],
+            'context' => [
+                'pending_action' => null,
+            ],
+        ];
+    }
+
     private function mergeCustomerDraft(array $base, array $updates): array
     {
         $updates = is_array($updates) ? $updates : [];
@@ -1509,6 +3035,67 @@ class AssistantWorkflowService
         return $merged;
     }
 
+    private function mergeTaskDraft(array $base, array $updates): array
+    {
+        $updates = is_array($updates) ? $updates : [];
+        $merged = $base;
+        foreach (['title', 'description', 'status', 'due_date'] as $key) {
+            $value = $updates[$key] ?? null;
+            $value = is_string($value) ? trim($value) : $value;
+            if ($value === '' || $value === null) {
+                continue;
+            }
+            $merged[$key] = $value;
+        }
+
+        $assignee = is_array($updates['assignee'] ?? null) ? $updates['assignee'] : [];
+        if ($assignee) {
+            $merged['assignee'] = is_array($merged['assignee'] ?? null) ? $merged['assignee'] : [];
+            foreach (['name', 'email'] as $key) {
+                $value = $assignee[$key] ?? null;
+                $value = is_string($value) ? trim($value) : $value;
+                if ($value === '' || $value === null) {
+                    continue;
+                }
+                $merged['assignee'][$key] = $value;
+            }
+        }
+
+        return $merged;
+    }
+
+    private function mergeRequestDraft(array $base, array $updates): array
+    {
+        $updates = is_array($updates) ? $updates : [];
+        $merged = $base;
+        foreach ([
+            'title',
+            'service_type',
+            'description',
+            'channel',
+            'urgency',
+            'contact_name',
+            'contact_email',
+            'contact_phone',
+            'country',
+            'state',
+            'city',
+            'street1',
+            'street2',
+            'postal_code',
+            'external_customer_id',
+        ] as $key) {
+            $value = $updates[$key] ?? null;
+            $value = is_string($value) ? trim($value) : $value;
+            if ($value === '' || $value === null) {
+                continue;
+            }
+            $merged[$key] = $value;
+        }
+
+        return $merged;
+    }
+
     private function applyAnswerToCustomerDraft(array $draft, array $context): array
     {
         [$answer, $questions] = $this->extractAnswerAndQuestions($context);
@@ -1598,6 +3185,110 @@ class AssistantWorkflowService
             if ((str_contains($lower, 'code postal') || str_contains($lower, 'zip'))
                 && ($draft['zip'] ?? '') === '') {
                 $draft['zip'] = $normalized;
+                continue;
+            }
+
+            if ((str_contains($lower, 'province') || str_contains($lower, 'etat') || str_contains($lower, 'state'))
+                && ($draft['state'] ?? '') === '') {
+                $draft['state'] = $normalized;
+                continue;
+            }
+
+            if (str_contains($lower, 'pays') && ($draft['country'] ?? '') === '') {
+                $draft['country'] = $normalized;
+            }
+        }
+
+        return $draft;
+    }
+
+    private function applyAnswerToTaskDraft(array $draft, array $context): array
+    {
+        [$answer, $questions] = $this->extractAnswerAndQuestions($context);
+        if ($answer === '' || !$questions) {
+            return $draft;
+        }
+
+        $normalized = $this->normalizeAnswerValue($answer);
+
+        foreach ($questions as $question) {
+            $lower = strtolower($question);
+            if ((str_contains($lower, 'titre') || str_contains($lower, 'title')) && ($draft['title'] ?? '') === '') {
+                $draft['title'] = $normalized;
+                continue;
+            }
+
+            if ((str_contains($lower, 'statut') || str_contains($lower, 'status')) && ($draft['status'] ?? '') === '') {
+                $draft['status'] = $normalized;
+                continue;
+            }
+
+            if ((str_contains($lower, 'echeance') || str_contains($lower, 'due') || str_contains($lower, 'date'))
+                && ($draft['due_date'] ?? '') === '') {
+                $draft['due_date'] = $normalized;
+                continue;
+            }
+
+            if (str_contains($lower, 'description') && ($draft['description'] ?? '') === '') {
+                $draft['description'] = $normalized;
+            }
+        }
+
+        return $draft;
+    }
+
+    private function applyAnswerToRequestDraft(array $draft, array $context): array
+    {
+        [$answer, $questions] = $this->extractAnswerAndQuestions($context);
+        if ($answer === '' || !$questions) {
+            return $draft;
+        }
+
+        $normalized = $this->normalizeAnswerValue($answer);
+        $email = filter_var($answer, FILTER_VALIDATE_EMAIL) ? strtolower($answer) : null;
+
+        foreach ($questions as $question) {
+            $lower = strtolower($question);
+            if (str_contains($lower, 'email') && ($draft['contact_email'] ?? '') === '' && $email) {
+                $draft['contact_email'] = $email;
+                continue;
+            }
+
+            if ((str_contains($lower, 'telephone') || str_contains($lower, 'phone')) && ($draft['contact_phone'] ?? '') === '') {
+                $draft['contact_phone'] = $normalized;
+                continue;
+            }
+
+            if ((str_contains($lower, 'contact') && str_contains($lower, 'nom')) || str_contains($lower, 'name')) {
+                if (($draft['contact_name'] ?? '') === '') {
+                    $draft['contact_name'] = $normalized;
+                    continue;
+                }
+            }
+
+            if (str_contains($lower, 'titre') || str_contains($lower, 'service') || str_contains($lower, 'type')) {
+                if (($draft['title'] ?? '') === '') {
+                    $draft['title'] = $normalized;
+                } elseif (($draft['service_type'] ?? '') === '') {
+                    $draft['service_type'] = $normalized;
+                }
+                continue;
+            }
+
+            if (str_contains($lower, 'ville') && ($draft['city'] ?? '') === '') {
+                $draft['city'] = $normalized;
+                continue;
+            }
+
+            if ((str_contains($lower, 'adresse') || str_contains($lower, 'address') || str_contains($lower, 'rue'))
+                && ($draft['street1'] ?? '') === '') {
+                $draft['street1'] = $normalized;
+                continue;
+            }
+
+            if ((str_contains($lower, 'code postal') || str_contains($lower, 'zip'))
+                && ($draft['postal_code'] ?? '') === '') {
+                $draft['postal_code'] = $normalized;
                 continue;
             }
 
@@ -1916,6 +3607,30 @@ class AssistantWorkflowService
         return implode(' - ', $parts);
     }
 
+    private function normalizeListFilters(array $interpretation): array
+    {
+        $filters = is_array($interpretation['filters'] ?? null) ? $interpretation['filters'] : [];
+        $search = trim((string) ($filters['search'] ?? ''));
+        $status = trim((string) ($filters['status'] ?? ''));
+
+        return [
+            'search' => $search,
+            'status' => $status,
+        ];
+    }
+
+    private function resolveListLimit(array $filters, int $default = 10): int
+    {
+        $limit = $filters['limit'] ?? null;
+        $limit = is_numeric($limit) ? (int) $limit : null;
+
+        if (!$limit || $limit <= 0) {
+            return $default;
+        }
+
+        return min($limit, 25);
+    }
+
     private function resolveContextCustomer(int $accountId, array $context): ?Customer
     {
         $current = $context['current_customer'] ?? null;
@@ -1936,6 +3651,37 @@ class AssistantWorkflowService
         }
 
         return null;
+    }
+
+    private function resolveCustomerAccount(User $user, bool $allowPos = false): array
+    {
+        $ownerId = $user->accountOwnerId();
+        $owner = $ownerId === $user->id
+            ? $user
+            : User::query()
+                ->select(['id', 'company_type', 'company_name', 'company_logo'])
+                ->find($ownerId);
+
+        if (!$owner) {
+            return [null, null];
+        }
+
+        $accountId = $user->id;
+        if ($owner->company_type === 'products') {
+            if ($user->id !== $owner->id) {
+                $membership = $user->relationLoaded('teamMembership')
+                    ? $user->teamMembership
+                    : $user->teamMembership()->first();
+                $canManage = $membership?->hasPermission('sales.manage') ?? false;
+                $canPos = $allowPos ? ($membership?->hasPermission('sales.pos') ?? false) : false;
+                if (!$membership || (!$canManage && !$canPos)) {
+                    return [$owner, null];
+                }
+            }
+            $accountId = $owner->id;
+        }
+
+        return [$owner, $accountId];
     }
 
     private function resolveCustomer(int $accountId, array $draft): ?Customer
@@ -2093,6 +3839,216 @@ class AssistantWorkflowService
         return null;
     }
 
+    private function resolveTask(int $accountId, array $context, array $targets, array $taskData): ?Task
+    {
+        $query = Task::forAccount($accountId);
+
+        $current = $context['current_task'] ?? null;
+        if (is_array($current)) {
+            $id = $current['id'] ?? null;
+            if ($id) {
+                return $query->whereKey((int) $id)->first();
+            }
+        }
+
+        if (is_numeric($current)) {
+            return $query->whereKey((int) $current)->first();
+        }
+
+        if (!empty($targets['task_id'])) {
+            return $query->whereKey((int) $targets['task_id'])->first();
+        }
+
+        $work = $this->resolveWork($accountId, $context, $targets);
+        if ($work) {
+            $query->where('work_id', $work->id);
+        }
+
+        $title = trim((string) ($taskData['title'] ?? ''));
+        if ($title !== '') {
+            $exact = (clone $query)
+                ->whereRaw('LOWER(title) = ?', [strtolower($title)])
+                ->first();
+            if ($exact) {
+                return $exact;
+            }
+
+            return (clone $query)
+                ->where('title', 'like', '%' . $title . '%')
+                ->orderByDesc('id')
+                ->first();
+        }
+
+        if ($work) {
+            return (clone $query)->orderByDesc('id')->first();
+        }
+
+        return null;
+    }
+
+    private function resolveRequest(int $accountId, array $targets, array $requestData, array $filters): ?LeadRequest
+    {
+        if (!empty($targets['request_id'])) {
+            return LeadRequest::query()->where('user_id', $accountId)->find((int) $targets['request_id']);
+        }
+
+        $query = LeadRequest::query()->where('user_id', $accountId);
+        $search = trim((string) ($filters['search'] ?? ''));
+        $email = trim((string) ($requestData['contact_email'] ?? ''));
+        $title = trim((string) ($requestData['title'] ?? ''));
+        $serviceType = trim((string) ($requestData['service_type'] ?? ''));
+        $contactName = trim((string) ($requestData['contact_name'] ?? ''));
+
+        if ($email !== '') {
+            return (clone $query)
+                ->where('contact_email', $email)
+                ->orderByDesc('id')
+                ->first();
+        }
+
+        if ($title !== '') {
+            $exact = (clone $query)
+                ->whereRaw('LOWER(title) = ?', [strtolower($title)])
+                ->first();
+            if ($exact) {
+                return $exact;
+            }
+
+            return (clone $query)
+                ->where('title', 'like', '%' . $title . '%')
+                ->orderByDesc('id')
+                ->first();
+        }
+
+        if ($serviceType !== '') {
+            return (clone $query)
+                ->where('service_type', 'like', '%' . $serviceType . '%')
+                ->orderByDesc('id')
+                ->first();
+        }
+
+        if ($contactName !== '') {
+            return (clone $query)
+                ->where('contact_name', 'like', '%' . $contactName . '%')
+                ->orderByDesc('id')
+                ->first();
+        }
+
+        if ($search !== '') {
+            return (clone $query)
+                ->where(function ($sub) use ($search) {
+                    $sub->where('title', 'like', '%' . $search . '%')
+                        ->orWhere('service_type', 'like', '%' . $search . '%')
+                        ->orWhere('contact_name', 'like', '%' . $search . '%')
+                        ->orWhere('contact_email', 'like', '%' . $search . '%')
+                        ->orWhere('contact_phone', 'like', '%' . $search . '%');
+                })
+                ->orderByDesc('id')
+                ->first();
+        }
+
+        return null;
+    }
+
+    private function resolveChecklistItem(Work $work, array $targets, array $itemData): ?WorkChecklistItem
+    {
+        $query = $work->checklistItems()->orderBy('sort_order');
+
+        if (!empty($targets['checklist_item_id'])) {
+            return (clone $query)->whereKey((int) $targets['checklist_item_id'])->first();
+        }
+
+        $title = trim((string) ($itemData['title'] ?? ''));
+        if ($title !== '') {
+            $exact = (clone $query)
+                ->whereRaw('LOWER(title) = ?', [strtolower($title)])
+                ->first();
+            if ($exact) {
+                return $exact;
+            }
+
+            return (clone $query)
+                ->where('title', 'like', '%' . $title . '%')
+                ->first();
+        }
+
+        $items = (clone $query)->get();
+        if ($items->count() === 1) {
+            return $items->first();
+        }
+
+        $pending = $items->filter(fn($item) => $item->status !== 'done')->values();
+        if ($pending->count() === 1) {
+            return $pending->first();
+        }
+
+        return null;
+    }
+
+    private function resolveTeamMemberIds(int $accountId, array $interpretation): array
+    {
+        $members = Arr::wrap($interpretation['team_members'] ?? []);
+        $task = is_array($interpretation['task'] ?? null) ? $interpretation['task'] : [];
+        $assignee = is_array($task['assignee'] ?? null) ? $task['assignee'] : [];
+        if ($assignee) {
+            $members[] = $assignee;
+        }
+
+        $ids = [];
+        $baseQuery = TeamMember::query()->forAccount($accountId)->active();
+
+        foreach ($members as $member) {
+            if (is_numeric($member)) {
+                $ids[] = (int) $member;
+                continue;
+            }
+
+            if (is_string($member)) {
+                $member = ['name' => $member];
+            }
+
+            if (!is_array($member)) {
+                continue;
+            }
+
+            $email = trim((string) ($member['email'] ?? ''));
+            $name = trim((string) ($member['name'] ?? ''));
+
+            if ($email !== '') {
+                $resolved = (clone $baseQuery)
+                    ->whereHas('user', fn($query) => $query->where('email', $email))
+                    ->value('id');
+                if ($resolved) {
+                    $ids[] = (int) $resolved;
+                    continue;
+                }
+            }
+
+            if ($name !== '') {
+                if (is_numeric($name)) {
+                    $ids[] = (int) $name;
+                    continue;
+                }
+
+                $resolved = (clone $baseQuery)
+                    ->whereHas('user', fn($query) => $query->where('name', 'like', '%' . $name . '%'))
+                    ->value('id');
+                if ($resolved) {
+                    $ids[] = (int) $resolved;
+                }
+            }
+        }
+
+        return array_values(array_unique(array_filter($ids)));
+    }
+
+    private function resolveSingleTeamMemberId(int $accountId, array $interpretation): ?int
+    {
+        $ids = $this->resolveTeamMemberIds($accountId, $interpretation);
+
+        return $ids[0] ?? null;
+    }
+
     private function normalizeWorkStatus(string $status): ?string
     {
         $value = strtolower(trim($status));
@@ -2123,6 +4079,165 @@ class AssistantWorkflowService
 
         if (in_array($value, Work::STATUSES, true)) {
             return $value;
+        }
+
+        return null;
+    }
+
+    private function normalizeQuoteStatus(?string $status): ?string
+    {
+        $value = Str::ascii(strtolower(trim((string) $status)));
+        if ($value === '') {
+            return null;
+        }
+
+        $value = str_replace(['_', '-'], ' ', $value);
+        $value = preg_replace('/\s+/', ' ', $value);
+
+        $map = [
+            'draft' => 'draft',
+            'brouillon' => 'draft',
+            'sent' => 'sent',
+            'envoye' => 'sent',
+            'envoyee' => 'sent',
+            'accepted' => 'accepted',
+            'accepte' => 'accepted',
+            'acceptee' => 'accepted',
+            'declined' => 'declined',
+            'refuse' => 'declined',
+            'refusee' => 'declined',
+            'rejected' => 'declined',
+            'rejet' => 'declined',
+            'archived' => 'archived',
+            'archive' => 'archived',
+        ];
+
+        if (isset($map[$value])) {
+            return $map[$value];
+        }
+
+        if (in_array($value, ['draft', 'sent', 'accepted', 'declined'], true)) {
+            return $value;
+        }
+
+        return null;
+    }
+
+    private function normalizeInvoiceStatus(?string $status): ?string
+    {
+        $value = Str::ascii(strtolower(trim((string) $status)));
+        if ($value === '') {
+            return null;
+        }
+
+        $value = str_replace(['_', '-'], ' ', $value);
+        $value = preg_replace('/\s+/', ' ', $value);
+
+        $map = [
+            'draft' => 'draft',
+            'brouillon' => 'draft',
+            'sent' => 'sent',
+            'envoye' => 'sent',
+            'envoyee' => 'sent',
+            'paid' => 'paid',
+            'paye' => 'paid',
+            'payee' => 'paid',
+            'regle' => 'paid',
+            'reglee' => 'paid',
+            'partial' => 'partial',
+            'partiel' => 'partial',
+            'partielle' => 'partial',
+            'overdue' => 'overdue',
+            'en retard' => 'overdue',
+            'retard' => 'overdue',
+            'void' => 'void',
+            'annule' => 'void',
+            'annulee' => 'void',
+            'awaiting acceptance' => 'awaiting_acceptance',
+            'en attente' => 'awaiting_acceptance',
+            'accepted' => 'accepted',
+            'rejected' => 'rejected',
+            'refuse' => 'rejected',
+            'refusee' => 'rejected',
+        ];
+
+        if (isset($map[$value])) {
+            return $map[$value];
+        }
+
+        if (in_array($value, Invoice::STATUSES, true)) {
+            return $value;
+        }
+
+        return null;
+    }
+
+    private function normalizeTaskStatus(?string $status): ?string
+    {
+        $value = Str::ascii(strtolower(trim((string) $status)));
+        if ($value === '') {
+            return null;
+        }
+
+        $value = str_replace(['_', '-'], ' ', $value);
+        $value = preg_replace('/\s+/', ' ', $value);
+
+        $map = [
+            'todo' => 'todo',
+            'to do' => 'todo',
+            'a faire' => 'todo',
+            'pending' => 'todo',
+            'backlog' => 'todo',
+            'in progress' => 'in_progress',
+            'en cours' => 'in_progress',
+            'progress' => 'in_progress',
+            'done' => 'done',
+            'termine' => 'done',
+            'terminee' => 'done',
+            'complete' => 'done',
+            'completed' => 'done',
+            'fait' => 'done',
+            'finished' => 'done',
+        ];
+
+        if (isset($map[$value])) {
+            return $map[$value];
+        }
+
+        if (in_array($value, Task::STATUSES, true)) {
+            return $value;
+        }
+
+        return null;
+    }
+
+    private function normalizeChecklistStatus(?string $status): ?string
+    {
+        $value = Str::ascii(strtolower(trim((string) $status)));
+        if ($value === '') {
+            return null;
+        }
+
+        $value = str_replace(['_', '-'], ' ', $value);
+        $value = preg_replace('/\s+/', ' ', $value);
+
+        $map = [
+            'pending' => 'pending',
+            'todo' => 'pending',
+            'to do' => 'pending',
+            'a faire' => 'pending',
+            'en cours' => 'pending',
+            'in progress' => 'pending',
+            'done' => 'done',
+            'termine' => 'done',
+            'terminee' => 'done',
+            'complete' => 'done',
+            'completed' => 'done',
+            'fait' => 'done',
+        ];
+
+        if (isset($map[$value])) {
+            return $map[$value];
         }
 
         return null;
@@ -2377,6 +4492,118 @@ class AssistantWorkflowService
         return [
             'status' => 'updated',
         ];
+    }
+
+    private function applyTaskMaterialStock(Task $task, ?User $actor = null): void
+    {
+        $task->loadMissing('materials');
+
+        $materials = $task->materials
+            ->filter(fn($material) => $material->product_id && !$material->stock_moved_at)
+            ->values();
+
+        if ($materials->isEmpty()) {
+            return;
+        }
+
+        $productIds = $materials->pluck('product_id')->unique()->values();
+        $productMap = Product::query()
+            ->products()
+            ->byUser($task->account_id)
+            ->whereIn('id', $productIds)
+            ->get()
+            ->keyBy('id');
+
+        $inventoryService = app(InventoryService::class);
+        $defaultWarehouse = $inventoryService->resolveDefaultWarehouse($task->account_id);
+        $movedIds = [];
+
+        foreach ($materials as $material) {
+            $product = $productMap->get($material->product_id);
+            if (!$product) {
+                continue;
+            }
+
+            $quantity = (int) round((float) $material->quantity);
+            if ($quantity <= 0) {
+                continue;
+            }
+
+            $warehouseId = $material->warehouse_id ?: $defaultWarehouse->id;
+
+            $inventoryService->adjust($product, $quantity, 'out', [
+                'actor_id' => $actor?->id,
+                'warehouse_id' => $warehouseId,
+                'account_id' => $task->account_id,
+                'reason' => 'task_usage',
+                'note' => 'Task usage',
+                'reference_type' => Task::class,
+                'reference_id' => $task->id,
+            ]);
+
+            $movedIds[] = $material->id;
+        }
+
+        if ($movedIds) {
+            TaskMaterial::query()
+                ->whereIn('id', $movedIds)
+                ->update(['stock_moved_at' => now()]);
+
+            TaskMaterial::query()
+                ->whereIn('id', $movedIds)
+                ->whereNull('warehouse_id')
+                ->update(['warehouse_id' => $defaultWarehouse->id]);
+        }
+    }
+
+    private function sendInvoiceNotification(Invoice $invoice, string $subject, string $message): void
+    {
+        $invoice->loadMissing('customer', 'work');
+        $customer = $invoice->customer;
+
+        if (!$customer || !$customer->email) {
+            return;
+        }
+
+        $accountOwner = User::find($invoice->user_id);
+        $note = $accountOwner
+            ? app(TemplateService::class)->resolveInvoiceNote($accountOwner)
+            : null;
+
+        $usePublicLink = !(bool) ($customer->portal_access ?? true) || !$customer->portal_user_id;
+        $actionUrl = route('dashboard');
+        $actionLabel = 'Open dashboard';
+        if ($usePublicLink) {
+            $expiresAt = now()->addDays(7);
+            $actionUrl = URL::temporarySignedRoute(
+                'public.invoices.show',
+                $expiresAt,
+                ['invoice' => $invoice->id]
+            );
+            $actionLabel = 'Pay invoice';
+        }
+
+        $details = [
+            ['label' => 'Invoice', 'value' => $invoice->number ?? $invoice->id],
+            ['label' => 'Total', 'value' => '$' . number_format((float) $invoice->total, 2)],
+        ];
+
+        if ($invoice->work) {
+            $details[] = [
+                'label' => 'Job',
+                'value' => $invoice->work->job_title ?? $invoice->work->number ?? $invoice->work->id,
+            ];
+        }
+
+        $customer->notify(new ActionEmailNotification(
+            $subject,
+            $message,
+            $details,
+            $actionUrl,
+            $actionLabel,
+            $subject,
+            $note
+        ));
     }
 
     private function autoScheduleTasksForWork(Work $work, User $actor): void

@@ -54,7 +54,33 @@ class ProductRequest extends FormRequest
             'tax_rate' => 'nullable|numeric|min:0|max:100',
             'is_active' => 'nullable|boolean',
             'image' => 'nullable|image|mimes:jpg,png,jpeg,webp|max:5000',
-            'image_url' => 'nullable|url|max:2048',
+            'image_url' => [
+                'nullable',
+                'string',
+                'max:2048',
+                function ($attribute, $value, $fail) {
+                    if ($value === null || $value === '') {
+                        return;
+                    }
+
+                    $trimmed = trim((string) $value);
+                    if ($trimmed === '') {
+                        return;
+                    }
+
+                    if (filter_var($trimmed, FILTER_VALIDATE_URL)) {
+                        return;
+                    }
+
+                    if (str_starts_with($trimmed, '/')
+                        || str_starts_with($trimmed, 'storage/')
+                        || str_starts_with($trimmed, 'products/')) {
+                        return;
+                    }
+
+                    $fail('The image url field must be a valid URL.');
+                },
+            ],
             'images' => 'nullable|array',
             'images.*' => 'image|mimes:jpg,png,jpeg,webp|max:5000',
             'remove_image_ids' => 'nullable|array',

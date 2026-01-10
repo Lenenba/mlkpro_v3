@@ -609,7 +609,7 @@ const submitImport = () => {
                             Import CSV
                         </button>
                         <button type="button"
-                            class="py-2 px-2.5 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:ring-2 focus:ring-green-500"
+                            class="py-2 px-2.5 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:ring-2 focus:ring-green-500 action-feedback"
                             data-hs-overlay="#hs-pro-dasadpm">
                             <svg class="hidden sm:block shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" width="24"
                                 height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
@@ -686,7 +686,7 @@ const submitImport = () => {
                     </span>
                     <div class="hs-dropdown [--auto-close:inside] [--placement:bottom-right] relative inline-flex">
                         <button type="button"
-                            class="py-2 px-2.5 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700"
+                            class="py-2 px-2.5 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700 action-feedback"
                             aria-haspopup="menu" aria-expanded="false" aria-label="Dropdown">
                             Bulk actions
                         </button>
@@ -694,16 +694,16 @@ const submitImport = () => {
                             role="menu" aria-orientation="vertical">
                             <div class="p-1">
                                 <button type="button" @click="runBulk('archive')"
-                                    class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
+                                    class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800 action-feedback" data-tone="warning">
                                     Archive
                                 </button>
                                 <button type="button" @click="runBulk('restore')"
-                                    class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
+                                    class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800 action-feedback">
                                     Restore
                                 </button>
                                 <div class="my-1 border-t border-stone-200 dark:border-neutral-800"></div>
                                 <button type="button" @click="runBulk('delete')"
-                                    class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-neutral-800">
+                                    class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-neutral-800 action-feedback" data-tone="danger">
                                     Delete
                                 </button>
                             </div>
@@ -1046,11 +1046,11 @@ const submitImport = () => {
                     <td class="size-px whitespace-nowrap px-4 py-2 text-end">
                         <div v-if="editingId === product.id && canEdit" class="flex items-center justify-end gap-2">
                             <button type="button" @click="saveInlineEdit"
-                                class="py-1.5 px-2 text-xs font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700">
+                                class="py-1.5 px-2 text-xs font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 action-feedback">
                                 Save
                             </button>
                             <button type="button" @click="cancelInlineEdit"
-                                class="py-1.5 px-2 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
+                                class="py-1.5 px-2 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 action-feedback">
                                 Cancel
                             </button>
                         </div>
@@ -1078,28 +1078,28 @@ const submitImport = () => {
                                             View
                                         </Link>
                                         <button type="button" @click="startInlineEdit(product)"
-                                            class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
+                                            class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800 action-feedback">
                                             Quick edit
                                         </button>
                                         <button type="button" @click="openAdjust(product)"
-                                            class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
+                                            class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800 action-feedback">
                                             Adjust stock
                                         </button>
                                         <button type="button" @click="duplicateProduct(product)"
-                                            class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
+                                            class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800 action-feedback">
                                             Duplicate
                                         </button>
                                         <button type="button" @click="toggleArchive(product)"
-                                            class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
+                                            class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800 action-feedback" data-tone="warning">
                                             {{ product.is_active ? 'Archive' : 'Restore' }}
                                         </button>
                                         <button type="button" :data-hs-overlay="'#hs-pro-edit' + product.id"
-                                            class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
+                                            class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800 action-feedback">
                                             Edit
                                         </button>
                                         <div class="my-1 border-t border-stone-200 dark:border-neutral-800"></div>
                                         <button type="button" @click="destroyProduct(product)"
-                                            class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-neutral-800">
+                                            class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-neutral-800 action-feedback" data-tone="danger">
                                             Delete
                                         </button>
                                     </div>
@@ -1430,11 +1430,11 @@ const submitImport = () => {
             </div>
             <div class="flex justify-end gap-2">
                 <button type="button" data-hs-overlay="#hs-pro-import"
-                    class="py-2 px-3 inline-flex items-center text-sm font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
+                    class="py-2 px-3 inline-flex items-center text-sm font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 action-feedback">
                     Cancel
                 </button>
                 <button type="submit"
-                    class="py-2 px-3 inline-flex items-center text-sm font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700">
+                    class="py-2 px-3 inline-flex items-center text-sm font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 action-feedback">
                     Import
                 </button>
             </div>
@@ -1525,11 +1525,11 @@ const submitImport = () => {
                 </div>
                 <div class="flex justify-end gap-2">
                     <button type="button" data-hs-overlay="#hs-pro-stock-adjust"
-                        class="py-2 px-3 inline-flex items-center text-sm font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
+                        class="py-2 px-3 inline-flex items-center text-sm font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 action-feedback">
                         Cancel
                     </button>
                     <button type="submit"
-                        class="py-2 px-3 inline-flex items-center text-sm font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700">
+                        class="py-2 px-3 inline-flex items-center text-sm font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 action-feedback">
                         Save
                     </button>
                 </div>

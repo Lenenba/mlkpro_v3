@@ -73,7 +73,7 @@ const mapLink = computed(() =>
 <template>
     <Head title="Voir la tache" />
     <AuthenticatedLayout>
-        <div class="max-w-4xl mx-auto space-y-4">
+        <div class="max-w-4xl mx-auto space-y-4 rise-stagger">
             <div v-if="mapUrl" class="overflow-hidden bg-white border border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
                 <iframe
                     :src="mapUrl"

@@ -77,7 +77,7 @@ const sourceLines = computed(() => {
     <Head title="View quote" />
 
     <AuthenticatedLayout>
-        <div class="mx-auto w-full max-w-6xl space-y-5">
+        <div class="mx-auto w-full max-w-6xl space-y-5 rise-stagger">
                 <div
                     class="p-5 space-y-3 flex flex-col bg-white border border-stone-200 rounded-sm shadow-sm xl:shadow-none dark:bg-neutral-900 dark:border-neutral-700">
                     <!-- Header -->

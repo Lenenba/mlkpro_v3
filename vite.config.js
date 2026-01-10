@@ -16,9 +16,11 @@ export default defineConfig({
                 },
             },
         }),
-
     ],
     build: {
-        chunkSizeWarningLimit: 1000, // Augmente la limite de 500 kB à 1000 kB
-      },
+        chunkSizeWarningLimit: 1000, // Augmente la limite de 500 kB a 1000 kB
+        sourcemap: false,
+        reportCompressedSize: false,
+        minify: 'esbuild',
+    },
 });

@@ -78,7 +78,7 @@ const setLocale = (locale) => {
                         <nav class="mt-2 flex-1 overflow-y-auto">
                             <ul class="text-center space-y-3 pb-2">
                                 <template v-if="showPlatformNav">
-                                    <LinkAncor v-if="isSuperadmin" :label="$t('nav.dashboard')" :href="'dashboard'"
+                                    <LinkAncor v-if="isSuperadmin" :label="$t('nav.dashboard')" :href="'dashboard'" tone="dashboard"
                                         :active="route().current('dashboard')">
                                         <template #icon>
                                             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
@@ -92,7 +92,7 @@ const setLocale = (locale) => {
                                             </svg>
                                         </template>
                                     </LinkAncor>
-                                    <LinkAncor v-if="canPlatform('analytics.view')" :label="$t('nav.admin')" :href="'superadmin.dashboard'"
+                                    <LinkAncor v-if="canPlatform('analytics.view')" :label="$t('nav.admin')" :href="'superadmin.dashboard'" tone="admin"
                                         :active="route().current('superadmin.dashboard')">
                                         <template #icon>
                                             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
@@ -104,7 +104,7 @@ const setLocale = (locale) => {
                                         </template>
                                     </LinkAncor>
 
-                                    <LinkAncor v-if="canPlatform('tenants.view')" :label="$t('nav.tenants')" :href="'superadmin.tenants.index'"
+                                    <LinkAncor v-if="canPlatform('tenants.view')" :label="$t('nav.tenants')" :href="'superadmin.tenants.index'" tone="tenants"
                                         :active="route().current('superadmin.tenants.*')">
                                         <template #icon>
                                             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
@@ -119,7 +119,7 @@ const setLocale = (locale) => {
                                         </template>
                                     </LinkAncor>
 
-                                    <LinkAncor v-if="canPlatform('support.manage')" :label="$t('nav.support')" :href="'superadmin.support.index'"
+                                    <LinkAncor v-if="canPlatform('support.manage')" :label="$t('nav.support')" :href="'superadmin.support.index'" tone="support"
                                         :active="route().current('superadmin.support.*')">
                                         <template #icon>
                                             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
@@ -136,7 +136,7 @@ const setLocale = (locale) => {
                                         </template>
                                     </LinkAncor>
 
-                                    <LinkAncor v-if="canPlatform('admins.manage')" :label="$t('nav.admins')" :href="'superadmin.admins.index'"
+                                    <LinkAncor v-if="canPlatform('admins.manage')" :label="$t('nav.admins')" :href="'superadmin.admins.index'" tone="admins"
                                         :active="route().current('superadmin.admins.*')">
                                         <template #icon>
                                             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
@@ -151,7 +151,7 @@ const setLocale = (locale) => {
                                         </template>
                                     </LinkAncor>
 
-                                    <LinkAncor v-if="canPlatform('notifications.manage')" :label="$t('nav.notifications')" :href="'superadmin.notifications.edit'"
+                                    <LinkAncor v-if="canPlatform('notifications.manage')" :label="$t('nav.notifications')" :href="'superadmin.notifications.edit'" tone="notifications"
                                         :active="route().current('superadmin.notifications.*')">
                                         <template #icon>
                                             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
@@ -165,7 +165,7 @@ const setLocale = (locale) => {
                                         </template>
                                     </LinkAncor>
 
-                                    <LinkAncor v-if="canPlatform('announcements.manage')" :label="$t('nav.announcements')" :href="'superadmin.announcements.index'"
+                                    <LinkAncor v-if="canPlatform('announcements.manage')" :label="$t('nav.announcements')" :href="'superadmin.announcements.index'" tone="announcements"
                                         :active="route().current('superadmin.announcements.*')">
                                         <template #icon>
                                             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
@@ -179,7 +179,7 @@ const setLocale = (locale) => {
                                         </template>
                                     </LinkAncor>
 
-                                    <LinkAncor v-if="canPlatform('settings.manage')" :label="$t('nav.settings')" :href="'superadmin.settings.edit'"
+                                    <LinkAncor v-if="canPlatform('settings.manage')" :label="$t('nav.settings')" :href="'superadmin.settings.edit'" tone="settings"
                                         :active="route().current('superadmin.settings.*')">
                                         <template #icon>
                                             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
@@ -205,7 +205,7 @@ const setLocale = (locale) => {
                                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
                                             viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                                             stroke-linecap="round" stroke-linejoin="round"
-                                            class="lucide lucide-circle-plus text-stone-600 dark:text-neutral-800">
+                                            class="lucide lucide-circle-plus text-stone-600 dark:text-neutral-200">
                                             <circle cx="12" cy="12" r="10" />
                                             <path d="M8 12h8" />
                                             <path d="M12 8v8" />
@@ -213,7 +213,7 @@ const setLocale = (locale) => {
                                     </template>
                                 </MenuDropdown>
                                 <!-- Item -->
-                                <LinkAncor :label="$t('nav.dashboard')" :href="'dashboard'"
+                                <LinkAncor :label="$t('nav.dashboard')" :href="'dashboard'" tone="dashboard"
                                     :active="route().current('dashboard')">
                                     <template #icon>
                                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
@@ -230,7 +230,7 @@ const setLocale = (locale) => {
                                 <!-- End Item -->
 
                                 <!-- Item -->
-                                <LinkAncor v-if="isClient && companyType === 'products'" label="Commander" :href="'portal.orders.index'"
+                                <LinkAncor v-if="isClient && companyType === 'products'" label="Commander" :href="'portal.orders.index'" tone="orders"
                                     :active="route().current('portal.orders.*')">
                                     <template #icon>
                                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
@@ -246,8 +246,8 @@ const setLocale = (locale) => {
                                 <!-- End Item -->
 
                                 <!-- Item -->
-                                <LinkAncor v-if="((showServices && isOwner) || (companyType === 'products' && hasFeature('sales') && canSales)) && !isSeller" :label="$t('nav.customers')" :href="'customer.index'"
-                                    :active="route().current('customer.index')">
+                                <LinkAncor v-if="((showServices && isOwner) || (companyType === 'products' && hasFeature('sales') && canSales)) && !isSeller" :label="$t('nav.customers')" :href="'customer.index'" tone="customers"
+                                    :active="route().current('customer.*') || page.url.startsWith('/customer') || page.url.startsWith('/customers')">
                                     <template #icon>
                                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-contact"><path d="M16 2v2"/><path d="M7 22v-2a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v2"/><path d="M8 2v2"/><circle cx="12" cy="11" r="3"/><rect x="3" y="4" width="18" height="18" rx="2"/></svg>
                                     </template>
@@ -255,8 +255,8 @@ const setLocale = (locale) => {
                                 <!-- End Item -->
 
                                 <!-- Item -->
-                                <LinkAncor v-if="showProducts && hasFeature('products') && (isOwner || canSales) && !isSeller" :label="$t('nav.products')" :href="'product.index'"
-                                    :active="route().current('product.index')">
+                                <LinkAncor v-if="showProducts && hasFeature('products') && (isOwner || canSales) && !isSeller" :label="$t('nav.products')" :href="'product.index'" tone="products"
+                                    :active="route().current('product.*')">
                                     <template #icon>
                                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
                                             viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
@@ -275,7 +275,7 @@ const setLocale = (locale) => {
                                 <!-- End Item -->
 
                                 <!-- Item -->
-                                <LinkAncor v-if="companyType === 'products' && hasFeature('sales') && canSales" :label="$t('nav.orders')" :href="'orders.index'"
+                                <LinkAncor v-if="companyType === 'products' && hasFeature('sales') && canSales" :label="$t('nav.orders')" :href="'orders.index'" tone="orders"
                                     :active="route().current('orders.*')">
                                     <template #icon>
                                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
@@ -293,7 +293,7 @@ const setLocale = (locale) => {
                                 <!-- End Item -->
 
                                 <!-- Item -->
-                                <LinkAncor v-if="companyType === 'products' && hasFeature('sales') && canSales" :label="$t('nav.sales')" :href="isSeller ? 'sales.create' : 'sales.index'"
+                                <LinkAncor v-if="companyType === 'products' && hasFeature('sales') && canSales" :label="$t('nav.sales')" :href="isSeller ? 'sales.create' : 'sales.index'" tone="sales"
                                     :active="route().current('sales.*')">
                                     <template #icon>
                                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
@@ -309,7 +309,7 @@ const setLocale = (locale) => {
                                 <!-- End Item -->
 
                                 <!-- Item -->
-                                <LinkAncor v-if="showServices && hasFeature('services') && page.props.auth.account?.is_owner && !isSeller" :label="$t('nav.services')" :href="'service.index'"
+                                <LinkAncor v-if="showServices && hasFeature('services') && page.props.auth.account?.is_owner && !isSeller" :label="$t('nav.services')" :href="'service.index'" tone="services"
                                     :active="route().current('service.index')">
                                     <template #icon>
                                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
@@ -323,7 +323,7 @@ const setLocale = (locale) => {
                                 </LinkAncor>
                                 <!-- End Item -->
                                 <!-- Item -->
-                                <LinkAncor v-if="showServices && hasFeature('services') && page.props.auth.account?.is_owner" :label="$t('nav.categories')" :href="'service.categories'"
+                                <LinkAncor v-if="showServices && hasFeature('services') && page.props.auth.account?.is_owner" :label="$t('nav.categories')" :href="'service.categories'" tone="categories"
                                     :active="route().current('service.categories')">
                                     <template #icon>
                                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
@@ -337,7 +337,7 @@ const setLocale = (locale) => {
                                 </LinkAncor>
                                 <!-- End Item -->
                                 <!-- Item -->
-                                <LinkAncor v-if="showServices && hasFeature('quotes') && canQuotes && !isSeller" :label="$t('nav.quotes')" :href="'quote.index'"
+                                <LinkAncor v-if="showServices && hasFeature('quotes') && canQuotes && !isSeller" :label="$t('nav.quotes')" :href="'quote.index'" tone="quotes"
                                     :active="route().current('quote.index') || route().current('customer.quote.*')">
                                     <template #icon>
                                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
@@ -353,7 +353,7 @@ const setLocale = (locale) => {
                                 </LinkAncor>
                                 <!-- End Item -->
                                 <!-- Item -->
-                                <LinkAncor v-if="showServices && hasFeature('plan_scans') && page.props.auth.account?.is_owner && !isSeller" :label="$t('nav.plan_scans')" :href="'plan-scans.index'"
+                                <LinkAncor v-if="showServices && hasFeature('plan_scans') && page.props.auth.account?.is_owner && !isSeller" :label="$t('nav.plan_scans')" :href="'plan-scans.index'" tone="plan_scans"
                                     :active="route().current('plan-scans.*')">
                                     <template #icon>
                                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
@@ -367,7 +367,7 @@ const setLocale = (locale) => {
                                 </LinkAncor>
                                 <!-- End Item -->
                                 <!-- Item -->
-                                <LinkAncor v-if="showServices && hasFeature('requests') && page.props.auth.account?.is_owner && !isSeller" :label="$t('nav.requests')" :href="'request.index'"
+                                <LinkAncor v-if="showServices && hasFeature('requests') && page.props.auth.account?.is_owner && !isSeller" :label="$t('nav.requests')" :href="'request.index'" tone="requests"
                                     :active="route().current('request.*')">
                                     <template #icon>
                                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
@@ -382,7 +382,7 @@ const setLocale = (locale) => {
                                 </LinkAncor>
                                 <!-- End Item -->
                                 <!-- Item -->
-                                <LinkAncor v-if="showServices && hasFeature('jobs') && !isClient && !isSeller" :label="$t('nav.jobs')" :href="'jobs.index'"
+                                <LinkAncor v-if="showServices && hasFeature('jobs') && !isClient && !isSeller" :label="$t('nav.jobs')" :href="'jobs.index'" tone="jobs"
                                     :active="route().current('jobs.index') || route().current('work.*')">
                                     <template #icon>
                                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
@@ -398,7 +398,7 @@ const setLocale = (locale) => {
                                 <!-- End Item -->
 
                                 <!-- Item -->
-                                <LinkAncor v-if="hasFeature('tasks') && !isClient && !isSeller" :label="$t('nav.tasks')" :href="'task.index'"
+                                <LinkAncor v-if="hasFeature('tasks') && !isClient && !isSeller" :label="$t('nav.tasks')" :href="'task.index'" tone="tasks"
                                     :active="route().current('task.*')">
                                     <template #icon>
                                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
@@ -413,7 +413,7 @@ const setLocale = (locale) => {
                                 <!-- End Item -->
 
                                 <!-- Item -->
-                                <LinkAncor v-if="hasFeature('team_members') && page.props.auth.account?.is_owner && !isSeller" :label="$t('nav.team')" :href="'team.index'"
+                                <LinkAncor v-if="hasFeature('team_members') && page.props.auth.account?.is_owner && !isSeller" :label="$t('nav.team')" :href="'team.index'" tone="team"
                                     :active="route().current('team.*')">
                                     <template #icon>
                                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
@@ -429,7 +429,7 @@ const setLocale = (locale) => {
                                 </LinkAncor>
                                 <!-- End Item -->
                                 <!-- Item -->
-                                <LinkAncor v-if="showServices && hasFeature('invoices') && page.props.auth.account?.is_owner && !isSeller" :label="$t('nav.invoices')" :href="'invoice.index'"
+                                <LinkAncor v-if="showServices && hasFeature('invoices') && page.props.auth.account?.is_owner && !isSeller" :label="$t('nav.invoices')" :href="'invoice.index'" tone="invoices"
                                     :active="route().current('invoice.*')">
                                     <template #icon>
                                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
