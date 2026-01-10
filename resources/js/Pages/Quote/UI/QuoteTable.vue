@@ -40,6 +40,25 @@ const filterForm = useForm({
 const showAdvanced = ref(false);
 const newQuoteCustomerId = ref('');
 const isLoading = ref(false);
+const allowedViews = ['table', 'cards'];
+const viewMode = ref('table');
+
+if (typeof window !== 'undefined') {
+    const storedView = window.localStorage.getItem('quote_view_mode');
+    if (allowedViews.includes(storedView)) {
+        viewMode.value = storedView;
+    }
+}
+
+const setViewMode = (mode) => {
+    if (!allowedViews.includes(mode) || viewMode.value === mode) {
+        return;
+    }
+    viewMode.value = mode;
+    if (typeof window !== 'undefined') {
+        window.localStorage.setItem('quote_view_mode', mode);
+    }
+};
 
 const filterPayload = () => {
     const payload = {
@@ -132,30 +151,35 @@ const statusMeta = {
         classes: 'bg-slate-100 text-slate-700 dark:bg-slate-500/15 dark:text-slate-200',
         icon: 'draft',
         iconClass: '',
+        accent: 'border-l-slate-400/80',
     },
     sent: {
         label: 'Sent',
         classes: 'bg-sky-100 text-sky-800 dark:bg-sky-500/15 dark:text-sky-200',
         icon: 'sent',
         iconClass: '',
+        accent: 'border-l-sky-500/80',
     },
     accepted: {
         label: 'Accepted',
         classes: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-200',
         icon: 'accepted',
         iconClass: 'animate-micro-pop',
+        accent: 'border-l-emerald-500/80',
     },
     declined: {
         label: 'Declined',
         classes: 'bg-rose-100 text-rose-800 dark:bg-rose-500/15 dark:text-rose-200',
         icon: 'declined',
         iconClass: '',
+        accent: 'border-l-rose-500/80',
     },
     archived: {
         label: 'Archived',
         classes: 'bg-stone-100 text-stone-700 dark:bg-neutral-700 dark:text-neutral-300',
         icon: 'archived',
         iconClass: '',
+        accent: 'border-l-stone-300',
     },
 };
 
@@ -248,6 +272,40 @@ const startQuote = () => {
                 </div>
 
                 <div class="flex flex-wrap items-center gap-2 justify-end">
+                    <div class="inline-flex items-center rounded-sm border border-stone-200 bg-white p-0.5 text-xs font-semibold text-stone-600 shadow-sm dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300">
+                        <button
+                            type="button"
+                            @click="setViewMode('table')"
+                            class="inline-flex items-center gap-1.5 rounded-sm px-3 py-1.5"
+                            :class="viewMode === 'table'
+                                ? 'bg-stone-900 text-white shadow-sm dark:bg-white dark:text-stone-900'
+                                : 'text-stone-600 hover:text-stone-800 dark:text-neutral-300 dark:hover:text-neutral-100'"
+                        >
+                            <svg class="size-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M3 3h18v6H3z" />
+                                <path d="M3 13h18v8H3z" />
+                            </svg>
+                            Table
+                        </button>
+                        <button
+                            type="button"
+                            @click="setViewMode('cards')"
+                            class="inline-flex items-center gap-1.5 rounded-sm px-3 py-1.5"
+                            :class="viewMode === 'cards'
+                                ? 'bg-stone-900 text-white shadow-sm dark:bg-white dark:text-stone-900'
+                                : 'text-stone-600 hover:text-stone-800 dark:text-neutral-300 dark:hover:text-neutral-100'"
+                        >
+                            <svg class="size-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="3" y="3" width="7" height="7" rx="1" />
+                                <rect x="14" y="3" width="7" height="7" rx="1" />
+                                <rect x="3" y="14" width="7" height="7" rx="1" />
+                                <rect x="14" y="14" width="7" height="7" rx="1" />
+                            </svg>
+                            Cards
+                        </button>
+                    </div>
                     <select v-model="filterForm.status"
                         class="py-2 ps-3 pe-8 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 dark:focus:ring-neutral-600">
                         <option value="">All status</option>
@@ -319,7 +377,7 @@ const startQuote = () => {
             </div>
         </div>
 
-        <div class="overflow-x-auto">
+        <div v-if="viewMode === 'table'" class="overflow-x-auto">
             <table class="min-w-full divide-y divide-stone-200 dark:divide-neutral-700">
                 <thead>
                     <tr>
@@ -498,6 +556,164 @@ const startQuote = () => {
                     </template>
                 </tbody>
             </table>
+        </div>
+
+        <div v-else class="space-y-3">
+            <div v-if="isLoading" class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                <div v-for="row in 6" :key="`card-skeleton-${row}`"
+                    class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-800">
+                    <div class="space-y-3 animate-pulse">
+                        <div class="h-4 w-1/2 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                        <div class="h-3 w-1/3 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                        <div class="h-3 w-3/4 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                        <div class="h-3 w-2/3 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                    </div>
+                </div>
+            </div>
+            <div v-else-if="!quotes.data.length"
+                class="rounded-sm border border-dashed border-stone-200 bg-white px-4 py-10 text-center text-stone-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300">
+                No quotes yet.
+            </div>
+            <div v-else class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                <div
+                    v-for="quote in quotes.data"
+                    :key="quote.id"
+                    class="rounded-sm border border-stone-200 border-l-4 bg-white p-4 shadow-sm transition-shadow hover:shadow-md dark:border-neutral-700 dark:bg-neutral-800"
+                    :class="getStatusMeta(quote).accent"
+                >
+                    <div class="flex items-start justify-between gap-3">
+                        <div class="min-w-0">
+                            <Link :href="route('customer.quote.show', quote)"
+                                class="text-sm font-semibold text-stone-800 hover:text-emerald-700 dark:text-neutral-100 dark:hover:text-emerald-300 line-clamp-1">
+                                {{ quote.number || 'Quote' }}
+                            </Link>
+                            <div class="text-xs text-stone-500 dark:text-neutral-400">
+                                {{ displayCustomer(quote.customer) }}
+                            </div>
+                            <div class="text-[11px] text-stone-400 dark:text-neutral-500">
+                                {{ quote.job_title || 'Job' }}
+                            </div>
+                        </div>
+                        <div class="flex items-start gap-2">
+                            <span class="py-1.5 px-2 inline-flex items-center gap-x-1.5 text-xs font-semibold rounded-full"
+                                :class="getStatusMeta(quote).classes">
+                                <span class="inline-flex size-3.5 items-center justify-center" :class="getStatusMeta(quote).iconClass">
+                                    <svg v-if="getStatusMeta(quote).icon === 'draft'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+                                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                                        class="size-3.5">
+                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z" />
+                                        <path d="M14 2v6h6" />
+                                        <path d="M8 13h8" />
+                                    </svg>
+                                    <svg v-else-if="getStatusMeta(quote).icon === 'sent'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+                                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                                        class="size-3.5">
+                                        <path d="m22 2-7 20-4-9-9-4Z" />
+                                        <path d="M22 2 11 13" />
+                                    </svg>
+                                    <svg v-else-if="getStatusMeta(quote).icon === 'accepted'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+                                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                                        class="size-3.5">
+                                        <circle cx="12" cy="12" r="9" />
+                                        <path d="m8.5 12.5 2.5 2.5 4.5-5" />
+                                    </svg>
+                                    <svg v-else-if="getStatusMeta(quote).icon === 'declined'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+                                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                                        class="size-3.5">
+                                        <circle cx="12" cy="12" r="9" />
+                                        <path d="m15 9-6 6" />
+                                        <path d="m9 9 6 6" />
+                                    </svg>
+                                    <svg v-else-if="getStatusMeta(quote).icon === 'archived'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+                                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                                        class="size-3.5">
+                                        <rect x="3" y="4" width="18" height="4" rx="1" />
+                                        <path d="M5 8v12h14V8" />
+                                        <path d="M10 12h4" />
+                                    </svg>
+                                </span>
+                                <span>{{ getStatusMeta(quote).label }}</span>
+                            </span>
+                            <div class="hs-dropdown [--auto-close:inside] [--placement:bottom-right] relative inline-flex">
+                                <button type="button"
+                                    class="size-7 inline-flex justify-center items-center gap-x-2 rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700"
+                                    aria-haspopup="menu" aria-expanded="false" aria-label="Dropdown">
+                                    <svg class="shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" width="24"
+                                        height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <circle cx="12" cy="12" r="1" />
+                                        <circle cx="12" cy="5" r="1" />
+                                        <circle cx="12" cy="19" r="1" />
+                                    </svg>
+                                </button>
+
+                                <div class="hs-dropdown-menu hs-dropdown-open:opacity-100 w-44 transition-[opacity,margin] duration opacity-0 hidden z-10 bg-white rounded-sm shadow-[0_10px_40px_10px_rgba(0,0,0,0.08)] dark:shadow-[0_10px_40px_10px_rgba(0,0,0,0.2)] dark:bg-neutral-900"
+                                    role="menu" aria-orientation="vertical">
+                                    <div class="p-1">
+                                        <Link :href="route('customer.quote.show', quote)"
+                                            class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
+                                            View
+                                        </Link>
+                                        <Link v-if="!isArchived(quote) && quote.status !== 'accepted'"
+                                            :href="route('customer.quote.edit', quote)"
+                                            class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
+                                            Edit
+                                        </Link>
+                                        <div class="my-1 border-t border-stone-200 dark:border-neutral-800"></div>
+                                        <button v-if="!isArchived(quote)" type="button" @click="sendEmail(quote)" data-testid="demo-quote-send"
+                                            class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-neutral-800 action-feedback" data-tone="info">
+                                            Send email
+                                        </button>
+                                        <button v-if="!isArchived(quote) && quote.status !== 'accepted' && quote.status !== 'declined'" type="button" @click="acceptQuote(quote)" data-testid="demo-quote-accept"
+                                            class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-emerald-600 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-neutral-800 action-feedback">
+                                            Accept quote
+                                        </button>
+                                        <button v-if="!isArchived(quote)" type="button" @click="convertToJob(quote)" data-testid="demo-quote-convert"
+                                            class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-emerald-600 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-neutral-800 action-feedback">
+                                            Create job
+                                        </button>
+                                        <div class="my-1 border-t border-stone-200 dark:border-neutral-800"></div>
+                                        <button v-if="!isArchived(quote)" type="button" @click="archiveQuote(quote)"
+                                            class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-neutral-800 action-feedback" data-tone="danger">
+                                            Archive
+                                        </button>
+                                        <button v-else type="button" @click="restoreQuote(quote)"
+                                            class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-emerald-600 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-neutral-800 action-feedback">
+                                            Restore
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-4 grid grid-cols-2 gap-3 text-xs text-stone-500 dark:text-neutral-400">
+                        <div class="flex items-center gap-2">
+                            <svg class="size-3.5 text-stone-400 dark:text-neutral-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="3" y="4" width="18" height="18" rx="2" />
+                                <path d="M8 2v4" />
+                                <path d="M16 2v4" />
+                                <path d="M3 10h18" />
+                            </svg>
+                            <span class="text-stone-700 dark:text-neutral-200">
+                                {{ formatDate(quote.created_at) }}
+                            </span>
+                        </div>
+                        <div class="flex items-center gap-2 justify-end">
+                            <span class="text-stone-500 dark:text-neutral-400">Rating</span>
+                            <StarRating :value="quote.ratings_avg_rating" icon-class="h-3.5 w-3.5" empty-label="-" />
+                        </div>
+                    </div>
+
+                    <div class="mt-3 flex items-center justify-between">
+                        <span class="text-xs text-stone-500 dark:text-neutral-400">Total</span>
+                        <span class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                            {{ formatCurrency(quote.total) }}
+                        </span>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <div class="mt-5 flex flex-wrap justify-between items-center gap-2">

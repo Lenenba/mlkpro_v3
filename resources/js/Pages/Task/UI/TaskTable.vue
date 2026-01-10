@@ -1,5 +1,6 @@
 <script setup>
 import { computed, ref, watch } from 'vue';
+import draggable from 'vuedraggable';
 import { prepareMediaFile, MEDIA_LIMITS } from '@/utils/media';
 import { Link, router, useForm } from '@inertiajs/vue3';
 import Modal from '@/Components/UI/Modal.vue';
@@ -100,10 +101,12 @@ const setViewMode = (mode) => {
 };
 
 const setScheduleRange = (range) => {
-    if (!allowedScheduleRanges.includes(range) || scheduleRange.value === range) {
+    if (!allowedScheduleRanges.includes(range)) {
         return;
     }
-    scheduleRange.value = range;
+    if (scheduleRange.value !== range) {
+        scheduleRange.value = range;
+    }
     if (typeof window !== 'undefined') {
         window.localStorage.setItem('task_schedule_range', range);
     }
@@ -114,20 +117,7 @@ const boardStatuses = computed(() =>
     props.statuses?.length ? props.statuses : ['todo', 'in_progress', 'done']
 );
 
-const tasksByStatus = computed(() => {
-    const grouped = {};
-    boardStatuses.value.forEach((status) => {
-        grouped[status] = [];
-    });
-    taskList.value.forEach((task) => {
-        const status = task?.status || boardStatuses.value[0];
-        if (!grouped[status]) {
-            return;
-        }
-        grouped[status].push(task);
-    });
-    return grouped;
-});
+const boardTasks = ref({});
 
 const toDateKey = (date) => {
     const year = date.getFullYear();
@@ -170,14 +160,102 @@ const formatScheduleLabel = (dateKey) => {
     });
 };
 
+const syncBoardTasks = () => {
+    const grouped = {};
+    const incomingMap = {};
+    const fallbackStatus = boardStatuses.value[0] || 'todo';
+
+    boardStatuses.value.forEach((status) => {
+        grouped[status] = [];
+        incomingMap[status] = new Map();
+    });
+
+    taskList.value.forEach((task) => {
+        const status = boardStatuses.value.includes(task?.status) ? task.status : fallbackStatus;
+        if (!incomingMap[status]) {
+            return;
+        }
+        incomingMap[status].set(task.id, task);
+    });
+
+    boardStatuses.value.forEach((status) => {
+        const ordered = [];
+        const existing = boardTasks.value?.[status] || [];
+
+        existing.forEach((task) => {
+            const match = incomingMap[status].get(task.id);
+            if (match) {
+                ordered.push(match);
+                incomingMap[status].delete(task.id);
+            }
+        });
+
+        incomingMap[status].forEach((task) => {
+            ordered.push(task);
+        });
+
+        grouped[status] = ordered;
+    });
+
+    boardTasks.value = grouped;
+};
+
+syncBoardTasks();
+
+const startOfWeek = (date) => {
+    const base = new Date(date);
+    const day = (base.getDay() + 6) % 7;
+    base.setDate(base.getDate() - day);
+    base.setHours(0, 0, 0, 0);
+    return base;
+};
+
+const scheduleRangeBounds = computed(() => {
+    if (scheduleRange.value === 'all') {
+        return null;
+    }
+    const today = new Date();
+    const start = startOfWeek(today);
+    let end = new Date(start);
+
+    if (scheduleRange.value === 'week') {
+        end.setDate(start.getDate() + 6);
+    } else if (scheduleRange.value === '2weeks') {
+        end.setDate(start.getDate() + 13);
+    } else if (scheduleRange.value === 'month') {
+        end = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+    }
+
+    end.setHours(23, 59, 59, 999);
+    return { start, end };
+});
+
+const isWithinScheduleRange = (dateKey) => {
+    const bounds = scheduleRangeBounds.value;
+    if (!bounds || !dateKey) {
+        return Boolean(dateKey);
+    }
+    const date = new Date(`${dateKey}T00:00:00`);
+    if (Number.isNaN(date.getTime())) {
+        return false;
+    }
+    return date >= bounds.start && date <= bounds.end;
+};
+
 const scheduleGroups = computed(() => {
     const dated = new Map();
     const undated = [];
+    const includeUndated = scheduleRange.value === 'all';
 
     taskList.value.forEach((task) => {
         const key = normalizeDateKey(task?.due_date);
         if (!key) {
-            undated.push(task);
+            if (includeUndated) {
+                undated.push(task);
+            }
+            return;
+        }
+        if (!isWithinScheduleRange(key)) {
             return;
         }
         if (!dated.has(key)) {
@@ -226,6 +304,9 @@ const taskCountByDate = computed(() => {
     taskList.value.forEach((task) => {
         const key = normalizeDateKey(task?.due_date);
         if (!key) {
+            return;
+        }
+        if (!isWithinScheduleRange(key)) {
             return;
         }
         map.set(key, (map.get(key) || 0) + 1);
@@ -283,6 +364,7 @@ const calendarDays = computed(() => {
             isCurrentMonth,
             isToday: key === todayKey,
             count: taskCountByDate.value.get(key) || 0,
+            isInRange: scheduleRange.value === 'all' ? true : isWithinScheduleRange(key),
         });
     }
 
@@ -326,6 +408,7 @@ const autoFilter = () => {
 
 watch(() => filterForm.search, autoFilter);
 watch(() => filterForm.status, autoFilter);
+watch([taskList, boardStatuses], syncBoardTasks, { immediate: true });
 watch(taskList, (value) => {
     if (!selectedDateKey.value) {
         return;
@@ -370,6 +453,7 @@ const statusClasses = (status) => {
 const formatDate = (value) => humanizeDate(value) || String(value || '');
 
 const canChangeStatus = computed(() => props.canManage || props.canEditStatus);
+const dragHandle = computed(() => (canChangeStatus.value ? '.task-drag-handle' : null));
 
 const workLabel = (work) => {
     if (!work) {
@@ -657,61 +741,43 @@ const deleteTask = (task) => {
 
 const displayAssignee = (task) => task?.assignee?.user?.name || '-';
 
-const draggingTask = ref(null);
-const dropStatus = ref(null);
 const dragInProgress = ref(false);
+const lastDragAt = ref(0);
 const detailsTask = ref(null);
 
-const handleDragStart = (task, event) => {
-    if (!canChangeStatus.value || isTaskLocked(task)) {
-        return;
-    }
-    draggingTask.value = task;
+const handleBoardStart = () => {
     dragInProgress.value = true;
-    if (event?.dataTransfer) {
-        event.dataTransfer.effectAllowed = 'move';
-        event.dataTransfer.setData('text/plain', String(task.id));
-    }
 };
 
-const handleDragEnd = () => {
+const handleBoardEnd = () => {
+    lastDragAt.value = Date.now();
     dragInProgress.value = false;
-    draggingTask.value = null;
-    dropStatus.value = null;
 };
 
-const handleDragEnter = (status) => {
-    if (!draggingTask.value || !canChangeStatus.value) {
-        return;
+const handleBoardMove = (event) => {
+    if (!canChangeStatus.value) {
+        return false;
     }
-    dropStatus.value = status;
+    const task = event?.draggedContext?.element;
+    return !isTaskLocked(task);
 };
 
-const handleDragLeave = (status, event) => {
-    if (event?.currentTarget && event.relatedTarget && event.currentTarget.contains(event.relatedTarget)) {
+const handleBoardChange = (status, event) => {
+    if (!event?.added?.element) {
         return;
     }
-    if (dropStatus.value === status) {
-        dropStatus.value = null;
-    }
-};
-
-const handleDrop = (status) => {
-    if (!draggingTask.value || !canChangeStatus.value) {
+    const task = event.added.element;
+    if (!task || task.status === status) {
         return;
     }
-    const task = draggingTask.value;
-    draggingTask.value = null;
-    dropStatus.value = null;
-    dragInProgress.value = false;
-    if (task.status === status) {
-        return;
+    task.status = status;
+    if (canChangeStatus.value && !isTaskLocked(task)) {
+        setTaskStatus(task, status);
     }
-    setTaskStatus(task, status);
 };
 
 const openTaskDetails = (task) => {
-    if (dragInProgress.value) {
+    if (dragInProgress.value || Date.now() - lastDragAt.value < 200) {
         return;
     }
     detailsTask.value = task;
@@ -864,63 +930,79 @@ const submitProof = () => {
                 <div
                     v-for="status in boardStatuses"
                     :key="status"
-                    class="flex flex-col rounded-sm border border-stone-200 bg-stone-50 shadow-sm dark:border-neutral-700 dark:bg-neutral-900"
-                    :class="dropStatus === status
-                        ? 'ring-2 ring-emerald-500/60 ring-offset-2 ring-offset-stone-50 dark:ring-offset-neutral-900'
-                        : ''"
-                    @dragenter.prevent="handleDragEnter(status)"
-                    @dragover.prevent="handleDragEnter(status)"
-                    @dragleave="handleDragLeave(status, $event)"
-                    @drop.prevent="handleDrop(status)"
+                    class="flex flex-col rounded-sm border border-stone-200 bg-stone-50 shadow-sm transition-colors duration-150 dark:border-neutral-700 dark:bg-neutral-900"
                 >
                     <div class="flex items-center justify-between border-b border-stone-200 px-3 py-2 dark:border-neutral-700">
                         <span class="text-xs font-semibold uppercase text-stone-500 dark:text-neutral-400">
                             {{ statusLabel(status) || status }}
                         </span>
                         <span class="rounded-full bg-stone-200 px-2 py-0.5 text-[11px] font-semibold text-stone-600 dark:bg-neutral-800 dark:text-neutral-300">
-                            {{ tasksByStatus[status]?.length || 0 }}
+                            {{ boardTasks[status]?.length || 0 }}
                         </span>
                     </div>
-                    <div class="flex-1 space-y-2 p-3">
-                        <div
-                            v-if="!tasksByStatus[status]?.length"
-                            class="rounded-sm border border-dashed border-stone-200 bg-white px-3 py-6 text-center text-xs text-stone-500 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-400"
-                        >
-                            No tasks
-                        </div>
-                        <div
-                            v-for="task in tasksByStatus[status]"
-                            :key="task.id"
-                            class="rounded-sm border border-stone-200 bg-white p-3 shadow-sm dark:border-neutral-700 dark:bg-neutral-800"
-                            :class="[
-                                isTaskLocked(task) ? 'opacity-70' : '',
-                                draggingTask?.id === task.id ? 'opacity-60' : '',
-                                canChangeStatus && !isTaskLocked(task)
-                                    ? 'cursor-grab active:cursor-grabbing'
-                                    : 'cursor-pointer',
-                            ]"
-                            :draggable="canChangeStatus && !isTaskLocked(task)"
-                            role="button"
-                            tabindex="0"
-                            @click="openTaskDetails(task)"
-                            @keydown.enter.prevent="openTaskDetails(task)"
-                            @dragstart="handleDragStart(task, $event)"
-                            @dragend="handleDragEnd"
-                        >
+                    <draggable
+                        :list="boardTasks[status]"
+                        item-key="id"
+                        group="task-board"
+                        :animation="180"
+                        ghost-class="task-drag-ghost"
+                        chosen-class="task-drag-chosen"
+                        drag-class="task-drag-dragging"
+                        :empty-insert-threshold="36"
+                        :scroll="true"
+                        :scroll-sensitivity="80"
+                        :scroll-speed="12"
+                        :bubble-scroll="true"
+                        :disabled="!canChangeStatus"
+                        :move="handleBoardMove"
+                        :handle="dragHandle"
+                        class="flex-1 space-y-2 p-3 min-h-[140px]"
+                        @start="handleBoardStart"
+                        @end="handleBoardEnd"
+                        @change="handleBoardChange(status, $event)"
+                    >
+                        <template #item="{ element: task }">
+                            <div
+                                class="rounded-sm border border-stone-200 bg-white p-3 shadow-sm transition-shadow transition-transform duration-150 hover:shadow-md dark:border-neutral-700 dark:bg-neutral-800 select-none"
+                                :class="[
+                                    isTaskLocked(task) ? 'opacity-70' : '',
+                                    'cursor-pointer',
+                                ]"
+                                role="button"
+                                tabindex="0"
+                                @click="openTaskDetails(task)"
+                                @keydown.enter.prevent="openTaskDetails(task)"
+                            >
                             <div class="flex items-start justify-between gap-2">
-                                <div class="min-w-0">
-                                    <button
-                                        type="button"
-                                        class="text-left text-sm font-semibold text-stone-800 hover:text-emerald-700 dark:text-neutral-100 dark:hover:text-emerald-300 line-clamp-2"
+                                <div class="flex items-start gap-2 min-w-0">
+                                    <span
+                                        v-if="canChangeStatus && !isTaskLocked(task)"
+                                        class="task-drag-handle mt-0.5 inline-flex size-6 items-center justify-center rounded-sm border border-stone-200 bg-stone-50 text-stone-400 hover:text-stone-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-500 cursor-grab active:cursor-grabbing"
+                                        @click.stop
                                     >
-                                        {{ task.title }}
-                                    </button>
-                                    <p
-                                        v-if="task.description"
-                                        class="mt-1 text-xs text-stone-500 dark:text-neutral-400 line-clamp-2"
-                                    >
-                                        {{ task.description }}
-                                    </p>
+                                        <svg class="size-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                                            <circle cx="7" cy="5" r="1.5" />
+                                            <circle cx="7" cy="12" r="1.5" />
+                                            <circle cx="7" cy="19" r="1.5" />
+                                            <circle cx="17" cy="5" r="1.5" />
+                                            <circle cx="17" cy="12" r="1.5" />
+                                            <circle cx="17" cy="19" r="1.5" />
+                                        </svg>
+                                    </span>
+                                    <div class="min-w-0">
+                                        <button
+                                            type="button"
+                                            class="text-left text-sm font-semibold text-stone-800 hover:text-emerald-700 dark:text-neutral-100 dark:hover:text-emerald-300 line-clamp-2"
+                                        >
+                                            {{ task.title }}
+                                        </button>
+                                        <p
+                                            v-if="task.description"
+                                            class="mt-1 text-xs text-stone-500 dark:text-neutral-400 line-clamp-2"
+                                        >
+                                            {{ task.description }}
+                                        </p>
+                                    </div>
                                 </div>
                                 <div
                                     class="hs-dropdown [--auto-close:inside] [--placement:bottom-right] relative inline-flex"
@@ -1008,16 +1090,25 @@ const submitProof = () => {
                                 </span>
                             </div>
                         </div>
-                    </div>
-                </div>
+                    </template>
+                    <template #footer>
+                        <div
+                            v-if="!boardTasks[status]?.length"
+                            class="rounded-sm border border-dashed border-stone-200 bg-white px-3 py-6 text-center text-xs text-stone-500 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-400"
+                        >
+                            No tasks
+                        </div>
+                    </template>
+                </draggable>
             </div>
         </div>
+    </div>
 
-        <div
-            v-else-if="viewMode === 'schedule'"
-            class="grid gap-4 lg:grid-cols-[2fr_1fr]"
-            :class="isLoading ? 'opacity-60 pointer-events-none' : ''"
-        >
+    <div
+        v-else-if="viewMode === 'schedule'"
+        class="grid gap-4 lg:grid-cols-[2fr_1fr]"
+        :class="isLoading ? 'opacity-60 pointer-events-none' : ''"
+    >
             <div class="space-y-4">
                 <div v-if="taskList.length" class="flex flex-wrap items-center justify-between gap-2 rounded-sm border border-stone-200 bg-white px-3 py-2 text-xs text-stone-500 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-400">
                     <div class="flex items-center gap-2">
@@ -1026,17 +1117,35 @@ const submitProof = () => {
                             {{ selectedDateLabel }}
                         </span>
                     </div>
-                    <button
-                        v-if="selectedDateKey"
-                        type="button"
-                        @click="clearSelectedDate"
-                        class="inline-flex items-center gap-1 text-emerald-600 hover:text-emerald-700"
-                    >
-                        Show all
-                    </button>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <label class="text-[11px] uppercase text-stone-400 dark:text-neutral-500">Range</label>
+                        <select
+                            v-model="scheduleRange"
+                            @change="setScheduleRange(scheduleRange)"
+                            class="rounded-sm border border-stone-200 bg-white px-2 py-1 text-xs text-stone-700 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
+                        >
+                            <option v-for="option in scheduleRangeOptions" :key="option.id" :value="option.id">
+                                {{ option.label }}
+                            </option>
+                        </select>
+                        <button
+                            v-if="selectedDateKey"
+                            type="button"
+                            @click="clearSelectedDate"
+                            class="inline-flex items-center gap-1 text-emerald-600 hover:text-emerald-700"
+                        >
+                            Show all
+                        </button>
+                    </div>
                 </div>
                 <div v-if="!taskList.length" class="rounded-sm border border-dashed border-stone-200 bg-white px-3 py-6 text-center text-xs text-stone-500 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-400">
                     No tasks yet.
+                </div>
+                <div
+                    v-else-if="!visibleScheduleGroups.dated.length && !visibleScheduleGroups.undated.length && !selectedDateKey"
+                    class="rounded-sm border border-dashed border-stone-200 bg-white px-3 py-6 text-center text-xs text-stone-500 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-400"
+                >
+                    No tasks in this range.
                 </div>
                 <div
                     v-if="taskList.length && selectedDateKey && !visibleScheduleGroups.dated.length"
@@ -1332,9 +1441,11 @@ const submitProof = () => {
                                 selectedDateKey === day.key
                                     ? 'bg-stone-900 text-white dark:bg-white dark:text-stone-900'
                                     : (day.isToday ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300' : ''),
+                                day.isInRange ? '' : 'opacity-40 cursor-not-allowed',
                             ]"
                             :aria-pressed="selectedDateKey === day.key"
                             :title="day.count ? `${day.count} task${day.count === 1 ? '' : 's'}` : ''"
+                            :disabled="!day.isInRange"
                         >
                             {{ day.label }}
                         </button>
