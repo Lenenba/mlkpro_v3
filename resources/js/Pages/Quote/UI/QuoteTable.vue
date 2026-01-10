@@ -288,7 +288,7 @@ const startQuote = () => {
                             @click="setViewMode('table')"
                             class="inline-flex items-center gap-1.5 rounded-sm px-3 py-1.5"
                             :class="viewMode === 'table'
-                                ? 'bg-stone-900 text-white shadow-sm dark:bg-white dark:text-stone-900'
+                                ? 'bg-green-600 text-white shadow-sm dark:bg-white dark:text-stone-900'
                                 : 'text-stone-600 hover:text-stone-800 dark:text-neutral-300 dark:hover:text-neutral-100'"
                         >
                             <svg class="size-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
@@ -303,7 +303,7 @@ const startQuote = () => {
                             @click="setViewMode('cards')"
                             class="inline-flex items-center gap-1.5 rounded-sm px-3 py-1.5"
                             :class="viewMode === 'cards'
-                                ? 'bg-stone-900 text-white shadow-sm dark:bg-white dark:text-stone-900'
+                                ? 'bg-green-600 text-white shadow-sm dark:bg-white dark:text-stone-900'
                                 : 'text-stone-600 hover:text-stone-800 dark:text-neutral-300 dark:hover:text-neutral-100'"
                         >
                             <svg class="size-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
