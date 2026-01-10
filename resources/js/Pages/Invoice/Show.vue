@@ -132,7 +132,7 @@ const lineItemColspan = computed(() => (isTaskBased.value ? 5 : 4));
     <Head :title="`Invoice ${invoice.number || invoice.id}`" />
 
     <AuthenticatedLayout>
-        <div class="mx-auto w-full max-w-6xl space-y-5">
+        <div class="mx-auto w-full max-w-6xl space-y-5 rise-stagger">
             <div class="p-5 space-y-3 flex flex-col bg-stone-100 border border-stone-100 rounded-sm shadow-sm">
                 <div class="flex flex-wrap justify-between items-center gap-3">
                     <div class="flex items-center gap-3">

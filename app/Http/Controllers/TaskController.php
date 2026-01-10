@@ -22,7 +22,11 @@ class TaskController extends Controller
         $filters = $request->only([
             'search',
             'status',
+            'view',
         ]);
+        $filters['view'] = in_array($filters['view'] ?? null, ['board', 'schedule'], true)
+            ? $filters['view']
+            : 'board';
 
         $user = Auth::user();
         $accountId = $user?->accountOwnerId() ?? Auth::id();
@@ -63,12 +67,32 @@ class TaskController extends Controller
             'done' => (clone $query)->where('status', 'done')->count(),
         ];
 
-        $tasks = $query
+        $tasksQuery = $query
             ->orderByRaw('CASE WHEN due_date IS NULL THEN 1 ELSE 0 END')
             ->orderBy('due_date')
-            ->orderByDesc('created_at')
-            ->simplePaginate(15)
-            ->withQueryString();
+            ->orderByDesc('created_at');
+
+        $view = $filters['view'];
+        $useFullList = in_array($view, ['board', 'schedule'], true);
+
+        if ($useFullList) {
+            $items = $tasksQuery->get();
+            $perPage = max($items->count(), 1);
+            $tasks = new \Illuminate\Pagination\LengthAwarePaginator(
+                $items,
+                $items->count(),
+                $perPage,
+                1,
+                [
+                    'path' => $request->url(),
+                    'query' => $request->query(),
+                ]
+            );
+        } else {
+            $tasks = $tasksQuery
+                ->simplePaginate(15)
+                ->withQueryString();
+        }
 
         $canManage = $user
             ? ($user->id === $accountId || ($isAdminMember && $membership->hasPermission('tasks.edit')))

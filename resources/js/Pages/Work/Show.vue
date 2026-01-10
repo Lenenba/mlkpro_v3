@@ -69,7 +69,7 @@ const createInvoice = () => {
 
     <Head title="Voir le job" />
     <AuthenticatedLayout>
-        <div class="max-w-5xl mx-auto space-y-4">
+        <div class="max-w-5xl mx-auto space-y-4 rise-stagger">
             <div class="p-5 bg-white border border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
                 <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
                     <div class="flex items-center gap-3">

@@ -64,11 +64,236 @@ const filterForm = useForm({
     status: props.filters?.status ?? '',
 });
 const isLoading = ref(false);
+const taskList = computed(() => Array.isArray(props.tasks?.data) ? props.tasks.data : []);
+const allowedViews = ['board', 'schedule'];
+const initialView = allowedViews.includes(props.filters?.view) ? props.filters.view : 'board';
+const viewMode = ref(initialView);
+const scheduleRangeOptions = [
+    { id: 'week', label: 'This week' },
+    { id: '2weeks', label: 'Next 2 weeks' },
+    { id: 'month', label: 'This month' },
+    { id: 'all', label: 'All tasks' },
+];
+const allowedScheduleRanges = scheduleRangeOptions.map((option) => option.id);
+const scheduleRange = ref('week');
+
+if (typeof window !== 'undefined') {
+    const storedView = window.localStorage.getItem('task_view_mode');
+    if (allowedViews.includes(storedView)) {
+        viewMode.value = storedView;
+    }
+    const storedRange = window.localStorage.getItem('task_schedule_range');
+    if (allowedScheduleRanges.includes(storedRange)) {
+        scheduleRange.value = storedRange;
+    }
+}
+
+const setViewMode = (mode) => {
+    if (!allowedViews.includes(mode) || viewMode.value === mode) {
+        return;
+    }
+    viewMode.value = mode;
+    if (typeof window !== 'undefined') {
+        window.localStorage.setItem('task_view_mode', mode);
+    }
+    autoFilter();
+};
+
+const setScheduleRange = (range) => {
+    if (!allowedScheduleRanges.includes(range) || scheduleRange.value === range) {
+        return;
+    }
+    scheduleRange.value = range;
+    if (typeof window !== 'undefined') {
+        window.localStorage.setItem('task_schedule_range', range);
+    }
+    clearSelectedDate();
+};
+
+const boardStatuses = computed(() =>
+    props.statuses?.length ? props.statuses : ['todo', 'in_progress', 'done']
+);
+
+const tasksByStatus = computed(() => {
+    const grouped = {};
+    boardStatuses.value.forEach((status) => {
+        grouped[status] = [];
+    });
+    taskList.value.forEach((task) => {
+        const status = task?.status || boardStatuses.value[0];
+        if (!grouped[status]) {
+            return;
+        }
+        grouped[status].push(task);
+    });
+    return grouped;
+});
+
+const toDateKey = (date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+};
+
+const normalizeDateKey = (value) => {
+    if (!value) {
+        return null;
+    }
+    if (typeof value === 'string') {
+        if (value.includes('T')) {
+            return value.split('T')[0];
+        }
+        if (value.length >= 10) {
+            return value.slice(0, 10);
+        }
+    }
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) {
+        return null;
+    }
+    return toDateKey(parsed);
+};
+
+const formatScheduleLabel = (dateKey) => {
+    if (!dateKey) {
+        return '';
+    }
+    const date = new Date(`${dateKey}T00:00:00`);
+    if (Number.isNaN(date.getTime())) {
+        return dateKey;
+    }
+    return date.toLocaleDateString(undefined, {
+        weekday: 'short',
+        month: 'short',
+        day: 'numeric',
+    });
+};
+
+const scheduleGroups = computed(() => {
+    const dated = new Map();
+    const undated = [];
+
+    taskList.value.forEach((task) => {
+        const key = normalizeDateKey(task?.due_date);
+        if (!key) {
+            undated.push(task);
+            return;
+        }
+        if (!dated.has(key)) {
+            dated.set(key, []);
+        }
+        dated.get(key).push(task);
+    });
+
+    const ordered = Array.from(dated.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+    return {
+        dated: ordered.map(([key, items]) => ({ key, label: formatScheduleLabel(key), items })),
+        undated,
+    };
+});
+
+const selectedDateKey = ref(null);
+
+const toggleSelectedDate = (dateKey) => {
+    if (!dateKey) {
+        return;
+    }
+    selectedDateKey.value = selectedDateKey.value === dateKey ? null : dateKey;
+};
+
+const clearSelectedDate = () => {
+    selectedDateKey.value = null;
+};
+
+const selectedDateLabel = computed(() =>
+    selectedDateKey.value ? formatScheduleLabel(selectedDateKey.value) : 'All dates'
+);
+
+const visibleScheduleGroups = computed(() => {
+    if (!selectedDateKey.value) {
+        return scheduleGroups.value;
+    }
+    const match = scheduleGroups.value.dated.find((group) => group.key === selectedDateKey.value);
+    return {
+        dated: match ? [match] : [],
+        undated: [],
+    };
+});
+
+const taskCountByDate = computed(() => {
+    const map = new Map();
+    taskList.value.forEach((task) => {
+        const key = normalizeDateKey(task?.due_date);
+        if (!key) {
+            return;
+        }
+        map.set(key, (map.get(key) || 0) + 1);
+    });
+    return map;
+});
+
+const calendarCursor = ref(new Date());
+const weekDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+const calendarLabel = computed(() =>
+    calendarCursor.value.toLocaleDateString(undefined, {
+        month: 'long',
+        year: 'numeric',
+    })
+);
+
+const moveCalendar = (offset) => {
+    const next = new Date(calendarCursor.value);
+    next.setDate(1);
+    next.setMonth(next.getMonth() + offset);
+    calendarCursor.value = next;
+};
+
+const calendarDays = computed(() => {
+    const cursor = calendarCursor.value;
+    const year = cursor.getFullYear();
+    const month = cursor.getMonth();
+    const startOfMonth = new Date(year, month, 1);
+    const startOffset = (startOfMonth.getDay() + 6) % 7;
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const daysInPrevMonth = new Date(year, month, 0).getDate();
+    const todayKey = toDateKey(new Date());
+    const days = [];
+
+    for (let i = 0; i < 42; i += 1) {
+        const dayOffset = i - startOffset + 1;
+        let date;
+        let isCurrentMonth = true;
+
+        if (dayOffset <= 0) {
+            date = new Date(year, month - 1, daysInPrevMonth + dayOffset);
+            isCurrentMonth = false;
+        } else if (dayOffset > daysInMonth) {
+            date = new Date(year, month + 1, dayOffset - daysInMonth);
+            isCurrentMonth = false;
+        } else {
+            date = new Date(year, month, dayOffset);
+        }
+
+        const key = toDateKey(date);
+        days.push({
+            key,
+            label: date.getDate(),
+            isCurrentMonth,
+            isToday: key === todayKey,
+            count: taskCountByDate.value.get(key) || 0,
+        });
+    }
+
+    return days;
+});
 
 const filterPayload = () => {
     const payload = {
         search: filterForm.search,
         status: filterForm.status,
+        view: viewMode.value,
     };
 
     Object.keys(payload).forEach((key) => {
@@ -101,10 +326,24 @@ const autoFilter = () => {
 
 watch(() => filterForm.search, autoFilter);
 watch(() => filterForm.status, autoFilter);
+watch(taskList, (value) => {
+    if (!selectedDateKey.value) {
+        return;
+    }
+    const hasMatch = value.some((task) => normalizeDateKey(task?.due_date) === selectedDateKey.value);
+    if (!hasMatch) {
+        selectedDateKey.value = null;
+    }
+});
+
+if (typeof window !== 'undefined' && allowedViews.includes(viewMode.value) && props.filters?.view !== viewMode.value) {
+    autoFilter();
+}
 
 const clearFilters = () => {
     filterForm.search = '';
     filterForm.status = '';
+    clearSelectedDate();
     autoFilter();
 };
 
@@ -418,6 +657,69 @@ const deleteTask = (task) => {
 
 const displayAssignee = (task) => task?.assignee?.user?.name || '-';
 
+const draggingTask = ref(null);
+const dropStatus = ref(null);
+const dragInProgress = ref(false);
+const detailsTask = ref(null);
+
+const handleDragStart = (task, event) => {
+    if (!canChangeStatus.value || isTaskLocked(task)) {
+        return;
+    }
+    draggingTask.value = task;
+    dragInProgress.value = true;
+    if (event?.dataTransfer) {
+        event.dataTransfer.effectAllowed = 'move';
+        event.dataTransfer.setData('text/plain', String(task.id));
+    }
+};
+
+const handleDragEnd = () => {
+    dragInProgress.value = false;
+    draggingTask.value = null;
+    dropStatus.value = null;
+};
+
+const handleDragEnter = (status) => {
+    if (!draggingTask.value || !canChangeStatus.value) {
+        return;
+    }
+    dropStatus.value = status;
+};
+
+const handleDragLeave = (status, event) => {
+    if (event?.currentTarget && event.relatedTarget && event.currentTarget.contains(event.relatedTarget)) {
+        return;
+    }
+    if (dropStatus.value === status) {
+        dropStatus.value = null;
+    }
+};
+
+const handleDrop = (status) => {
+    if (!draggingTask.value || !canChangeStatus.value) {
+        return;
+    }
+    const task = draggingTask.value;
+    draggingTask.value = null;
+    dropStatus.value = null;
+    dragInProgress.value = false;
+    if (task.status === status) {
+        return;
+    }
+    setTaskStatus(task, status);
+};
+
+const openTaskDetails = (task) => {
+    if (dragInProgress.value) {
+        return;
+    }
+    detailsTask.value = task;
+    if (window.HSOverlay) {
+        window.HSOverlay.open('#hs-task-details');
+    }
+};
+
 const proofTaskId = ref(null);
 const proofForm = useForm({
     type: 'execution',
@@ -496,6 +798,42 @@ const submitProof = () => {
                 </div>
 
                 <div class="flex flex-wrap items-center gap-2 justify-end">
+                    <div class="inline-flex items-center rounded-sm border border-stone-200 bg-white p-0.5 text-xs font-semibold text-stone-600 shadow-sm dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300">
+                        <button
+                            type="button"
+                            @click="setViewMode('board')"
+                            class="inline-flex items-center gap-1.5 rounded-sm px-3 py-1.5"
+                            :class="viewMode === 'board'
+                                ? 'bg-stone-900 text-white shadow-sm dark:bg-white dark:text-stone-900'
+                                : 'text-stone-600 hover:text-stone-800 dark:text-neutral-300 dark:hover:text-neutral-100'"
+                        >
+                            <svg class="size-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="3" y="3" width="7" height="7" rx="1" />
+                                <rect x="14" y="3" width="7" height="7" rx="1" />
+                                <rect x="14" y="14" width="7" height="7" rx="1" />
+                                <rect x="3" y="14" width="7" height="7" rx="1" />
+                            </svg>
+                            Board
+                        </button>
+                        <button
+                            type="button"
+                            @click="setViewMode('schedule')"
+                            class="inline-flex items-center gap-1.5 rounded-sm px-3 py-1.5"
+                            :class="viewMode === 'schedule'
+                                ? 'bg-stone-900 text-white shadow-sm dark:bg-white dark:text-stone-900'
+                                : 'text-stone-600 hover:text-stone-800 dark:text-neutral-300 dark:hover:text-neutral-100'"
+                        >
+                            <svg class="size-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="3" y="4" width="18" height="18" rx="2" />
+                                <path d="M8 2v4" />
+                                <path d="M16 2v4" />
+                                <path d="M3 10h18" />
+                            </svg>
+                            Schedule
+                        </button>
+                    </div>
                     <select v-model="filterForm.status"
                         class="py-2 ps-3 pe-8 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 dark:focus:ring-neutral-600">
                         <option value="">All statuses</option>
@@ -518,6 +856,501 @@ const submitProof = () => {
         </div>
 
         <div
+            v-if="viewMode === 'board'"
+            class="overflow-x-auto"
+            :class="isLoading ? 'opacity-60 pointer-events-none' : ''"
+        >
+            <div class="min-w-[720px] grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                <div
+                    v-for="status in boardStatuses"
+                    :key="status"
+                    class="flex flex-col rounded-sm border border-stone-200 bg-stone-50 shadow-sm dark:border-neutral-700 dark:bg-neutral-900"
+                    :class="dropStatus === status
+                        ? 'ring-2 ring-emerald-500/60 ring-offset-2 ring-offset-stone-50 dark:ring-offset-neutral-900'
+                        : ''"
+                    @dragenter.prevent="handleDragEnter(status)"
+                    @dragover.prevent="handleDragEnter(status)"
+                    @dragleave="handleDragLeave(status, $event)"
+                    @drop.prevent="handleDrop(status)"
+                >
+                    <div class="flex items-center justify-between border-b border-stone-200 px-3 py-2 dark:border-neutral-700">
+                        <span class="text-xs font-semibold uppercase text-stone-500 dark:text-neutral-400">
+                            {{ statusLabel(status) || status }}
+                        </span>
+                        <span class="rounded-full bg-stone-200 px-2 py-0.5 text-[11px] font-semibold text-stone-600 dark:bg-neutral-800 dark:text-neutral-300">
+                            {{ tasksByStatus[status]?.length || 0 }}
+                        </span>
+                    </div>
+                    <div class="flex-1 space-y-2 p-3">
+                        <div
+                            v-if="!tasksByStatus[status]?.length"
+                            class="rounded-sm border border-dashed border-stone-200 bg-white px-3 py-6 text-center text-xs text-stone-500 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-400"
+                        >
+                            No tasks
+                        </div>
+                        <div
+                            v-for="task in tasksByStatus[status]"
+                            :key="task.id"
+                            class="rounded-sm border border-stone-200 bg-white p-3 shadow-sm dark:border-neutral-700 dark:bg-neutral-800"
+                            :class="[
+                                isTaskLocked(task) ? 'opacity-70' : '',
+                                draggingTask?.id === task.id ? 'opacity-60' : '',
+                                canChangeStatus && !isTaskLocked(task)
+                                    ? 'cursor-grab active:cursor-grabbing'
+                                    : 'cursor-pointer',
+                            ]"
+                            :draggable="canChangeStatus && !isTaskLocked(task)"
+                            role="button"
+                            tabindex="0"
+                            @click="openTaskDetails(task)"
+                            @keydown.enter.prevent="openTaskDetails(task)"
+                            @dragstart="handleDragStart(task, $event)"
+                            @dragend="handleDragEnd"
+                        >
+                            <div class="flex items-start justify-between gap-2">
+                                <div class="min-w-0">
+                                    <button
+                                        type="button"
+                                        class="text-left text-sm font-semibold text-stone-800 hover:text-emerald-700 dark:text-neutral-100 dark:hover:text-emerald-300 line-clamp-2"
+                                    >
+                                        {{ task.title }}
+                                    </button>
+                                    <p
+                                        v-if="task.description"
+                                        class="mt-1 text-xs text-stone-500 dark:text-neutral-400 line-clamp-2"
+                                    >
+                                        {{ task.description }}
+                                    </p>
+                                </div>
+                                <div
+                                    class="hs-dropdown [--auto-close:inside] [--placement:bottom-right] relative inline-flex"
+                                    @click.stop
+                                >
+                                    <button type="button"
+                                        class="size-7 inline-flex justify-center items-center gap-x-2 rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700"
+                                        aria-haspopup="menu" aria-expanded="false" aria-label="Dropdown">
+                                        <svg class="shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" width="24"
+                                            height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <circle cx="12" cy="12" r="1" />
+                                            <circle cx="12" cy="5" r="1" />
+                                            <circle cx="12" cy="19" r="1" />
+                                        </svg>
+                                    </button>
+
+                                    <div class="hs-dropdown-menu hs-dropdown-open:opacity-100 w-44 transition-[opacity,margin] duration opacity-0 hidden z-10 bg-white rounded-sm shadow-[0_10px_40px_10px_rgba(0,0,0,0.08)] dark:shadow-[0_10px_40px_10px_rgba(0,0,0,0.2)] dark:bg-neutral-900"
+                                        role="menu" aria-orientation="vertical">
+                                        <div class="p-1">
+                                            <div class="px-2 py-1 text-[11px] uppercase tracking-wide text-stone-400 dark:text-neutral-500">
+                                                Set status
+                                            </div>
+                                            <button type="button" :disabled="!canChangeStatus || task.status === 'todo' || isTaskLocked(task)"
+                                                @click="setTaskStatus(task, 'todo')"
+                                                class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none dark:text-neutral-300 dark:hover:bg-neutral-800 action-feedback">
+                                                To do
+                                            </button>
+                                            <button type="button" :disabled="!canChangeStatus || task.status === 'in_progress' || isTaskLocked(task)"
+                                                @click="setTaskStatus(task, 'in_progress')"
+                                                class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none dark:text-neutral-300 dark:hover:bg-neutral-800 action-feedback">
+                                                In progress
+                                            </button>
+                                            <button type="button" :disabled="!canChangeStatus || task.status === 'done' || isTaskLocked(task)" data-testid="demo-task-mark-done"
+                                                @click="setTaskStatus(task, 'done')"
+                                                class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none dark:text-neutral-300 dark:hover:bg-neutral-800 action-feedback">
+                                                Done
+                                            </button>
+
+                                            <template v-if="canManage || canDelete">
+                                                <div class="my-1 border-t border-stone-200 dark:border-neutral-800"></div>
+                                            </template>
+
+                                            <button v-if="canManage" type="button" @click="openEditTask(task)"
+                                                :disabled="isTaskLocked(task)"
+                                                class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none dark:text-neutral-300 dark:hover:bg-neutral-800 action-feedback">
+                                                Edit
+                                            </button>
+                                            <button v-if="canChangeStatus" type="button" @click="openProofUpload(task)"
+                                                class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800 action-feedback">
+                                                Add proof
+                                            </button>
+                                            <button v-if="canDelete" type="button" @click="deleteTask(task)"
+                                                class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-neutral-800 action-feedback" data-tone="danger">
+                                                Delete
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mt-3 flex flex-wrap items-center gap-2 text-[11px] text-stone-500 dark:text-neutral-400">
+                                <span class="inline-flex items-center rounded-full px-2 py-0.5 font-semibold"
+                                    :class="statusClasses(task.status)">
+                                    {{ statusLabel(task.status) || 'todo' }}
+                                </span>
+                                <span class="inline-flex items-center gap-1">
+                                    <svg class="size-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+                                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                        stroke-linejoin="round">
+                                        <rect x="3" y="4" width="18" height="18" rx="2" />
+                                        <path d="M8 2v4" />
+                                        <path d="M16 2v4" />
+                                        <path d="M3 10h18" />
+                                    </svg>
+                                    {{ formatDate(task.due_date) || 'No due date' }}
+                                </span>
+                                <span class="inline-flex items-center gap-1">
+                                    <svg class="size-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+                                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                        stroke-linejoin="round">
+                                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                                        <circle cx="12" cy="7" r="4" />
+                                    </svg>
+                                    {{ displayAssignee(task) }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div
+            v-else-if="viewMode === 'schedule'"
+            class="grid gap-4 lg:grid-cols-[2fr_1fr]"
+            :class="isLoading ? 'opacity-60 pointer-events-none' : ''"
+        >
+            <div class="space-y-4">
+                <div v-if="taskList.length" class="flex flex-wrap items-center justify-between gap-2 rounded-sm border border-stone-200 bg-white px-3 py-2 text-xs text-stone-500 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-400">
+                    <div class="flex items-center gap-2">
+                        <span class="font-semibold text-stone-700 dark:text-neutral-200">Schedule</span>
+                        <span class="rounded-full bg-stone-100 px-2 py-0.5 text-[11px] font-semibold text-stone-600 dark:bg-neutral-700 dark:text-neutral-200">
+                            {{ selectedDateLabel }}
+                        </span>
+                    </div>
+                    <button
+                        v-if="selectedDateKey"
+                        type="button"
+                        @click="clearSelectedDate"
+                        class="inline-flex items-center gap-1 text-emerald-600 hover:text-emerald-700"
+                    >
+                        Show all
+                    </button>
+                </div>
+                <div v-if="!taskList.length" class="rounded-sm border border-dashed border-stone-200 bg-white px-3 py-6 text-center text-xs text-stone-500 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-400">
+                    No tasks yet.
+                </div>
+                <div
+                    v-if="taskList.length && selectedDateKey && !visibleScheduleGroups.dated.length"
+                    class="rounded-sm border border-dashed border-stone-200 bg-white px-3 py-6 text-center text-xs text-stone-500 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-400"
+                >
+                    No tasks scheduled for {{ selectedDateLabel }}.
+                </div>
+                <div v-for="group in visibleScheduleGroups.dated" :key="group.key" class="space-y-2">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-sm font-semibold text-stone-700 dark:text-neutral-200">
+                            {{ group.label }}
+                        </h3>
+                        <span class="text-xs text-stone-500 dark:text-neutral-400">
+                            {{ group.items.length }} tasks
+                        </span>
+                    </div>
+                    <div class="space-y-2">
+                        <div
+                            v-for="task in group.items"
+                            :key="task.id"
+                            class="rounded-sm border border-stone-200 bg-white p-3 shadow-sm dark:border-neutral-700 dark:bg-neutral-800"
+                            :class="[
+                                isTaskLocked(task) ? 'opacity-70' : '',
+                                'cursor-pointer',
+                            ]"
+                            role="button"
+                            tabindex="0"
+                            @click="openTaskDetails(task)"
+                            @keydown.enter.prevent="openTaskDetails(task)"
+                        >
+                            <div class="flex items-start justify-between gap-2">
+                                <div class="min-w-0">
+                                    <button
+                                        type="button"
+                                        class="text-left text-sm font-semibold text-stone-800 hover:text-emerald-700 dark:text-neutral-100 dark:hover:text-emerald-300 line-clamp-2"
+                                    >
+                                        {{ task.title }}
+                                    </button>
+                                    <p v-if="task.description" class="mt-1 text-xs text-stone-500 dark:text-neutral-400 line-clamp-2">
+                                        {{ task.description }}
+                                    </p>
+                                    <div class="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-stone-500 dark:text-neutral-400">
+                                        <span class="inline-flex items-center rounded-full px-2 py-0.5 font-semibold"
+                                            :class="statusClasses(task.status)">
+                                            {{ statusLabel(task.status) || 'todo' }}
+                                        </span>
+                                        <span class="inline-flex items-center gap-1">
+                                            <svg class="size-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+                                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                                stroke-linejoin="round">
+                                                <rect x="3" y="4" width="18" height="18" rx="2" />
+                                                <path d="M8 2v4" />
+                                                <path d="M16 2v4" />
+                                                <path d="M3 10h18" />
+                                            </svg>
+                                            {{ formatDate(task.due_date) || 'No due date' }}
+                                        </span>
+                                        <span class="inline-flex items-center gap-1">
+                                            <svg class="size-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+                                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                                stroke-linejoin="round">
+                                                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                                                <circle cx="12" cy="7" r="4" />
+                                            </svg>
+                                            {{ displayAssignee(task) }}
+                                        </span>
+                                    </div>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <span class="text-[11px] text-stone-400 dark:text-neutral-500">
+                                        {{ formatDate(task.created_at) }}
+                                    </span>
+                                    <div
+                                        class="hs-dropdown [--auto-close:inside] [--placement:bottom-right] relative inline-flex"
+                                        @click.stop
+                                    >
+                                        <button type="button"
+                                            class="size-7 inline-flex justify-center items-center gap-x-2 rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700"
+                                            aria-haspopup="menu" aria-expanded="false" aria-label="Dropdown">
+                                            <svg class="shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" width="24"
+                                                height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <circle cx="12" cy="12" r="1" />
+                                                <circle cx="12" cy="5" r="1" />
+                                                <circle cx="12" cy="19" r="1" />
+                                            </svg>
+                                        </button>
+
+                                        <div class="hs-dropdown-menu hs-dropdown-open:opacity-100 w-44 transition-[opacity,margin] duration opacity-0 hidden z-10 bg-white rounded-sm shadow-[0_10px_40px_10px_rgba(0,0,0,0.08)] dark:shadow-[0_10px_40px_10px_rgba(0,0,0,0.2)] dark:bg-neutral-900"
+                                            role="menu" aria-orientation="vertical">
+                                            <div class="p-1">
+                                                <div class="px-2 py-1 text-[11px] uppercase tracking-wide text-stone-400 dark:text-neutral-500">
+                                                    Set status
+                                                </div>
+                                                <button type="button" :disabled="!canChangeStatus || task.status === 'todo' || isTaskLocked(task)"
+                                                    @click="setTaskStatus(task, 'todo')"
+                                                    class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none dark:text-neutral-300 dark:hover:bg-neutral-800 action-feedback">
+                                                    To do
+                                                </button>
+                                                <button type="button" :disabled="!canChangeStatus || task.status === 'in_progress' || isTaskLocked(task)"
+                                                    @click="setTaskStatus(task, 'in_progress')"
+                                                    class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none dark:text-neutral-300 dark:hover:bg-neutral-800 action-feedback">
+                                                    In progress
+                                                </button>
+                                                <button type="button" :disabled="!canChangeStatus || task.status === 'done' || isTaskLocked(task)" data-testid="demo-task-mark-done"
+                                                    @click="setTaskStatus(task, 'done')"
+                                                    class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none dark:text-neutral-300 dark:hover:bg-neutral-800 action-feedback">
+                                                    Done
+                                                </button>
+
+                                                <template v-if="canManage || canDelete">
+                                                    <div class="my-1 border-t border-stone-200 dark:border-neutral-800"></div>
+                                                </template>
+
+                                                <button v-if="canManage" type="button" @click="openEditTask(task)"
+                                                    :disabled="isTaskLocked(task)"
+                                                    class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none dark:text-neutral-300 dark:hover:bg-neutral-800 action-feedback">
+                                                    Edit
+                                                </button>
+                                                <button v-if="canChangeStatus" type="button" @click="openProofUpload(task)"
+                                                    class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800 action-feedback">
+                                                    Add proof
+                                                </button>
+                                                <button v-if="canDelete" type="button" @click="deleteTask(task)"
+                                                    class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-neutral-800 action-feedback" data-tone="danger">
+                                                    Delete
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div v-if="visibleScheduleGroups.undated.length" class="space-y-2">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-sm font-semibold text-stone-700 dark:text-neutral-200">
+                            No due date
+                        </h3>
+                        <span class="text-xs text-stone-500 dark:text-neutral-400">
+                            {{ visibleScheduleGroups.undated.length }} tasks
+                        </span>
+                    </div>
+                    <div class="space-y-2">
+                        <div
+                            v-for="task in visibleScheduleGroups.undated"
+                            :key="task.id"
+                            class="rounded-sm border border-stone-200 bg-white p-3 shadow-sm dark:border-neutral-700 dark:bg-neutral-800"
+                            :class="[
+                                isTaskLocked(task) ? 'opacity-70' : '',
+                                'cursor-pointer',
+                            ]"
+                            role="button"
+                            tabindex="0"
+                            @click="openTaskDetails(task)"
+                            @keydown.enter.prevent="openTaskDetails(task)"
+                        >
+                            <div class="flex items-start justify-between gap-2">
+                                <div class="min-w-0">
+                                    <button
+                                        type="button"
+                                        class="text-left text-sm font-semibold text-stone-800 hover:text-emerald-700 dark:text-neutral-100 dark:hover:text-emerald-300 line-clamp-2"
+                                    >
+                                        {{ task.title }}
+                                    </button>
+                                    <p v-if="task.description" class="mt-1 text-xs text-stone-500 dark:text-neutral-400 line-clamp-2">
+                                        {{ task.description }}
+                                    </p>
+                                    <div class="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-stone-500 dark:text-neutral-400">
+                                        <span class="inline-flex items-center rounded-full px-2 py-0.5 font-semibold"
+                                            :class="statusClasses(task.status)">
+                                            {{ statusLabel(task.status) || 'todo' }}
+                                        </span>
+                                        <span class="inline-flex items-center gap-1">
+                                            <svg class="size-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+                                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                                stroke-linejoin="round">
+                                                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                                                <circle cx="12" cy="7" r="4" />
+                                            </svg>
+                                            {{ displayAssignee(task) }}
+                                        </span>
+                                    </div>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <span class="text-[11px] text-stone-400 dark:text-neutral-500">
+                                        {{ formatDate(task.created_at) }}
+                                    </span>
+                                    <div
+                                        class="hs-dropdown [--auto-close:inside] [--placement:bottom-right] relative inline-flex"
+                                        @click.stop
+                                    >
+                                        <button type="button"
+                                            class="size-7 inline-flex justify-center items-center gap-x-2 rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700"
+                                            aria-haspopup="menu" aria-expanded="false" aria-label="Dropdown">
+                                            <svg class="shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" width="24"
+                                                height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <circle cx="12" cy="12" r="1" />
+                                                <circle cx="12" cy="5" r="1" />
+                                                <circle cx="12" cy="19" r="1" />
+                                            </svg>
+                                        </button>
+
+                                        <div class="hs-dropdown-menu hs-dropdown-open:opacity-100 w-44 transition-[opacity,margin] duration opacity-0 hidden z-10 bg-white rounded-sm shadow-[0_10px_40px_10px_rgba(0,0,0,0.08)] dark:shadow-[0_10px_40px_10px_rgba(0,0,0,0.2)] dark:bg-neutral-900"
+                                            role="menu" aria-orientation="vertical">
+                                            <div class="p-1">
+                                                <div class="px-2 py-1 text-[11px] uppercase tracking-wide text-stone-400 dark:text-neutral-500">
+                                                    Set status
+                                                </div>
+                                                <button type="button" :disabled="!canChangeStatus || task.status === 'todo' || isTaskLocked(task)"
+                                                    @click="setTaskStatus(task, 'todo')"
+                                                    class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none dark:text-neutral-300 dark:hover:bg-neutral-800 action-feedback">
+                                                    To do
+                                                </button>
+                                                <button type="button" :disabled="!canChangeStatus || task.status === 'in_progress' || isTaskLocked(task)"
+                                                    @click="setTaskStatus(task, 'in_progress')"
+                                                    class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none dark:text-neutral-300 dark:hover:bg-neutral-800 action-feedback">
+                                                    In progress
+                                                </button>
+                                                <button type="button" :disabled="!canChangeStatus || task.status === 'done' || isTaskLocked(task)" data-testid="demo-task-mark-done"
+                                                    @click="setTaskStatus(task, 'done')"
+                                                    class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none dark:text-neutral-300 dark:hover:bg-neutral-800 action-feedback">
+                                                    Done
+                                                </button>
+
+                                                <template v-if="canManage || canDelete">
+                                                    <div class="my-1 border-t border-stone-200 dark:border-neutral-800"></div>
+                                                </template>
+
+                                                <button v-if="canManage" type="button" @click="openEditTask(task)"
+                                                    :disabled="isTaskLocked(task)"
+                                                    class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none dark:text-neutral-300 dark:hover:bg-neutral-800 action-feedback">
+                                                    Edit
+                                                </button>
+                                                <button v-if="canChangeStatus" type="button" @click="openProofUpload(task)"
+                                                    class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800 action-feedback">
+                                                    Add proof
+                                                </button>
+                                                <button v-if="canDelete" type="button" @click="deleteTask(task)"
+                                                    class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-neutral-800 action-feedback" data-tone="danger">
+                                                    Delete
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                <div class="flex items-center justify-between">
+                    <button
+                        type="button"
+                        @click="moveCalendar(-1)"
+                        class="size-8 inline-flex items-center justify-center rounded-sm border border-stone-200 text-stone-600 hover:bg-stone-50 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800"
+                    >
+                        <svg class="size-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="m15 18-6-6 6-6" />
+                        </svg>
+                    </button>
+                    <div class="text-sm font-semibold text-stone-700 dark:text-neutral-200">
+                        {{ calendarLabel }}
+                    </div>
+                    <button
+                        type="button"
+                        @click="moveCalendar(1)"
+                        class="size-8 inline-flex items-center justify-center rounded-sm border border-stone-200 text-stone-600 hover:bg-stone-50 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800"
+                    >
+                        <svg class="size-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="m9 18 6-6-6-6" />
+                        </svg>
+                    </button>
+                </div>
+                <div class="mt-3 grid grid-cols-7 text-[11px] uppercase text-stone-400 dark:text-neutral-500">
+                    <span v-for="day in weekDays" :key="day" class="py-1 text-center">
+                        {{ day }}
+                    </span>
+                </div>
+                <div class="mt-2 grid grid-cols-7 gap-1">
+                    <div v-for="day in calendarDays" :key="day.key" class="flex flex-col items-center gap-1">
+                        <button
+                            type="button"
+                            @click="toggleSelectedDate(day.key)"
+                            class="flex h-8 w-8 items-center justify-center rounded-full text-xs font-medium transition"
+                            :class="[
+                                day.isCurrentMonth ? 'text-stone-700 dark:text-neutral-200' : 'text-stone-300 dark:text-neutral-600',
+                                selectedDateKey === day.key
+                                    ? 'bg-stone-900 text-white dark:bg-white dark:text-stone-900'
+                                    : (day.isToday ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300' : ''),
+                            ]"
+                            :aria-pressed="selectedDateKey === day.key"
+                            :title="day.count ? `${day.count} task${day.count === 1 ? '' : 's'}` : ''"
+                        >
+                            {{ day.label }}
+                        </button>
+                        <span v-if="day.count" class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
+                    </div>
+                </div>
+                <div class="mt-3 text-xs text-stone-500 dark:text-neutral-400">
+                    <span class="inline-flex items-center gap-2">
+                        <span class="h-2 w-2 rounded-full bg-emerald-500"></span>
+                        Tasks due
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <div v-else
             class="overflow-x-auto [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-stone-100 [&::-webkit-scrollbar-thumb]:bg-stone-300 dark:[&::-webkit-scrollbar-track]:bg-neutral-700 dark:[&::-webkit-scrollbar-thumb]:bg-neutral-500">
             <div class="min-w-full inline-block align-middle">
                 <table class="min-w-full divide-y divide-stone-200 dark:divide-neutral-700">
@@ -667,9 +1500,9 @@ const submitProof = () => {
             </div>
         </div>
 
-        <div v-if="tasks.data.length > 0" class="mt-5 flex flex-wrap justify-between items-center gap-2">
+        <div v-if="taskList.length > 0" class="mt-5 flex flex-wrap justify-between items-center gap-2">
             <p class="text-sm text-stone-800 dark:text-neutral-200">
-                <span class="font-medium"> {{ count ?? tasks.data.length }} </span>
+                <span class="font-medium"> {{ count ?? taskList.length }} </span>
                 <span class="text-stone-500 dark:text-neutral-500"> results</span>
             </p>
 
@@ -712,6 +1545,76 @@ const submitProof = () => {
             </nav>
         </div>
     </div>
+
+    <Modal v-if="detailsTask" :title="detailsTask.title || 'Task details'" :id="'hs-task-details'">
+        <div class="space-y-4 text-sm text-stone-700 dark:text-neutral-200">
+            <div class="flex flex-wrap items-center gap-2">
+                <span class="text-xs uppercase text-stone-400 dark:text-neutral-500">Status</span>
+                <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold"
+                    :class="statusClasses(detailsTask.status)">
+                    {{ statusLabel(detailsTask.status) || 'todo' }}
+                </span>
+                <span class="text-xs text-stone-500 dark:text-neutral-400">
+                    Due {{ formatDate(detailsTask.due_date) || '-' }}
+                </span>
+                <span class="text-xs text-stone-500 dark:text-neutral-400">
+                    Created {{ formatDate(detailsTask.created_at) }}
+                </span>
+            </div>
+
+            <div>
+                <div class="text-xs uppercase text-stone-400 dark:text-neutral-500">Assignee</div>
+                <div class="mt-1 text-sm text-stone-700 dark:text-neutral-200">
+                    {{ displayAssignee(detailsTask) }}
+                </div>
+            </div>
+
+            <div>
+                <div class="text-xs uppercase text-stone-400 dark:text-neutral-500">Description</div>
+                <p class="mt-1 whitespace-pre-wrap text-sm text-stone-700 dark:text-neutral-200">
+                    {{ detailsTask.description || 'No description.' }}
+                </p>
+            </div>
+
+            <div>
+                <div class="text-xs uppercase text-stone-400 dark:text-neutral-500">Materials</div>
+                <div v-if="detailsTask.materials?.length" class="mt-2 space-y-2">
+                    <div
+                        v-for="material in detailsTask.materials"
+                        :key="material.id || material.label"
+                        class="flex items-center justify-between rounded-sm border border-stone-200 bg-stone-50 px-3 py-2 text-xs dark:border-neutral-700 dark:bg-neutral-800"
+                    >
+                        <span class="text-stone-700 dark:text-neutral-200">
+                            {{ material.label || material.product?.name || 'Material' }}
+                        </span>
+                        <span class="text-stone-500 dark:text-neutral-400">
+                            {{ material.quantity || 0 }} {{ material.unit || material.product?.unit || '' }}
+                        </span>
+                    </div>
+                </div>
+                <p v-else class="mt-2 text-xs text-stone-500 dark:text-neutral-400">
+                    No materials.
+                </p>
+            </div>
+        </div>
+
+        <div class="mt-5 flex flex-wrap items-center justify-end gap-2">
+            <Link
+                v-if="detailsTask?.id"
+                :href="`/tasks/${detailsTask.id}`"
+                class="py-2 px-3 inline-flex items-center text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200 action-feedback"
+            >
+                Open full task
+            </Link>
+            <button
+                type="button"
+                data-hs-overlay="#hs-task-details"
+                class="py-2 px-3 inline-flex items-center text-xs font-medium rounded-sm border border-transparent bg-stone-900 text-white hover:bg-stone-800 dark:bg-neutral-100 dark:text-stone-900 action-feedback"
+            >
+                Close
+            </button>
+        </div>
+    </Modal>
 
     <Modal v-if="canCreate" :title="'Add task'" :id="'hs-task-create'">
         <form class="space-y-4" @submit.prevent="submitCreate">
