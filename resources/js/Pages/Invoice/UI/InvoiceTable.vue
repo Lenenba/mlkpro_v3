@@ -133,6 +133,47 @@ const getCustomerName = (invoice) => {
     }
     return customer.company_name || `${customer.first_name} ${customer.last_name}`;
 };
+
+const statusMeta = {
+    draft: {
+        label: 'Draft',
+        classes: 'bg-slate-100 text-slate-700 dark:bg-slate-500/15 dark:text-slate-200',
+        icon: 'draft',
+        iconClass: '',
+    },
+    sent: {
+        label: 'Sent',
+        classes: 'bg-sky-100 text-sky-800 dark:bg-sky-500/15 dark:text-sky-200',
+        icon: 'sent',
+        iconClass: '',
+    },
+    partial: {
+        label: 'Partial',
+        classes: 'bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-200',
+        icon: 'partial',
+        iconClass: '',
+    },
+    paid: {
+        label: 'Paid',
+        classes: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-200',
+        icon: 'paid',
+        iconClass: 'animate-micro-pop',
+    },
+    overdue: {
+        label: 'Overdue',
+        classes: 'bg-rose-100 text-rose-800 dark:bg-rose-500/15 dark:text-rose-200',
+        icon: 'overdue',
+        iconClass: 'animate-micro-pulse',
+    },
+    void: {
+        label: 'Void',
+        classes: 'bg-stone-100 text-stone-700 dark:bg-neutral-700 dark:text-neutral-300',
+        icon: 'void',
+        iconClass: '',
+    },
+};
+
+const getStatusMeta = (invoice) => statusMeta[invoice?.status] || statusMeta.draft;
 </script>
 
 <template>
@@ -303,16 +344,48 @@ const getCustomerName = (invoice) => {
                                 </span>
                             </td>
                             <td class="size-px whitespace-nowrap px-4 py-2">
-                                <span
-                                    class="py-1.5 px-2 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-full"
-                                    :class="{
-                                        'bg-stone-100 text-stone-700 dark:bg-neutral-700 dark:text-neutral-200': invoice.status === 'draft',
-                                        'bg-sky-100 text-sky-700 dark:bg-sky-500/20 dark:text-sky-200': invoice.status === 'sent',
-                                        'bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-200': invoice.status === 'partial',
-                                        'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-200': invoice.status === 'paid',
-                                        'bg-rose-100 text-rose-800 dark:bg-rose-500/20 dark:text-rose-200': invoice.status === 'overdue' || invoice.status === 'void',
-                                    }">
-                                    {{ invoice.status }}
+                                <span class="py-1.5 px-2 inline-flex items-center gap-x-1.5 text-xs font-semibold rounded-full"
+                                    :class="getStatusMeta(invoice).classes">
+                                    <span class="inline-flex size-3.5 items-center justify-center" :class="getStatusMeta(invoice).iconClass">
+                                        <svg v-if="getStatusMeta(invoice).icon === 'draft'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+                                            fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                                            class="size-3.5">
+                                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z" />
+                                            <path d="M14 2v6h6" />
+                                            <path d="M8 13h8" />
+                                        </svg>
+                                        <svg v-else-if="getStatusMeta(invoice).icon === 'sent'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+                                            fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                                            class="size-3.5">
+                                            <path d="m22 2-7 20-4-9-9-4Z" />
+                                            <path d="M22 2 11 13" />
+                                        </svg>
+                                        <svg v-else-if="getStatusMeta(invoice).icon === 'partial'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+                                            fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                                            class="size-3.5">
+                                            <path d="M21 12A9 9 0 1 1 12 3v9z" />
+                                        </svg>
+                                        <svg v-else-if="getStatusMeta(invoice).icon === 'paid'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+                                            fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                                            class="size-3.5">
+                                            <circle cx="12" cy="12" r="9" />
+                                            <path d="m8.5 12.5 2.5 2.5 4.5-5" />
+                                        </svg>
+                                        <svg v-else-if="getStatusMeta(invoice).icon === 'overdue'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+                                            fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                                            class="size-3.5">
+                                            <circle cx="12" cy="12" r="9" />
+                                            <path d="M12 8v4" />
+                                            <path d="M12 16h.01" />
+                                        </svg>
+                                        <svg v-else-if="getStatusMeta(invoice).icon === 'void'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+                                            fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                                            class="size-3.5">
+                                            <circle cx="12" cy="12" r="9" />
+                                            <path d="m5 5 14 14" />
+                                        </svg>
+                                    </span>
+                                    <span>{{ getStatusMeta(invoice).label }}</span>
                                 </span>
                             </td>
                             <td class="size-px whitespace-nowrap px-4 py-2">

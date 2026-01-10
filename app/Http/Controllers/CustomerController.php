@@ -42,6 +42,7 @@ class CustomerController extends Controller
             'country',
             'has_quotes',
             'has_works',
+            'status',
             'created_from',
             'created_to',
             'sort',
@@ -52,6 +53,7 @@ class CustomerController extends Controller
             abort(403);
         }
         [, $accountId] = $this->resolveCustomerAccount($user);
+        $canEdit = $user->id === $accountId;
 
         $baseQuery = Customer::query()
             ->filter($filters)
@@ -123,6 +125,7 @@ class CustomerController extends Controller
             'count' => $totalCount,
             'stats' => $stats,
             'topCustomers' => $topCustomers,
+            'canEdit' => $canEdit,
         ]);
     }
 
@@ -1002,6 +1005,121 @@ class CustomerController extends Controller
         }
 
         return redirect()->route('customer.index')->with('success', 'Customer deleted successfully.');
+    }
+
+    /**
+     * Bulk actions on customers.
+     */
+    public function bulk(Request $request)
+    {
+        $user = $request->user();
+        if (!$user) {
+            abort(403);
+        }
+        [, $accountId] = $this->resolveCustomerAccount($user);
+
+        $data = $request->validate([
+            'action' => 'required|in:portal_enable,portal_disable,archive,restore,delete',
+            'ids' => 'required|array',
+            'ids.*' => 'integer',
+        ]);
+
+        $customers = Customer::query()
+            ->byUser($accountId)
+            ->whereIn('id', $data['ids'])
+            ->get();
+
+        if ($data['action'] === 'portal_enable') {
+            foreach ($customers as $customer) {
+                $this->authorize('update', $customer);
+            }
+            Customer::query()
+                ->byUser($accountId)
+                ->whereIn('id', $data['ids'])
+                ->update(['portal_access' => true]);
+
+            if ($this->shouldReturnJson($request)) {
+                return response()->json([
+                    'message' => 'Portal access enabled.',
+                    'ids' => $data['ids'],
+                ]);
+            }
+
+            return redirect()->back()->with('success', 'Portal access enabled.');
+        }
+
+        if ($data['action'] === 'portal_disable') {
+            foreach ($customers as $customer) {
+                $this->authorize('update', $customer);
+            }
+            Customer::query()
+                ->byUser($accountId)
+                ->whereIn('id', $data['ids'])
+                ->update(['portal_access' => false]);
+
+            if ($this->shouldReturnJson($request)) {
+                return response()->json([
+                    'message' => 'Portal access disabled.',
+                    'ids' => $data['ids'],
+                ]);
+            }
+
+            return redirect()->back()->with('success', 'Portal access disabled.');
+        }
+
+        if ($data['action'] === 'archive') {
+            foreach ($customers as $customer) {
+                $this->authorize('update', $customer);
+            }
+            Customer::query()
+                ->byUser($accountId)
+                ->whereIn('id', $data['ids'])
+                ->update(['is_active' => false]);
+
+            if ($this->shouldReturnJson($request)) {
+                return response()->json([
+                    'message' => 'Customers archived.',
+                    'ids' => $data['ids'],
+                ]);
+            }
+
+            return redirect()->back()->with('success', 'Customers archived.');
+        }
+
+        if ($data['action'] === 'restore') {
+            foreach ($customers as $customer) {
+                $this->authorize('update', $customer);
+            }
+            Customer::query()
+                ->byUser($accountId)
+                ->whereIn('id', $data['ids'])
+                ->update(['is_active' => true]);
+
+            if ($this->shouldReturnJson($request)) {
+                return response()->json([
+                    'message' => 'Customers restored.',
+                    'ids' => $data['ids'],
+                ]);
+            }
+
+            return redirect()->back()->with('success', 'Customers restored.');
+        }
+
+        foreach ($customers as $customer) {
+            $this->authorize('delete', $customer);
+            FileHandler::deleteFile($customer->logo, 'customers/customer.png');
+            FileHandler::deleteFile($customer->header_image, 'customers/customer.png');
+            $customer->delete();
+        }
+
+        if ($this->shouldReturnJson($request)) {
+            return response()->json([
+                'message' => 'Customers deleted.',
+                'ids' => $data['ids'],
+            ]);
+        }
+
+        return redirect()->back()->with('success', 'Customers deleted.');
     }
 
     private function resolveCustomerAccount(User $user, bool $allowPos = false): array

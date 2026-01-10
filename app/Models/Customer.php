@@ -42,6 +42,7 @@ class Customer extends Model
         'billing_delay_days',
         'billing_date_rule',
         'discount_rate',
+        'is_active',
         'auto_accept_quotes',
         'auto_validate_jobs',
         'auto_validate_tasks',
@@ -60,6 +61,7 @@ class Customer extends Model
     protected $casts = [
         'billing_same_as_physical' => 'boolean',
         'portal_access' => 'boolean',
+        'is_active' => 'boolean',
         'auto_accept_quotes' => 'boolean',
         'auto_validate_jobs' => 'boolean',
         'auto_validate_tasks' => 'boolean',
@@ -255,6 +257,16 @@ class Customer extends Model
                         return;
                     }
                     $hasWorks ? $query->whereHas('works') : $query->whereDoesntHave('works');
+                }
+            )
+            ->when(
+                $filters['status'] ?? null,
+                function (Builder $query, $status) {
+                    if ($status === 'active') {
+                        $query->where('is_active', true);
+                    } elseif ($status === 'archived') {
+                        $query->where('is_active', false);
+                    }
                 }
             )
             ->when(

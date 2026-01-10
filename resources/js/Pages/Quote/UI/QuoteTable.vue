@@ -123,23 +123,46 @@ const displayCustomer = (customer) =>
     `${customer?.first_name || ''} ${customer?.last_name || ''}`.trim() ||
     'Unknown';
 
-const statusClasses = (status) => {
-    switch (status) {
-        case 'archived':
-            return 'bg-stone-100 text-stone-700 dark:bg-neutral-700 dark:text-neutral-300';
-        case 'accepted':
-            return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-400';
-        case 'declined':
-            return 'bg-red-100 text-red-800 dark:bg-red-500/10 dark:text-red-400';
-        case 'sent':
-            return 'bg-blue-100 text-blue-800 dark:bg-blue-500/10 dark:text-blue-400';
-        default:
-            return 'bg-stone-100 text-stone-800 dark:bg-neutral-700 dark:text-neutral-200';
-    }
-};
-
 const isArchived = (quote) => Boolean(quote?.archived_at);
 const displayStatus = (quote) => (isArchived(quote) ? 'archived' : (quote?.status || 'draft'));
+
+const statusMeta = {
+    draft: {
+        label: 'Draft',
+        classes: 'bg-slate-100 text-slate-700 dark:bg-slate-500/15 dark:text-slate-200',
+        icon: 'draft',
+        iconClass: '',
+    },
+    sent: {
+        label: 'Sent',
+        classes: 'bg-sky-100 text-sky-800 dark:bg-sky-500/15 dark:text-sky-200',
+        icon: 'sent',
+        iconClass: '',
+    },
+    accepted: {
+        label: 'Accepted',
+        classes: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-200',
+        icon: 'accepted',
+        iconClass: 'animate-micro-pop',
+    },
+    declined: {
+        label: 'Declined',
+        classes: 'bg-rose-100 text-rose-800 dark:bg-rose-500/15 dark:text-rose-200',
+        icon: 'declined',
+        iconClass: '',
+    },
+    archived: {
+        label: 'Archived',
+        classes: 'bg-stone-100 text-stone-700 dark:bg-neutral-700 dark:text-neutral-300',
+        icon: 'archived',
+        iconClass: '',
+    },
+};
+
+const getStatusMeta = (quote) => {
+    const status = displayStatus(quote);
+    return statusMeta[status] || statusMeta.draft;
+};
 
 const dispatchDemoEvent = (eventName) => {
     if (typeof window === 'undefined') {
@@ -369,9 +392,44 @@ const startQuote = () => {
                             {{ displayCustomer(quote.customer) }}
                         </td>
                         <td class="px-4 py-3">
-                            <span class="py-1.5 px-2 inline-flex items-center text-xs font-medium rounded-full"
-                                :class="statusClasses(displayStatus(quote))">
-                                {{ displayStatus(quote) }}
+                            <span class="py-1.5 px-2 inline-flex items-center gap-x-1.5 text-xs font-semibold rounded-full"
+                                :class="getStatusMeta(quote).classes">
+                                <span class="inline-flex size-3.5 items-center justify-center" :class="getStatusMeta(quote).iconClass">
+                                    <svg v-if="getStatusMeta(quote).icon === 'draft'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+                                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                                        class="size-3.5">
+                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z" />
+                                        <path d="M14 2v6h6" />
+                                        <path d="M8 13h8" />
+                                    </svg>
+                                    <svg v-else-if="getStatusMeta(quote).icon === 'sent'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+                                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                                        class="size-3.5">
+                                        <path d="m22 2-7 20-4-9-9-4Z" />
+                                        <path d="M22 2 11 13" />
+                                    </svg>
+                                    <svg v-else-if="getStatusMeta(quote).icon === 'accepted'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+                                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                                        class="size-3.5">
+                                        <circle cx="12" cy="12" r="9" />
+                                        <path d="m8.5 12.5 2.5 2.5 4.5-5" />
+                                    </svg>
+                                    <svg v-else-if="getStatusMeta(quote).icon === 'declined'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+                                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                                        class="size-3.5">
+                                        <circle cx="12" cy="12" r="9" />
+                                        <path d="m15 9-6 6" />
+                                        <path d="m9 9 6 6" />
+                                    </svg>
+                                    <svg v-else-if="getStatusMeta(quote).icon === 'archived'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+                                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                                        class="size-3.5">
+                                        <rect x="3" y="4" width="18" height="4" rx="1" />
+                                        <path d="M5 8v12h14V8" />
+                                        <path d="M10 12h4" />
+                                    </svg>
+                                </span>
+                                <span>{{ getStatusMeta(quote).label }}</span>
                             </span>
                         </td>
                         <td class="px-4 py-3">
@@ -412,24 +470,24 @@ const startQuote = () => {
                                         </Link>
                                         <div class="my-1 border-t border-stone-200 dark:border-neutral-800"></div>
                                         <button v-if="!isArchived(quote)" type="button" @click="sendEmail(quote)" data-testid="demo-quote-send"
-                                            class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-neutral-800">
+                                            class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-neutral-800 action-feedback" data-tone="info">
                                             Send email
                                         </button>
                                         <button v-if="!isArchived(quote) && quote.status !== 'accepted' && quote.status !== 'declined'" type="button" @click="acceptQuote(quote)" data-testid="demo-quote-accept"
-                                            class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-emerald-600 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-neutral-800">
+                                            class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-emerald-600 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-neutral-800 action-feedback">
                                             Accept quote
                                         </button>
                                         <button v-if="!isArchived(quote)" type="button" @click="convertToJob(quote)" data-testid="demo-quote-convert"
-                                            class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-emerald-600 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-neutral-800">
+                                            class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-emerald-600 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-neutral-800 action-feedback">
                                             Create job
                                         </button>
                                         <div class="my-1 border-t border-stone-200 dark:border-neutral-800"></div>
                                         <button v-if="!isArchived(quote)" type="button" @click="archiveQuote(quote)"
-                                            class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-neutral-800">
+                                            class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-neutral-800 action-feedback" data-tone="danger">
                                             Archive
                                         </button>
                                         <button v-else type="button" @click="restoreQuote(quote)"
-                                            class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-emerald-600 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-neutral-800">
+                                            class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-emerald-600 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-neutral-800 action-feedback">
                                             Restore
                                         </button>
                                     </div>

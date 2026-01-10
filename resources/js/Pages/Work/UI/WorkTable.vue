@@ -383,7 +383,7 @@ const createInvoice = (work) => {
                                                 Voir la facture
                                             </Link>
                                             <button v-else type="button" @click="createInvoice(work)"
-                                                class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-emerald-600 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-neutral-800">
+                                                class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-emerald-600 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-neutral-800 action-feedback">
                                                 Creer une facture
                                             </button>
                                         </div>
