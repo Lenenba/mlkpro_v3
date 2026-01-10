@@ -9,6 +9,9 @@ use Illuminate\Support\Facades\Schedule;
 use App\Models\Role;
 use App\Models\User;
 use App\Models\Work;
+use App\Services\Demo\DemoAccountService;
+use App\Services\Demo\DemoResetService;
+use App\Services\Demo\DemoSeedService;
 use App\Services\DailyAgendaService;
 use App\Services\PlatformAdminNotifier;
 use App\Services\WorkBillingService;
@@ -204,6 +207,63 @@ Artisan::command('agenda:process', function (DailyAgendaService $service): int {
     $this->info('Agenda processed: ' . json_encode($result));
     return 0;
 })->purpose('Auto-start tasks/jobs and send alerts');
+
+Artisan::command('demo:seed {type=service} {--tenant_id=}', function (
+    DemoAccountService $accounts,
+    DemoSeedService $seeds
+): int {
+    if (!config('demo.enabled')) {
+        $this->error('DEMO_ENABLED is false.');
+        return 1;
+    }
+
+    $type = (string) $this->argument('type');
+    $tenantId = $this->option('tenant_id');
+
+    if ($tenantId) {
+        $account = User::query()->find($tenantId);
+        if (!$account) {
+            $this->error('Tenant not found.');
+            return 1;
+        }
+        $accounts->resolveDemoUser($account, $type);
+    } else {
+        $account = $accounts->resolveDemoAccount($type);
+    }
+
+    $seeds->seed($account, $type);
+    $this->info("Demo seeded for {$account->email} ({$type}).");
+
+    return 0;
+})->purpose('Seed demo data for a demo tenant');
+
+Artisan::command('demo:reset {--tenant_id=}', function (
+    DemoResetService $reset,
+    DemoSeedService $seeds
+): int {
+    if (!config('demo.enabled')) {
+        $this->error('DEMO_ENABLED is false.');
+        return 1;
+    }
+
+    $tenantId = $this->option('tenant_id');
+    $accounts = $tenantId
+        ? User::query()->whereKey($tenantId)->get()
+        : User::query()->where('is_demo', true)->get();
+
+    if ($accounts->isEmpty()) {
+        $this->error('No demo tenants found.');
+        return 1;
+    }
+
+    foreach ($accounts as $account) {
+        $reset->reset($account);
+        $seeds->seed($account, $account->demo_type ?: DemoAccountService::TYPE_SERVICE);
+        $this->info("Demo reset for {$account->email}.");
+    }
+
+    return 0;
+})->purpose('Reset demo tenant data and tour progress');
 
 Schedule::command('platform:notifications-digest --frequency=daily')->dailyAt('08:00');
 Schedule::command('platform:notifications-digest --frequency=weekly')->weeklyOn(1, '08:00');

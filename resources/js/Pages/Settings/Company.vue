@@ -498,6 +498,13 @@ const removeCustomSupplier = (key) => {
     form.supplier_preferred = (form.supplier_preferred || []).filter((id) => id !== key);
 };
 
+const dispatchDemoEvent = (eventName) => {
+    if (typeof window === 'undefined') {
+        return;
+    }
+    window.dispatchEvent(new CustomEvent(eventName));
+};
+
 const submit = () => {
     const normalizeText = (value) => {
         const trimmed = String(value || '').trim();
@@ -549,7 +556,13 @@ const submit = () => {
 
             return payload;
         })
-        .put(route('settings.company.update'), { preserveScroll: true, forceFormData: true });
+        .put(route('settings.company.update'), {
+            preserveScroll: true,
+            forceFormData: true,
+            onSuccess: () => {
+                dispatchDemoEvent('demo:settings_saved');
+            },
+        });
 };
 
 const canAddCategory = computed(() => categoryForm.name.trim().length > 0);
@@ -810,7 +823,7 @@ watch(activeTab, (value) => {
                     </div>
 
                     <div class="flex justify-end">
-                        <button type="button" @click="submit" :disabled="form.processing"
+                        <button type="button" @click="submit" :disabled="form.processing" data-testid="demo-settings-save"
                             class="py-2 px-3 text-sm font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:pointer-events-none">
                             Enregistrer
                         </button>

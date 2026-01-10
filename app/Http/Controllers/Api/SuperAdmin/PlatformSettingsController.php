@@ -31,6 +31,7 @@ class PlatformSettingsController extends BaseController
         'services',
         'tasks',
         'team_members',
+        'assistant',
     ];
 
     public function show(Request $request)

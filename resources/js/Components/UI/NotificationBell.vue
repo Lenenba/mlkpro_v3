@@ -141,7 +141,7 @@ onBeforeUnmount(() => {
 
 <template>
     <div class="relative">
-        <button ref="toggleRef" type="button" :class="buttonClass" @click="toggleMenu" aria-label="Notifications">
+        <button ref="toggleRef" type="button" :class="buttonClass" @click="toggleMenu" aria-label="Notifications" data-testid="demo-notifications-bell">
             <svg class="size-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
                 stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M10 5a2 2 0 1 1 4 0" />

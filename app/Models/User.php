@@ -54,6 +54,10 @@ class User extends Authenticatable
         'is_suspended',
         'suspended_at',
         'suspension_reason',
+        'is_demo',
+        'demo_type',
+        'is_demo_user',
+        'demo_role',
     ];
 
     /**
@@ -87,6 +91,8 @@ class User extends Authenticatable
             'company_fulfillment' => 'array',
             'is_suspended' => 'boolean',
             'suspended_at' => 'datetime',
+            'is_demo' => 'boolean',
+            'is_demo_user' => 'boolean',
         ];
     }
 

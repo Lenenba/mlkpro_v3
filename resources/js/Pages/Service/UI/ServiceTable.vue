@@ -176,7 +176,7 @@ const destroyService = (service) => {
                                 <path d="m21 21-4.3-4.3" />
                             </svg>
                         </div>
-                        <input type="text" v-model="filterForm.name"
+                        <input type="text" v-model="filterForm.name" data-testid="demo-service-search"
                             class="py-[7px] ps-10 pe-8 block w-full bg-white border border-stone-200 rounded-sm text-sm placeholder:text-stone-500 focus:border-green-600 focus:ring-green-600 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 dark:placeholder:text-neutral-400"
                             placeholder="Search services">
                     </div>

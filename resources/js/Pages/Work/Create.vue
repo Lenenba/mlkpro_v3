@@ -107,7 +107,7 @@ const form = useForm({
     ends: props.work?.ends ?? 'Never',
     frequencyNumber: props.work?.frequencyNumber ?? 1,
     frequency: props.work?.frequency ?? 'Weekly',
-    totalVisites : props.work?.totalVisits ?? 0,
+    totalVisits: props.work?.totalVisits ?? 0,
     repeatsOn: props.work?.repeatsOn ?? [],
     status: props.work?.status ?? 'scheduled',
     subtotal: props.work?.subtotal ?? 0,
@@ -876,7 +876,8 @@ onBeforeUnmount(() => {
                                                 </div>
                                             </div>
                                             <div
-                                                class="flex flex-col bg-white border shadow-sm rounded-sm dark:bg-neutral-900 dark:border-neutral-700 dark:shadow-neutral-700/70 mt-4">
+                                                class="flex flex-col bg-white border shadow-sm rounded-sm dark:bg-neutral-900 dark:border-neutral-700 dark:shadow-neutral-700/70 mt-4"
+                                                data-testid="demo-work-recurrence">
                                                 <div
                                                     class="flex flex-row bg-white dark:bg-neutral-900 border-b border-stone-200 rounded-t-sm py-3 px-4 md:px-5 dark:border-neutral-700">
                                                     <h3 class="text-lg  ml-2 font-bold text-stone-800 dark:text-white">
@@ -1038,7 +1039,8 @@ onBeforeUnmount(() => {
                                                 </div>
                                             </div>
                                             <div
-                                                class="rounded-sm border border-stone-200 bg-white p-2 dark:border-neutral-700 dark:bg-neutral-900">
+                                                class="rounded-sm border border-stone-200 bg-white p-2 dark:border-neutral-700 dark:bg-neutral-900"
+                                                data-testid="demo-work-calendar">
                                                 <FullCalendar :options="calendarOptions"   ref="calendarRef"/>
                                             </div>
                                         </div>

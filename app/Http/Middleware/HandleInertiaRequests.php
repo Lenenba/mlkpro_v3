@@ -102,6 +102,13 @@ class HandleInertiaRequests extends Middleware
             ];
         }
 
+        $assistantEnabled = (bool) config('services.openai.key');
+        if (!$user) {
+            $assistantEnabled = false;
+        } elseif ($accountFeatures !== null) {
+            $assistantEnabled = $assistantEnabled && (bool) ($accountFeatures['assistant'] ?? true);
+        }
+
         return [
             ...parent::share($request),
             'auth' => [
@@ -137,6 +144,18 @@ class HandleInertiaRequests extends Middleware
             'notifications' => $notifications,
             'locale' => app()->getLocale(),
             'locales' => ['fr', 'en'],
+            'demo' => [
+                'enabled' => (bool) config('demo.enabled'),
+                'allow_reset' => (bool) config('demo.allow_reset'),
+                'is_demo' => (bool) ($user?->is_demo ?? false),
+                'is_demo_user' => (bool) ($user?->is_demo_user ?? false),
+                'demo_type' => $user?->demo_type,
+                'demo_role' => $user?->demo_role,
+                'is_guided' => (bool) ($user?->demo_type === 'guided' || $user?->demo_role === 'guided_demo'),
+            ],
+            'assistant' => [
+                'enabled' => $assistantEnabled,
+            ],
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
                 'error' => fn () => $request->session()->get('error'),

@@ -240,6 +240,13 @@ const normalizeWorkSelection = (form) => {
     }
 };
 
+const dispatchDemoEvent = (eventName, detail = {}) => {
+    if (typeof window === 'undefined') {
+        return;
+    }
+    window.dispatchEvent(new CustomEvent(eventName, { detail }));
+};
+
 watch(
     () => createForm.standalone,
     (value) => {
@@ -271,6 +278,7 @@ const submitCreate = () => {
 
     createForm.materials = normalizeMaterials(createForm.materials);
     normalizeWorkSelection(createForm);
+    const assignedId = createForm.assigned_team_member_id;
 
     createForm.post(route('task.store'), {
         preserveScroll: true,
@@ -279,6 +287,9 @@ const submitCreate = () => {
             createForm.status = 'todo';
             createForm.materials = [];
             closeOverlay('#hs-task-create');
+            if (assignedId) {
+                dispatchDemoEvent('demo:task_assigned', { assigned_team_member_id: assignedId });
+            }
         },
     });
 };
@@ -362,6 +373,11 @@ const setTaskStatus = (task, status) => {
     if (!canChangeStatus.value || task.status === status || isTaskLocked(task)) {
         return;
     }
+    const onSuccess = () => {
+        if (status === 'done') {
+            dispatchDemoEvent('demo:task_completed', { task_id: task.id });
+        }
+    };
 
     if (props.canManage) {
         router.put(
@@ -377,7 +393,7 @@ const setTaskStatus = (task, status) => {
                 customer_id: task.customer_id ?? null,
                 product_id: task.product_id ?? null,
             },
-            { preserveScroll: true, only: ['tasks', 'flash'] }
+            { preserveScroll: true, only: ['tasks', 'flash'], onSuccess }
         );
         return;
     }
@@ -385,7 +401,7 @@ const setTaskStatus = (task, status) => {
     router.put(
         route('task.update', task.id),
         { status },
-        { preserveScroll: true, only: ['tasks', 'flash'] }
+        { preserveScroll: true, only: ['tasks', 'flash'], onSuccess }
     );
 };
 
@@ -473,7 +489,7 @@ const submitProof = () => {
                                 <path d="m21 21-4.3-4.3" />
                             </svg>
                         </div>
-                        <input type="text" v-model="filterForm.search"
+                        <input type="text" v-model="filterForm.search" data-testid="demo-task-search"
                             class="py-[7px] ps-10 pe-8 block w-full bg-white border border-stone-200 rounded-sm text-sm placeholder:text-stone-500 focus:border-green-500 focus:ring-green-600 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 dark:placeholder:text-neutral-400 dark:focus:ring-neutral-600"
                             placeholder="Search tasks">
                     </div>
@@ -493,7 +509,7 @@ const submitProof = () => {
                         Clear
                     </button>
 
-                    <button v-if="canCreate" type="button" data-hs-overlay="#hs-task-create"
+                    <button v-if="canCreate" type="button" data-hs-overlay="#hs-task-create" data-testid="demo-task-add"
                         class="py-2 px-2.5 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:ring-2 focus:ring-green-500">
                         + Add task
                     </button>
@@ -617,7 +633,7 @@ const submitProof = () => {
                                                 class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none dark:text-neutral-300 dark:hover:bg-neutral-800">
                                                 In progress
                                             </button>
-                                            <button type="button" :disabled="!canChangeStatus || task.status === 'done' || isTaskLocked(task)"
+                                            <button type="button" :disabled="!canChangeStatus || task.status === 'done' || isTaskLocked(task)" data-testid="demo-task-mark-done"
                                                 @click="setTaskStatus(task, 'done')"
                                                 class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none dark:text-neutral-300 dark:hover:bg-neutral-800">
                                                 Done

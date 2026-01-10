@@ -21,11 +21,19 @@ const form = useForm({
     notes: '',
 });
 
+const dispatchDemoEvent = (eventName) => {
+    if (typeof window === 'undefined') {
+        return;
+    }
+    window.dispatchEvent(new CustomEvent(eventName));
+};
+
 const submitPayment = () => {
     form.post(route('payment.store', props.invoice.id), {
         preserveScroll: true,
         onSuccess: () => {
             form.reset('amount', 'method', 'reference', 'paid_at', 'notes');
+            dispatchDemoEvent('demo:invoice_paid');
         },
     });
 };
@@ -350,7 +358,7 @@ const lineItemColspan = computed(() => (isTaskBased.value ? 5 : 4));
                         <textarea v-model="form.notes" rows="2"
                             class="w-full py-2 px-3 bg-stone-100 border-transparent rounded-sm text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-700 dark:text-neutral-200"
                             placeholder="Notes"></textarea>
-                        <button type="submit"
+                        <button type="submit" data-testid="demo-invoice-payment-submit"
                             class="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:pointer-events-none">
                             Record payment
                         </button>

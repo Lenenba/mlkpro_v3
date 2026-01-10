@@ -60,6 +60,7 @@ class EnsureCompanyFeature
             'services' => 'Services',
             'tasks' => 'Tasks',
             'team_members' => 'Team members',
+            'assistant' => 'AI assistant',
         ];
 
         if (isset($labels[$feature])) {

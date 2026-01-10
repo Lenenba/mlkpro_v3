@@ -587,7 +587,7 @@ const secondaryActions = computed(() => suggestionActions.value.slice(1, 5));
             </section>
 
             <div :class="['grid gap-4', hasTopAnnouncements ? 'xl:grid-cols-[minmax(0,1fr)_320px]' : 'grid-cols-1']">
-                <section class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+                <section class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3" data-testid="demo-dashboard-overview">
                 <div v-if="hasFeature('invoices')"
                     class="p-4 bg-white border border-t-4 border-t-emerald-600 border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
                     <div class="space-y-1">
@@ -1160,7 +1160,7 @@ const secondaryActions = computed(() => suggestionActions.value.slice(1, 5));
                         </div>
                     </div>
 
-                    <div class="bg-white border border-stone-200 rounded-sm p-5 shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
+                    <div class="bg-white border border-stone-200 rounded-sm p-5 shadow-sm dark:bg-neutral-800 dark:border-neutral-700" data-testid="demo-dashboard-activity">
                         <div class="flex items-center justify-between">
                             <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
                                 Recent activity

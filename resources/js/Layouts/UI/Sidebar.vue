@@ -26,6 +26,9 @@ const canPlatform = (permission) => isSuperadmin.value || platformPermissions.va
 const canSales = computed(() =>
     isOwner.value || teamPermissions.value.includes('sales.manage') || teamPermissions.value.includes('sales.pos')
 );
+const canQuotes = computed(() =>
+    isOwner.value || teamPermissions.value.includes('quotes.view') || teamPermissions.value.includes('quotes.edit')
+);
 const isSeller = computed(() => teamRole.value === 'seller');
 const userName = computed(() => page.props.auth?.user?.name || '');
 const userEmail = computed(() => page.props.auth?.user?.email || '');
@@ -334,7 +337,7 @@ const setLocale = (locale) => {
                                 </LinkAncor>
                                 <!-- End Item -->
                                 <!-- Item -->
-                                <LinkAncor v-if="showServices && hasFeature('quotes') && page.props.auth.account?.is_owner && !isSeller" :label="$t('nav.quotes')" :href="'quote.index'"
+                                <LinkAncor v-if="showServices && hasFeature('quotes') && canQuotes && !isSeller" :label="$t('nav.quotes')" :href="'quote.index'"
                                     :active="route().current('quote.index') || route().current('customer.quote.*')">
                                     <template #icon>
                                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"

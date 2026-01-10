@@ -177,6 +177,13 @@ const applyTemplate = (template) => {
     }
 };
 
+const dispatchDemoEvent = (eventName) => {
+    if (typeof window === 'undefined') {
+        return;
+    }
+    window.dispatchEvent(new CustomEvent(eventName));
+};
+
 // Soumettre le formulaire
 const submit = () => {
     if (isLocked.value) {
@@ -190,7 +197,9 @@ const submit = () => {
 
     form[props.quote?.id ? 'put' : 'post'](route(routeName, routeParams), {
         onSuccess: () => {
-            console.log('Quote saved successfully!');
+            if (!isEditing.value) {
+                dispatchDemoEvent('demo:quote_created');
+            }
         },
     });
 };
@@ -318,7 +327,9 @@ const submit = () => {
                         </div>
                     </div>
                     <div
-                        class="p-5 space-y-3 flex flex-col bg-white border border-stone-200 rounded-sm shadow-sm xl:shadow-none dark:bg-neutral-900 dark:border-neutral-700">
+                        class="p-5 space-y-3 flex flex-col bg-white border border-stone-200 rounded-sm shadow-sm xl:shadow-none dark:bg-neutral-900 dark:border-neutral-700"
+                        data-testid="demo-quote-line-items"
+                    >
                         <ProductTableList
                             v-model="form.product"
                             :read-only="isLocked"
@@ -489,7 +500,7 @@ const submit = () => {
                                     class="py-1.5 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-sm border border-green-600 text-green-600 hover:border-stone-700 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:ring-2 focus:ring-stone-500">
                                     Save and create another
                                 </button>
-                                <button id="hs-pro-in1trsbgwmdid1" type="submit"
+                                <button id="hs-pro-in1trsbgwmdid1" type="submit" data-testid="demo-quote-save"
                                     :disabled="isLocked || form.processing"
                                     class="hs-tooltip-toggle ml-4 py-2 px-2.5 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:ring-2 focus:ring-green-500">
                                     Save quote

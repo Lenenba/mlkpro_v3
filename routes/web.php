@@ -15,6 +15,8 @@ use App\Http\Controllers\TeamMemberController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DemoController;
+use App\Http\Controllers\DemoTourController;
 use App\Http\Controllers\ProductsSearchController;
 use App\Http\Controllers\QuoteEmaillingController;
 use App\Http\Controllers\OnboardingController;
@@ -31,6 +33,7 @@ use App\Http\Controllers\PublicWorkController;
 use App\Http\Controllers\PublicWorkProofController;
 use App\Http\Controllers\PublicTaskMediaController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\AssistantController;
 use App\Http\Controllers\Settings\CompanySettingsController;
 use App\Http\Controllers\Settings\BillingSettingsController;
 use App\Http\Controllers\Settings\ProductCategoryController;
@@ -71,6 +74,11 @@ Route::get('/privacy', [LegalController::class, 'privacy'])->name('privacy');
 Route::get('/refund', [LegalController::class, 'refund'])->name('refund');
 Route::get('/pricing', [LegalController::class, 'pricing'])->name('pricing');
 
+Route::middleware('guest')->group(function () {
+    Route::get('/demo', [DemoController::class, 'index'])->name('demo.index');
+    Route::post('/demo/login/{type}', [DemoController::class, 'login'])->name('demo.login');
+});
+
 Route::middleware('signed')->group(function () {
     Route::get('/pay/invoices/{invoice}', [PublicInvoiceController::class, 'show'])->name('public.invoices.show');
     Route::post('/pay/invoices/{invoice}', [PublicInvoiceController::class, 'storePayment'])->name('public.invoices.pay');
@@ -97,7 +105,7 @@ Route::get('/dashboard', [DashboardController::class, 'index'])->middleware(['au
 Route::post('/locale', [LocaleController::class, 'update'])->name('locale.update');
 
 // Authenticated User Routes
-Route::middleware('auth')->group(function () {
+Route::middleware(['auth', 'demo.safe'])->group(function () {
     // Profile Management
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
@@ -107,10 +115,13 @@ Route::middleware('auth')->group(function () {
 });
 
 // Internal User Routes
-Route::middleware(['auth', EnsureInternalUser::class])->group(function () {
+Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(function () {
 
     // Onboarding (account setup)
     Route::post('/onboarding', [OnboardingController::class, 'store'])->name('onboarding.store');
+    Route::post('/assistant/message', [AssistantController::class, 'message'])
+        ->middleware('company.feature:assistant')
+        ->name('assistant.message');
 
     // Settings (owner only)
     Route::get('/settings/company', [CompanySettingsController::class, 'edit'])->name('settings.company.edit');
@@ -290,6 +301,16 @@ Route::middleware(['auth', EnsureInternalUser::class])->group(function () {
 
     // Payment Management
     Route::post('/invoice/{invoice}/payments', [PaymentController::class, 'store'])->name('payment.store');
+});
+
+Route::middleware(['auth', 'demo.safe'])->group(function () {
+    Route::get('/demo/checklist', [DemoController::class, 'checklist'])->name('demo.checklist');
+    Route::post('/demo/reset', [DemoController::class, 'reset'])->name('demo.reset');
+    Route::get('/demo/tour/steps', [DemoTourController::class, 'steps'])->name('demo.tour.steps');
+    Route::get('/demo/tour/progress', [DemoTourController::class, 'progress'])->name('demo.tour.progress');
+    Route::post('/demo/tour/progress', [DemoTourController::class, 'updateProgress'])
+        ->name('demo.tour.progress.update');
+    Route::post('/demo/tour/reset', [DemoTourController::class, 'reset'])->name('demo.tour.reset');
 });
 
 // Client Portal Routes

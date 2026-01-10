@@ -52,6 +52,7 @@ const moduleKeys = [
     { key: 'services', label: 'Services' },
     { key: 'tasks', label: 'Tasks' },
     { key: 'team_members', label: 'Team members' },
+    { key: 'assistant', label: 'AI assistant' },
 ];
 
 const form = useForm({
