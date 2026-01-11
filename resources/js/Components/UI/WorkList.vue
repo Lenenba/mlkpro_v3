@@ -1,10 +1,8 @@
 <script setup>
 import { Link, router } from '@inertiajs/vue3';
 import dayjs from 'dayjs';
-import relativeTime from 'dayjs/plugin/relativeTime';
 import { computed, ref } from 'vue';
 
-dayjs.extend(relativeTime);
 const props = defineProps({
     works: {
         type: Array,
@@ -63,20 +61,10 @@ const statusPillClass = (status) => {
     }
 };
 
-const statusAccentClass = (status) => {
-    switch (statusTone(status)) {
-        case 'success':
-            return 'border-l-emerald-400';
-        case 'danger':
-            return 'border-l-rose-400';
-        case 'warning':
-            return 'border-l-amber-400';
-        case 'info':
-            return 'border-l-sky-400';
-        default:
-            return 'border-l-stone-300 dark:border-l-neutral-600';
-    }
-};
+const formatDate = (value) => (value ? dayjs(value).format('MMM D, YYYY') : '-');
+
+const workDateLabel = (work) => (work?.start_date ? 'Start date' : 'Created');
+const workDateValue = (work) => formatDate(work?.start_date || work?.created_at);
 
 const nextStatusFor = (status) => {
     switch (status) {
@@ -135,57 +123,34 @@ const destroyWork = (work) => {
     });
 };
 
-const workMeta = (work) => {
-    if (work?.start_date) {
-        return `Starts ${dayjs(work.start_date).fromNow()}`;
-    }
-    return `Created ${dayjs(work.created_at).fromNow()}`;
-};
-
 const isProcessing = (work) => processingId.value === work?.id;
 </script>
 
 <template>
-    <div class="space-y-3">
+    <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
         <div v-for="work in workItems" :key="work.id"
-            class="rounded-sm border border-stone-200 border-l-4 bg-white p-4 shadow-sm dark:bg-neutral-900 dark:border-neutral-700"
-            :class="statusAccentClass(work.status)">
-            <div class="flex items-start justify-between gap-3">
-                <div class="min-w-0">
-                    <Link
-                        :href="route('work.show', work.id)"
-                        class="text-sm font-semibold text-stone-800 hover:underline dark:text-neutral-200"
-                    >
-                        {{ work.job_title || 'Job' }}
-                    </Link>
-                    <div class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
-                        {{ workMeta(work) }}
+            class="overflow-hidden rounded-sm border border-stone-200 bg-white shadow-sm dark:bg-neutral-900 dark:border-neutral-700">
+            <div class="flex items-center justify-between gap-3 border-b border-stone-200 bg-stone-50/60 px-4 py-3 dark:border-neutral-700 dark:bg-neutral-900/40">
+                <div class="flex items-center gap-3">
+                    <span class="flex size-9 items-center justify-center rounded-sm bg-emerald-500 text-[11px] font-semibold text-white">
+                        JB
+                    </span>
+                    <div>
+                        <div class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                            {{ work.job_title || 'Job' }}
+                        </div>
+                        <div class="text-xs text-stone-500 dark:text-neutral-400">
+                            #{{ work.number || work.id }}
+                        </div>
                     </div>
-                </div>
-                <div class="flex flex-col items-end gap-2">
-                    <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold"
-                        :class="statusPillClass(work.status)">
-                        {{ formatStatus(work.status) }}
-                    </span>
-                    <span v-if="hasInvoice(work)"
-                        class="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-200">
-                        Invoiced
-                    </span>
-                </div>
-            </div>
-
-            <div class="mt-3 flex items-center justify-between gap-2 text-xs text-stone-500 dark:text-neutral-400">
-                <div class="flex items-center gap-2">
-                    <span>#{{ work.number || work.id }}</span>
                 </div>
                 <div class="hs-dropdown [--placement:bottom-right] relative inline-flex">
                     <button
                         :id="`hs-work-actions-${work.id}`"
                         type="button"
-                        class="sm:p-1.5 sm:ps-3 size-7 sm:w-auto sm:h-auto inline-flex justify-center items-center gap-x-1 rounded-sm border border-stone-200 bg-white text-xs text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-100 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-800 dark:focus:bg-neutral-800"
+                        class="size-7 inline-flex justify-center items-center gap-x-2 rounded-sm border border-stone-200 bg-white text-stone-500 shadow-sm hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-100 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800 dark:focus:bg-neutral-800"
                         aria-haspopup="menu" aria-expanded="false" aria-label="Dropdown">
-                        <span class="hidden sm:inline-block">More</span>
-                        <svg class="shrink-0 size-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                        <svg class="shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
                             viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                             stroke-linejoin="round">
                             <circle cx="12" cy="12" r="1" />
@@ -336,6 +301,28 @@ const isProcessing = (work) => processingId.value === work?.id;
                                 Delete job
                             </button>
                         </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="divide-y divide-stone-200 px-4 py-2 text-xs text-stone-500 dark:divide-neutral-700 dark:text-neutral-400">
+                <div class="flex items-center justify-between py-2">
+                    <span>{{ workDateLabel(work) }}</span>
+                    <span class="text-sm font-semibold text-stone-800 dark:text-neutral-200">
+                        {{ workDateValue(work) }}
+                    </span>
+                </div>
+                <div class="flex items-center justify-between py-2">
+                    <span>Status</span>
+                    <div class="flex items-center gap-2">
+                        <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold"
+                            :class="statusPillClass(work.status)">
+                            {{ formatStatus(work.status) }}
+                        </span>
+                        <span v-if="hasInvoice(work)"
+                            class="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-200">
+                            Invoiced
+                        </span>
                     </div>
                 </div>
             </div>

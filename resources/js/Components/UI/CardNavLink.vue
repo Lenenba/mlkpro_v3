@@ -56,7 +56,7 @@ const stat = (key, fallback = 0) => props.stats?.[key] ?? fallback;
         aria-orientation="horizontal"
     >
         <button v-if="canJobs" type="button"
-            class="group relative flex items-center gap-3 rounded-sm border border-stone-200 bg-white px-3 py-2 text-left shadow-sm transition hover:border-stone-300 focus:outline-none focus:ring-2 focus:ring-stone-200 hs-tab-active:border-stone-900 hs-tab-active:ring-1 hs-tab-active:ring-stone-200 dark:bg-neutral-900 dark:border-neutral-700 dark:hover:border-neutral-600 dark:focus:ring-neutral-700 dark:hs-tab-active:border-neutral-300 dark:hs-tab-active:ring-neutral-700"
+            class="group relative flex items-center gap-3 rounded-sm border border-stone-200 bg-white px-3 py-2 text-left shadow-sm transition hover:border-stone-300 focus:outline-none focus:ring-2 focus:ring-stone-200 hs-tab-active:border-rose-500 hs-tab-active:ring-1 hs-tab-active:ring-rose-200 hs-tab-active:bg-rose-50/70 dark:bg-neutral-900 dark:border-neutral-700 dark:hover:border-neutral-600 dark:focus:ring-neutral-700 dark:hs-tab-active:border-rose-300 dark:hs-tab-active:ring-rose-500/20 dark:hs-tab-active:bg-rose-500/10"
             :class="{ active: isDefault('active_works') }"
             id="bar-with-underline-item-1"
             :aria-selected="isDefault('active_works')"
@@ -78,7 +78,7 @@ const stat = (key, fallback = 0) => props.stats?.[key] ?? fallback;
         </button>
 
         <button v-if="canRequests" type="button"
-            class="group relative flex items-center gap-3 rounded-sm border border-stone-200 bg-white px-3 py-2 text-left shadow-sm transition hover:border-stone-300 focus:outline-none focus:ring-2 focus:ring-stone-200 hs-tab-active:border-stone-900 hs-tab-active:ring-1 hs-tab-active:ring-stone-200 dark:bg-neutral-900 dark:border-neutral-700 dark:hover:border-neutral-600 dark:focus:ring-neutral-700 dark:hs-tab-active:border-neutral-300 dark:hs-tab-active:ring-neutral-700"
+            class="group relative flex items-center gap-3 rounded-sm border border-stone-200 bg-white px-3 py-2 text-left shadow-sm transition hover:border-stone-300 focus:outline-none focus:ring-2 focus:ring-stone-200 hs-tab-active:border-amber-500 hs-tab-active:ring-1 hs-tab-active:ring-amber-200 hs-tab-active:bg-amber-50/70 dark:bg-neutral-900 dark:border-neutral-700 dark:hover:border-neutral-600 dark:focus:ring-neutral-700 dark:hs-tab-active:border-amber-300 dark:hs-tab-active:ring-amber-500/20 dark:hs-tab-active:bg-amber-500/10"
             :class="{ active: isDefault('requests') }"
             id="bar-with-underline-item-2"
             :aria-selected="isDefault('requests')"
@@ -100,7 +100,7 @@ const stat = (key, fallback = 0) => props.stats?.[key] ?? fallback;
         </button>
 
         <button v-if="canQuotes" type="button"
-            class="group relative flex items-center gap-3 rounded-sm border border-stone-200 bg-white px-3 py-2 text-left shadow-sm transition hover:border-stone-300 focus:outline-none focus:ring-2 focus:ring-stone-200 hs-tab-active:border-stone-900 hs-tab-active:ring-1 hs-tab-active:ring-stone-200 dark:bg-neutral-900 dark:border-neutral-700 dark:hover:border-neutral-600 dark:focus:ring-neutral-700 dark:hs-tab-active:border-neutral-300 dark:hs-tab-active:ring-neutral-700"
+            class="group relative flex items-center gap-3 rounded-sm border border-stone-200 bg-white px-3 py-2 text-left shadow-sm transition hover:border-stone-300 focus:outline-none focus:ring-2 focus:ring-stone-200 hs-tab-active:border-sky-500 hs-tab-active:ring-1 hs-tab-active:ring-sky-200 hs-tab-active:bg-sky-50/70 dark:bg-neutral-900 dark:border-neutral-700 dark:hover:border-neutral-600 dark:focus:ring-neutral-700 dark:hs-tab-active:border-sky-300 dark:hs-tab-active:ring-sky-500/20 dark:hs-tab-active:bg-sky-500/10"
             :class="{ active: isDefault('quotes') }"
             id="bar-with-underline-item-3"
             :aria-selected="isDefault('quotes')"
@@ -122,7 +122,7 @@ const stat = (key, fallback = 0) => props.stats?.[key] ?? fallback;
         </button>
 
         <button v-if="canJobs" type="button"
-            class="group relative flex items-center gap-3 rounded-sm border border-stone-200 bg-white px-3 py-2 text-left shadow-sm transition hover:border-stone-300 focus:outline-none focus:ring-2 focus:ring-stone-200 hs-tab-active:border-stone-900 hs-tab-active:ring-1 hs-tab-active:ring-stone-200 dark:bg-neutral-900 dark:border-neutral-700 dark:hover:border-neutral-600 dark:focus:ring-neutral-700 dark:hs-tab-active:border-neutral-300 dark:hs-tab-active:ring-neutral-700"
+            class="group relative flex items-center gap-3 rounded-sm border border-stone-200 bg-white px-3 py-2 text-left shadow-sm transition hover:border-stone-300 focus:outline-none focus:ring-2 focus:ring-stone-200 hs-tab-active:border-emerald-500 hs-tab-active:ring-1 hs-tab-active:ring-emerald-200 hs-tab-active:bg-emerald-50/70 dark:bg-neutral-900 dark:border-neutral-700 dark:hover:border-neutral-600 dark:focus:ring-neutral-700 dark:hs-tab-active:border-emerald-300 dark:hs-tab-active:ring-emerald-500/20 dark:hs-tab-active:bg-emerald-500/10"
             :class="{ active: isDefault('jobs') }"
             id="bar-with-underline-item-4"
             :aria-selected="isDefault('jobs')"
@@ -144,7 +144,7 @@ const stat = (key, fallback = 0) => props.stats?.[key] ?? fallback;
         </button>
 
         <button v-if="canInvoices" type="button"
-            class="group relative flex items-center gap-3 rounded-sm border border-stone-200 bg-white px-3 py-2 text-left shadow-sm transition hover:border-stone-300 focus:outline-none focus:ring-2 focus:ring-stone-200 hs-tab-active:border-stone-900 hs-tab-active:ring-1 hs-tab-active:ring-stone-200 dark:bg-neutral-900 dark:border-neutral-700 dark:hover:border-neutral-600 dark:focus:ring-neutral-700 dark:hs-tab-active:border-neutral-300 dark:hs-tab-active:ring-neutral-700"
+            class="group relative flex items-center gap-3 rounded-sm border border-stone-200 bg-white px-3 py-2 text-left shadow-sm transition hover:border-stone-300 focus:outline-none focus:ring-2 focus:ring-stone-200 hs-tab-active:border-cyan-500 hs-tab-active:ring-1 hs-tab-active:ring-cyan-200 hs-tab-active:bg-cyan-50/70 dark:bg-neutral-900 dark:border-neutral-700 dark:hover:border-neutral-600 dark:focus:ring-neutral-700 dark:hs-tab-active:border-cyan-300 dark:hs-tab-active:ring-cyan-500/20 dark:hs-tab-active:bg-cyan-500/10"
             :class="{ active: isDefault('invoices') }"
             id="bar-with-underline-item-5"
             :aria-selected="isDefault('invoices')"
