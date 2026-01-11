@@ -257,7 +257,7 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
         ->name('customer.bulk');
 
     Route::resource('customer', CustomerController::class)
-        ->only(['index', 'store', 'update', 'create', 'show', 'destroy']);
+        ->only(['index', 'store', 'update', 'create', 'edit', 'show', 'destroy']);
 
     // Work Management
     Route::middleware('company.feature:jobs')->group(function () {

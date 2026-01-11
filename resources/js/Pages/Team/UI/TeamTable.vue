@@ -1,11 +1,13 @@
 <script setup>
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { router, useForm } from '@inertiajs/vue3';
 import Modal from '@/Components/UI/Modal.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import InputError from '@/Components/InputError.vue';
 import Checkbox from '@/Components/Checkbox.vue';
+import DropzoneInput from '@/Components/DropzoneInput.vue';
 import { humanizeDate } from '@/utils/date';
+import { avatarIconPresets, defaultAvatarIcon } from '@/utils/iconPresets';
 
 const props = defineProps({
     teamMembers: {
@@ -19,6 +21,7 @@ const props = defineProps({
 });
 
 const query = ref('');
+const isAvatarIcon = (value) => avatarIconPresets.includes(value);
 
 const normalize = (value) => String(value || '').toLowerCase();
 const filteredMembers = computed(() => {
@@ -53,6 +56,8 @@ const createForm = useForm({
     title: '',
     phone: '',
     permissions: ['jobs.view', 'tasks.view', 'tasks.edit'],
+    profile_picture: null,
+    avatar_icon: defaultAvatarIcon,
 });
 
 const submitCreate = () => {
@@ -60,14 +65,29 @@ const submitCreate = () => {
         return;
     }
 
-    createForm.post(route('team.store'), {
-        preserveScroll: true,
-        onSuccess: () => {
-            createForm.reset('name', 'email', 'title', 'phone');
-            createForm.role = 'member';
-            closeOverlay('#hs-team-create');
-        },
-    });
+    createForm
+        .transform((data) => {
+            const payload = { ...data };
+            if (data.profile_picture instanceof File) {
+                payload.profile_picture = data.profile_picture;
+            } else {
+                delete payload.profile_picture;
+            }
+            if (!payload.avatar_icon) {
+                delete payload.avatar_icon;
+            }
+            return payload;
+        })
+        .post(route('team.store'), {
+            preserveScroll: true,
+            onSuccess: () => {
+                createForm.reset('name', 'email', 'title', 'phone');
+                createForm.role = 'member';
+                createForm.profile_picture = null;
+                createForm.avatar_icon = defaultAvatarIcon;
+                closeOverlay('#hs-team-create');
+            },
+        });
 };
 
 const editingMemberId = ref(null);
@@ -80,6 +100,8 @@ const editForm = useForm({
     phone: '',
     permissions: [],
     is_active: true,
+    profile_picture: null,
+    avatar_icon: '',
 });
 
 const openEditMember = (member) => {
@@ -94,6 +116,11 @@ const openEditMember = (member) => {
     editForm.phone = member.phone || '';
     editForm.permissions = Array.isArray(member.permissions) ? member.permissions : [];
     editForm.is_active = Boolean(member.is_active);
+    const avatarUrl = member.user?.profile_picture_url || member.user?.profile_picture || '';
+    editForm.avatar_icon = isAvatarIcon(member.user?.profile_picture)
+        ? member.user.profile_picture
+        : (isAvatarIcon(avatarUrl) ? avatarUrl : '');
+    editForm.profile_picture = editForm.avatar_icon ? null : avatarUrl;
 
     if (window.HSOverlay) {
         window.HSOverlay.open('#hs-team-edit');
@@ -105,13 +132,27 @@ const submitEdit = () => {
         return;
     }
 
-    editForm.put(route('team.update', editingMemberId.value), {
-        preserveScroll: true,
-        onSuccess: () => {
-            editForm.password = '';
-            closeOverlay('#hs-team-edit');
-        },
-    });
+    editForm
+        .transform((data) => {
+            const payload = { ...data };
+            if (data.profile_picture instanceof File) {
+                payload.profile_picture = data.profile_picture;
+            } else {
+                delete payload.profile_picture;
+            }
+            if (!payload.avatar_icon) {
+                delete payload.avatar_icon;
+            }
+            return payload;
+        })
+        .put(route('team.update', editingMemberId.value), {
+            preserveScroll: true,
+            onSuccess: () => {
+                editForm.password = '';
+                editForm.profile_picture = null;
+                closeOverlay('#hs-team-edit');
+            },
+        });
 };
 
 const deactivateMember = (member) => {
@@ -141,6 +182,40 @@ const roleBadge = (member) => {
 };
 
 const formatDate = (value) => humanizeDate(value) || String(value || '');
+
+const memberAvatarUrl = (member) => member.user?.profile_picture_url || member.user?.profile_picture || '';
+
+const memberInitials = (member) => {
+    const name = member.user?.name || '';
+    if (!name) {
+        return 'TM';
+    }
+    const parts = name.trim().split(' ').filter(Boolean);
+    const first = parts[0]?.[0] || '';
+    const second = parts[1]?.[0] || '';
+    return `${first}${second}`.toUpperCase();
+};
+
+const selectAvatarIcon = (form, icon) => {
+    form.avatar_icon = icon;
+    form.profile_picture = null;
+};
+
+const clearAvatarIcon = (form) => {
+    form.avatar_icon = '';
+};
+
+watch(() => createForm.profile_picture, (value) => {
+    if (value instanceof File) {
+        createForm.avatar_icon = '';
+    }
+});
+
+watch(() => editForm.profile_picture, (value) => {
+    if (value instanceof File) {
+        editForm.avatar_icon = '';
+    }
+});
 </script>
 
 <template>
@@ -226,13 +301,26 @@ const formatDate = (value) => humanizeDate(value) || String(value || '');
                         </tr>
                         <tr v-for="member in filteredMembers" :key="member.id">
                             <td class="size-px whitespace-nowrap px-4 py-2 text-start">
-                                <div class="flex flex-col">
-                                    <span class="text-sm font-medium text-stone-800 dark:text-neutral-200">
-                                        {{ member.user?.name || `Member #${member.id}` }}
-                                    </span>
-                                    <span class="text-xs text-stone-500 dark:text-neutral-500">
-                                        {{ member.user?.email || '-' }}
-                                    </span>
+                                <div class="flex items-center gap-3">
+                                    <div class="size-10 rounded-full bg-stone-100 text-stone-600 flex items-center justify-center overflow-hidden dark:bg-neutral-700 dark:text-neutral-200">
+                                        <img
+                                            v-if="memberAvatarUrl(member)"
+                                            :src="memberAvatarUrl(member)"
+                                            alt="Member avatar"
+                                            class="h-full w-full object-cover"
+                                        >
+                                        <span v-else class="text-xs font-semibold">
+                                            {{ memberInitials(member) }}
+                                        </span>
+                                    </div>
+                                    <div class="flex flex-col">
+                                        <span class="text-sm font-medium text-stone-800 dark:text-neutral-200">
+                                            {{ member.user?.name || `Member #${member.id}` }}
+                                        </span>
+                                        <span class="text-xs text-stone-500 dark:text-neutral-500">
+                                            {{ member.user?.email || '-' }}
+                                        </span>
+                                    </div>
                                 </div>
                             </td>
                             <td class="size-px whitespace-nowrap px-4 py-2">
@@ -321,6 +409,39 @@ const formatDate = (value) => humanizeDate(value) || String(value || '');
                     <FloatingInput v-model="createForm.email" label="Email" />
                     <InputError class="mt-1" :message="createForm.errors.email" />
                 </div>
+                <div class="md:col-span-2 space-y-2">
+                    <label class="block text-xs text-stone-500 dark:text-neutral-400">Photo or icon</label>
+                    <DropzoneInput v-model="createForm.profile_picture" label="Upload photo" />
+                    <InputError class="mt-1" :message="createForm.errors.profile_picture" />
+                    <p class="text-xs text-stone-500 dark:text-neutral-400">
+                        Or choose an avatar icon
+                    </p>
+                    <div class="grid grid-cols-4 gap-2">
+                        <button
+                            v-for="icon in avatarIconPresets"
+                            :key="`create-${icon}`"
+                            type="button"
+                            @click="selectAvatarIcon(createForm, icon)"
+                            class="relative flex items-center justify-center rounded-full border border-stone-200 bg-white p-2 transition hover:border-green-500 dark:border-neutral-700 dark:bg-neutral-900"
+                            :class="createForm.avatar_icon === icon ? 'ring-2 ring-green-500 border-green-500' : ''"
+                        >
+                            <img :src="icon" alt="Avatar icon" class="size-10" />
+                            <span
+                                v-if="icon === defaultAvatarIcon"
+                                class="absolute -top-1 -right-1 rounded-full bg-green-600 px-1.5 py-0.5 text-[10px] font-semibold text-white"
+                            >
+                                Default
+                            </span>
+                        </button>
+                    </div>
+                    <div v-if="createForm.avatar_icon" class="flex justify-end">
+                        <button type="button" @click="clearAvatarIcon(createForm)"
+                            class="text-xs font-semibold text-stone-600 hover:text-stone-800 dark:text-neutral-400 dark:hover:text-neutral-200">
+                            Clear icon
+                        </button>
+                    </div>
+                    <InputError class="mt-1" :message="createForm.errors.avatar_icon" />
+                </div>
                 <div>
                     <label class="block text-xs text-stone-500 dark:text-neutral-400">Role</label>
                     <select v-model="createForm.role"
@@ -378,6 +499,39 @@ const formatDate = (value) => humanizeDate(value) || String(value || '');
                 <div>
                     <FloatingInput v-model="editForm.email" label="Email" />
                     <InputError class="mt-1" :message="editForm.errors.email" />
+                </div>
+                <div class="md:col-span-2 space-y-2">
+                    <label class="block text-xs text-stone-500 dark:text-neutral-400">Photo or icon</label>
+                    <DropzoneInput v-model="editForm.profile_picture" label="Upload photo" />
+                    <InputError class="mt-1" :message="editForm.errors.profile_picture" />
+                    <p class="text-xs text-stone-500 dark:text-neutral-400">
+                        Or choose an avatar icon
+                    </p>
+                    <div class="grid grid-cols-4 gap-2">
+                        <button
+                            v-for="icon in avatarIconPresets"
+                            :key="`edit-${icon}`"
+                            type="button"
+                            @click="selectAvatarIcon(editForm, icon)"
+                            class="relative flex items-center justify-center rounded-full border border-stone-200 bg-white p-2 transition hover:border-green-500 dark:border-neutral-700 dark:bg-neutral-900"
+                            :class="editForm.avatar_icon === icon ? 'ring-2 ring-green-500 border-green-500' : ''"
+                        >
+                            <img :src="icon" alt="Avatar icon" class="size-10" />
+                            <span
+                                v-if="icon === defaultAvatarIcon"
+                                class="absolute -top-1 -right-1 rounded-full bg-green-600 px-1.5 py-0.5 text-[10px] font-semibold text-white"
+                            >
+                                Default
+                            </span>
+                        </button>
+                    </div>
+                    <div v-if="editForm.avatar_icon" class="flex justify-end">
+                        <button type="button" @click="clearAvatarIcon(editForm)"
+                            class="text-xs font-semibold text-stone-600 hover:text-stone-800 dark:text-neutral-400 dark:hover:text-neutral-200">
+                            Clear icon
+                        </button>
+                    </div>
+                    <InputError class="mt-1" :message="editForm.errors.avatar_icon" />
                 </div>
                 <div>
                     <FloatingInput v-model="editForm.password" label="New password (optional)" />

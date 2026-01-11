@@ -45,6 +45,12 @@ class CustomerRequest extends FormRequest
             'company_name' => 'nullable|string|max:255',
             'description' => 'nullable|string|min:5|max:255',
             'logo' => 'nullable|image|mimes:jpg,jpeg,png,svg|max:2048',
+            'logo_icon' => [
+                'nullable',
+                'string',
+                'max:255',
+                Rule::in(config('icon_presets.company_icons', [])),
+            ],
             'header_image' => 'nullable|image|mimes:jpg,jpeg,png,svg|max:2048',
             'billing_same_as_physical' => 'nullable|boolean',
             'billing_mode' => [

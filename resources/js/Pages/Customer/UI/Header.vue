@@ -5,6 +5,10 @@ import { isFeatureEnabled } from '@/utils/features';
 
 const props = defineProps({
     customer: Object,
+    canEdit: {
+        type: Boolean,
+        default: false,
+    },
 });
 
 const page = usePage();
@@ -70,6 +74,10 @@ const openRequestModal = () => {
                     Back to list
                 </Link>
                 <!-- End Button -->
+                <Link v-if="canEdit" :href="route('customer.edit', customer)"
+                    class="py-1 px-3 inline-flex items-center gap-x-1.5 text-sm font-medium rounded-sm border border-stone-100 bg-white text-stone-800 hover:bg-stone-50 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-50 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800 dark:focus:bg-neutral-800">
+                    Edit
+                </Link>
 
                 <!-- Button Group -->
                 <div class="inline-flex items-center">

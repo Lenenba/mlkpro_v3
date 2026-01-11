@@ -606,6 +606,10 @@ const getCustomerInitials = (customer) => {
                                                 class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
                                                 View
                                             </Link>
+                                            <Link v-if="canEdit" :href="route('customer.edit', customer)"
+                                                class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
+                                                Edit
+                                            </Link>
                                             <button v-if="canEdit" type="button" @click="toggleArchive(customer)"
                                                 class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800 action-feedback" data-tone="warning">
                                                 {{ customer.is_active ? 'Archive' : 'Restore' }}
@@ -734,6 +738,10 @@ const getCustomerInitials = (customer) => {
                                             class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
                                             View
                                         </Link>
+                                        <Link v-if="canEdit" :href="route('customer.edit', customer)"
+                                            class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
+                                            Edit
+                                        </Link>
                                         <button v-if="canEdit" type="button" @click="toggleArchive(customer)"
                                             class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800 action-feedback" data-tone="warning">
                                             {{ customer.is_active ? 'Archive' : 'Restore' }}
@@ -854,5 +862,3 @@ const getCustomerInitials = (customer) => {
         </div>
     </div>
 </template>
-
-

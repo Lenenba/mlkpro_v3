@@ -4,6 +4,7 @@ import { usePage } from '@inertiajs/vue3';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import SettingsTabs from '@/Components/SettingsTabs.vue';
 import { useI18n } from 'vue-i18n';
+import { defaultAvatarIcon } from '@/utils/iconPresets';
 
 const props = defineProps({
     active: {
@@ -23,7 +24,11 @@ const userName = computed(() => {
     return page.props.auth?.user?.name || t('account.default_name');
 });
 const userEmail = computed(() => page.props.auth?.user?.email || '');
-const avatarUrl = computed(() => page.props.auth?.user?.profile_picture || '');
+const avatarUrl = computed(() =>
+    page.props.auth?.user?.profile_picture_url
+    || page.props.auth?.user?.profile_picture
+    || defaultAvatarIcon
+);
 const avatarInitial = computed(() => {
     const label = (userName.value || userEmail.value || '?').trim();
     return label.length ? label[0].toUpperCase() : '?';

@@ -15,6 +15,10 @@ import { humanizeDate } from '@/utils/date';
 
 const props = defineProps({
     customer: Object,
+    canEdit: {
+        type: Boolean,
+        default: false,
+    },
     stats: {
         type: Object,
         default: () => ({}),
@@ -361,7 +365,7 @@ const deleteProperty = (property) => {
     <AuthenticatedLayout>
         <div class="grid grid-cols-1 gap-5 md:grid-cols-3">
             <div class="md:col-span-2 rise-stagger">
-                <Header :customer="customer" />
+                <Header :customer="customer" :can-edit="canEdit" />
 
                 <Card v-if="showSales" class="mt-5">
                     <template #title>

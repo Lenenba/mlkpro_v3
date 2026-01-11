@@ -2,31 +2,81 @@
 import { Link, router } from '@inertiajs/vue3';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 
 dayjs.extend(relativeTime);
 const props = defineProps({
-    works: Object,
+    works: {
+        type: Array,
+        default: () => [],
+    },
 });
 
 const processingId = ref(null);
+const workItems = computed(() => (Array.isArray(props.works) ? props.works : []));
 
 const statusLabels = {
-    to_schedule: 'À planifier',
-    scheduled: 'Planifié',
+    to_schedule: 'To schedule',
+    scheduled: 'Scheduled',
     en_route: 'En route',
-    in_progress: 'En cours',
-    tech_complete: 'Tech terminé',
-    pending_review: 'En attente de validation',
-    validated: 'Validé',
-    auto_validated: 'Auto validé',
-    dispute: 'Litige',
-    closed: 'Clôturé',
-    cancelled: 'Annulé',
-    completed: 'Terminé (ancien)',
+    in_progress: 'In progress',
+    tech_complete: 'Tech complete',
+    pending_review: 'Pending review',
+    validated: 'Validated',
+    auto_validated: 'Auto validated',
+    dispute: 'Dispute',
+    closed: 'Closed',
+    cancelled: 'Cancelled',
+    completed: 'Completed',
 };
 
 const formatStatus = (status) => statusLabels[status] || status || '-';
+
+const statusTone = (status) => {
+    if (['validated', 'auto_validated', 'closed'].includes(status)) {
+        return 'success';
+    }
+    if (['dispute', 'cancelled'].includes(status)) {
+        return 'danger';
+    }
+    if (['pending_review', 'tech_complete'].includes(status)) {
+        return 'warning';
+    }
+    if (['scheduled', 'en_route', 'in_progress'].includes(status)) {
+        return 'info';
+    }
+    return 'neutral';
+};
+
+const statusPillClass = (status) => {
+    switch (statusTone(status)) {
+        case 'success':
+            return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-400';
+        case 'danger':
+            return 'bg-rose-100 text-rose-800 dark:bg-rose-500/10 dark:text-rose-400';
+        case 'warning':
+            return 'bg-amber-100 text-amber-800 dark:bg-amber-500/10 dark:text-amber-400';
+        case 'info':
+            return 'bg-sky-100 text-sky-800 dark:bg-sky-500/10 dark:text-sky-400';
+        default:
+            return 'bg-stone-100 text-stone-800 dark:bg-neutral-700 dark:text-neutral-200';
+    }
+};
+
+const statusAccentClass = (status) => {
+    switch (statusTone(status)) {
+        case 'success':
+            return 'border-l-emerald-400';
+        case 'danger':
+            return 'border-l-rose-400';
+        case 'warning':
+            return 'border-l-amber-400';
+        case 'info':
+            return 'border-l-sky-400';
+        default:
+            return 'border-l-stone-300 dark:border-l-neutral-600';
+    }
+};
 
 const nextStatusFor = (status) => {
     switch (status) {
@@ -85,8 +135,6 @@ const destroyWork = (work) => {
     });
 };
 
-const workTitle = (work) => `${formatStatus(work?.status)} - ${work?.job_title || 'Job'}`;
-
 const workMeta = (work) => {
     if (work?.start_date) {
         return `Starts ${dayjs(work.start_date).fromNow()}`;
@@ -97,36 +145,39 @@ const workMeta = (work) => {
 const isProcessing = (work) => processingId.value === work?.id;
 </script>
 
-
 <template>
-    <div class="grid grid-cols-2 gap-5 lg:gap-1 ">
-        <!-- Card -->
-        <div v-for="work in works" :key="work.id"
-            class="relative group bg-white border border-stone-200 -mt-px first:mt-0 first:rounded-t-xl last:rounded-b-xl dark:bg-neutral-900 dark:border-neutral-700">
-            <Link
-                :href="route('work.show', work.id)"
-                class="group p-3 flex items-center gap-x-4 group-first:rounded-t-sm group-last:rounded-b-xl hover:bg-stone-100 focus:outline-none focus:bg-stone-100 dark:hover:bg-neutral-800 dark:focus:bg-neutral-800"
-            >
-
-                <div class="grow pe-12">
-                    <p class="text-sm font-medium text-stone-800 dark:text-neutral-200">
-                        {{ workTitle(work) }}
-                    </p>
-                    <ul class="mt-1 text-xs text-stone-500 dark:text-neutral-500">
-                        <li
-                            class="inline-block relative pe-3 last:pe-0 first-of-type:before:hidden before:absolute before:top-1/2 before:-start-2 before:-translate-y-1/2 before:w-px before:h-3 before:bg-stone-300 before:rounded-full dark:before:bg-neutral-600">
-                            {{ workMeta(work) }}
-                        </li>
-                        <li
-                            class="hidden sm:inline-block relative pe-3 last:pe-0 first-of-type:before:hidden before:absolute before:top-1/2 before:-start-2 before:-translate-y-1/2 before:w-px before:h-3 before:bg-stone-300 before:rounded-full dark:before:bg-neutral-600">
-                            #{{ work.number || work.id }}
-                        </li>
-                    </ul>
+    <div class="space-y-3">
+        <div v-for="work in workItems" :key="work.id"
+            class="rounded-sm border border-stone-200 border-l-4 bg-white p-4 shadow-sm dark:bg-neutral-900 dark:border-neutral-700"
+            :class="statusAccentClass(work.status)">
+            <div class="flex items-start justify-between gap-3">
+                <div class="min-w-0">
+                    <Link
+                        :href="route('work.show', work.id)"
+                        class="text-sm font-semibold text-stone-800 hover:underline dark:text-neutral-200"
+                    >
+                        {{ work.job_title || 'Job' }}
+                    </Link>
+                    <div class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
+                        {{ workMeta(work) }}
+                    </div>
                 </div>
-            </Link>
+                <div class="flex flex-col items-end gap-2">
+                    <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold"
+                        :class="statusPillClass(work.status)">
+                        {{ formatStatus(work.status) }}
+                    </span>
+                    <span v-if="hasInvoice(work)"
+                        class="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-200">
+                        Invoiced
+                    </span>
+                </div>
+            </div>
 
-            <!-- More Dropdown -->
-            <div class="absolute top-3 end-3">
+            <div class="mt-3 flex items-center justify-between gap-2 text-xs text-stone-500 dark:text-neutral-400">
+                <div class="flex items-center gap-2">
+                    <span>#{{ work.number || work.id }}</span>
+                </div>
                 <div class="hs-dropdown [--placement:bottom-right] relative inline-flex">
                     <button
                         :id="`hs-work-actions-${work.id}`"
@@ -288,8 +339,6 @@ const isProcessing = (work) => processingId.value === work?.id;
                     </div>
                 </div>
             </div>
-            <!-- End More Dropdown -->
         </div>
-        <!-- End Card -->
     </div>
 </template>
