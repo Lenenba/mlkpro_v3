@@ -8,7 +8,7 @@ const props = defineProps({
 </script>
 
 <template>
-    <div class="space-y-3">
+    <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
         <div
             v-for="row in rows"
             :key="`overview-skeleton-${row}`"

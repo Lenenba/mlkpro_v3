@@ -50,7 +50,7 @@ const stat = (key, fallback = 0) => props.stats?.[key] ?? fallback;
 
 <template>
     <nav
-        class="relative z-0 grid grid-cols-2 gap-2 border-b border-stone-200 bg-stone-50 p-3 md:grid-cols-3 xl:grid-cols-5 dark:border-neutral-700 dark:bg-neutral-900/40"
+        class="relative z-0 grid grid-cols-1 gap-2 border-b border-stone-200 bg-stone-50 p-3 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 dark:border-neutral-700 dark:bg-neutral-900/40"
         aria-label="Tabs"
         role="tablist"
         aria-orientation="horizontal"
@@ -67,11 +67,11 @@ const stat = (key, fallback = 0) => props.stats?.[key] ?? fallback;
             <span class="flex size-9 items-center justify-center rounded-sm bg-rose-500 text-[11px] font-semibold text-white">
                 AW
             </span>
-            <span class="flex flex-col leading-tight">
-                <span class="text-[11px] font-semibold uppercase tracking-wide text-stone-600 dark:text-neutral-300">
+            <span class="flex min-w-0 flex-col leading-tight">
+                <span class="truncate text-[11px] font-semibold uppercase tracking-wide text-stone-600 dark:text-neutral-300">
                     Active works
                 </span>
-                <span class="text-xs text-stone-500 dark:text-neutral-400">
+                <span class="truncate text-xs text-stone-500 dark:text-neutral-400">
                     {{ stat('active_works', activeWorks.length) }} items
                 </span>
             </span>
@@ -89,11 +89,11 @@ const stat = (key, fallback = 0) => props.stats?.[key] ?? fallback;
             <span class="flex size-9 items-center justify-center rounded-sm bg-amber-500 text-[11px] font-semibold text-white">
                 RQ
             </span>
-            <span class="flex flex-col leading-tight">
-                <span class="text-[11px] font-semibold uppercase tracking-wide text-stone-600 dark:text-neutral-300">
+            <span class="flex min-w-0 flex-col leading-tight">
+                <span class="truncate text-[11px] font-semibold uppercase tracking-wide text-stone-600 dark:text-neutral-300">
                     Requests
                 </span>
-                <span class="text-xs text-stone-500 dark:text-neutral-400">
+                <span class="truncate text-xs text-stone-500 dark:text-neutral-400">
                     {{ stat('requests', customer?.requests?.length ?? 0) }} items
                 </span>
             </span>
@@ -111,11 +111,11 @@ const stat = (key, fallback = 0) => props.stats?.[key] ?? fallback;
             <span class="flex size-9 items-center justify-center rounded-sm bg-sky-500 text-[11px] font-semibold text-white">
                 QT
             </span>
-            <span class="flex flex-col leading-tight">
-                <span class="text-[11px] font-semibold uppercase tracking-wide text-stone-600 dark:text-neutral-300">
+            <span class="flex min-w-0 flex-col leading-tight">
+                <span class="truncate text-[11px] font-semibold uppercase tracking-wide text-stone-600 dark:text-neutral-300">
                     Quotes
                 </span>
-                <span class="text-xs text-stone-500 dark:text-neutral-400">
+                <span class="truncate text-xs text-stone-500 dark:text-neutral-400">
                     {{ stat('quotes', customer?.quotes?.length ?? 0) }} items
                 </span>
             </span>
@@ -133,11 +133,11 @@ const stat = (key, fallback = 0) => props.stats?.[key] ?? fallback;
             <span class="flex size-9 items-center justify-center rounded-sm bg-emerald-500 text-[11px] font-semibold text-white">
                 JB
             </span>
-            <span class="flex flex-col leading-tight">
-                <span class="text-[11px] font-semibold uppercase tracking-wide text-stone-600 dark:text-neutral-300">
+            <span class="flex min-w-0 flex-col leading-tight">
+                <span class="truncate text-[11px] font-semibold uppercase tracking-wide text-stone-600 dark:text-neutral-300">
                     Jobs
                 </span>
-                <span class="text-xs text-stone-500 dark:text-neutral-400">
+                <span class="truncate text-xs text-stone-500 dark:text-neutral-400">
                     {{ stat('jobs', customer?.works?.length ?? 0) }} items
                 </span>
             </span>
@@ -155,11 +155,11 @@ const stat = (key, fallback = 0) => props.stats?.[key] ?? fallback;
             <span class="flex size-9 items-center justify-center rounded-sm bg-cyan-500 text-[11px] font-semibold text-white">
                 IV
             </span>
-            <span class="flex flex-col leading-tight">
-                <span class="text-[11px] font-semibold uppercase tracking-wide text-stone-600 dark:text-neutral-300">
+            <span class="flex min-w-0 flex-col leading-tight">
+                <span class="truncate text-[11px] font-semibold uppercase tracking-wide text-stone-600 dark:text-neutral-300">
                     Invoices
                 </span>
-                <span class="text-xs text-stone-500 dark:text-neutral-400">
+                <span class="truncate text-xs text-stone-500 dark:text-neutral-400">
                     {{ stat('invoices', customer?.invoices?.length ?? 0) }} items
                 </span>
             </span>

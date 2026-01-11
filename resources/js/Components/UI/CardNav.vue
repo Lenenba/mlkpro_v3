@@ -180,7 +180,7 @@ const defaultPropertyId = computed(() => {
             <!-- End Tab Nav -->
 
             <!-- Tab Content -->
-            <div class="p-5">
+            <div class="p-4 sm:p-5">
                 <div v-if="!hasTabs"
                     class="rounded-sm border border-stone-200 bg-white p-4 text-sm text-stone-500 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-400">
                     No modules are enabled for this plan.
@@ -189,14 +189,14 @@ const defaultPropertyId = computed(() => {
                     <!-- Tab Content Item -->
                     <div v-if="canJobs" id="bar-with-underline-1" role="tabpanel" aria-labelledby="bar-with-underline-item-1"
                         :class="{ hidden: !isDefault('active_works') }">
-                        <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+                        <div class="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                             <div class="text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">
                                 Active works
                             </div>
-                            <div class="flex items-center gap-2">
+                            <div class="flex w-full items-center gap-2 sm:w-auto">
                                 <span class="text-xs text-stone-500 dark:text-neutral-400">Status</span>
                                 <select v-model="filters.active_works"
-                                    class="py-1.5 ps-2.5 pe-8 rounded-sm border border-stone-200 bg-white text-xs text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
+                                    class="w-full rounded-sm border border-stone-200 bg-white py-1.5 ps-2.5 pe-8 text-xs text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 sm:w-auto">
                                     <option v-for="option in filterOptions.active_works" :key="option.value" :value="option.value">
                                         {{ option.label }}
                                     </option>
@@ -219,14 +219,14 @@ const defaultPropertyId = computed(() => {
                     <!-- Tab Content Item -->
                     <div v-if="canRequests" id="bar-with-underline-2" role="tabpanel"
                         aria-labelledby="bar-with-underline-item-2" :class="{ hidden: !isDefault('requests') }">
-                        <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+                        <div class="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                             <div class="text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">
                                 Requests
                             </div>
-                            <div class="flex items-center gap-2">
+                            <div class="flex w-full items-center gap-2 sm:w-auto">
                                 <span class="text-xs text-stone-500 dark:text-neutral-400">Status</span>
                                 <select v-model="filters.requests"
-                                    class="py-1.5 ps-2.5 pe-8 rounded-sm border border-stone-200 bg-white text-xs text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
+                                    class="w-full rounded-sm border border-stone-200 bg-white py-1.5 ps-2.5 pe-8 text-xs text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 sm:w-auto">
                                     <option v-for="option in filterOptions.requests" :key="option.value" :value="option.value">
                                         {{ option.label }}
                                     </option>
@@ -253,14 +253,14 @@ const defaultPropertyId = computed(() => {
                     <!-- Tab Content Item -->
                     <div v-if="canQuotes" id="bar-with-underline-3" role="tabpanel"
                         aria-labelledby="bar-with-underline-item-3" :class="{ hidden: !isDefault('quotes') }">
-                        <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+                        <div class="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                             <div class="text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">
                                 Quotes
                             </div>
-                            <div class="flex items-center gap-2">
+                            <div class="flex w-full items-center gap-2 sm:w-auto">
                                 <span class="text-xs text-stone-500 dark:text-neutral-400">Status</span>
                                 <select v-model="filters.quotes"
-                                    class="py-1.5 ps-2.5 pe-8 rounded-sm border border-stone-200 bg-white text-xs text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
+                                    class="w-full rounded-sm border border-stone-200 bg-white py-1.5 ps-2.5 pe-8 text-xs text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 sm:w-auto">
                                     <option v-for="option in filterOptions.quotes" :key="option.value" :value="option.value">
                                         {{ option.label }}
                                     </option>
@@ -282,14 +282,14 @@ const defaultPropertyId = computed(() => {
                     <!-- Tab Content Item -->
                     <div v-if="canJobs" id="bar-with-underline-4" role="tabpanel"
                         aria-labelledby="bar-with-underline-item-4" :class="{ hidden: !isDefault('jobs') }">
-                        <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+                        <div class="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                             <div class="text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">
                                 Jobs
                             </div>
-                            <div class="flex items-center gap-2">
+                            <div class="flex w-full items-center gap-2 sm:w-auto">
                                 <span class="text-xs text-stone-500 dark:text-neutral-400">Status</span>
                                 <select v-model="filters.jobs"
-                                    class="py-1.5 ps-2.5 pe-8 rounded-sm border border-stone-200 bg-white text-xs text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
+                                    class="w-full rounded-sm border border-stone-200 bg-white py-1.5 ps-2.5 pe-8 text-xs text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 sm:w-auto">
                                     <option v-for="option in filterOptions.jobs" :key="option.value" :value="option.value">
                                         {{ option.label }}
                                     </option>
@@ -311,14 +311,14 @@ const defaultPropertyId = computed(() => {
                     <!-- Tab Content Item -->
                     <div v-if="canInvoices" id="bar-with-underline-5" role="tabpanel"
                         aria-labelledby="bar-with-underline-item-5" :class="{ hidden: !isDefault('invoices') }">
-                        <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+                        <div class="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                             <div class="text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">
                                 Invoices
                             </div>
-                            <div class="flex items-center gap-2">
+                            <div class="flex w-full items-center gap-2 sm:w-auto">
                                 <span class="text-xs text-stone-500 dark:text-neutral-400">Status</span>
                                 <select v-model="filters.invoices"
-                                    class="py-1.5 ps-2.5 pe-8 rounded-sm border border-stone-200 bg-white text-xs text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
+                                    class="w-full rounded-sm border border-stone-200 bg-white py-1.5 ps-2.5 pe-8 text-xs text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 sm:w-auto">
                                     <option v-for="option in filterOptions.invoices" :key="option.value" :value="option.value">
                                         {{ option.label }}
                                     </option>

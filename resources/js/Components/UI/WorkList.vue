@@ -130,16 +130,16 @@ const isProcessing = (work) => processingId.value === work?.id;
     <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
         <div v-for="work in workItems" :key="work.id"
             class="overflow-hidden rounded-sm border border-stone-200 bg-white shadow-sm dark:bg-neutral-900 dark:border-neutral-700">
-            <div class="flex items-center justify-between gap-3 border-b border-stone-200 bg-stone-50/60 px-4 py-3 dark:border-neutral-700 dark:bg-neutral-900/40">
-                <div class="flex items-center gap-3">
+            <div class="flex flex-col gap-2 border-b border-stone-200 bg-stone-50/60 px-4 py-3 sm:flex-row sm:items-center sm:justify-between dark:border-neutral-700 dark:bg-neutral-900/40">
+                <div class="flex min-w-0 items-center gap-3">
                     <span class="flex size-9 items-center justify-center rounded-sm bg-emerald-500 text-[11px] font-semibold text-white">
                         JB
                     </span>
-                    <div>
-                        <div class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                    <div class="min-w-0">
+                        <div class="truncate text-sm font-semibold text-stone-800 dark:text-neutral-100">
                             {{ work.job_title || 'Job' }}
                         </div>
-                        <div class="text-xs text-stone-500 dark:text-neutral-400">
+                        <div class="truncate text-xs text-stone-500 dark:text-neutral-400">
                             #{{ work.number || work.id }}
                         </div>
                     </div>
@@ -306,15 +306,15 @@ const isProcessing = (work) => processingId.value === work?.id;
             </div>
 
             <div class="divide-y divide-stone-200 px-4 py-2 text-xs text-stone-500 dark:divide-neutral-700 dark:text-neutral-400">
-                <div class="flex items-center justify-between py-2">
+                <div class="flex flex-col gap-1 py-2 sm:flex-row sm:items-center sm:justify-between">
                     <span>{{ workDateLabel(work) }}</span>
-                    <span class="text-sm font-semibold text-stone-800 dark:text-neutral-200">
+                    <span class="text-sm font-semibold text-stone-800 dark:text-neutral-200 sm:text-right">
                         {{ workDateValue(work) }}
                     </span>
                 </div>
-                <div class="flex items-center justify-between py-2">
+                <div class="flex flex-col gap-1 py-2 sm:flex-row sm:items-center sm:justify-between">
                     <span>Status</span>
-                    <div class="flex items-center gap-2">
+                    <div class="flex flex-wrap items-center gap-2 sm:justify-end">
                         <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold"
                             :class="statusPillClass(work.status)">
                             {{ formatStatus(work.status) }}
