@@ -200,6 +200,28 @@ class CustomerController extends Controller
      * @param  \App\Models\Customer  $customer
      * @return \Inertia\Response
      */
+    public function edit(Customer $customer, ?Request $request)
+    {
+        $this->authorize('update', $customer);
+
+        $user = $request?->user();
+        if ($user) {
+            $this->resolveCustomerAccount($user);
+        }
+
+        $customer->load('properties');
+
+        return $this->inertiaOrJson('Customer/Create', [
+            'customer' => $customer,
+        ]);
+    }
+
+    /**
+     * Display the specified customer.
+     *
+     * @param  \App\Models\Customer  $customer
+     * @return \Inertia\Response
+     */
     public function show(Customer $customer, ?Request $request)
     {
         $this->authorize('view', $customer);
@@ -210,6 +232,7 @@ class CustomerController extends Controller
         if ($user) {
             [$accountOwner, $accountId] = $this->resolveCustomerAccount($user);
         }
+        $canEdit = $user ? $user->can('update', $customer) : false;
         $isProductAccount = $accountOwner && $accountOwner->company_type === 'products';
 
         // Valider les filtres uniquement si la requête contient des données
@@ -629,6 +652,7 @@ class CustomerController extends Controller
 
         return $this->inertiaOrJson('Customer/Show', [
             'customer' => $customer,
+            'canEdit' => $canEdit,
             'works' => $works,
             'filters' => $filters,
             'stats' => $stats,
@@ -769,7 +793,13 @@ class CustomerController extends Controller
         [$accountOwner, $accountId] = $this->resolveCustomerAccount($user);
 
         $validated = $request->validated();
-        $validated['logo'] = FileHandler::handleImageUpload('customers', $request, 'logo', 'customers/customer.png');
+        $defaultLogo = config('icon_presets.defaults.company', Customer::DEFAULT_LOGO_PATH);
+        $logoPath = FileHandler::handleImageUpload('customers', $request, 'logo', $defaultLogo);
+        if (!empty($validated['logo_icon']) && !$request->hasFile('logo')) {
+            $logoPath = $validated['logo_icon'];
+        }
+        $validated['logo'] = $logoPath;
+        unset($validated['logo_icon']);
         $validated['header_image'] = FileHandler::handleImageUpload('customers', $request, 'header_image', 'customers/customer.png');
         $portalAccess = array_key_exists('portal_access', $validated)
             ? (bool) $validated['portal_access']
@@ -840,7 +870,13 @@ class CustomerController extends Controller
         [$accountOwner, $accountId] = $this->resolveCustomerAccount($user, true);
 
         $validated = $request->validated();
-        $validated['logo'] = FileHandler::handleImageUpload('customers', $request, 'logo', 'customers/customer.png');
+        $defaultLogo = config('icon_presets.defaults.company', Customer::DEFAULT_LOGO_PATH);
+        $logoPath = FileHandler::handleImageUpload('customers', $request, 'logo', $defaultLogo);
+        if (!empty($validated['logo_icon']) && !$request->hasFile('logo')) {
+            $logoPath = $validated['logo_icon'];
+        }
+        $validated['logo'] = $logoPath;
+        unset($validated['logo_icon']);
         $validated['header_image'] = FileHandler::handleImageUpload('customers', $request, 'header_image', 'customers/customer.png');
         $portalAccess = array_key_exists('portal_access', $validated)
             ? (bool) $validated['portal_access']
@@ -926,13 +962,28 @@ class CustomerController extends Controller
         $this->authorize('update', $customer);
 
         $validated = $request->validated();
+        $defaultLogo = config('icon_presets.defaults.company', Customer::DEFAULT_LOGO_PATH);
         $validated['logo'] = FileHandler::handleImageUpload(
             'customers',
             $request,
             'logo',
-            'customers/customer.png',
+            $defaultLogo,
             $customer->logo
         );
+        if (!empty($validated['logo_icon']) && !$request->hasFile('logo')) {
+            if (
+                $customer->logo
+                && $customer->logo !== $validated['logo_icon']
+                && !str_starts_with($customer->logo, '/')
+                && !str_starts_with($customer->logo, 'http://')
+                && !str_starts_with($customer->logo, 'https://')
+                && $customer->logo !== $defaultLogo
+            ) {
+                FileHandler::deleteFile($customer->logo, $defaultLogo);
+            }
+            $validated['logo'] = $validated['logo_icon'];
+        }
+        unset($validated['logo_icon']);
         $validated['header_image'] = FileHandler::handleImageUpload(
             'customers',
             $request,
@@ -990,7 +1041,7 @@ class CustomerController extends Controller
     {
         $this->authorize('delete', $customer);
 
-        FileHandler::deleteFile($customer->logo, 'customers/customer.png');
+        FileHandler::deleteFile($customer->logo, Customer::DEFAULT_LOGO_PATH);
         FileHandler::deleteFile($customer->header_image, 'customers/customer.png');
         ActivityLog::record($request->user(), $customer, 'deleted', [
             'company_name' => $customer->company_name,
@@ -1107,7 +1158,7 @@ class CustomerController extends Controller
 
         foreach ($customers as $customer) {
             $this->authorize('delete', $customer);
-            FileHandler::deleteFile($customer->logo, 'customers/customer.png');
+            FileHandler::deleteFile($customer->logo, Customer::DEFAULT_LOGO_PATH);
             FileHandler::deleteFile($customer->header_image, 'customers/customer.png');
             $customer->delete();
         }

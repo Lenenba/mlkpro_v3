@@ -70,6 +70,10 @@ class User extends Authenticatable
         'remember_token',
     ];
 
+    protected $appends = [
+        'profile_picture_url',
+    ];
+
     /**
      * Get the attributes that should be cast.
      *
@@ -228,6 +232,28 @@ class User extends Authenticatable
         $path = $this->company_logo ?: 'customers/customer.png';
 
         if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
+            return $path;
+        }
+
+        if (str_starts_with($path, '/')) {
+            return $path;
+        }
+
+        return Storage::disk('public')->url($path);
+    }
+
+    public function getProfilePictureUrlAttribute(): ?string
+    {
+        $path = $this->profile_picture;
+        if (!$path) {
+            return null;
+        }
+
+        if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
+            return $path;
+        }
+
+        if (str_starts_with($path, '/')) {
             return $path;
         }
 

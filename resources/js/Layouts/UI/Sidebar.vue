@@ -7,6 +7,7 @@ import MenuDropdown from "@/Components/UI/LinkAncor2.vue";
 import QuickCreateModals from "@/Components/QuickCreate/QuickCreateModals.vue";
 import NotificationBell from "@/Components/UI/NotificationBell.vue";
 import { isFeatureEnabled } from '@/utils/features';
+import { defaultAvatarIcon } from '@/utils/iconPresets';
 
 const page = usePage()
 const companyType = computed(() => page.props.auth?.account?.company?.type ?? null);
@@ -32,7 +33,11 @@ const canQuotes = computed(() =>
 const isSeller = computed(() => teamRole.value === 'seller');
 const userName = computed(() => page.props.auth?.user?.name || '');
 const userEmail = computed(() => page.props.auth?.user?.email || '');
-const avatarUrl = computed(() => page.props.auth?.user?.profile_picture || '');
+const avatarUrl = computed(() =>
+    page.props.auth?.user?.profile_picture_url
+    || page.props.auth?.user?.profile_picture
+    || defaultAvatarIcon
+);
 const unreadCount = computed(() => page.props.notifications?.unread_count || 0);
 const hasUnread = computed(() => unreadCount.value > 0);
 const showNotifications = computed(() => Boolean(page.props.notifications));

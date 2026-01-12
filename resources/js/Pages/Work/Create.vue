@@ -382,13 +382,20 @@ const calendarOptions = computed(() => ({
         center: 'title',
         right: 'timeGridWeek,dayGridMonth', // Options de vue semaine/mois
     },
+    height: 'auto',
+    dayMaxEventRows: 2,
+    eventDisplay: 'block',
     events: filteredEvents.value, // Assignation des events au calendrier
     dateClick(info) {
         const clickedDate = dayjs(info.date).format('YYYY-MM-DD');
         form.start_date = clickedDate;
     },
     eventClassNames(info) {
-        return info.event.extendedProps?.preview ? ['preview-event'] : [];
+        const classes = ['calendar-event'];
+        if (info.event.extendedProps?.preview) {
+            classes.push('preview-event');
+        }
+        return classes;
     },
     eventClick(arg) {
         if (arg.event.extendedProps?.preview) {
@@ -795,18 +802,21 @@ onBeforeUnmount(() => {
                                             </div>
                                             <!-- Deuxième div (2/3) -->
                                             <div class="col-span-2 order-2">
-                                                <div class="flex items-center justify-between mb-2">
-                                                    <div>
-                                                        <div class="text-sm font-semibold text-stone-700 dark:text-neutral-300">
-                                                            Calendrier
+                                                <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-3">
+                                                    <div class="flex items-start gap-2">
+                                                        <span class="mt-1 h-2 w-2 rounded-full bg-emerald-500"></span>
+                                                        <div>
+                                                            <div class="text-sm font-semibold text-stone-700 dark:text-neutral-300">
+                                                                Calendrier
+                                                            </div>
+                                                            <p class="text-xs text-stone-500 dark:text-neutral-500">
+                                                                Le calendrier affiche les interventions deja planifiees.
+                                                            </p>
                                                         </div>
-                                                        <p class="text-xs text-stone-500 dark:text-neutral-500">
-                                                            Le calendrier affiche les interventions deja planifiees.
-                                                        </p>
                                                     </div>
-                                                    <div>
+                                                    <div class="flex items-center">
                                                         <select v-model="calendarTeamFilter"
-                                                            class="py-1.5 ps-2 pe-8 bg-white border border-stone-200 rounded-sm text-xs text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-700 dark:text-neutral-200">
+                                                            class="h-8 w-full rounded-md border border-stone-200 bg-white/90 px-2 pe-8 text-[11px] text-stone-700 shadow-sm focus:border-emerald-500 focus:ring-emerald-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200 sm:w-auto">
                                                             <option value="">Tous les membres</option>
                                                             <option v-for="member in teamMembers" :key="member.id"
                                                                 :value="member.id">
@@ -816,7 +826,7 @@ onBeforeUnmount(() => {
                                                     </div>
                                                 </div>
                                                 <div
-                                                    class="rounded-sm border border-stone-200 bg-white p-2 dark:border-neutral-700 dark:bg-neutral-900">
+                                                    class="rounded-md border border-stone-200 bg-white/90 p-3 shadow-sm dark:border-neutral-700 dark:bg-neutral-900/70">
                                                     <FullCalendar :options="calendarOptions"  ref="calendarRef"/>
                                                 </div>
                                             </div>
@@ -1018,18 +1028,21 @@ onBeforeUnmount(() => {
                                         </div>
                                         <!-- Deuxième div (2/3) -->
                                         <div class="col-span-2 order-2">
-                                            <div class="flex items-center justify-between mb-2">
-                                                <div>
-                                                    <div class="text-sm font-semibold text-stone-700 dark:text-neutral-300">
-                                                        Calendrier
+                                            <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-3">
+                                                <div class="flex items-start gap-2">
+                                                    <span class="mt-1 h-2 w-2 rounded-full bg-emerald-500"></span>
+                                                    <div>
+                                                        <div class="text-sm font-semibold text-stone-700 dark:text-neutral-300">
+                                                            Calendrier
+                                                        </div>
+                                                        <p class="text-xs text-stone-500 dark:text-neutral-500">
+                                                            Le calendrier affiche les interventions deja planifiees.
+                                                        </p>
                                                     </div>
-                                                    <p class="text-xs text-stone-500 dark:text-neutral-500">
-                                                        Le calendrier affiche les interventions deja planifiees.
-                                                    </p>
                                                 </div>
-                                                <div>
+                                                <div class="flex items-center">
                                                     <select v-model="calendarTeamFilter"
-                                                        class="py-1.5 ps-2 pe-8 bg-white border border-stone-200 rounded-sm text-xs text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-700 dark:text-neutral-200">
+                                                        class="h-8 w-full rounded-md border border-stone-200 bg-white/90 px-2 pe-8 text-[11px] text-stone-700 shadow-sm focus:border-emerald-500 focus:ring-emerald-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200 sm:w-auto">
                                                         <option value="">Tous les membres</option>
                                                         <option v-for="member in teamMembers" :key="member.id"
                                                             :value="member.id">
@@ -1039,7 +1052,7 @@ onBeforeUnmount(() => {
                                                 </div>
                                             </div>
                                             <div
-                                                class="rounded-sm border border-stone-200 bg-white p-2 dark:border-neutral-700 dark:bg-neutral-900"
+                                                class="rounded-md border border-stone-200 bg-white/90 p-3 shadow-sm dark:border-neutral-700 dark:bg-neutral-900/70"
                                                 data-testid="demo-work-calendar">
                                                 <FullCalendar :options="calendarOptions"   ref="calendarRef"/>
                                             </div>
@@ -1116,13 +1129,154 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
-:deep(.fc-event.preview-event) {
+:deep(.fc) {
+    font-size: 0.75rem;
+}
+
+:deep(.fc .fc-toolbar) {
+    margin-bottom: 0.75rem;
+}
+
+:deep(.fc .fc-toolbar-title) {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #1c1917;
+}
+
+:deep(.dark .fc .fc-toolbar-title) {
+    color: #f5f5f4;
+}
+
+:deep(.fc .fc-button) {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+    border-radius: 0.375rem;
+    border: 1px solid #e7e5e4;
+    background: #ffffff;
+    color: #57534e;
+    box-shadow: none;
+}
+
+:deep(.fc .fc-button:hover) {
+    background: #f5f5f4;
+}
+
+:deep(.fc .fc-button:disabled) {
+    opacity: 0.45;
+}
+
+:deep(.fc .fc-button-primary:not(:disabled).fc-button-active),
+:deep(.fc .fc-button-primary:not(:disabled):active) {
+    background: #10b981;
+    border-color: #10b981;
+    color: #ffffff;
+}
+
+:deep(.dark .fc .fc-button) {
+    border-color: #404040;
+    background: #1f2937;
+    color: #e5e7eb;
+}
+
+:deep(.dark .fc .fc-button:hover) {
+    background: #111827;
+}
+
+:deep(.dark .fc .fc-button-primary:not(:disabled).fc-button-active),
+:deep(.dark .fc .fc-button-primary:not(:disabled):active) {
+    background: #34d399;
+    border-color: #34d399;
+    color: #0f172a;
+}
+
+:deep(.fc .fc-scrollgrid) {
+    border-color: #e7e5e4;
+    border-radius: 0.5rem;
+    overflow: hidden;
+}
+
+:deep(.dark .fc .fc-scrollgrid) {
+    border-color: #404040;
+}
+
+:deep(.fc .fc-col-header-cell) {
+    background: #fafaf9;
+}
+
+:deep(.dark .fc .fc-col-header-cell) {
+    background: #111827;
+}
+
+:deep(.fc .fc-col-header-cell-cushion) {
+    padding: 0.35rem 0.25rem;
+    font-size: 0.7rem;
+    color: #78716c;
+}
+
+:deep(.dark .fc .fc-col-header-cell-cushion) {
+    color: #a3a3a3;
+}
+
+:deep(.fc .fc-daygrid-day) {
+    border-color: #e7e5e4;
+}
+
+:deep(.dark .fc .fc-daygrid-day) {
+    border-color: #404040;
+}
+
+:deep(.fc .fc-daygrid-day-frame) {
+    padding: 0.35rem;
+}
+
+:deep(.fc .fc-daygrid-day-number) {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: #57534e;
+}
+
+:deep(.dark .fc .fc-daygrid-day-number) {
+    color: #d4d4d4;
+}
+
+:deep(.fc .fc-daygrid-day.fc-day-today) {
+    background: #ecfdf5;
+}
+
+:deep(.dark .fc .fc-daygrid-day.fc-day-today) {
+    background: rgba(16, 185, 129, 0.16);
+}
+
+:deep(.fc .fc-daygrid-day.fc-day-today .fc-daygrid-day-number) {
+    color: #047857;
+}
+
+:deep(.dark .fc .fc-daygrid-day.fc-day-today .fc-daygrid-day-number) {
+    color: #a7f3d0;
+}
+
+:deep(.fc .calendar-event) {
+    border-radius: 0.5rem;
+    border: 1px solid #d1fae5;
+    background: #ecfdf5;
+    color: #065f46;
+    padding: 0.1rem 0.35rem;
+    font-size: 0.7rem;
+}
+
+:deep(.dark .fc .calendar-event) {
+    border-color: rgba(16, 185, 129, 0.4);
+    background: rgba(16, 185, 129, 0.15);
+    color: #a7f3d0;
+}
+
+:deep(.fc .calendar-event.preview-event) {
     background-color: #e2e8f0;
     border-color: #cbd5e1;
     color: #334155;
 }
 
-:deep(.dark .fc-event.preview-event) {
+:deep(.dark .fc .calendar-event.preview-event) {
     background-color: #1f2937;
     border-color: #374151;
     color: #e5e7eb;

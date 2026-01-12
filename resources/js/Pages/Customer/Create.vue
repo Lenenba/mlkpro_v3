@@ -3,8 +3,11 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingTextarea from '@/Components/FloatingTextarea.vue';
+import DropzoneInput from '@/Components/DropzoneInput.vue';
+import InputError from '@/Components/InputError.vue';
+import { companyIconPresets, defaultCompanyIcon } from '@/utils/iconPresets';
 import { Link, useForm, Head, usePage } from '@inertiajs/vue3';
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 
 
 const props = defineProps({
@@ -41,6 +44,14 @@ const billingCycles = [
     { id: 'every_n_tasks', name: 'Chaque N taches' },
 ];
 
+const isCompanyIcon = (value) => companyIconPresets.includes(value);
+const initialLogoPath = props.customer?.logo_url || props.customer?.logo || '';
+const initialLogoIcon = isCompanyIcon(props.customer?.logo)
+    ? props.customer.logo
+    : (isCompanyIcon(initialLogoPath) ? initialLogoPath : '');
+const defaultLogoIcon = initialLogoIcon || (isCreating ? defaultCompanyIcon : '');
+const initialLogoPreview = defaultLogoIcon ? '' : initialLogoPath;
+
 const resolvePrimaryProperty = () => {
     const properties = props.customer?.properties;
     const primary = Array.isArray(properties)
@@ -64,7 +75,8 @@ const form = useForm({
     portal_access: props.customer?.portal_access ?? true,
     company_name: props.customer?.company_name || '',
     billing_same_as_physical: props.customer?.billing_same_as_physical || false,
-    logo: props.customer?.logo || '',
+    logo: initialLogoPreview,
+    logo_icon: defaultLogoIcon,
     description: props.customer?.description || '',
     refer_by: props.customer?.refer_by || '',
     salutation: props.customer?.salutation || '',
@@ -82,18 +94,45 @@ const form = useForm({
     auto_validate_invoices: props.customer?.auto_validate_invoices ?? false,
 });
 
+const selectCompanyIcon = (icon) => {
+    form.logo_icon = icon;
+    form.logo = null;
+};
+
+const clearCompanyIcon = () => {
+    form.logo_icon = '';
+};
+
+watch(() => form.logo, (value) => {
+    if (value instanceof File) {
+        form.logo_icon = '';
+    }
+});
 
 const submit = () => {
     const routeName = props.customer?.id ? 'customer.update' : 'customer.store';
     const routeParams = props.customer?.id ? props.customer.id : undefined;
 
-    form[props.customer?.id ? 'put' : 'post'](route(routeName, routeParams), {
-        onSuccess: () => {
-            if (isCreating && typeof window !== 'undefined') {
-                window.dispatchEvent(new CustomEvent('demo:customer_created'));
+    form
+        .transform((data) => {
+            const payload = { ...data };
+            if (data.logo instanceof File) {
+                payload.logo = data.logo;
+            } else {
+                delete payload.logo;
             }
-        },
-    });
+            if (!payload.logo_icon) {
+                delete payload.logo_icon;
+            }
+            return payload;
+        })
+        [props.customer?.id ? 'put' : 'post'](route(routeName, routeParams), {
+            onSuccess: () => {
+                if (isCreating && typeof window !== 'undefined') {
+                    window.dispatchEvent(new CustomEvent('demo:customer_created'));
+                }
+            },
+        });
 };
 
 const isEmpty = (value) => !String(value || '').trim();
@@ -217,12 +256,14 @@ const selectAddress = (details) => {
 </script>
 <template>
 
-    <Head title="Customers" />
+    <Head :title="isCreating ? 'New Client' : 'Edit Client'" />
     <AuthenticatedLayout>
         <div class="grid grid-cols-1 lg:grid-cols-4 gap-1 md:gap-3 lg:gap-1 ">
             <div></div>
             <div>
-                <h1 class="text-xl font-bold text-stone-800 dark:text-white">New Client</h1>
+                <h1 class="text-xl font-bold text-stone-800 dark:text-white">
+                    {{ isCreating ? 'New Client' : 'Edit Client' }}
+                </h1>
             </div>
             <div></div>
             <div></div>
@@ -252,6 +293,41 @@ const selectAddress = (details) => {
                             <FloatingInput v-model="form.last_name" label="Last name" class="w-2/5" :required="true" />
                         </div>
                         <FloatingInput v-model="form.company_name" label="Company name" />
+                        <div class="mt-4 space-y-2">
+                            <label class="text-sm font-semibold text-stone-800 dark:text-white">Company logo</label>
+                            <DropzoneInput v-model="form.logo" label="Upload company logo" />
+                            <InputError class="mt-1" :message="form.errors.logo" />
+                            <div class="mt-3 space-y-2">
+                                <p class="text-xs text-stone-500 dark:text-neutral-400">
+                                    Or choose a company icon
+                                </p>
+                                <div class="grid grid-cols-4 gap-2">
+                                    <button
+                                        v-for="icon in companyIconPresets"
+                                        :key="icon"
+                                        type="button"
+                                        @click="selectCompanyIcon(icon)"
+                                        class="relative flex items-center justify-center rounded-sm border border-stone-200 bg-white p-2 transition hover:border-green-500 dark:border-neutral-700 dark:bg-neutral-900"
+                                        :class="form.logo_icon === icon ? 'ring-2 ring-green-500 border-green-500' : ''"
+                                    >
+                                        <img :src="icon" alt="Company icon" class="size-10" />
+                                        <span
+                                            v-if="icon === defaultCompanyIcon"
+                                            class="absolute top-1 right-1 rounded-full bg-green-600 px-1.5 py-0.5 text-[10px] font-semibold text-white"
+                                        >
+                                            Default
+                                        </span>
+                                    </button>
+                                </div>
+                                <div v-if="form.logo_icon" class="flex justify-end">
+                                    <button type="button" @click="clearCompanyIcon"
+                                        class="text-xs font-semibold text-stone-600 hover:text-stone-800 dark:text-neutral-400 dark:hover:text-neutral-200">
+                                        Clear icon
+                                    </button>
+                                </div>
+                                <InputError class="mt-1" :message="form.errors.logo_icon" />
+                            </div>
+                        </div>
                         <h2 class="pt-4 text-sm  my-2 font-bold text-stone-800 dark:text-white"> Contact details</h2>
                         <FloatingInput v-model="form.phone" label="Phone" />
                         <FloatingInput v-model="form.email" label="Email address" :required="true" />
@@ -521,7 +597,7 @@ const selectAddress = (details) => {
                     </button>
                     <button type="submit" data-testid="demo-customer-save"
                         class="py-1.5 ml-4 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:ring-2 focus:ring-green-500 action-feedback">
-                        Save client
+                        {{ isCreating ? 'Save client' : 'Update client' }}
                     </button>
                 </div>
                 <div></div>

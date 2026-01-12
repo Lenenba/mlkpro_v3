@@ -14,6 +14,8 @@ class Customer extends Model
 {
     use HasFactory, GeneratesSequentialNumber, Notifiable;
 
+    public const DEFAULT_LOGO_PATH = '/images/presets/company-1.svg';
+
     /**
      * The attributes that are mass assignable.
      *
@@ -185,9 +187,13 @@ class Customer extends Model
 
     public function getLogoUrlAttribute(): ?string
     {
-        $path = $this->logo ?: 'customers/customer.png';
+        $path = $this->logo ?: self::DEFAULT_LOGO_PATH;
 
         if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
+            return $path;
+        }
+
+        if (str_starts_with($path, '/')) {
             return $path;
         }
 
@@ -199,6 +205,10 @@ class Customer extends Model
         $path = $this->header_image ?: 'customers/customer.png';
 
         if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
+            return $path;
+        }
+
+        if (str_starts_with($path, '/')) {
             return $path;
         }
 

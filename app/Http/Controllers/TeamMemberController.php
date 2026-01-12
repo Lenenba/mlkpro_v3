@@ -6,12 +6,14 @@ use App\Models\Role;
 use App\Models\TeamMember;
 use App\Models\User;
 use App\Notifications\InviteUserNotification;
+use App\Utils\FileHandler;
 use App\Services\UsageLimitService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 
 class TeamMemberController extends Controller
 {
@@ -74,6 +76,13 @@ class TeamMemberController extends Controller
             'phone' => 'nullable|string|max:255',
             'permissions' => 'nullable|array',
             'permissions.*' => ['string', 'in:' . implode(',', $allowedPermissions)],
+            'profile_picture' => 'nullable|image|mimes:jpg,jpeg,png,svg|max:2048',
+            'avatar_icon' => [
+                'nullable',
+                'string',
+                'max:255',
+                Rule::in(config('icon_presets.avatar_icons', [])),
+            ],
         ]);
 
         $roleId = Role::where('name', 'employee')->value('id');
@@ -84,6 +93,14 @@ class TeamMemberController extends Controller
             ])->id;
         }
 
+        $defaultAvatar = config('icon_presets.defaults.avatar');
+        $profilePicture = $defaultAvatar;
+        if ($request->hasFile('profile_picture')) {
+            $profilePicture = FileHandler::handleImageUpload('team', $request, 'profile_picture', $defaultAvatar);
+        } elseif (!empty($validated['avatar_icon'])) {
+            $profilePicture = $validated['avatar_icon'];
+        }
+
         $memberUser = User::create([
             'name' => $validated['name'],
             'email' => $validated['email'],
@@ -91,6 +108,7 @@ class TeamMemberController extends Controller
             'role_id' => $roleId,
             'email_verified_at' => now(),
             'must_change_password' => true,
+            'profile_picture' => $profilePicture,
         ]);
 
         $permissions = array_values($validated['permissions'] ?? []);
@@ -149,6 +167,13 @@ class TeamMemberController extends Controller
             'permissions' => 'nullable|array',
             'permissions.*' => ['string', 'in:' . implode(',', $allowedPermissions)],
             'is_active' => 'nullable|boolean',
+            'profile_picture' => 'nullable|image|mimes:jpg,jpeg,png,svg|max:2048',
+            'avatar_icon' => [
+                'nullable',
+                'string',
+                'max:255',
+                Rule::in(config('icon_presets.avatar_icons', [])),
+            ],
         ]);
 
         $memberUser = $teamMember->user;
@@ -165,6 +190,28 @@ class TeamMemberController extends Controller
         }
         if (!empty($validated['password'])) {
             $userUpdates['password'] = Hash::make($validated['password']);
+        }
+        $defaultAvatar = config('icon_presets.defaults.avatar');
+        if ($request->hasFile('profile_picture')) {
+            $userUpdates['profile_picture'] = FileHandler::handleImageUpload(
+                'team',
+                $request,
+                'profile_picture',
+                $defaultAvatar,
+                $memberUser->profile_picture
+            );
+        } elseif (!empty($validated['avatar_icon'])) {
+            if (
+                $memberUser->profile_picture
+                && $memberUser->profile_picture !== $validated['avatar_icon']
+                && !str_starts_with($memberUser->profile_picture, '/')
+                && !str_starts_with($memberUser->profile_picture, 'http://')
+                && !str_starts_with($memberUser->profile_picture, 'https://')
+                && $memberUser->profile_picture !== $defaultAvatar
+            ) {
+                FileHandler::deleteFile($memberUser->profile_picture, $defaultAvatar);
+            }
+            $userUpdates['profile_picture'] = $validated['avatar_icon'];
         }
         if ($userUpdates) {
             $memberUser->update($userUpdates);

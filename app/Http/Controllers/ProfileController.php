@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\ProfileUpdateRequest;
+use App\Utils\FileHandler;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -26,18 +27,47 @@ class ProfileController extends Controller
      */
     public function update(ProfileUpdateRequest $request)
     {
-        $request->user()->fill($request->validated());
+        $user = $request->user();
+        $validated = $request->validated();
 
-        if ($request->user()->isDirty('email')) {
-            $request->user()->email_verified_at = null;
+        $user->fill([
+            'name' => $validated['name'],
+            'email' => $validated['email'],
+        ]);
+
+        if ($user->isDirty('email')) {
+            $user->email_verified_at = null;
         }
 
-        $request->user()->save();
+        $defaultAvatar = config('icon_presets.defaults.avatar');
+        if ($request->hasFile('profile_picture')) {
+            $user->profile_picture = FileHandler::handleImageUpload(
+                'team',
+                $request,
+                'profile_picture',
+                $defaultAvatar,
+                $user->profile_picture
+            );
+        } elseif (!empty($validated['avatar_icon'])) {
+            if (
+                $user->profile_picture
+                && $user->profile_picture !== $validated['avatar_icon']
+                && !str_starts_with($user->profile_picture, '/')
+                && !str_starts_with($user->profile_picture, 'http://')
+                && !str_starts_with($user->profile_picture, 'https://')
+                && $user->profile_picture !== $defaultAvatar
+            ) {
+                FileHandler::deleteFile($user->profile_picture, $defaultAvatar);
+            }
+            $user->profile_picture = $validated['avatar_icon'];
+        }
+
+        $user->save();
 
         if ($this->shouldReturnJson($request)) {
             return response()->json([
                 'message' => 'Profile updated.',
-                'user' => $request->user()->fresh(),
+                'user' => $user->fresh(),
             ]);
         }
 
