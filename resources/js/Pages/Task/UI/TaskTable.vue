@@ -443,11 +443,48 @@ const statusClasses = (status) => {
         case 'todo':
             return 'bg-amber-100 text-amber-800 dark:bg-amber-500/10 dark:text-amber-300';
         case 'in_progress':
-            return 'bg-blue-100 text-blue-800 dark:bg-blue-500/10 dark:text-blue-400';
+            return 'bg-sky-100 text-sky-800 dark:bg-sky-500/10 dark:text-sky-400';
         case 'done':
             return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-400';
         default:
             return 'bg-stone-200 text-stone-700 dark:bg-neutral-700 dark:text-neutral-300';
+    }
+};
+
+const statusTone = (status) => {
+    switch (status) {
+        case 'todo':
+            return {
+                bar: 'border-t-amber-400',
+                dot: 'bg-amber-500',
+                text: 'text-amber-700 dark:text-amber-200',
+                badge: 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-200',
+                card: 'border-l-amber-400',
+            };
+        case 'in_progress':
+            return {
+                bar: 'border-t-sky-400',
+                dot: 'bg-sky-500',
+                text: 'text-sky-700 dark:text-sky-200',
+                badge: 'bg-sky-100 text-sky-700 dark:bg-sky-500/20 dark:text-sky-200',
+                card: 'border-l-sky-400',
+            };
+        case 'done':
+            return {
+                bar: 'border-t-emerald-400',
+                dot: 'bg-emerald-500',
+                text: 'text-emerald-700 dark:text-emerald-200',
+                badge: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-200',
+                card: 'border-l-emerald-400',
+            };
+        default:
+            return {
+                bar: 'border-t-stone-300',
+                dot: 'bg-stone-400',
+                text: 'text-stone-600 dark:text-neutral-300',
+                badge: 'bg-stone-200 text-stone-600 dark:bg-neutral-700 dark:text-neutral-300',
+                card: 'border-l-stone-300',
+            };
     }
 };
 
@@ -930,13 +967,17 @@ const submitProof = () => {
                 <div
                     v-for="status in boardStatuses"
                     :key="`skeleton-${status}`"
-                    class="flex flex-col rounded-sm border border-stone-200 bg-stone-50 shadow-sm dark:border-neutral-700 dark:bg-neutral-900"
+                    class="flex flex-col rounded-sm border border-stone-200 border-t-4 bg-stone-50/80 shadow-sm dark:border-neutral-700 dark:bg-neutral-900"
+                    :class="statusTone(status).bar"
                 >
                     <div class="flex items-center justify-between border-b border-stone-200 px-3 py-2 dark:border-neutral-700">
-                        <span class="text-xs font-semibold uppercase text-stone-400 dark:text-neutral-500">
-                            {{ statusLabel(status) || status }}
-                        </span>
-                        <div class="h-4 w-8 rounded-sm bg-stone-200 dark:bg-neutral-800"></div>
+                        <div class="flex items-center gap-2">
+                            <span class="size-2.5 rounded-sm" :class="statusTone(status).dot"></span>
+                            <span class="text-xs font-semibold uppercase" :class="statusTone(status).text">
+                                {{ statusLabel(status) || status }}
+                            </span>
+                        </div>
+                        <div class="h-4 w-8 rounded-full bg-stone-200 dark:bg-neutral-800"></div>
                     </div>
                     <div class="space-y-2 p-3 animate-pulse">
                         <div v-for="row in 3" :key="`skeleton-${status}-${row}`"
@@ -961,13 +1002,17 @@ const submitProof = () => {
                 <div
                     v-for="status in boardStatuses"
                     :key="status"
-                    class="flex flex-col rounded-sm border border-stone-200 bg-stone-50 shadow-sm transition-colors duration-150 dark:border-neutral-700 dark:bg-neutral-900"
+                    class="flex flex-col rounded-sm border border-stone-200 border-t-4 bg-stone-50/80 shadow-sm transition-colors duration-150 dark:border-neutral-700 dark:bg-neutral-900"
+                    :class="statusTone(status).bar"
                 >
                     <div class="flex items-center justify-between border-b border-stone-200 px-3 py-2 dark:border-neutral-700">
-                        <span class="text-xs font-semibold uppercase text-stone-500 dark:text-neutral-400">
-                            {{ statusLabel(status) || status }}
-                        </span>
-                        <span class="rounded-full bg-stone-200 px-2 py-0.5 text-[11px] font-semibold text-stone-600 dark:bg-neutral-800 dark:text-neutral-300">
+                        <div class="flex items-center gap-2">
+                            <span class="size-2.5 rounded-sm" :class="statusTone(status).dot"></span>
+                            <span class="text-xs font-semibold uppercase" :class="statusTone(status).text">
+                                {{ statusLabel(status) || status }}
+                            </span>
+                        </div>
+                        <span class="rounded-full px-2 py-0.5 text-[11px] font-semibold" :class="statusTone(status).badge">
                             {{ boardTasks[status]?.length || 0 }}
                         </span>
                     </div>
@@ -987,15 +1032,16 @@ const submitProof = () => {
                         :disabled="!canChangeStatus"
                         :move="handleBoardMove"
                         :handle="dragHandle"
-                        class="flex-1 space-y-2 p-3 min-h-[140px]"
+                        class="flex-1 space-y-2 p-2.5 min-h-[120px]"
                         @start="handleBoardStart"
                         @end="handleBoardEnd"
                         @change="handleBoardChange(status, $event)"
                     >
                         <template #item="{ element: task }">
                             <div
-                                class="rounded-sm border border-stone-200 bg-white p-3 shadow-sm transition-shadow transition-transform duration-150 hover:shadow-md dark:border-neutral-700 dark:bg-neutral-800 select-none"
+                                class="rounded-md border border-stone-200 border-l-4 bg-white p-2.5 shadow-sm transition-shadow transition-transform duration-150 hover:shadow-md dark:border-neutral-700 dark:bg-neutral-800 select-none"
                                 :class="[
+                                    statusTone(task.status).card,
                                     isTaskLocked(task) ? 'opacity-70' : '',
                                     'cursor-pointer',
                                 ]"
@@ -1008,7 +1054,7 @@ const submitProof = () => {
                                 <div class="flex items-start gap-2 min-w-0">
                                     <span
                                         v-if="canChangeStatus && !isTaskLocked(task)"
-                                        class="task-drag-handle mt-0.5 inline-flex size-6 items-center justify-center rounded-sm border border-stone-200 bg-stone-50 text-stone-400 hover:text-stone-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-500 cursor-grab active:cursor-grabbing"
+                                        class="task-drag-handle mt-0.5 inline-flex size-5 items-center justify-center rounded-md border border-stone-200 bg-stone-100 text-stone-400 hover:text-stone-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-500 cursor-grab active:cursor-grabbing"
                                         @click.stop
                                     >
                                         <svg class="size-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
@@ -1094,7 +1140,7 @@ const submitProof = () => {
                                     </div>
                                 </div>
                             </div>
-                            <div class="mt-3 flex flex-wrap items-center gap-2 text-[11px] text-stone-500 dark:text-neutral-400">
+                            <div class="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-stone-500 dark:text-neutral-400">
                                 <span class="inline-flex items-center rounded-full px-2 py-0.5 font-semibold"
                                     :class="statusClasses(task.status)">
                                     {{ statusLabel(task.status) || 'todo' }}
@@ -1125,7 +1171,7 @@ const submitProof = () => {
                     <template #footer>
                         <div
                             v-if="!boardTasks[status]?.length"
-                            class="rounded-sm border border-dashed border-stone-200 bg-white px-3 py-6 text-center text-xs text-stone-500 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-400"
+                            class="rounded-md border border-dashed border-stone-200 bg-white/80 px-3 py-6 text-center text-xs text-stone-500 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-400"
                         >
                             No tasks
                         </div>
@@ -1141,7 +1187,7 @@ const submitProof = () => {
     >
         <template v-if="isLoading">
             <div class="space-y-3">
-                <div class="rounded-sm border border-stone-200 bg-white px-3 py-3 dark:border-neutral-700 dark:bg-neutral-800">
+                <div class="rounded-md border border-stone-200 bg-white px-3 py-3 dark:border-neutral-700 dark:bg-neutral-800">
                     <div class="flex items-center justify-between animate-pulse">
                         <div class="h-4 w-24 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
                         <div class="h-6 w-32 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
@@ -1149,7 +1195,7 @@ const submitProof = () => {
                 </div>
                 <div class="space-y-2 animate-pulse">
                     <div v-for="row in 4" :key="`schedule-skeleton-${row}`"
-                        class="rounded-sm border border-stone-200 bg-white p-3 shadow-sm dark:border-neutral-700 dark:bg-neutral-800">
+                        class="rounded-md border border-stone-200 bg-white p-3 shadow-sm dark:border-neutral-700 dark:bg-neutral-800">
                         <div class="h-3 w-1/2 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
                         <div class="mt-2 h-3 w-2/3 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
                         <div class="mt-3 flex flex-wrap gap-2">
@@ -1160,7 +1206,7 @@ const submitProof = () => {
                     </div>
                 </div>
             </div>
-            <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+            <div class="rounded-md border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
                 <div class="flex items-center justify-between animate-pulse">
                     <div class="size-8 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
                     <div class="h-4 w-24 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
@@ -1174,10 +1220,11 @@ const submitProof = () => {
         </template>
         <template v-else>
             <div class="space-y-4">
-                <div v-if="taskList.length" class="flex flex-wrap items-center justify-between gap-2 rounded-sm border border-stone-200 bg-white px-3 py-2 text-xs text-stone-500 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-400">
+                <div v-if="taskList.length" class="flex flex-wrap items-center justify-between gap-3 rounded-md border border-stone-200 bg-stone-50/80 px-3 py-2 text-xs text-stone-500 shadow-sm dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-400">
                     <div class="flex items-center gap-2">
+                        <span class="size-2.5 rounded-sm bg-emerald-500"></span>
                         <span class="font-semibold text-stone-700 dark:text-neutral-200">Schedule</span>
-                        <span class="rounded-full bg-stone-100 px-2 py-0.5 text-[11px] font-semibold text-stone-600 dark:bg-neutral-700 dark:text-neutral-200">
+                        <span class="rounded-full bg-white px-2 py-0.5 text-[11px] font-semibold text-stone-600 shadow-sm dark:bg-neutral-900 dark:text-neutral-200">
                             {{ selectedDateLabel }}
                         </span>
                     </div>
@@ -1186,7 +1233,7 @@ const submitProof = () => {
                         <select
                             v-model="scheduleRange"
                             @change="setScheduleRange(scheduleRange)"
-                            class="rounded-sm border border-stone-200 bg-white px-2 py-1 text-xs text-stone-700 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
+                            class="rounded-md border border-stone-200 bg-white px-2.5 py-1.5 text-xs text-stone-700 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
                         >
                             <option v-for="option in scheduleRangeOptions" :key="option.id" :value="option.id">
                                 {{ option.label }}
@@ -1202,27 +1249,30 @@ const submitProof = () => {
                         </button>
                     </div>
                 </div>
-                <div v-if="!taskList.length" class="rounded-sm border border-dashed border-stone-200 bg-white px-3 py-6 text-center text-xs text-stone-500 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-400">
+                <div v-if="!taskList.length" class="rounded-md border border-dashed border-stone-200 bg-white/80 px-3 py-6 text-center text-xs text-stone-500 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-400">
                     No tasks yet.
                 </div>
                 <div
                     v-else-if="!visibleScheduleGroups.dated.length && !visibleScheduleGroups.undated.length && !selectedDateKey"
-                    class="rounded-sm border border-dashed border-stone-200 bg-white px-3 py-6 text-center text-xs text-stone-500 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-400"
+                    class="rounded-md border border-dashed border-stone-200 bg-white/80 px-3 py-6 text-center text-xs text-stone-500 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-400"
                 >
                     No tasks in this range.
                 </div>
                 <div
                     v-if="taskList.length && selectedDateKey && !visibleScheduleGroups.dated.length"
-                    class="rounded-sm border border-dashed border-stone-200 bg-white px-3 py-6 text-center text-xs text-stone-500 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-400"
+                    class="rounded-md border border-dashed border-stone-200 bg-white/80 px-3 py-6 text-center text-xs text-stone-500 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-400"
                 >
                     No tasks scheduled for {{ selectedDateLabel }}.
                 </div>
                 <div v-for="group in visibleScheduleGroups.dated" :key="group.key" class="space-y-2">
                     <div class="flex items-center justify-between">
-                        <h3 class="text-sm font-semibold text-stone-700 dark:text-neutral-200">
-                            {{ group.label }}
-                        </h3>
-                        <span class="text-xs text-stone-500 dark:text-neutral-400">
+                        <div class="flex items-center gap-2">
+                            <span class="size-2 rounded-sm bg-emerald-500"></span>
+                            <h3 class="text-sm font-semibold text-stone-700 dark:text-neutral-200">
+                                {{ group.label }}
+                            </h3>
+                        </div>
+                        <span class="rounded-full bg-stone-100 px-2 py-0.5 text-[11px] font-semibold text-stone-600 dark:bg-neutral-700 dark:text-neutral-300">
                             {{ group.items.length }} tasks
                         </span>
                     </div>
@@ -1230,8 +1280,9 @@ const submitProof = () => {
                         <div
                             v-for="task in group.items"
                             :key="task.id"
-                            class="rounded-sm border border-stone-200 bg-white p-3 shadow-sm dark:border-neutral-700 dark:bg-neutral-800"
+                            class="rounded-md border border-stone-200 border-l-4 bg-white p-2.5 shadow-sm dark:border-neutral-700 dark:bg-neutral-800"
                             :class="[
+                                statusTone(task.status).card,
                                 isTaskLocked(task) ? 'opacity-70' : '',
                                 'cursor-pointer',
                             ]"
@@ -1347,10 +1398,13 @@ const submitProof = () => {
                 </div>
                 <div v-if="visibleScheduleGroups.undated.length" class="space-y-2">
                     <div class="flex items-center justify-between">
-                        <h3 class="text-sm font-semibold text-stone-700 dark:text-neutral-200">
-                            No due date
-                        </h3>
-                        <span class="text-xs text-stone-500 dark:text-neutral-400">
+                        <div class="flex items-center gap-2">
+                            <span class="size-2 rounded-sm bg-stone-400"></span>
+                            <h3 class="text-sm font-semibold text-stone-700 dark:text-neutral-200">
+                                No due date
+                            </h3>
+                        </div>
+                        <span class="rounded-full bg-stone-100 px-2 py-0.5 text-[11px] font-semibold text-stone-600 dark:bg-neutral-700 dark:text-neutral-300">
                             {{ visibleScheduleGroups.undated.length }} tasks
                         </span>
                     </div>
@@ -1358,8 +1412,9 @@ const submitProof = () => {
                         <div
                             v-for="task in visibleScheduleGroups.undated"
                             :key="task.id"
-                            class="rounded-sm border border-stone-200 bg-white p-3 shadow-sm dark:border-neutral-700 dark:bg-neutral-800"
+                            class="rounded-md border border-stone-200 border-l-4 bg-white p-2.5 shadow-sm dark:border-neutral-700 dark:bg-neutral-800"
                             :class="[
+                                statusTone(task.status).card,
                                 isTaskLocked(task) ? 'opacity-70' : '',
                                 'cursor-pointer',
                             ]"
@@ -1463,12 +1518,12 @@ const submitProof = () => {
                     </div>
                 </div>
             </div>
-            <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+            <div class="rounded-md border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
                 <div class="flex items-center justify-between">
                     <button
                         type="button"
                         @click="moveCalendar(-1)"
-                        class="size-8 inline-flex items-center justify-center rounded-sm border border-stone-200 text-stone-600 hover:bg-stone-50 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800"
+                        class="size-8 inline-flex items-center justify-center rounded-md border border-stone-200 bg-white text-stone-600 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300 dark:hover:bg-neutral-800"
                     >
                         <svg class="size-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
                             stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -1481,7 +1536,7 @@ const submitProof = () => {
                     <button
                         type="button"
                         @click="moveCalendar(1)"
-                        class="size-8 inline-flex items-center justify-center rounded-sm border border-stone-200 text-stone-600 hover:bg-stone-50 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800"
+                        class="size-8 inline-flex items-center justify-center rounded-md border border-stone-200 bg-white text-stone-600 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300 dark:hover:bg-neutral-800"
                     >
                         <svg class="size-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
                             stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -1499,12 +1554,12 @@ const submitProof = () => {
                         <button
                             type="button"
                             @click="toggleSelectedDate(day.key)"
-                            class="flex h-8 w-8 items-center justify-center rounded-full text-xs font-medium transition"
+                            class="flex h-8 w-8 items-center justify-center rounded-md text-xs font-medium transition hover:bg-stone-100 dark:hover:bg-neutral-800"
                             :class="[
                                 day.isCurrentMonth ? 'text-stone-700 dark:text-neutral-200' : 'text-stone-300 dark:text-neutral-600',
                                 selectedDateKey === day.key
-                                    ? 'bg-stone-900 text-white dark:bg-white dark:text-stone-900'
-                                    : (day.isToday ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300' : ''),
+                                    ? 'bg-emerald-600 text-white shadow-sm dark:bg-emerald-400/20 dark:text-emerald-100'
+                                    : (day.isToday ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300' : ''),
                                 day.isInRange ? '' : 'opacity-40 cursor-not-allowed',
                             ]"
                             :aria-pressed="selectedDateKey === day.key"
@@ -2056,5 +2111,3 @@ const submitProof = () => {
         </form>
     </Modal>
 </template>
-
-
