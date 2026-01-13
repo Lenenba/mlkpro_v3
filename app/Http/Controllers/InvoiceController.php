@@ -122,25 +122,30 @@ class InvoiceController extends Controller
         }
 
         $invoice->load([
-            'customer',
+            'customer.properties',
             'items',
             'work.products',
+            'work.quote.property',
             'payments',
         ]);
 
-        $lineItems = collect();
-        if ($invoice->items->isNotEmpty()) {
-            $lineItems = $invoice->items->map(function ($item) {
+        $isTaskBased = $invoice->items->isNotEmpty();
+        $taskItems = collect();
+        $productItems = collect();
+
+        if ($isTaskBased) {
+            $taskItems = $invoice->items->map(function ($item) {
                 return [
                     'title' => $item->title ?: 'Line item',
-                    'description' => $item->description,
-                    'quantity' => (float) ($item->quantity ?? 0),
-                    'unit_price' => (float) ($item->unit_price ?? 0),
+                    'scheduled_date' => $item->scheduled_date,
+                    'start_time' => $item->start_time,
+                    'end_time' => $item->end_time,
+                    'assignee_name' => $item->assignee_name,
                     'total' => (float) ($item->total ?? 0),
                 ];
             });
         } elseif ($invoice->work && $invoice->work->products->isNotEmpty()) {
-            $lineItems = $invoice->work->products->map(function ($product) {
+            $productItems = $invoice->work->products->map(function ($product) {
                 $quantity = (float) ($product->pivot?->quantity ?? 0);
                 $unitPrice = (float) ($product->pivot?->price ?? $product->price ?? 0);
                 $total = (float) ($product->pivot?->total ?? round($quantity * $unitPrice, 2));
@@ -155,7 +160,9 @@ class InvoiceController extends Controller
             });
         }
 
-        $subtotal = round($lineItems->sum('total'), 2);
+        $subtotal = $isTaskBased
+            ? round($taskItems->sum('total'), 2)
+            : round($productItems->sum('total'), 2);
         $totalPaid = round((float) $invoice->payments->sum('amount'), 2);
 
         $pdf = Pdf::loadView('pdf.invoice', [
@@ -163,7 +170,9 @@ class InvoiceController extends Controller
             'customer' => $invoice->customer,
             'company' => $request->user(),
             'work' => $invoice->work,
-            'lineItems' => $lineItems,
+            'isTaskBased' => $isTaskBased,
+            'taskItems' => $taskItems,
+            'productItems' => $productItems,
             'subtotal' => $subtotal,
             'totalPaid' => $totalPaid,
         ]);

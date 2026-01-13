@@ -371,6 +371,12 @@ const openQuickCreate = () => {
                                                 class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-emerald-600 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-neutral-800">
                                                 Convert
                                             </button>
+                                            <Link
+                                                :href="route('pipeline.timeline', { entityType: 'request', entityId: lead.id })"
+                                                class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800"
+                                            >
+                                                Timeline
+                                            </Link>
                                             <div class="my-1 border-t border-stone-200 dark:border-neutral-800"></div>
                                             <button type="button" @click="deleteLead(lead)"
                                                 class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-neutral-800"

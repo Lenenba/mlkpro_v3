@@ -114,13 +114,21 @@ const mapLink = computed(() =>
                             <span>Assigne: {{ assigneeLabel }}</span>
                         </div>
                     </div>
-                    <Link
-                        v-if="canManage"
-                        :href="route('task.index')"
-                        class="py-2 px-3 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700"
-                    >
-                        Retour aux taches
-                    </Link>
+                    <div class="flex items-center gap-2">
+                        <Link
+                            :href="route('pipeline.timeline', { entityType: 'task', entityId: task.id })"
+                            class="py-2 px-3 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700"
+                        >
+                            Timeline
+                        </Link>
+                        <Link
+                            v-if="canManage"
+                            :href="route('task.index')"
+                            class="py-2 px-3 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700"
+                        >
+                            Retour aux taches
+                        </Link>
+                    </div>
                 </div>
             </div>
 

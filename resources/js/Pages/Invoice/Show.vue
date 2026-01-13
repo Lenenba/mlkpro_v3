@@ -2,7 +2,7 @@
 import { computed } from 'vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import StarRating from '@/Components/UI/StarRating.vue';
-import { Head, useForm, usePage } from '@inertiajs/vue3';
+import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
 import { humanizeDate } from '@/utils/date';
 
 const props = defineProps({
@@ -153,6 +153,12 @@ const lineItemColspan = computed(() => (isTaskBased.value ? 5 : 4));
                         </div>
                     </div>
                     <div class="flex items-center gap-2">
+                        <Link
+                            :href="route('pipeline.timeline', { entityType: 'invoice', entityId: invoice.id })"
+                            class="inline-flex items-center gap-x-2 text-xs font-medium rounded-sm border border-stone-200 bg-white px-3 py-1.5 text-stone-700 hover:bg-stone-50"
+                        >
+                            Timeline
+                        </Link>
                         <a
                             :href="route('invoice.pdf', invoice.id)"
                             class="inline-flex items-center gap-x-2 text-xs font-medium rounded-sm border border-stone-200 bg-white px-3 py-1.5 text-stone-700 hover:bg-stone-50"
