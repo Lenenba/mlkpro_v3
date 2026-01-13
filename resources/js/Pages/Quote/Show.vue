@@ -1,6 +1,6 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
-import { Head, usePage } from '@inertiajs/vue3';
+import { Head, Link, usePage } from '@inertiajs/vue3';
 import { computed } from 'vue';
 import StarRating from '@/Components/UI/StarRating.vue';
 const props = defineProps({
@@ -95,6 +95,14 @@ const sourceLines = computed(() => {
                                     Quote For {{ quote.customer.company_name }}
                                 </h1>
                             </div>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <Link
+                                :href="route('pipeline.timeline', { entityType: 'quote', entityId: quote.id })"
+                                class="py-2 px-3 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700"
+                            >
+                                Timeline
+                            </Link>
                         </div>
                     </div>
                     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">

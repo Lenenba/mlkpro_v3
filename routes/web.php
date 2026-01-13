@@ -20,6 +20,7 @@ use App\Http\Controllers\DemoTourController;
 use App\Http\Controllers\ProductsSearchController;
 use App\Http\Controllers\QuoteEmaillingController;
 use App\Http\Controllers\OnboardingController;
+use App\Http\Controllers\PipelineController;
 use App\Http\Controllers\RequestController;
 use App\Http\Controllers\PlanScanController;
 use App\Http\Controllers\WorkMediaController;
@@ -122,6 +123,9 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
     Route::post('/assistant/message', [AssistantController::class, 'message'])
         ->middleware('company.feature:assistant')
         ->name('assistant.message');
+    Route::get('/pipeline/timeline/{entityType}/{entityId}', [PipelineController::class, 'timeline'])
+        ->name('pipeline.timeline');
+    Route::get('/pipeline', [PipelineController::class, 'data'])->name('pipeline.data');
 
     // Settings (owner only)
     Route::get('/settings/company', [CompanySettingsController::class, 'edit'])->name('settings.company.edit');
