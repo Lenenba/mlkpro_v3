@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\ProfileUpdateRequest;
+use App\Services\AccountDeletionService;
 use App\Utils\FileHandler;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Http\Request;
@@ -77,7 +78,7 @@ class ProfileController extends Controller
     /**
      * Delete the user's account.
      */
-    public function destroy(Request $request)
+    public function destroy(Request $request, AccountDeletionService $accountDeletion)
     {
         $request->validate([
             'password' => ['required', 'current_password'],
@@ -85,9 +86,23 @@ class ProfileController extends Controller
 
         $user = $request->user();
 
-        Auth::logout();
+        try {
+            if ($user->isAccountOwner()) {
+                $accountDeletion->deleteAccount($user);
+            } else {
+                $accountDeletion->deleteUser($user);
+            }
+        } catch (\Throwable $exception) {
+            if ($this->shouldReturnJson($request)) {
+                return response()->json([
+                    'message' => 'Unable to delete account right now. Please contact support.',
+                ], 500);
+            }
 
-        $user->delete();
+            return Redirect::back()->with('error', 'Unable to delete account right now. Please contact support.');
+        }
+
+        Auth::logout();
 
         if ($this->shouldReturnJson($request)) {
             return response()->json([
