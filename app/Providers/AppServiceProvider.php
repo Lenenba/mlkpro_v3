@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Listeners\SendEmailMirrorNotifications;
 use App\Services\PlatformAdminNotifier;
 use Illuminate\Auth\Events\Registered;
+use Illuminate\Notifications\Events\NotificationFailed;
 use Illuminate\Notifications\Events\NotificationSent;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Vite;
@@ -47,6 +48,7 @@ class AppServiceProvider extends ServiceProvider
         Vite::prefetch(concurrency: 3);
 
         Event::listen(NotificationSent::class, SendEmailMirrorNotifications::class);
+        Event::listen(NotificationFailed::class, SendEmailMirrorNotifications::class);
 
         Event::listen(Registered::class, function (Registered $event): void {
             $user = $event->user;

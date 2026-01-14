@@ -40,6 +40,7 @@ use App\Http\Controllers\Settings\ProductCategoryController;
 use App\Http\Controllers\Settings\NotificationSettingsController;
 use App\Http\Controllers\Settings\SubscriptionController;
 use App\Http\Controllers\Api\NotificationController as ApiNotificationController;
+use App\Http\Controllers\Api\PushTokenController;
 use App\Http\Controllers\Api\SuperAdmin\AdminController as SuperAdminAdminController;
 use App\Http\Controllers\Api\SuperAdmin\AnnouncementController as SuperAdminAnnouncementController;
 use App\Http\Controllers\Api\SuperAdmin\DashboardController as SuperAdminDashboardController;
@@ -67,6 +68,8 @@ Route::name('api.')->group(function () {
             Route::post('logout', [AuthController::class, 'logout']);
             Route::post('verify/resend', [AuthController::class, 'resendVerification']);
         });
+
+        Route::post('push-tokens', [PushTokenController::class, 'store']);
     });
 
     Route::middleware(['auth:sanctum', EnsureClientUser::class, EnsureNotSuspended::class])
@@ -105,7 +108,6 @@ Route::name('api.')->group(function () {
 
         Route::middleware(EnsureOnboardingIsComplete::class)->group(function () {
             Route::get('dashboard', [DashboardController::class, 'index']);
-            Route::post('push-tokens', [\App\Http\Controllers\Api\PushTokenController::class, 'store']);
             Route::post('locale', [LocaleController::class, 'update']);
             Route::get('profile', [ProfileController::class, 'edit']);
             Route::patch('profile', [ProfileController::class, 'update']);

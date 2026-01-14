@@ -6,6 +6,7 @@ use App\Models\Customer;
 use App\Models\User;
 use App\Notifications\EmailMirrorNotification;
 use App\Services\PushNotificationService;
+use Illuminate\Notifications\Events\NotificationFailed;
 use Illuminate\Notifications\Events\NotificationSent;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Support\Collection;
@@ -16,23 +17,31 @@ class SendEmailMirrorNotifications
     {
     }
 
-    public function handle(NotificationSent $event): void
+    public function handle(object $event): void
     {
-        if ($event->channel !== 'mail') {
+        if (!$this->isMailEvent($event)) {
             return;
         }
 
-        $recipients = $this->resolveRecipients($event->notifiable);
+        $notifiable = $event->notifiable;
+        $notification = $event->notification;
+        $recipients = $this->resolveRecipients($notifiable);
         if ($recipients->isEmpty()) {
             return;
         }
 
-        $payload = $this->buildPayload($event);
+        $isFailed = $event instanceof NotificationFailed;
+        $payload = $this->buildPayload($notification, $notifiable, $isFailed);
         if (!$payload) {
             return;
         }
 
+        $dedupeKey = (string) ($payload['data']['dedupe_key'] ?? '');
+        $eligibleRecipients = collect();
         foreach ($recipients as $user) {
+            if ($dedupeKey !== '' && $this->shouldSkipDuplicate($user, $dedupeKey)) {
+                continue;
+            }
             $user->notify(new EmailMirrorNotification(
                 $payload['title'],
                 $payload['message'],
@@ -40,9 +49,10 @@ class SendEmailMirrorNotifications
                 $payload['category'] ?? null,
                 $payload['data'] ?? []
             ));
+            $eligibleRecipients->push($user);
         }
 
-        $userIds = $recipients->pluck('id')->unique()->values()->all();
+        $userIds = $eligibleRecipients->pluck('id')->unique()->values()->all();
         if (!$userIds) {
             return;
         }
@@ -73,18 +83,29 @@ class SendEmailMirrorNotifications
         return collect();
     }
 
-    private function buildPayload(NotificationSent $event): array
+    private function isMailEvent(object $event): bool
     {
-        $notification = $event->notification;
-        $mailMessage = $this->resolveMailMessage($notification, $event->notifiable);
+        if ($event instanceof NotificationSent || $event instanceof NotificationFailed) {
+            return $event->channel === 'mail';
+        }
+
+        return false;
+    }
+
+    private function buildPayload(object $notification, object $notifiable, bool $isFailed): array
+    {
+        $mailMessage = $this->resolveMailMessage($notification, $notifiable);
 
         $title = $this->resolveTitle($notification, $mailMessage);
         $message = $this->resolveMessage($notification, $mailMessage, $title);
         $actionUrl = $this->resolveActionUrl($notification, $mailMessage);
+        $dedupeKey = $this->buildDedupeKey($notification, $title, $message, $actionUrl);
 
         $data = [
             'source' => 'email',
             'notification' => get_class($notification),
+            'dedupe_key' => $dedupeKey,
+            'email_status' => $isFailed ? 'failed' : 'sent',
         ];
         if ($actionUrl) {
             $data['action_url'] = $actionUrl;
@@ -97,6 +118,27 @@ class SendEmailMirrorNotifications
             'category' => 'system',
             'data' => $data,
         ];
+    }
+
+    private function buildDedupeKey(object $notification, string $title, string $message, ?string $actionUrl): string
+    {
+        $source = implode('|', [
+            get_class($notification),
+            trim($title),
+            trim($message),
+            trim((string) $actionUrl),
+        ]);
+
+        return hash('sha256', $source);
+    }
+
+    private function shouldSkipDuplicate(User $user, string $dedupeKey): bool
+    {
+        return $user->notifications()
+            ->where('type', EmailMirrorNotification::class)
+            ->where('created_at', '>=', now()->subMinutes(2))
+            ->where('data->dedupe_key', $dedupeKey)
+            ->exists();
     }
 
     private function resolveMailMessage(object $notification, object $notifiable): ?MailMessage

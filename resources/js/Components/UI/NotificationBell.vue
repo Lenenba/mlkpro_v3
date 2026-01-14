@@ -126,12 +126,46 @@ const markAllRead = () => {
     });
 };
 
-const openNotification = (notification) => {
-    const url = notification?.action_url;
-    if (url) {
-        router.visit(url);
+const markNotificationRead = (notificationId) => {
+    if (!notificationId) {
+        return Promise.resolve();
     }
-    closeMenu();
+    const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+    if (!token) {
+        return Promise.resolve();
+    }
+    return fetch(route('notifications.read', notificationId), {
+        method: 'POST',
+        headers: {
+            'X-CSRF-TOKEN': token,
+            'X-Requested-With': 'XMLHttpRequest',
+            Accept: 'application/json',
+        },
+        credentials: 'same-origin',
+    }).catch(() => {});
+};
+
+const openNotification = (notification) => {
+    if (!notification) {
+        return;
+    }
+
+    const url = notification.action_url;
+    const shouldMarkRead = !notification.read_at;
+    const markPromise = shouldMarkRead ? markNotificationRead(notification.id) : Promise.resolve();
+
+    if (url) {
+        closeMenu();
+        // Fire-and-forget to avoid blocking navigation.
+        void markPromise;
+        router.visit(url);
+        return;
+    }
+
+    markPromise.finally(() => {
+        router.reload({ only: ['notifications'] });
+        closeMenu();
+    });
 };
 
 onBeforeUnmount(() => {
