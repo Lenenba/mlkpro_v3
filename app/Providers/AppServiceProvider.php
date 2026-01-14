@@ -7,8 +7,10 @@ use App\Models\Billing\PaddleSubscription as PaddleSubscriptionModel;
 use App\Models\Billing\PaddleSubscriptionItem;
 use App\Models\Billing\PaddleTransaction as PaddleTransactionModel;
 use App\Models\User;
+use App\Listeners\SendEmailMirrorNotifications;
 use App\Services\PlatformAdminNotifier;
 use Illuminate\Auth\Events\Registered;
+use Illuminate\Notifications\Events\NotificationSent;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\ServiceProvider;
@@ -43,6 +45,8 @@ class AppServiceProvider extends ServiceProvider
         Cashier::useTransactionModel(PaddleTransactionModel::class);
 
         Vite::prefetch(concurrency: 3);
+
+        Event::listen(NotificationSent::class, SendEmailMirrorNotifications::class);
 
         Event::listen(Registered::class, function (Registered $event): void {
             $user = $event->user;
