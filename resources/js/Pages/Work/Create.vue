@@ -86,14 +86,28 @@ const billingCycles = [
     { id: 'every_n_tasks', name: 'Chaque N taches' },
 ];
 
-const defaultStartDate = props.work?.start_date ?? dayjs().format('YYYY-MM-DD');
+const toIsoDate = (dateInput) => {
+    if (!dateInput) {
+        return '';
+    }
+    if (typeof dateInput === 'string') {
+        const match = dateInput.match(/^\d{4}-\d{2}-\d{2}/);
+        if (match) {
+            return match[0];
+        }
+    }
+    const date = dayjs(dateInput);
+    return date.isValid() ? date.format('YYYY-MM-DD') : '';
+};
+
+const defaultStartDate = toIsoDate(props.work?.start_date) || dayjs().format('YYYY-MM-DD');
 
 const form = useForm({
     customer_id: props.work?.customer_id ?? props.customer?.id ?? null,
     job_title: props.work?.job_title ?? '',
     instructions: props.work?.instructions ?? '',
     start_date: defaultStartDate,
-    end_date: props.work?.end_date ?? '',
+    end_date: toIsoDate(props.work?.end_date),
     start_time: props.work?.start_time ?? '',
     end_time: props.work?.end_time ?? '',
     products: props.work?.products?.map(product => ({
@@ -103,7 +117,7 @@ const form = useForm({
         price: Number(product.pivot?.price ?? product.price ?? 0),
         total: Number(product.pivot?.total ?? 0),
     })) || [{ id: null, name: '', quantity: 1, price: 0, total: 0 }],
-    later: props.work?.later ?? false,
+    later: Boolean(props.work?.later),
     ends: props.work?.ends ?? 'Never',
     frequencyNumber: props.work?.frequencyNumber ?? 1,
     frequency: props.work?.frequency ?? 'Weekly',
@@ -128,14 +142,6 @@ const primaryProperty = computed(() => {
     const properties = props.customer?.properties || [];
     return properties.find((property) => property.is_default) || properties[0] || null;
 });
-
-const toIsoDate = (dateInput) => {
-    if (!dateInput) {
-        return '';
-    }
-    const date = dayjs(dateInput);
-    return date.isValid() ? date.format('YYYY-MM-DD') : '';
-};
 
 const formatDateLabel = (dateInput) => {
     if (!dateInput) {
@@ -749,7 +755,7 @@ onBeforeUnmount(() => {
                                                         </div>
                                                         <div class="mt-4 block">
                                                             <label class="flex items-center">
-                                                                <Checkbox name="remember"
+                                                                <Checkbox name="later"
                                                                     v-model:checked="form.later" />
                                                                 <span class="ms-2 text-sm text-stone-600 dark:text-neutral-400">Planifier plus tard</span>
                                                             </label>
@@ -1096,7 +1102,7 @@ onBeforeUnmount(() => {
                             </div>
 
                             <label v-if="form.billing_mode === 'end_of_job'" class="mt-4 flex items-center">
-                                <Checkbox name="remember" v-model:checked="form.later" />
+                                <Checkbox name="later" v-model:checked="form.later" />
                                 <span class="ms-2 text-sm text-stone-600 dark:text-neutral-400">Me rappeler de facturer a la fermeture du
                                     job</span>
                             </label>

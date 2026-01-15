@@ -143,20 +143,54 @@
   // Reactive state to toggle the calendar dropdown visibility
   const showPicker = ref(false);
 
+  // Helper function to format a date as "YYYY-MM-DD"
+  const formatDate = (date) => {
+    const year = date.getFullYear();
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const day = date.getDate().toString().padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const normalizeDateValue = (value) => {
+    if (!value) {
+      return '';
+    }
+    const stringValue = String(value);
+    const match = stringValue.match(/^\d{4}-\d{2}-\d{2}/);
+    if (match) {
+      return match[0];
+    }
+    const parsed = new Date(stringValue);
+    if (Number.isNaN(parsed.getTime())) {
+      return '';
+    }
+    return formatDate(parsed);
+  };
+
+  const parseDateValue = (value) => {
+    const normalized = normalizeDateValue(value);
+    if (!normalized) {
+      return null;
+    }
+    const [year, month, day] = normalized.split('-').map(Number);
+    if (!year || !month || !day) {
+      return null;
+    }
+    return new Date(year, month - 1, day);
+  };
+
   // Reactive state for the currently displayed date (used for month/year view)
   // Defaults to today's date or the provided modelValue (if valid)
   const currentDate = ref(new Date());
-  if (props.modelValue) {
-    const dateFromModel = new Date(props.modelValue);
-    if (!isNaN(dateFromModel)) {
-      currentDate.value = dateFromModel;
-    }
+  const initialDate = parseDateValue(props.modelValue);
+  if (initialDate) {
+    currentDate.value = initialDate;
   }
 
   // Computed property for the selected date (v-model binding)
   const selectedDate = computed({
     get() {
-      return props.modelValue;
+      return normalizeDateValue(props.modelValue);
     },
     set(newValue) {
       emit('update:modelValue', newValue);
@@ -213,13 +247,12 @@
     return days;
   });
 
-  // Helper function to format a date as "YYYY-MM-DD"
-  const formatDate = (date) => {
-    const year = date.getFullYear();
-    const month = (date.getMonth() + 1).toString().padStart(2, '0');
-    const day = date.getDate().toString().padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  };
+  watch(() => props.modelValue, (value) => {
+    const parsed = parseDateValue(value);
+    if (parsed) {
+      currentDate.value = parsed;
+    }
+  });
 
   // Toggle the visibility of the calendar dropdown
   const togglePicker = () => {

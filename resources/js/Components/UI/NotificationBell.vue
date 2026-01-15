@@ -142,11 +142,13 @@ const markNotificationRead = (notificationId) => {
             Accept: 'application/json',
         },
         credentials: 'same-origin',
+        keepalive: true,
     }).catch(() => {});
 };
 
-const openNotification = (notification) => {
+const openNotification = (notification, event) => {
     if (!notification) {
+        event?.preventDefault?.();
         return;
     }
 
@@ -154,18 +156,18 @@ const openNotification = (notification) => {
     const shouldMarkRead = !notification.read_at;
     const markPromise = shouldMarkRead ? markNotificationRead(notification.id) : Promise.resolve();
 
-    if (url) {
-        closeMenu();
-        // Fire-and-forget to avoid blocking navigation.
-        void markPromise;
-        router.visit(url);
+    if (!url) {
+        event?.preventDefault?.();
+        markPromise.finally(() => {
+            router.reload({ only: ['notifications'] });
+            closeMenu();
+        });
         return;
     }
 
-    markPromise.finally(() => {
-        router.reload({ only: ['notifications'] });
-        closeMenu();
-    });
+    closeMenu();
+    // Fire-and-forget to avoid blocking navigation.
+    void markPromise;
 };
 
 onBeforeUnmount(() => {
@@ -209,12 +211,12 @@ onBeforeUnmount(() => {
                     Aucune notification.
                 </div>
                 <div v-else class="max-h-80 divide-y divide-stone-100 overflow-y-auto dark:divide-neutral-800">
-                    <button
+                    <a
                         v-for="notification in notifications"
                         :key="notification.id"
-                        type="button"
-                        class="w-full px-4 py-3 text-left transition hover:bg-stone-50 dark:hover:bg-neutral-800"
-                        @click="openNotification(notification)"
+                        :href="notification.action_url || '#'"
+                        class="block w-full px-4 py-3 text-left transition hover:bg-stone-50 dark:hover:bg-neutral-800"
+                        @click="openNotification(notification, $event)"
                     >
                         <div class="flex items-start gap-2">
                             <span
@@ -233,7 +235,7 @@ onBeforeUnmount(() => {
                                 </div>
                             </div>
                         </div>
-                    </button>
+                    </a>
                 </div>
             </div>
         </Teleport>

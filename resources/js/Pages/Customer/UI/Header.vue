@@ -35,7 +35,7 @@ const openRequestModal = () => {
 </script>
 <template>
     <div
-        class="p-5 bg-white border border-stone-200 rounded-sm border-t-4 border-t-neutral-800 shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
+        class="relative z-20 p-5 bg-white border border-stone-200 rounded-sm border-t-4 border-t-neutral-800 shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
         <!-- Header -->
         <div class="mb-5 mt-4 flex flex-wrap justify-between items-center gap-3">
             <!-- Heading -->

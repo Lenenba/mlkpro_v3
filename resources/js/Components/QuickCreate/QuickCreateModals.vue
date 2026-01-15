@@ -152,6 +152,10 @@ onMounted(() => {
         <div v-if="customerError" class="mb-3 text-sm text-red-600">
             {{ customerError }}
         </div>
-        <RequestQuickForm :customers="customers" :overlay-id="'#hs-quick-create-request'" />
+        <RequestQuickForm
+            :customers="customers"
+            :loading="loadingCustomers"
+            :overlay-id="'#hs-quick-create-request'"
+        />
     </Modal>
 </template>
