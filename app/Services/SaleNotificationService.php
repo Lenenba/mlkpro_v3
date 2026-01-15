@@ -6,6 +6,7 @@ use App\Models\Sale;
 use App\Notifications\ActionEmailNotification;
 use App\Notifications\OrderStatusNotification;
 use App\Services\NotificationPreferenceService;
+use App\Support\NotificationDispatcher;
 
 class SaleNotificationService
 {
@@ -85,13 +86,15 @@ class SaleNotificationService
         }
 
         if (!$isProductCompany) {
-            $customer->notify(new ActionEmailNotification(
+            NotificationDispatcher::send($customer, new ActionEmailNotification(
                 $title,
                 $intro,
                 $details,
                 $actionUrl,
                 'Voir la commande'
-            ));
+            ), [
+                'sale_id' => $sale->id,
+            ]);
 
             if (!empty($customer->phone)) {
                 $smsMessage = $intro ? "{$title}: {$intro}" : "{$title}: {$details['Statut']}";

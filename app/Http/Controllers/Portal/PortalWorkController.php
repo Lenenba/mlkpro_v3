@@ -14,6 +14,7 @@ use App\Services\TaskBillingService;
 use App\Services\WorkScheduleService;
 use App\Services\UsageLimitService;
 use App\Notifications\ActionEmailNotification;
+use App\Support\NotificationDispatcher;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 
@@ -82,7 +83,7 @@ class PortalWorkController extends Controller
             $customerLabel = $customer->company_name
                 ?: trim(($customer->first_name ?? '') . ' ' . ($customer->last_name ?? ''));
 
-            $owner->notify(new ActionEmailNotification(
+            NotificationDispatcher::send($owner, new ActionEmailNotification(
                 'Job validated by client',
                 $customerLabel ? $customerLabel . ' validated a job.' : 'A client validated a job.',
                 [
@@ -93,7 +94,9 @@ class PortalWorkController extends Controller
                 route('work.show', $work->id),
                 'View job',
                 'Job validated by client'
-            ));
+            ), [
+                'work_id' => $work->id,
+            ]);
         }
 
         if ($this->shouldReturnJson($request)) {
@@ -159,7 +162,7 @@ class PortalWorkController extends Controller
             $customerLabel = $customer->company_name
                 ?: trim(($customer->first_name ?? '') . ' ' . ($customer->last_name ?? ''));
 
-            $owner->notify(new ActionEmailNotification(
+            NotificationDispatcher::send($owner, new ActionEmailNotification(
                 'Job disputed by client',
                 $customerLabel ? $customerLabel . ' disputed a job.' : 'A client disputed a job.',
                 [
@@ -170,7 +173,9 @@ class PortalWorkController extends Controller
                 route('work.show', $work->id),
                 'View job',
                 'Job disputed by client'
-            ));
+            ), [
+                'work_id' => $work->id,
+            ]);
         }
 
         if ($this->shouldReturnJson($request)) {
@@ -351,7 +356,7 @@ class PortalWorkController extends Controller
             $customerLabel = $customer->company_name
                 ?: trim(($customer->first_name ?? '') . ' ' . ($customer->last_name ?? ''));
 
-            $owner->notify(new ActionEmailNotification(
+            NotificationDispatcher::send($owner, new ActionEmailNotification(
                 'Schedule rejected by client',
                 $customerLabel ? $customerLabel . ' rejected a schedule.' : 'A client rejected a schedule.',
                 [
@@ -362,7 +367,9 @@ class PortalWorkController extends Controller
                 route('work.edit', ['work' => $work->id, 'tab' => 'planning']),
                 'Review schedule',
                 'Schedule rejected by client'
-            ));
+            ), [
+                'work_id' => $work->id,
+            ]);
         }
 
         if ($this->shouldReturnJson($request)) {

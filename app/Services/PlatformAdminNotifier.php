@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Models\Billing\PaddleSubscription;
 use App\Notifications\ActionEmailNotification;
 use App\Notifications\PlatformAdminDigestNotification;
+use App\Support\NotificationDispatcher;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Laravel\Paddle\Subscription;
@@ -71,7 +72,7 @@ class PlatformAdminNotifier
                 continue;
             }
 
-            $recipient->notify(new PlatformAdminDigestNotification(
+            $dispatchOk = NotificationDispatcher::send($recipient, new PlatformAdminDigestNotification(
                 $frequency,
                 $items->map(fn(PlatformNotification $item) => [
                     'title' => $item->title,
@@ -79,7 +80,13 @@ class PlatformAdminNotifier
                     'intro' => $item->intro,
                     'created_at' => $item->created_at,
                 ])->all()
-            ));
+            ), [
+                'user_id' => $recipient->id,
+            ]);
+
+            if (!$dispatchOk) {
+                continue;
+            }
 
             PlatformNotification::query()
                 ->whereIn('id', $items->pluck('id'))
@@ -230,7 +237,7 @@ class PlatformAdminNotifier
         ]);
 
         if ($digestFrequency === 'immediate') {
-            $recipient->notify(new ActionEmailNotification(
+            $dispatchOk = NotificationDispatcher::send($recipient, new ActionEmailNotification(
                 $title,
                 $payload['intro'] ?? null,
                 $payload['details'] ?? [],
@@ -238,9 +245,13 @@ class PlatformAdminNotifier
                 $payload['actionLabel'] ?? null,
                 $payload['subject'] ?? null,
                 $payload['note'] ?? null
-            ));
+            ), [
+                'user_id' => $recipient->id,
+            ]);
 
-            $notification->update(['sent_at' => now()]);
+            if ($dispatchOk) {
+                $notification->update(['sent_at' => now()]);
+            }
         }
     }
 

@@ -18,6 +18,7 @@ use App\Services\WorkBillingService;
 use App\Services\WorkScheduleService;
 use App\Services\UsageLimitService;
 use App\Notifications\ActionEmailNotification;
+use App\Support\NotificationDispatcher;
 use Illuminate\Http\Request;
 use App\Http\Requests\WorkRequest;
 use Illuminate\Support\Facades\Auth;
@@ -748,7 +749,7 @@ class WorkController extends Controller
                     $actionLabel = 'Review job';
                 }
 
-                $customer->notify(new ActionEmailNotification(
+                NotificationDispatcher::send($customer, new ActionEmailNotification(
                     'Job ready for validation',
                     'A job is ready for your validation.',
                     [
@@ -759,7 +760,9 @@ class WorkController extends Controller
                     $actionUrl,
                     $actionLabel,
                     'Job ready for validation'
-                ));
+                ), [
+                    'work_id' => $work->id,
+                ]);
             }
         }
 

@@ -9,6 +9,7 @@ use App\Models\Transaction;
 use App\Models\User;
 use App\Models\Work;
 use App\Notifications\ActionEmailNotification;
+use App\Support\NotificationDispatcher;
 use App\Services\UsageLimitService;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -251,7 +252,7 @@ class WorkBillingService
                 );
                 $actionLabel = 'Pay invoice';
             }
-            $customer->notify(new ActionEmailNotification(
+            NotificationDispatcher::send($customer, new ActionEmailNotification(
                 'New invoice available',
                 'A new invoice has been generated for your job.',
                 [
@@ -263,7 +264,10 @@ class WorkBillingService
                 $actionLabel,
                 'New invoice available',
                 $note
-            ));
+            ), [
+                'invoice_id' => $invoice->id,
+                'work_id' => $work->id,
+            ]);
         }
 
         return $invoice;
