@@ -156,6 +156,7 @@ onMounted(() => {
             :customers="customers"
             :loading="loadingCustomers"
             :overlay-id="'#hs-quick-create-request'"
+            @customer-created="handleCustomerCreated"
         />
     </Modal>
 </template>
