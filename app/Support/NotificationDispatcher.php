@@ -5,12 +5,14 @@ namespace App\Support;
 use Illuminate\Notifications\Notification;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification as NotificationFacade;
+use App\Support\EmailMirrorNotifier;
 
 class NotificationDispatcher
 {
     public static function send($notifiable, Notification $notification, array $context = []): bool
     {
         try {
+            EmailMirrorNotifier::recordQueued($notification, $notifiable);
             if (config('queue.default', 'sync') === 'sync') {
                 NotificationFacade::sendNow($notifiable, $notification);
             } else {
@@ -19,6 +21,7 @@ class NotificationDispatcher
 
             return true;
         } catch (\Throwable $e) {
+            EmailMirrorNotifier::recordStatus($notification, $notifiable, 'failed');
             Log::warning('Notification dispatch failed.', array_merge([
                 'notification' => get_class($notification),
                 'notifiable_type' => is_object($notifiable) ? get_class($notifiable) : gettype($notifiable),

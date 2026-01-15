@@ -5,6 +5,7 @@ namespace App\Listeners;
 use App\Models\Customer;
 use App\Models\User;
 use App\Notifications\EmailMirrorNotification;
+use App\Support\EmailMirrorNotifier;
 use App\Services\PushNotificationService;
 use Illuminate\Notifications\Events\NotificationFailed;
 use Illuminate\Notifications\Events\NotificationSent;
@@ -23,33 +24,12 @@ class SendEmailMirrorNotifications
             return;
         }
 
-        $notifiable = $event->notifiable;
-        $notification = $event->notification;
-        $recipients = $this->resolveRecipients($notifiable);
-        if ($recipients->isEmpty()) {
+        $status = $event instanceof NotificationFailed ? 'failed' : 'sent';
+        $result = EmailMirrorNotifier::recordStatus($event->notification, $event->notifiable, $status);
+        $payload = $result['payload'] ?? null;
+        $eligibleRecipients = $result['recipients'] ?? collect();
+        if (!$payload || $eligibleRecipients->isEmpty()) {
             return;
-        }
-
-        $isFailed = $event instanceof NotificationFailed;
-        $payload = $this->buildPayload($notification, $notifiable, $isFailed);
-        if (!$payload) {
-            return;
-        }
-
-        $dedupeKey = (string) ($payload['data']['dedupe_key'] ?? '');
-        $eligibleRecipients = collect();
-        foreach ($recipients as $user) {
-            if ($dedupeKey !== '' && $this->shouldSkipDuplicate($user, $dedupeKey)) {
-                continue;
-            }
-            $user->notify(new EmailMirrorNotification(
-                $payload['title'],
-                $payload['message'],
-                $payload['action_url'] ?? null,
-                $payload['category'] ?? null,
-                $payload['data'] ?? []
-            ));
-            $eligibleRecipients->push($user);
         }
 
         $userIds = $eligibleRecipients->pluck('id')->unique()->values()->all();
