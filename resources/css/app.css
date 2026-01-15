@@ -172,6 +172,15 @@
     }
   }
 
+  @keyframes kpi-fill {
+    from {
+      width: 0;
+    }
+    to {
+      width: var(--kpi-width);
+    }
+  }
+
   @keyframes rise {
     from {
       opacity: 0;
@@ -189,6 +198,11 @@
 
   .animate-micro-pulse {
     animation: micro-pulse 1.4s ease-in-out infinite;
+  }
+
+  .kpi-bar {
+    width: var(--kpi-width);
+    animation: kpi-fill 0.7s ease-out both;
   }
 
   .rise-in {
