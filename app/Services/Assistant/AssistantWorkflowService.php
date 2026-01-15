@@ -23,6 +23,7 @@ use App\Models\Transaction;
 use App\Notifications\ActionEmailNotification;
 use App\Notifications\SendQuoteNotification;
 use App\Notifications\InviteUserNotification;
+use App\Support\NotificationDispatcher;
 use App\Services\InventoryService;
 use App\Services\TaskBillingService;
 use App\Services\TemplateService;
@@ -2021,12 +2022,14 @@ class AssistantWorkflowService
         ]);
 
         $token = Password::broker()->createToken($memberUser);
-        $memberUser->notify(new InviteUserNotification(
+        NotificationDispatcher::send($memberUser, new InviteUserNotification(
             $token,
             $user->company_name ?: config('app.name'),
             $user->company_logo_url,
             'team'
-        ));
+        ), [
+            'team_member_id' => $teamMember->id,
+        ]);
 
         return [
             'status' => 'created',
@@ -2076,7 +2079,10 @@ class AssistantWorkflowService
         }
 
         $quote->loadMissing(['customer.user', 'property', 'products', 'taxes.tax']);
-        $quote->customer->notify(new SendQuoteNotification($quote));
+        NotificationDispatcher::send($quote->customer, new SendQuoteNotification($quote), [
+            'quote_id' => $quote->id,
+            'customer_id' => $quote->customer->id,
+        ]);
 
         ActivityLog::record($user, $quote, 'email_sent', [
             'email' => $quote->customer->email,
@@ -4595,7 +4601,7 @@ class AssistantWorkflowService
             ];
         }
 
-        $customer->notify(new ActionEmailNotification(
+        NotificationDispatcher::send($customer, new ActionEmailNotification(
             $subject,
             $message,
             $details,
@@ -4603,7 +4609,9 @@ class AssistantWorkflowService
             $actionLabel,
             $subject,
             $note
-        ));
+        ), [
+            'invoice_id' => $invoice->id,
+        ]);
     }
 
     private function autoScheduleTasksForWork(Work $work, User $actor): void

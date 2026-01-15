@@ -8,7 +8,7 @@ use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 use Illuminate\Support\Facades\URL;
 
-class SendQuoteNotification extends Notification
+class SendQuoteNotification extends Notification implements ShouldQueue
 {
     use Queueable;
 

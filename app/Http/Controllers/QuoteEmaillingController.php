@@ -6,6 +6,7 @@ use App\Models\Quote;
 use App\Models\TeamMember;
 use App\Models\ActivityLog;
 use App\Notifications\SendQuoteNotification;
+use App\Support\NotificationDispatcher;
 use Illuminate\Support\Facades\Auth;
 
 class QuoteEmaillingController extends Controller
@@ -58,11 +59,21 @@ class QuoteEmaillingController extends Controller
             return redirect()->back()->with('error', 'Customer email address is not available.');
         }
 
-        $quote->customer->notify(new SendQuoteNotification($quote));
-
-        ActivityLog::record(Auth::user(), $quote, 'email_sent', [
+        $emailQueued = NotificationDispatcher::send($quote->customer, new SendQuoteNotification($quote), [
+            'quote_id' => $quote->id,
+            'customer_id' => $quote->customer->id,
             'email' => $quote->customer->email,
-        ], 'Quote email sent');
+        ]);
+
+        if ($emailQueued) {
+            ActivityLog::record(Auth::user(), $quote, 'email_sent', [
+                'email' => $quote->customer->email,
+            ], 'Quote email sent');
+        } else {
+            ActivityLog::record(Auth::user(), $quote, 'email_failed', [
+                'email' => $quote->customer->email,
+            ], 'Quote email failed');
+        }
 
         if ($quote->status === 'draft') {
             $previousStatus = $quote->status;
@@ -74,10 +85,22 @@ class QuoteEmaillingController extends Controller
         }
 
         if ($this->shouldReturnJson()) {
+            if (!$emailQueued) {
+                return response()->json([
+                    'message' => 'Quote email could not be sent right now.',
+                    'warning' => true,
+                    'quote' => $quote->fresh(),
+                ]);
+            }
+
             return response()->json([
                 'message' => 'Quote sent successfully to ' . $quote->customer->email,
                 'quote' => $quote->fresh(),
             ]);
+        }
+
+        if (!$emailQueued) {
+            return redirect()->back()->with('warning', 'Quote email could not be sent right now.');
         }
 
         return redirect()->back()->with('success', 'Quote sent successfully to ' . $quote->customer->email);

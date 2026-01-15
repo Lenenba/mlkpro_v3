@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Models\ProductCategory;
 use App\Notifications\WelcomeEmailNotification;
 use App\Services\PlatformAdminNotifier;
+use App\Support\NotificationDispatcher;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
@@ -176,11 +177,9 @@ class OnboardingController extends Controller
         }
 
         if (!$wasOnboarded && $accountOwner->email) {
-            try {
-                $accountOwner->notify(new WelcomeEmailNotification($accountOwner));
-            } catch (\Throwable $exception) {
-                report($exception);
-            }
+            NotificationDispatcher::send($accountOwner, new WelcomeEmailNotification($accountOwner), [
+                'user_id' => $accountOwner->id,
+            ]);
         }
 
         if (!$wasOnboarded) {

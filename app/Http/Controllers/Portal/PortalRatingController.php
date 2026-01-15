@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Models\Work;
 use App\Models\WorkRating;
 use App\Notifications\ActionEmailNotification;
+use App\Support\NotificationDispatcher;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
@@ -60,7 +61,7 @@ class PortalRatingController extends Controller
                 ?: trim(($customer->first_name ?? '') . ' ' . ($customer->last_name ?? ''));
             $feedback = $rating->feedback ? Str::limit($rating->feedback, 160) : null;
 
-            $owner->notify(new ActionEmailNotification(
+            NotificationDispatcher::send($owner, new ActionEmailNotification(
                 'Quote rating received',
                 $customerLabel ? $customerLabel . ' submitted a quote rating.' : 'A client submitted a quote rating.',
                 [
@@ -71,7 +72,10 @@ class PortalRatingController extends Controller
                 route('customer.quote.show', $quote->id),
                 'View quote',
                 'Quote rating received'
-            ));
+            ), [
+                'quote_id' => $quote->id,
+                'rating_id' => $rating->id,
+            ]);
         }
 
         if ($this->shouldReturnJson($request)) {
@@ -122,7 +126,7 @@ class PortalRatingController extends Controller
                 ?: trim(($customer->first_name ?? '') . ' ' . ($customer->last_name ?? ''));
             $feedback = $rating->feedback ? Str::limit($rating->feedback, 160) : null;
 
-            $owner->notify(new ActionEmailNotification(
+            NotificationDispatcher::send($owner, new ActionEmailNotification(
                 'Job rating received',
                 $customerLabel ? $customerLabel . ' submitted a job rating.' : 'A client submitted a job rating.',
                 [
@@ -133,7 +137,10 @@ class PortalRatingController extends Controller
                 route('work.show', $work->id),
                 'View job',
                 'Job rating received'
-            ));
+            ), [
+                'work_id' => $work->id,
+                'rating_id' => $rating->id,
+            ]);
         }
 
         if ($this->shouldReturnJson($request)) {

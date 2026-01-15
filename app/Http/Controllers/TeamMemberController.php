@@ -6,6 +6,7 @@ use App\Models\Role;
 use App\Models\TeamMember;
 use App\Models\User;
 use App\Notifications\InviteUserNotification;
+use App\Support\NotificationDispatcher;
 use App\Utils\FileHandler;
 use App\Services\UsageLimitService;
 use Illuminate\Http\Request;
@@ -127,18 +128,32 @@ class TeamMemberController extends Controller
         ]);
 
         $token = Password::broker()->createToken($memberUser);
-        $memberUser->notify(new InviteUserNotification(
+        $inviteQueued = NotificationDispatcher::send($memberUser, new InviteUserNotification(
             $token,
             $user->company_name ?: config('app.name'),
             $user->company_logo_url,
             'team'
-        ));
+        ), [
+            'team_member_id' => $teamMember->id,
+        ]);
 
         if ($this->shouldReturnJson($request)) {
+            if (!$inviteQueued) {
+                return response()->json([
+                    'message' => 'Team member created, but the invite email could not be sent.',
+                    'warning' => true,
+                    'team_member' => $teamMember->load('user'),
+                ], 201);
+            }
+
             return response()->json([
                 'message' => 'Team member created. Invite sent by email.',
                 'team_member' => $teamMember->load('user'),
             ], 201);
+        }
+
+        if (!$inviteQueued) {
+            return redirect()->back()->with('warning', 'Team member created, but the invite email could not be sent.');
         }
 
         return redirect()->back()->with('success', 'Team member created. Invite sent by email.');

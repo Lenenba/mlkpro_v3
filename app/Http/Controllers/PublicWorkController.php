@@ -8,6 +8,7 @@ use App\Models\TeamMember;
 use App\Models\User;
 use App\Models\Work;
 use App\Notifications\ActionEmailNotification;
+use App\Support\NotificationDispatcher;
 use App\Services\TaskBillingService;
 use App\Services\UsageLimitService;
 use App\Services\WorkBillingService;
@@ -155,7 +156,7 @@ class PublicWorkController extends Controller
             $customerLabel = $customer?->company_name
                 ?: trim(($customer?->first_name ?? '') . ' ' . ($customer?->last_name ?? ''));
 
-            $owner->notify(new ActionEmailNotification(
+            NotificationDispatcher::send($owner, new ActionEmailNotification(
                 'Job validated by client',
                 $customerLabel ? $customerLabel . ' validated a job.' : 'A client validated a job.',
                 [
@@ -166,7 +167,9 @@ class PublicWorkController extends Controller
                 route('work.show', $work->id),
                 'View job',
                 'Job validated by client'
-            ));
+            ), [
+                'work_id' => $work->id,
+            ]);
         }
 
         return redirect()->back()->with('success', 'Job validated.');
@@ -206,7 +209,7 @@ class PublicWorkController extends Controller
             $customerLabel = $customer?->company_name
                 ?: trim(($customer?->first_name ?? '') . ' ' . ($customer?->last_name ?? ''));
 
-            $owner->notify(new ActionEmailNotification(
+            NotificationDispatcher::send($owner, new ActionEmailNotification(
                 'Job disputed by client',
                 $customerLabel ? $customerLabel . ' disputed a job.' : 'A client disputed a job.',
                 [
@@ -217,7 +220,9 @@ class PublicWorkController extends Controller
                 route('work.show', $work->id),
                 'View job',
                 'Job disputed by client'
-            ));
+            ), [
+                'work_id' => $work->id,
+            ]);
         }
 
         return redirect()->back()->with('success', 'Job marked as dispute.');
@@ -322,7 +327,7 @@ class PublicWorkController extends Controller
             $customerLabel = $customer?->company_name
                 ?: trim(($customer?->first_name ?? '') . ' ' . ($customer?->last_name ?? ''));
 
-            $owner->notify(new ActionEmailNotification(
+            NotificationDispatcher::send($owner, new ActionEmailNotification(
                 'Schedule rejected by client',
                 $customerLabel ? $customerLabel . ' rejected a schedule.' : 'A client rejected a schedule.',
                 [
@@ -333,7 +338,9 @@ class PublicWorkController extends Controller
                 route('work.edit', ['work' => $work->id, 'tab' => 'planning']),
                 'Review schedule',
                 'Schedule rejected by client'
-            ));
+            ), [
+                'work_id' => $work->id,
+            ]);
         }
 
         return redirect()->back()->with('success', 'Schedule sent back for updates.');

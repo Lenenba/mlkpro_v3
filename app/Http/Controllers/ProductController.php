@@ -14,10 +14,10 @@ use App\Http\Requests\ProductRequest;
 use App\Services\InventoryService;
 use App\Services\UsageLimitService;
 use App\Notifications\SupplierStockRequestNotification;
+use App\Support\NotificationDispatcher;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Collection;
 use Illuminate\Validation\Rule;
@@ -712,14 +712,25 @@ class ProductController extends Controller
             ]);
         }
 
-        Notification::route('mail', $supplierEmail)
-            ->notify(new SupplierStockRequestNotification($product, $user, $validated['message'] ?? null));
+        $emailQueued = NotificationDispatcher::sendToMail(
+            $supplierEmail,
+            new SupplierStockRequestNotification($product, $user, $validated['message'] ?? null),
+            ['product_id' => $product->id]
+        );
 
-        ActivityLog::record($user, $product, 'supplier_stock_request', [
+        if ($emailQueued) {
+            ActivityLog::record($user, $product, 'supplier_stock_request', [
+                'supplier_email' => $supplierEmail,
+            ], 'Supplier stock request sent');
+
+            return redirect()->back()->with('success', 'Email fournisseur envoye.');
+        }
+
+        ActivityLog::record($user, $product, 'supplier_stock_request_failed', [
             'supplier_email' => $supplierEmail,
-        ], 'Supplier stock request sent');
+        ], 'Supplier stock request failed');
 
-        return redirect()->back()->with('success', 'Email fournisseur envoye.');
+        return redirect()->back()->with('warning', 'Email fournisseur non envoye. Merci de reessayer.');
     }
 
     /**

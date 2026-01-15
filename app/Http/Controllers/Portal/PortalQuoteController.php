@@ -13,6 +13,7 @@ use App\Models\Work;
 use App\Models\WorkChecklistItem;
 use App\Services\UsageLimitService;
 use App\Notifications\ActionEmailNotification;
+use App\Support\NotificationDispatcher;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -189,7 +190,7 @@ class PortalQuoteController extends Controller
             $customerLabel = $customer->company_name
                 ?: trim(($customer->first_name ?? '') . ' ' . ($customer->last_name ?? ''));
 
-            $owner->notify(new ActionEmailNotification(
+            NotificationDispatcher::send($owner, new ActionEmailNotification(
                 'Quote accepted by client',
                 $customerLabel ? $customerLabel . ' accepted a quote.' : 'A client accepted a quote.',
                 [
@@ -200,7 +201,9 @@ class PortalQuoteController extends Controller
                 route('customer.quote.show', $quote->id),
                 'View quote',
                 'Quote accepted by client'
-            ));
+            ), [
+                'quote_id' => $quote->id,
+            ]);
         }
 
         if ($this->shouldReturnJson($request)) {
@@ -283,7 +286,7 @@ class PortalQuoteController extends Controller
             $customerLabel = $customer->company_name
                 ?: trim(($customer->first_name ?? '') . ' ' . ($customer->last_name ?? ''));
 
-            $owner->notify(new ActionEmailNotification(
+            NotificationDispatcher::send($owner, new ActionEmailNotification(
                 'Quote declined by client',
                 $customerLabel ? $customerLabel . ' declined a quote.' : 'A client declined a quote.',
                 [
@@ -294,7 +297,9 @@ class PortalQuoteController extends Controller
                 route('customer.quote.show', $quote->id),
                 'View quote',
                 'Quote declined by client'
-            ));
+            ), [
+                'quote_id' => $quote->id,
+            ]);
         }
 
         if ($this->shouldReturnJson($request)) {

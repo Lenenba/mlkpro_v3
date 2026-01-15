@@ -10,6 +10,7 @@ use App\Models\Payment;
 use App\Models\User;
 use App\Models\Work;
 use App\Notifications\ActionEmailNotification;
+use App\Support\NotificationDispatcher;
 use Illuminate\Http\Request;
 
 class PortalInvoiceController extends Controller
@@ -88,7 +89,7 @@ class PortalInvoiceController extends Controller
             $customerLabel = $customer->company_name
                 ?: trim(($customer->first_name ?? '') . ' ' . ($customer->last_name ?? ''));
 
-            $owner->notify(new ActionEmailNotification(
+            NotificationDispatcher::send($owner, new ActionEmailNotification(
                 'Payment received from client',
                 $customerLabel ? $customerLabel . ' recorded a payment.' : 'A client recorded a payment.',
                 [
@@ -99,7 +100,10 @@ class PortalInvoiceController extends Controller
                 route('invoice.show', $invoice->id),
                 'View invoice',
                 'Payment received from client'
-            ));
+            ), [
+                'invoice_id' => $invoice->id,
+                'payment_id' => $payment->id,
+            ]);
         }
 
         if ($this->shouldReturnJson($request)) {

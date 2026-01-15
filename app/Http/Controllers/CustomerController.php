@@ -14,6 +14,7 @@ use App\Models\Role;
 use App\Models\Request as LeadRequest;
 use App\Models\User;
 use App\Notifications\InviteUserNotification;
+use App\Support\NotificationDispatcher;
 use App\Utils\FileHandler;
 use App\Models\ActivityLog;
 use Illuminate\Http\Request;
@@ -840,22 +841,38 @@ class CustomerController extends Controller
             'email' => $customer->email,
         ], 'Customer created');
 
+        $inviteQueued = true;
         if ($portalUser) {
             $token = Password::broker()->createToken($portalUser);
-            $portalUser->notify(new InviteUserNotification(
+            $inviteQueued = NotificationDispatcher::send($portalUser, new InviteUserNotification(
                 $token,
                 $accountOwner?->company_name ?: config('app.name'),
                 $accountOwner?->company_logo_url,
                 'client'
-            ));
+            ), [
+                'customer_id' => $customer->id,
+            ]);
         }
 
         if ($this->shouldReturnJson($request)) {
+            if (!$inviteQueued) {
+                return response()->json([
+                    'message' => 'Customer created, but the invite email could not be sent.',
+                    'warning' => true,
+                    'customer' => $customer->load('properties'),
+                    'portal_user_id' => $portalUser?->id,
+                ], 201);
+            }
+
             return response()->json([
                 'message' => 'Customer created successfully.',
                 'customer' => $customer->load('properties'),
                 'portal_user_id' => $portalUser?->id,
             ], 201);
+        }
+
+        if (!$inviteQueued) {
+            return redirect()->route('customer.index')->with('warning', 'Customer created, but the invite email could not be sent.');
         }
 
         return redirect()->route('customer.index')->with('success', 'Customer created successfully.');
@@ -917,14 +934,17 @@ class CustomerController extends Controller
             'email' => $customer->email,
         ], 'Customer created');
 
+        $inviteQueued = true;
         if ($portalUser) {
             $token = Password::broker()->createToken($portalUser);
-            $portalUser->notify(new InviteUserNotification(
+            $inviteQueued = NotificationDispatcher::send($portalUser, new InviteUserNotification(
                 $token,
                 $accountOwner?->company_name ?: config('app.name'),
                 $accountOwner?->company_logo_url,
                 'client'
-            ));
+            ), [
+                'customer_id' => $customer->id,
+            ]);
         }
 
         $propertyData = [];
@@ -957,6 +977,8 @@ class CustomerController extends Controller
             ],
             'property_id' => $property?->id,
             'properties' => $propertyData,
+            'invite_sent' => $inviteQueued,
+            'warning' => $inviteQueued ? null : 'Invite email could not be sent.',
         ], 201);
     }
 
