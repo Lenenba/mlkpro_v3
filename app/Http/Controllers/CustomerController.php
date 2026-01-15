@@ -146,7 +146,7 @@ class CustomerController extends Controller
             }])
             ->orderBy('company_name')
             ->orderBy('last_name')
-            ->get(['id', 'company_name', 'first_name', 'last_name', 'email', 'phone']);
+            ->get(['id', 'company_name', 'first_name', 'last_name', 'email', 'phone', 'logo', 'number']);
 
         $payload = $customers->map(function ($customer) {
             return [
@@ -156,6 +156,9 @@ class CustomerController extends Controller
                 'last_name' => $customer->last_name,
                 'email' => $customer->email,
                 'phone' => $customer->phone,
+                'number' => $customer->number,
+                'logo' => $customer->logo,
+                'logo_url' => $customer->logo_url,
                 'properties' => $customer->properties->map(function ($property) {
                     return [
                         'id' => $property->id,
@@ -947,6 +950,9 @@ class CustomerController extends Controller
                 'last_name' => $customer->last_name,
                 'email' => $customer->email,
                 'phone' => $customer->phone,
+                'number' => $customer->number,
+                'logo' => $customer->logo,
+                'logo_url' => $customer->logo_url,
                 'discount_rate' => $customer->discount_rate,
             ],
             'property_id' => $property?->id,
