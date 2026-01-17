@@ -58,6 +58,353 @@
   "actions": {
     "stop_impersonation": "Arrêter l’impersonation"
   },
+  "dashboard": {
+    "title": "Tableau de bord",
+    "welcome_named": "Bon retour, {name}. Voici votre activite recente.",
+    "welcome_generic": "Bon retour. Voici votre activite recente.",
+    "meta": {
+      "quotes_month": "{count} devis ce mois-ci",
+      "payments_month": "{amount} encaisses ce mois-ci"
+    },
+    "usage": {
+      "title": "Alertes d'utilisation",
+      "description": "Certains modules approchent leurs limites{planSuffix}.",
+      "plan_suffix": " pour le forfait {plan}",
+      "view_limits": "Voir les limites",
+      "unlimited": "Illimite",
+      "not_available": "Non disponible"
+    },
+    "limits": {
+      "quotes": "Devis",
+      "requests": "Demandes",
+      "invoices": "Factures",
+      "jobs": "Chantiers",
+      "products": "Produits",
+      "services": "Services",
+      "tasks": "Taches",
+      "team_members": "Membres d'equipe"
+    },
+    "time": {
+      "any": "N'importe quand"
+    },
+    "priority": {
+      "high": "Haute",
+      "medium": "Moyenne",
+      "low": "Basse"
+    },
+    "auto": {
+      "started": "Auto demarre",
+      "completed": "Auto termine"
+    },
+    "agenda": {
+      "task": "tache",
+      "tasks": "taches",
+      "job": "chantier",
+      "jobs": "chantiers",
+      "auto_started": "{count} demarre auto",
+      "auto_completed": "{count} termine auto",
+      "auto_completed_at": "{count} termine auto a {time}"
+    },
+    "labels": {
+      "unknown_customer": "Client inconnu",
+      "job": "Chantier",
+      "task": "Tache",
+      "assignee": "Assigne: {name}",
+      "quote_fallback": "Devis",
+      "invoice_fallback": "Facture"
+    },
+    "timeline": {
+      "title": "Planning du jour",
+      "subtitle": "Chantiers et taches prevus aujourd'hui.",
+      "sync_calendar": "Synchroniser le calendrier",
+      "view_tasks": "Voir les taches",
+      "auto_alerts": "Alertes auto",
+      "empty": "Aucune tache ni chantier prevu aujourd'hui."
+    },
+    "revenue": {
+      "title": "Tendance des revenus",
+      "subtitle": "Activite de facturation des 30 derniers jours.",
+      "view_invoices": "Voir les factures",
+      "paid_to_date": "Paye a ce jour",
+      "outstanding": "A recevoir",
+      "overdue": "En retard"
+    },
+    "sections": {
+      "recent_quotes": "Devis recents",
+      "upcoming_jobs": "Chantiers a venir",
+      "outstanding_invoices": "Factures en attente",
+      "recent_activity": "Activite recente"
+    },
+    "actions": {
+      "view_all": "Voir tout"
+    },
+    "table": {
+      "quote": "Devis",
+      "customer": "Client",
+      "status": "Statut",
+      "total": "Total",
+      "created": "Cree"
+    },
+    "empty": {
+      "quotes": "Aucun devis pour le moment.",
+      "jobs": "Aucun chantier planifie.",
+      "invoices": "Toutes les factures sont reglees.",
+      "activity": "Aucune activite recente."
+    },
+    "quick_actions": {
+      "title": "Actions rapides",
+      "create": "Creer",
+      "suggested": "Suggestion : {label}",
+      "suggested_next": "Suggestions suivantes"
+    },
+    "kpi": {
+      "revenue_paid": "Revenu encaisse",
+      "revenue_billed": "Facture {amount}",
+      "outstanding_balance": "Solde en attente",
+      "partial_invoices": "{count} factures partielles",
+      "open_quotes": "Devis ouverts",
+      "accepted_quotes": "{count} devis acceptes",
+      "jobs_in_progress": "Chantiers en cours",
+      "jobs_scheduled": "{count} planifies",
+      "customers": "Clients",
+      "customers_new": "{count} nouveaux clients",
+      "low_stock": "Stock faible",
+      "out_of_stock": "{count} en rupture",
+      "invoices_paid": "Factures payees",
+      "invoices_total": "{count} au total",
+      "inventory_value": "Valeur du stock",
+      "products_total": "{count} produits"
+    },
+    "announcements": {
+      "title": "Annonces",
+      "subtitle": "Dernieres nouvelles de MLK Pro.",
+      "quick_title": "Infos rapides",
+      "quick_subtitle": "Derniers points pour votre equipe.",
+      "updates_title": "Mises a jour",
+      "updates_subtitle": "Quoi de neuf sur MLK Pro.",
+      "valid_until": "Valide jusqu'au {date}",
+      "from": "Depuis le {date}",
+      "learn_more": "En savoir plus"
+    },
+    "checklist": {
+      "title": "Prise en main",
+      "subtitle": "Terminez ces etapes pour configurer votre espace.",
+      "done": "Fait",
+      "plan_scans_title": "Scan de plans",
+      "plan_scans_empty": "Aucun scan pour le moment.",
+      "plan_scans_count": "{count} scans importes",
+      "plan_scans_cta": "Importer un scan"
+    },
+    "onboarding": {
+      "add_first_service": "Ajouter votre premiere prestation",
+      "add_first_product": "Ajouter votre premier produit",
+      "add_first_customer": "Ajouter votre premier client",
+      "create_first_quote": "Creer votre premier devis"
+    },
+    "suggestions": {
+      "create_customer": "Creer un client",
+      "add_service": "Ajouter une prestation",
+      "add_product": "Ajouter un produit",
+      "create_quote": "Creer un devis",
+      "import_plan": "Importer un plan",
+      "create_request": "Creer une demande",
+      "review_jobs": "Revoir les chantiers"
+    },
+    "trend": {
+      "none": "Aucune tendance",
+      "no_change": "Aucun changement",
+      "up": "En hausse",
+      "down": "En baisse",
+      "new": "Nouveau",
+      "summary": "{direction} ({value})"
+    },
+    "status": {
+      "quote": {
+        "draft": "Brouillon",
+        "sent": "Envoye",
+        "accepted": "Accepte",
+        "declined": "Refuse",
+        "archived": "Archive"
+      },
+      "work": {
+        "to_schedule": "A planifier",
+        "scheduled": "Planifie",
+        "en_route": "En route",
+        "in_progress": "En cours",
+        "tech_complete": "Tech termine",
+        "pending_review": "En attente de validation",
+        "validated": "Valide",
+        "auto_validated": "Auto valide",
+        "dispute": "Litige",
+        "closed": "Ferme",
+        "cancelled": "Annule",
+        "completed": "Termine"
+      },
+      "task": {
+        "todo": "A faire",
+        "in_progress": "En cours",
+        "done": "Termine"
+      },
+      "invoice": {
+        "draft": "Brouillon",
+        "sent": "Envoye",
+        "awaiting_acceptance": "En attente d'acceptation",
+        "accepted": "Accepte",
+        "rejected": "Refuse",
+        "partial": "Partiel",
+        "paid": "Paye",
+        "overdue": "En retard",
+        "void": "Annulee"
+      }
+    }
+  },
+  "quotes": {
+    "title": "Devis",
+    "view": {
+      "table": "Table",
+      "cards": "Cartes"
+    },
+    "filters": {
+      "search_placeholder": "Rechercher devis, client ou notes",
+      "status": {
+        "all": "Tous les statuts"
+      },
+      "customer": {
+        "all": "Tous les clients"
+      },
+      "total_min": "Total min",
+      "total_max": "Total max",
+      "created_from": "Cree du",
+      "created_to": "Cree au",
+      "deposit": {
+        "label": "Acompte",
+        "with": "Avec acompte",
+        "none": "Sans acompte"
+      },
+      "tax": {
+        "label": "Taxe",
+        "with": "Avec taxe",
+        "none": "Sans taxe"
+      }
+    },
+    "status": {
+      "draft": "Brouillon",
+      "sent": "Envoye",
+      "accepted": "Accepte",
+      "declined": "Refuse",
+      "archived": "Archive"
+    },
+    "table": {
+      "quote": "Devis",
+      "job": "Chantier",
+      "customer": "Client",
+      "status": "Statut",
+      "rating": "Note",
+      "total": "Total",
+      "created": "Cree",
+      "results": "resultats"
+    },
+    "actions": {
+      "filters": "Filtres",
+      "clear": "Effacer",
+      "new_quote_for": "Nouveau devis pour...",
+      "new_quote": "Nouveau devis",
+      "view": "Voir",
+      "edit": "Modifier",
+      "send_email": "Envoyer email",
+      "accept_quote": "Accepter devis",
+      "create_job": "Creer chantier",
+      "archive": "Archiver",
+      "restore": "Restaurer",
+      "archive_confirm": "Archiver le devis {number}?"
+    },
+    "labels": {
+      "unknown_customer": "Client inconnu",
+      "quote_fallback": "Devis",
+      "quote_initial": "D",
+      "job_fallback": "Chantier"
+    },
+    "stats": {
+      "total": "Total devis",
+      "total_value": "Valeur totale",
+      "average_value": "Valeur moyenne",
+      "open": "Devis ouverts",
+      "accepted": "Acceptes",
+      "declined": "Refuses",
+      "top_by_value": "Top devis par valeur",
+      "based_on_filters": "Selon les filtres actifs",
+      "empty": "Aucune donnee de devis."
+    },
+    "empty": {
+      "quotes": "Aucun devis pour le moment."
+    },
+    "pagination": {
+      "previous": "Precedent",
+      "next": "Suivant",
+      "of": "sur"
+    }
+  },
+  "jobs": {
+    "title": "Chantiers",
+    "stats": {
+      "total": "Total chantiers",
+      "scheduled": "Planifie",
+      "in_progress": "En cours",
+      "completed": "Termine",
+      "cancelled": "Annule"
+    },
+    "filters": {
+      "search_placeholder": "Rechercher des chantiers, instructions ou types",
+      "status": {
+        "all": "Tous les statuts"
+      },
+      "customer": {
+        "all": "Tous les clients"
+      },
+      "start_from": "A partir du",
+      "start_to": "Jusqua"
+    },
+    "status": {
+      "to_schedule": "A planifier",
+      "scheduled": "Planifie",
+      "en_route": "En route",
+      "in_progress": "En cours",
+      "tech_complete": "Tech termine",
+      "pending_review": "En attente de validation",
+      "validated": "Valide",
+      "auto_validated": "Auto valide",
+      "dispute": "Litige",
+      "closed": "Cloture",
+      "cancelled": "Annule",
+      "completed": "Termine (ancien)"
+    },
+    "table": {
+      "job": "Chantier",
+      "customer": "Client",
+      "status": "Statut",
+      "rating": "Note",
+      "total": "Total",
+      "start_date": "Date de debut",
+      "results": "resultats"
+    },
+    "actions": {
+      "filters": "Filtres",
+      "reset": "Reinitialiser",
+      "view": "Voir",
+      "edit": "Modifier",
+      "schedule": "Planifier",
+      "view_invoice": "Voir la facture",
+      "create_invoice": "Creer une facture"
+    },
+    "labels": {
+      "unknown_customer": "Client inconnu"
+    },
+    "pagination": {
+      "previous": "Precedent",
+      "next": "Suivant",
+      "of": "sur"
+    }
+  },
   "quick_create": {
     "customer": "Client",
     "service": "Prestation",

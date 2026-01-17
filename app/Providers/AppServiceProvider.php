@@ -7,6 +7,7 @@ use App\Models\Billing\PaddleSubscription as PaddleSubscriptionModel;
 use App\Models\Billing\PaddleSubscriptionItem;
 use App\Models\Billing\PaddleTransaction as PaddleTransactionModel;
 use App\Models\User;
+use App\Listeners\SendDatabasePushNotifications;
 use App\Listeners\SendEmailMirrorNotifications;
 use App\Services\PlatformAdminNotifier;
 use Illuminate\Auth\Events\Registered;
@@ -48,6 +49,7 @@ class AppServiceProvider extends ServiceProvider
         Vite::prefetch(concurrency: 3);
 
         Event::listen(NotificationSent::class, SendEmailMirrorNotifications::class);
+        Event::listen(NotificationSent::class, SendDatabasePushNotifications::class);
         Event::listen(NotificationFailed::class, SendEmailMirrorNotifications::class);
 
         Event::listen(Registered::class, function (Registered $event): void {

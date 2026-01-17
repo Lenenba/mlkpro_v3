@@ -1,5 +1,6 @@
 <script setup>
 import { computed } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 const props = defineProps({
     items: {
@@ -8,9 +9,14 @@ const props = defineProps({
     },
     title: {
         type: String,
-        default: 'Top quotes by value',
+        default: null,
     },
 });
+
+const { t } = useI18n();
+
+const resolvedTitle = computed(() => props.title || t('quotes.stats.top_by_value'));
+const quoteInitial = computed(() => t('quotes.labels.quote_initial'));
 
 const total = computed(() =>
     props.items.reduce((sum, item) => sum + Number(item.total || 0), 0)
@@ -22,7 +28,7 @@ const formatCurrency = (value) =>
 const displayCustomer = (item) =>
     item.customer?.company_name ||
     `${item.customer?.first_name || ''} ${item.customer?.last_name || ''}`.trim() ||
-    'Unknown';
+    t('quotes.labels.unknown_customer');
 
 const getPercent = (value) => {
     if (!total.value) {
@@ -38,10 +44,10 @@ const getPercent = (value) => {
         <div class="p-5 pb-4 flex items-center justify-between gap-x-4">
             <div>
                 <h2 class="inline-block font-semibold text-stone-800 dark:text-neutral-200">
-                    {{ title }}
+                    {{ resolvedTitle }}
                 </h2>
                 <p class="text-xs text-stone-500 dark:text-neutral-500">
-                    Based on current filters
+                    {{ $t('quotes.stats.based_on_filters') }}
                 </p>
             </div>
             <div class="text-sm text-stone-500 dark:text-neutral-400">
@@ -51,7 +57,7 @@ const getPercent = (value) => {
 
         <div class="h-full p-5 pt-0">
             <div v-if="!items.length" class="text-sm text-stone-500 dark:text-neutral-400">
-                No quote data yet.
+                {{ $t('quotes.stats.empty') }}
             </div>
             <div v-else class="space-y-4">
                 <div class="flex gap-x-1 w-full h-2.5 rounded-full overflow-hidden">
@@ -74,11 +80,11 @@ const getPercent = (value) => {
                             <span
                                 class="size-6 rounded-full bg-stone-100 text-stone-700 text-xs font-medium flex items-center justify-center dark:bg-neutral-700 dark:text-neutral-200"
                             >
-                                {{ item.number?.[0] || 'Q' }}
+                                {{ item.number?.[0] || quoteInitial }}
                             </span>
                             <div class="flex flex-col">
                                 <span class="text-sm text-stone-800 dark:text-neutral-200">
-                                    {{ item.number || 'Quote' }}
+                                    {{ item.number || $t('quotes.labels.quote_fallback') }}
                                 </span>
                                 <span class="text-xs text-stone-500 dark:text-neutral-500">
                                     {{ displayCustomer(item) }}

@@ -1,6 +1,7 @@
 <script setup>
 import { computed, ref, watch } from 'vue';
 import { Link, router, useForm } from '@inertiajs/vue3';
+import { useI18n } from 'vue-i18n';
 import StarRating from '@/Components/UI/StarRating.vue';
 import { humanizeDate } from '@/utils/date';
 
@@ -36,6 +37,8 @@ const filterForm = useForm({
     sort: props.filters?.sort ?? 'created_at',
     direction: props.filters?.direction ?? 'desc',
 });
+
+const { t } = useI18n();
 
 const showAdvanced = ref(false);
 const newQuoteCustomerId = ref('');
@@ -150,52 +153,52 @@ const formatDate = (value) => humanizeDate(value);
 const displayCustomer = (customer) =>
     customer?.company_name ||
     `${customer?.first_name || ''} ${customer?.last_name || ''}`.trim() ||
-    'Unknown';
+    t('quotes.labels.unknown_customer');
 
 const isArchived = (quote) => Boolean(quote?.archived_at);
 const displayStatus = (quote) => (isArchived(quote) ? 'archived' : (quote?.status || 'draft'));
 
-const statusMeta = {
+const statusMeta = computed(() => ({
     draft: {
-        label: 'Draft',
+        label: t('quotes.status.draft'),
         classes: 'bg-slate-100 text-slate-700 dark:bg-slate-500/15 dark:text-slate-200',
         icon: 'draft',
         iconClass: '',
         accent: 'border-l-slate-400/80',
     },
     sent: {
-        label: 'Sent',
+        label: t('quotes.status.sent'),
         classes: 'bg-sky-100 text-sky-800 dark:bg-sky-500/15 dark:text-sky-200',
         icon: 'sent',
         iconClass: '',
         accent: 'border-l-sky-500/80',
     },
     accepted: {
-        label: 'Accepted',
+        label: t('quotes.status.accepted'),
         classes: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-200',
         icon: 'accepted',
         iconClass: 'animate-micro-pop',
         accent: 'border-l-emerald-500/80',
     },
     declined: {
-        label: 'Declined',
+        label: t('quotes.status.declined'),
         classes: 'bg-rose-100 text-rose-800 dark:bg-rose-500/15 dark:text-rose-200',
         icon: 'declined',
         iconClass: '',
         accent: 'border-l-rose-500/80',
     },
     archived: {
-        label: 'Archived',
+        label: t('quotes.status.archived'),
         classes: 'bg-stone-100 text-stone-700 dark:bg-neutral-700 dark:text-neutral-300',
         icon: 'archived',
         iconClass: '',
         accent: 'border-l-stone-300',
     },
-};
+}));
 
 const getStatusMeta = (quote) => {
     const status = displayStatus(quote);
-    return statusMeta[status] || statusMeta.draft;
+    return statusMeta.value[status] || statusMeta.value.draft;
 };
 
 const dispatchDemoEvent = (eventName) => {
@@ -233,7 +236,7 @@ const acceptQuote = (quote) => {
 };
 
 const archiveQuote = (quote) => {
-    if (!confirm(`Archive quote ${quote.number || ''}?`)) {
+    if (!confirm(t('quotes.actions.archive_confirm', { number: quote.number || '' }))) {
         return;
     }
     router.delete(route('customer.quote.destroy', quote), { preserveScroll: true });
@@ -277,7 +280,7 @@ const startQuote = () => {
                         </div>
                         <input type="text" v-model="filterForm.search" data-testid="demo-quote-search"
                             class="py-[7px] ps-10 pe-8 block w-full bg-white border border-stone-200 rounded-sm text-sm placeholder:text-stone-500 focus:border-green-500 focus:ring-green-600 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 dark:placeholder:text-neutral-400 dark:focus:ring-neutral-600"
-                            placeholder="Search quotes, customer, or notes">
+                            :placeholder="$t('quotes.filters.search_placeholder')">
                     </div>
                 </div>
 
@@ -296,7 +299,7 @@ const startQuote = () => {
                                 <path d="M3 3h18v6H3z" />
                                 <path d="M3 13h18v8H3z" />
                             </svg>
-                            Table
+                            {{ $t('quotes.view.table') }}
                         </button>
                         <button
                             type="button"
@@ -313,22 +316,22 @@ const startQuote = () => {
                                 <rect x="3" y="14" width="7" height="7" rx="1" />
                                 <rect x="14" y="14" width="7" height="7" rx="1" />
                             </svg>
-                            Cards
+                            {{ $t('quotes.view.cards') }}
                         </button>
                     </div>
                     <select v-model="filterForm.status"
                         class="py-2 ps-3 pe-8 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 dark:focus:ring-neutral-600">
-                        <option value="">All status</option>
-                        <option value="draft">Draft</option>
-                        <option value="sent">Sent</option>
-                        <option value="accepted">Accepted</option>
-                        <option value="declined">Declined</option>
-                        <option value="archived">Archived</option>
+                        <option value="">{{ $t('quotes.filters.status.all') }}</option>
+                        <option value="draft">{{ $t('quotes.status.draft') }}</option>
+                        <option value="sent">{{ $t('quotes.status.sent') }}</option>
+                        <option value="accepted">{{ $t('quotes.status.accepted') }}</option>
+                        <option value="declined">{{ $t('quotes.status.declined') }}</option>
+                        <option value="archived">{{ $t('quotes.status.archived') }}</option>
                     </select>
 
                     <select v-model="filterForm.customer_id"
                         class="py-2 ps-3 pe-8 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 dark:focus:ring-neutral-600">
-                        <option value="">All customers</option>
+                        <option value="">{{ $t('quotes.filters.customer.all') }}</option>
                         <option v-for="customer in customers" :key="customer.id" :value="customer.id">
                             {{ customer.company_name || `${customer.first_name || ''} ${customer.last_name || ''}`.trim() }}
                         </option>
@@ -336,24 +339,24 @@ const startQuote = () => {
 
                     <button type="button" @click="showAdvanced = !showAdvanced"
                         class="py-2 px-2.5 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700">
-                        Filters
+                        {{ $t('quotes.actions.filters') }}
                     </button>
                     <button type="button" @click="clearFilters"
                         class="py-2 px-3 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700">
-                        Clear
+                        {{ $t('quotes.actions.clear') }}
                     </button>
 
                     <div class="flex items-center gap-2">
                         <select v-model="newQuoteCustomerId"
                             class="py-2 ps-3 pe-8 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 dark:focus:ring-neutral-600">
-                            <option value="">New quote for...</option>
+                            <option value="">{{ $t('quotes.actions.new_quote_for') }}</option>
                             <option v-for="customer in customers" :key="customer.id" :value="customer.id">
                                 {{ customer.company_name || `${customer.first_name || ''} ${customer.last_name || ''}`.trim() }}
                             </option>
                         </select>
                         <button type="button" @click="startQuote" :disabled="!newQuoteCustomerId"
                             class="py-2 px-2.5 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:ring-2 focus:ring-green-500">
-                            New quote
+                            {{ $t('quotes.actions.new_quote') }}
                         </button>
                     </div>
                 </div>
@@ -362,27 +365,27 @@ const startQuote = () => {
             <div v-if="showAdvanced" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-2">
                 <input type="number" step="0.01" v-model="filterForm.total_min"
                     class="py-2 px-3 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
-                    placeholder="Total min">
+                    :placeholder="$t('quotes.filters.total_min')">
                 <input type="number" step="0.01" v-model="filterForm.total_max"
                     class="py-2 px-3 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
-                    placeholder="Total max">
+                    :placeholder="$t('quotes.filters.total_max')">
                 <input type="date" v-model="filterForm.created_from"
                     class="py-2 px-3 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
-                    placeholder="Created from">
+                    :placeholder="$t('quotes.filters.created_from')">
                 <input type="date" v-model="filterForm.created_to"
                     class="py-2 px-3 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
-                    placeholder="Created to">
+                    :placeholder="$t('quotes.filters.created_to')">
                 <select v-model="filterForm.has_deposit"
                     class="py-2 ps-3 pe-8 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 dark:focus:ring-neutral-600">
-                    <option value="">Deposit</option>
-                    <option value="1">With deposit</option>
-                    <option value="0">No deposit</option>
+                    <option value="">{{ $t('quotes.filters.deposit.label') }}</option>
+                    <option value="1">{{ $t('quotes.filters.deposit.with') }}</option>
+                    <option value="0">{{ $t('quotes.filters.deposit.none') }}</option>
                 </select>
                 <select v-model="filterForm.has_tax"
                     class="py-2 ps-3 pe-8 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 dark:focus:ring-neutral-600">
-                    <option value="">Tax</option>
-                    <option value="1">With tax</option>
-                    <option value="0">No tax</option>
+                    <option value="">{{ $t('quotes.filters.tax.label') }}</option>
+                    <option value="1">{{ $t('quotes.filters.tax.with') }}</option>
+                    <option value="0">{{ $t('quotes.filters.tax.none') }}</option>
                 </select>
             </div>
         </div>
@@ -394,37 +397,41 @@ const startQuote = () => {
                         <th class="px-4 py-3 text-start">
                             <button type="button" @click="toggleSort('number')"
                                 class="text-sm font-medium text-stone-800 dark:text-neutral-200 flex items-center gap-x-1">
-                                Quote
+                                {{ $t('quotes.table.quote') }}
                             </button>
                         </th>
                         <th class="px-4 py-3 text-start">
                             <button type="button" @click="toggleSort('job_title')"
                                 class="text-sm font-medium text-stone-800 dark:text-neutral-200 flex items-center gap-x-1">
-                                Job
+                                {{ $t('quotes.table.job') }}
                             </button>
                         </th>
                         <th class="px-4 py-3 text-start">
-                            <span class="text-sm font-medium text-stone-800 dark:text-neutral-200">Customer</span>
+                            <span class="text-sm font-medium text-stone-800 dark:text-neutral-200">
+                                {{ $t('quotes.table.customer') }}
+                            </span>
                         </th>
                         <th class="px-4 py-3 text-start">
                             <button type="button" @click="toggleSort('status')"
                                 class="text-sm font-medium text-stone-800 dark:text-neutral-200 flex items-center gap-x-1">
-                                Status
+                                {{ $t('quotes.table.status') }}
                             </button>
                         </th>
                         <th class="px-4 py-3 text-start">
-                            <span class="text-sm font-medium text-stone-800 dark:text-neutral-200">Rating</span>
+                            <span class="text-sm font-medium text-stone-800 dark:text-neutral-200">
+                                {{ $t('quotes.table.rating') }}
+                            </span>
                         </th>
                         <th class="px-4 py-3 text-start">
                             <button type="button" @click="toggleSort('total')"
                                 class="text-sm font-medium text-stone-800 dark:text-neutral-200 flex items-center gap-x-1">
-                                Total
+                                {{ $t('quotes.table.total') }}
                             </button>
                         </th>
                         <th class="px-4 py-3 text-start">
                             <button type="button" @click="toggleSort('created_at')"
                                 class="text-sm font-medium text-stone-800 dark:text-neutral-200 flex items-center gap-x-1">
-                                Created
+                                {{ $t('quotes.table.created') }}
                             </button>
                         </th>
                         <th class="px-4 py-3 text-end"></th>
@@ -450,11 +457,11 @@ const startQuote = () => {
                         <td class="px-4 py-3">
                             <Link :href="route('customer.quote.show', quote)"
                                 class="text-sm font-semibold text-stone-800 hover:underline dark:text-neutral-200">
-                                {{ quote.number || 'Quote' }}
+                                {{ quote.number || $t('quotes.labels.quote_fallback') }}
                             </Link>
                         </td>
                         <td class="px-4 py-3 text-sm text-stone-600 dark:text-neutral-300">
-                            {{ quote.job_title }}
+                            {{ quote.job_title || $t('quotes.labels.job_fallback') }}
                         </td>
                         <td class="px-4 py-3 text-sm text-stone-600 dark:text-neutral-300">
                             {{ displayCustomer(quote.customer) }}
@@ -529,34 +536,34 @@ const startQuote = () => {
                                     <div class="p-1">
                                         <Link :href="route('customer.quote.show', quote)"
                                             class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
-                                            View
+                                            {{ $t('quotes.actions.view') }}
                                         </Link>
                                         <Link v-if="!isArchived(quote) && quote.status !== 'accepted'"
                                             :href="route('customer.quote.edit', quote)"
                                             class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
-                                            Edit
+                                            {{ $t('quotes.actions.edit') }}
                                         </Link>
                                         <div class="my-1 border-t border-stone-200 dark:border-neutral-800"></div>
                                         <button v-if="!isArchived(quote)" type="button" @click="sendEmail(quote)" data-testid="demo-quote-send"
                                             class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-neutral-800 action-feedback" data-tone="info">
-                                            Send email
+                                            {{ $t('quotes.actions.send_email') }}
                                         </button>
                                         <button v-if="!isArchived(quote) && quote.status !== 'accepted' && quote.status !== 'declined'" type="button" @click="acceptQuote(quote)" data-testid="demo-quote-accept"
                                             class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-emerald-600 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-neutral-800 action-feedback">
-                                            Accept quote
+                                            {{ $t('quotes.actions.accept_quote') }}
                                         </button>
                                         <button v-if="!isArchived(quote)" type="button" @click="convertToJob(quote)" data-testid="demo-quote-convert"
                                             class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-emerald-600 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-neutral-800 action-feedback">
-                                            Create job
+                                            {{ $t('quotes.actions.create_job') }}
                                         </button>
                                         <div class="my-1 border-t border-stone-200 dark:border-neutral-800"></div>
                                         <button v-if="!isArchived(quote)" type="button" @click="archiveQuote(quote)"
                                             class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-neutral-800 action-feedback" data-tone="danger">
-                                            Archive
+                                            {{ $t('quotes.actions.archive') }}
                                         </button>
                                         <button v-else type="button" @click="restoreQuote(quote)"
                                             class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-emerald-600 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-neutral-800 action-feedback">
-                                            Restore
+                                            {{ $t('quotes.actions.restore') }}
                                         </button>
                                     </div>
                                 </div>
@@ -593,7 +600,7 @@ const startQuote = () => {
             </div>
             <div v-else-if="!quotes.data.length"
                 class="rounded-sm border border-dashed border-stone-200 bg-white px-4 py-10 text-center text-stone-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300">
-                No quotes yet.
+                {{ $t('quotes.empty.quotes') }}
             </div>
             <div v-else class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
                 <div
@@ -606,13 +613,13 @@ const startQuote = () => {
                         <div class="min-w-0">
                             <Link :href="route('customer.quote.show', quote)"
                                 class="text-sm font-semibold text-stone-800 hover:text-emerald-700 dark:text-neutral-100 dark:hover:text-emerald-300 line-clamp-1">
-                                {{ quote.number || 'Quote' }}
+                                {{ quote.number || $t('quotes.labels.quote_fallback') }}
                             </Link>
                             <div class="text-xs text-stone-500 dark:text-neutral-400">
                                 {{ displayCustomer(quote.customer) }}
                             </div>
                             <div class="text-[11px] text-stone-400 dark:text-neutral-500">
-                                {{ quote.job_title || 'Job' }}
+                                {{ quote.job_title || $t('quotes.labels.job_fallback') }}
                             </div>
                         </div>
                         <div class="flex items-start gap-2">
@@ -673,34 +680,34 @@ const startQuote = () => {
                                     <div class="p-1">
                                         <Link :href="route('customer.quote.show', quote)"
                                             class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
-                                            View
+                                            {{ $t('quotes.actions.view') }}
                                         </Link>
                                         <Link v-if="!isArchived(quote) && quote.status !== 'accepted'"
                                             :href="route('customer.quote.edit', quote)"
                                             class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
-                                            Edit
+                                            {{ $t('quotes.actions.edit') }}
                                         </Link>
                                         <div class="my-1 border-t border-stone-200 dark:border-neutral-800"></div>
                                         <button v-if="!isArchived(quote)" type="button" @click="sendEmail(quote)" data-testid="demo-quote-send"
                                             class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-neutral-800 action-feedback" data-tone="info">
-                                            Send email
+                                            {{ $t('quotes.actions.send_email') }}
                                         </button>
                                         <button v-if="!isArchived(quote) && quote.status !== 'accepted' && quote.status !== 'declined'" type="button" @click="acceptQuote(quote)" data-testid="demo-quote-accept"
                                             class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-emerald-600 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-neutral-800 action-feedback">
-                                            Accept quote
+                                            {{ $t('quotes.actions.accept_quote') }}
                                         </button>
                                         <button v-if="!isArchived(quote)" type="button" @click="convertToJob(quote)" data-testid="demo-quote-convert"
                                             class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-emerald-600 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-neutral-800 action-feedback">
-                                            Create job
+                                            {{ $t('quotes.actions.create_job') }}
                                         </button>
                                         <div class="my-1 border-t border-stone-200 dark:border-neutral-800"></div>
                                         <button v-if="!isArchived(quote)" type="button" @click="archiveQuote(quote)"
                                             class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-neutral-800 action-feedback" data-tone="danger">
-                                            Archive
+                                            {{ $t('quotes.actions.archive') }}
                                         </button>
                                         <button v-else type="button" @click="restoreQuote(quote)"
                                             class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-emerald-600 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-neutral-800 action-feedback">
-                                            Restore
+                                            {{ $t('quotes.actions.restore') }}
                                         </button>
                                     </div>
                                 </div>
@@ -722,13 +729,17 @@ const startQuote = () => {
                             </span>
                         </div>
                         <div class="flex items-center gap-2 justify-end">
-                            <span class="text-stone-500 dark:text-neutral-400">Rating</span>
+                            <span class="text-stone-500 dark:text-neutral-400">
+                                {{ $t('quotes.table.rating') }}
+                            </span>
                             <StarRating :value="quote.ratings_avg_rating" icon-class="h-3.5 w-3.5" empty-label="-" />
                         </div>
                     </div>
 
                     <div class="mt-3 flex items-center justify-between">
-                        <span class="text-xs text-stone-500 dark:text-neutral-400">Total</span>
+                        <span class="text-xs text-stone-500 dark:text-neutral-400">
+                            {{ $t('quotes.table.total') }}
+                        </span>
                         <span class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
                             {{ formatCurrency(quote.total) }}
                         </span>
@@ -740,20 +751,20 @@ const startQuote = () => {
         <div class="mt-5 flex flex-wrap justify-between items-center gap-2">
             <p class="text-sm text-stone-800 dark:text-neutral-200">
                 <span class="font-medium">{{ count }}</span>
-                <span class="text-stone-500 dark:text-neutral-500">results</span>
+                <span class="text-stone-500 dark:text-neutral-500">{{ $t('quotes.table.results') }}</span>
             </p>
 
             <nav class="flex justify-end items-center gap-x-1" aria-label="Pagination">
                 <Link :href="quotes.prev_page_url" v-if="quotes.prev_page_url">
                     <button type="button"
                         class="min-h-[38px] min-w-[38px] py-2 px-2.5 inline-flex justify-center items-center gap-x-2 text-sm rounded-sm text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-100 dark:text-white dark:hover:bg-white/10 dark:focus:bg-neutral-700"
-                        aria-label="Previous">
+                        :aria-label="$t('quotes.pagination.previous')">
                         <svg class="shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
                             viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                             stroke-linecap="round" stroke-linejoin="round">
                             <path d="m15 18-6-6 6-6" />
                         </svg>
-                        <span class="sr-only">Previous</span>
+                        <span class="sr-only">{{ $t('quotes.pagination.previous') }}</span>
                     </button>
                 </Link>
                 <div class="flex items-center gap-x-1">
@@ -761,7 +772,9 @@ const startQuote = () => {
                         class="min-h-[38px] min-w-[38px] flex justify-center items-center bg-stone-100 text-stone-800 py-2 px-3 text-sm rounded-sm disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-700 dark:text-white"
                         aria-current="page">{{ quotes.from }}</span>
                     <span
-                        class="min-h-[38px] flex justify-center items-center text-stone-500 py-2 px-1.5 text-sm dark:text-neutral-500">of</span>
+                        class="min-h-[38px] flex justify-center items-center text-stone-500 py-2 px-1.5 text-sm dark:text-neutral-500">
+                        {{ $t('quotes.pagination.of') }}
+                    </span>
                     <span
                         class="min-h-[38px] flex justify-center items-center text-stone-500 py-2 px-1.5 text-sm dark:text-neutral-500">{{
                             quotes.to }}</span>
@@ -770,8 +783,8 @@ const startQuote = () => {
                 <Link :href="quotes.next_page_url" v-if="quotes.next_page_url">
                     <button type="button"
                         class="min-h-[38px] min-w-[38px] py-2 px-2.5 inline-flex justify-center items-center gap-x-2 text-sm rounded-sm text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-100 dark:text-white dark:hover:bg-white/10 dark:focus:bg-neutral-700"
-                        aria-label="Next">
-                        <span class="sr-only">Next</span>
+                        :aria-label="$t('quotes.pagination.next')">
+                        <span class="sr-only">{{ $t('quotes.pagination.next') }}</span>
                         <svg class="shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
                             viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                             stroke-linecap="round" stroke-linejoin="round">

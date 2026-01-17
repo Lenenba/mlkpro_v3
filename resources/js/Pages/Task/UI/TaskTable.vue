@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue';
 import draggable from 'vuedraggable';
 import { prepareMediaFile, MEDIA_LIMITS } from '@/utils/media';
 import { Link, router, useForm } from '@inertiajs/vue3';
+import { useI18n } from 'vue-i18n';
 import Modal from '@/Components/UI/Modal.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingNumberInput from '@/Components/FloatingNumberInput.vue';
@@ -60,6 +61,8 @@ const props = defineProps({
     },
 });
 
+const { t } = useI18n();
+
 const filterForm = useForm({
     search: props.filters?.search ?? '',
     status: props.filters?.status ?? '',
@@ -69,13 +72,13 @@ const taskList = computed(() => Array.isArray(props.tasks?.data) ? props.tasks.d
 const allowedViews = ['board', 'schedule'];
 const initialView = allowedViews.includes(props.filters?.view) ? props.filters.view : 'board';
 const viewMode = ref(initialView);
-const scheduleRangeOptions = [
-    { id: 'week', label: 'This week' },
-    { id: '2weeks', label: 'Next 2 weeks' },
-    { id: 'month', label: 'This month' },
-    { id: 'all', label: 'All tasks' },
-];
-const allowedScheduleRanges = scheduleRangeOptions.map((option) => option.id);
+const scheduleRangeOptions = computed(() => ([
+    { id: 'week', label: t('tasks.schedule.range.week') },
+    { id: '2weeks', label: t('tasks.schedule.range.two_weeks') },
+    { id: 'month', label: t('tasks.schedule.range.month') },
+    { id: 'all', label: t('tasks.schedule.range.all') },
+]));
+const allowedScheduleRanges = computed(() => scheduleRangeOptions.value.map((option) => option.id));
 const scheduleRange = ref('week');
 
 if (typeof window !== 'undefined') {
@@ -84,7 +87,7 @@ if (typeof window !== 'undefined') {
         viewMode.value = storedView;
     }
     const storedRange = window.localStorage.getItem('task_schedule_range');
-    if (allowedScheduleRanges.includes(storedRange)) {
+    if (allowedScheduleRanges.value.includes(storedRange)) {
         scheduleRange.value = storedRange;
     }
 }
@@ -102,7 +105,7 @@ const setViewMode = (mode) => {
 };
 
 const setScheduleRange = (range) => {
-    if (!allowedScheduleRanges.includes(range)) {
+    if (!allowedScheduleRanges.value.includes(range)) {
         return;
     }
     if (scheduleRange.value !== range) {
@@ -286,7 +289,7 @@ const clearSelectedDate = () => {
 };
 
 const selectedDateLabel = computed(() =>
-    selectedDateKey.value ? formatScheduleLabel(selectedDateKey.value) : 'All dates'
+    selectedDateKey.value ? formatScheduleLabel(selectedDateKey.value) : t('tasks.schedule.all_dates')
 );
 
 const visibleScheduleGroups = computed(() => {
@@ -316,7 +319,15 @@ const taskCountByDate = computed(() => {
 });
 
 const calendarCursor = ref(new Date());
-const weekDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+const weekDays = computed(() => ([
+    t('tasks.calendar.weekdays.mon'),
+    t('tasks.calendar.weekdays.tue'),
+    t('tasks.calendar.weekdays.wed'),
+    t('tasks.calendar.weekdays.thu'),
+    t('tasks.calendar.weekdays.fri'),
+    t('tasks.calendar.weekdays.sat'),
+    t('tasks.calendar.weekdays.sun'),
+]));
 
 const calendarLabel = computed(() =>
     calendarCursor.value.toLocaleDateString(undefined, {
@@ -371,6 +382,22 @@ const calendarDays = computed(() => {
 
     return days;
 });
+
+const calendarTaskCountLabel = (count) => {
+    if (!count) {
+        return '';
+    }
+    return count === 1
+        ? t('tasks.calendar.day_count_one', { count })
+        : t('tasks.calendar.day_count_many', { count });
+};
+
+const taskCountLabel = (count) => {
+    const value = Number(count || 0);
+    return value === 1
+        ? t('tasks.labels.task_count_one', { count: value })
+        : t('tasks.labels.task_count_many', { count: value });
+};
 
 const filterPayload = () => {
     const payload = {
@@ -435,7 +462,9 @@ const statusLabel = (status) => {
     if (!status) {
         return '';
     }
-    return String(status).replace('_', ' ');
+    const key = `tasks.status.${status}`;
+    const label = t(key);
+    return label === key ? String(status).replace('_', ' ') : label;
 };
 
 const statusClasses = (status) => {
@@ -497,7 +526,7 @@ const workLabel = (work) => {
     if (!work) {
         return '';
     }
-    const title = work.job_title || work.number || `Job #${work.id}`;
+    const title = work.job_title || work.number || t('tasks.labels.job_number', { id: work.id });
     const customerName = work.customer?.company_name
         || `${work.customer?.first_name || ''} ${work.customer?.last_name || ''}`.trim();
     return customerName ? `${title} - ${customerName}` : title;
@@ -511,7 +540,7 @@ const workOptions = computed(() =>
 );
 
 const materialOptions = computed(() => [
-    { id: '', name: 'Custom' },
+    { id: '', name: t('tasks.materials.custom') },
     ...props.materialProducts.map((product) => ({
         id: product.id,
         name: product.name,
@@ -770,14 +799,14 @@ const deleteTask = (task) => {
     if (!props.canDelete) {
         return;
     }
-    if (!confirm(`Delete "${task.title}"?`)) {
+    if (!confirm(t('tasks.actions.delete_confirm', { title: task.title }))) {
         return;
     }
 
     router.delete(route('task.destroy', task.id), { preserveScroll: true });
 };
 
-const displayAssignee = (task) => task?.assignee?.user?.name || '-';
+const displayAssignee = (task) => task?.assignee?.user?.name || t('tasks.labels.unassigned');
 
 const dragInProgress = ref(false);
 const lastDragAt = ref(0);
@@ -897,7 +926,7 @@ const submitProof = () => {
                         </div>
                         <input type="text" v-model="filterForm.search" data-testid="demo-task-search"
                             class="py-[7px] ps-10 pe-8 block w-full bg-white border border-stone-200 rounded-sm text-sm placeholder:text-stone-500 focus:border-green-500 focus:ring-green-600 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 dark:placeholder:text-neutral-400 dark:focus:ring-neutral-600"
-                            placeholder="Search tasks">
+                            :placeholder="$t('tasks.filters.search_placeholder')">
                     </div>
                 </div>
 
@@ -918,7 +947,7 @@ const submitProof = () => {
                                 <rect x="14" y="14" width="7" height="7" rx="1" />
                                 <rect x="3" y="14" width="7" height="7" rx="1" />
                             </svg>
-                            Board
+                            {{ $t('tasks.view.board') }}
                         </button>
                         <button
                             type="button"
@@ -935,12 +964,12 @@ const submitProof = () => {
                                 <path d="M16 2v4" />
                                 <path d="M3 10h18" />
                             </svg>
-                            Schedule
+                            {{ $t('tasks.view.schedule') }}
                         </button>
                     </div>
                     <select v-model="filterForm.status"
                         class="py-2 ps-3 pe-8 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 dark:focus:ring-neutral-600">
-                        <option value="">All statuses</option>
+                        <option value="">{{ $t('tasks.filters.status.all') }}</option>
                         <option v-for="status in statuses" :key="status" :value="status">
                             {{ statusLabel(status) }}
                         </option>
@@ -948,12 +977,12 @@ const submitProof = () => {
 
                     <button type="button" @click="clearFilters"
                         class="py-2 px-3 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700 action-feedback">
-                        Clear
+                        {{ $t('tasks.actions.clear') }}
                     </button>
 
                     <button v-if="canCreate" type="button" data-hs-overlay="#hs-task-create" data-testid="demo-task-add"
                         class="py-2 px-2.5 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:ring-2 focus:ring-green-500 action-feedback">
-                        + Add task
+                        + {{ $t('tasks.actions.add_task') }}
                     </button>
                 </div>
             </div>
@@ -1101,22 +1130,22 @@ const submitProof = () => {
                                         role="menu" aria-orientation="vertical">
                                         <div class="p-1">
                                             <div class="px-2 py-1 text-[11px] uppercase tracking-wide text-stone-400 dark:text-neutral-500">
-                                                Set status
+                                                {{ $t('tasks.actions.set_status') }}
                                             </div>
                                             <button type="button" :disabled="!canChangeStatus || task.status === 'todo' || isTaskLocked(task)"
                                                 @click="setTaskStatus(task, 'todo')"
                                                 class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none dark:text-neutral-300 dark:hover:bg-neutral-800 action-feedback">
-                                                To do
+                                                {{ $t('tasks.status.todo') }}
                                             </button>
                                             <button type="button" :disabled="!canChangeStatus || task.status === 'in_progress' || isTaskLocked(task)"
                                                 @click="setTaskStatus(task, 'in_progress')"
                                                 class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none dark:text-neutral-300 dark:hover:bg-neutral-800 action-feedback">
-                                                In progress
+                                                {{ $t('tasks.status.in_progress') }}
                                             </button>
                                             <button type="button" :disabled="!canChangeStatus || task.status === 'done' || isTaskLocked(task)" data-testid="demo-task-mark-done"
                                                 @click="setTaskStatus(task, 'done')"
                                                 class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none dark:text-neutral-300 dark:hover:bg-neutral-800 action-feedback">
-                                                Done
+                                                {{ $t('tasks.status.done') }}
                                             </button>
 
                                             <template v-if="canManage || canDelete">
@@ -1126,15 +1155,15 @@ const submitProof = () => {
                                             <button v-if="canManage" type="button" @click="openEditTask(task)"
                                                 :disabled="isTaskLocked(task)"
                                                 class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none dark:text-neutral-300 dark:hover:bg-neutral-800 action-feedback">
-                                                Edit
+                                                {{ $t('tasks.actions.edit') }}
                                             </button>
                                             <button v-if="canChangeStatus" type="button" @click="openProofUpload(task)"
                                                 class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800 action-feedback">
-                                                Add proof
+                                                {{ $t('tasks.actions.add_proof') }}
                                             </button>
                                             <button v-if="canDelete" type="button" @click="deleteTask(task)"
                                                 class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-neutral-800 action-feedback" data-tone="danger">
-                                                Delete
+                                                {{ $t('tasks.actions.delete') }}
                                             </button>
                                         </div>
                                     </div>
@@ -1143,7 +1172,7 @@ const submitProof = () => {
                             <div class="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-stone-500 dark:text-neutral-400">
                                 <span class="inline-flex items-center rounded-full px-2 py-0.5 font-semibold"
                                     :class="statusClasses(task.status)">
-                                    {{ statusLabel(task.status) || 'todo' }}
+                                    {{ statusLabel(task.status) || $t('tasks.status.todo') }}
                                 </span>
                                 <span class="inline-flex items-center gap-1">
                                     <svg class="size-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
@@ -1154,7 +1183,7 @@ const submitProof = () => {
                                         <path d="M16 2v4" />
                                         <path d="M3 10h18" />
                                     </svg>
-                                    {{ formatDate(task.due_date) || 'No due date' }}
+                                    {{ formatDate(task.due_date) || $t('tasks.labels.no_due_date') }}
                                 </span>
                                 <span class="inline-flex items-center gap-1">
                                     <svg class="size-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
@@ -1173,7 +1202,7 @@ const submitProof = () => {
                             v-if="!boardTasks[status]?.length"
                             class="rounded-md border border-dashed border-stone-200 bg-white/80 px-3 py-6 text-center text-xs text-stone-500 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-400"
                         >
-                            No tasks
+                            {{ $t('tasks.empty.no_tasks_column') }}
                         </div>
                     </template>
                 </draggable>
@@ -1223,13 +1252,17 @@ const submitProof = () => {
                 <div v-if="taskList.length" class="flex flex-wrap items-center justify-between gap-3 rounded-md border border-stone-200 bg-stone-50/80 px-3 py-2 text-xs text-stone-500 shadow-sm dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-400">
                     <div class="flex items-center gap-2">
                         <span class="size-2.5 rounded-sm bg-emerald-500"></span>
-                        <span class="font-semibold text-stone-700 dark:text-neutral-200">Schedule</span>
+                        <span class="font-semibold text-stone-700 dark:text-neutral-200">
+                            {{ $t('tasks.schedule.title') }}
+                        </span>
                         <span class="rounded-full bg-white px-2 py-0.5 text-[11px] font-semibold text-stone-600 shadow-sm dark:bg-neutral-900 dark:text-neutral-200">
                             {{ selectedDateLabel }}
                         </span>
                     </div>
                     <div class="flex flex-wrap items-center gap-2">
-                        <label class="text-[11px] uppercase text-stone-400 dark:text-neutral-500">Range</label>
+                        <label class="text-[11px] uppercase text-stone-400 dark:text-neutral-500">
+                            {{ $t('tasks.schedule.range_label') }}
+                        </label>
                         <select
                             v-model="scheduleRange"
                             @change="setScheduleRange(scheduleRange)"
@@ -1245,24 +1278,24 @@ const submitProof = () => {
                             @click="clearSelectedDate"
                             class="inline-flex items-center gap-1 text-emerald-600 hover:text-emerald-700"
                         >
-                            Show all
+                            {{ $t('tasks.schedule.show_all') }}
                         </button>
                     </div>
                 </div>
                 <div v-if="!taskList.length" class="rounded-md border border-dashed border-stone-200 bg-white/80 px-3 py-6 text-center text-xs text-stone-500 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-400">
-                    No tasks yet.
+                    {{ $t('tasks.empty.no_tasks') }}
                 </div>
                 <div
                     v-else-if="!visibleScheduleGroups.dated.length && !visibleScheduleGroups.undated.length && !selectedDateKey"
                     class="rounded-md border border-dashed border-stone-200 bg-white/80 px-3 py-6 text-center text-xs text-stone-500 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-400"
                 >
-                    No tasks in this range.
+                    {{ $t('tasks.empty.no_tasks_in_range') }}
                 </div>
                 <div
                     v-if="taskList.length && selectedDateKey && !visibleScheduleGroups.dated.length"
                     class="rounded-md border border-dashed border-stone-200 bg-white/80 px-3 py-6 text-center text-xs text-stone-500 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-400"
                 >
-                    No tasks scheduled for {{ selectedDateLabel }}.
+                    {{ $t('tasks.empty.no_tasks_for_date', { date: selectedDateLabel }) }}
                 </div>
                 <div v-for="group in visibleScheduleGroups.dated" :key="group.key" class="space-y-2">
                     <div class="flex items-center justify-between">
@@ -1273,7 +1306,7 @@ const submitProof = () => {
                             </h3>
                         </div>
                         <span class="rounded-full bg-stone-100 px-2 py-0.5 text-[11px] font-semibold text-stone-600 dark:bg-neutral-700 dark:text-neutral-300">
-                            {{ group.items.length }} tasks
+                            {{ taskCountLabel(group.items.length) }}
                         </span>
                     </div>
                     <div class="space-y-2">
@@ -1305,7 +1338,7 @@ const submitProof = () => {
                                     <div class="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-stone-500 dark:text-neutral-400">
                                         <span class="inline-flex items-center rounded-full px-2 py-0.5 font-semibold"
                                             :class="statusClasses(task.status)">
-                                            {{ statusLabel(task.status) || 'todo' }}
+                                            {{ statusLabel(task.status) || $t('tasks.status.todo') }}
                                         </span>
                                         <span class="inline-flex items-center gap-1">
                                             <svg class="size-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
@@ -1316,7 +1349,7 @@ const submitProof = () => {
                                                 <path d="M16 2v4" />
                                                 <path d="M3 10h18" />
                                             </svg>
-                                            {{ formatDate(task.due_date) || 'No due date' }}
+                                            {{ formatDate(task.due_date) || $t('tasks.labels.no_due_date') }}
                                         </span>
                                         <span class="inline-flex items-center gap-1">
                                             <svg class="size-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
@@ -1353,22 +1386,22 @@ const submitProof = () => {
                                             role="menu" aria-orientation="vertical">
                                             <div class="p-1">
                                                 <div class="px-2 py-1 text-[11px] uppercase tracking-wide text-stone-400 dark:text-neutral-500">
-                                                    Set status
+                                                    {{ $t('tasks.actions.set_status') }}
                                                 </div>
                                                 <button type="button" :disabled="!canChangeStatus || task.status === 'todo' || isTaskLocked(task)"
                                                     @click="setTaskStatus(task, 'todo')"
                                                     class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none dark:text-neutral-300 dark:hover:bg-neutral-800 action-feedback">
-                                                    To do
+                                                    {{ $t('tasks.status.todo') }}
                                                 </button>
                                                 <button type="button" :disabled="!canChangeStatus || task.status === 'in_progress' || isTaskLocked(task)"
                                                     @click="setTaskStatus(task, 'in_progress')"
                                                     class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none dark:text-neutral-300 dark:hover:bg-neutral-800 action-feedback">
-                                                    In progress
+                                                    {{ $t('tasks.status.in_progress') }}
                                                 </button>
                                                 <button type="button" :disabled="!canChangeStatus || task.status === 'done' || isTaskLocked(task)" data-testid="demo-task-mark-done"
                                                     @click="setTaskStatus(task, 'done')"
                                                     class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none dark:text-neutral-300 dark:hover:bg-neutral-800 action-feedback">
-                                                    Done
+                                                    {{ $t('tasks.status.done') }}
                                                 </button>
 
                                                 <template v-if="canManage || canDelete">
@@ -1378,15 +1411,15 @@ const submitProof = () => {
                                                 <button v-if="canManage" type="button" @click="openEditTask(task)"
                                                     :disabled="isTaskLocked(task)"
                                                     class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none dark:text-neutral-300 dark:hover:bg-neutral-800 action-feedback">
-                                                    Edit
+                                                    {{ $t('tasks.actions.edit') }}
                                                 </button>
                                                 <button v-if="canChangeStatus" type="button" @click="openProofUpload(task)"
                                                     class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800 action-feedback">
-                                                    Add proof
+                                                    {{ $t('tasks.actions.add_proof') }}
                                                 </button>
                                                 <button v-if="canDelete" type="button" @click="deleteTask(task)"
                                                     class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-neutral-800 action-feedback" data-tone="danger">
-                                                    Delete
+                                                    {{ $t('tasks.actions.delete') }}
                                                 </button>
                                             </div>
                                         </div>
@@ -1401,11 +1434,11 @@ const submitProof = () => {
                         <div class="flex items-center gap-2">
                             <span class="size-2 rounded-sm bg-stone-400"></span>
                             <h3 class="text-sm font-semibold text-stone-700 dark:text-neutral-200">
-                                No due date
+                                {{ $t('tasks.labels.no_due_date') }}
                             </h3>
                         </div>
                         <span class="rounded-full bg-stone-100 px-2 py-0.5 text-[11px] font-semibold text-stone-600 dark:bg-neutral-700 dark:text-neutral-300">
-                            {{ visibleScheduleGroups.undated.length }} tasks
+                            {{ taskCountLabel(visibleScheduleGroups.undated.length) }}
                         </span>
                     </div>
                     <div class="space-y-2">
@@ -1437,7 +1470,7 @@ const submitProof = () => {
                                     <div class="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-stone-500 dark:text-neutral-400">
                                         <span class="inline-flex items-center rounded-full px-2 py-0.5 font-semibold"
                                             :class="statusClasses(task.status)">
-                                            {{ statusLabel(task.status) || 'todo' }}
+                                            {{ statusLabel(task.status) || $t('tasks.status.todo') }}
                                         </span>
                                         <span class="inline-flex items-center gap-1">
                                             <svg class="size-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
@@ -1474,22 +1507,22 @@ const submitProof = () => {
                                             role="menu" aria-orientation="vertical">
                                             <div class="p-1">
                                                 <div class="px-2 py-1 text-[11px] uppercase tracking-wide text-stone-400 dark:text-neutral-500">
-                                                    Set status
+                                                    {{ $t('tasks.actions.set_status') }}
                                                 </div>
                                                 <button type="button" :disabled="!canChangeStatus || task.status === 'todo' || isTaskLocked(task)"
                                                     @click="setTaskStatus(task, 'todo')"
                                                     class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none dark:text-neutral-300 dark:hover:bg-neutral-800 action-feedback">
-                                                    To do
+                                                    {{ $t('tasks.status.todo') }}
                                                 </button>
                                                 <button type="button" :disabled="!canChangeStatus || task.status === 'in_progress' || isTaskLocked(task)"
                                                     @click="setTaskStatus(task, 'in_progress')"
                                                     class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none dark:text-neutral-300 dark:hover:bg-neutral-800 action-feedback">
-                                                    In progress
+                                                    {{ $t('tasks.status.in_progress') }}
                                                 </button>
                                                 <button type="button" :disabled="!canChangeStatus || task.status === 'done' || isTaskLocked(task)" data-testid="demo-task-mark-done"
                                                     @click="setTaskStatus(task, 'done')"
                                                     class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none dark:text-neutral-300 dark:hover:bg-neutral-800 action-feedback">
-                                                    Done
+                                                    {{ $t('tasks.status.done') }}
                                                 </button>
 
                                                 <template v-if="canManage || canDelete">
@@ -1499,15 +1532,15 @@ const submitProof = () => {
                                                 <button v-if="canManage" type="button" @click="openEditTask(task)"
                                                     :disabled="isTaskLocked(task)"
                                                     class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none dark:text-neutral-300 dark:hover:bg-neutral-800 action-feedback">
-                                                    Edit
+                                                    {{ $t('tasks.actions.edit') }}
                                                 </button>
                                                 <button v-if="canChangeStatus" type="button" @click="openProofUpload(task)"
                                                     class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800 action-feedback">
-                                                    Add proof
+                                                    {{ $t('tasks.actions.add_proof') }}
                                                 </button>
                                                 <button v-if="canDelete" type="button" @click="deleteTask(task)"
                                                     class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-neutral-800 action-feedback" data-tone="danger">
-                                                    Delete
+                                                    {{ $t('tasks.actions.delete') }}
                                                 </button>
                                             </div>
                                         </div>
@@ -1563,7 +1596,7 @@ const submitProof = () => {
                                 day.isInRange ? '' : 'opacity-40 cursor-not-allowed',
                             ]"
                             :aria-pressed="selectedDateKey === day.key"
-                            :title="day.count ? `${day.count} task${day.count === 1 ? '' : 's'}` : ''"
+                            :title="day.count ? calendarTaskCountLabel(day.count) : ''"
                             :disabled="!day.isInRange"
                         >
                             {{ day.label }}
@@ -1574,7 +1607,7 @@ const submitProof = () => {
                 <div class="mt-3 text-xs text-stone-500 dark:text-neutral-400">
                     <span class="inline-flex items-center gap-2">
                         <span class="h-2 w-2 rounded-full bg-emerald-500"></span>
-                        Tasks due
+                        {{ $t('tasks.calendar.tasks_due') }}
                     </span>
                 </div>
             </div>
@@ -1589,27 +1622,27 @@ const submitProof = () => {
                         <tr>
                             <th scope="col" class="min-w-[260px]">
                                 <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
-                                    Task
+                                    {{ $t('tasks.table.task') }}
                                 </div>
                             </th>
                             <th scope="col" class="min-w-36">
                                 <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
-                                    Status
+                                    {{ $t('tasks.table.status') }}
                                 </div>
                             </th>
                             <th scope="col" class="min-w-32">
                                 <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
-                                    Due
+                                    {{ $t('tasks.table.due') }}
                                 </div>
                             </th>
                             <th scope="col" class="min-w-44">
                                 <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
-                                    Assignee
+                                    {{ $t('tasks.table.assignee') }}
                                 </div>
                             </th>
                             <th scope="col" class="min-w-32">
                                 <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
-                                    Created
+                                    {{ $t('tasks.table.created') }}
                                 </div>
                             </th>
                             <th scope="col"></th>
@@ -1648,12 +1681,12 @@ const submitProof = () => {
                             <td class="size-px whitespace-nowrap px-4 py-2">
                                 <span class="py-1.5 px-2 inline-flex items-center text-xs font-medium rounded-full"
                                     :class="statusClasses(task.status)">
-                                    {{ statusLabel(task.status) || 'todo' }}
+                                    {{ statusLabel(task.status) || $t('tasks.status.todo') }}
                                 </span>
                             </td>
                             <td class="size-px whitespace-nowrap px-4 py-2">
                                 <span class="text-xs text-stone-500 dark:text-neutral-500">
-                                    {{ formatDate(task.due_date) || '-' }}
+                                    {{ formatDate(task.due_date) || $t('tasks.labels.no_due_date') }}
                                 </span>
                             </td>
                             <td class="size-px whitespace-nowrap px-4 py-2">
@@ -1685,22 +1718,22 @@ const submitProof = () => {
                                         role="menu" aria-orientation="vertical">
                                         <div class="p-1">
                                             <div class="px-2 py-1 text-[11px] uppercase tracking-wide text-stone-400 dark:text-neutral-500">
-                                                Set status
+                                                {{ $t('tasks.actions.set_status') }}
                                             </div>
                                             <button type="button" :disabled="!canChangeStatus || task.status === 'todo' || isTaskLocked(task)"
                                                 @click="setTaskStatus(task, 'todo')"
                                                 class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none dark:text-neutral-300 dark:hover:bg-neutral-800 action-feedback">
-                                                To do
+                                                {{ $t('tasks.status.todo') }}
                                             </button>
                                             <button type="button" :disabled="!canChangeStatus || task.status === 'in_progress' || isTaskLocked(task)"
                                                 @click="setTaskStatus(task, 'in_progress')"
                                                 class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none dark:text-neutral-300 dark:hover:bg-neutral-800 action-feedback">
-                                                In progress
+                                                {{ $t('tasks.status.in_progress') }}
                                             </button>
                                             <button type="button" :disabled="!canChangeStatus || task.status === 'done' || isTaskLocked(task)" data-testid="demo-task-mark-done"
                                                 @click="setTaskStatus(task, 'done')"
                                                 class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none dark:text-neutral-300 dark:hover:bg-neutral-800 action-feedback">
-                                                Done
+                                                {{ $t('tasks.status.done') }}
                                             </button>
 
                                             <template v-if="canManage || canDelete">
@@ -1710,15 +1743,15 @@ const submitProof = () => {
                                             <button v-if="canManage" type="button" @click="openEditTask(task)"
                                                 :disabled="isTaskLocked(task)"
                                                 class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none dark:text-neutral-300 dark:hover:bg-neutral-800 action-feedback">
-                                                Edit
+                                                {{ $t('tasks.actions.edit') }}
                                             </button>
                                             <button v-if="canChangeStatus" type="button" @click="openProofUpload(task)"
                                                 class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800 action-feedback">
-                                                Add proof
+                                                {{ $t('tasks.actions.add_proof') }}
                                             </button>
                                             <button v-if="canDelete" type="button" @click="deleteTask(task)"
                                                 class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-neutral-800 action-feedback" data-tone="danger">
-                                                Delete
+                                                {{ $t('tasks.actions.delete') }}
                                             </button>
                                         </div>
                                     </div>
@@ -1734,20 +1767,20 @@ const submitProof = () => {
         <div v-if="taskList.length > 0" class="mt-5 flex flex-wrap justify-between items-center gap-2">
             <p class="text-sm text-stone-800 dark:text-neutral-200">
                 <span class="font-medium"> {{ count ?? taskList.length }} </span>
-                <span class="text-stone-500 dark:text-neutral-500"> results</span>
+                <span class="text-stone-500 dark:text-neutral-500"> {{ $t('tasks.table.results') }}</span>
             </p>
 
             <nav class="flex justify-end items-center gap-x-1" aria-label="Pagination">
                 <Link :href="tasks.prev_page_url" v-if="tasks.prev_page_url">
                     <button type="button"
                         class="min-h-[38px] min-w-[38px] py-2 px-2.5 inline-flex justify-center items-center gap-x-2 text-sm rounded-sm text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-100 dark:text-white dark:hover:bg-white/10 dark:focus:bg-neutral-700"
-                        aria-label="Previous">
+                        :aria-label="$t('tasks.pagination.previous')">
                         <svg class="shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
                             viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                             stroke-linecap="round" stroke-linejoin="round">
                             <path d="m15 18-6-6 6-6" />
                         </svg>
-                        <span class="sr-only">Previous</span>
+                        <span class="sr-only">{{ $t('tasks.pagination.previous') }}</span>
                     </button>
                 </Link>
                 <div class="flex items-center gap-x-1">
@@ -1755,7 +1788,7 @@ const submitProof = () => {
                         class="min-h-[38px] min-w-[38px] flex justify-center items-center bg-stone-100 text-stone-800 py-2 px-3 text-sm rounded-sm disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-700 dark:text-white"
                         aria-current="page">{{ tasks.from }}</span>
                     <span
-                        class="min-h-[38px] flex justify-center items-center text-stone-500 py-2 px-1.5 text-sm dark:text-neutral-500">of</span>
+                        class="min-h-[38px] flex justify-center items-center text-stone-500 py-2 px-1.5 text-sm dark:text-neutral-500">{{ $t('tasks.pagination.of') }}</span>
                     <span class="min-h-[38px] flex justify-center items-center text-stone-500 py-2 px-1.5 text-sm dark:text-neutral-500">
                         {{ tasks.to }}
                     </span>
@@ -1764,8 +1797,8 @@ const submitProof = () => {
                 <Link :href="tasks.next_page_url" v-if="tasks.next_page_url">
                     <button type="button"
                         class="min-h-[38px] min-w-[38px] py-2 px-2.5 inline-flex justify-center items-center gap-x-2 text-sm rounded-sm text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-100 dark:text-white dark:hover:bg-white/10 dark:focus:bg-neutral-700"
-                        aria-label="Next">
-                        <span class="sr-only">Next</span>
+                        :aria-label="$t('tasks.pagination.next')">
+                        <span class="sr-only">{{ $t('tasks.pagination.next') }}</span>
                         <svg class="shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
                             viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                             stroke-linecap="round" stroke-linejoin="round">
@@ -1777,38 +1810,46 @@ const submitProof = () => {
         </div>
     </div>
 
-    <Modal v-if="detailsTask" :title="detailsTask.title || 'Task details'" :id="'hs-task-details'">
+    <Modal v-if="detailsTask" :title="detailsTask.title || $t('tasks.details.title')" :id="'hs-task-details'">
         <div class="space-y-4 text-sm text-stone-700 dark:text-neutral-200">
             <div class="flex flex-wrap items-center gap-2">
-                <span class="text-xs uppercase text-stone-400 dark:text-neutral-500">Status</span>
+                <span class="text-xs uppercase text-stone-400 dark:text-neutral-500">
+                    {{ $t('tasks.details.status') }}
+                </span>
                 <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold"
                     :class="statusClasses(detailsTask.status)">
-                    {{ statusLabel(detailsTask.status) || 'todo' }}
+                    {{ statusLabel(detailsTask.status) || $t('tasks.status.todo') }}
                 </span>
                 <span class="text-xs text-stone-500 dark:text-neutral-400">
-                    Due {{ formatDate(detailsTask.due_date) || '-' }}
+                    {{ $t('tasks.details.due') }} {{ formatDate(detailsTask.due_date) || $t('tasks.labels.no_due_date') }}
                 </span>
                 <span class="text-xs text-stone-500 dark:text-neutral-400">
-                    Created {{ formatDate(detailsTask.created_at) }}
+                    {{ $t('tasks.details.created') }} {{ formatDate(detailsTask.created_at) }}
                 </span>
             </div>
 
             <div>
-                <div class="text-xs uppercase text-stone-400 dark:text-neutral-500">Assignee</div>
+                <div class="text-xs uppercase text-stone-400 dark:text-neutral-500">
+                    {{ $t('tasks.details.assignee') }}
+                </div>
                 <div class="mt-1 text-sm text-stone-700 dark:text-neutral-200">
                     {{ displayAssignee(detailsTask) }}
                 </div>
             </div>
 
             <div>
-                <div class="text-xs uppercase text-stone-400 dark:text-neutral-500">Description</div>
+                <div class="text-xs uppercase text-stone-400 dark:text-neutral-500">
+                    {{ $t('tasks.details.description') }}
+                </div>
                 <p class="mt-1 whitespace-pre-wrap text-sm text-stone-700 dark:text-neutral-200">
-                    {{ detailsTask.description || 'No description.' }}
+                    {{ detailsTask.description || $t('tasks.details.no_description') }}
                 </p>
             </div>
 
             <div>
-                <div class="text-xs uppercase text-stone-400 dark:text-neutral-500">Materials</div>
+                <div class="text-xs uppercase text-stone-400 dark:text-neutral-500">
+                    {{ $t('tasks.details.materials') }}
+                </div>
                 <div v-if="detailsTask.materials?.length" class="mt-2 space-y-2">
                     <div
                         v-for="material in detailsTask.materials"
@@ -1816,7 +1857,7 @@ const submitProof = () => {
                         class="flex items-center justify-between rounded-sm border border-stone-200 bg-stone-50 px-3 py-2 text-xs dark:border-neutral-700 dark:bg-neutral-800"
                     >
                         <span class="text-stone-700 dark:text-neutral-200">
-                            {{ material.label || material.product?.name || 'Material' }}
+                            {{ material.label || material.product?.name || $t('tasks.details.material_fallback') }}
                         </span>
                         <span class="text-stone-500 dark:text-neutral-400">
                             {{ material.quantity || 0 }} {{ material.unit || material.product?.unit || '' }}
@@ -1824,7 +1865,7 @@ const submitProof = () => {
                     </div>
                 </div>
                 <p v-else class="mt-2 text-xs text-stone-500 dark:text-neutral-400">
-                    No materials.
+                    {{ $t('tasks.details.no_materials') }}
                 </p>
             </div>
         </div>
@@ -1835,38 +1876,38 @@ const submitProof = () => {
                 :href="`/tasks/${detailsTask.id}`"
                 class="py-2 px-3 inline-flex items-center text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200 action-feedback"
             >
-                Open full task
+                {{ $t('tasks.details.open_full_task') }}
             </Link>
             <button
                 type="button"
                 data-hs-overlay="#hs-task-details"
                 class="py-2 px-3 inline-flex items-center text-xs font-medium rounded-sm border border-transparent bg-stone-900 text-white hover:bg-stone-800 dark:bg-neutral-100 dark:text-stone-900 action-feedback"
             >
-                Close
+                {{ $t('tasks.actions.close') }}
             </button>
         </div>
     </Modal>
 
-    <Modal v-if="canCreate" :title="'Add task'" :id="'hs-task-create'">
+    <Modal v-if="canCreate" :title="$t('tasks.modal.add_title')" :id="'hs-task-create'">
         <form class="space-y-4" @submit.prevent="submitCreate">
             <div>
-                <FloatingInput v-model="createForm.title" label="Title" :required="true" />
+                <FloatingInput v-model="createForm.title" :label="$t('tasks.form.title')" :required="true" />
                 <InputError class="mt-1" :message="createForm.errors.title" />
             </div>
 
             <div>
-                <FloatingTextarea v-model="createForm.description" label="Description (optional)" />
+                <FloatingTextarea v-model="createForm.description" :label="$t('tasks.form.description_optional')" />
                 <InputError class="mt-1" :message="createForm.errors.description" />
             </div>
 
             <div>
-                <label class="block text-xs text-stone-500 dark:text-neutral-400">Job</label>
+                <label class="block text-xs text-stone-500 dark:text-neutral-400">{{ $t('tasks.form.job') }}</label>
                 <select
                     v-model="createForm.work_id"
                     :disabled="createForm.standalone"
                     class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 disabled:bg-stone-100 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 dark:disabled:bg-neutral-800"
                 >
-                    <option value="">Select a job</option>
+                    <option value="">{{ $t('tasks.form.select_job') }}</option>
                     <option v-for="work in workOptions" :key="work.id" :value="work.id">
                         {{ work.name }}
                     </option>
@@ -1874,13 +1915,15 @@ const submitProof = () => {
                 <InputError class="mt-1" :message="createForm.errors.work_id" />
                 <label class="mt-2 flex items-center gap-2">
                     <Checkbox v-model:checked="createForm.standalone" />
-                    <span class="text-xs text-stone-600 dark:text-neutral-400">Task ponctuelle (sans job)</span>
+                    <span class="text-xs text-stone-600 dark:text-neutral-400">
+                        {{ $t('tasks.form.one_off_task') }}
+                    </span>
                 </label>
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
-                    <label class="block text-xs text-stone-500 dark:text-neutral-400">Status</label>
+                    <label class="block text-xs text-stone-500 dark:text-neutral-400">{{ $t('tasks.form.status') }}</label>
                     <select v-model="createForm.status"
                         class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
                         <option v-for="status in statuses" :key="status" :value="status">
@@ -1890,14 +1933,14 @@ const submitProof = () => {
                     <InputError class="mt-1" :message="createForm.errors.status" />
                 </div>
                 <div>
-                    <DatePicker v-model="createForm.due_date" label="Due date" />
+                    <DatePicker v-model="createForm.due_date" :label="$t('tasks.form.due_date')" />
                     <InputError class="mt-1" :message="createForm.errors.due_date" />
                 </div>
                 <div v-if="teamMembers.length" class="md:col-span-2">
-                    <label class="block text-xs text-stone-500 dark:text-neutral-400">Assignee</label>
+                    <label class="block text-xs text-stone-500 dark:text-neutral-400">{{ $t('tasks.form.assignee') }}</label>
                     <select v-model="createForm.assigned_team_member_id"
                         class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
-                        <option value="">Unassigned</option>
+                        <option value="">{{ $t('tasks.form.unassigned') }}</option>
                         <option v-for="member in teamMembers" :key="member.id" :value="member.id">
                             {{ member.user?.name || `Member #${member.id}` }} ({{ member.role }})
                         </option>
@@ -1908,10 +1951,10 @@ const submitProof = () => {
 
             <div class="space-y-3">
                 <div class="flex items-center justify-between">
-                    <p class="text-xs uppercase tracking-wide text-stone-500 dark:text-neutral-500">Materials</p>
+                    <p class="text-xs uppercase tracking-wide text-stone-500 dark:text-neutral-500">{{ $t('tasks.materials.title') }}</p>
                     <button type="button" @click="addMaterial(createForm)"
                         class="py-1.5 px-2.5 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200 action-feedback">
-                        Add material
+                        {{ $t('tasks.materials.add') }}
                     </button>
                 </div>
                 <div v-if="createForm.materials.length" class="space-y-3">
@@ -1921,65 +1964,65 @@ const submitProof = () => {
                             <FloatingSelect
                                 v-model="material.product_id"
                                 :options="materialOptions"
-                                label="Product"
+                                :label="$t('tasks.materials.product')"
                                 @update:modelValue="applyMaterialDefaults(material)"
                             />
-                            <FloatingInput v-model="material.label" label="Label" />
-                            <FloatingNumberInput v-model="material.quantity" label="Quantity" :step="0.01" />
-                            <FloatingNumberInput v-model="material.unit_price" label="Unit price" :step="0.01" />
-                            <FloatingInput v-model="material.unit" label="Unit" />
+                            <FloatingInput v-model="material.label" :label="$t('tasks.materials.label')" />
+                            <FloatingNumberInput v-model="material.quantity" :label="$t('tasks.materials.quantity')" :step="0.01" />
+                            <FloatingNumberInput v-model="material.unit_price" :label="$t('tasks.materials.unit_price')" :step="0.01" />
+                            <FloatingInput v-model="material.unit" :label="$t('tasks.materials.unit')" />
                             <div class="flex items-center gap-2 p-2 rounded-sm border border-stone-200 bg-white dark:bg-neutral-900 dark:border-neutral-700">
                                 <Checkbox v-model:checked="material.billable" />
-                                <span class="text-sm text-stone-600 dark:text-neutral-400">Billable</span>
+                                <span class="text-sm text-stone-600 dark:text-neutral-400">{{ $t('tasks.materials.billable') }}</span>
                             </div>
                         </div>
-                        <FloatingTextarea v-model="material.description" label="Description (optional)" />
+                        <FloatingTextarea v-model="material.description" :label="$t('tasks.materials.description_optional')" />
                         <div class="flex justify-end">
                             <button type="button" @click="removeMaterial(createForm, index)"
                                 class="py-1.5 px-2.5 text-xs font-medium rounded-sm border border-red-200 bg-white text-red-600 hover:bg-red-50 dark:bg-neutral-800 dark:border-red-500/40 dark:text-red-400 action-feedback" data-tone="danger">
-                                Remove
+                                {{ $t('tasks.materials.remove') }}
                             </button>
                         </div>
                     </div>
                 </div>
                 <p v-else class="text-xs text-stone-500 dark:text-neutral-500">
-                    No materials yet.
+                    {{ $t('tasks.materials.empty') }}
                 </p>
             </div>
 
             <div class="flex justify-end gap-2">
                 <button type="button" data-hs-overlay="#hs-task-create"
                     class="py-2 px-3 inline-flex items-center text-sm font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200 action-feedback">
-                    Cancel
+                    {{ $t('tasks.actions.cancel') }}
                 </button>
                 <button type="submit" :disabled="createForm.processing"
                     class="py-2 px-3 inline-flex items-center text-sm font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 action-feedback">
-                    Create
+                    {{ $t('tasks.actions.create') }}
                 </button>
             </div>
         </form>
     </Modal>
 
-    <Modal v-if="canManage" :title="'Edit task'" :id="'hs-task-edit'">
+    <Modal v-if="canManage" :title="$t('tasks.modal.edit_title')" :id="'hs-task-edit'">
         <form class="space-y-4" @submit.prevent="submitEdit">
             <div>
-                <FloatingInput v-model="editForm.title" label="Title" :required="true" />
+                <FloatingInput v-model="editForm.title" :label="$t('tasks.form.title')" :required="true" />
                 <InputError class="mt-1" :message="editForm.errors.title" />
             </div>
 
             <div>
-                <FloatingTextarea v-model="editForm.description" label="Description (optional)" />
+                <FloatingTextarea v-model="editForm.description" :label="$t('tasks.form.description_optional')" />
                 <InputError class="mt-1" :message="editForm.errors.description" />
             </div>
 
             <div>
-                <label class="block text-xs text-stone-500 dark:text-neutral-400">Job</label>
+                <label class="block text-xs text-stone-500 dark:text-neutral-400">{{ $t('tasks.form.job') }}</label>
                 <select
                     v-model="editForm.work_id"
                     :disabled="editForm.standalone"
                     class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 disabled:bg-stone-100 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 dark:disabled:bg-neutral-800"
                 >
-                    <option value="">Select a job</option>
+                    <option value="">{{ $t('tasks.form.select_job') }}</option>
                     <option v-for="work in workOptions" :key="work.id" :value="work.id">
                         {{ work.name }}
                     </option>
@@ -1987,13 +2030,15 @@ const submitProof = () => {
                 <InputError class="mt-1" :message="editForm.errors.work_id" />
                 <label class="mt-2 flex items-center gap-2">
                     <Checkbox v-model:checked="editForm.standalone" />
-                    <span class="text-xs text-stone-600 dark:text-neutral-400">Task ponctuelle (sans job)</span>
+                    <span class="text-xs text-stone-600 dark:text-neutral-400">
+                        {{ $t('tasks.form.one_off_task') }}
+                    </span>
                 </label>
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
-                    <label class="block text-xs text-stone-500 dark:text-neutral-400">Status</label>
+                    <label class="block text-xs text-stone-500 dark:text-neutral-400">{{ $t('tasks.form.status') }}</label>
                     <select v-model="editForm.status"
                         class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
                         <option v-for="status in statuses" :key="status" :value="status">
@@ -2003,14 +2048,14 @@ const submitProof = () => {
                     <InputError class="mt-1" :message="editForm.errors.status" />
                 </div>
                 <div>
-                    <DatePicker v-model="editForm.due_date" label="Due date" />
+                    <DatePicker v-model="editForm.due_date" :label="$t('tasks.form.due_date')" />
                     <InputError class="mt-1" :message="editForm.errors.due_date" />
                 </div>
                 <div v-if="teamMembers.length" class="md:col-span-2">
-                    <label class="block text-xs text-stone-500 dark:text-neutral-400">Assignee</label>
+                    <label class="block text-xs text-stone-500 dark:text-neutral-400">{{ $t('tasks.form.assignee') }}</label>
                     <select v-model="editForm.assigned_team_member_id"
                         class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
-                        <option value="">Unassigned</option>
+                        <option value="">{{ $t('tasks.form.unassigned') }}</option>
                         <option v-for="member in teamMembers" :key="member.id" :value="member.id">
                             {{ member.user?.name || `Member #${member.id}` }} ({{ member.role }})
                         </option>
@@ -2021,10 +2066,10 @@ const submitProof = () => {
 
             <div class="space-y-3">
                 <div class="flex items-center justify-between">
-                    <p class="text-xs uppercase tracking-wide text-stone-500 dark:text-neutral-500">Materials</p>
+                    <p class="text-xs uppercase tracking-wide text-stone-500 dark:text-neutral-500">{{ $t('tasks.materials.title') }}</p>
                     <button type="button" @click="addMaterial(editForm)"
                         class="py-1.5 px-2.5 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200 action-feedback">
-                        Add material
+                        {{ $t('tasks.materials.add') }}
                     </button>
                 </div>
                 <div v-if="editForm.materials.length" class="space-y-3">
@@ -2034,78 +2079,78 @@ const submitProof = () => {
                             <FloatingSelect
                                 v-model="material.product_id"
                                 :options="materialOptions"
-                                label="Product"
+                                :label="$t('tasks.materials.product')"
                                 @update:modelValue="applyMaterialDefaults(material)"
                             />
-                            <FloatingInput v-model="material.label" label="Label" />
-                            <FloatingNumberInput v-model="material.quantity" label="Quantity" :step="0.01" />
-                            <FloatingNumberInput v-model="material.unit_price" label="Unit price" :step="0.01" />
-                            <FloatingInput v-model="material.unit" label="Unit" />
+                            <FloatingInput v-model="material.label" :label="$t('tasks.materials.label')" />
+                            <FloatingNumberInput v-model="material.quantity" :label="$t('tasks.materials.quantity')" :step="0.01" />
+                            <FloatingNumberInput v-model="material.unit_price" :label="$t('tasks.materials.unit_price')" :step="0.01" />
+                            <FloatingInput v-model="material.unit" :label="$t('tasks.materials.unit')" />
                             <div class="flex items-center gap-2 p-2 rounded-sm border border-stone-200 bg-white dark:bg-neutral-900 dark:border-neutral-700">
                                 <Checkbox v-model:checked="material.billable" />
-                                <span class="text-sm text-stone-600 dark:text-neutral-400">Billable</span>
+                                <span class="text-sm text-stone-600 dark:text-neutral-400">{{ $t('tasks.materials.billable') }}</span>
                             </div>
                         </div>
-                        <FloatingTextarea v-model="material.description" label="Description (optional)" />
+                        <FloatingTextarea v-model="material.description" :label="$t('tasks.materials.description_optional')" />
                         <div class="flex justify-end">
                             <button type="button" @click="removeMaterial(editForm, index)"
                                 class="py-1.5 px-2.5 text-xs font-medium rounded-sm border border-red-200 bg-white text-red-600 hover:bg-red-50 dark:bg-neutral-800 dark:border-red-500/40 dark:text-red-400 action-feedback" data-tone="danger">
-                                Remove
+                                {{ $t('tasks.materials.remove') }}
                             </button>
                         </div>
                     </div>
                 </div>
                 <p v-else class="text-xs text-stone-500 dark:text-neutral-500">
-                    No materials yet.
+                    {{ $t('tasks.materials.empty') }}
                 </p>
             </div>
 
             <div class="flex justify-end gap-2">
                 <button type="button" data-hs-overlay="#hs-task-edit"
                     class="py-2 px-3 inline-flex items-center text-sm font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200 action-feedback">
-                    Cancel
+                    {{ $t('tasks.actions.cancel') }}
                 </button>
                 <button type="submit" :disabled="editForm.processing"
                     class="py-2 px-3 inline-flex items-center text-sm font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 action-feedback">
-                    Save
+                    {{ $t('tasks.actions.save') }}
                 </button>
             </div>
         </form>
     </Modal>
 
-    <Modal v-if="canChangeStatus" :title="'Add task proof'" :id="'hs-task-proof'">
+    <Modal v-if="canChangeStatus" :title="$t('tasks.proof.title')" :id="'hs-task-proof'">
         <form class="space-y-4" @submit.prevent="submitProof">
             <div>
-                <label class="block text-xs text-stone-500 dark:text-neutral-400">Type</label>
+                <label class="block text-xs text-stone-500 dark:text-neutral-400">{{ $t('tasks.proof.type') }}</label>
                 <select v-model="proofForm.type"
                     class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
-                    <option value="execution">Execution</option>
-                    <option value="completion">Completion</option>
-                    <option value="other">Other</option>
+                    <option value="execution">{{ $t('tasks.proof.types.execution') }}</option>
+                    <option value="completion">{{ $t('tasks.proof.types.completion') }}</option>
+                    <option value="other">{{ $t('tasks.proof.types.other') }}</option>
                 </select>
                 <InputError class="mt-1" :message="proofForm.errors.type" />
             </div>
 
             <div>
-                <label class="block text-xs text-stone-500 dark:text-neutral-400">File (photo or video)</label>
+                <label class="block text-xs text-stone-500 dark:text-neutral-400">{{ $t('tasks.proof.file') }}</label>
                 <input type="file" @change="handleProofFile" accept="image/*,video/*"
                     class="mt-1 block w-full text-sm text-stone-600 file:mr-4 file:py-2 file:px-3 file:rounded-sm file:border-0 file:text-sm file:font-medium file:bg-stone-100 file:text-stone-700 hover:file:bg-stone-200 dark:text-neutral-300 dark:file:bg-neutral-800 dark:file:text-neutral-200" />
                 <InputError class="mt-1" :message="proofForm.errors.file" />
             </div>
 
             <div>
-                <FloatingInput v-model="proofForm.note" label="Note (optional)" />
+                <FloatingInput v-model="proofForm.note" :label="$t('tasks.proof.note_optional')" />
                 <InputError class="mt-1" :message="proofForm.errors.note" />
             </div>
 
             <div class="flex justify-end gap-2">
                 <button type="button" data-hs-overlay="#hs-task-proof"
                     class="py-2 px-3 inline-flex items-center text-sm font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200 action-feedback">
-                    Cancel
+                    {{ $t('tasks.actions.cancel') }}
                 </button>
                 <button type="submit" :disabled="proofForm.processing"
                     class="py-2 px-3 inline-flex items-center text-sm font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 action-feedback">
-                    Upload
+                    {{ $t('tasks.proof.upload') }}
                 </button>
             </div>
         </form>

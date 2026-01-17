@@ -28,7 +28,7 @@ const formatCurrency = (value) =>
                 </svg>
                 <div class="sm:order-1 grow space-y-1">
                     <h2 class="sm:mb-2 text-sm text-stone-500 dark:text-neutral-400">
-                        Total quotes
+                        {{ $t('quotes.stats.total') }}
                     </h2>
                     <p class="text-lg md:text-xl font-semibold text-stone-800 dark:text-neutral-200">
                         {{ formatNumber(stats.total) }}
@@ -48,7 +48,7 @@ const formatCurrency = (value) =>
                 </svg>
                 <div class="sm:order-1 grow space-y-1">
                     <h2 class="sm:mb-2 text-sm text-stone-500 dark:text-neutral-400">
-                        Total value
+                        {{ $t('quotes.stats.total_value') }}
                     </h2>
                     <p class="text-lg md:text-xl font-semibold text-stone-800 dark:text-neutral-200">
                         {{ formatCurrency(stats.total_value) }}
@@ -68,7 +68,7 @@ const formatCurrency = (value) =>
                 </svg>
                 <div class="sm:order-1 grow space-y-1">
                     <h2 class="sm:mb-2 text-sm text-stone-500 dark:text-neutral-400">
-                        Average value
+                        {{ $t('quotes.stats.average_value') }}
                     </h2>
                     <p class="text-lg md:text-xl font-semibold text-stone-800 dark:text-neutral-200">
                         {{ formatCurrency(stats.average_value) }}
@@ -88,7 +88,7 @@ const formatCurrency = (value) =>
                 </svg>
                 <div class="sm:order-1 grow space-y-1">
                     <h2 class="sm:mb-2 text-sm text-stone-500 dark:text-neutral-400">
-                        Open quotes
+                        {{ $t('quotes.stats.open') }}
                     </h2>
                     <p class="text-lg md:text-xl font-semibold text-stone-800 dark:text-neutral-200">
                         {{ formatNumber(stats.open) }}
@@ -107,7 +107,7 @@ const formatCurrency = (value) =>
                 </svg>
                 <div class="sm:order-1 grow space-y-1">
                     <h2 class="sm:mb-2 text-sm text-stone-500 dark:text-neutral-400">
-                        Accepted
+                        {{ $t('quotes.stats.accepted') }}
                     </h2>
                     <p class="text-lg md:text-xl font-semibold text-stone-800 dark:text-neutral-200">
                         {{ formatNumber(stats.accepted) }}
@@ -128,7 +128,7 @@ const formatCurrency = (value) =>
                 </svg>
                 <div class="sm:order-1 grow space-y-1">
                     <h2 class="sm:mb-2 text-sm text-stone-500 dark:text-neutral-400">
-                        Declined
+                        {{ $t('quotes.stats.declined') }}
                     </h2>
                     <p class="text-lg md:text-xl font-semibold text-stone-800 dark:text-neutral-200">
                         {{ formatNumber(stats.declined) }}

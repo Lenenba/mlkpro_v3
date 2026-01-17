@@ -1,5 +1,6 @@
 <script setup>
 import { computed } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { formatTrendValue } from '@/utils/kpi';
 
 const props = defineProps({
@@ -12,6 +13,8 @@ const props = defineProps({
         }),
     },
 });
+
+const { t } = useI18n();
 
 const badgeClass = computed(() => {
     if (!props.trend || props.trend.direction === 'flat') {
@@ -32,20 +35,20 @@ const arrowClass = computed(() => {
 
 const title = computed(() => {
     if (!props.trend) {
-        return 'No trend data';
+        return t('dashboard.trend.none');
     }
 
     const directionLabel =
         props.trend.direction === 'flat'
-            ? 'No change'
+            ? t('dashboard.trend.no_change')
             : props.trend.direction === 'up'
-                ? 'Up'
-                : 'Down';
+                ? t('dashboard.trend.up')
+                : t('dashboard.trend.down');
 
     const valueLabel =
-        props.trend.percent === null ? 'new' : `${props.trend.percent.toFixed(1)}%`;
+        props.trend.percent === null ? t('dashboard.trend.new') : `${props.trend.percent.toFixed(1)}%`;
 
-    return `${directionLabel} ${valueLabel} vs previous period`;
+    return t('dashboard.trend.summary', { direction: directionLabel, value: valueLabel });
 });
 </script>
 
@@ -64,6 +67,6 @@ const title = computed(() => {
             <polyline points="3 17 9 11 13 15 21 7" />
             <polyline points="14 7 21 7 21 14" />
         </svg>
-        {{ formatTrendValue(trend) }}
+        {{ formatTrendValue(trend, { newLabel: t('dashboard.trend.new') }) }}
     </span>
 </template>

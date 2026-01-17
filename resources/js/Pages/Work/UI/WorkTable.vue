@@ -1,6 +1,7 @@
 <script setup>
-import { ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { Link, router, useForm } from '@inertiajs/vue3';
+import { useI18n } from 'vue-i18n';
 import StarRating from '@/Components/UI/StarRating.vue';
 import { humanizeDate } from '@/utils/date';
 
@@ -32,38 +33,41 @@ const filterForm = useForm({
 const showAdvanced = ref(false);
 const isLoading = ref(false);
 
-const statusOptions = [
-    { value: '', label: 'Tous les statuts' },
-    { value: 'to_schedule', label: 'A planifier' },
-    { value: 'scheduled', label: 'Planifie' },
-    { value: 'en_route', label: 'En route' },
-    { value: 'in_progress', label: 'En cours' },
-    { value: 'tech_complete', label: 'Tech termine' },
-    { value: 'pending_review', label: 'En attente de validation' },
-    { value: 'validated', label: 'Valide' },
-    { value: 'auto_validated', label: 'Auto valide' },
-    { value: 'dispute', label: 'Litige' },
-    { value: 'closed', label: 'Cloture' },
-    { value: 'cancelled', label: 'Annule' },
-    { value: 'completed', label: 'Termine (ancien)' },
-];
+const { t } = useI18n();
 
-const statusLabels = {
-    to_schedule: 'A planifier',
-    scheduled: 'Planifie',
-    en_route: 'En route',
-    in_progress: 'En cours',
-    tech_complete: 'Tech termine',
-    pending_review: 'En attente de validation',
-    validated: 'Valide',
-    auto_validated: 'Auto valide',
-    dispute: 'Litige',
-    closed: 'Cloture',
-    cancelled: 'Annule',
-    completed: 'Termine (ancien)',
-};
+const statusOptions = computed(() => ([
+    { value: '', label: t('jobs.filters.status.all') },
+    { value: 'to_schedule', label: t('jobs.status.to_schedule') },
+    { value: 'scheduled', label: t('jobs.status.scheduled') },
+    { value: 'en_route', label: t('jobs.status.en_route') },
+    { value: 'in_progress', label: t('jobs.status.in_progress') },
+    { value: 'tech_complete', label: t('jobs.status.tech_complete') },
+    { value: 'pending_review', label: t('jobs.status.pending_review') },
+    { value: 'validated', label: t('jobs.status.validated') },
+    { value: 'auto_validated', label: t('jobs.status.auto_validated') },
+    { value: 'dispute', label: t('jobs.status.dispute') },
+    { value: 'closed', label: t('jobs.status.closed') },
+    { value: 'cancelled', label: t('jobs.status.cancelled') },
+    { value: 'completed', label: t('jobs.status.completed') },
+]));
 
-const formatStatus = (status) => statusLabels[status] || status || 'Planifie';
+const statusLabels = computed(() => ({
+    to_schedule: t('jobs.status.to_schedule'),
+    scheduled: t('jobs.status.scheduled'),
+    en_route: t('jobs.status.en_route'),
+    in_progress: t('jobs.status.in_progress'),
+    tech_complete: t('jobs.status.tech_complete'),
+    pending_review: t('jobs.status.pending_review'),
+    validated: t('jobs.status.validated'),
+    auto_validated: t('jobs.status.auto_validated'),
+    dispute: t('jobs.status.dispute'),
+    closed: t('jobs.status.closed'),
+    cancelled: t('jobs.status.cancelled'),
+    completed: t('jobs.status.completed'),
+}));
+
+const formatStatus = (status) =>
+    statusLabels.value[status] || status || statusLabels.value.scheduled;
 const resolveStatus = (status) => status || 'scheduled';
 
 const filterPayload = () => {
@@ -145,7 +149,7 @@ const formatDate = (value) => humanizeDate(value);
 const getCustomerName = (work) => {
     const customer = work.customer;
     if (!customer) {
-        return '-';
+        return t('jobs.labels.unknown_customer');
     }
     return customer.company_name || `${customer.first_name} ${customer.last_name}`;
 };
@@ -174,18 +178,18 @@ const createInvoice = (work) => {
                         </div>
                         <input type="text" v-model="filterForm.search"
                             class="py-[7px] ps-10 pe-8 block w-full bg-white border border-stone-200 rounded-sm text-sm placeholder:text-stone-500 focus:border-green-500 focus:ring-green-600 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 dark:placeholder:text-neutral-400 dark:focus:ring-neutral-600"
-                            placeholder="Rechercher des jobs, instructions ou types">
+                            :placeholder="$t('jobs.filters.search_placeholder')">
                     </div>
                 </div>
 
                 <div class="flex flex-wrap items-center gap-2 justify-end">
                     <button type="button" @click="showAdvanced = !showAdvanced"
                         class="py-2 px-2.5 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 focus:outline-none focus:bg-stone-100 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700">
-                        Filtres
+                        {{ $t('jobs.actions.filters') }}
                     </button>
                     <button type="button" @click="clearFilters"
                         class="py-2 px-2.5 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 focus:outline-none focus:bg-stone-100 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700">
-                        Reinitialiser
+                        {{ $t('jobs.actions.reset') }}
                     </button>
                 </div>
             </div>
@@ -199,17 +203,17 @@ const createInvoice = (work) => {
                 </select>
                 <select v-model="filterForm.customer_id"
                     class="py-2 ps-3 pe-8 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
-                    <option value="">Tous les clients</option>
+                    <option value="">{{ $t('jobs.filters.customer.all') }}</option>
                     <option v-for="customer in customers" :key="customer.id" :value="customer.id">
                         {{ customer.company_name || `${customer.first_name} ${customer.last_name}` }}
                     </option>
                 </select>
                 <input type="date" v-model="filterForm.start_from"
                     class="py-2 px-3 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
-                    placeholder="A partir du">
+                    :placeholder="$t('jobs.filters.start_from')">
                 <input type="date" v-model="filterForm.start_to"
                     class="py-2 px-3 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
-                    placeholder="Jusqua">
+                    :placeholder="$t('jobs.filters.start_to')">
             </div>
         </div>
 
@@ -222,7 +226,7 @@ const createInvoice = (work) => {
                             <th scope="col" class="min-w-[240px]">
                                 <button type="button" @click="toggleSort('job_title')"
                                     class="px-5 py-2.5 text-start w-full flex items-center gap-x-1 text-sm font-normal text-stone-500 hover:text-stone-700 focus:outline-none dark:text-neutral-500 dark:hover:text-neutral-300">
-                                    Job
+                                    {{ $t('jobs.table.job') }}
                                     <svg v-if="filterForm.sort === 'job_title'" class="size-3" xmlns="http://www.w3.org/2000/svg"
                                         viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                                         stroke-linecap="round" stroke-linejoin="round"
@@ -233,13 +237,13 @@ const createInvoice = (work) => {
                             </th>
                             <th scope="col" class="min-w-40">
                                 <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
-                                    Client
+                                    {{ $t('jobs.table.customer') }}
                                 </div>
                             </th>
                             <th scope="col" class="min-w-32">
                                 <button type="button" @click="toggleSort('status')"
                                     class="px-5 py-2.5 text-start w-full flex items-center gap-x-1 text-sm font-normal text-stone-500 hover:text-stone-700 focus:outline-none dark:text-neutral-500 dark:hover:text-neutral-300">
-                                    Statut
+                                    {{ $t('jobs.table.status') }}
                                     <svg v-if="filterForm.sort === 'status'" class="size-3" xmlns="http://www.w3.org/2000/svg"
                                         viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                                         stroke-linecap="round" stroke-linejoin="round"
@@ -250,13 +254,13 @@ const createInvoice = (work) => {
                             </th>
                             <th scope="col" class="min-w-32">
                                 <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
-                                    Note
+                                    {{ $t('jobs.table.rating') }}
                                 </div>
                             </th>
                             <th scope="col" class="min-w-32">
                                 <button type="button" @click="toggleSort('total')"
                                     class="px-5 py-2.5 text-start w-full flex items-center gap-x-1 text-sm font-normal text-stone-500 hover:text-stone-700 focus:outline-none dark:text-neutral-500 dark:hover:text-neutral-300">
-                                    Total
+                                    {{ $t('jobs.table.total') }}
                                     <svg v-if="filterForm.sort === 'total'" class="size-3" xmlns="http://www.w3.org/2000/svg"
                                         viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                                         stroke-linecap="round" stroke-linejoin="round"
@@ -268,7 +272,7 @@ const createInvoice = (work) => {
                             <th scope="col" class="min-w-32">
                                 <button type="button" @click="toggleSort('start_date')"
                                     class="px-5 py-2.5 text-start w-full flex items-center gap-x-1 text-sm font-normal text-stone-500 hover:text-stone-700 focus:outline-none dark:text-neutral-500 dark:hover:text-neutral-300">
-                                    Date de debut
+                                    {{ $t('jobs.table.start_date') }}
                                     <svg v-if="filterForm.sort === 'start_date'" class="size-3" xmlns="http://www.w3.org/2000/svg"
                                         viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                                         stroke-linecap="round" stroke-linejoin="round"
@@ -366,25 +370,25 @@ const createInvoice = (work) => {
                                         <div class="p-1">
                                             <Link :href="route('work.show', work.id)"
                                                 class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
-                                                Voir
+                                                {{ $t('jobs.actions.view') }}
                                             </Link>
                                             <Link :href="route('work.edit', work.id)"
                                                 class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
-                                                Modifier
+                                                {{ $t('jobs.actions.edit') }}
                                             </Link>
                                             <Link v-if="['to_schedule', 'scheduled'].includes(work.status || 'scheduled')"
                                                 :href="route('work.edit', { work: work.id, tab: 'planning' })"
                                                 class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
-                                                Planifier
+                                                {{ $t('jobs.actions.schedule') }}
                                             </Link>
                                             <div class="my-1 border-t border-stone-200 dark:border-neutral-800"></div>
                                             <Link v-if="work.invoice" :href="route('invoice.show', work.invoice.id)"
                                                 class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
-                                                Voir la facture
+                                                {{ $t('jobs.actions.view_invoice') }}
                                             </Link>
                                             <button v-else type="button" @click="createInvoice(work)"
                                                 class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-emerald-600 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-neutral-800 action-feedback">
-                                                Creer une facture
+                                                {{ $t('jobs.actions.create_invoice') }}
                                             </button>
                                         </div>
                                     </div>
@@ -400,20 +404,20 @@ const createInvoice = (work) => {
         <div v-if="works.data.length > 0" class="mt-5 flex flex-wrap justify-between items-center gap-2">
             <p class="text-sm text-stone-800 dark:text-neutral-200">
                 <span class="font-medium"> {{ works.total ?? works.data.length }} </span>
-                <span class="text-stone-500 dark:text-neutral-500"> resultats</span>
+                <span class="text-stone-500 dark:text-neutral-500"> {{ $t('jobs.table.results') }}</span>
             </p>
 
             <nav class="flex justify-end items-center gap-x-1" aria-label="Pagination">
                 <Link :href="works.prev_page_url" v-if="works.prev_page_url">
                 <button type="button"
                     class="min-h-[38px] min-w-[38px] py-2 px-2.5 inline-flex justify-center items-center gap-x-2 text-sm rounded-sm text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-100 dark:text-white dark:hover:bg-white/10 dark:focus:bg-neutral-700"
-                    aria-label="Precedent">
+                    :aria-label="$t('jobs.pagination.previous')">
                     <svg class="shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
                         viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                         stroke-linejoin="round">
                         <path d="m15 18-6-6 6-6" />
                     </svg>
-                    <span class="sr-only">Precedent</span>
+                    <span class="sr-only">{{ $t('jobs.pagination.previous') }}</span>
                 </button>
                 </Link>
                 <div class="flex items-center gap-x-1">
@@ -421,7 +425,9 @@ const createInvoice = (work) => {
                         class="min-h-[38px] min-w-[38px] flex justify-center items-center bg-stone-100 text-stone-800 py-2 px-3 text-sm rounded-sm disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-700 dark:text-white"
                         aria-current="page">{{ works.from }}</span>
                     <span
-                        class="min-h-[38px] flex justify-center items-center text-stone-500 py-2 px-1.5 text-sm dark:text-neutral-500">sur</span>
+                        class="min-h-[38px] flex justify-center items-center text-stone-500 py-2 px-1.5 text-sm dark:text-neutral-500">
+                        {{ $t('jobs.pagination.of') }}
+                    </span>
                     <span
                         class="min-h-[38px] flex justify-center items-center text-stone-500 py-2 px-1.5 text-sm dark:text-neutral-500">{{ works.to }}</span>
                 </div>
@@ -429,8 +435,8 @@ const createInvoice = (work) => {
                 <Link :href="works.next_page_url" v-if="works.next_page_url">
                 <button type="button"
                     class="min-h-[38px] min-w-[38px] py-2 px-2.5 inline-flex justify-center items-center gap-x-2 text-sm rounded-sm text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-100 dark:text-white dark:hover:bg-white/10 dark:focus:bg-neutral-700"
-                    aria-label="Suivant">
-                    <span class="sr-only">Suivant</span>
+                    :aria-label="$t('jobs.pagination.next')">
+                    <span class="sr-only">{{ $t('jobs.pagination.next') }}</span>
                     <svg class="shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
                         viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                         stroke-linejoin="round">

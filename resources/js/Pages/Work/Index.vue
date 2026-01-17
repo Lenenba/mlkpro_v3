@@ -13,7 +13,7 @@ const props = defineProps({
 </script>
 
 <template>
-    <Head title="Jobs" />
+    <Head :title="$t('jobs.title')" />
     <AuthenticatedLayout>
         <WorkStats :stats="stats" />
         <div class="mt-3">

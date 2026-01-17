@@ -58,6 +58,353 @@
     "actions": {
         "stop_impersonation": "Stop impersonation"
     },
+    "dashboard": {
+        "title": "Dashboard",
+        "welcome_named": "Welcome back, {name}. Here's your latest activity.",
+        "welcome_generic": "Welcome back. Here's your latest activity.",
+        "meta": {
+            "quotes_month": "{count} quotes this month",
+            "payments_month": "{amount} collected this month"
+        },
+        "usage": {
+            "title": "Usage alerts",
+            "description": "Some modules are nearing their limits{planSuffix}.",
+            "plan_suffix": " for the {plan} plan",
+            "view_limits": "View limits",
+            "unlimited": "Unlimited",
+            "not_available": "Not available"
+        },
+        "limits": {
+            "quotes": "Quotes",
+            "requests": "Requests",
+            "invoices": "Invoices",
+            "jobs": "Jobs",
+            "products": "Products",
+            "services": "Services",
+            "tasks": "Tasks",
+            "team_members": "Team members"
+        },
+        "time": {
+            "any": "Any time"
+        },
+        "priority": {
+            "high": "High",
+            "medium": "Medium",
+            "low": "Low"
+        },
+        "auto": {
+            "started": "Auto started",
+            "completed": "Auto completed"
+        },
+        "agenda": {
+            "task": "task",
+            "tasks": "tasks",
+            "job": "job",
+            "jobs": "jobs",
+            "auto_started": "{count} auto started",
+            "auto_completed": "{count} auto completed",
+            "auto_completed_at": "{count} auto completed at {time}"
+        },
+        "labels": {
+            "unknown_customer": "Unknown customer",
+            "job": "Job",
+            "task": "Task",
+            "assignee": "Assignee: {name}",
+            "quote_fallback": "Quote",
+            "invoice_fallback": "Invoice"
+        },
+        "timeline": {
+            "title": "Today's schedule",
+            "subtitle": "Jobs and tasks due today.",
+            "sync_calendar": "Sync calendar",
+            "view_tasks": "View tasks",
+            "auto_alerts": "Auto alerts",
+            "empty": "No tasks or jobs scheduled today."
+        },
+        "revenue": {
+            "title": "Revenue trend",
+            "subtitle": "Invoicing activity for the last 30 days.",
+            "view_invoices": "View invoices",
+            "paid_to_date": "Paid to date",
+            "outstanding": "Outstanding",
+            "overdue": "Overdue"
+        },
+        "sections": {
+            "recent_quotes": "Recent quotes",
+            "upcoming_jobs": "Upcoming jobs",
+            "outstanding_invoices": "Outstanding invoices",
+            "recent_activity": "Recent activity"
+        },
+        "actions": {
+            "view_all": "View all"
+        },
+        "table": {
+            "quote": "Quote",
+            "customer": "Customer",
+            "status": "Status",
+            "total": "Total",
+            "created": "Created"
+        },
+        "empty": {
+            "quotes": "No quotes yet.",
+            "jobs": "No jobs scheduled.",
+            "invoices": "All invoices are settled.",
+            "activity": "No recent activity yet."
+        },
+        "quick_actions": {
+            "title": "Quick actions",
+            "create": "Create",
+            "suggested": "Suggested: {label}",
+            "suggested_next": "Suggested next"
+        },
+        "kpi": {
+            "revenue_paid": "Revenue paid",
+            "revenue_billed": "Billed {amount}",
+            "outstanding_balance": "Outstanding balance",
+            "partial_invoices": "{count} partial invoices",
+            "open_quotes": "Open quotes",
+            "accepted_quotes": "{count} accepted quotes",
+            "jobs_in_progress": "Jobs in progress",
+            "jobs_scheduled": "{count} scheduled",
+            "customers": "Customers",
+            "customers_new": "{count} new customers",
+            "low_stock": "Low stock",
+            "out_of_stock": "{count} out of stock",
+            "invoices_paid": "Invoices paid",
+            "invoices_total": "{count} total",
+            "inventory_value": "Inventory value",
+            "products_total": "{count} products"
+        },
+        "announcements": {
+            "title": "Announcements",
+            "subtitle": "Latest updates from MLK Pro.",
+            "quick_title": "Quick updates",
+            "quick_subtitle": "Latest highlights for your team.",
+            "updates_title": "Updates",
+            "updates_subtitle": "What's new in MLK Pro.",
+            "valid_until": "Valid until {date}",
+            "from": "From {date}",
+            "learn_more": "Learn more"
+        },
+        "checklist": {
+            "title": "Getting started",
+            "subtitle": "Complete these steps to set up your workspace.",
+            "done": "Done",
+            "plan_scans_title": "Plan scans",
+            "plan_scans_empty": "No plan scans yet.",
+            "plan_scans_count": "{count} scans imported",
+            "plan_scans_cta": "Import plan scan"
+        },
+        "onboarding": {
+            "add_first_service": "Add your first service",
+            "add_first_product": "Add your first product",
+            "add_first_customer": "Add your first customer",
+            "create_first_quote": "Create your first quote"
+        },
+        "suggestions": {
+            "create_customer": "Create customer",
+            "add_service": "Add service",
+            "add_product": "Add product",
+            "create_quote": "Create quote",
+            "import_plan": "Import plan scan",
+            "create_request": "Create request",
+            "review_jobs": "Review jobs"
+        },
+        "trend": {
+            "none": "No trend data",
+            "no_change": "No change",
+            "up": "Up",
+            "down": "Down",
+            "new": "New",
+            "summary": "{direction} ({value})"
+        },
+        "status": {
+            "quote": {
+                "draft": "Draft",
+                "sent": "Sent",
+                "accepted": "Accepted",
+                "declined": "Declined",
+                "archived": "Archived"
+            },
+            "work": {
+                "to_schedule": "To schedule",
+                "scheduled": "Scheduled",
+                "en_route": "En route",
+                "in_progress": "In progress",
+                "tech_complete": "Tech complete",
+                "pending_review": "Pending review",
+                "validated": "Validated",
+                "auto_validated": "Auto validated",
+                "dispute": "Dispute",
+                "closed": "Closed",
+                "cancelled": "Cancelled",
+                "completed": "Completed"
+            },
+            "task": {
+                "todo": "To do",
+                "in_progress": "In progress",
+                "done": "Done"
+            },
+            "invoice": {
+                "draft": "Draft",
+                "sent": "Sent",
+                "awaiting_acceptance": "Awaiting acceptance",
+                "accepted": "Accepted",
+                "rejected": "Rejected",
+                "partial": "Partial",
+                "paid": "Paid",
+                "overdue": "Overdue",
+                "void": "Void"
+            }
+        }
+    },
+    "quotes": {
+        "title": "Quotes",
+        "view": {
+            "table": "Table",
+            "cards": "Cards"
+        },
+        "filters": {
+            "search_placeholder": "Search quotes, customer, or notes",
+            "status": {
+                "all": "All status"
+            },
+            "customer": {
+                "all": "All customers"
+            },
+            "total_min": "Total min",
+            "total_max": "Total max",
+            "created_from": "Created from",
+            "created_to": "Created to",
+            "deposit": {
+                "label": "Deposit",
+                "with": "With deposit",
+                "none": "No deposit"
+            },
+            "tax": {
+                "label": "Tax",
+                "with": "With tax",
+                "none": "No tax"
+            }
+        },
+        "status": {
+            "draft": "Draft",
+            "sent": "Sent",
+            "accepted": "Accepted",
+            "declined": "Declined",
+            "archived": "Archived"
+        },
+        "table": {
+            "quote": "Quote",
+            "job": "Job",
+            "customer": "Customer",
+            "status": "Status",
+            "rating": "Rating",
+            "total": "Total",
+            "created": "Created",
+            "results": "results"
+        },
+        "actions": {
+            "filters": "Filters",
+            "clear": "Clear",
+            "new_quote_for": "New quote for...",
+            "new_quote": "New quote",
+            "view": "View",
+            "edit": "Edit",
+            "send_email": "Send email",
+            "accept_quote": "Accept quote",
+            "create_job": "Create job",
+            "archive": "Archive",
+            "restore": "Restore",
+            "archive_confirm": "Archive quote {number}?"
+        },
+        "labels": {
+            "unknown_customer": "Unknown",
+            "quote_fallback": "Quote",
+            "quote_initial": "Q",
+            "job_fallback": "Job"
+        },
+        "stats": {
+            "total": "Total quotes",
+            "total_value": "Total value",
+            "average_value": "Average value",
+            "open": "Open quotes",
+            "accepted": "Accepted",
+            "declined": "Declined",
+            "top_by_value": "Top quotes by value",
+            "based_on_filters": "Based on current filters",
+            "empty": "No quote data yet."
+        },
+        "empty": {
+            "quotes": "No quotes yet."
+        },
+        "pagination": {
+            "previous": "Previous",
+            "next": "Next",
+            "of": "of"
+        }
+    },
+    "jobs": {
+        "title": "Jobs",
+        "stats": {
+            "total": "Total jobs",
+            "scheduled": "Scheduled",
+            "in_progress": "In progress",
+            "completed": "Completed",
+            "cancelled": "Cancelled"
+        },
+        "filters": {
+            "search_placeholder": "Search jobs, instructions, or types",
+            "status": {
+                "all": "All status"
+            },
+            "customer": {
+                "all": "All customers"
+            },
+            "start_from": "Start from",
+            "start_to": "Start to"
+        },
+        "status": {
+            "to_schedule": "To schedule",
+            "scheduled": "Scheduled",
+            "en_route": "En route",
+            "in_progress": "In progress",
+            "tech_complete": "Tech complete",
+            "pending_review": "Pending review",
+            "validated": "Validated",
+            "auto_validated": "Auto validated",
+            "dispute": "Dispute",
+            "closed": "Closed",
+            "cancelled": "Cancelled",
+            "completed": "Completed (legacy)"
+        },
+        "table": {
+            "job": "Job",
+            "customer": "Customer",
+            "status": "Status",
+            "rating": "Rating",
+            "total": "Total",
+            "start_date": "Start date",
+            "results": "results"
+        },
+        "actions": {
+            "filters": "Filters",
+            "reset": "Reset",
+            "view": "View",
+            "edit": "Edit",
+            "schedule": "Schedule",
+            "view_invoice": "View invoice",
+            "create_invoice": "Create invoice"
+        },
+        "labels": {
+            "unknown_customer": "Unknown"
+        },
+        "pagination": {
+            "previous": "Previous",
+            "next": "Next",
+            "of": "of"
+        }
+    },
     "quick_create": {
         "customer": "Customer",
         "service": "Service",

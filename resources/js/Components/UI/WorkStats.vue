@@ -17,7 +17,7 @@ const formatNumber = (value) =>
             <div class="sm:flex sm:gap-x-3">
                 <div class="sm:order-1 grow space-y-1">
                     <h2 class="sm:mb-2 text-sm text-stone-500 dark:text-neutral-400">
-                        Total des jobs
+                        {{ $t('jobs.stats.total') }}
                     </h2>
                     <p class="text-lg md:text-xl font-semibold text-stone-800 dark:text-neutral-200">
                         {{ formatNumber(stats.total) }}
@@ -31,7 +31,7 @@ const formatNumber = (value) =>
             <div class="sm:flex sm:gap-x-3">
                 <div class="sm:order-1 grow space-y-1">
                     <h2 class="sm:mb-2 text-sm text-stone-500 dark:text-neutral-400">
-                        Planifie
+                        {{ $t('jobs.stats.scheduled') }}
                     </h2>
                     <p class="text-lg md:text-xl font-semibold text-stone-800 dark:text-neutral-200">
                         {{ formatNumber(stats.scheduled) }}
@@ -45,7 +45,7 @@ const formatNumber = (value) =>
             <div class="sm:flex sm:gap-x-3">
                 <div class="sm:order-1 grow space-y-1">
                     <h2 class="sm:mb-2 text-sm text-stone-500 dark:text-neutral-400">
-                        En cours
+                        {{ $t('jobs.stats.in_progress') }}
                     </h2>
                     <p class="text-lg md:text-xl font-semibold text-stone-800 dark:text-neutral-200">
                         {{ formatNumber(stats.in_progress) }}
@@ -59,7 +59,7 @@ const formatNumber = (value) =>
             <div class="sm:flex sm:gap-x-3">
                 <div class="sm:order-1 grow space-y-1">
                     <h2 class="sm:mb-2 text-sm text-stone-500 dark:text-neutral-400">
-                        Termine
+                        {{ $t('jobs.stats.completed') }}
                     </h2>
                     <p class="text-lg md:text-xl font-semibold text-stone-800 dark:text-neutral-200">
                         {{ formatNumber(stats.completed) }}
@@ -73,7 +73,7 @@ const formatNumber = (value) =>
             <div class="sm:flex sm:gap-x-3">
                 <div class="sm:order-1 grow space-y-1">
                     <h2 class="sm:mb-2 text-sm text-stone-500 dark:text-neutral-400">
-                        Annule
+                        {{ $t('jobs.stats.cancelled') }}
                     </h2>
                     <p class="text-lg md:text-xl font-semibold text-stone-800 dark:text-neutral-200">
                         {{ formatNumber(stats.cancelled) }}

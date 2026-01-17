@@ -16,7 +16,7 @@ const props = defineProps({
 </script>
 
 <template>
-    <Head title="Quotes" />
+    <Head :title="$t('quotes.title')" />
     <AuthenticatedLayout>
         <QuoteStats :stats="stats" />
         <div class="grid grid-cols-1 lg:grid-cols-4 gap-2 md:gap-3 lg:gap-5">

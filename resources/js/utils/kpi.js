@@ -38,12 +38,13 @@ export const buildTrend = (values, positiveDirection = 'up') => {
     };
 };
 
-export const formatTrendValue = (trend) => {
+export const formatTrendValue = (trend, options = {}) => {
+    const newLabel = options.newLabel || 'New';
     if (!trend) {
         return '0%';
     }
     if (trend.percent === null) {
-        return 'New';
+        return newLabel;
     }
     return `${trend.percent.toFixed(1)}%`;
 };

@@ -1,5 +1,6 @@
 <script setup>
 import { computed } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { humanizeDate } from '@/utils/date';
 
 const props = defineProps({
@@ -9,11 +10,11 @@ const props = defineProps({
     },
     title: {
         type: String,
-        default: 'Updates',
+        default: null,
     },
     subtitle: {
         type: String,
-        default: 'Platform news, tips, and seasonal greetings.',
+        default: null,
     },
     variant: {
         type: String,
@@ -29,6 +30,8 @@ const props = defineProps({
     },
 });
 
+const { t } = useI18n();
+
 const visibleAnnouncements = computed(() => {
     const items = props.announcements || [];
     if (!Number.isFinite(props.limit) || props.limit <= 0) {
@@ -38,6 +41,8 @@ const visibleAnnouncements = computed(() => {
 });
 
 const hasAnnouncements = computed(() => visibleAnnouncements.value.length > 0);
+const resolvedTitle = computed(() => props.title || t('dashboard.announcements.updates_title'));
+const resolvedSubtitle = computed(() => props.subtitle || t('dashboard.announcements.updates_subtitle'));
 const isSide = computed(() => props.variant === 'side');
 const sectionClass = computed(() => {
     if (isSide.value) {
@@ -77,15 +82,15 @@ const announcementWindow = (item) => {
         return `${start} - ${end}`;
     }
     if (end) {
-        return `Valid until ${end}`;
+        return t('dashboard.announcements.valid_until', { date: end });
     }
     if (start) {
-        return `From ${start}`;
+        return t('dashboard.announcements.from', { date: start });
     }
     return '';
 };
 
-const linkLabel = (item) => item?.link_label || 'Learn more';
+const linkLabel = (item) => item?.link_label || t('dashboard.announcements.learn_more');
 </script>
 
 <template>
@@ -93,10 +98,10 @@ const linkLabel = (item) => item?.link_label || 'Learn more';
         <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div>
                 <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
-                    {{ title }}
+                    {{ resolvedTitle }}
                 </h2>
                 <p class="text-xs text-stone-500 dark:text-neutral-400">
-                    {{ subtitle }}
+                    {{ resolvedSubtitle }}
                 </p>
             </div>
         </div>

@@ -1,10 +1,14 @@
 <script setup>
+import { useI18n } from 'vue-i18n';
+
 const props = defineProps({
     stats: {
         type: Object,
         required: true,
     },
 });
+
+const { t } = useI18n();
 
 const formatNumber = (value) =>
     Number(value || 0).toLocaleString(undefined, { maximumFractionDigits: 0 });
@@ -17,7 +21,7 @@ const formatNumber = (value) =>
             <div class="sm:flex sm:gap-x-3">
                 <div class="sm:order-1 grow space-y-1">
                     <h2 class="sm:mb-2 text-sm text-stone-500 dark:text-neutral-400">
-                        Total tasks
+                        {{ t('tasks.stats.total') }}
                     </h2>
                     <p class="text-lg md:text-xl font-semibold text-stone-800 dark:text-neutral-200">
                         {{ formatNumber(stats.total) }}
@@ -31,7 +35,7 @@ const formatNumber = (value) =>
             <div class="sm:flex sm:gap-x-3">
                 <div class="sm:order-1 grow space-y-1">
                     <h2 class="sm:mb-2 text-sm text-stone-500 dark:text-neutral-400">
-                        To do
+                        {{ t('tasks.stats.todo') }}
                     </h2>
                     <p class="text-lg md:text-xl font-semibold text-stone-800 dark:text-neutral-200">
                         {{ formatNumber(stats.todo) }}
@@ -45,7 +49,7 @@ const formatNumber = (value) =>
             <div class="sm:flex sm:gap-x-3">
                 <div class="sm:order-1 grow space-y-1">
                     <h2 class="sm:mb-2 text-sm text-stone-500 dark:text-neutral-400">
-                        In progress
+                        {{ t('tasks.stats.in_progress') }}
                     </h2>
                     <p class="text-lg md:text-xl font-semibold text-stone-800 dark:text-neutral-200">
                         {{ formatNumber(stats.in_progress) }}
@@ -59,7 +63,7 @@ const formatNumber = (value) =>
             <div class="sm:flex sm:gap-x-3">
                 <div class="sm:order-1 grow space-y-1">
                     <h2 class="sm:mb-2 text-sm text-stone-500 dark:text-neutral-400">
-                        Done
+                        {{ t('tasks.stats.done') }}
                     </h2>
                     <p class="text-lg md:text-xl font-semibold text-stone-800 dark:text-neutral-200">
                         {{ formatNumber(stats.done) }}
@@ -69,4 +73,3 @@ const formatNumber = (value) =>
         </div>
     </div>
 </template>
-
