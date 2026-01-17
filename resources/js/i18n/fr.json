@@ -426,6 +426,214 @@
       "completed_unconfirmed": "Livree - a confirmer"
     }
   },
+  "sales": {
+    "index": {
+      "title": "Ventes payees",
+      "subtitle": "Suivez les ventes encaissees de votre boutique.",
+      "new_sale": "Nouvelle vente",
+      "filters": {
+        "all_sales": "Toutes les ventes"
+      }
+    },
+    "stats": {
+      "total": "Total ventes",
+      "revenue": "Chiffre d'affaires",
+      "collected": "Encaisse",
+      "pending": "En attente",
+      "draft": "Brouillons",
+      "canceled": "Annulees"
+    },
+    "status": {
+      "draft": "Brouillon",
+      "pending": "En attente",
+      "paid": "Payee",
+      "canceled": "Annulee"
+    },
+    "fulfillment": {
+      "pending": "Commande recue",
+      "preparing": "Preparation",
+      "out_for_delivery": "En cours de livraison",
+      "ready_for_pickup": "Pret a retirer",
+      "completed": "Livree",
+      "confirmed": "Confirmee",
+      "method": {
+        "delivery": "Livraison",
+        "pickup": "Retrait",
+        "order": "Commande"
+      }
+    },
+    "stock": {
+      "out": "Rupture",
+      "low": "Bas stock",
+      "available": "Disponible"
+    },
+    "labels": {
+      "no_code": "Sans code",
+      "stock": "Stock",
+      "customer": "Client",
+      "customer_anonymous": "Client anonyme"
+    },
+    "actions": {
+      "back_to_sales": "Retour aux ventes",
+      "edit": "Modifier",
+      "print": "Imprimer"
+    },
+    "form": {
+      "search_label": "Recherche produit",
+      "search_placeholder": "Nom, SKU, code barre",
+      "scan_label": "Scanner un code barre",
+      "scan_placeholder": "Scan ici",
+      "customer_label": "Client",
+      "customer_placeholder": "Selectionner un client",
+      "new_customer": "Nouveau client",
+      "new_customer_title": "Nouveau client",
+      "create_customer": "Creer le client",
+      "discount_badge": "Remise {rate}%",
+      "type_label": "Type",
+      "status_label": "Statut",
+      "invoice_title": "Facture",
+      "lines": "{count} lignes",
+      "empty_items": "Aucun produit ajoute. Cliquez sur un produit pour demarrer.",
+      "remove_item": "Retirer",
+      "notes_label": "Notes (optionnel)",
+      "errors": {
+        "out_of_stock": "Produit en rupture.",
+        "product_not_found": "Aucun produit trouve pour ce code."
+      }
+    },
+    "summary": {
+      "subtotal": "Sous-total",
+      "taxes": "Taxes",
+      "discount_rate": "Remise ({rate}%)",
+      "delivery": "Livraison",
+      "total": "Total",
+      "lines": "Lignes",
+      "items": "Articles",
+      "created": "Cree",
+      "paid": "Payee"
+    },
+    "table": {
+      "filters": {
+        "search_placeholder": "Rechercher numero ou client",
+        "toggle": "Filtres",
+        "reset": "Reinitialiser",
+        "all_statuses": "Tous les statuts",
+        "all_customers": "Tous les clients",
+        "total_min": "Total min",
+        "total_max": "Total max",
+        "date_from": "Du",
+        "date_to": "Au"
+      },
+      "headings": {
+        "sale": "Vente",
+        "customer": "Client",
+        "status": "Statut",
+        "items": "Articles",
+        "total": "Total",
+        "date": "Date"
+      },
+      "sale_label": "Vente #{id}",
+      "items_count": "{count} articles",
+      "payment_label": "Paiement: {status}",
+      "fulfillment_placeholder": "Statut commande",
+      "actions": {
+        "view": "Voir",
+        "edit": "Modifier",
+        "mark_paid": "Payee",
+        "cancel": "Annuler"
+      },
+      "empty": {
+        "orders": {
+          "title": "Aucune commande",
+          "description": "Les commandes clients apparaitront ici."
+        },
+        "sales": {
+          "title": "Aucune vente",
+          "description": "Creez une vente ou passez par le POS pour demarrer."
+        }
+      },
+      "pagination": {
+        "label": "Pagination",
+        "results": "resultats",
+        "previous": "Precedent",
+        "next": "Suivant",
+        "of": "sur"
+      }
+    },
+    "create": {
+      "title": "Nouvelle vente",
+      "subtitle": "Selectionnez des produits pour generer la facture.",
+      "flash_saved": "Vente enregistree.",
+      "flash_view": "Voir et imprimer",
+      "save_sale": "Enregistrer la vente",
+      "save_order": "Enregistrer la commande",
+      "status": {
+        "pending": {
+          "label": "Commande",
+          "description": "A payer plus tard ou en preparation"
+        },
+        "paid": {
+          "label": "Vente payee",
+          "description": "Paiement immediat termine"
+        }
+      }
+    },
+    "edit": {
+      "meta_title": "Modifier vente",
+      "title": "Modifier {number}",
+      "subtitle": "Mettez a jour la vente et son statut.",
+      "view_sale": "Voir la vente",
+      "fulfillment_status_label": "Statut {method}",
+      "fulfillment_placeholder": "Selectionner",
+      "schedule_label": "Horaire souhaite (ETA)",
+      "update": "Mettre a jour"
+    },
+    "show": {
+      "meta_title": "Vente",
+      "invoice_number": "Facture {number}",
+      "company_fallback": "Entreprise",
+      "seller_fallback": "Vendeur",
+      "seller_label": "Vendeur",
+      "order_label": "Commande: {status}",
+      "payment_label": "Paiement: {status}",
+      "created_on": "Cree le {date}",
+      "paid_on": "Payee le {date}",
+      "products_title": "Produits",
+      "table": {
+        "product": "Produit",
+        "sku": "SKU",
+        "unit": "Unite",
+        "quantity": "Quantite",
+        "price": "Prix",
+        "total": "Total"
+      },
+      "product_alt": "Produit",
+      "customer_missing": "Aucun client attache.",
+      "summary_title": "Resume",
+      "fulfillment_title": "Livraison",
+      "fulfillment_status": "Statut: {status}",
+      "address_label": "Adresse:",
+      "notes_label": "Notes:",
+      "requested_time": "Horaire souhaite: {date}",
+      "confirmed_on": "Confirmee le {date}",
+      "pickup_title": "Retrait",
+      "pickup_code_label": "Code",
+      "pickup_code_pending": "Code de retrait en attente.",
+      "pickup_confirmed_on": "Retire le {date}",
+      "pickup_confirmed_by": "Confirme par {name}",
+      "pickup_qr_alt": "QR {code}",
+      "delivery_proof_title": "Photo livraison",
+      "customer_notes_title": "Notes client",
+      "customer_notes_empty": "Aucune note specifique.",
+      "substitutions_label": "Substitutions:",
+      "substitution_allowed": "Autorisees",
+      "substitution_not_allowed": "Non autorisees",
+      "notes_title": "Notes",
+      "product_initial": "P",
+      "company_initials_fallback": "CO",
+      "confirm_pickup": "Confirmer retrait"
+    }
+  },
   "customers": {
     "title": "Clients",
     "stats": {
@@ -1182,6 +1390,7 @@
     "materials": {
       "title": "Materiaux",
       "add": "Ajouter materiau",
+      "custom": "Personnalise",
       "product": "Produit",
       "label": "Libelle",
       "quantity": "Quantite",
@@ -2035,7 +2244,266 @@
         "description": "Emails, alertes et préférences",
         "badge": "Bientôt"
       }
+    },
+    "company": {
+      "meta_title": "Entreprise",
+      "title": "Parametres entreprise",
+      "subtitle": "Mettez a jour les informations de votre entreprise.",
+      "aria_sections": "Sections des parametres entreprise",
+      "tabs": {
+        "company": {
+          "label": "Entreprise",
+          "description": "Identite et activite"
+        },
+        "suppliers": {
+          "label": "Fournisseurs",
+          "description": "Plateformes actives"
+        },
+        "categories": {
+          "label": "Categories",
+          "description": "Services et produits"
+        },
+        "warehouses": {
+          "label": "Entrepots",
+          "description": "Emplacements de stock"
+        },
+        "api": {
+          "label": "Acces API",
+          "description": "Tokens et permissions"
+        },
+        "limits": {
+          "label": "Limites",
+          "description": "Consommation du forfait"
+        }
+      },
+      "profile": {
+        "title": "Profil entreprise",
+        "description": "Identite, adresse et activite de la societe."
+      },
+      "fields": {
+        "name": "Nom de l'entreprise",
+        "logo_optional": "Logo (optionnel)",
+        "logo_upload": "Telecharger votre logo",
+        "description_optional": "Description (optionnel)",
+        "country_optional": "Pays (optionnel)",
+        "country_other": "Pays (autre)",
+        "province_optional": "Province / Etat (optionnel)",
+        "province_other": "Province / Etat (autre)",
+        "city_optional": "Ville (optionnel)",
+        "city_other": "Ville (autre)",
+        "company_type": "Type d'entreprise",
+        "type_services": "Entreprise de services",
+        "type_products": "Entreprise de produits"
+      },
+      "select": {
+        "country": "Selectionner un pays",
+        "province": "Selectionner une province",
+        "city": "Selectionner une ville",
+        "other": "Autre..."
+      },
+      "countries": {
+        "canada": "Canada",
+        "france": "France",
+        "belgium": "Belgique",
+        "switzerland": "Suisse",
+        "morocco": "Maroc",
+        "tunisia": "Tunisie"
+      },
+      "delivery": {
+        "title": "Livraison & retrait",
+        "description": "Parametrez les options proposees aux clients pour commander.",
+        "delivery_active": "Livraison active",
+        "pickup_active": "Retrait en magasin",
+        "delivery_fee_optional": "Frais de livraison (optionnel)",
+        "prep_time_minutes": "Temps de preparation (minutes)",
+        "delivery_zone_optional": "Zone de livraison (optionnel)",
+        "pickup_address": "Adresse de retrait",
+        "delivery_notes_optional": "Notes livraison (optionnel)",
+        "pickup_notes_optional": "Notes retrait (optionnel)"
+      },
+      "actions": {
+        "save": "Enregistrer"
+      },
+      "categories": {
+        "title": "Categories de services / produits",
+        "description": "Ajoutez des categories pour organiser vos services et produits.",
+        "empty": "Aucune categorie pour le moment.",
+        "new_label": "Nouvelle categorie",
+        "add": "Ajouter"
+      },
+      "api": {
+        "title": "Acces API",
+        "description": "Genere des tokens publics ou prives pour connecter des outils externes.",
+        "token_new": "Nouveau token:",
+        "token_hint": "Copiez ce token maintenant, il ne sera plus visible.",
+        "empty": "Aucun token pour le moment.",
+        "revoke": "Revoquer",
+        "scopes": "Scopes: {scopes}",
+        "created": "Cree: {date}",
+        "expires": "Expire: {date}",
+        "create_title": "Creer un token",
+        "fields": {
+          "name": "Nom du token",
+          "type": "Type",
+          "type_public": "Public (lecture)",
+          "type_private": "Prive (lecture/ecriture)",
+          "expires": "Expiration"
+        },
+        "generate": "Generer"
+      },
+      "warehouses": {
+        "title": "Entrepots",
+        "description": "Gere vos emplacements de stock et choisis un entrepot par defaut.",
+        "empty": "Aucun entrepot pour le moment.",
+        "default_badge": "Defaut",
+        "no_code": "Sans code",
+        "set_default": "Definir par defaut",
+        "edit": "Modifier",
+        "delete": "Supprimer",
+        "fields": {
+          "name": "Nom",
+          "code": "Code",
+          "address": "Adresse",
+          "city": "Ville",
+          "state": "Province / Etat",
+          "postal_code": "Code postal",
+          "country": "Pays"
+        },
+        "active": "Entrepot actif",
+        "cancel": "Annuler",
+        "save": "Enregistrer",
+        "add_title": "Ajouter un entrepot",
+        "default_checkbox": "Definir comme defaut",
+        "add": "Ajouter"
+      },
+      "suppliers": {
+        "title": "Fournisseurs (Canada)",
+        "description": "Choisissez vos plateformes actives et jusqu a {limit} fournisseurs preferes.",
+        "empty": "Aucun fournisseur disponible pour le moment.",
+        "custom_badge": "Personnalise",
+        "visit_site": "Visiter le site",
+        "remove": "Supprimer",
+        "preferred": "Preferer",
+        "enable_hint": "Activez ce fournisseur pour le proposer.",
+        "add_title": "Ajouter un fournisseur",
+        "add_description": "Ajoutez un fournisseur avec son lien pour l inclure dans les recherches.",
+        "fields": {
+          "name": "Nom du fournisseur",
+          "url": "Lien du fournisseur"
+        },
+        "add": "Ajouter"
+      },
+      "limits": {
+        "title": "Limites du forfait",
+        "current_plan": "Plan actuel : {plan}",
+        "table": {
+          "module": "Module",
+          "used": "Utilise",
+          "limit": "Limite",
+          "remaining": "Reste",
+          "usage": "Usage",
+          "empty": "Aucune donnee de limite disponible."
+        },
+        "alert": "Certaines limites sont proches ou depassees. Pensez a mettre a jour votre forfait.",
+        "labels": {
+          "quotes": "Devis",
+          "requests": "Demandes",
+          "plan_scan_quotes": "Devis plan scan",
+          "invoices": "Factures",
+          "jobs": "Jobs",
+          "products": "Produits",
+          "services": "Services",
+          "tasks": "Taches",
+          "team_members": "Membres d'equipe"
+        },
+        "plan_fallback": "Plan"
+      },
+      "errors": {
+        "create_warehouse": "Impossible de creer l'entrepot.",
+        "update_warehouse": "Impossible de mettre a jour l'entrepot.",
+        "set_default_warehouse": "Impossible de definir l'entrepot par defaut.",
+        "delete_warehouse": "Impossible de supprimer l'entrepot.",
+        "create_token": "Impossible de creer le token.",
+        "revoke_token": "Impossible de revoquer le token."
+      },
+      "confirm": {
+        "delete_warehouse": "Supprimer l'entrepot \"{name}\" ?",
+        "revoke_token": "Revoquer ce token ?"
+      }
+    },
+    "billing": {
+      "meta_title": "Facturation",
+      "aria_sections": "Sections de facturation",
+      "tabs": {
+        "plans": {
+          "label": "Abonnement",
+          "description": "Plans et statut"
+        },
+        "payment": {
+          "label": "Paiement",
+          "description": "Carte et factures"
+        }
+      },
+      "actions": {
+        "switch_plan": "Changer pour ce plan",
+        "choose_plan": "Choisir ce plan"
+      },
+      "status": {
+        "active": "Actif",
+        "trialing": "Essai",
+        "past_due": "En retard",
+        "paused": "En pause",
+        "canceled": "Annule",
+        "unpaid": "Impayee",
+        "inactive": "Inactif"
+      },
+      "errors": {
+        "paddle_not_configured": "Paddle n'est pas configure.",
+        "no_active_subscription": "Aucun abonnement actif.",
+        "paddle_not_ready": "Paddle.js n'est pas pret. Rechargez la page.",
+        "payment_update_failed": "Impossible de lancer la mise a jour du paiement.",
+        "paddle_load_failed": "Impossible de charger Paddle.js. Verifiez votre connexion.",
+        "paddle_unavailable": "Paddle.js est charge mais indisponible. Rechargez la page.",
+        "paddle_missing_keys": "Paddle n'est pas configure (token/seller manquant).",
+        "missing_transaction": "Transaction manquante.",
+        "paddle_api_missing": "Paddle API non configure. Ajoutez `PADDLE_API_KEY` dans `.env`.",
+        "paddle_js_missing": "Paddle.js non configure. Ajoutez `PADDLE_CLIENT_SIDE_TOKEN` (ou `PADDLE_SELLER_ID`) dans `.env`.",
+        "no_plans_configured": "Aucun plan configure. Ajoutez vos PRICE_ID Paddle dans l'environnement."
+      },
+      "plans": {
+        "title": "Abonnement plateforme",
+        "subtitle": "Choisissez un plan mensuel pour activer toutes les fonctionnalites."
+      },
+      "checkout": {
+        "success_title": "Abonnement active. Merci !",
+        "success_subtitle": "Vous etes maintenant sur {plan}.",
+        "swapped": "Plan mis a jour vers {plan}.",
+        "payment_method": "Carte mise a jour. Merci !",
+        "cancelled": "Paiement annule. Choisissez un plan pour continuer.",
+        "plan_fallback": "le nouveau plan"
+      },
+      "summary": {
+        "active_plan": "Vous etes sur {plan} (Statut: {status})",
+        "trialing": "Essai en cours",
+        "no_subscription": "Aucun abonnement actif. Selectionnez un plan pour demarrer."
+      },
+      "plan": {
+        "monthly": "Plan mensuel",
+        "badge_active": "Actif",
+        "badge_popular": "Populaire",
+        "interval_month": "/mois",
+        "current_plan": "Vous etes sur ce plan.",
+        "cta_active": "Plan actif"
+      },
+      "payment": {
+        "title": "Moyen de paiement",
+        "subtitle": "Gere la carte associee a votre abonnement.",
+        "update_card": "Mettre a jour la carte",
+        "summary_active": "Abonnement actif: {plan} (Statut: {status})",
+        "summary_none": "Aucun abonnement actif pour le moment."
+      }
     }
+
   },
   "welcome": {
     "meta": {

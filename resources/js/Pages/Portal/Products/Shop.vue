@@ -1,6 +1,7 @@
 <script setup>
 import { computed, ref, watch } from 'vue';
 import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
+import { useI18n } from 'vue-i18n';
 import Modal from '@/Components/Modal.vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 
@@ -35,6 +36,8 @@ const props = defineProps({
     },
 });
 
+const { t } = useI18n();
+
 const page = usePage();
 const flashSuccess = computed(() => page.props.flash?.success);
 const flashError = computed(() => page.props.flash?.error);
@@ -42,31 +45,31 @@ const cartRestored = ref(false);
 
 const order = computed(() => props.order || null);
 const isEditing = computed(() => Boolean(order.value?.id));
-const paymentStatusLabels = {
-    draft: 'Brouillon',
-    pending: 'En attente',
-    paid: 'Payee',
-    canceled: 'Annulee',
-};
-const fulfillmentLabels = {
-    pending: 'Commande recue',
-    preparing: 'Preparation',
-    out_for_delivery: 'En cours de livraison',
-    ready_for_pickup: 'Pret a retirer',
-    completed: 'Livree',
-    confirmed: 'Confirmee',
-};
+const paymentStatusLabels = computed(() => ({
+    draft: t('client_orders.status.draft'),
+    pending: t('client_orders.status.pending'),
+    paid: t('client_orders.status.paid'),
+    canceled: t('client_orders.status.canceled'),
+}));
+const fulfillmentLabels = computed(() => ({
+    pending: t('client_orders.fulfillment.pending'),
+    preparing: t('client_orders.fulfillment.preparing'),
+    out_for_delivery: t('client_orders.fulfillment.out_for_delivery'),
+    ready_for_pickup: t('client_orders.fulfillment.ready_for_pickup'),
+    completed: t('client_orders.fulfillment.completed'),
+    confirmed: t('client_orders.fulfillment.confirmed'),
+}));
 const orderStatusLabel = computed(() => {
     if (!order.value?.fulfillment_status) {
-        return 'Commande recue';
+        return t('client_orders.fulfillment.pending');
     }
     if (order.value.fulfillment_status === 'completed' && !order.value.delivery_confirmed_at) {
-        return 'Livree - a confirmer';
+        return t('client_orders.fulfillment.completed_unconfirmed');
     }
-    return fulfillmentLabels[order.value.fulfillment_status] || order.value.fulfillment_status;
+    return fulfillmentLabels.value[order.value.fulfillment_status] || order.value.fulfillment_status;
 });
 const paymentStatusLabel = computed(() =>
-    paymentStatusLabels[order.value?.status] || order.value?.status || 'En attente'
+    paymentStatusLabels.value[order.value?.status] || order.value?.status || t('client_orders.status.pending')
 );
 const canEditOrder = computed(() => {
     if (!isEditing.value) {
@@ -75,7 +78,7 @@ const canEditOrder = computed(() => {
     return order.value?.can_edit !== false;
 });
 const isLocked = computed(() => isEditing.value && !canEditOrder.value);
-const pageTitle = computed(() => (isEditing.value ? 'Modifier la commande' : 'Commander'));
+const pageTitle = computed(() => (isEditing.value ? t('portal_shop.page_title.edit') : t('portal_shop.page_title.create')));
 const pickupCode = computed(() => order.value?.pickup_code || null);
 const pickupQrUrl = computed(() => {
     if (!pickupCode.value) {
@@ -243,12 +246,12 @@ const stockMeta = (product) => {
     const minimum = Number(product?.minimum_stock ?? 0);
 
     if (stock <= 0) {
-        return { label: 'Rupture', classes: 'border-red-200 bg-red-50 text-red-700' };
+        return { label: t('portal_shop.stock.out'), classes: 'border-red-200 bg-red-50 text-red-700' };
     }
     if (minimum > 0 && stock <= minimum) {
-        return { label: 'Bientot en rupture', classes: 'border-amber-200 bg-amber-50 text-amber-700' };
+        return { label: t('portal_shop.stock.low'), classes: 'border-amber-200 bg-amber-50 text-amber-700' };
     }
-    return { label: 'En stock', classes: 'border-emerald-200 bg-emerald-50 text-emerald-700' };
+    return { label: t('portal_shop.stock.in'), classes: 'border-emerald-200 bg-emerald-50 text-emerald-700' };
 };
 
 const openCart = () => {
@@ -470,7 +473,7 @@ const cancelOrder = () => {
     if (!isEditing.value || !order.value?.id || isLocked.value) {
         return;
     }
-    if (!confirm('Annuler cette commande ?')) {
+    if (!confirm(t('portal_shop.actions.cancel_confirm'))) {
         return;
     }
     form.delete(route('portal.orders.destroy', order.value.id), {

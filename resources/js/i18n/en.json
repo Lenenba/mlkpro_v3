@@ -424,7 +424,214 @@
         }
     },
 
-    
+    "sales": {
+        "index": {
+            "title": "Paid sales",
+            "subtitle": "Track paid sales from your store.",
+            "new_sale": "New sale",
+            "filters": {
+                "all_sales": "All sales"
+            }
+        },
+        "stats": {
+            "total": "Total sales",
+            "revenue": "Revenue",
+            "collected": "Collected",
+            "pending": "Pending",
+            "draft": "Drafts",
+            "canceled": "Canceled"
+        },
+        "status": {
+            "draft": "Draft",
+            "pending": "Pending",
+            "paid": "Paid",
+            "canceled": "Canceled"
+        },
+        "fulfillment": {
+            "pending": "Order received",
+            "preparing": "Preparing",
+            "out_for_delivery": "Out for delivery",
+            "ready_for_pickup": "Ready for pickup",
+            "completed": "Delivered",
+            "confirmed": "Confirmed",
+            "method": {
+                "delivery": "Delivery",
+                "pickup": "Pickup",
+                "order": "Order"
+            }
+        },
+        "stock": {
+            "out": "Out of stock",
+            "low": "Low stock",
+            "available": "Available"
+        },
+        "labels": {
+            "no_code": "No code",
+            "stock": "Stock",
+            "customer": "Customer",
+            "customer_anonymous": "Anonymous customer"
+        },
+        "actions": {
+            "back_to_sales": "Back to sales",
+            "edit": "Edit",
+            "print": "Print"
+        },
+        "form": {
+            "search_label": "Product search",
+            "search_placeholder": "Name, SKU, barcode",
+            "scan_label": "Scan a barcode",
+            "scan_placeholder": "Scan here",
+            "customer_label": "Customer",
+            "customer_placeholder": "Select a customer",
+            "new_customer": "New customer",
+            "new_customer_title": "New customer",
+            "create_customer": "Create customer",
+            "discount_badge": "Discount {rate}%",
+            "type_label": "Type",
+            "status_label": "Status",
+            "invoice_title": "Invoice",
+            "lines": "{count} lines",
+            "empty_items": "No products added. Click a product to get started.",
+            "remove_item": "Remove",
+            "notes_label": "Notes (optional)",
+            "errors": {
+                "out_of_stock": "Product is out of stock.",
+                "product_not_found": "No product found for this code."
+            }
+        },
+        "summary": {
+            "subtotal": "Subtotal",
+            "taxes": "Taxes",
+            "discount_rate": "Discount ({rate}%)",
+            "delivery": "Delivery",
+            "total": "Total",
+            "lines": "Lines",
+            "items": "Items",
+            "created": "Created",
+            "paid": "Paid"
+        },
+        "table": {
+            "filters": {
+                "search_placeholder": "Search number or customer",
+                "toggle": "Filters",
+                "reset": "Reset",
+                "all_statuses": "All statuses",
+                "all_customers": "All customers",
+                "total_min": "Min total",
+                "total_max": "Max total",
+                "date_from": "From",
+                "date_to": "To"
+            },
+            "headings": {
+                "sale": "Sale",
+                "customer": "Customer",
+                "status": "Status",
+                "items": "Items",
+                "total": "Total",
+                "date": "Date"
+            },
+            "sale_label": "Sale #{id}",
+            "items_count": "{count} items",
+            "payment_label": "Payment: {status}",
+            "fulfillment_placeholder": "Order status",
+            "actions": {
+                "view": "View",
+                "edit": "Edit",
+                "mark_paid": "Mark paid",
+                "cancel": "Cancel"
+            },
+            "empty": {
+                "orders": {
+                    "title": "No orders",
+                    "description": "Customer orders will appear here."
+                },
+                "sales": {
+                    "title": "No sales",
+                    "description": "Create a sale or use POS to get started."
+                }
+            },
+            "pagination": {
+                "label": "Pagination",
+                "results": "results",
+                "previous": "Previous",
+                "next": "Next",
+                "of": "of"
+            }
+        },
+        "create": {
+            "title": "New sale",
+            "subtitle": "Select products to generate the invoice.",
+            "flash_saved": "Sale saved.",
+            "flash_view": "View and print",
+            "save_sale": "Save sale",
+            "save_order": "Save order",
+            "status": {
+                "pending": {
+                    "label": "Order",
+                    "description": "Pay later or in preparation"
+                },
+                "paid": {
+                    "label": "Paid sale",
+                    "description": "Immediate payment completed"
+                }
+            }
+        },
+        "edit": {
+            "meta_title": "Edit sale",
+            "title": "Edit {number}",
+            "subtitle": "Update the sale and its status.",
+            "view_sale": "View sale",
+            "fulfillment_status_label": "Status {method}",
+            "fulfillment_placeholder": "Select",
+            "schedule_label": "Requested time (ETA)",
+            "update": "Update"
+        },
+        "show": {
+            "meta_title": "Sale",
+            "invoice_number": "Invoice {number}",
+            "company_fallback": "Company",
+            "seller_fallback": "Seller",
+            "seller_label": "Seller",
+            "order_label": "Order: {status}",
+            "payment_label": "Payment: {status}",
+            "created_on": "Created on {date}",
+            "paid_on": "Paid on {date}",
+            "products_title": "Products",
+            "table": {
+                "product": "Product",
+                "sku": "SKU",
+                "unit": "Unit",
+                "quantity": "Quantity",
+                "price": "Price",
+                "total": "Total"
+            },
+            "product_alt": "Product",
+            "customer_missing": "No customer attached.",
+            "summary_title": "Summary",
+            "fulfillment_title": "Delivery",
+            "fulfillment_status": "Status: {status}",
+            "address_label": "Address:",
+            "notes_label": "Notes:",
+            "requested_time": "Requested time: {date}",
+            "confirmed_on": "Confirmed on {date}",
+            "pickup_title": "Pickup",
+            "pickup_code_label": "Code",
+            "pickup_code_pending": "Pickup code pending.",
+            "pickup_confirmed_on": "Picked up on {date}",
+            "pickup_confirmed_by": "Confirmed by {name}",
+            "pickup_qr_alt": "QR {code}",
+            "delivery_proof_title": "Delivery photo",
+            "customer_notes_title": "Customer notes",
+            "customer_notes_empty": "No specific notes.",
+            "substitutions_label": "Substitutions:",
+            "substitution_allowed": "Allowed",
+            "substitution_not_allowed": "Not allowed",
+            "notes_title": "Notes",
+            "product_initial": "P",
+            "company_initials_fallback": "CO",
+            "confirm_pickup": "Confirm pickup"
+        }
+    },
 
     "customers": {
         "title": "Customers",
@@ -1182,6 +1389,7 @@
         "materials": {
             "title": "Materials",
             "add": "Add material",
+            "custom": "Custom",
             "product": "Product",
             "label": "Label",
             "quantity": "Quantity",
@@ -2034,6 +2242,264 @@
                 "label": "Notifications",
                 "description": "Emails and alerts",
                 "badge": "Soon"
+            }
+        },
+        "company": {
+            "meta_title": "Company",
+            "title": "Company settings",
+            "subtitle": "Update your company information.",
+            "aria_sections": "Company settings sections",
+            "tabs": {
+                "company": {
+                    "label": "Company",
+                    "description": "Identity and activity"
+                },
+                "suppliers": {
+                    "label": "Suppliers",
+                    "description": "Active platforms"
+                },
+                "categories": {
+                    "label": "Categories",
+                    "description": "Services and products"
+                },
+                "warehouses": {
+                    "label": "Warehouses",
+                    "description": "Stock locations"
+                },
+                "api": {
+                    "label": "API access",
+                    "description": "Tokens and permissions"
+                },
+                "limits": {
+                    "label": "Limits",
+                    "description": "Plan usage"
+                }
+            },
+            "profile": {
+                "title": "Company profile",
+                "description": "Identity, address, and company activity."
+            },
+            "fields": {
+                "name": "Company name",
+                "logo_optional": "Logo (optional)",
+                "logo_upload": "Upload your logo",
+                "description_optional": "Description (optional)",
+                "country_optional": "Country (optional)",
+                "country_other": "Country (other)",
+                "province_optional": "Province / State (optional)",
+                "province_other": "Province / State (other)",
+                "city_optional": "City (optional)",
+                "city_other": "City (other)",
+                "company_type": "Company type",
+                "type_services": "Service business",
+                "type_products": "Product business"
+            },
+            "select": {
+                "country": "Select a country",
+                "province": "Select a province",
+                "city": "Select a city",
+                "other": "Other..."
+            },
+            "countries": {
+                "canada": "Canada",
+                "france": "France",
+                "belgium": "Belgium",
+                "switzerland": "Switzerland",
+                "morocco": "Morocco",
+                "tunisia": "Tunisia"
+            },
+            "delivery": {
+                "title": "Delivery & pickup",
+                "description": "Configure delivery and pickup options for customers.",
+                "delivery_active": "Delivery active",
+                "pickup_active": "Store pickup",
+                "delivery_fee_optional": "Delivery fee (optional)",
+                "prep_time_minutes": "Prep time (minutes)",
+                "delivery_zone_optional": "Delivery zone (optional)",
+                "pickup_address": "Pickup address",
+                "delivery_notes_optional": "Delivery notes (optional)",
+                "pickup_notes_optional": "Pickup notes (optional)"
+            },
+            "actions": {
+                "save": "Save"
+            },
+            "categories": {
+                "title": "Service / product categories",
+                "description": "Add categories to organize services and products.",
+                "empty": "No categories yet.",
+                "new_label": "New category",
+                "add": "Add"
+            },
+            "api": {
+                "title": "API access",
+                "description": "Generate public or private tokens to connect external tools.",
+                "token_new": "New token:",
+                "token_hint": "Copy this token now; it will not be shown again.",
+                "empty": "No tokens yet.",
+                "revoke": "Revoke",
+                "scopes": "Scopes: {scopes}",
+                "created": "Created: {date}",
+                "expires": "Expires: {date}",
+                "create_title": "Create a token",
+                "fields": {
+                    "name": "Token name",
+                    "type": "Type",
+                    "type_public": "Public (read)",
+                    "type_private": "Private (read/write)",
+                    "expires": "Expiration"
+                },
+                "generate": "Generate"
+            },
+            "warehouses": {
+                "title": "Warehouses",
+                "description": "Manage stock locations and choose a default warehouse.",
+                "empty": "No warehouses yet.",
+                "default_badge": "Default",
+                "no_code": "No code",
+                "set_default": "Set default",
+                "edit": "Edit",
+                "delete": "Delete",
+                "fields": {
+                    "name": "Name",
+                    "code": "Code",
+                    "address": "Address",
+                    "city": "City",
+                    "state": "Province / State",
+                    "postal_code": "Postal code",
+                    "country": "Country"
+                },
+                "active": "Active warehouse",
+                "cancel": "Cancel",
+                "save": "Save",
+                "add_title": "Add a warehouse",
+                "default_checkbox": "Set as default",
+                "add": "Add"
+            },
+            "suppliers": {
+                "title": "Suppliers (Canada)",
+                "description": "Choose active platforms and up to {limit} preferred suppliers.",
+                "empty": "No suppliers available yet.",
+                "custom_badge": "Custom",
+                "visit_site": "Visit site",
+                "remove": "Remove",
+                "preferred": "Preferred",
+                "enable_hint": "Enable this supplier to recommend it.",
+                "add_title": "Add a supplier",
+                "add_description": "Add a supplier with a link to include it in searches.",
+                "fields": {
+                    "name": "Supplier name",
+                    "url": "Supplier link"
+                },
+                "add": "Add"
+            },
+            "limits": {
+                "title": "Plan limits",
+                "current_plan": "Current plan: {plan}",
+                "table": {
+                    "module": "Module",
+                    "used": "Used",
+                    "limit": "Limit",
+                    "remaining": "Remaining",
+                    "usage": "Usage",
+                    "empty": "No limit data available."
+                },
+                "alert": "Some limits are close or exceeded. Consider upgrading your plan.",
+                "labels": {
+                    "quotes": "Quotes",
+                    "requests": "Requests",
+                    "plan_scan_quotes": "Plan scan quotes",
+                    "invoices": "Invoices",
+                    "jobs": "Jobs",
+                    "products": "Products",
+                    "services": "Services",
+                    "tasks": "Tasks",
+                    "team_members": "Team members"
+                },
+                "plan_fallback": "Plan"
+            },
+            "errors": {
+                "create_warehouse": "Unable to create warehouse.",
+                "update_warehouse": "Unable to update warehouse.",
+                "set_default_warehouse": "Unable to set default warehouse.",
+                "delete_warehouse": "Unable to delete warehouse.",
+                "create_token": "Unable to create token.",
+                "revoke_token": "Unable to revoke token."
+            },
+            "confirm": {
+                "delete_warehouse": "Delete warehouse \"{name}\"?",
+                "revoke_token": "Revoke this token?"
+            }
+        },
+        "billing": {
+            "meta_title": "Billing",
+            "aria_sections": "Billing sections",
+            "tabs": {
+                "plans": {
+                    "label": "Subscription",
+                    "description": "Plans and status"
+                },
+                "payment": {
+                    "label": "Payment",
+                    "description": "Card and invoices"
+                }
+            },
+            "actions": {
+                "switch_plan": "Switch to this plan",
+                "choose_plan": "Choose this plan"
+            },
+            "status": {
+                "active": "Active",
+                "trialing": "Trialing",
+                "past_due": "Past due",
+                "paused": "Paused",
+                "canceled": "Canceled",
+                "unpaid": "Unpaid",
+                "inactive": "Inactive"
+            },
+            "errors": {
+                "paddle_not_configured": "Paddle is not configured.",
+                "no_active_subscription": "No active subscription.",
+                "paddle_not_ready": "Paddle.js is not ready. Refresh the page.",
+                "payment_update_failed": "Unable to start the payment update.",
+                "paddle_load_failed": "Unable to load Paddle.js. Check your connection.",
+                "paddle_unavailable": "Paddle.js is loaded but unavailable. Refresh the page.",
+                "paddle_missing_keys": "Paddle is not configured (missing token/seller).",
+                "missing_transaction": "Missing transaction id.",
+                "paddle_api_missing": "Paddle API not configured. Add `PADDLE_API_KEY` to `.env`.",
+                "paddle_js_missing": "Paddle.js not configured. Add `PADDLE_CLIENT_SIDE_TOKEN` (or `PADDLE_SELLER_ID`) to `.env`.",
+                "no_plans_configured": "No plans configured. Add your Paddle PRICE_ID in the environment."
+            },
+            "plans": {
+                "title": "Platform subscription",
+                "subtitle": "Choose a monthly plan to unlock all features."
+            },
+            "checkout": {
+                "success_title": "Subscription activated. Thank you!",
+                "success_subtitle": "You are now on {plan}.",
+                "swapped": "Plan updated to {plan}.",
+                "payment_method": "Card updated. Thank you!",
+                "cancelled": "Payment canceled. Choose a plan to continue.",
+                "plan_fallback": "the new plan"
+            },
+            "summary": {
+                "active_plan": "You are on {plan} (Status: {status})",
+                "trialing": "Trial in progress",
+                "no_subscription": "No active subscription. Select a plan to get started."
+            },
+            "plan": {
+                "monthly": "Monthly plan",
+                "badge_active": "Active",
+                "badge_popular": "Popular",
+                "interval_month": "/month",
+                "current_plan": "You are on this plan.",
+                "cta_active": "Active plan"
+            },
+            "payment": {
+                "title": "Payment method",
+                "subtitle": "Manage the card linked to your subscription.",
+                "update_card": "Update card",
+                "summary_active": "Active subscription: {plan} (Status: {status})",
+                "summary_none": "No active subscription at the moment."
             }
         }
     },

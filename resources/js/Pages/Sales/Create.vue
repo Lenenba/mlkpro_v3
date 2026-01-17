@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
+import { useI18n } from 'vue-i18n';
 import InputError from '@/Components/InputError.vue';
 import Modal from '@/Components/UI/Modal.vue';
 import CustomerQuickForm from '@/Components/QuickCreate/CustomerQuickForm.vue';
@@ -17,6 +18,8 @@ const props = defineProps({
     },
 });
 
+const { t } = useI18n();
+
 const localCustomers = ref([...props.customers]);
 
 const form = useForm({
@@ -29,18 +32,18 @@ const form = useForm({
 const page = usePage();
 const lastSaleId = computed(() => page.props.flash?.last_sale_id || null);
 
-const statusOptions = [
+const statusOptions = computed(() => [
     {
         value: 'pending',
-        label: 'Commande',
-        description: 'A payer plus tard ou en preparation',
+        label: t('sales.create.status.pending.label'),
+        description: t('sales.create.status.pending.description'),
     },
     {
         value: 'paid',
-        label: 'Vente payee',
-        description: 'Paiement immediat termine',
+        label: t('sales.create.status.paid.label'),
+        description: t('sales.create.status.paid.description'),
     },
-];
+]);
 
 const selectedCustomer = computed(() =>
     localCustomers.value.find((customer) => customer.id === form.customer_id) || null
@@ -92,7 +95,7 @@ const addProduct = (product) => {
         return;
     }
     if (isOutOfStock(product)) {
-        scanError.value = 'Produit en rupture.';
+        scanError.value = t('sales.form.errors.out_of_stock');
         return;
     }
     const existingIndex = form.items.findIndex((item) => item.product_id === product.id);
@@ -149,7 +152,7 @@ const handleScan = () => {
         return String(product.barcode || '') === query || String(product.sku || '') === query;
     });
     if (!match) {
-        scanError.value = 'Aucun produit trouve pour ce code.';
+        scanError.value = t('sales.form.errors.product_not_found');
         return;
     }
     scanError.value = '';
@@ -219,21 +222,23 @@ const submit = () => {
 
 <template>
     <AuthenticatedLayout>
-        <Head title="Nouvelle vente" />
+        <Head :title="$t('sales.create.title')" />
 
         <div class="space-y-4">
             <div class="flex flex-wrap items-center justify-between gap-3">
                 <div class="space-y-1">
-                    <h1 class="text-xl font-semibold text-stone-800 dark:text-neutral-100">Nouvelle vente</h1>
+                    <h1 class="text-xl font-semibold text-stone-800 dark:text-neutral-100">
+                        {{ $t('sales.create.title') }}
+                    </h1>
                     <p class="text-sm text-stone-600 dark:text-neutral-400">
-                        Selectionnez des produits pour generer la facture.
+                        {{ $t('sales.create.subtitle') }}
                     </p>
                 </div>
                 <Link
                     :href="route('sales.index')"
                     class="rounded-sm border border-stone-200 bg-white px-3 py-2 text-xs font-semibold text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
                 >
-                    Retour aux ventes
+                    {{ $t('sales.actions.back_to_sales') }}
                 </Link>
             </div>
 
@@ -241,9 +246,9 @@ const submit = () => {
                 v-if="lastSaleId"
                 class="rounded-sm border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-200"
             >
-                Vente enregistree.
+                {{ $t('sales.create.flash_saved') }}
                 <Link :href="route('sales.show', lastSaleId)" class="font-semibold underline">
-                    Voir et imprimer
+                    {{ $t('sales.create.flash_view') }}
                 </Link>
             </div>
 
@@ -252,20 +257,24 @@ const submit = () => {
                     <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
                         <div class="flex flex-col gap-3 md:flex-row">
                             <div class="flex-1">
-                                <label class="text-xs text-stone-500 dark:text-neutral-400">Recherche produit</label>
+                                <label class="text-xs text-stone-500 dark:text-neutral-400">
+                                    {{ $t('sales.form.search_label') }}
+                                </label>
                                 <input
                                     v-model="searchQuery"
                                     type="text"
-                                    placeholder="Nom, SKU, code barre"
+                                    :placeholder="$t('sales.form.search_placeholder')"
                                     class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
                                 />
                             </div>
                             <div class="md:w-64">
-                                <label class="text-xs text-stone-500 dark:text-neutral-400">Scanner un code barre</label>
+                                <label class="text-xs text-stone-500 dark:text-neutral-400">
+                                    {{ $t('sales.form.scan_label') }}
+                                </label>
                                 <input
                                     v-model="scanQuery"
                                     type="text"
-                                    placeholder="Scan ici"
+                                    :placeholder="$t('sales.form.scan_placeholder')"
                                     class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
                                     @keydown.enter.prevent="handleScan"
                                 />
@@ -300,7 +309,7 @@ const submit = () => {
                                         </span>
                                     </div>
                                     <div class="text-xs text-stone-500 dark:text-neutral-400">
-                                        {{ product.sku || product.barcode || 'No code' }}
+                                        {{ product.sku || product.barcode || $t('sales.labels.no_code') }}
                                     </div>
                                     <div class="flex flex-wrap items-center gap-2 text-xs">
                                         <span
@@ -311,10 +320,12 @@ const submit = () => {
                                                     ? 'bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300'
                                                     : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300')"
                                         >
-                                            {{ isOutOfStock(product) ? 'Rupture' : (isLowStock(product) ? 'Bas stock' : 'Disponible') }}
+                                            {{ isOutOfStock(product)
+                                                ? $t('sales.stock.out')
+                                                : (isLowStock(product) ? $t('sales.stock.low') : $t('sales.stock.available')) }}
                                         </span>
                                         <span class="text-stone-500 dark:text-neutral-400">
-                                            Stock {{ product.stock ?? 0 }}
+                                            {{ $t('sales.labels.stock') }} {{ product.stock ?? 0 }}
                                         </span>
                                     </div>
                                 </div>
@@ -328,20 +339,22 @@ const submit = () => {
                         <div class="grid grid-cols-1 gap-4">
                             <div>
                                 <div class="flex items-center justify-between">
-                                    <label class="text-xs text-stone-500 dark:text-neutral-400">Client</label>
+                                    <label class="text-xs text-stone-500 dark:text-neutral-400">
+                                        {{ $t('sales.form.customer_label') }}
+                                    </label>
                                     <button
                                         type="button"
                                         data-hs-overlay="#pos-quick-customer"
                                         class="text-[11px] font-semibold text-green-700 hover:underline dark:text-green-400"
                                     >
-                                        Nouveau client
+                                        {{ $t('sales.form.new_customer') }}
                                     </button>
                                 </div>
                                 <select
                                     v-model.number="form.customer_id"
                                     class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
                                 >
-                                    <option value="">Selectionner un client</option>
+                                    <option value="">{{ $t('sales.form.customer_placeholder') }}</option>
                                     <option v-for="customer in localCustomers" :key="customer.id" :value="customer.id">
                                         {{ customer.company_name || `${customer.first_name || ''} ${customer.last_name || ''}`.trim() || customer.email }}
                                     </option>
@@ -359,7 +372,7 @@ const submit = () => {
                                             v-if="discountRate > 0"
                                             class="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-200"
                                         >
-                                            Remise {{ discountRate }}%
+                                            {{ $t('sales.form.discount_badge', { rate: discountRate }) }}
                                         </span>
                                     </div>
                                     <div class="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-stone-500 dark:text-neutral-400">
@@ -369,7 +382,9 @@ const submit = () => {
                                 </div>
                             </div>
                             <div>
-                                <label class="text-xs text-stone-500 dark:text-neutral-400">Type</label>
+                                <label class="text-xs text-stone-500 dark:text-neutral-400">
+                                    {{ $t('sales.form.type_label') }}
+                                </label>
                                 <div class="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
                                     <button
                                         v-for="option in statusOptions"
@@ -417,14 +432,16 @@ const submit = () => {
 
                     <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
                         <div class="flex items-center justify-between">
-                            <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">Facture</h2>
+                            <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                                {{ $t('sales.form.invoice_title') }}
+                            </h2>
                             <span class="text-xs text-stone-500 dark:text-neutral-400">
-                                {{ form.items.length }} lignes
+                                {{ $t('sales.form.lines', { count: form.items.length }) }}
                             </span>
                         </div>
 
                         <div v-if="!form.items.length" class="mt-4 text-sm text-stone-500 dark:text-neutral-400">
-                            Aucun produit ajoute. Cliquez sur un produit pour demarrer.
+                            {{ $t('sales.form.empty_items') }}
                         </div>
 
                         <div v-else class="mt-4 max-h-[45vh] space-y-3 overflow-y-auto pr-1">
@@ -447,7 +464,7 @@ const submit = () => {
                                         class="text-xs font-semibold text-red-600 hover:text-red-700"
                                         @click="removeItem(index)"
                                     >
-                                        Retirer
+                                        {{ $t('sales.form.remove_item') }}
                                     </button>
                                 </div>
                                 <div class="mt-3 flex items-center justify-between">
@@ -485,7 +502,9 @@ const submit = () => {
                     </div>
 
                     <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                        <label class="text-xs text-stone-500 dark:text-neutral-400">Notes (optionnel)</label>
+                        <label class="text-xs text-stone-500 dark:text-neutral-400">
+                            {{ $t('sales.form.notes_label') }}
+                        </label>
                         <textarea
                             v-model="form.notes"
                             rows="3"
@@ -497,19 +516,19 @@ const submit = () => {
                     <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
                         <div class="space-y-2 text-sm text-stone-700 dark:text-neutral-200">
                             <div class="flex items-center justify-between">
-                                <span>Sous-total</span>
+                                <span>{{ $t('sales.summary.subtotal') }}</span>
                                 <span class="font-medium">{{ formatCurrency(subtotal) }}</span>
                             </div>
                             <div class="flex items-center justify-between">
-                                <span>Taxes</span>
+                                <span>{{ $t('sales.summary.taxes') }}</span>
                                 <span class="font-medium">{{ formatCurrency(discountedTaxTotal) }}</span>
                             </div>
                             <div v-if="discountRate > 0" class="flex items-center justify-between text-emerald-700">
-                                <span>Remise ({{ discountRate }}%)</span>
+                                <span>{{ $t('sales.summary.discount_rate', { rate: discountRate }) }}</span>
                                 <span class="font-medium">- {{ formatCurrency(discountTotal) }}</span>
                             </div>
                             <div class="flex items-center justify-between border-t border-stone-200 pt-2 dark:border-neutral-700">
-                                <span class="font-semibold">Total</span>
+                                <span class="font-semibold">{{ $t('sales.summary.total') }}</span>
                                 <span class="font-semibold">{{ formatCurrency(total) }}</span>
                             </div>
                         </div>
@@ -520,16 +539,16 @@ const submit = () => {
                         :disabled="form.processing || !form.items.length"
                         class="w-full rounded-sm border border-transparent bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50"
                     >
-                        {{ form.status === 'paid' ? 'Enregistrer la vente' : 'Enregistrer la commande' }}
+                        {{ form.status === 'paid' ? $t('sales.create.save_sale') : $t('sales.create.save_order') }}
                     </button>
                 </div>
             </form>
         </div>
 
-        <Modal title="Nouveau client" id="pos-quick-customer">
+        <Modal :title="$t('sales.form.new_customer_title')" id="pos-quick-customer">
             <CustomerQuickForm
                 :overlay-id="'#pos-quick-customer'"
-                submit-label="Creer le client"
+                :submit-label="$t('sales.form.create_customer')"
                 :close-on-success="true"
                 @created="handleCustomerCreated"
             />

@@ -2,6 +2,7 @@
 import { computed, onMounted, ref, watch } from 'vue';
 import axios from 'axios';
 import { Head, router, useForm } from '@inertiajs/vue3';
+import { useI18n } from 'vue-i18n';
 import SettingsLayout from '@/Layouts/SettingsLayout.vue';
 import SettingsTabs from '@/Components/SettingsTabs.vue';
 
@@ -36,6 +37,8 @@ const props = defineProps({
     },
 });
 
+const { t } = useI18n();
+
 const form = useForm({
     payment_methods: Array.isArray(props.paymentMethods) ? props.paymentMethods : [],
 });
@@ -57,7 +60,11 @@ const activePlan = computed(() => {
     return props.plans.find((plan) => plan.price_id === props.subscription.price_id) || null;
 });
 
-const planActionLabel = computed(() => (isSubscribed.value ? 'Changer pour ce plan' : 'Choisir ce plan'));
+const planActionLabel = computed(() =>
+    isSubscribed.value
+        ? t('settings.billing.actions.switch_plan')
+        : t('settings.billing.actions.choose_plan')
+);
 
 const checkoutPlanName = computed(() => {
     if (!props.checkoutPlanKey) {
@@ -69,29 +76,31 @@ const checkoutPlanName = computed(() => {
 });
 
 const subscriptionStatusLabel = computed(() => {
-    if (props.subscription?.status) {
-        return props.subscription.status;
-    }
-
-    if (props.subscription?.active) {
-        return 'active';
-    }
-
-    return 'inactif';
+    const rawStatus = props.subscription?.status || (props.subscription?.active ? 'active' : 'inactive');
+    const statusMap = {
+        active: t('settings.billing.status.active'),
+        trialing: t('settings.billing.status.trialing'),
+        past_due: t('settings.billing.status.past_due'),
+        paused: t('settings.billing.status.paused'),
+        canceled: t('settings.billing.status.canceled'),
+        unpaid: t('settings.billing.status.unpaid'),
+        inactive: t('settings.billing.status.inactive'),
+    };
+    return statusMap[rawStatus] || rawStatus;
 });
 
 const tabPrefix = 'settings-billing';
-const tabs = [
-    { id: 'plans', label: 'Abonnement', description: 'Plans et statut' },
-    { id: 'payment', label: 'Paiement', description: 'Carte et factures' },
-];
+const tabs = computed(() => [
+    { id: 'plans', label: t('settings.billing.tabs.plans.label'), description: t('settings.billing.tabs.plans.description') },
+    { id: 'payment', label: t('settings.billing.tabs.payment.label'), description: t('settings.billing.tabs.payment.description') },
+]);
 
 const resolveInitialTab = () => {
     if (typeof window === 'undefined') {
-        return tabs[0].id;
+        return tabs.value[0].id;
     }
     const stored = window.sessionStorage.getItem(`${tabPrefix}-tab`);
-    return tabs.some((tab) => tab.id === stored) ? stored : tabs[0].id;
+    return tabs.value.some((tab) => tab.id === stored) ? stored : tabs.value[0].id;
 };
 
 const activeTab = ref(resolveInitialTab());
@@ -111,12 +120,12 @@ const startPaymentMethodUpdate = async () => {
     paddleUiError.value = '';
 
     if (!canUsePaddle.value) {
-        paddleUiError.value = props.paddle?.error || "Paddle n'est pas configure.";
+        paddleUiError.value = props.paddle?.error || t('settings.billing.errors.paddle_not_configured');
         return;
     }
 
     if (!hasSubscription.value) {
-        paddleUiError.value = 'Aucun abonnement actif.';
+        paddleUiError.value = t('settings.billing.errors.no_active_subscription');
         return;
     }
 
@@ -125,7 +134,7 @@ const startPaymentMethodUpdate = async () => {
     const ready = await ensurePaddleReady();
     if (!ready) {
         paymentMethodIsLoading.value = false;
-        paddleUiError.value = paddleUiError.value || "Paddle.js n'est pas pret. Rechargez la page.";
+        paddleUiError.value = paddleUiError.value || t('settings.billing.errors.paddle_not_ready');
         return;
     }
 
@@ -134,7 +143,7 @@ const startPaymentMethodUpdate = async () => {
         const transactionId = response?.data?.transaction_id;
 
         if (!transactionId) {
-            throw new Error('Missing transaction id');
+            throw new Error(t('settings.billing.errors.missing_transaction'));
         }
 
         const successUrl = route('settings.billing.edit', { checkout: 'payment-method' });
@@ -148,7 +157,7 @@ const startPaymentMethodUpdate = async () => {
             },
         });
     } catch (error) {
-        const message = error?.response?.data?.message || 'Impossible de lancer la mise a jour du paiement.';
+        const message = error?.response?.data?.message || t('settings.billing.errors.payment_update_failed');
         paddleUiError.value = message;
     } finally {
         paymentMethodIsLoading.value = false;
@@ -178,12 +187,12 @@ const ensurePaddleReady = async () => {
     try {
         await window.__mlkproPaddleScriptPromise;
     } catch (error) {
-        paddleUiError.value = 'Impossible de charger Paddle.js. Vérifiez votre connexion.';
+        paddleUiError.value = t('settings.billing.errors.paddle_load_failed');
         return false;
     }
 
     if (!window.Paddle?.Initialize) {
-        paddleUiError.value = 'Paddle.js est chargé mais indisponible. Rechargez la page.';
+        paddleUiError.value = t('settings.billing.errors.paddle_unavailable');
         return false;
     }
 
@@ -208,7 +217,7 @@ const ensurePaddleReady = async () => {
     }
 
     if (!initConfig.token && !initConfig.seller) {
-        paddleUiError.value = 'Paddle n’est pas configuré (token/seller manquant).';
+        paddleUiError.value = t('settings.billing.errors.paddle_missing_keys');
         return false;
     }
 
@@ -225,7 +234,7 @@ const openPaddleCheckout = async (plan) => {
     paddleUiError.value = '';
 
     if (!canUsePaddle.value) {
-        paddleUiError.value = props.paddle?.error || "Paddle n'est pas configure.";
+        paddleUiError.value = props.paddle?.error || t('settings.billing.errors.paddle_not_configured');
         return;
     }
 
@@ -234,7 +243,7 @@ const openPaddleCheckout = async (plan) => {
     const ready = await ensurePaddleReady();
     if (!ready) {
         paddleIsLoading.value = false;
-        paddleUiError.value = paddleUiError.value || 'Paddle.js n’est pas prêt. Rechargez la page.';
+        paddleUiError.value = paddleUiError.value || t('settings.billing.errors.paddle_not_ready');
         return;
     }
 
@@ -296,7 +305,7 @@ watch(
 </script>
 
 <template>
-    <Head title="Facturation" />
+    <Head :title="$t('settings.billing.meta_title')" />
 
     <SettingsLayout active="billing" content-class="w-full max-w-6xl">
         <div class="w-full space-y-4">
@@ -304,7 +313,7 @@ watch(
                 v-model="activeTab"
                 :tabs="tabs"
                 :id-prefix="tabPrefix"
-                aria-label="Sections de facturation"
+                :aria-label="$t('settings.billing.aria_sections')"
             />
 
             <div
@@ -317,18 +326,20 @@ watch(
                 <div class="p-4 space-y-4">
                     <div class="flex flex-wrap items-start justify-between gap-4">
                         <div>
-                            <h2 class="text-lg font-semibold text-stone-800 dark:text-neutral-100">Abonnement plateforme</h2>
+                            <h2 class="text-lg font-semibold text-stone-800 dark:text-neutral-100">
+                                {{ $t('settings.billing.plans.title') }}
+                            </h2>
                             <p class="mt-1 text-sm text-stone-600 dark:text-neutral-400">
-                                Choisissez un plan mensuel pour activer toutes les fonctionnalites.
+                                {{ $t('settings.billing.plans.subtitle') }}
                             </p>
                         </div>
                     </div>
 
                     <div v-if="!paddle?.api_enabled" class="rounded-sm border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
-                        Paddle API non configure. Ajoutez `PADDLE_API_KEY` dans `.env`.
+                        {{ $t('settings.billing.errors.paddle_api_missing') }}
                     </div>
                     <div v-else-if="!paddle?.js_enabled" class="rounded-sm border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
-                        Paddle.js non configure. Ajoutez `PADDLE_CLIENT_SIDE_TOKEN` (ou `PADDLE_SELLER_ID`) dans `.env`.
+                        {{ $t('settings.billing.errors.paddle_js_missing') }}
                     </div>
                     <div v-else-if="paddle?.error" class="rounded-sm border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
                         {{ paddle.error }}
@@ -339,38 +350,40 @@ watch(
 
                     <div v-if="checkoutStatus === 'success'"
                         class="rounded-sm border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
-                        <p>Abonnement activé. Merci !</p>
+                        <p>{{ $t('settings.billing.checkout.success_title') }}</p>
                         <p v-if="checkoutPlanName" class="text-xs text-emerald-700/80">
-                            Vous êtes maintenant sur {{ checkoutPlanName }}.
+                            {{ $t('settings.billing.checkout.success_subtitle', { plan: checkoutPlanName }) }}
                         </p>
                     </div>
                     <div v-else-if="checkoutStatus === 'swapped'"
                         class="rounded-sm border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
-                        Plan mis à jour vers <strong class="text-emerald-700">{{ checkoutPlanName || 'le nouveau plan' }}</strong>.
+                        {{ $t('settings.billing.checkout.swapped', { plan: checkoutPlanName || $t('settings.billing.checkout.plan_fallback') }) }}
                     </div>
                     <div v-else-if="checkoutStatus === 'payment-method'"
                         class="rounded-sm border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
-                        Carte mise a jour. Merci !
+                        {{ $t('settings.billing.checkout.payment_method') }}
                     </div>
                     <div v-else-if="checkoutStatus === 'cancel'"
                         class="rounded-sm border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
-                        Paiement annule. Choisissez un plan pour continuer.
+                        {{ $t('settings.billing.checkout.cancelled') }}
                     </div>
 
                     <div
                         class="rounded-sm border border-stone-100 bg-stone-50 px-3 py-2 text-sm text-stone-600 dark:border-neutral-700 dark:bg-neutral-900/40 dark:text-neutral-200">
                         <p v-if="activePlan">
-                            Vous êtes sur <strong>{{ activePlan.name }}</strong> (Statut: {{ subscriptionStatusLabel }})
-                            <span v-if="subscription?.on_trial" class="text-emerald-700 dark:text-emerald-300">· Essai en cours</span>
+                            {{ $t('settings.billing.summary.active_plan', { plan: activePlan.name, status: subscriptionStatusLabel }) }}
+                            <span v-if="subscription?.on_trial" class="text-emerald-700 dark:text-emerald-300">
+                                {{ $t('settings.billing.summary.trialing') }}
+                            </span>
                         </p>
                         <p v-else>
-                            Aucun abonnement actif. Sélectionnez un plan pour démarrer.
+                            {{ $t('settings.billing.summary.no_subscription') }}
                         </p>
                     </div>
 
                     <div v-if="!hasPlans"
                         class="rounded-sm border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-                        Aucun plan configure. Ajoutez vos PRICE_ID Paddle dans l'environnement.
+                        {{ $t('settings.billing.errors.no_plans_configured') }}
                     </div>
 
                     <div class="billing-plans">
@@ -380,21 +393,23 @@ watch(
                                 <div class="plan-card__top">
                                     <div>
                                         <h3 class="plan-card__name">{{ plan.name }}</h3>
-                                        <p class="plan-card__meta">Plan mensuel</p>
+                                        <p class="plan-card__meta">{{ $t('settings.billing.plan.monthly') }}</p>
                                     </div>
                                     <span v-if="subscription?.price_id === plan.price_id"
                                         class="plan-card__badge plan-card__badge--active">
-                                        Actif
+                                        {{ $t('settings.billing.plan.badge_active') }}
                                     </span>
-                                    <span v-else-if="plan.key === 'growth'" class="plan-card__badge">Populaire</span>
+                                    <span v-else-if="plan.key === 'growth'" class="plan-card__badge">
+                                        {{ $t('settings.billing.plan.badge_popular') }}
+                                    </span>
                                 </div>
                                 <div class="plan-card__price">
                                     <span class="plan-card__amount">{{ plan.display_price || '--' }}</span>
-                                    <span class="plan-card__interval">/mois</span>
+                                    <span class="plan-card__interval">{{ $t('settings.billing.plan.interval_month') }}</span>
                                 </div>
                                 <p v-if="subscription?.active && plan.price_id === subscription?.price_id"
                                     class="plan-card__status">
-                                    Vous etes sur ce plan.
+                                    {{ $t('settings.billing.plan.current_plan') }}
                                 </p>
                                 <ul class="plan-card__features">
                                     <li v-for="feature in plan.features" :key="feature" class="plan-card__feature">
@@ -404,7 +419,7 @@ watch(
                                 <button type="button" @click="startCheckout(plan)" class="plan-card__cta"
                                     :disabled="paddleIsLoading || !plan.price_id || plan.price_id === subscription?.price_id"
                                     :class="{ 'is-active': plan.price_id === subscription?.price_id }">
-                                    <span v-if="plan.price_id === subscription?.price_id">Plan actif</span>
+                                    <span v-if="plan.price_id === subscription?.price_id">{{ $t('settings.billing.plan.cta_active') }}</span>
                                     <span v-else>{{ planActionLabel }}</span>
                                 </button>
                             </div>
@@ -423,23 +438,25 @@ watch(
                 <div class="p-4 space-y-4">
                     <div class="flex flex-wrap items-start justify-between gap-4">
                         <div>
-                            <h2 class="text-lg font-semibold text-stone-800 dark:text-neutral-100">Moyen de paiement</h2>
+                            <h2 class="text-lg font-semibold text-stone-800 dark:text-neutral-100">
+                                {{ $t('settings.billing.payment.title') }}
+                            </h2>
                             <p class="mt-1 text-sm text-stone-600 dark:text-neutral-400">
-                                Gere la carte associee a votre abonnement.
+                                {{ $t('settings.billing.payment.subtitle') }}
                             </p>
                         </div>
                         <button v-if="hasSubscription" type="button" @click="startPaymentMethodUpdate"
                             :disabled="paymentMethodIsLoading"
                             class="py-2 px-3 text-sm font-medium rounded-sm border border-stone-200 text-stone-700 hover:bg-stone-50 disabled:opacity-60 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700">
-                            Mettre a jour la carte
+                            {{ $t('settings.billing.payment.update_card') }}
                         </button>
                     </div>
 
                     <div v-if="!paddle?.api_enabled" class="rounded-sm border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
-                        Paddle API non configure. Ajoutez `PADDLE_API_KEY` dans `.env`.
+                        {{ $t('settings.billing.errors.paddle_api_missing') }}
                     </div>
                     <div v-else-if="!paddle?.js_enabled" class="rounded-sm border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
-                        Paddle.js non configure. Ajoutez `PADDLE_CLIENT_SIDE_TOKEN` (ou `PADDLE_SELLER_ID`) dans `.env`.
+                        {{ $t('settings.billing.errors.paddle_js_missing') }}
                     </div>
                     <div v-else-if="paddle?.error" class="rounded-sm border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
                         {{ paddle.error }}
@@ -450,16 +467,16 @@ watch(
 
                     <div v-if="checkoutStatus === 'payment-method'"
                         class="rounded-sm border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
-                        Carte mise a jour. Merci !
+                        {{ $t('settings.billing.checkout.payment_method') }}
                     </div>
 
                     <div
                         class="rounded-sm border border-stone-100 bg-stone-50 px-3 py-2 text-sm text-stone-600 dark:border-neutral-700 dark:bg-neutral-900/40 dark:text-neutral-200">
                         <p v-if="activePlan">
-                            Abonnement actif: <strong>{{ activePlan.name }}</strong> (Statut: {{ subscriptionStatusLabel }})
+                            {{ $t('settings.billing.payment.summary_active', { plan: activePlan.name, status: subscriptionStatusLabel }) }}
                         </p>
                         <p v-else>
-                            Aucun abonnement actif pour le moment.
+                            {{ $t('settings.billing.payment.summary_none') }}
                         </p>
                     </div>
                 </div>

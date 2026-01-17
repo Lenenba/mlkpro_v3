@@ -77,7 +77,7 @@ const categoryError = ref('');
 const creatingCategory = ref(false);
 
 const materialOptions = computed(() => [
-    { id: '', name: 'Custom' },
+    { id: '', name: t('services.materials.custom') },
     ...props.materialProducts.map((product) => ({
         id: product.id,
         name: product.name,

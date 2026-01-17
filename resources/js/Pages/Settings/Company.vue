@@ -1,6 +1,7 @@
 <script setup>
 import { computed, ref, watch } from 'vue';
 import { Head, router, useForm } from '@inertiajs/vue3';
+import { useI18n } from 'vue-i18n';
 import axios from 'axios';
 import SettingsLayout from '@/Layouts/SettingsLayout.vue';
 import SettingsTabs from '@/Components/SettingsTabs.vue';
@@ -43,16 +44,18 @@ const props = defineProps({
     },
 });
 
-const COUNTRY_OPTIONS = [
-    { id: '', name: 'Selectionner un pays' },
-    { id: 'Canada', name: 'Canada' },
-    { id: 'France', name: 'France' },
-    { id: 'Belgique', name: 'Belgique' },
-    { id: 'Suisse', name: 'Suisse' },
-    { id: 'Maroc', name: 'Maroc' },
-    { id: 'Tunisie', name: 'Tunisie' },
-    { id: '__other__', name: 'Autre...' },
-];
+const { t } = useI18n();
+
+const countryOptions = computed(() => [
+    { id: '', name: t('settings.company.select.country') },
+    { id: 'Canada', name: t('settings.company.countries.canada') },
+    { id: 'France', name: t('settings.company.countries.france') },
+    { id: 'Belgique', name: t('settings.company.countries.belgium') },
+    { id: 'Suisse', name: t('settings.company.countries.switzerland') },
+    { id: 'Maroc', name: t('settings.company.countries.morocco') },
+    { id: 'Tunisie', name: t('settings.company.countries.tunisia') },
+    { id: '__other__', name: t('settings.company.select.other') },
+]);
 
 const PROVINCES_BY_COUNTRY = {
     Canada: [
@@ -233,7 +236,7 @@ const createWarehouse = async () => {
         resetWarehouseForm();
         router.reload({ only: ['warehouses'] });
     } catch (error) {
-        warehouseErrors.value = error?.response?.data?.errors || { form: ['Unable to create warehouse.'] };
+        warehouseErrors.value = error?.response?.data?.errors || { form: [t('settings.company.errors.create_warehouse')] };
     } finally {
         warehouseSaving.value = false;
     }
@@ -269,7 +272,7 @@ const saveWarehouseEdit = async (warehouseId) => {
         editingWarehouseId.value = null;
         router.reload({ only: ['warehouses'] });
     } catch (error) {
-        warehouseEditErrors.value = error?.response?.data?.errors || { form: ['Unable to update warehouse.'] };
+        warehouseEditErrors.value = error?.response?.data?.errors || { form: [t('settings.company.errors.update_warehouse')] };
     } finally {
         warehouseEditSaving.value = false;
     }
@@ -282,12 +285,12 @@ const setDefaultWarehouse = async (warehouseId) => {
         });
         router.reload({ only: ['warehouses'] });
     } catch (error) {
-        warehouseErrors.value = error?.response?.data?.errors || { form: ['Unable to set default warehouse.'] };
+        warehouseErrors.value = error?.response?.data?.errors || { form: [t('settings.company.errors.set_default_warehouse')] };
     }
 };
 
 const deleteWarehouse = async (warehouse) => {
-    if (!confirm(`Delete warehouse "${warehouse.name}"?`)) {
+    if (!confirm(t('settings.company.confirm.delete_warehouse', { name: warehouse.name }))) {
         return;
     }
     try {
@@ -296,7 +299,7 @@ const deleteWarehouse = async (warehouse) => {
         });
         router.reload({ only: ['warehouses'] });
     } catch (error) {
-        warehouseErrors.value = error?.response?.data?.errors || { form: ['Unable to delete warehouse.'] };
+        warehouseErrors.value = error?.response?.data?.errors || { form: [t('settings.company.errors.delete_warehouse')] };
     }
 };
 
@@ -321,14 +324,14 @@ const createApiToken = async () => {
         apiTokenForm.value = { name: '', type: 'public', expires_at: '' };
         router.reload({ only: ['api_tokens'] });
     } catch (error) {
-        apiTokenErrors.value = error?.response?.data?.errors || { form: ['Unable to create token.'] };
+        apiTokenErrors.value = error?.response?.data?.errors || { form: [t('settings.company.errors.create_token')] };
     } finally {
         apiTokenSaving.value = false;
     }
 };
 
 const revokeApiToken = async (tokenId) => {
-    if (!confirm('Revoke this token?')) {
+    if (!confirm(t('settings.company.confirm.revoke_token'))) {
         return;
     }
     try {
@@ -337,7 +340,7 @@ const revokeApiToken = async (tokenId) => {
         });
         router.reload({ only: ['api_tokens'] });
     } catch (error) {
-        apiTokenErrors.value = error?.response?.data?.errors || { form: ['Unable to revoke token.'] };
+        apiTokenErrors.value = error?.response?.data?.errors || { form: [t('settings.company.errors.revoke_token')] };
     }
 };
 
@@ -356,7 +359,7 @@ const formatAbilities = (abilities) => {
     return abilities.join(', ');
 };
 
-const countryPreset = resolveSelectValue(props.company.company_country, COUNTRY_OPTIONS);
+const countryPreset = resolveSelectValue(props.company.company_country, countryOptions.value);
 form.company_country = countryPreset.select || '';
 form.company_country_other = countryPreset.other;
 
@@ -369,9 +372,9 @@ const effectiveCountry = computed(() => {
 const provinceOptions = computed(() => {
     const provinces = PROVINCES_BY_COUNTRY[effectiveCountry.value] || [];
     return [
-        { id: '', name: 'Selectionner une province' },
+        { id: '', name: t('settings.company.select.province') },
         ...provinces.map((value) => ({ id: value, name: value })),
-        { id: '__other__', name: 'Autre...' },
+        { id: '__other__', name: t('settings.company.select.other') },
     ];
 });
 
@@ -391,9 +394,9 @@ const cityOptions = computed(() => {
     const cities = CITIES_BY_COUNTRY_AND_PROVINCE[country]?.[province] || [];
 
     return [
-        { id: '', name: 'Selectionner une ville' },
+        { id: '', name: t('settings.company.select.city') },
         ...cities.map((value) => ({ id: value, name: value })),
-        { id: '__other__', name: 'Autre...' },
+        { id: '__other__', name: t('settings.company.select.other') },
     ];
 });
 
@@ -579,27 +582,29 @@ const addCategory = () => {
 };
 
 const usageItems = computed(() => props.usage_limits?.items || []);
-const planName = computed(() => props.usage_limits?.plan_name || props.usage_limits?.plan_key || 'Plan');
+const planName = computed(() =>
+    props.usage_limits?.plan_name || props.usage_limits?.plan_key || t('settings.company.limits.plan_fallback')
+);
 const hasUsageAlert = computed(() => usageItems.value.some((item) => item.status !== 'ok'));
-const limitLabelMap = {
-    quotes: 'Devis',
-    requests: 'Demandes',
-    plan_scan_quotes: 'Devis plan scan',
-    invoices: 'Factures',
-    jobs: 'Jobs',
-    products: 'Produits',
-    services: 'Services',
-    tasks: 'Taches',
-    team_members: "Membres d'equipe",
-};
+const limitLabelMap = computed(() => ({
+    quotes: t('settings.company.limits.labels.quotes'),
+    requests: t('settings.company.limits.labels.requests'),
+    plan_scan_quotes: t('settings.company.limits.labels.plan_scan_quotes'),
+    invoices: t('settings.company.limits.labels.invoices'),
+    jobs: t('settings.company.limits.labels.jobs'),
+    products: t('settings.company.limits.labels.products'),
+    services: t('settings.company.limits.labels.services'),
+    tasks: t('settings.company.limits.labels.tasks'),
+    team_members: t('settings.company.limits.labels.team_members'),
+}));
 
-const displayLimitLabel = (item) => limitLabelMap[item.key] || item.label || item.key;
+const displayLimitLabel = (item) => limitLabelMap.value[item.key] || item.label || item.key;
 const displayLimitValue = (item) => {
     if (item.limit === null || item.limit === undefined) {
-        return 'Illimite';
+        return t('dashboard.usage.unlimited');
     }
     if (Number(item.limit) <= 0) {
-        return 'Indisponible';
+        return t('dashboard.usage.not_available');
     }
     return item.limit;
 };
@@ -628,21 +633,21 @@ const isPreferredDisabled = (key) => {
 };
 
 const tabPrefix = 'settings-company';
-const tabs = [
-    { id: 'company', label: 'Entreprise', description: 'Identite et activite' },
-    { id: 'suppliers', label: 'Fournisseurs', description: 'Plateformes actives' },
-    { id: 'categories', label: 'Categories', description: 'Services et produits' },
-    { id: 'warehouses', label: 'Entrepots', description: 'Emplacements de stock' },
-    { id: 'api', label: 'Acces API', description: 'Tokens et permissions' },
-    { id: 'limits', label: 'Limites', description: 'Consommation du forfait' },
-];
+const tabs = computed(() => [
+    { id: 'company', label: t('settings.company.tabs.company.label'), description: t('settings.company.tabs.company.description') },
+    { id: 'suppliers', label: t('settings.company.tabs.suppliers.label'), description: t('settings.company.tabs.suppliers.description') },
+    { id: 'categories', label: t('settings.company.tabs.categories.label'), description: t('settings.company.tabs.categories.description') },
+    { id: 'warehouses', label: t('settings.company.tabs.warehouses.label'), description: t('settings.company.tabs.warehouses.description') },
+    { id: 'api', label: t('settings.company.tabs.api.label'), description: t('settings.company.tabs.api.description') },
+    { id: 'limits', label: t('settings.company.tabs.limits.label'), description: t('settings.company.tabs.limits.description') },
+]);
 
 const resolveInitialTab = () => {
     if (typeof window === 'undefined') {
-        return tabs[0].id;
+        return tabs.value[0].id;
     }
     const stored = window.sessionStorage.getItem(`${tabPrefix}-tab`);
-    return tabs.some((tab) => tab.id === stored) ? stored : tabs[0].id;
+    return tabs.value.some((tab) => tab.id === stored) ? stored : tabs.value[0].id;
 };
 
 const activeTab = ref(resolveInitialTab());
@@ -656,15 +661,17 @@ watch(activeTab, (value) => {
 </script>
 
 <template>
-    <Head title="Entreprise" />
+    <Head :title="$t('settings.company.meta_title')" />
 
     <SettingsLayout active="company" content-class="w-full max-w-6xl">
         <div class="w-full space-y-4">
             <div class="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                    <h1 class="text-xl font-semibold text-stone-800 dark:text-neutral-100">Parametres entreprise</h1>
+                    <h1 class="text-xl font-semibold text-stone-800 dark:text-neutral-100">
+                        {{ $t('settings.company.title') }}
+                    </h1>
                     <p class="mt-1 text-sm text-stone-600 dark:text-neutral-400">
-                        Mettez a jour les informations de votre entreprise.
+                        {{ $t('settings.company.subtitle') }}
                     </p>
                 </div>
             </div>
@@ -673,7 +680,7 @@ watch(activeTab, (value) => {
                 v-model="activeTab"
                 :tabs="tabs"
                 :id-prefix="tabPrefix"
-                aria-label="Sections des parametres entreprise"
+                :aria-label="$t('settings.company.aria_sections')"
             />
 
             <div
@@ -685,24 +692,30 @@ watch(activeTab, (value) => {
             >
                 <div class="p-4 space-y-4">
                     <div>
-                        <h2 class="text-lg font-semibold text-stone-800 dark:text-neutral-100">Profil entreprise</h2>
+                        <h2 class="text-lg font-semibold text-stone-800 dark:text-neutral-100">
+                            {{ $t('settings.company.profile.title') }}
+                        </h2>
                         <p class="mt-1 text-sm text-stone-600 dark:text-neutral-400">
-                            Identite, adresse et activite de la societe.
+                            {{ $t('settings.company.profile.description') }}
                         </p>
                     </div>
                     <div>
-                        <FloatingInput v-model="form.company_name" label="Nom de l'entreprise" />
+                        <FloatingInput v-model="form.company_name" :label="$t('settings.company.fields.name')" />
                         <InputError class="mt-1" :message="form.errors.company_name" />
                     </div>
 
                     <div class="space-y-2">
-                        <p class="text-xs text-stone-500 dark:text-neutral-400">Logo (optionnel)</p>
-                        <DropzoneInput v-model="form.company_logo" label="Telecharger votre logo" />
+                        <p class="text-xs text-stone-500 dark:text-neutral-400">
+                            {{ $t('settings.company.fields.logo_optional') }}
+                        </p>
+                        <DropzoneInput v-model="form.company_logo" :label="$t('settings.company.fields.logo_upload')" />
                         <InputError class="mt-1" :message="form.errors.company_logo" />
                     </div>
 
                     <div>
-                        <label class="block text-xs text-stone-500 dark:text-neutral-400">Description (optionnel)</label>
+                        <label class="block text-xs text-stone-500 dark:text-neutral-400">
+                            {{ $t('settings.company.fields.description_optional') }}
+                        </label>
                         <textarea v-model="form.company_description"
                             class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
                             rows="3" />
@@ -711,21 +724,25 @@ watch(activeTab, (value) => {
 
                     <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
                         <div>
-                            <label class="block text-xs text-stone-500 dark:text-neutral-400">Pays (optionnel)</label>
+                            <label class="block text-xs text-stone-500 dark:text-neutral-400">
+                                {{ $t('settings.company.fields.country_optional') }}
+                            </label>
                             <select v-model="form.company_country"
                                 class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
-                                <option v-for="option in COUNTRY_OPTIONS" :key="option.id" :value="option.id">
+                                <option v-for="option in countryOptions" :key="option.id" :value="option.id">
                                     {{ option.name }}
                                 </option>
                             </select>
                             <InputError class="mt-1" :message="form.errors.company_country" />
                             <div v-if="form.company_country === '__other__'" class="mt-2">
-                                <FloatingInput v-model="form.company_country_other" label="Pays (autre)" />
+                                <FloatingInput v-model="form.company_country_other" :label="$t('settings.company.fields.country_other')" />
                             </div>
                         </div>
 
                         <div>
-                            <label class="block text-xs text-stone-500 dark:text-neutral-400">Province / Etat (optionnel)</label>
+                            <label class="block text-xs text-stone-500 dark:text-neutral-400">
+                                {{ $t('settings.company.fields.province_optional') }}
+                            </label>
                             <select v-model="form.company_province"
                                 class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
                                 <option v-for="option in provinceOptions" :key="option.id" :value="option.id">
@@ -734,12 +751,14 @@ watch(activeTab, (value) => {
                             </select>
                             <InputError class="mt-1" :message="form.errors.company_province" />
                             <div v-if="form.company_province === '__other__'" class="mt-2">
-                                <FloatingInput v-model="form.company_province_other" label="Province / Etat (autre)" />
+                                <FloatingInput v-model="form.company_province_other" :label="$t('settings.company.fields.province_other')" />
                             </div>
                         </div>
 
                         <div class="md:col-span-2">
-                            <label class="block text-xs text-stone-500 dark:text-neutral-400">Ville (optionnel)</label>
+                            <label class="block text-xs text-stone-500 dark:text-neutral-400">
+                                {{ $t('settings.company.fields.city_optional') }}
+                            </label>
                             <select v-model="form.company_city"
                                 class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
                                 <option v-for="option in cityOptions" :key="option.id" :value="option.id">
@@ -748,21 +767,23 @@ watch(activeTab, (value) => {
                             </select>
                             <InputError class="mt-1" :message="form.errors.company_city" />
                             <div v-if="form.company_city === '__other__'" class="mt-2">
-                                <FloatingInput v-model="form.company_city_other" label="Ville (autre)" />
+                                <FloatingInput v-model="form.company_city_other" :label="$t('settings.company.fields.city_other')" />
                             </div>
                         </div>
                     </div>
 
                     <div>
-                        <p class="text-xs text-stone-500 dark:text-neutral-400">Type d'entreprise</p>
+                        <p class="text-xs text-stone-500 dark:text-neutral-400">
+                            {{ $t('settings.company.fields.company_type') }}
+                        </p>
                         <div class="mt-2 space-y-2">
                             <label class="flex items-center gap-2 text-sm text-stone-700 dark:text-neutral-200">
                                 <input type="radio" name="company_type" value="services" v-model="form.company_type" />
-                                <span>Entreprise de services</span>
+                                <span>{{ $t('settings.company.fields.type_services') }}</span>
                             </label>
                             <label class="flex items-center gap-2 text-sm text-stone-700 dark:text-neutral-200">
                                 <input type="radio" name="company_type" value="products" v-model="form.company_type" />
-                                <span>Entreprise de produits</span>
+                                <span>{{ $t('settings.company.fields.type_products') }}</span>
                             </label>
                         </div>
                         <InputError class="mt-1" :message="form.errors.company_type" />
@@ -770,50 +791,58 @@ watch(activeTab, (value) => {
 
                     <div v-if="isProductCompany" class="rounded-sm border border-stone-200 bg-stone-50 p-4 space-y-3 dark:border-neutral-700 dark:bg-neutral-900">
                         <div>
-                            <h3 class="text-sm font-semibold text-stone-800 dark:text-neutral-200">Livraison & retrait</h3>
+                            <h3 class="text-sm font-semibold text-stone-800 dark:text-neutral-200">
+                                {{ $t('settings.company.delivery.title') }}
+                            </h3>
                             <p class="text-xs text-stone-500 dark:text-neutral-400">
-                                Parametrez les options proposees aux clients pour commander.
+                                {{ $t('settings.company.delivery.description') }}
                             </p>
                         </div>
                         <div class="flex flex-wrap gap-4 text-sm text-stone-700 dark:text-neutral-200">
                             <label class="flex items-center gap-2">
                                 <input type="checkbox" v-model="form.fulfillment_delivery_enabled" />
-                                <span>Livraison active</span>
+                                <span>{{ $t('settings.company.delivery.delivery_active') }}</span>
                             </label>
                             <label class="flex items-center gap-2">
                                 <input type="checkbox" v-model="form.fulfillment_pickup_enabled" />
-                                <span>Retrait en magasin</span>
+                                <span>{{ $t('settings.company.delivery.pickup_active') }}</span>
                             </label>
                         </div>
                         <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
                             <div>
-                                <FloatingInput v-model="form.fulfillment_delivery_fee" label="Frais de livraison (optionnel)" />
+                                <FloatingInput v-model="form.fulfillment_delivery_fee" :label="$t('settings.company.delivery.delivery_fee_optional')" />
                                 <InputError class="mt-1" :message="form.errors['company_fulfillment.delivery_fee']" />
                             </div>
                             <div>
-                                <FloatingInput v-model="form.fulfillment_prep_time_minutes" label="Temps de preparation (minutes)" />
+                                <FloatingInput v-model="form.fulfillment_prep_time_minutes" :label="$t('settings.company.delivery.prep_time_minutes')" />
                                 <InputError class="mt-1" :message="form.errors['company_fulfillment.prep_time_minutes']" />
                             </div>
                             <div class="md:col-span-2">
-                                <FloatingInput v-model="form.fulfillment_delivery_zone" label="Zone de livraison (optionnel)" />
+                                <FloatingInput v-model="form.fulfillment_delivery_zone" :label="$t('settings.company.delivery.delivery_zone_optional')" />
                                 <InputError class="mt-1" :message="form.errors['company_fulfillment.delivery_zone']" />
                             </div>
                             <div class="md:col-span-2">
-                                <label class="block text-xs text-stone-500 dark:text-neutral-400">Adresse de retrait</label>
+                                <label class="block text-xs text-stone-500 dark:text-neutral-400">
+                                    {{ $t('settings.company.delivery.pickup_address') }}
+                                </label>
                                 <textarea v-model="form.fulfillment_pickup_address"
                                     class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
                                     rows="2" />
                                 <InputError class="mt-1" :message="form.errors['company_fulfillment.pickup_address']" />
                             </div>
                             <div class="md:col-span-2">
-                                <label class="block text-xs text-stone-500 dark:text-neutral-400">Notes livraison (optionnel)</label>
+                                <label class="block text-xs text-stone-500 dark:text-neutral-400">
+                                    {{ $t('settings.company.delivery.delivery_notes_optional') }}
+                                </label>
                                 <textarea v-model="form.fulfillment_delivery_notes"
                                     class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
                                     rows="2" />
                                 <InputError class="mt-1" :message="form.errors['company_fulfillment.delivery_notes']" />
                             </div>
                             <div class="md:col-span-2">
-                                <label class="block text-xs text-stone-500 dark:text-neutral-400">Notes retrait (optionnel)</label>
+                                <label class="block text-xs text-stone-500 dark:text-neutral-400">
+                                    {{ $t('settings.company.delivery.pickup_notes_optional') }}
+                                </label>
                                 <textarea v-model="form.fulfillment_pickup_notes"
                                     class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
                                     rows="2" />
@@ -825,7 +854,7 @@ watch(activeTab, (value) => {
                     <div class="flex justify-end">
                         <button type="button" @click="submit" :disabled="form.processing" data-testid="demo-settings-save"
                             class="py-2 px-3 text-sm font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:pointer-events-none">
-                            Enregistrer
+                            {{ $t('settings.company.actions.save') }}
                         </button>
                     </div>
                 </div>
@@ -840,9 +869,11 @@ watch(activeTab, (value) => {
             >
                 <div class="p-4 space-y-4">
                     <div>
-                        <h2 class="text-lg font-semibold text-stone-800 dark:text-neutral-100">Categories de services / produits</h2>
+                        <h2 class="text-lg font-semibold text-stone-800 dark:text-neutral-100">
+                            {{ $t('settings.company.categories.title') }}
+                        </h2>
                         <p class="mt-1 text-sm text-stone-600 dark:text-neutral-400">
-                            Ajoutez des categories pour organiser vos services et produits.
+                            {{ $t('settings.company.categories.description') }}
                         </p>
                     </div>
 
@@ -852,18 +883,18 @@ watch(activeTab, (value) => {
                             {{ category.name }}
                         </span>
                         <span v-if="!props.categories.length" class="text-sm text-stone-500 dark:text-neutral-400">
-                            Aucune categorie pour le moment.
+                            {{ $t('settings.company.categories.empty') }}
                         </span>
                     </div>
 
                     <div class="flex flex-col gap-3 md:flex-row md:items-end">
                         <div class="flex-1">
-                            <FloatingInput v-model="categoryForm.name" label="Nouvelle categorie" />
+                            <FloatingInput v-model="categoryForm.name" :label="$t('settings.company.categories.new_label')" />
                             <InputError class="mt-1" :message="categoryForm.errors.name" />
                         </div>
                         <button type="button" @click="addCategory" :disabled="!canAddCategory || categoryForm.processing"
                             class="w-full md:w-auto py-2 px-3 text-sm font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:pointer-events-none">
-                            Ajouter
+                            {{ $t('settings.company.categories.add') }}
                         </button>
                     </div>
                 </div>
@@ -878,22 +909,24 @@ watch(activeTab, (value) => {
             >
                 <div class="p-4 space-y-4">
                     <div>
-                        <h2 class="text-lg font-semibold text-stone-800 dark:text-neutral-100">Acces API</h2>
+                        <h2 class="text-lg font-semibold text-stone-800 dark:text-neutral-100">
+                            {{ $t('settings.company.api.title') }}
+                        </h2>
                         <p class="mt-1 text-sm text-stone-600 dark:text-neutral-400">
-                            Genere des tokens publics ou prives pour connecter des outils externes.
+                            {{ $t('settings.company.api.description') }}
                         </p>
                     </div>
 
                     <div v-if="apiTokenPlain" class="rounded-sm border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-700">
-                        Nouveau token: <span class="font-semibold">{{ apiTokenPlain }}</span>
-                        <div class="mt-1 text-[11px]">Copiez ce token maintenant, il ne sera plus visible.</div>
+                        {{ $t('settings.company.api.token_new') }} <span class="font-semibold">{{ apiTokenPlain }}</span>
+                        <div class="mt-1 text-[11px]">{{ $t('settings.company.api.token_hint') }}</div>
                     </div>
 
                     <div v-if="apiTokenErrors.form" class="text-xs text-red-600">{{ apiTokenErrors.form[0] }}</div>
 
                     <div class="space-y-3">
                         <div v-if="!props.api_tokens.length" class="text-sm text-stone-500 dark:text-neutral-400">
-                            Aucun token pour le moment.
+                            {{ $t('settings.company.api.empty') }}
                         </div>
                         <div v-for="token in props.api_tokens" :key="token.id"
                             class="rounded-sm border border-stone-200 p-3 text-xs text-stone-600 dark:border-neutral-700 dark:text-neutral-300">
@@ -904,35 +937,41 @@ watch(activeTab, (value) => {
                                 <button type="button"
                                     class="text-xs font-semibold text-red-600 hover:text-red-700"
                                     @click="revokeApiToken(token.id)">
-                                    Revoquer
+                                    {{ $t('settings.company.api.revoke') }}
                                 </button>
                             </div>
                             <div class="mt-2 grid grid-cols-1 md:grid-cols-3 gap-2">
-                                <div>Scopes: {{ formatAbilities(token.abilities) }}</div>
-                                <div>Creer: {{ formatTokenDate(token.created_at) }}</div>
-                                <div>Expire: {{ formatTokenDate(token.expires_at) }}</div>
+                                <div>{{ $t('settings.company.api.scopes', { scopes: formatAbilities(token.abilities) }) }}</div>
+                                <div>{{ $t('settings.company.api.created', { date: formatTokenDate(token.created_at) }) }}</div>
+                                <div>{{ $t('settings.company.api.expires', { date: formatTokenDate(token.expires_at) }) }}</div>
                             </div>
                         </div>
                     </div>
 
                     <div class="border-t border-stone-200 pt-4 dark:border-neutral-700">
-                        <h3 class="text-sm font-semibold text-stone-700 dark:text-neutral-200">Creer un token</h3>
+                        <h3 class="text-sm font-semibold text-stone-700 dark:text-neutral-200">
+                            {{ $t('settings.company.api.create_title') }}
+                        </h3>
                         <div class="mt-3 grid grid-cols-1 md:grid-cols-3 gap-3">
                             <div>
-                                <FloatingInput v-model="apiTokenForm.name" label="Nom du token" />
+                                <FloatingInput v-model="apiTokenForm.name" :label="$t('settings.company.api.fields.name')" />
                                 <InputError class="mt-1" :message="apiTokenErrors.name?.[0]" />
                             </div>
                             <div>
-                                <label class="block text-xs text-stone-500 dark:text-neutral-400">Type</label>
+                                <label class="block text-xs text-stone-500 dark:text-neutral-400">
+                                    {{ $t('settings.company.api.fields.type') }}
+                                </label>
                                 <select v-model="apiTokenForm.type"
                                     class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
-                                    <option value="public">Public (lecture)</option>
-                                    <option value="private">Prive (lecture/ecriture)</option>
+                                    <option value="public">{{ $t('settings.company.api.fields.type_public') }}</option>
+                                    <option value="private">{{ $t('settings.company.api.fields.type_private') }}</option>
                                 </select>
                                 <InputError class="mt-1" :message="apiTokenErrors.type?.[0]" />
                             </div>
                             <div>
-                                <label class="block text-xs text-stone-500 dark:text-neutral-400">Expiration</label>
+                                <label class="block text-xs text-stone-500 dark:text-neutral-400">
+                                    {{ $t('settings.company.api.fields.expires') }}
+                                </label>
                                 <input type="date" v-model="apiTokenForm.expires_at"
                                     class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200" />
                                 <InputError class="mt-1" :message="apiTokenErrors.expires_at?.[0]" />
@@ -943,7 +982,7 @@ watch(activeTab, (value) => {
                                 class="inline-flex items-center rounded-sm bg-green-600 px-3 py-2 text-xs font-semibold text-white hover:bg-green-700 disabled:opacity-60"
                                 :disabled="apiTokenSaving"
                                 @click="createApiToken">
-                                Generer
+                                {{ $t('settings.company.api.generate') }}
                             </button>
                         </div>
                     </div>
@@ -959,9 +998,11 @@ watch(activeTab, (value) => {
             >
                 <div class="p-4 space-y-4">
                     <div>
-                        <h2 class="text-lg font-semibold text-stone-800 dark:text-neutral-100">Entrepots</h2>
+                        <h2 class="text-lg font-semibold text-stone-800 dark:text-neutral-100">
+                            {{ $t('settings.company.warehouses.title') }}
+                        </h2>
                         <p class="mt-1 text-sm text-stone-600 dark:text-neutral-400">
-                            Gere vos emplacements de stock et choisis un entrepot par defaut.
+                            {{ $t('settings.company.warehouses.description') }}
                         </p>
                     </div>
 
@@ -969,7 +1010,7 @@ watch(activeTab, (value) => {
 
                     <div class="space-y-3">
                         <div v-if="!props.warehouses.length" class="text-sm text-stone-500 dark:text-neutral-400">
-                            Aucun entrepot pour le moment.
+                            {{ $t('settings.company.warehouses.empty') }}
                         </div>
                         <div v-for="warehouse in props.warehouses" :key="warehouse.id"
                             class="rounded-sm border border-stone-200 p-3 dark:border-neutral-700">
@@ -981,30 +1022,30 @@ watch(activeTab, (value) => {
                                         </span>
                                         <span v-if="warehouse.is_default"
                                             class="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300">
-                                            Defaut
+                                            {{ $t('settings.company.warehouses.default_badge') }}
                                         </span>
                                     </div>
                                     <div class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
-                                        {{ warehouse.code || 'Sans code' }}
-                                        <span v-if="warehouse.city"> · {{ warehouse.city }}</span>
-                                        <span v-if="warehouse.country"> · {{ warehouse.country }}</span>
+                                        {{ warehouse.code || $t('settings.company.warehouses.no_code') }}
+                                        <span v-if="warehouse.city"> - {{ warehouse.city }}</span>
+                                        <span v-if="warehouse.country"> - {{ warehouse.country }}</span>
                                     </div>
                                 </div>
                                 <div class="flex flex-wrap items-center gap-2">
                                     <button v-if="!warehouse.is_default" type="button"
                                         class="text-xs font-semibold text-green-700 hover:text-green-800 dark:text-green-400"
                                         @click="setDefaultWarehouse(warehouse.id)">
-                                        Definir par defaut
+                                        {{ $t('settings.company.warehouses.set_default') }}
                                     </button>
                                     <button type="button"
                                         class="text-xs font-semibold text-stone-600 hover:text-stone-800 dark:text-neutral-300"
                                         @click="startWarehouseEdit(warehouse)">
-                                        Modifier
+                                        {{ $t('settings.company.warehouses.edit') }}
                                     </button>
                                     <button type="button"
                                         class="text-xs font-semibold text-red-600 hover:text-red-700"
                                         @click="deleteWarehouse(warehouse)">
-                                        Supprimer
+                                        {{ $t('settings.company.warehouses.delete') }}
                                     </button>
                                 </div>
                             </div>
@@ -1012,33 +1053,33 @@ watch(activeTab, (value) => {
                             <div v-if="editingWarehouseId === warehouse.id" class="mt-4 space-y-3">
                                 <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                                     <div>
-                                        <FloatingInput v-model="warehouseEditForm.name" label="Nom" />
+                                        <FloatingInput v-model="warehouseEditForm.name" :label="$t('settings.company.warehouses.fields.name')" />
                                         <InputError class="mt-1" :message="warehouseEditErrors.name?.[0]" />
                                     </div>
                                     <div>
-                                        <FloatingInput v-model="warehouseEditForm.code" label="Code" />
+                                        <FloatingInput v-model="warehouseEditForm.code" :label="$t('settings.company.warehouses.fields.code')" />
                                         <InputError class="mt-1" :message="warehouseEditErrors.code?.[0]" />
                                     </div>
-                                    <FloatingInput v-model="warehouseEditForm.address" label="Adresse" />
-                                    <FloatingInput v-model="warehouseEditForm.city" label="Ville" />
-                                    <FloatingInput v-model="warehouseEditForm.state" label="Province / Etat" />
-                                    <FloatingInput v-model="warehouseEditForm.postal_code" label="Code postal" />
-                                    <FloatingInput v-model="warehouseEditForm.country" label="Pays" />
+                                    <FloatingInput v-model="warehouseEditForm.address" :label="$t('settings.company.warehouses.fields.address')" />
+                                    <FloatingInput v-model="warehouseEditForm.city" :label="$t('settings.company.warehouses.fields.city')" />
+                                    <FloatingInput v-model="warehouseEditForm.state" :label="$t('settings.company.warehouses.fields.state')" />
+                                    <FloatingInput v-model="warehouseEditForm.postal_code" :label="$t('settings.company.warehouses.fields.postal_code')" />
+                                    <FloatingInput v-model="warehouseEditForm.country" :label="$t('settings.company.warehouses.fields.country')" />
                                 </div>
                                 <label class="flex items-center gap-2 text-xs text-stone-600 dark:text-neutral-400">
                                     <input type="checkbox" v-model="warehouseEditForm.is_active" />
-                                    Entrepot actif
+                                    {{ $t('settings.company.warehouses.active') }}
                                 </label>
                                 <div class="flex items-center justify-end gap-2">
                                     <button type="button" class="text-xs text-stone-500 hover:text-stone-700"
                                         @click="cancelWarehouseEdit">
-                                        Annuler
+                                        {{ $t('settings.company.warehouses.cancel') }}
                                     </button>
                                     <button type="button"
                                         class="inline-flex items-center rounded-sm bg-green-600 px-3 py-2 text-xs font-semibold text-white hover:bg-green-700 disabled:opacity-60"
                                         :disabled="warehouseEditSaving"
                                         @click="saveWarehouseEdit(warehouse.id)">
-                                        Enregistrer
+                                        {{ $t('settings.company.warehouses.save') }}
                                     </button>
                                 </div>
                             </div>
@@ -1046,30 +1087,32 @@ watch(activeTab, (value) => {
                     </div>
 
                     <div class="border-t border-stone-200 pt-4 dark:border-neutral-700">
-                        <h3 class="text-sm font-semibold text-stone-700 dark:text-neutral-200">Ajouter un entrepot</h3>
+                        <h3 class="text-sm font-semibold text-stone-700 dark:text-neutral-200">
+                            {{ $t('settings.company.warehouses.add_title') }}
+                        </h3>
                         <div class="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
                             <div>
-                                <FloatingInput v-model="warehouseForm.name" label="Nom" />
+                                <FloatingInput v-model="warehouseForm.name" :label="$t('settings.company.warehouses.fields.name')" />
                                 <InputError class="mt-1" :message="warehouseErrors.name?.[0]" />
                             </div>
                             <div>
-                                <FloatingInput v-model="warehouseForm.code" label="Code" />
+                                <FloatingInput v-model="warehouseForm.code" :label="$t('settings.company.warehouses.fields.code')" />
                                 <InputError class="mt-1" :message="warehouseErrors.code?.[0]" />
                             </div>
-                            <FloatingInput v-model="warehouseForm.address" label="Adresse" />
-                            <FloatingInput v-model="warehouseForm.city" label="Ville" />
-                            <FloatingInput v-model="warehouseForm.state" label="Province / Etat" />
-                            <FloatingInput v-model="warehouseForm.postal_code" label="Code postal" />
-                            <FloatingInput v-model="warehouseForm.country" label="Pays" />
+                            <FloatingInput v-model="warehouseForm.address" :label="$t('settings.company.warehouses.fields.address')" />
+                            <FloatingInput v-model="warehouseForm.city" :label="$t('settings.company.warehouses.fields.city')" />
+                            <FloatingInput v-model="warehouseForm.state" :label="$t('settings.company.warehouses.fields.state')" />
+                            <FloatingInput v-model="warehouseForm.postal_code" :label="$t('settings.company.warehouses.fields.postal_code')" />
+                            <FloatingInput v-model="warehouseForm.country" :label="$t('settings.company.warehouses.fields.country')" />
                         </div>
                         <div class="mt-3 flex flex-wrap items-center gap-4 text-xs text-stone-600 dark:text-neutral-400">
                             <label class="flex items-center gap-2">
                                 <input type="checkbox" v-model="warehouseForm.is_default" />
-                                Definir comme defaut
+                                {{ $t('settings.company.warehouses.default_checkbox') }}
                             </label>
                             <label class="flex items-center gap-2">
                                 <input type="checkbox" v-model="warehouseForm.is_active" />
-                                Entrepot actif
+                                {{ $t('settings.company.warehouses.active') }}
                             </label>
                         </div>
                         <div class="mt-3 flex justify-end">
@@ -1077,7 +1120,7 @@ watch(activeTab, (value) => {
                                 class="inline-flex items-center rounded-sm bg-green-600 px-3 py-2 text-xs font-semibold text-white hover:bg-green-700 disabled:opacity-60"
                                 :disabled="warehouseSaving"
                                 @click="createWarehouse">
-                                Ajouter
+                                {{ $t('settings.company.warehouses.add') }}
                             </button>
                         </div>
                     </div>
@@ -1093,14 +1136,16 @@ watch(activeTab, (value) => {
             >
                 <div class="p-4 space-y-4">
                     <div>
-                        <h2 class="text-lg font-semibold text-stone-800 dark:text-neutral-100">Fournisseurs (Canada)</h2>
+                        <h2 class="text-lg font-semibold text-stone-800 dark:text-neutral-100">
+                            {{ $t('settings.company.suppliers.title') }}
+                        </h2>
                         <p class="mt-1 text-sm text-stone-600 dark:text-neutral-400">
-                            Choisissez vos plateformes actives et jusqu a {{ preferredLimit }} fournisseurs preferes.
+                            {{ $t('settings.company.suppliers.description', { limit: preferredLimit }) }}
                         </p>
                     </div>
 
                     <div v-if="!suppliersList.length" class="text-sm text-stone-500 dark:text-neutral-400">
-                        Aucun fournisseur disponible pour le moment.
+                        {{ $t('settings.company.suppliers.empty') }}
                     </div>
                     <div v-else class="space-y-3">
                         <div v-for="supplier in suppliersList" :key="supplier.key"
@@ -1115,18 +1160,18 @@ watch(activeTab, (value) => {
                                     <span class="font-medium">{{ supplier.name }}</span>
                                     <span v-if="supplier.is_custom"
                                         class="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-500/10 dark:text-amber-300">
-                                        Personnalise
+                                        {{ $t('settings.company.suppliers.custom_badge') }}
                                     </span>
                                 </div>
                                 <div class="flex items-center gap-2">
                                     <a v-if="supplier.url" :href="supplier.url" target="_blank" rel="noopener"
                                         class="text-xs text-green-700 hover:underline dark:text-green-400">
-                                        Visiter le site
+                                        {{ $t('settings.company.suppliers.visit_site') }}
                                     </a>
                                     <button v-if="supplier.is_custom" type="button"
                                         class="text-xs font-semibold text-red-600 hover:text-red-700"
                                         @click="removeCustomSupplier(supplier.key)">
-                                        Supprimer
+                                        {{ $t('settings.company.suppliers.remove') }}
                                     </button>
                                 </div>
                             </div>
@@ -1138,23 +1183,25 @@ watch(activeTab, (value) => {
                                         v-model="form.supplier_preferred"
                                         :disabled="isPreferredDisabled(supplier.key) || !form.supplier_enabled.includes(supplier.key)"
                                     />
-                                    <span>Preferer</span>
+                                    <span>{{ $t('settings.company.suppliers.preferred') }}</span>
                                 </label>
                                 <span v-if="!form.supplier_enabled.includes(supplier.key)">
-                                    Activez ce fournisseur pour le proposer.
+                                    {{ $t('settings.company.suppliers.enable_hint') }}
                                 </span>
                             </div>
                         </div>
                     </div>
 
                     <div class="border-t border-stone-200 pt-4 dark:border-neutral-700">
-                        <h3 class="text-sm font-semibold text-stone-700 dark:text-neutral-200">Ajouter un fournisseur</h3>
+                        <h3 class="text-sm font-semibold text-stone-700 dark:text-neutral-200">
+                            {{ $t('settings.company.suppliers.add_title') }}
+                        </h3>
                         <p class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
-                            Ajoutez un fournisseur avec son lien pour l inclure dans les recherches.
+                            {{ $t('settings.company.suppliers.add_description') }}
                         </p>
                         <div class="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
-                            <FloatingInput v-model="customSupplierForm.name" label="Nom du fournisseur" />
-                            <FloatingInput v-model="customSupplierForm.url" label="Lien du fournisseur" />
+                            <FloatingInput v-model="customSupplierForm.name" :label="$t('settings.company.suppliers.fields.name')" />
+                            <FloatingInput v-model="customSupplierForm.url" :label="$t('settings.company.suppliers.fields.url')" />
                         </div>
                         <div class="mt-3 flex justify-end">
                             <button
@@ -1163,7 +1210,7 @@ watch(activeTab, (value) => {
                                 :disabled="!canAddCustomSupplier"
                                 @click="addCustomSupplier"
                             >
-                                Ajouter
+                                {{ $t('settings.company.suppliers.add') }}
                             </button>
                         </div>
                     </div>
@@ -1176,7 +1223,7 @@ watch(activeTab, (value) => {
                             :disabled="form.processing"
                             @click="submit"
                         >
-                            Enregistrer
+                            {{ $t('settings.company.actions.save') }}
                         </button>
                     </div>
                 </div>
@@ -1191,9 +1238,11 @@ watch(activeTab, (value) => {
             >
                 <div class="p-4 space-y-4">
                     <div>
-                        <h2 class="text-lg font-semibold text-stone-800 dark:text-neutral-100">Limites du forfait</h2>
+                        <h2 class="text-lg font-semibold text-stone-800 dark:text-neutral-100">
+                            {{ $t('settings.company.limits.title') }}
+                        </h2>
                         <p class="mt-1 text-sm text-stone-600 dark:text-neutral-400">
-                            Plan actuel : {{ planName }}
+                            {{ $t('settings.company.limits.current_plan', { plan: planName }) }}
                         </p>
                     </div>
 
@@ -1202,11 +1251,11 @@ watch(activeTab, (value) => {
                         <table class="min-w-full divide-y divide-stone-200 text-sm text-left text-stone-600 dark:divide-neutral-700 dark:text-neutral-300">
                             <thead class="text-xs uppercase text-stone-500 dark:text-neutral-400">
                                 <tr>
-                                    <th class="py-2">Module</th>
-                                    <th class="py-2">Utilise</th>
-                                    <th class="py-2">Limite</th>
-                                    <th class="py-2">Reste</th>
-                                    <th class="py-2">Usage</th>
+                                    <th class="py-2">{{ $t('settings.company.limits.table.module') }}</th>
+                                    <th class="py-2">{{ $t('settings.company.limits.table.used') }}</th>
+                                    <th class="py-2">{{ $t('settings.company.limits.table.limit') }}</th>
+                                    <th class="py-2">{{ $t('settings.company.limits.table.remaining') }}</th>
+                                    <th class="py-2">{{ $t('settings.company.limits.table.usage') }}</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-stone-200 dark:divide-neutral-700">
@@ -1227,7 +1276,7 @@ watch(activeTab, (value) => {
                                 </tr>
                                 <tr v-if="!usageItems.length">
                                     <td colspan="5" class="py-3 text-center text-sm text-stone-500 dark:text-neutral-400">
-                                        Aucune donnee de limite disponible.
+                                        {{ $t('settings.company.limits.table.empty') }}
                                     </td>
                                 </tr>
                             </tbody>
@@ -1236,7 +1285,7 @@ watch(activeTab, (value) => {
 
                     <div v-if="hasUsageAlert"
                         class="rounded-sm border border-amber-200 bg-amber-50 p-3 text-xs text-amber-700">
-                        Certaines limites sont proches ou depassees. Pensez a mettre a jour votre forfait.
+                        {{ $t('settings.company.limits.alert') }}
                     </div>
                 </div>
             </div>

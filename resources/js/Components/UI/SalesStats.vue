@@ -1,10 +1,13 @@
 <script setup>
+import { useI18n } from 'vue-i18n';
 const props = defineProps({
     stats: {
         type: Object,
         required: true,
     },
 });
+
+const { t } = useI18n();
 
 const formatNumber = (value) =>
     Number(value || 0).toLocaleString(undefined, { maximumFractionDigits: 0 });
@@ -21,7 +24,7 @@ const formatCurrency = (value) =>
             <div class="sm:flex sm:gap-x-3">
                 <div class="sm:order-1 grow space-y-1">
                     <h2 class="sm:mb-2 text-sm text-stone-500 dark:text-neutral-400">
-                        Total ventes
+                        {{ $t('sales.stats.total') }}
                     </h2>
                     <p class="text-lg md:text-xl font-semibold text-stone-800 dark:text-neutral-200">
                         {{ formatNumber(stats.total) }}
@@ -36,7 +39,7 @@ const formatCurrency = (value) =>
             <div class="sm:flex sm:gap-x-3">
                 <div class="sm:order-1 grow space-y-1">
                     <h2 class="sm:mb-2 text-sm text-stone-500 dark:text-neutral-400">
-                        Chiffre d'affaires
+                        {{ $t('sales.stats.revenue') }}
                     </h2>
                     <p class="text-lg md:text-xl font-semibold text-stone-800 dark:text-neutral-200">
                         {{ formatCurrency(stats.total_value) }}
@@ -51,7 +54,7 @@ const formatCurrency = (value) =>
             <div class="sm:flex sm:gap-x-3">
                 <div class="sm:order-1 grow space-y-1">
                     <h2 class="sm:mb-2 text-sm text-stone-500 dark:text-neutral-400">
-                        Encaisse
+                        {{ $t('sales.stats.collected') }}
                     </h2>
                     <p class="text-lg md:text-xl font-semibold text-stone-800 dark:text-neutral-200">
                         {{ formatCurrency(stats.paid_value) }}
@@ -66,7 +69,7 @@ const formatCurrency = (value) =>
             <div class="sm:flex sm:gap-x-3">
                 <div class="sm:order-1 grow space-y-1">
                     <h2 class="sm:mb-2 text-sm text-stone-500 dark:text-neutral-400">
-                        En attente
+                        {{ $t('sales.stats.pending') }}
                     </h2>
                     <p class="text-lg md:text-xl font-semibold text-stone-800 dark:text-neutral-200">
                         {{ formatNumber(stats.pending) }}
@@ -81,7 +84,7 @@ const formatCurrency = (value) =>
             <div class="sm:flex sm:gap-x-3">
                 <div class="sm:order-1 grow space-y-1">
                     <h2 class="sm:mb-2 text-sm text-stone-500 dark:text-neutral-400">
-                        Brouillons
+                        {{ $t('sales.stats.draft') }}
                     </h2>
                     <p class="text-lg md:text-xl font-semibold text-stone-800 dark:text-neutral-200">
                         {{ formatNumber(stats.draft) }}
@@ -96,7 +99,7 @@ const formatCurrency = (value) =>
             <div class="sm:flex sm:gap-x-3">
                 <div class="sm:order-1 grow space-y-1">
                     <h2 class="sm:mb-2 text-sm text-stone-500 dark:text-neutral-400">
-                        Annulees
+                        {{ $t('sales.stats.canceled') }}
                     </h2>
                     <p class="text-lg md:text-xl font-semibold text-stone-800 dark:text-neutral-200">
                         {{ formatNumber(stats.canceled) }}

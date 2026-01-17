@@ -1,6 +1,7 @@
 <script setup>
 import { computed, ref, watch } from 'vue';
 import { Link, router, useForm } from '@inertiajs/vue3';
+import { useI18n } from 'vue-i18n';
 import { humanizeDate } from '@/utils/date';
 
 const props = defineProps({
@@ -34,6 +35,8 @@ const props = defineProps({
     },
 });
 
+const { t } = useI18n();
+
 const filterForm = useForm({
     search: props.filters?.search ?? '',
     status: props.filters?.status ?? '',
@@ -49,21 +52,23 @@ const filterForm = useForm({
 const showAdvanced = ref(false);
 const isLoading = ref(false);
 
-const defaultStatusOptions = [
-    { value: '', label: 'Tous les statuts' },
-    { value: 'draft', label: 'Brouillon' },
-    { value: 'pending', label: 'En attente' },
-    { value: 'paid', label: 'Payee' },
-    { value: 'canceled', label: 'Annulee' },
-];
-const statusOptions = props.statusOptions.length ? props.statusOptions : defaultStatusOptions;
+const defaultStatusOptions = computed(() => [
+    { value: '', label: t('sales.table.filters.all_statuses') },
+    { value: 'draft', label: t('sales.status.draft') },
+    { value: 'pending', label: t('sales.status.pending') },
+    { value: 'paid', label: t('sales.status.paid') },
+    { value: 'canceled', label: t('sales.status.canceled') },
+]);
+const statusOptions = computed(() =>
+    props.statusOptions.length ? props.statusOptions : defaultStatusOptions.value
+);
 
-const statusLabels = {
-    draft: 'Brouillon',
-    pending: 'En attente',
-    paid: 'Payee',
-    canceled: 'Annulee',
-};
+const statusLabels = computed(() => ({
+    draft: t('sales.status.draft'),
+    pending: t('sales.status.pending'),
+    paid: t('sales.status.paid'),
+    canceled: t('sales.status.canceled'),
+}));
 
 const statusClasses = {
     draft: 'bg-stone-100 text-stone-600 dark:bg-neutral-800 dark:text-neutral-300',
@@ -72,14 +77,14 @@ const statusClasses = {
     canceled: 'bg-red-100 text-red-700 dark:bg-red-500/10 dark:text-red-200',
 };
 
-const fulfillmentLabels = {
-    pending: 'Commande recue',
-    preparing: 'Preparation',
-    out_for_delivery: 'En cours de livraison',
-    ready_for_pickup: 'Pret a retirer',
-    completed: 'Livree',
-    confirmed: 'Confirmee',
-};
+const fulfillmentLabels = computed(() => ({
+    pending: t('sales.fulfillment.pending'),
+    preparing: t('sales.fulfillment.preparing'),
+    out_for_delivery: t('sales.fulfillment.out_for_delivery'),
+    ready_for_pickup: t('sales.fulfillment.ready_for_pickup'),
+    completed: t('sales.fulfillment.completed'),
+    confirmed: t('sales.fulfillment.confirmed'),
+}));
 
 const fulfillmentClasses = {
     pending: 'bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-200',
@@ -180,7 +185,7 @@ const customerLabel = (sale) => {
         return customer.company_name;
     }
     const name = [customer?.first_name, customer?.last_name].filter(Boolean).join(' ');
-    return name || 'Client anonyme';
+    return name || t('sales.labels.customer_anonymous');
 };
 
 const canEdit = (sale) => ['draft', 'pending'].includes(sale?.status);
@@ -190,12 +195,12 @@ const statusLabel = (sale) => {
         return '';
     }
     if (sale.status === 'paid' || sale.status === 'canceled') {
-        return statusLabels[sale.status] || sale.status;
+        return statusLabels.value[sale.status] || sale.status;
     }
     if (sale.fulfillment_status) {
-        return fulfillmentLabels[sale.fulfillment_status] || sale.fulfillment_status;
+        return fulfillmentLabels.value[sale.fulfillment_status] || sale.fulfillment_status;
     }
-    return statusLabels[sale.status] || sale.status;
+    return statusLabels.value[sale.status] || sale.status;
 };
 
 const statusBadgeClass = (sale) => {
@@ -211,7 +216,7 @@ const statusBadgeClass = (sale) => {
     return statusClasses[sale.status] || statusClasses.draft;
 };
 
-const paymentLabel = (sale) => statusLabels[sale?.status] || sale?.status || '';
+const paymentLabel = (sale) => statusLabels.value[sale?.status] || sale?.status || '';
 
 const canQuickUpdate = (sale) =>
     props.enableStatusUpdate
@@ -225,26 +230,26 @@ const canChangeFulfillment = (sale) =>
 const fulfillmentOptionsFor = (sale) => {
     if (sale?.fulfillment_method === 'pickup') {
         return [
-            { value: 'pending', label: 'Commande recue' },
-            { value: 'preparing', label: 'Preparation' },
-            { value: 'ready_for_pickup', label: 'Pret a retirer' },
-            { value: 'completed', label: 'Terminee' },
+            { value: 'pending', label: t('sales.fulfillment.pending') },
+            { value: 'preparing', label: t('sales.fulfillment.preparing') },
+            { value: 'ready_for_pickup', label: t('sales.fulfillment.ready_for_pickup') },
+            { value: 'completed', label: t('sales.fulfillment.completed') },
         ];
     }
     if (sale?.fulfillment_method === 'delivery') {
         return [
-            { value: 'pending', label: 'Commande recue' },
-            { value: 'preparing', label: 'Preparation' },
-            { value: 'out_for_delivery', label: 'En cours de livraison' },
-            { value: 'completed', label: 'Terminee' },
+            { value: 'pending', label: t('sales.fulfillment.pending') },
+            { value: 'preparing', label: t('sales.fulfillment.preparing') },
+            { value: 'out_for_delivery', label: t('sales.fulfillment.out_for_delivery') },
+            { value: 'completed', label: t('sales.fulfillment.completed') },
         ];
     }
     return [
-        { value: 'pending', label: 'Commande recue' },
-        { value: 'preparing', label: 'Preparation' },
-        { value: 'out_for_delivery', label: 'En cours de livraison' },
-        { value: 'ready_for_pickup', label: 'Pret a retirer' },
-        { value: 'completed', label: 'Terminee' },
+        { value: 'pending', label: t('sales.fulfillment.pending') },
+        { value: 'preparing', label: t('sales.fulfillment.preparing') },
+        { value: 'out_for_delivery', label: t('sales.fulfillment.out_for_delivery') },
+        { value: 'ready_for_pickup', label: t('sales.fulfillment.ready_for_pickup') },
+        { value: 'completed', label: t('sales.fulfillment.completed') },
     ];
 };
 
@@ -281,16 +286,16 @@ const updateStatus = (sale, payload) => {
 const emptyState = computed(() => {
     if (props.routeName === 'orders.index') {
         return {
-            title: 'Aucune commande',
-            description: 'Les commandes clients apparaitront ici.',
+            title: t('sales.table.empty.orders.title'),
+            description: t('sales.table.empty.orders.description'),
             cta: null,
         };
     }
     return {
-        title: 'Aucune vente',
-        description: 'Creez une vente ou passez par le POS pour demarrer.',
+        title: t('sales.table.empty.sales.title'),
+        description: t('sales.table.empty.sales.description'),
         cta: {
-            label: 'Nouvelle vente',
+            label: t('sales.index.new_sale'),
             routeName: 'sales.create',
         },
     };
@@ -349,7 +354,7 @@ const canMarkCanceled = (sale) =>
                             type="text"
                             v-model="filterForm.search"
                             class="py-[7px] ps-10 pe-8 block w-full bg-white border border-stone-200 rounded-sm text-sm placeholder:text-stone-500 focus:border-green-500 focus:ring-green-600 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 dark:placeholder:text-neutral-400 dark:focus:ring-neutral-600"
-                            placeholder="Rechercher numero ou client"
+                            :placeholder="$t('sales.table.filters.search_placeholder')"
                         >
                     </div>
                 </div>
@@ -357,11 +362,11 @@ const canMarkCanceled = (sale) =>
                 <div class="flex flex-wrap items-center gap-2 justify-end">
                     <button type="button" @click="showAdvanced = !showAdvanced"
                         class="py-2 px-2.5 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 focus:outline-none focus:bg-stone-100 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700">
-                        Filtres
+                        {{ $t('sales.table.filters.toggle') }}
                     </button>
                     <button type="button" @click="clearFilters"
                         class="py-2 px-2.5 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 focus:outline-none focus:bg-stone-100 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700">
-                        Reinitialiser
+                        {{ $t('sales.table.filters.reset') }}
                     </button>
                 </div>
             </div>
@@ -375,23 +380,23 @@ const canMarkCanceled = (sale) =>
                 </select>
                 <select v-model="filterForm.customer_id"
                     class="py-2 ps-3 pe-8 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
-                    <option value="">Tous les clients</option>
+                    <option value="">{{ $t('sales.table.filters.all_customers') }}</option>
                     <option v-for="customer in customers" :key="customer.id" :value="customer.id">
                         {{ customer.company_name || `${customer.first_name} ${customer.last_name}` }}
                     </option>
                 </select>
                 <input type="number" v-model="filterForm.total_min" min="0" step="0.01"
                     class="py-2 px-3 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
-                    placeholder="Total min">
+                    :placeholder="$t('sales.table.filters.total_min')">
                 <input type="number" v-model="filterForm.total_max" min="0" step="0.01"
                     class="py-2 px-3 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
-                    placeholder="Total max">
+                    :placeholder="$t('sales.table.filters.total_max')">
                 <input type="date" v-model="filterForm.created_from"
                     class="py-2 px-3 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
-                    placeholder="Du">
+                    :placeholder="$t('sales.table.filters.date_from')">
                 <input type="date" v-model="filterForm.created_to"
                     class="py-2 px-3 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
-                    placeholder="Au">
+                    :placeholder="$t('sales.table.filters.date_to')">
             </div>
         </div>
 
@@ -404,7 +409,7 @@ const canMarkCanceled = (sale) =>
                             <th scope="col" class="min-w-[200px]">
                                 <button type="button" @click="toggleSort('number')"
                                     class="px-5 py-2.5 text-start w-full flex items-center gap-x-1 text-sm font-normal text-stone-500 hover:text-stone-700 focus:outline-none dark:text-neutral-500 dark:hover:text-neutral-300">
-                                    Vente
+                                    {{ $t('sales.table.headings.sale') }}
                                     <svg v-if="filterForm.sort === 'number'" class="size-3" xmlns="http://www.w3.org/2000/svg"
                                         viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                                         stroke-linecap="round" stroke-linejoin="round"
@@ -415,13 +420,13 @@ const canMarkCanceled = (sale) =>
                             </th>
                             <th scope="col" class="min-w-40">
                                 <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
-                                    Client
+                                    {{ $t('sales.table.headings.customer') }}
                                 </div>
                             </th>
                             <th scope="col" class="min-w-32">
                                 <button type="button" @click="toggleSort('status')"
                                     class="px-5 py-2.5 text-start w-full flex items-center gap-x-1 text-sm font-normal text-stone-500 hover:text-stone-700 focus:outline-none dark:text-neutral-500 dark:hover:text-neutral-300">
-                                    Statut
+                                    {{ $t('sales.table.headings.status') }}
                                     <svg v-if="filterForm.sort === 'status'" class="size-3" xmlns="http://www.w3.org/2000/svg"
                                         viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                                         stroke-linecap="round" stroke-linejoin="round"
@@ -432,13 +437,13 @@ const canMarkCanceled = (sale) =>
                             </th>
                             <th scope="col" class="min-w-28">
                                 <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
-                                    Articles
+                                    {{ $t('sales.table.headings.items') }}
                                 </div>
                             </th>
                             <th scope="col" class="min-w-32">
                                 <button type="button" @click="toggleSort('total')"
                                     class="px-5 py-2.5 text-start w-full flex items-center gap-x-1 text-sm font-normal text-stone-500 hover:text-stone-700 focus:outline-none dark:text-neutral-500 dark:hover:text-neutral-300">
-                                    Total
+                                    {{ $t('sales.table.headings.total') }}
                                     <svg v-if="filterForm.sort === 'total'" class="size-3" xmlns="http://www.w3.org/2000/svg"
                                         viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                                         stroke-linecap="round" stroke-linejoin="round"
@@ -450,7 +455,7 @@ const canMarkCanceled = (sale) =>
                             <th scope="col" class="min-w-32">
                                 <button type="button" @click="toggleSort('created_at')"
                                     class="px-5 py-2.5 text-start w-full flex items-center gap-x-1 text-sm font-normal text-stone-500 hover:text-stone-700 focus:outline-none dark:text-neutral-500 dark:hover:text-neutral-300">
-                                    Date
+                                    {{ $t('sales.table.headings.date') }}
                                     <svg v-if="filterForm.sort === 'created_at'" class="size-3" xmlns="http://www.w3.org/2000/svg"
                                         viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                                         stroke-linecap="round" stroke-linejoin="round"
@@ -502,10 +507,10 @@ const canMarkCanceled = (sale) =>
                             <td class="size-px whitespace-nowrap px-4 py-2 text-start">
                                 <Link :href="route('sales.show', sale.id)" class="flex flex-col hover:underline">
                                     <span class="text-sm text-stone-600 dark:text-neutral-300">
-                                        {{ sale.number || `Sale #${sale.id}` }}
+                                        {{ sale.number || $t('sales.table.sale_label', { id: sale.id }) }}
                                     </span>
                                     <span class="text-xs text-stone-500 dark:text-neutral-500">
-                                        {{ sale.items_count || 0 }} articles
+                                        {{ $t('sales.table.items_count', { count: sale.items_count || 0 }) }}
                                     </span>
                                 </Link>
                             </td>
@@ -526,7 +531,7 @@ const canMarkCanceled = (sale) =>
                                         v-if="showFulfillmentStatus && sale.status !== 'paid' && sale.status !== 'canceled'"
                                         class="text-[10px] text-stone-500 dark:text-neutral-400"
                                     >
-                                        Paiement: {{ paymentLabel(sale) }}
+                                        {{ $t('sales.table.payment_label', { status: paymentLabel(sale) }) }}
                                     </div>
                                     <div v-if="canQuickUpdate(sale)" class="mt-2 space-y-1">
                                         <select
@@ -535,7 +540,7 @@ const canMarkCanceled = (sale) =>
                                             :disabled="isUpdating(sale) || !canChangeFulfillment(sale)"
                                             @change="updateFulfillment(sale, $event.target.value)"
                                         >
-                                            <option value="">Statut commande</option>
+                                            <option value="">{{ $t('sales.table.fulfillment_placeholder') }}</option>
                                             <option
                                                 v-for="option in fulfillmentOptionsFor(sale)"
                                                 :key="option.value"
@@ -551,7 +556,7 @@ const canMarkCanceled = (sale) =>
                                                 :disabled="isUpdating(sale) || !canMarkPaid(sale)"
                                                 @click="markPaid(sale)"
                                             >
-                                                Payee
+                                                {{ $t('sales.table.actions.mark_paid') }}
                                             </button>
                                             <button
                                                 type="button"
@@ -559,7 +564,7 @@ const canMarkCanceled = (sale) =>
                                                 :disabled="isUpdating(sale) || !canMarkCanceled(sale)"
                                                 @click="markCanceled(sale)"
                                             >
-                                                Annuler
+                                                {{ $t('sales.table.actions.cancel') }}
                                             </button>
                                         </div>
                                     </div>
@@ -600,11 +605,11 @@ const canMarkCanceled = (sale) =>
                                         <div class="p-1">
                                             <Link :href="route('sales.show', sale.id)"
                                                 class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
-                                                Voir
+                                                {{ $t('sales.table.actions.view') }}
                                             </Link>
                                             <Link v-if="canEdit(sale)" :href="route('sales.edit', sale.id)"
                                                 class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
-                                                Modifier
+                                                {{ $t('sales.table.actions.edit') }}
                                             </Link>
                                         </div>
                                     </div>
@@ -620,20 +625,20 @@ const canMarkCanceled = (sale) =>
         <div v-if="sales.data.length > 0" class="mt-5 flex flex-wrap justify-between items-center gap-2">
             <p class="text-sm text-stone-800 dark:text-neutral-200">
                 <span class="font-medium"> {{ sales.total ?? sales.data.length }} </span>
-                <span class="text-stone-500 dark:text-neutral-500"> resultats</span>
+                <span class="text-stone-500 dark:text-neutral-500"> {{ $t('sales.table.pagination.results') }}</span>
             </p>
 
-            <nav class="flex justify-end items-center gap-x-1" aria-label="Pagination">
+            <nav class="flex justify-end items-center gap-x-1" :aria-label="$t('sales.table.pagination.label')">
                 <Link :href="sales.prev_page_url" v-if="sales.prev_page_url">
                 <button type="button"
                     class="min-h-[38px] min-w-[38px] py-2 px-2.5 inline-flex justify-center items-center gap-x-2 text-sm rounded-sm text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-100 dark:text-white dark:hover:bg-white/10 dark:focus:bg-neutral-700"
-                    aria-label="Precedent">
+                    :aria-label="$t('sales.table.pagination.previous')">
                     <svg class="shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
                         viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                         stroke-linejoin="round">
                         <path d="m15 18-6-6 6-6" />
                     </svg>
-                    <span class="sr-only">Precedent</span>
+                    <span class="sr-only">{{ $t('sales.table.pagination.previous') }}</span>
                 </button>
                 </Link>
                 <div class="flex items-center gap-x-1">
@@ -641,7 +646,7 @@ const canMarkCanceled = (sale) =>
                         class="min-h-[38px] min-w-[38px] flex justify-center items-center bg-stone-100 text-stone-800 py-2 px-3 text-sm rounded-sm disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-700 dark:text-white"
                         aria-current="page">{{ sales.from }}</span>
                     <span
-                        class="min-h-[38px] flex justify-center items-center text-stone-500 py-2 px-1.5 text-sm dark:text-neutral-500">sur</span>
+                        class="min-h-[38px] flex justify-center items-center text-stone-500 py-2 px-1.5 text-sm dark:text-neutral-500">{{ $t('sales.table.pagination.of') }}</span>
                     <span
                         class="min-h-[38px] flex justify-center items-center text-stone-500 py-2 px-1.5 text-sm dark:text-neutral-500">{{ sales.to }}</span>
                 </div>
@@ -649,8 +654,8 @@ const canMarkCanceled = (sale) =>
                 <Link :href="sales.next_page_url" v-if="sales.next_page_url">
                 <button type="button"
                     class="min-h-[38px] min-w-[38px] py-2 px-2.5 inline-flex justify-center items-center gap-x-2 text-sm rounded-sm text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-100 dark:text-white dark:hover:bg-white/10 dark:focus:bg-neutral-700"
-                    aria-label="Suivant">
-                    <span class="sr-only">Suivant</span>
+                    :aria-label="$t('sales.table.pagination.next')">
+                    <span class="sr-only">{{ $t('sales.table.pagination.next') }}</span>
                     <svg class="shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
                         viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                         stroke-linejoin="round">
