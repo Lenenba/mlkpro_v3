@@ -45,7 +45,7 @@ const props = defineProps({
 
 </script>
 <template>
-    <Head title="Product" />
+    <Head :title="$t('products.title')" />
     <AuthenticatedLayout>
         <ProductStats :stats="stats" />
         <div class="grid grid-cols-1 lg:grid-cols-4 gap-2 md:gap-3 lg:gap-5 ">

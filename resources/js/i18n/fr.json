@@ -33,8 +33,13 @@
     "language": "Langue"
   },
   "language": {
-    "fr": "Français",
+    "fr": "Francais",
     "en": "Anglais"
+  },
+  "notifications_panel": {
+    "title": "Notifications",
+    "mark_all": "Tout marquer",
+    "empty": "Aucune notification."
   },
   "alerts": {
     "maintenance": {
@@ -261,6 +266,166 @@
 
   
 
+  "client_dashboard": {
+    "title": "Tableau client",
+    "welcome": "Bon retour, {name}. Voici ce qui attend votre validation.",
+    "profile_missing": "Votre profil client n'est pas encore lie. Contactez l'entreprise pour connecter votre compte.",
+    "kpi": {
+      "quotes_pending": "Devis en attente de validation",
+      "jobs_pending": "Chantiers en attente de validation",
+      "invoices_due": "Factures a payer",
+      "ratings_due": "Avis a laisser"
+    },
+    "sections": {
+      "quotes_pending": "Devis en attente de validation",
+      "schedules_pending": "Plannings en attente de validation",
+      "jobs_pending": "Chantiers en attente de validation",
+      "task_proofs": "Preuves de taches",
+      "invoices_due": "Factures en attente de paiement",
+      "ratings_due": "Avis a laisser",
+      "recently_validated": "Valide recemment",
+      "schedule_preview": "Apercu planning",
+      "quotes": "Devis",
+      "jobs": "Chantiers"
+    },
+    "actions": {
+      "accept": "Accepter",
+      "decline": "Refuser",
+      "review_schedule": "Voir planning",
+      "validate_job": "Valider chantier",
+      "dispute": "Litige",
+      "add_proof": "Ajouter preuve",
+      "view_proofs": "Voir preuves",
+      "pay_now": "Payer",
+      "submit": "Envoyer",
+      "close": "Fermer",
+      "request_changes": "Demander changements",
+      "accept_schedule": "Accepter planning",
+      "cancel": "Annuler",
+      "upload": "Televerser"
+    },
+    "labels": {
+      "fallback_name": "vous",
+      "pending": "En attente",
+      "quote_fallback": "Devis",
+      "job_fallback": "Chantier",
+      "task_fallback": "Tache",
+      "invoice_fallback": "Facture",
+      "sent_on": "Envoye {date}",
+      "required_deposit": "Depot requis: {amount}",
+      "completed_on": "Termine {date}",
+      "issued_on": "Emis {date}",
+      "amount": "Montant",
+      "paid_of": "Paye {paid} sur {total}",
+      "feedback_placeholder": "Commentaire (optionnel)",
+      "summary": "Resume",
+      "start_date": "Date debut",
+      "time": "Heure",
+      "frequency": "Frequence",
+      "visits": "Visites",
+      "range": "Periode",
+      "team": "Equipe",
+      "team_unassigned": "L'equipe sera assignee par l'entreprise.",
+      "single_visit": "Visite unique",
+      "single_visit_note": "Ce planning inclut une visite.",
+      "date": "Date",
+      "accept_creates_tasks": "L'acceptation va creer des taches pour chaque visite."
+    },
+    "ratings": {
+      "star": "etoile",
+      "stars": "etoiles"
+    },
+    "empty": {
+      "quotes_pending": "Aucun devis en attente de validation.",
+      "schedules_pending": "Aucun planning en attente de validation.",
+      "jobs_pending": "Aucun chantier en attente de validation.",
+      "tasks": "Aucune tache disponible.",
+      "invoices_due": "Toutes les factures sont payees.",
+      "quote_ratings": "Aucun avis de devis a laisser.",
+      "job_ratings": "Aucun avis de chantier a laisser.",
+      "validated_quotes": "Aucun devis valide.",
+      "validated_jobs": "Aucun chantier valide.",
+      "schedule_details": "Les details du planning ne sont pas encore disponibles."
+    },
+    "frequency": {
+      "once": "Unique",
+      "daily": "Quotidien",
+      "weekly": "Hebdomadaire",
+      "biweekly": "Toutes les 2 semaines",
+      "monthly": "Mensuel",
+      "yearly": "Annuel",
+      "custom": "Personnalise"
+    },
+    "calendar": {
+      "today": "Aujourd'hui",
+      "month": "Mois",
+      "week": "Semaine",
+      "day": "Jour"
+    },
+    "proof": {
+      "title": "Televerser preuve",
+      "type": "Type",
+      "types": {
+        "execution": "Execution",
+        "completion": "Completion",
+        "other": "Autre"
+      },
+      "file": "Fichier (photo ou video)",
+      "note_optional": "Note (optionnel)"
+    }
+  },
+  "client_orders": {
+    "title": "Mes achats",
+    "subtitle_company": "Ventes chez {name}",
+    "subtitle_default": "Vos ventes recentes",
+    "actions": {
+      "order": "Commander",
+      "reorder": "Recommander",
+      "confirm_delivery": "Confirmer",
+      "edit": "Modifier",
+      "view": "Voir"
+    },
+    "kpi": {
+      "orders": "Commandes",
+      "pending": "En attente",
+      "paid": "Payees",
+      "amount_paid": "Total paye"
+    },
+    "sections": {
+      "pending_orders": "Commandes en attente",
+      "deliveries": "Livraisons en cours",
+      "delivery_alerts": "Alertes livraison",
+      "recent_sales": "Dernieres ventes"
+    },
+    "empty": {
+      "pending_orders": "Aucune commande en attente.",
+      "deliveries": "Aucune livraison en cours.",
+      "delivery_alerts": "Aucune alerte de livraison.",
+      "recent_sales": "Aucune vente recente."
+    },
+    "labels": {
+      "scheduled_delivery": "Livraison prevue: {date}",
+      "delivery_in_progress": "Livraison en cours",
+      "in_transit": "En cours",
+      "order_label": "Commande #{id}",
+      "sale_label": "Vente #{id}"
+    },
+    "status": {
+      "draft": "Brouillon",
+      "pending": "En attente",
+      "paid": "Payee",
+      "canceled": "Annulee"
+    },
+    "fulfillment": {
+      "pending": "Commande recue",
+      "preparing": "Preparation",
+      "out_for_delivery": "En cours de livraison",
+      "ready_for_pickup": "Pret a retirer",
+      "completed": "Livree",
+      "confirmed": "Confirmee",
+      "completed_unconfirmed": "Livree - a confirmer"
+    }
+  },
   "customers": {
     "title": "Clients",
     "stats": {
@@ -466,6 +631,80 @@
       },
       "days_label": "{count} j"
     },
+    "form": {
+      "title": {
+        "new": "Nouveau client",
+        "edit": "Modifier client"
+      },
+      "sections": {
+        "client_details": "Details client",
+        "contact_details": "Coordonnees",
+        "auto_validation": "Validation auto client",
+        "additional_details": "Details client additionnels",
+        "billing_preferences": "Preferences de facturation",
+        "location": "Localisation"
+      },
+      "fields": {
+        "title": "Titre",
+        "first_name": "Prenom",
+        "last_name": "Nom",
+        "company_name": "Entreprise",
+        "company_logo": "Logo entreprise",
+        "upload_company_logo": "Televerser logo entreprise",
+        "choose_company_icon": "Ou choisir une icone",
+        "company_icon_alt": "Icone entreprise",
+        "default_icon": "Defaut",
+        "clear_icon": "Retirer icone",
+        "phone": "Telephone",
+        "email": "Adresse email",
+        "portal_access": "Donner acces a la plateforme",
+        "description": "Description",
+        "referred_by": "Reference par",
+        "discount_rate": "Remise fidelite (%)",
+        "search_address": "Rechercher une adresse",
+        "notes": "Notes"
+      },
+      "auto_accept_quotes": "Auto acceptation des devis",
+      "billing": {
+        "same_as_property": "Adresse de facturation identique a l'adresse du bien",
+        "mode": "Mode de facturation",
+        "grouping": "Regroupement",
+        "cycle": "Cycle",
+        "delay_days": "Delai (jours)",
+        "date_rule": "Regle de date (ex: 1er du mois)"
+      },
+      "billing_modes": {
+        "per_task": "Par tache",
+        "per_segment": "Par segment",
+        "end_of_job": "Fin de chantier",
+        "deferred": "Differe"
+      },
+      "billing_groupings": {
+        "single": "Une facture",
+        "periodic": "Regrouper"
+      },
+      "billing_cycles": {
+        "weekly": "Chaque semaine",
+        "biweekly": "Toutes les 2 semaines",
+        "monthly": "Chaque mois",
+        "every_n_tasks": "Chaque N taches"
+      },
+      "salutations": {
+        "mr": "M.",
+        "mrs": "Mme",
+        "miss": "Mlle"
+      },
+      "actions": {
+        "save_create_another": "Enregistrer et creer un autre",
+        "save_client": "Enregistrer client",
+        "update_client": "Mettre a jour client"
+      },
+      "errors": {
+        "city_required": "La ville est requise pour enregistrer une localisation.",
+        "required_fields": "Merci de remplir tous les champs requis.",
+        "save_failed": "Impossible d'enregistrer le client. Reessayez."
+      }
+    },
     "properties": {
       "title": "Proprietes",
       "add": "Ajouter propriete",
@@ -526,6 +765,562 @@
       }
     }
   },
+  "products": {
+    "title": "Produits",
+    "single": "Produit",
+    "stats": {
+      "total": "Total produits",
+      "inventory_value": "Valeur stock",
+      "in_stock": "En stock",
+      "low_stock": "Stock faible",
+      "out_of_stock": "Rupture",
+      "rotation": "Rotation stock"
+    },
+    "usage": {
+      "title": "Produits les plus utilises",
+      "subtitle": "Base sur devis et chantiers",
+      "used": "{count} utilises",
+      "empty": "Aucune donnee d'utilisation pour l'instant."
+    },
+    "labels": {
+      "no_sku": "Aucun SKU",
+      "barcode": "Code-barres",
+      "unit": "Unite",
+      "category": "Categorie",
+      "tracking": "Suivi",
+      "available": "Disponible",
+      "minimum": "Minimum",
+      "minimum_short": "Min",
+      "reserved": "Reserve",
+      "damaged": "Avarie",
+      "cost": "Cout",
+      "margin": "Marge",
+      "value": "Valeur",
+      "warehouse_short": "entrepots",
+      "warehouse": "Entrepot",
+      "bin": "Bac",
+      "on_hand": "En stock",
+      "quantity": "Quantite",
+      "received": "Recu",
+      "expires": "Expire",
+      "next_expiry": "Prochaine expiration",
+      "status": "Statut",
+      "created": "Cree",
+      "no_supplier": "Aucun fournisseur",
+      "main_warehouse": "Entrepot principal",
+      "no_location": "Aucune localisation",
+      "uncategorized": "Sans categorie",
+      "supplier": "Fournisseur",
+      "supplier_email": "Email fournisseur",
+      "product_image_alt": "Image produit",
+      "no_note": "Aucune note"
+    },
+    "status": {
+      "active": "Actif",
+      "archived": "Archive"
+    },
+    "stock_status": {
+      "in_stock": "En stock",
+      "low_stock": "Stock faible",
+      "out_of_stock": "Rupture"
+    },
+    "tracking": {
+      "standard": "Standard",
+      "lot": "Lot",
+      "serial": "Serie",
+      "standard_full": "Standard (sans lot/serie)",
+      "lot_tracked": "Suivi par lot",
+      "serial_tracked": "Suivi par serie",
+      "lots": "Lots",
+      "serials": "Series",
+      "none": "Aucun lot"
+    },
+    "alerts": {
+      "out_of_stock": "Rupture de stock",
+      "low_stock": "Stock faible",
+      "in_stock": "Stock OK",
+      "damaged_count": "Avaries {count}",
+      "reserved_count": "Reserve {count}",
+      "expired_lots_count": "Lots expires {count}",
+      "expiring_lots_count": "Lots bientot expires {count}",
+      "damaged_items": "Articles avaries",
+      "reserved_orders": "Commandes reservees",
+      "expired_lots": "Lots expires",
+      "expiring_lots": "Lots bientot expires",
+      "damaged": "Avaries",
+      "reserved": "Reserves",
+      "expiring": "Expire bientot",
+      "expired": "Expire",
+      "reorder": "Point de reappro",
+      "none": "Aucune alerte",
+      "details_title": "Details alerte",
+      "open_details": "Ouvrir details {label}",
+      "select_alert": "Selectionnez une alerte pour voir les details.",
+      "select_alert_badge": "Selectionnez un badge d'alerte pour voir les details.",
+      "stock_depleted": "Stock epuise.",
+      "stock_below_min": "Stock en dessous du minimum.",
+      "damaged_stock": "Stock avarie",
+      "no_damaged_stock": "Aucun stock avarie pour ce produit.",
+      "recent_damage_movements": "Mouvements d'avaries recents",
+      "no_damage_movements": "Aucun mouvement d'avaries.",
+      "no_reserved_orders": "Aucune commande reservee pour ce produit.",
+      "no_lots_for_alert": "Aucun lot a afficher pour cette alerte."
+    },
+    "orders": {
+      "status": {
+        "pending": "En attente",
+        "draft": "Brouillon",
+        "paid": "Paye",
+        "canceled": "Annule"
+      },
+      "fulfillment": {
+        "pending": "En attente",
+        "preparing": "Preparation",
+        "out_for_delivery": "En livraison",
+        "ready_for_pickup": "Pret a retirer",
+        "completed": "Termine",
+      "confirmed": "Confirme"
+    },
+    "order_label": "Commande {number}",
+    "customer_fallback": "Client",
+    "fulfillment_label": "Execution",
+    "method": "Methode",
+    "scheduled": "Planifie"
+  },
+    "filters": {
+      "search_placeholder": "Rechercher produits, SKU ou code-barres",
+      "stock": {
+        "all": "Tout stock"
+      },
+      "alerts": {
+        "all": "Toutes alertes"
+      },
+      "tracking": {
+        "all": "Tout suivi"
+      },
+      "warehouse": {
+        "all": "Tous entrepots",
+        "default": "Defaut"
+      },
+      "status": {
+        "all": "Tous statuts"
+      },
+      "media": {
+        "all": "Tous medias",
+        "with_image": "Avec image",
+        "without_image": "Sans image"
+      },
+      "price_min": "Prix min",
+      "price_max": "Prix max",
+      "stock_min": "Stock min",
+      "stock_max": "Stock max",
+      "supplier_name": "Nom fournisseur",
+      "barcodes": {
+        "all": "Tous codes-barres",
+        "with": "Avec code-barres",
+        "without": "Sans code-barres"
+      },
+      "created_from": "Cree a partir de",
+      "created_to": "Cree jusqu'a"
+    },
+    "actions": {
+      "filters": "Filtres",
+      "export_csv": "Exporter CSV",
+      "import_csv": "Importer CSV",
+      "add_product": "Ajouter produit",
+      "clear": "Effacer",
+      "archive": "Archiver",
+      "restore": "Restaurer",
+      "delete": "Supprimer",
+      "edit": "Modifier",
+      "view": "Voir",
+      "quick_edit": "Edition rapide",
+      "adjust_stock": "Ajuster stock",
+      "duplicate": "Dupliquer",
+      "save": "Enregistrer",
+      "cancel": "Annuler",
+      "import": "Importer",
+      "update_product": "Mettre a jour le produit",
+      "create_product": "Creer le produit",
+      "delete_confirm": "Supprimer \"{name}\" ?",
+      "archive_confirm": "{action} \"{name}\" ?",
+      "edit_product": "Modifier le produit",
+      "view_product": "Voir produit",
+      "request_supplier": "Demander stock fournisseur",
+      "request_supplier_confirm": "Demander un reapprovisionnement au fournisseur ?",
+      "back_to_list": "Retour aux produits",
+      "remove": "Retirer"
+    },
+    "bulk": {
+      "selected": "{count} selectionnes",
+      "actions": "Actions groupees",
+      "delete_confirm": "Supprimer les produits selectionnes ?"
+    },
+    "table": {
+      "name": "Nom",
+      "state": "Etat",
+      "stock_status": "Etat stock",
+      "pricing": "Tarification",
+      "inventory": "Inventaire",
+      "tracking": "Suivi / Lots",
+      "alerts": "Alertes",
+      "supplier_location": "Fournisseur / Lieu",
+      "category": "Categorie"
+    },
+    "empty": {
+      "title": "Aucun produit",
+      "subtitle": "Ajoutez un produit pour demarrer votre catalogue.",
+      "add_action": "Ajouter un produit"
+    },
+    "pagination": {
+      "results": "resultats",
+      "previous": "Precedent",
+      "next": "Suivant",
+      "of": "sur"
+    },
+    "import": {
+      "title": "Importer produits",
+      "csv_file": "Fichier CSV"
+    },
+    "adjust": {
+      "title": "Ajuster stock",
+      "product": "Produit",
+      "low_stock_alert": "Alerte stock faible. Minimum {min}.",
+      "types": {
+        "in": "Entree stock",
+        "out": "Sortie stock",
+        "adjust": "Ajuster",
+        "damage": "Avarie",
+        "spoilage": "Perte"
+      },
+      "quantity_change": "Variation quantite",
+      "select_warehouse": "Selectionner entrepot",
+      "unit_cost_optional": "Cout unitaire (optionnel)",
+      "note_optional": "Note (optionnel)",
+      "lot_number": "Numero de lot",
+      "serial_number": "Numero de serie",
+      "serial_note": "Les articles en serie sont ajustes un par un.",
+      "no_warehouse_hint": "Ajoutez un entrepot dans les parametres avant d'ajuster le stock.",
+      "recent_movements": "Mouvements recents",
+      "no_movements": "Aucun mouvement pour l'instant.",
+      "select_product": "Selectionnez un produit pour ajuster le stock.",
+      "reasons": {
+        "manual": "Manuel",
+        "purchase": "Achat",
+        "sale": "Vente",
+        "return": "Retour",
+        "audit": "Audit",
+        "transfer": "Transfert"
+      }
+    },
+    "form": {
+      "details": "Details",
+      "name": "Nom",
+      "category": "Categorie",
+      "category_hint": "Besoin d'une nouvelle categorie ?",
+      "category_hide": "Masquer",
+      "category_add": "Ajouter categorie",
+      "category_empty": "Aucune categorie pour l'instant. Creez-en une ci-dessous.",
+      "category_new": "Nom nouvelle categorie",
+      "category_create": "Creer",
+      "sku": "SKU",
+      "barcode": "Code-barres",
+      "tracking": "Suivi",
+      "unit": "Unite",
+      "supplier": "Fournisseur",
+      "supplier_email": "Email fournisseur",
+      "tax_rate": "Taux taxe (%)",
+      "description": "Description",
+      "primary_image": "Image principale",
+      "pricing": "Tarification",
+      "price": "Prix",
+      "cost_price": "Cout",
+      "margin": "Marge (%)",
+      "stock": "Stock",
+      "minimum_stock": "Stock minimum",
+      "inventory": "Inventaire",
+      "lots_title": "Lots & series",
+      "lots_empty": "Aucun lot ou serie pour l'instant.",
+      "errors": {
+        "category_name_required": "Entrez un nom de categorie.",
+        "category_create_failed": "Impossible de creer la categorie.",
+        "required_fields": "Veuillez remplir tous les champs requis.",
+        "save_failed": "Impossible d'enregistrer le produit. Reessayez."
+      }
+    },
+    "price_lookup": {
+      "title": "Recherche de prix",
+      "search_term": "Terme de recherche",
+      "search_action": "Chercher prix",
+      "apply_best": "Appliquer meilleur prix",
+      "clear": "Effacer",
+      "provider": "Fournisseur",
+      "provider_not_configured": "(non configure)",
+      "preferred": "Preferes",
+      "enabled": "Actives",
+      "searching": "Recherche fournisseurs...",
+      "best_price": "Meilleur prix",
+      "open_link": "Ouvrir lien",
+      "use_cost": "Utiliser comme cout",
+      "use_price": "Utiliser comme prix",
+      "use_image": "Utiliser image",
+      "search_required": "Entrez un nom de produit pour chercher.",
+      "no_live_prices": "Aucun prix en direct trouve.",
+      "search_failed": "Recherche de prix echouee.",
+      "selected_image": "Image selectionnee"
+    },
+    "lots": {
+      "status": {
+        "active": "Actif",
+        "expired": "Expire",
+        "expiring": "Expire bientot"
+      },
+      "serial_label": "Serie {number}",
+      "lot_label": "Lot {number}",
+      "lot_fallback": "Lot",
+      "serial_short": "SN {number}",
+      "lot_short": "Lot {number}"
+    },
+    "show": {
+      "kpi": {
+        "in_stock": "En stock",
+        "stock_value": "Valeur stock",
+        "reserved": "Reserve",
+        "damaged": "Avaries",
+        "lots_serials": "Lots/series",
+        "minimum": "Minimum"
+      },
+      "alerts_title": "Alertes",
+      "request_supplier_hint": "Ajoutez un email fournisseur pour envoyer la demande.",
+      "warehouses_title": "Entrepots",
+      "lots_title": "Lots & series",
+      "general_title": "General",
+      "pricing_title": "Tarification",
+      "inventory_title": "Inventaire",
+      "gallery_title": "Galerie"
+    },
+    "units": {
+      "piece": "Piece",
+      "hour": "Heure",
+      "m2": "m2",
+      "other": "Autre"
+    }
+  },
+  "services": {
+    "title": "Services",
+    "stats": {
+      "total": "Total services",
+      "active": "Actifs",
+      "archived": "Archives",
+      "avg_price": "Prix moyen"
+    },
+    "filters": {
+      "search_placeholder": "Rechercher services",
+      "category": "Categorie",
+      "status": "Statut",
+      "price_min": "Prix min",
+      "price_max": "Prix max",
+      "created_from": "Cree a partir de",
+      "created_to": "Cree jusqu'a"
+    },
+    "actions": {
+      "filters": "Filtres",
+      "clear": "Effacer",
+      "add_service": "Ajouter service",
+      "edit": "Modifier",
+      "delete": "Supprimer",
+      "delete_confirm": "Supprimer \"{name}\" ?",
+      "new_service": "Nouveau service",
+      "edit_service": "Modifier service",
+      "cancel": "Annuler",
+      "create_service": "Creer service",
+      "update_service": "Mettre a jour service",
+      "archive": "Archiver",
+      "restore": "Restaurer"
+    },
+    "table": {
+      "service": "Service",
+      "price": "Prix",
+      "category": "Categorie",
+      "status": "Statut",
+      "created": "Cree"
+    },
+    "labels": {
+      "uncategorized": "Sans categorie"
+    },
+    "status": {
+      "active": "Actif",
+      "archived": "Archive"
+    },
+    "empty": "Aucun service trouve.",
+    "pagination": {
+      "results": "resultats",
+      "previous": "Precedent",
+      "next": "Suivant",
+      "of": "sur"
+    },
+    "form": {
+      "name": "Nom",
+      "category": "Categorie",
+      "category_hint": "Besoin d'une nouvelle categorie ?",
+      "category_hide": "Masquer",
+      "category_add": "Ajouter categorie",
+      "category_empty": "Aucune categorie pour l'instant. Creez-en une ci-dessous.",
+      "category_new": "Nom nouvelle categorie",
+      "category_create": "Creer",
+      "unit": "Unite",
+      "tax_rate": "Taux taxe (%)",
+      "price": "Prix",
+      "description": "Description",
+      "errors": {
+        "category_name_required": "Entrez un nom de categorie.",
+        "category_create_failed": "Impossible de creer la categorie.",
+        "required_fields": "Veuillez remplir tous les champs requis.",
+        "save_failed": "Impossible d'enregistrer le service. Reessayez."
+      }
+    },
+    "materials": {
+      "title": "Materiaux",
+      "add": "Ajouter materiau",
+      "product": "Produit",
+      "label": "Libelle",
+      "quantity": "Quantite",
+      "unit_price": "Prix unitaire",
+      "unit": "Unite",
+      "billable": "Facturable",
+      "description_optional": "Description (optionnel)",
+      "remove": "Retirer",
+      "empty": "Aucun materiau pour l'instant."
+    },
+    "units": {
+      "piece": "Piece",
+      "hour": "Heure",
+      "m2": "m2",
+      "other": "Autre"
+    },
+    "categories": {
+      "title": "Categories",
+      "subtitle": "Gere les categories utilisees pour les services et produits.",
+      "stats": {
+        "total": "Total categories",
+        "active": "Actives",
+        "archived": "Archives",
+        "in_use": "Utilisees"
+      },
+      "form": {
+        "edit_label": "Modifier categorie",
+        "new_label": "Nouvelle categorie",
+        "editing": "Modification: {name}",
+        "update": "Mettre a jour",
+        "add": "Ajouter"
+      },
+      "filters": {
+        "search_placeholder": "Rechercher categories",
+        "status": "Statut",
+        "created_by": "Cree par",
+        "created_from": "Cree a partir de",
+        "created_to": "Cree jusqu'a"
+      },
+      "table": {
+        "category": "Categorie",
+        "items": "Elements",
+        "created_by": "Cree par",
+        "status": "Statut",
+        "created": "Cree",
+        "system_category": "Categorie systeme",
+        "products": "Produits",
+        "services": "Services",
+        "locked": "Verrouille"
+      },
+      "empty": "Aucune categorie trouvee.",
+      "creator": {
+        "owner": "Proprietaire",
+        "system": "Systeme",
+        "team_member": "Membre equipe"
+      },
+      "actions": {
+        "archive_confirm": "Archiver \"{name}\" ?"
+      }
+    }
+  },
+  "requests": {
+    "title": "Demandes",
+    "stats": {
+      "total": "Total demandes",
+      "new": "Nouvelles",
+      "converted": "Converties",
+      "unassigned": "Non assignees"
+    },
+    "filters": {
+      "search_placeholder": "Rechercher demandes...",
+      "all_statuses": "Tous statuts",
+      "all_customers": "Tous clients"
+    },
+    "actions": {
+      "clear": "Effacer",
+      "new_request": "Nouvelle demande",
+      "view_quote": "Voir devis",
+      "convert": "Convertir",
+      "timeline": "Historique",
+      "delete": "Supprimer",
+      "delete_confirm": "Supprimer cette demande ?",
+      "cancel": "Annuler",
+      "create_request": "Creer demande",
+      "convert_to_quote": "Convertir en devis"
+    },
+    "table": {
+      "request": "Demande",
+      "customer": "Client",
+      "status": "Statut",
+      "created": "Cree",
+      "actions": "Actions"
+    },
+    "labels": {
+      "request_number": "Demande #{id}",
+      "request": "Demande",
+      "unknown_customer": "Client inconnu",
+      "unknown_status": "Statut inconnu",
+      "unassigned": "Non assigne"
+    },
+    "status": {
+      "new": "Nouvelle",
+      "converted": "Convertie"
+    },
+    "empty": "Aucune demande trouvee.",
+    "pagination": {
+      "previous": "Precedent",
+      "next": "Suivant",
+      "showing": "Affichage {from}-{to}"
+    },
+    "convert": {
+      "title": "Convertir la demande en devis",
+      "default_job_title": "Nouveau devis",
+      "customer": "Client",
+      "select_customer": "Selectionner client",
+      "location": "Lieu",
+      "no_location": "Aucun lieu",
+      "location_fallback": "Lieu",
+      "job_title": "Titre du chantier",
+      "notes_optional": "Notes (optionnel)"
+    },
+    "quick_form": {
+      "new_customer": "Nouveau client",
+      "existing_customer": "Client existant",
+      "create_customer": "Creer client",
+      "customer_optional": "Client (optionnel)",
+      "loading_customers": "Chargement des clients...",
+      "search_placeholder": "Rechercher un client",
+      "no_customer": "Aucun client",
+      "continue_without": "Continuer sans client",
+      "title": "Titre",
+      "service_type": "Type de service",
+      "urgency_optional": "Urgence (optionnel)",
+      "contact_name_optional": "Nom contact (optionnel)",
+      "contact_email_optional": "Email contact (optionnel)",
+      "contact_phone_optional": "Telephone contact (optionnel)",
+      "description_optional": "Description (optionnel)"
+    }
+  },
   "quotes": {
     "title": "Devis",
     "create_title": "Creer devis",
@@ -546,6 +1341,7 @@
       "rate_opportunity": "Evaluer l'opportunite",
       "add_custom_fields": "Ajouter des champs",
       "templates": "Modeles",
+      "template_default": "Modele par defaut",
       "template_help": "Choisir un point de depart pour ce devis.",
       "client_message": "Message client",
       "subtotal": "Sous-total",
@@ -928,6 +1724,119 @@
       "of": "sur"
     }
   },
+  "invoices": {
+    "title": "Factures",
+    "company_fallback": "Entreprise",
+    "view": {
+      "table": "Table",
+      "cards": "Cartes"
+    },
+    "filters": {
+      "search_placeholder": "Rechercher facture ou client",
+      "status": {
+        "all": "Tous les statuts"
+      },
+      "customer": {
+        "all": "Tous les clients"
+      },
+      "total_min": "Total min",
+      "total_max": "Total max",
+      "created_from": "Cree du",
+      "created_to": "Cree au"
+    },
+    "status": {
+      "draft": "Brouillon",
+      "sent": "Envoye",
+      "partial": "Partiel",
+      "paid": "Payee",
+      "overdue": "En retard",
+      "void": "Annulee"
+    },
+    "table": {
+      "invoice": "Facture",
+      "customer": "Client",
+      "status": "Statut",
+      "rating": "Note",
+      "total": "Total",
+      "balance_due": "Solde du",
+      "created": "Cree",
+      "results": "resultats"
+    },
+    "stats": {
+      "total": "Total factures",
+      "total_value": "Valeur totale",
+      "outstanding": "Impayes",
+      "open": "Ouvertes",
+      "paid": "Payees",
+      "partial": "Partielles"
+    },
+    "actions": {
+      "filters": "Filtres",
+      "clear": "Effacer",
+      "view_invoice": "Voir la facture",
+      "view_job": "Voir le chantier",
+      "view_customer": "Voir le client"
+    },
+    "labels": {
+      "invoice_number": "Facture #{id}",
+      "unknown_customer": "Inconnu",
+      "customer_fallback": "Client",
+      "job_fallback": "Job",
+      "method_fallback": "methode"
+    },
+    "show": {
+      "title": "Facture {number}",
+      "invoice_for": "Facture pour {customer}",
+      "timeline": "Chronologie",
+      "download_pdf": "Telecharger PDF",
+      "property_address": "Adresse du bien",
+      "no_property": "Aucune propriete selectionnee.",
+      "contact_details": "Coordonnees",
+      "invoice_details": "Details de la facture",
+      "invoice_label": "Facture",
+      "issued": "Emise",
+      "balance_due": "Solde du",
+      "job_rating": "Note du job",
+      "no_rating": "Aucune note",
+      "table": {
+        "tasks": "Taches",
+        "products_services": "Produits/Services",
+        "date": "Date",
+        "time": "Heure",
+        "assignee": "Assigne",
+        "qty": "Qt.",
+        "unit_cost": "Cout unitaire",
+        "total": "Total"
+      },
+      "line_items_empty": "Aucun element.",
+      "summary": {
+        "subtotal": "Sous-total",
+        "paid": "Payee",
+        "total_amount": "Montant total",
+        "balance_due": "Solde du"
+      },
+      "payments": {
+        "title": "Paiements",
+        "empty": "Aucun paiement pour le moment."
+      },
+      "add_payment": {
+        "title": "Ajouter un paiement",
+        "amount": "Montant",
+        "method": "Methode (carte, virement)",
+        "reference": "Reference",
+        "notes": "Notes",
+        "submit": "Enregistrer le paiement"
+      }
+    },
+    "empty": {
+      "invoices": "Aucune facture pour le moment."
+    },
+    "pagination": {
+      "previous": "Precedent",
+      "next": "Suivant",
+      "of": "sur"
+    }
+  },
   "tasks": {
     "title": "Taches",
     "stats": {
@@ -1085,7 +1994,18 @@
     "service": "Prestation",
     "request": "Demande",
     "quote": "Devis",
-    "product": "Produit"
+    "product": "Produit",
+    "new_customer": "Nouveau client",
+    "create_customer": "Creer client",
+    "new_product": "Nouveau produit",
+    "new_service": "Nouveau service",
+    "new_quote": "Nouveau devis",
+    "new_request": "Nouvelle demande",
+    "loading_categories": "Chargement des categories...",
+    "errors": {
+      "load_customers": "Impossible de charger les clients.",
+      "load_categories": "Impossible de charger les categories."
+    }
   },
   "settings": {
     "groups": {

@@ -4,9 +4,11 @@ import ApplicationLogo from "@/Components/ApplicationLogo.vue";
 import LinkAncor from "@/Components/UI/LinkAncor.vue";
 import { Link, usePage } from '@inertiajs/vue3';
 import MenuDropdown from "@/Components/UI/LinkAncor2.vue";
+import LanguageSwitcherMenu from '@/Components/UI/LanguageSwitcherMenu.vue';
 import QuickCreateModals from "@/Components/QuickCreate/QuickCreateModals.vue";
 import { isFeatureEnabled } from '@/utils/features';
 import { defaultAvatarIcon } from '@/utils/iconPresets';
+import NotificationBell from '@/Components/UI/NotificationBell.vue';
 
 const page = usePage()
 const companyType = computed(() => page.props.auth?.account?.company?.type ?? null);
@@ -37,6 +39,7 @@ const avatarUrl = computed(() =>
     || page.props.auth?.user?.profile_picture
     || defaultAvatarIcon
 );
+const showNotifications = computed(() => Boolean(page.props.notifications));
 const unreadCount = computed(() => page.props.notifications?.unread_count || 0);
 const hasUnread = computed(() => unreadCount.value > 0);
 const avatarInitial = computed(() => {
@@ -203,6 +206,7 @@ const isCustomerActive = computed(() => {
                                     </LinkAncor>
                                 </template>
                                 <template v-else>
+                                <LanguageSwitcherMenu />
                                 <MenuDropdown v-if="!isClient && !isSeller" active-item="/profile">
                                     <template #toggle-icon>
                                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
@@ -233,7 +237,7 @@ const isCustomerActive = computed(() => {
                                 <!-- End Item -->
 
                                 <!-- Item -->
-                                <LinkAncor v-if="isClient && companyType === 'products'" label="Commander" :href="'portal.orders.index'" tone="orders"
+                                <LinkAncor v-if="isClient && companyType === 'products'" :label="$t('nav.orders')" :href="'portal.orders.index'" tone="orders"
                                     :active="route().current('portal.orders.*')">
                                     <template #icon>
                                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
@@ -448,6 +452,12 @@ const isCustomerActive = computed(() => {
                                 </LinkAncor>
                                 <!-- End Item -->
                                 </template>
+                                <li v-if="showNotifications" class="flex justify-center">
+                                    <NotificationBell
+                                        :button-class="'relative inline-flex size-9 items-center justify-center rounded-sm text-stone-600 hover:bg-stone-100 focus:outline-none focus:ring-2 focus:ring-green-500 dark:text-neutral-200 dark:hover:bg-neutral-800'"
+                                        :badge-class="'absolute -top-1 -end-1 rounded-full bg-amber-500 px-1.5 text-[10px] font-semibold text-white'"
+                                    />
+                                </li>
                             </ul>
                         </nav>
                         <!-- End Nav -->

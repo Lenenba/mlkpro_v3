@@ -4,6 +4,7 @@ import axios from 'axios';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
 import FloatingTextarea from '@/Components/FloatingTextarea.vue';
+import { useI18n } from 'vue-i18n';
 
 const props = defineProps({
     overlayId: {
@@ -12,7 +13,7 @@ const props = defineProps({
     },
     submitLabel: {
         type: String,
-        default: 'Save customer',
+        default: '',
     },
     closeOnSuccess: {
         type: Boolean,
@@ -21,6 +22,8 @@ const props = defineProps({
 });
 
 const emit = defineEmits(['created']);
+
+const { t } = useI18n();
 
 const form = reactive({
     salutation: 'Mr',
@@ -56,11 +59,15 @@ const addressQuery = ref('');
 const addressSuggestions = ref([]);
 const geoapifyKey = import.meta.env.VITE_GEOAPIFY_KEY;
 
-const salutations = [
-    { id: 'Mr', name: 'Mr' },
-    { id: 'Mrs', name: 'Mrs' },
-    { id: 'Miss', name: 'Miss' },
-];
+const salutations = computed(() => ([
+    { id: 'Mr', name: t('customers.form.salutations.mr') },
+    { id: 'Mrs', name: t('customers.form.salutations.mrs') },
+    { id: 'Miss', name: t('customers.form.salutations.miss') },
+]));
+
+const resolvedSubmitLabel = computed(() =>
+    props.submitLabel || t('customers.form.actions.save_client')
+);
 
 const hasPropertyInput = computed(() => {
     const { type, ...fields } = form.properties || {};
@@ -96,7 +103,7 @@ const errorMessages = computed(() => {
         messages.push(formError.value);
     }
     if (!propertyValid.value) {
-        messages.push('City is required when saving a location.');
+        messages.push(t('customers.form.errors.city_required'));
     }
     return messages;
 });
@@ -142,7 +149,7 @@ const submit = async () => {
     }
 
     if (!isValid.value) {
-        formError.value = 'Please fill all required fields.';
+        formError.value = t('customers.form.errors.required_fields');
         return;
     }
 
@@ -191,7 +198,7 @@ const submit = async () => {
         if (error.response?.status === 422) {
             errors.value = error.response.data?.errors || {};
         } else {
-            formError.value = 'Unable to save customer. Please try again.';
+            formError.value = t('customers.form.errors.save_failed');
         }
     } finally {
         isSubmitting.value = false;
@@ -259,28 +266,28 @@ const selectAddress = (details) => {
 <template>
     <form @submit.prevent="submit" class="space-y-4">
         <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <FloatingSelect v-model="form.salutation" label="Title" :options="salutations" :required="true" />
-            <FloatingInput v-model="form.first_name" label="First name" :required="true" />
-            <FloatingInput v-model="form.last_name" label="Last name" :required="true" />
-            <FloatingInput v-model="form.company_name" label="Company name" />
-            <FloatingInput v-model="form.email" label="Email" :required="true" />
-            <FloatingInput v-model="form.phone" label="Phone" />
-            <FloatingInput v-model="form.discount_rate" type="number" label="Remise fidelite (%)" />
+            <FloatingSelect v-model="form.salutation" :label="$t('customers.form.fields.title')" :options="salutations" :required="true" />
+            <FloatingInput v-model="form.first_name" :label="$t('customers.form.fields.first_name')" :required="true" />
+            <FloatingInput v-model="form.last_name" :label="$t('customers.form.fields.last_name')" :required="true" />
+            <FloatingInput v-model="form.company_name" :label="$t('customers.form.fields.company_name')" />
+            <FloatingInput v-model="form.email" :label="$t('customers.form.fields.email')" :required="true" />
+            <FloatingInput v-model="form.phone" :label="$t('customers.form.fields.phone')" />
+            <FloatingInput v-model="form.discount_rate" type="number" :label="$t('customers.form.fields.discount_rate')" />
         </div>
         <div class="flex items-start gap-2">
             <input id="quick-customer-portal-access" type="checkbox" v-model="form.portal_access"
                 class="mt-1 size-4 rounded border-stone-300 text-green-600 focus:ring-green-500 dark:bg-neutral-900 dark:border-neutral-700 dark:checked:bg-green-500 dark:checked:border-green-500" />
             <div>
                 <label for="quick-customer-portal-access" class="text-sm text-stone-700 dark:text-neutral-200">
-                    Donner acces a la plateforme
+                    {{ $t('customers.form.fields.portal_access') }}
                 </label>
             </div>
         </div>
 
-        <FloatingTextarea v-model="form.description" label="Notes" />
+        <FloatingTextarea v-model="form.description" :label="$t('customers.form.fields.notes')" />
 
         <div class="rounded-sm border border-stone-200 p-4 dark:border-neutral-700">
-            <div class="text-sm font-medium text-stone-700 dark:text-neutral-200">Location</div>
+            <div class="text-sm font-medium text-stone-700 dark:text-neutral-200">{{ $t('customers.form.sections.location') }}</div>
             <div class="mt-3">
                 <div class="relative">
                     <div class="relative">
@@ -294,7 +301,7 @@ const selectAddress = (details) => {
                         </div>
                         <input v-model="addressQuery" @input="searchAddress"
                             class="py-3 ps-10 pe-4 block w-full border-stone-200 rounded-sm text-sm focus:border-green-600 focus:ring-green-600"
-                            type="text" role="combobox" aria-expanded="false" placeholder="Search for an address"
+                            type="text" role="combobox" aria-expanded="false" :placeholder="$t('customers.form.fields.search_address')"
                             />
                     </div>
 
@@ -312,46 +319,46 @@ const selectAddress = (details) => {
                 </div>
             </div>
             <div class="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
-                <FloatingInput v-model="form.properties.street1" label="Street" :readonly="true" />
-                <FloatingInput v-model="form.properties.street2" label="Street 2" :readonly="true" />
-                <FloatingInput v-model="form.properties.city" label="City" :readonly="true" />
-                <FloatingInput v-model="form.properties.state" label="State" :readonly="true" />
-                <FloatingInput v-model="form.properties.zip" label="Zip code" :readonly="true" />
-                <FloatingInput v-model="form.properties.country" label="Country" :readonly="true" />
+                <FloatingInput v-model="form.properties.street1" :label="$t('customers.properties.fields.street1')" :readonly="true" />
+                <FloatingInput v-model="form.properties.street2" :label="$t('customers.properties.fields.street2')" :readonly="true" />
+                <FloatingInput v-model="form.properties.city" :label="$t('customers.properties.fields.city')" :readonly="true" />
+                <FloatingInput v-model="form.properties.state" :label="$t('customers.properties.fields.state')" :readonly="true" />
+                <FloatingInput v-model="form.properties.zip" :label="$t('customers.properties.fields.zip')" :readonly="true" />
+                <FloatingInput v-model="form.properties.country" :label="$t('customers.properties.fields.country')" :readonly="true" />
             </div>
             <div class="mt-3 flex items-center gap-2">
                 <input type="checkbox" v-model="form.billing_same_as_physical"
                     class="size-3.5 rounded border-stone-300 text-green-600 focus:ring-green-500 dark:bg-neutral-900 dark:border-neutral-700">
                 <span class="text-sm text-stone-600 dark:text-neutral-400">
-                    Billing address matches the property address
+                    {{ $t('customers.form.billing.same_as_property') }}
                 </span>
             </div>
             <div class="mt-3 flex items-start gap-2">
                 <input type="checkbox" v-model="form.auto_accept_quotes"
                     class="mt-0.5 size-3.5 rounded border-stone-300 text-green-600 focus:ring-green-500 dark:bg-neutral-900 dark:border-neutral-700">
                 <span class="text-sm text-stone-600 dark:text-neutral-400">
-                    Auto-accept quotes for this customer
+                    {{ $t('customers.form.auto_accept_quotes') }}
                 </span>
             </div>
             <div class="mt-2 flex items-start gap-2">
                 <input type="checkbox" v-model="form.auto_validate_jobs"
                     class="mt-0.5 size-3.5 rounded border-stone-300 text-green-600 focus:ring-green-500 dark:bg-neutral-900 dark:border-neutral-700">
                 <span class="text-sm text-stone-600 dark:text-neutral-400">
-                    Auto-validate jobs
+                    {{ $t('customers.details.auto_validation.jobs') }}
                 </span>
             </div>
             <div class="mt-2 flex items-start gap-2">
                 <input type="checkbox" v-model="form.auto_validate_tasks"
                     class="mt-0.5 size-3.5 rounded border-stone-300 text-green-600 focus:ring-green-500 dark:bg-neutral-900 dark:border-neutral-700">
                 <span class="text-sm text-stone-600 dark:text-neutral-400">
-                    Auto-validate tasks
+                    {{ $t('customers.details.auto_validation.tasks') }}
                 </span>
             </div>
             <div class="mt-2 flex items-start gap-2">
                 <input type="checkbox" v-model="form.auto_validate_invoices"
                     class="mt-0.5 size-3.5 rounded border-stone-300 text-green-600 focus:ring-green-500 dark:bg-neutral-900 dark:border-neutral-700">
                 <span class="text-sm text-stone-600 dark:text-neutral-400">
-                    Auto-validate invoices
+                    {{ $t('customers.details.auto_validation.invoices') }}
                 </span>
             </div>
         </div>
@@ -365,11 +372,11 @@ const selectAddress = (details) => {
         <div class="flex justify-end gap-2">
             <button type="button" :data-hs-overlay="overlayId || undefined"
                 class="py-2 px-3 inline-flex items-center text-sm font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200">
-                Cancel
+                {{ $t('customers.actions.cancel') }}
             </button>
             <button type="submit" :disabled="isSubmitting"
                 class="py-2 px-3 inline-flex items-center text-sm font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50">
-                {{ submitLabel }}
+                {{ resolvedSubmitLabel }}
             </button>
         </div>
     </form>

@@ -36,6 +36,11 @@
         "fr": "French",
         "en": "English"
     },
+    "notifications_panel": {
+        "title": "Notifications",
+        "mark_all": "Mark all",
+        "empty": "No notifications."
+    },
     "alerts": {
         "maintenance": {
             "title": "Maintenance mode",
@@ -258,6 +263,166 @@
             }
         }
     },
+    "client_dashboard": {
+        "title": "Client dashboard",
+        "welcome": "Welcome back, {name}. Here is what is waiting for your validation.",
+        "profile_missing": "Your client profile is not linked yet. Please contact the business to connect your account.",
+        "kpi": {
+            "quotes_pending": "Quotes awaiting validation",
+            "jobs_pending": "Jobs awaiting validation",
+            "invoices_due": "Invoices to pay",
+            "ratings_due": "Ratings to leave"
+        },
+        "sections": {
+            "quotes_pending": "Quotes awaiting validation",
+            "schedules_pending": "Schedules awaiting validation",
+            "jobs_pending": "Jobs awaiting validation",
+            "task_proofs": "Task proofs",
+            "invoices_due": "Invoices awaiting payment",
+            "ratings_due": "Ratings to leave",
+            "recently_validated": "Recently validated",
+            "schedule_preview": "Schedule preview",
+            "quotes": "Quotes",
+            "jobs": "Jobs"
+        },
+        "actions": {
+            "accept": "Accept",
+            "decline": "Decline",
+            "review_schedule": "Review schedule",
+            "validate_job": "Validate job",
+            "dispute": "Dispute",
+            "add_proof": "Add proof",
+            "view_proofs": "View proofs",
+            "pay_now": "Pay now",
+            "submit": "Submit",
+            "close": "Close",
+            "request_changes": "Request changes",
+            "accept_schedule": "Accept schedule",
+            "cancel": "Cancel",
+            "upload": "Upload"
+        },
+        "labels": {
+            "fallback_name": "there",
+            "pending": "Pending",
+            "quote_fallback": "Quote",
+            "job_fallback": "Job",
+            "task_fallback": "Task",
+            "invoice_fallback": "Invoice",
+            "sent_on": "Sent {date}",
+            "required_deposit": "Required deposit: {amount}",
+            "completed_on": "Completed {date}",
+            "issued_on": "Issued {date}",
+            "amount": "Amount",
+            "paid_of": "Paid {paid} of {total}",
+            "feedback_placeholder": "Feedback (optional)",
+            "summary": "Summary",
+            "start_date": "Start date",
+            "time": "Time",
+            "frequency": "Frequency",
+            "visits": "Visits",
+            "range": "Range",
+            "team": "Team",
+            "team_unassigned": "Team will be assigned by the company.",
+            "single_visit": "Single visit",
+            "single_visit_note": "This schedule includes one visit.",
+            "date": "Date",
+            "accept_creates_tasks": "Accepting will create tasks for each visit."
+        },
+        "ratings": {
+            "star": "star",
+            "stars": "stars"
+        },
+        "empty": {
+            "quotes_pending": "No quotes waiting for validation.",
+            "schedules_pending": "No schedules waiting for validation.",
+            "jobs_pending": "No jobs waiting for validation.",
+            "tasks": "No tasks available yet.",
+            "invoices_due": "All invoices are settled.",
+            "quote_ratings": "No quote ratings needed.",
+            "job_ratings": "No job ratings needed.",
+            "validated_quotes": "No validated quotes yet.",
+            "validated_jobs": "No validated jobs yet.",
+            "schedule_details": "Schedule details are not available yet."
+        },
+        "frequency": {
+            "once": "One-time",
+            "daily": "Daily",
+            "weekly": "Weekly",
+            "biweekly": "Every 2 weeks",
+            "monthly": "Monthly",
+            "yearly": "Yearly",
+            "custom": "Custom"
+        },
+        "calendar": {
+            "today": "Today",
+            "month": "Month",
+            "week": "Week",
+            "day": "Day"
+        },
+        "proof": {
+            "title": "Upload proof",
+            "type": "Type",
+            "types": {
+                "execution": "Execution",
+                "completion": "Completion",
+                "other": "Other"
+            },
+            "file": "File (photo or video)",
+            "note_optional": "Note (optional)"
+        }
+    },
+    "client_orders": {
+        "title": "My purchases",
+        "subtitle_company": "Sales with {name}",
+        "subtitle_default": "Your recent sales",
+        "actions": {
+            "order": "Order",
+            "reorder": "Reorder",
+            "confirm_delivery": "Confirm",
+            "edit": "Edit",
+            "view": "View"
+        },
+        "kpi": {
+            "orders": "Orders",
+            "pending": "Pending",
+            "paid": "Paid",
+            "amount_paid": "Total paid"
+        },
+        "sections": {
+            "pending_orders": "Pending orders",
+            "deliveries": "Deliveries in progress",
+            "delivery_alerts": "Delivery alerts",
+            "recent_sales": "Recent sales"
+        },
+        "empty": {
+            "pending_orders": "No pending orders.",
+            "deliveries": "No deliveries in progress.",
+            "delivery_alerts": "No delivery alerts.",
+            "recent_sales": "No recent sales."
+        },
+        "labels": {
+            "scheduled_delivery": "Scheduled delivery: {date}",
+            "delivery_in_progress": "Delivery in progress",
+            "in_transit": "In transit",
+            "order_label": "Order #{id}",
+            "sale_label": "Sale #{id}"
+        },
+        "status": {
+            "draft": "Draft",
+            "pending": "Pending",
+            "paid": "Paid",
+            "canceled": "Canceled"
+        },
+        "fulfillment": {
+            "pending": "Order received",
+            "preparing": "Preparing",
+            "out_for_delivery": "Out for delivery",
+            "ready_for_pickup": "Ready for pickup",
+            "completed": "Delivered",
+            "confirmed": "Confirmed",
+            "completed_unconfirmed": "Delivered - to confirm"
+        }
+    },
 
     
 
@@ -466,6 +631,80 @@
             },
             "days_label": "{count} days"
         },
+        "form": {
+            "title": {
+                "new": "New client",
+                "edit": "Edit client"
+            },
+            "sections": {
+                "client_details": "Client details",
+                "contact_details": "Contact details",
+                "auto_validation": "Client auto validation",
+                "additional_details": "Additional client detail",
+                "billing_preferences": "Billing preferences",
+                "location": "Location"
+            },
+            "fields": {
+                "title": "Title",
+                "first_name": "First name",
+                "last_name": "Last name",
+                "company_name": "Company name",
+                "company_logo": "Company logo",
+                "upload_company_logo": "Upload company logo",
+                "choose_company_icon": "Or choose a company icon",
+                "company_icon_alt": "Company icon",
+                "default_icon": "Default",
+                "clear_icon": "Clear icon",
+                "phone": "Phone",
+                "email": "Email address",
+                "portal_access": "Give access to the platform",
+                "description": "Description",
+                "referred_by": "Referred by",
+                "discount_rate": "Loyalty discount (%)",
+                "search_address": "Search for an address",
+                "notes": "Notes"
+            },
+            "auto_accept_quotes": "Auto-accept quotes",
+            "billing": {
+                "same_as_property": "Billing address is the same as the property address",
+                "mode": "Billing mode",
+                "grouping": "Grouping",
+                "cycle": "Cycle",
+                "delay_days": "Delay (days)",
+                "date_rule": "Date rule (ex: 1st of month)"
+            },
+            "billing_modes": {
+                "per_task": "Per task",
+                "per_segment": "Per segment",
+                "end_of_job": "End of job",
+                "deferred": "Deferred"
+            },
+            "billing_groupings": {
+                "single": "Single invoice",
+                "periodic": "Grouped"
+            },
+            "billing_cycles": {
+                "weekly": "Weekly",
+                "biweekly": "Every 2 weeks",
+                "monthly": "Monthly",
+                "every_n_tasks": "Every N tasks"
+            },
+            "salutations": {
+                "mr": "Mr",
+                "mrs": "Mrs",
+                "miss": "Miss"
+            },
+            "actions": {
+                "save_create_another": "Save and create another",
+                "save_client": "Save client",
+                "update_client": "Update client"
+            },
+            "errors": {
+                "city_required": "City is required when saving a location.",
+                "required_fields": "Please fill all required fields.",
+                "save_failed": "Unable to save customer. Please try again."
+            }
+        },
         "properties": {
             "title": "Properties",
             "add": "Add property",
@@ -526,6 +765,562 @@
             }
         }
     },
+    "products": {
+        "title": "Products",
+        "single": "Product",
+        "stats": {
+            "total": "Total products",
+            "inventory_value": "Inventory value",
+            "in_stock": "In stock",
+            "low_stock": "Low stock",
+            "out_of_stock": "Out of stock",
+            "rotation": "Stock rotation"
+        },
+        "usage": {
+            "title": "Most used products",
+            "subtitle": "Based on quotes and jobs",
+            "used": "{count} used",
+            "empty": "No usage data yet."
+        },
+        "labels": {
+            "no_sku": "No SKU",
+            "barcode": "Barcode",
+            "unit": "Unit",
+            "category": "Category",
+            "tracking": "Tracking",
+            "available": "Available",
+            "minimum": "Minimum",
+            "minimum_short": "Min",
+            "reserved": "Reserved",
+            "damaged": "Damaged",
+            "cost": "Cost",
+            "margin": "Margin",
+            "value": "Value",
+            "warehouse_short": "wh",
+            "warehouse": "Warehouse",
+            "bin": "Bin",
+            "on_hand": "On hand",
+            "quantity": "Qty",
+            "received": "Received",
+            "expires": "Expires",
+            "next_expiry": "Next expiry",
+            "status": "Status",
+            "created": "Created",
+            "no_supplier": "No supplier",
+            "main_warehouse": "Main warehouse",
+            "no_location": "No location set",
+            "uncategorized": "Uncategorized",
+            "supplier": "Supplier",
+            "supplier_email": "Supplier email",
+            "product_image_alt": "Product image",
+            "no_note": "No note"
+        },
+        "status": {
+            "active": "Active",
+            "archived": "Archived"
+        },
+        "stock_status": {
+            "in_stock": "In stock",
+            "low_stock": "Low stock",
+            "out_of_stock": "Out of stock"
+        },
+        "tracking": {
+            "standard": "Standard",
+            "lot": "Lot",
+            "serial": "Serial",
+            "standard_full": "Standard (no lot/serial)",
+            "lot_tracked": "Lot tracked",
+            "serial_tracked": "Serial tracked",
+            "lots": "Lots",
+            "serials": "Serials",
+            "none": "No lots"
+        },
+        "alerts": {
+            "out_of_stock": "Out of stock",
+            "low_stock": "Low stock",
+            "in_stock": "Stock OK",
+            "damaged_count": "Damaged {count}",
+            "reserved_count": "Reserved {count}",
+            "expired_lots_count": "Expired {count}",
+            "expiring_lots_count": "Expiring {count}",
+            "damaged_items": "Damaged items",
+            "reserved_orders": "Reserved orders",
+            "expired_lots": "Expired lots",
+            "expiring_lots": "Expiring lots",
+            "damaged": "Damaged",
+            "reserved": "Reserved",
+            "expiring": "Expiring soon",
+            "expired": "Expired",
+            "reorder": "Reorder point",
+            "none": "No alerts",
+            "details_title": "Alert details",
+            "open_details": "Open {label} details",
+            "select_alert": "Select an alert to view details.",
+            "select_alert_badge": "Select an alert badge to view its details.",
+            "stock_depleted": "Stock is depleted.",
+            "stock_below_min": "Stock is below minimum threshold.",
+            "damaged_stock": "Damaged stock",
+            "no_damaged_stock": "No damaged stock recorded for this product.",
+            "recent_damage_movements": "Recent damage movements",
+            "no_damage_movements": "No damage movements yet.",
+            "no_reserved_orders": "No reserved orders for this product.",
+            "no_lots_for_alert": "No lots to show for this alert."
+        },
+        "orders": {
+            "status": {
+                "pending": "Pending",
+                "draft": "Draft",
+                "paid": "Paid",
+                "canceled": "Canceled"
+            },
+            "fulfillment": {
+                "pending": "Pending",
+                "preparing": "Preparing",
+                "out_for_delivery": "Out for delivery",
+                "ready_for_pickup": "Ready for pickup",
+                "completed": "Completed",
+            "confirmed": "Confirmed"
+        },
+        "order_label": "Order {number}",
+        "customer_fallback": "Customer",
+        "fulfillment_label": "Fulfillment",
+        "method": "Method",
+        "scheduled": "Scheduled"
+    },
+        "filters": {
+            "search_placeholder": "Search products, SKU, or barcode",
+            "stock": {
+                "all": "All stock"
+            },
+            "alerts": {
+                "all": "All alerts"
+            },
+            "tracking": {
+                "all": "All tracking"
+            },
+            "warehouse": {
+                "all": "All warehouses",
+                "default": "Default"
+            },
+            "status": {
+                "all": "All status"
+            },
+            "media": {
+                "all": "All media",
+                "with_image": "With image",
+                "without_image": "Without image"
+            },
+            "price_min": "Price min",
+            "price_max": "Price max",
+            "stock_min": "Stock min",
+            "stock_max": "Stock max",
+            "supplier_name": "Supplier name",
+            "barcodes": {
+                "all": "All barcodes",
+                "with": "With barcode",
+                "without": "Without barcode"
+            },
+            "created_from": "Created from",
+            "created_to": "Created to"
+        },
+        "actions": {
+            "filters": "Filters",
+            "export_csv": "Export CSV",
+            "import_csv": "Import CSV",
+            "add_product": "Add product",
+            "clear": "Clear",
+            "archive": "Archive",
+            "restore": "Restore",
+            "delete": "Delete",
+            "edit": "Edit",
+            "view": "View",
+            "quick_edit": "Quick edit",
+            "adjust_stock": "Adjust stock",
+            "duplicate": "Duplicate",
+            "save": "Save",
+            "cancel": "Cancel",
+            "import": "Import",
+            "update_product": "Update product",
+            "create_product": "Create product",
+            "delete_confirm": "Delete \"{name}\"?",
+            "archive_confirm": "{action} \"{name}\"?",
+            "edit_product": "Edit product",
+            "view_product": "View product",
+            "request_supplier": "Request supplier stock",
+            "request_supplier_confirm": "Request stock replenishment from supplier?",
+            "back_to_list": "Back to products",
+            "remove": "Remove"
+        },
+        "bulk": {
+            "selected": "{count} selected",
+            "actions": "Bulk actions",
+            "delete_confirm": "Delete selected products?"
+        },
+        "table": {
+            "name": "Name",
+            "state": "State",
+            "stock_status": "Stock status",
+            "pricing": "Pricing",
+            "inventory": "Inventory",
+            "tracking": "Tracking / Lots",
+            "alerts": "Alerts",
+            "supplier_location": "Supplier / Location",
+            "category": "Category"
+        },
+        "empty": {
+            "title": "No products",
+            "subtitle": "Add a product to start your catalog.",
+            "add_action": "Add product"
+        },
+        "pagination": {
+            "results": "results",
+            "previous": "Previous",
+            "next": "Next",
+            "of": "of"
+        },
+        "import": {
+            "title": "Import products",
+            "csv_file": "CSV file"
+        },
+        "adjust": {
+            "title": "Adjust stock",
+            "product": "Product",
+            "low_stock_alert": "Low stock alert. Minimum is {min}.",
+            "types": {
+                "in": "Stock in",
+                "out": "Stock out",
+                "adjust": "Adjust",
+                "damage": "Damage",
+                "spoilage": "Spoilage"
+            },
+            "quantity_change": "Quantity change",
+            "select_warehouse": "Select warehouse",
+            "unit_cost_optional": "Unit cost (optional)",
+            "note_optional": "Note (optional)",
+            "lot_number": "Lot number",
+            "serial_number": "Serial number",
+            "serial_note": "Serial-tracked items are adjusted one at a time.",
+            "no_warehouse_hint": "Add a warehouse in settings before adjusting stock.",
+            "recent_movements": "Recent movements",
+            "no_movements": "No movements yet.",
+            "select_product": "Select a product to adjust stock.",
+            "reasons": {
+                "manual": "Manual",
+                "purchase": "Purchase",
+                "sale": "Sale",
+                "return": "Return",
+                "audit": "Audit",
+                "transfer": "Transfer"
+            }
+        },
+        "form": {
+            "details": "Details",
+            "name": "Name",
+            "category": "Category",
+            "category_hint": "Need a new category?",
+            "category_hide": "Hide",
+            "category_add": "Add category",
+            "category_empty": "No categories yet. Create one below.",
+            "category_new": "New category name",
+            "category_create": "Create",
+            "sku": "SKU",
+            "barcode": "Barcode",
+            "tracking": "Tracking",
+            "unit": "Unit",
+            "supplier": "Supplier",
+            "supplier_email": "Supplier email",
+            "tax_rate": "Tax rate (%)",
+            "description": "Description",
+            "primary_image": "Primary image",
+            "pricing": "Pricing",
+            "price": "Price",
+            "cost_price": "Cost price",
+            "margin": "Margin (%)",
+            "stock": "Stock",
+            "minimum_stock": "Minimum stock",
+            "inventory": "Inventory",
+            "lots_title": "Lots & Serials",
+            "lots_empty": "No lots or serials yet.",
+            "errors": {
+                "category_name_required": "Enter a category name.",
+                "category_create_failed": "Unable to create category.",
+                "required_fields": "Please fill all required fields.",
+                "save_failed": "Unable to save product. Please try again."
+            }
+        },
+        "price_lookup": {
+            "title": "Price lookup",
+            "search_term": "Search term",
+            "search_action": "Search prices",
+            "apply_best": "Apply best price",
+            "clear": "Clear",
+            "provider": "Provider",
+            "provider_not_configured": "(not configured)",
+            "preferred": "Preferred",
+            "enabled": "Enabled",
+            "searching": "Searching suppliers...",
+            "best_price": "Best price",
+            "open_link": "Open link",
+            "use_cost": "Use as cost",
+            "use_price": "Use as price",
+            "use_image": "Use image",
+            "search_required": "Enter a product name to search.",
+            "no_live_prices": "No live prices found.",
+            "search_failed": "Price lookup failed.",
+            "selected_image": "Selected image"
+        },
+        "lots": {
+            "status": {
+                "active": "Active",
+                "expired": "Expired",
+                "expiring": "Expiring soon"
+            },
+            "serial_label": "Serial {number}",
+            "lot_label": "Lot {number}",
+            "lot_fallback": "Lot",
+            "serial_short": "SN {number}",
+            "lot_short": "Lot {number}"
+        },
+        "show": {
+            "kpi": {
+                "in_stock": "In stock",
+                "stock_value": "Stock value",
+                "reserved": "Reserved",
+                "damaged": "Damaged",
+                "lots_serials": "Lots/serials",
+                "minimum": "Minimum"
+            },
+            "alerts_title": "Alerts",
+            "request_supplier_hint": "Add a supplier email to send the request.",
+            "warehouses_title": "Warehouses",
+            "lots_title": "Lots & Serials",
+            "general_title": "General",
+            "pricing_title": "Pricing",
+            "inventory_title": "Inventory",
+            "gallery_title": "Gallery"
+        },
+        "units": {
+            "piece": "Piece",
+            "hour": "Hour",
+            "m2": "m2",
+            "other": "Other"
+        }
+    },
+    "services": {
+        "title": "Services",
+        "stats": {
+            "total": "Total services",
+            "active": "Active",
+            "archived": "Archived",
+            "avg_price": "Avg price"
+        },
+        "filters": {
+            "search_placeholder": "Search services",
+            "category": "Category",
+            "status": "Status",
+            "price_min": "Price min",
+            "price_max": "Price max",
+            "created_from": "Created from",
+            "created_to": "Created to"
+        },
+        "actions": {
+            "filters": "Filters",
+            "clear": "Clear",
+            "add_service": "Add service",
+            "edit": "Edit",
+            "delete": "Delete",
+            "delete_confirm": "Delete \"{name}\"?",
+            "new_service": "New service",
+            "edit_service": "Edit service",
+            "cancel": "Cancel",
+            "create_service": "Create service",
+            "update_service": "Update service",
+            "archive": "Archive",
+            "restore": "Restore"
+        },
+        "table": {
+            "service": "Service",
+            "price": "Price",
+            "category": "Category",
+            "status": "Status",
+            "created": "Created"
+        },
+        "labels": {
+            "uncategorized": "Uncategorized"
+        },
+        "status": {
+            "active": "Active",
+            "archived": "Archived"
+        },
+        "empty": "No services found.",
+        "pagination": {
+            "results": "results",
+            "previous": "Previous",
+            "next": "Next",
+            "of": "of"
+        },
+        "form": {
+            "name": "Name",
+            "category": "Category",
+            "category_hint": "Need a new category?",
+            "category_hide": "Hide",
+            "category_add": "Add category",
+            "category_empty": "No categories yet. Create one below.",
+            "category_new": "New category name",
+            "category_create": "Create",
+            "unit": "Unit",
+            "tax_rate": "Tax rate (%)",
+            "price": "Price",
+            "description": "Description",
+            "errors": {
+                "category_name_required": "Enter a category name.",
+                "category_create_failed": "Unable to create category.",
+                "required_fields": "Please fill all required fields.",
+                "save_failed": "Unable to save service. Please try again."
+            }
+        },
+        "materials": {
+            "title": "Materials",
+            "add": "Add material",
+            "product": "Product",
+            "label": "Label",
+            "quantity": "Quantity",
+            "unit_price": "Unit price",
+            "unit": "Unit",
+            "billable": "Billable",
+            "description_optional": "Description (optional)",
+            "remove": "Remove",
+            "empty": "No materials yet."
+        },
+        "units": {
+            "piece": "Piece",
+            "hour": "Hour",
+            "m2": "m2",
+            "other": "Other"
+        },
+        "categories": {
+            "title": "Categories",
+            "subtitle": "Manage categories used for services and products.",
+            "stats": {
+                "total": "Total categories",
+                "active": "Active",
+                "archived": "Archived",
+                "in_use": "In use"
+            },
+            "form": {
+                "edit_label": "Edit category",
+                "new_label": "New category",
+                "editing": "Editing: {name}",
+                "update": "Update",
+                "add": "Add"
+            },
+            "filters": {
+                "search_placeholder": "Search categories",
+                "status": "Status",
+                "created_by": "Created by",
+                "created_from": "Created from",
+                "created_to": "Created to"
+            },
+            "table": {
+                "category": "Category",
+                "items": "Items",
+                "created_by": "Created by",
+                "status": "Status",
+                "created": "Created",
+                "system_category": "System category",
+                "products": "Products",
+                "services": "Services",
+                "locked": "Locked"
+            },
+            "empty": "No categories found.",
+            "creator": {
+                "owner": "Owner",
+                "system": "System",
+                "team_member": "Team member"
+            },
+            "actions": {
+                "archive_confirm": "Archive \"{name}\"?"
+            }
+        }
+    },
+    "requests": {
+        "title": "Requests",
+        "stats": {
+            "total": "Total requests",
+            "new": "New",
+            "converted": "Converted",
+            "unassigned": "Unassigned"
+        },
+        "filters": {
+            "search_placeholder": "Search requests...",
+            "all_statuses": "All statuses",
+            "all_customers": "All customers"
+        },
+        "actions": {
+            "clear": "Clear",
+            "new_request": "New request",
+            "view_quote": "View quote",
+            "convert": "Convert",
+            "timeline": "Timeline",
+            "delete": "Delete",
+            "delete_confirm": "Delete this request?",
+            "cancel": "Cancel",
+            "create_request": "Create request",
+            "convert_to_quote": "Convert to quote"
+        },
+        "table": {
+            "request": "Request",
+            "customer": "Customer",
+            "status": "Status",
+            "created": "Created",
+            "actions": "Actions"
+        },
+        "labels": {
+            "request_number": "Request #{id}",
+            "request": "Request",
+            "unknown_customer": "Unknown customer",
+            "unknown_status": "Unknown status",
+            "unassigned": "Unassigned"
+        },
+        "status": {
+            "new": "New",
+            "converted": "Converted"
+        },
+        "empty": "No requests found.",
+        "pagination": {
+            "previous": "Previous",
+            "next": "Next",
+            "showing": "Showing {from}-{to}"
+        },
+        "convert": {
+            "title": "Convert request to quote",
+            "default_job_title": "New quote",
+            "customer": "Customer",
+            "select_customer": "Select customer",
+            "location": "Location",
+            "no_location": "No location",
+            "location_fallback": "Location",
+            "job_title": "Job title",
+            "notes_optional": "Notes (optional)"
+        },
+        "quick_form": {
+            "new_customer": "New customer",
+            "existing_customer": "Existing customer",
+            "create_customer": "Create customer",
+            "customer_optional": "Customer (optional)",
+            "loading_customers": "Loading customers...",
+            "search_placeholder": "Search customers",
+            "no_customer": "No customer",
+            "continue_without": "Continue without customer",
+            "title": "Title",
+            "service_type": "Service type",
+            "urgency_optional": "Urgency (optional)",
+            "contact_name_optional": "Contact name (optional)",
+            "contact_email_optional": "Contact email (optional)",
+            "contact_phone_optional": "Contact phone (optional)",
+            "description_optional": "Description (optional)"
+        }
+    },
     "quotes": {
         "title": "Quotes",
         "create_title": "Create quote",
@@ -546,6 +1341,7 @@
             "rate_opportunity": "Rate opportunity",
             "add_custom_fields": "Add custom fields",
             "templates": "Templates",
+            "template_default": "Default template",
             "template_help": "Pick a starting point for this quote.",
             "client_message": "Client message",
             "subtotal": "Subtotal",
@@ -928,6 +1724,119 @@
             "of": "of"
         }
     },
+    "invoices": {
+        "title": "Invoices",
+        "company_fallback": "Company",
+        "view": {
+            "table": "Table",
+            "cards": "Cards"
+        },
+        "filters": {
+            "search_placeholder": "Search invoice number or customer",
+            "status": {
+                "all": "All statuses"
+            },
+            "customer": {
+                "all": "All customers"
+            },
+            "total_min": "Min total",
+            "total_max": "Max total",
+            "created_from": "Created from",
+            "created_to": "Created to"
+        },
+        "status": {
+            "draft": "Draft",
+            "sent": "Sent",
+            "partial": "Partial",
+            "paid": "Paid",
+            "overdue": "Overdue",
+            "void": "Void"
+        },
+        "table": {
+            "invoice": "Invoice",
+            "customer": "Customer",
+            "status": "Status",
+            "rating": "Rating",
+            "total": "Total",
+            "balance_due": "Balance due",
+            "created": "Created",
+            "results": "results"
+        },
+        "stats": {
+            "total": "Total invoices",
+            "total_value": "Total value",
+            "outstanding": "Outstanding",
+            "open": "Open",
+            "paid": "Paid",
+            "partial": "Partial"
+        },
+        "actions": {
+            "filters": "Filters",
+            "clear": "Clear",
+            "view_invoice": "View invoice",
+            "view_job": "View job",
+            "view_customer": "View customer"
+        },
+        "labels": {
+            "invoice_number": "Invoice #{id}",
+            "unknown_customer": "Unknown",
+            "customer_fallback": "Customer",
+            "job_fallback": "Job",
+            "method_fallback": "method"
+        },
+        "show": {
+            "title": "Invoice {number}",
+            "invoice_for": "Invoice for {customer}",
+            "timeline": "Timeline",
+            "download_pdf": "Download PDF",
+            "property_address": "Property address",
+            "no_property": "No property selected.",
+            "contact_details": "Contact details",
+            "invoice_details": "Invoice details",
+            "invoice_label": "Invoice",
+            "issued": "Issued",
+            "balance_due": "Balance due",
+            "job_rating": "Job rating",
+            "no_rating": "No rating yet",
+            "table": {
+                "tasks": "Tasks",
+                "products_services": "Product/Services",
+                "date": "Date",
+                "time": "Time",
+                "assignee": "Assignee",
+                "qty": "Qty.",
+                "unit_cost": "Unit cost",
+                "total": "Total"
+            },
+            "line_items_empty": "No line items.",
+            "summary": {
+                "subtotal": "Subtotal",
+                "paid": "Paid",
+                "total_amount": "Total amount",
+                "balance_due": "Balance due"
+            },
+            "payments": {
+                "title": "Payments",
+                "empty": "No payments yet."
+            },
+            "add_payment": {
+                "title": "Add payment",
+                "amount": "Amount",
+                "method": "Method (card, transfer)",
+                "reference": "Reference",
+                "notes": "Notes",
+                "submit": "Record payment"
+            }
+        },
+        "empty": {
+            "invoices": "No invoices yet."
+        },
+        "pagination": {
+            "previous": "Previous",
+            "next": "Next",
+            "of": "of"
+        }
+    },
     "tasks": {
         "title": "Tasks",
         "stats": {
@@ -1085,7 +1994,18 @@
         "service": "Service",
         "request": "Request",
         "quote": "Quote",
-        "product": "Product"
+        "product": "Product",
+        "new_customer": "New customer",
+        "create_customer": "Create customer",
+        "new_product": "New product",
+        "new_service": "New service",
+        "new_quote": "New quote",
+        "new_request": "New request",
+        "loading_categories": "Loading categories...",
+        "errors": {
+            "load_customers": "Unable to load customers.",
+            "load_categories": "Unable to load categories."
+        }
     },
     "settings": {
         "groups": {

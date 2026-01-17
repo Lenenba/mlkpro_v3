@@ -5,6 +5,7 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import InputError from '@/Components/InputError.vue';
 import { humanizeDate } from '@/utils/date';
+import { useI18n } from 'vue-i18n';
 
 const props = defineProps({
     categories: {
@@ -31,6 +32,7 @@ const props = defineProps({
 
 const page = usePage();
 const ownerId = computed(() => page.props?.auth?.account?.owner_id ?? null);
+const { t } = useI18n();
 
 const categoryForm = useForm({
     name: '',
@@ -167,11 +169,13 @@ const canManageCategory = (category) => {
 const creatorLabel = (category) => {
     if (!category?.created_by_user_id) {
         if (category?.user_id && ownerId.value && Number(category.user_id) === Number(ownerId.value)) {
-            return 'Owner';
+            return t('services.categories.creator.owner');
         }
-        return 'System';
+        return t('services.categories.creator.system');
     }
-    return Number(category.created_by_user_id) === Number(category.user_id) ? 'Owner' : 'Team member';
+    return Number(category.created_by_user_id) === Number(category.user_id)
+        ? t('services.categories.creator.owner')
+        : t('services.categories.creator.team_member');
 };
 
 const creatorName = (category) => {
@@ -179,16 +183,16 @@ const creatorName = (category) => {
         return category.created_by.name;
     }
     if (category?.user_id && ownerId.value && Number(category.user_id) === Number(ownerId.value)) {
-        return page.props?.auth?.user?.name || 'Owner';
+        return page.props?.auth?.user?.name || t('services.categories.creator.owner');
     }
-    return 'System';
+    return t('services.categories.creator.system');
 };
 
 const archiveCategory = (category) => {
     if (!canManageCategory(category)) {
         return;
     }
-    if (!confirm(`Archive "${category.name}"?`)) {
+    if (!confirm(t('services.categories.actions.archive_confirm', { name: category.name }))) {
         return;
     }
     router.patch(route('settings.categories.archive', category.id), {}, { preserveScroll: true });
@@ -203,7 +207,7 @@ const restoreCategory = (category) => {
 </script>
 
 <template>
-    <Head title="Categories" />
+    <Head :title="$t('services.categories.title')" />
 
     <AuthenticatedLayout>
         <div class="space-y-5">
@@ -219,7 +223,7 @@ const restoreCategory = (category) => {
                         </svg>
                         <div class="sm:order-1 grow space-y-1">
                             <h2 class="sm:mb-2 text-sm text-stone-500 dark:text-neutral-400">
-                                Total categories
+                                {{ $t('services.categories.stats.total') }}
                             </h2>
                             <p class="text-lg md:text-xl font-semibold text-stone-800 dark:text-neutral-200">
                                 {{ Number(stats.total || 0).toLocaleString() }}
@@ -239,7 +243,7 @@ const restoreCategory = (category) => {
                         </svg>
                         <div class="sm:order-1 grow space-y-1">
                             <h2 class="sm:mb-2 text-sm text-stone-500 dark:text-neutral-400">
-                                Active
+                                {{ $t('services.categories.stats.active') }}
                             </h2>
                             <p class="text-lg md:text-xl font-semibold text-stone-800 dark:text-neutral-200">
                                 {{ Number(stats.active || 0).toLocaleString() }}
@@ -259,7 +263,7 @@ const restoreCategory = (category) => {
                         </svg>
                         <div class="sm:order-1 grow space-y-1">
                             <h2 class="sm:mb-2 text-sm text-stone-500 dark:text-neutral-400">
-                                Archived
+                                {{ $t('services.categories.stats.archived') }}
                             </h2>
                             <p class="text-lg md:text-xl font-semibold text-stone-800 dark:text-neutral-200">
                                 {{ Number(stats.archived || 0).toLocaleString() }}
@@ -283,7 +287,7 @@ const restoreCategory = (category) => {
                         </svg>
                         <div class="sm:order-1 grow space-y-1">
                             <h2 class="sm:mb-2 text-sm text-stone-500 dark:text-neutral-400">
-                                In use
+                                {{ $t('services.categories.stats.in_use') }}
                             </h2>
                             <p class="text-lg md:text-xl font-semibold text-stone-800 dark:text-neutral-200">
                                 {{ Number(stats.used || 0).toLocaleString() }}
@@ -297,29 +301,29 @@ const restoreCategory = (category) => {
                 class="p-5 space-y-4 flex flex-col border-t-4 border-t-emerald-600 bg-white border border-stone-200 shadow-sm rounded-sm dark:bg-neutral-800 dark:border-neutral-700">
                 <div class="flex flex-col gap-3 lg:flex-row lg:items-center">
                     <div class="flex-1">
-                        <h1 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">Categories</h1>
+                        <h1 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ $t('services.categories.title') }}</h1>
                         <p class="mt-1 text-xs text-stone-600 dark:text-neutral-400">
-                            Gere les categories utilisees pour les services et produits.
+                            {{ $t('services.categories.subtitle') }}
                         </p>
                     </div>
                     <div class="flex w-full flex-col gap-2 sm:flex-row lg:w-auto">
                         <div class="flex-1 min-w-[220px]">
                             <FloatingInput v-model="categoryForm.name"
-                                :label="editingCategory ? 'Modifier categorie' : 'Nouvelle categorie'"
+                                :label="editingCategory ? $t('services.categories.form.edit_label') : $t('services.categories.form.new_label')"
                                 :required="true" />
                             <InputError class="mt-1" :message="categoryForm.errors.name" />
                             <p v-if="editingCategory" class="mt-1 text-[11px] text-stone-500 dark:text-neutral-400">
-                                Modification: {{ editingCategory.name }}
+                                {{ $t('services.categories.form.editing', { name: editingCategory.name }) }}
                             </p>
                         </div>
                         <button type="button" @click="saveCategory"
                             :disabled="!canSubmitCategory || categoryForm.processing"
                             class="w-full sm:w-auto py-2 px-3 text-sm font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:pointer-events-none">
-                            {{ editingCategory ? 'Mettre a jour' : 'Ajouter' }}
+                            {{ editingCategory ? $t('services.categories.form.update') : $t('services.categories.form.add') }}
                         </button>
                         <button v-if="editingCategory" type="button" @click="resetCategoryForm"
                             class="w-full sm:w-auto py-2 px-3 text-sm font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700">
-                            Annuler
+                            {{ $t('services.actions.cancel') }}
                         </button>
                     </div>
                 </div>
@@ -339,18 +343,18 @@ const restoreCategory = (category) => {
                                 </div>
                                 <input type="text" v-model="filterForm.search"
                                     class="py-[7px] ps-10 pe-8 block w-full bg-white border border-stone-200 rounded-sm text-sm placeholder:text-stone-500 focus:border-green-600 focus:ring-green-600 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 dark:placeholder:text-neutral-400"
-                                    placeholder="Search categories">
+                                    :placeholder="$t('services.categories.filters.search_placeholder')">
                             </div>
                         </div>
 
                         <div class="flex flex-wrap items-center gap-2 justify-end">
                             <button type="button" @click="showAdvanced = !showAdvanced"
                                 class="py-2 px-2.5 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 focus:outline-none focus:bg-stone-100 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700">
-                                Filters
+                                {{ $t('services.actions.filters') }}
                             </button>
                             <button type="button" @click="clearFilters"
                                 class="py-2 px-2.5 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 focus:outline-none focus:bg-stone-100 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700">
-                                Clear
+                                {{ $t('services.actions.clear') }}
                             </button>
                         </div>
                     </div>
@@ -358,23 +362,23 @@ const restoreCategory = (category) => {
                     <div v-if="showAdvanced" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2">
                         <select v-model="filterForm.status"
                             class="py-2 ps-3 pe-8 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
-                            <option value="">Status</option>
-                            <option value="active">Active</option>
-                            <option value="archived">Archived</option>
+                            <option value="">{{ $t('services.categories.filters.status') }}</option>
+                            <option value="active">{{ $t('services.status.active') }}</option>
+                            <option value="archived">{{ $t('services.status.archived') }}</option>
                         </select>
                         <select v-model="filterForm.created_by"
                             class="py-2 ps-3 pe-8 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
-                            <option value="">Created by</option>
+                            <option value="">{{ $t('services.categories.filters.created_by') }}</option>
                             <option v-for="creator in props.creators" :key="creator.id" :value="creator.id">
                                 {{ creator.name }}
                             </option>
                         </select>
                         <input type="date" v-model="filterForm.created_from"
                             class="py-2 px-3 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
-                            placeholder="Created from">
+                            :placeholder="$t('services.categories.filters.created_from')">
                         <input type="date" v-model="filterForm.created_to"
                             class="py-2 px-3 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
-                            placeholder="Created to">
+                            :placeholder="$t('services.categories.filters.created_to')">
                     </div>
                 </div>
 
@@ -387,7 +391,7 @@ const restoreCategory = (category) => {
                                     <th scope="col" class="min-w-[240px]">
                                         <button type="button" @click="toggleSort('name')"
                                             class="px-5 py-2.5 text-start w-full flex items-center gap-x-1 text-sm font-normal text-stone-500 hover:text-stone-700 focus:outline-none dark:text-neutral-500 dark:hover:text-neutral-300">
-                                            Category
+                                            {{ $t('services.categories.table.category') }}
                                             <svg v-if="filterForm.sort === 'name'" class="size-3"
                                                 xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
                                                 stroke="currentColor" stroke-width="2" stroke-linecap="round"
@@ -400,7 +404,7 @@ const restoreCategory = (category) => {
                                     <th scope="col" class="min-w-[160px]">
                                         <button type="button" @click="toggleSort('items_count')"
                                             class="px-5 py-2.5 text-start w-full flex items-center gap-x-1 text-sm font-normal text-stone-500 hover:text-stone-700 focus:outline-none dark:text-neutral-500 dark:hover:text-neutral-300">
-                                            Items
+                                            {{ $t('services.categories.table.items') }}
                                             <svg v-if="filterForm.sort === 'items_count'" class="size-3"
                                                 xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
                                                 stroke="currentColor" stroke-width="2" stroke-linecap="round"
@@ -412,18 +416,18 @@ const restoreCategory = (category) => {
                                     </th>
                                     <th scope="col" class="min-w-[200px]">
                                         <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
-                                            Created by
+                                            {{ $t('services.categories.table.created_by') }}
                                         </div>
                                     </th>
                                     <th scope="col" class="min-w-[120px]">
                                         <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
-                                            Status
+                                            {{ $t('services.categories.table.status') }}
                                         </div>
                                     </th>
                                     <th scope="col" class="min-w-[130px]">
                                         <button type="button" @click="toggleSort('created_at')"
                                             class="px-5 py-2.5 text-start w-full flex items-center gap-x-1 text-sm font-normal text-stone-500 hover:text-stone-700 focus:outline-none dark:text-neutral-500 dark:hover:text-neutral-300">
-                                            Created
+                                            {{ $t('services.categories.table.created') }}
                                             <svg v-if="filterForm.sort === 'created_at'" class="size-3"
                                                 xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
                                                 stroke="currentColor" stroke-width="2" stroke-linecap="round"
@@ -444,7 +448,7 @@ const restoreCategory = (category) => {
                                                 {{ category.name }}
                                             </span>
                                             <span v-if="!category.user_id" class="text-xs text-stone-400 dark:text-neutral-500">
-                                                System category
+                                                {{ $t('services.categories.table.system_category') }}
                                             </span>
                                         </div>
                                     </td>
@@ -454,7 +458,8 @@ const restoreCategory = (category) => {
                                                 {{ Number(category.items_count || 0).toLocaleString() }}
                                             </span>
                                             <span class="text-xs text-stone-500 dark:text-neutral-500">
-                                                Products: {{ category.products_count || 0 }} / Services: {{ category.services_count || 0 }}
+                                                {{ $t('services.categories.table.products') }}: {{ category.products_count || 0 }} /
+                                                {{ $t('services.categories.table.services') }}: {{ category.services_count || 0 }}
                                             </span>
                                         </div>
                                     </td>
@@ -471,11 +476,11 @@ const restoreCategory = (category) => {
                                     <td class="size-px whitespace-nowrap px-5 py-2">
                                         <span v-if="!category.archived_at"
                                             class="py-1.5 px-2 inline-flex items-center gap-x-1.5 text-xs font-medium bg-emerald-100 text-emerald-800 rounded-full dark:bg-emerald-500/10 dark:text-emerald-400">
-                                            Active
+                                            {{ $t('services.status.active') }}
                                         </span>
                                         <span v-else
                                             class="py-1.5 px-2 inline-flex items-center gap-x-1.5 text-xs font-medium bg-stone-200 text-stone-700 rounded-full dark:bg-neutral-700 dark:text-neutral-300">
-                                            Archived
+                                            {{ $t('services.status.archived') }}
                                         </span>
                                     </td>
                                     <td class="size-px whitespace-nowrap px-5 py-2">
@@ -502,26 +507,26 @@ const restoreCategory = (category) => {
                                                 <div class="p-1">
                                                     <button type="button" @click="startEditCategory(category)"
                                                         class="w-full text-start flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
-                                                        Edit
+                                                        {{ $t('services.actions.edit') }}
                                                     </button>
                                                     <button v-if="!category.archived_at" type="button" @click="archiveCategory(category)"
                                                         class="w-full text-start flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
-                                                        Archive
+                                                        {{ $t('services.actions.archive') }}
                                                     </button>
                                                     <button v-else type="button" @click="restoreCategory(category)"
                                                         class="w-full text-start flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
-                                                        Restore
+                                                        {{ $t('services.actions.restore') }}
                                                     </button>
                                                 </div>
                                             </div>
                                         </div>
-                                        <span v-else class="text-xs text-stone-400 dark:text-neutral-500">Locked</span>
+                                        <span v-else class="text-xs text-stone-400 dark:text-neutral-500">{{ $t('services.categories.table.locked') }}</span>
                                     </td>
                                 </tr>
 
                                 <tr v-if="props.categories.data.length === 0">
                                     <td colspan="6" class="px-5 py-10 text-center text-sm text-stone-500 dark:text-neutral-500">
-                                        No categories found.
+                                        {{ $t('services.categories.empty') }}
                                     </td>
                                 </tr>
                             </tbody>
@@ -532,20 +537,20 @@ const restoreCategory = (category) => {
                 <div v-if="props.categories.data.length > 0" class="mt-5 flex flex-wrap justify-between items-center gap-2">
                     <p class="text-sm text-stone-800 dark:text-neutral-200">
                         <span class="font-medium">{{ count }}</span>
-                        <span class="text-stone-500 dark:text-neutral-500"> results</span>
+                        <span class="text-stone-500 dark:text-neutral-500"> {{ $t('services.pagination.results') }}</span>
                     </p>
 
                     <nav class="flex justify-end items-center gap-x-1" aria-label="Pagination">
                         <Link :href="props.categories.prev_page_url" v-if="props.categories.prev_page_url">
                         <button type="button"
                             class="min-h-[38px] min-w-[38px] py-2 px-2.5 inline-flex justify-center items-center gap-x-2 text-sm rounded-sm text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-100 dark:text-white dark:hover:bg-white/10 dark:focus:bg-neutral-700"
-                            aria-label="Previous">
+                            :aria-label="$t('services.pagination.previous')">
                             <svg class="shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
                                 viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                                 stroke-linecap="round" stroke-linejoin="round">
                                 <path d="m15 18-6-6 6-6" />
                             </svg>
-                            <span class="sr-only">Previous</span>
+                            <span class="sr-only">{{ $t('services.pagination.previous') }}</span>
                         </button>
                         </Link>
 
@@ -554,7 +559,7 @@ const restoreCategory = (category) => {
                                 class="min-h-[38px] min-w-[38px] flex justify-center items-center bg-stone-100 text-stone-800 py-2 px-3 text-sm rounded-sm disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-700 dark:text-white"
                                 aria-current="page">{{ props.categories.from }}</span>
                             <span
-                                class="min-h-[38px] flex justify-center items-center text-stone-500 py-2 px-1.5 text-sm dark:text-neutral-500">of</span>
+                                class="min-h-[38px] flex justify-center items-center text-stone-500 py-2 px-1.5 text-sm dark:text-neutral-500">{{ $t('services.pagination.of') }}</span>
                             <span
                                 class="min-h-[38px] flex justify-center items-center text-stone-500 py-2 px-1.5 text-sm dark:text-neutral-500">{{ props.categories.to }}</span>
                         </div>
@@ -562,8 +567,8 @@ const restoreCategory = (category) => {
                         <Link :href="props.categories.next_page_url" v-if="props.categories.next_page_url">
                         <button type="button"
                             class="min-h-[38px] min-w-[38px] py-2 px-2.5 inline-flex justify-center items-center gap-x-2 text-sm rounded-sm text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-100 dark:text-white dark:hover:bg-white/10 dark:focus:bg-neutral-700"
-                            aria-label="Next">
-                            <span class="sr-only">Next</span>
+                            :aria-label="$t('services.pagination.next')">
+                            <span class="sr-only">{{ $t('services.pagination.next') }}</span>
                             <svg class="shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
                                 viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                                 stroke-linecap="round" stroke-linejoin="round">

@@ -1,22 +1,3 @@
-<script setup>
-import { computed } from 'vue';
-import { router, usePage } from '@inertiajs/vue3';
-import NotificationBell from '@/Components/UI/NotificationBell.vue';
-
-const page = usePage();
-const showNotifications = computed(() => Boolean(page.props.notifications));
-const currentLocale = computed(() => page.props.locale || 'fr');
-const availableLocales = computed(() => page.props.locales || ['fr', 'en']);
-
-const setLocale = (locale) => {
-    if (locale === currentLocale.value) {
-        return;
-    }
-
-    router.post(route('locale.update'), { locale }, { preserveScroll: true });
-};
-</script>
-
 <template>
     <!-- ========== HEADER ========== -->
     <header
@@ -34,28 +15,7 @@ const setLocale = (locale) => {
                 </svg>
             </button>
             <!-- End Sidebar Toggle -->
-            <div class="flex items-center gap-2">
-                <div
-                    v-if="availableLocales.length > 1"
-                    class="inline-flex items-center rounded-sm border border-stone-200 bg-white p-0.5 text-[11px] font-semibold text-stone-600 shadow-sm dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300"
-                >
-                    <button
-                        v-for="locale in availableLocales"
-                        :key="locale"
-                        type="button"
-                        :aria-pressed="currentLocale === locale"
-                        :disabled="currentLocale === locale"
-                        class="inline-flex items-center rounded-sm px-2.5 py-1 transition disabled:opacity-60 disabled:cursor-default"
-                        :class="currentLocale === locale
-                            ? 'bg-green-600 text-white shadow-sm'
-                            : 'text-stone-600 hover:text-stone-800 dark:text-neutral-300 dark:hover:text-neutral-100'"
-                        @click="setLocale(locale)"
-                    >
-                        {{ $t(`language.${locale}`) }}
-                    </button>
-                </div>
-                <NotificationBell v-if="showNotifications" />
-            </div>
+            <div></div>
         </div>
     </header>
     <!-- ========== END HEADER ========== -->

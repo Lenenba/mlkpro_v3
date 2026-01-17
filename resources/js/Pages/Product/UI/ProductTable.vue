@@ -5,6 +5,7 @@ import { humanizeDate } from '@/utils/date';
 import ProductForm from './ProductForm.vue';
 import Modal from '@/Components/UI/Modal.vue';
 import Checkbox from '@/Components/Checkbox.vue';
+import { useI18n } from 'vue-i18n';
 
 const props = defineProps({
     filters: Object,
@@ -68,6 +69,8 @@ const filterForm = useForm({
     sort: props.filters?.sort ?? 'created_at',
     direction: props.filters?.direction ?? 'desc',
 });
+
+const { t } = useI18n();
 
 const canEdit = computed(() => Boolean(props.canEdit));
 
@@ -208,12 +211,12 @@ const getStockValue = (product) =>
 
 const getTrackingLabel = (product) => {
     if (product.tracking_type === 'lot') {
-        return 'Lot';
+        return t('products.tracking.lot');
     }
     if (product.tracking_type === 'serial') {
-        return 'Serial';
+        return t('products.tracking.serial');
     }
-    return 'Standard';
+    return t('products.tracking.standard');
 };
 
 const getLotCount = (product) =>
@@ -255,59 +258,59 @@ const getAlertBadges = (product) => {
     const expiringLots = getExpiringLotCount(product);
 
     if (isOutOfStock(product)) {
-        alerts.push({ key: 'out', label: 'Out of stock', tone: 'danger' });
+        alerts.push({ key: 'out', label: t('products.alerts.out_of_stock'), tone: 'danger' });
     } else if (isLowStock(product)) {
-        alerts.push({ key: 'low', label: 'Low stock', tone: 'warning' });
+        alerts.push({ key: 'low', label: t('products.alerts.low_stock'), tone: 'warning' });
     }
 
     if (damaged > 0) {
-        alerts.push({ key: 'damaged', label: `Damaged ${formatNumber(damaged)}`, tone: 'danger' });
+        alerts.push({ key: 'damaged', label: t('products.alerts.damaged_count', { count: formatNumber(damaged) }), tone: 'danger' });
     }
     if (reserved > 0) {
-        alerts.push({ key: 'reserved', label: `Reserved ${formatNumber(reserved)}`, tone: 'info' });
+        alerts.push({ key: 'reserved', label: t('products.alerts.reserved_count', { count: formatNumber(reserved) }), tone: 'info' });
     }
     if (expiredLots > 0) {
-        alerts.push({ key: 'expired', label: `Expired ${formatNumber(expiredLots)}`, tone: 'danger' });
+        alerts.push({ key: 'expired', label: t('products.alerts.expired_lots_count', { count: formatNumber(expiredLots) }), tone: 'danger' });
     }
     if (expiringLots > 0) {
-        alerts.push({ key: 'expiring', label: `Expiring ${formatNumber(expiringLots)}`, tone: 'warning' });
+        alerts.push({ key: 'expiring', label: t('products.alerts.expiring_lots_count', { count: formatNumber(expiringLots) }), tone: 'warning' });
     }
 
     return alerts;
 };
 
-const alertTypeLabels = {
-    out: 'Out of stock',
-    low: 'Low stock',
-    damaged: 'Damaged items',
-    reserved: 'Reserved orders',
-    expired: 'Expired lots',
-    expiring: 'Expiring lots',
-};
+const alertTypeLabels = computed(() => ({
+    out: t('products.alerts.out_of_stock'),
+    low: t('products.alerts.low_stock'),
+    damaged: t('products.alerts.damaged_items'),
+    reserved: t('products.alerts.reserved_orders'),
+    expired: t('products.alerts.expired_lots'),
+    expiring: t('products.alerts.expiring_lots'),
+}));
 
-const orderStatusLabels = {
-    pending: 'Pending',
-    draft: 'Draft',
-    paid: 'Paid',
-    canceled: 'Canceled',
-};
+const orderStatusLabels = computed(() => ({
+    pending: t('products.orders.status.pending'),
+    draft: t('products.orders.status.draft'),
+    paid: t('products.orders.status.paid'),
+    canceled: t('products.orders.status.canceled'),
+}));
 
-const fulfillmentStatusLabels = {
-    pending: 'Pending',
-    preparing: 'Preparing',
-    out_for_delivery: 'Out for delivery',
-    ready_for_pickup: 'Ready for pickup',
-    completed: 'Completed',
-    confirmed: 'Confirmed',
-};
+const fulfillmentStatusLabels = computed(() => ({
+    pending: t('products.orders.fulfillment.pending'),
+    preparing: t('products.orders.fulfillment.preparing'),
+    out_for_delivery: t('products.orders.fulfillment.out_for_delivery'),
+    ready_for_pickup: t('products.orders.fulfillment.ready_for_pickup'),
+    completed: t('products.orders.fulfillment.completed'),
+    confirmed: t('products.orders.fulfillment.confirmed'),
+}));
 
 const alertDetailsProduct = ref(null);
 const alertDetailsType = ref('');
 const alertDetailsTitle = computed(() => {
     if (!alertDetailsProduct.value) {
-        return 'Alert details';
+        return t('products.alerts.details_title');
     }
-    const label = alertTypeLabels[alertDetailsType.value] || 'Alert details';
+    const label = alertTypeLabels.value[alertDetailsType.value] || t('products.alerts.details_title');
     return `${alertDetailsProduct.value.name} - ${label}`;
 });
 
@@ -373,12 +376,12 @@ const getAlertLots = (product, type) => {
 
 const getLotLabel = (lot) => {
     if (lot?.serial_number) {
-        return `SN ${lot.serial_number}`;
+        return t('products.lots.serial_short', { number: lot.serial_number });
     }
     if (lot?.lot_number) {
-        return `Lot ${lot.lot_number}`;
+        return t('products.lots.lot_label', { number: lot.lot_number });
     }
-    return 'Lot';
+    return t('products.lots.lot_fallback');
 };
 
 const toggleSort = (column) => {
@@ -424,7 +427,7 @@ const runBulk = (action) => {
     if (!selected.value.length) {
         return;
     }
-    if (action === 'delete' && !confirm('Delete selected products?')) {
+    if (action === 'delete' && !confirm(t('products.bulk.delete_confirm'))) {
         return;
     }
     bulkForm.action = action;
@@ -469,7 +472,7 @@ const saveInlineEdit = () => {
 };
 
 const destroyProduct = (product) => {
-    if (!confirm(`Delete "${product.name}"?`)) {
+    if (!confirm(t('products.actions.delete_confirm', { name: product.name }))) {
         return;
     }
 
@@ -480,8 +483,8 @@ const destroyProduct = (product) => {
 
 const toggleArchive = (product) => {
     const nextState = !product.is_active;
-    const label = nextState ? 'Restore' : 'Archive';
-    if (!confirm(`${label} "${product.name}"?`)) {
+    const label = nextState ? t('products.actions.restore') : t('products.actions.archive');
+    if (!confirm(t('products.actions.archive_confirm', { action: label, name: product.name }))) {
         return;
     }
     router.put(route('product.quick-update', product.id), {
@@ -498,14 +501,14 @@ const duplicateProduct = (product) => {
 };
 
 const activeProduct = ref(null);
-const reasonOptions = [
-    { value: 'manual', label: 'Manual' },
-    { value: 'purchase', label: 'Purchase' },
-    { value: 'sale', label: 'Sale' },
-    { value: 'return', label: 'Return' },
-    { value: 'audit', label: 'Audit' },
-    { value: 'transfer', label: 'Transfer' },
-];
+const reasonOptions = computed(() => ([
+    { value: 'manual', label: t('products.adjust.reasons.manual') },
+    { value: 'purchase', label: t('products.adjust.reasons.purchase') },
+    { value: 'sale', label: t('products.adjust.reasons.sale') },
+    { value: 'return', label: t('products.adjust.reasons.return') },
+    { value: 'audit', label: t('products.adjust.reasons.audit') },
+    { value: 'transfer', label: t('products.adjust.reasons.transfer') },
+]));
 const adjustForm = useForm({
     type: 'in',
     quantity: 1,
@@ -590,23 +593,23 @@ const submitImport = () => {
                         </div>
                         <input type="text" v-model="filterForm.name" data-testid="demo-product-search"
                             class="py-[7px] ps-10 pe-8 block w-full bg-white border border-stone-200 rounded-sm text-sm placeholder:text-stone-500 focus:border-green-600 focus:ring-green-600 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 dark:placeholder:text-neutral-400"
-                            placeholder="Search products, SKU, or barcode">
+                            :placeholder="$t('products.filters.search_placeholder')">
                     </div>
                 </div>
 
                 <div class="flex flex-wrap items-center gap-2 justify-end">
                     <button type="button" @click="showAdvanced = !showAdvanced"
                         class="py-2 px-2.5 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700">
-                        Filters
+                        {{ $t('products.actions.filters') }}
                     </button>
                     <template v-if="canEdit">
                         <a :href="exportUrl"
                             class="py-2 px-2.5 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700">
-                            Export CSV
+                            {{ $t('products.actions.export_csv') }}
                         </a>
                         <button type="button" data-hs-overlay="#hs-pro-import"
                             class="py-2 px-2.5 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700">
-                            Import CSV
+                            {{ $t('products.actions.import_csv') }}
                         </button>
                         <button type="button"
                             class="py-2 px-2.5 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:ring-2 focus:ring-green-500 action-feedback"
@@ -617,7 +620,7 @@ const submitImport = () => {
                                 <path d="M5 12h14" />
                                 <path d="M12 5v14" />
                             </svg>
-                            Add product
+                            {{ $t('products.actions.add_product') }}
                         </button>
                     </template>
                 </div>
@@ -627,84 +630,84 @@ const submitImport = () => {
                 <div class="flex flex-wrap items-center gap-2">
                     <select v-model="filterForm.stock_status"
                         class="py-2 ps-3 pe-8 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
-                        <option value="">All stock</option>
-                        <option value="in">In stock</option>
-                        <option value="low">Low stock</option>
-                        <option value="out">Out of stock</option>
+                        <option value="">{{ $t('products.filters.stock.all') }}</option>
+                        <option value="in">{{ $t('products.stock_status.in_stock') }}</option>
+                        <option value="low">{{ $t('products.stock_status.low_stock') }}</option>
+                        <option value="out">{{ $t('products.stock_status.out_of_stock') }}</option>
                     </select>
 
                     <select v-model="filterForm.alert"
                         class="py-2 ps-3 pe-8 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
-                        <option value="">All alerts</option>
-                        <option value="damaged">Damaged</option>
-                        <option value="reserved">Reserved</option>
-                        <option value="expiring">Expiring soon</option>
-                        <option value="expired">Expired</option>
-                        <option value="reorder">Reorder point</option>
+                        <option value="">{{ $t('products.filters.alerts.all') }}</option>
+                        <option value="damaged">{{ $t('products.alerts.damaged') }}</option>
+                        <option value="reserved">{{ $t('products.alerts.reserved') }}</option>
+                        <option value="expiring">{{ $t('products.alerts.expiring') }}</option>
+                        <option value="expired">{{ $t('products.alerts.expired') }}</option>
+                        <option value="reorder">{{ $t('products.alerts.reorder') }}</option>
                     </select>
 
                     <select v-model="filterForm.tracking_type"
                         class="py-2 ps-3 pe-8 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
-                        <option value="">All tracking</option>
-                        <option value="none">Standard</option>
-                        <option value="lot">Lot tracked</option>
-                        <option value="serial">Serial tracked</option>
+                        <option value="">{{ $t('products.filters.tracking.all') }}</option>
+                        <option value="none">{{ $t('products.tracking.standard') }}</option>
+                        <option value="lot">{{ $t('products.tracking.lot_tracked') }}</option>
+                        <option value="serial">{{ $t('products.tracking.serial_tracked') }}</option>
                     </select>
 
                     <select v-model="filterForm.warehouse_id"
                         class="py-2 ps-3 pe-8 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-600 focus:ring-green-600 disabled:opacity-60 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
                         :disabled="!warehouses.length">
-                        <option value="">All warehouses</option>
+                        <option value="">{{ $t('products.filters.warehouse.all') }}</option>
                         <option v-for="warehouse in warehouses" :key="warehouse.id" :value="warehouse.id">
-                            {{ warehouse.name }}{{ warehouse.is_default ? ' (Default)' : '' }}
+                            {{ warehouse.name }}{{ warehouse.is_default ? ' (' + $t('products.filters.warehouse.default') + ')' : '' }}
                         </option>
                     </select>
 
                     <select v-model="filterForm.status"
                         class="py-2 ps-3 pe-8 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
-                        <option value="">All status</option>
-                        <option value="active">Active</option>
-                        <option value="archived">Archived</option>
+                        <option value="">{{ $t('products.filters.status.all') }}</option>
+                        <option value="active">{{ $t('products.status.active') }}</option>
+                        <option value="archived">{{ $t('products.status.archived') }}</option>
                     </select>
 
                     <select v-model="filterForm.has_image"
                         class="py-2 ps-3 pe-8 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
-                        <option value="">All media</option>
-                        <option value="1">With image</option>
-                        <option value="0">Without image</option>
+                        <option value="">{{ $t('products.filters.media.all') }}</option>
+                        <option value="1">{{ $t('products.filters.media.with_image') }}</option>
+                        <option value="0">{{ $t('products.filters.media.without_image') }}</option>
                     </select>
 
                     <button type="button" @click="clearFilters"
                         class="py-2 px-3 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700">
-                        Clear
+                        {{ $t('products.actions.clear') }}
                     </button>
                 </div>
 
                 <div v-if="canEdit && selected.length" class="flex items-center gap-2">
                     <span class="text-xs text-stone-500 dark:text-neutral-400">
-                        {{ selected.length }} selected
+                        {{ $t('products.bulk.selected', { count: selected.length }) }}
                     </span>
                     <div class="hs-dropdown [--auto-close:inside] [--placement:bottom-right] relative inline-flex">
                         <button type="button"
                             class="py-2 px-2.5 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700 action-feedback"
                             aria-haspopup="menu" aria-expanded="false" aria-label="Dropdown">
-                            Bulk actions
+                            {{ $t('products.bulk.actions') }}
                         </button>
                         <div class="hs-dropdown-menu hs-dropdown-open:opacity-100 w-36 transition-[opacity,margin] duration opacity-0 hidden z-10 bg-white rounded-sm shadow-[0_10px_40px_10px_rgba(0,0,0,0.08)] dark:shadow-[0_10px_40px_10px_rgba(0,0,0,0.2)] dark:bg-neutral-900"
                             role="menu" aria-orientation="vertical">
                             <div class="p-1">
                                 <button type="button" @click="runBulk('archive')"
                                     class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800 action-feedback" data-tone="warning">
-                                    Archive
+                                    {{ $t('products.actions.archive') }}
                                 </button>
                                 <button type="button" @click="runBulk('restore')"
                                     class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800 action-feedback">
-                                    Restore
+                                    {{ $t('products.actions.restore') }}
                                 </button>
                                 <div class="my-1 border-t border-stone-200 dark:border-neutral-800"></div>
                                 <button type="button" @click="runBulk('delete')"
                                     class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-neutral-800 action-feedback" data-tone="danger">
-                                    Delete
+                                    {{ $t('products.actions.delete') }}
                                 </button>
                             </div>
                         </div>
@@ -715,31 +718,31 @@ const submitImport = () => {
             <div v-if="showAdvanced" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-2">
                 <input type="number" step="0.01" v-model="filterForm.price_min"
                     class="py-2 px-3 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
-                    placeholder="Price min">
+                    :placeholder="$t('products.filters.price_min')">
                 <input type="number" step="0.01" v-model="filterForm.price_max"
                     class="py-2 px-3 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
-                    placeholder="Price max">
+                    :placeholder="$t('products.filters.price_max')">
                 <input type="number" step="1" v-model="filterForm.stock_min"
                     class="py-2 px-3 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
-                    placeholder="Stock min">
+                    :placeholder="$t('products.filters.stock_min')">
                 <input type="number" step="1" v-model="filterForm.stock_max"
                     class="py-2 px-3 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
-                    placeholder="Stock max">
+                    :placeholder="$t('products.filters.stock_max')">
                 <input type="text" v-model="filterForm.supplier_name"
                     class="py-2 px-3 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
-                    placeholder="Supplier name">
+                    :placeholder="$t('products.filters.supplier_name')">
                 <select v-model="filterForm.has_barcode"
                     class="py-2 ps-3 pe-8 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
-                    <option value="">All barcodes</option>
-                    <option value="1">With barcode</option>
-                    <option value="0">Without barcode</option>
+                    <option value="">{{ $t('products.filters.barcodes.all') }}</option>
+                    <option value="1">{{ $t('products.filters.barcodes.with') }}</option>
+                    <option value="0">{{ $t('products.filters.barcodes.without') }}</option>
                 </select>
                 <input type="date" v-model="filterForm.created_from"
                     class="py-2 px-3 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
-                    placeholder="Created from">
+                    :placeholder="$t('products.filters.created_from')">
                 <input type="date" v-model="filterForm.created_to"
                     class="py-2 px-3 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
-                    placeholder="Created to">
+                    :placeholder="$t('products.filters.created_to')">
                 <div class="md:col-span-2 lg:col-span-6">
                     <select multiple v-model="filterForm.category_ids"
                         class="w-full py-2 ps-3 pe-8 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
@@ -762,7 +765,7 @@ const submitImport = () => {
                     <th scope="col" class="min-w-[230px]">
                         <button type="button" @click="toggleSort('name')"
                             class="px-5 py-2.5 text-start w-full flex items-center gap-x-1 text-sm font-normal text-stone-500 hover:text-stone-700 focus:outline-none dark:text-neutral-500 dark:hover:text-neutral-300">
-                            Name
+                            {{ $t('products.table.name') }}
                             <svg v-if="filterForm.sort === 'name'" class="size-3" xmlns="http://www.w3.org/2000/svg"
                                 viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                                 stroke-linecap="round" stroke-linejoin="round"
@@ -773,18 +776,18 @@ const submitImport = () => {
                     </th>
                     <th scope="col" class="min-w-32">
                         <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
-                            State
+                            {{ $t('products.table.state') }}
                         </div>
                     </th>
                     <th scope="col" class="min-w-36">
                         <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
-                            Stock status
+                            {{ $t('products.table.stock_status') }}
                         </div>
                     </th>
                     <th scope="col" class="min-w-48">
                         <button type="button" @click="toggleSort('price')"
                             class="px-5 py-2.5 text-start w-full flex items-center gap-x-1 text-sm font-normal text-stone-500 hover:text-stone-700 focus:outline-none dark:text-neutral-500 dark:hover:text-neutral-300">
-                            Pricing
+                            {{ $t('products.table.pricing') }}
                             <svg v-if="filterForm.sort === 'price'" class="size-3" xmlns="http://www.w3.org/2000/svg"
                                 viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                                 stroke-linecap="round" stroke-linejoin="round"
@@ -796,7 +799,7 @@ const submitImport = () => {
                     <th scope="col" class="min-w-[220px]">
                         <button type="button" @click="toggleSort('stock')"
                             class="px-5 py-2.5 text-start w-full flex items-center gap-x-1 text-sm font-normal text-stone-500 hover:text-stone-700 focus:outline-none dark:text-neutral-500 dark:hover:text-neutral-300">
-                            Inventory
+                            {{ $t('products.table.inventory') }}
                             <svg v-if="filterForm.sort === 'stock'" class="size-3" xmlns="http://www.w3.org/2000/svg"
                                 viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                                 stroke-linecap="round" stroke-linejoin="round"
@@ -807,22 +810,22 @@ const submitImport = () => {
                     </th>
                     <th scope="col" class="min-w-[180px]">
                         <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
-                            Tracking / Lots
+                            {{ $t('products.table.tracking') }}
                         </div>
                     </th>
                     <th scope="col" class="min-w-[180px]">
                         <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
-                            Alerts
+                            {{ $t('products.table.alerts') }}
                         </div>
                     </th>
                     <th scope="col" class="min-w-[200px]">
                         <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
-                            Supplier / Location
+                            {{ $t('products.table.supplier_location') }}
                         </div>
                     </th>
                     <th scope="col" class="min-w-[165px]">
                         <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
-                            Category
+                            {{ $t('products.table.category') }}
                         </div>
                     </th>
                     <th scope="col"></th>
@@ -850,10 +853,10 @@ const submitImport = () => {
                         <td colspan="11" class="px-4 py-10 text-center text-stone-600 dark:text-neutral-300">
                             <div class="space-y-2">
                                 <div class="text-sm font-semibold text-stone-700 dark:text-neutral-200">
-                                    Aucun produit
+                                    {{ $t('products.empty.title') }}
                                 </div>
                                 <div class="text-xs text-stone-500 dark:text-neutral-400">
-                                    Ajoutez un produit pour demarrer votre catalogue.
+                                    {{ $t('products.empty.subtitle') }}
                                 </div>
                                 <div v-if="canEdit" class="flex flex-wrap justify-center gap-2 pt-2">
                                     <button
@@ -861,14 +864,14 @@ const submitImport = () => {
                                         data-hs-overlay="#hs-pro-dasadpm"
                                         class="inline-flex items-center rounded-sm border border-green-600 bg-green-600 px-3 py-2 text-xs font-semibold text-white hover:bg-green-700"
                                     >
-                                        Ajouter un produit
+                                        {{ $t('products.empty.add_action') }}
                                     </button>
                                     <button
                                         type="button"
                                         data-hs-overlay="#hs-pro-import"
                                         class="inline-flex items-center rounded-sm border border-stone-200 bg-white px-3 py-2 text-xs font-semibold text-stone-700 hover:bg-stone-50 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-800"
                                     >
-                                        Importer CSV
+                                        {{ $t('products.actions.import_csv') }}
                                     </button>
                                 </div>
                             </div>
@@ -885,7 +888,7 @@ const submitImport = () => {
                     <td class="size-px whitespace-nowrap px-4 py-2">
                         <div class="w-full flex items-center gap-x-3">
                             <img class="shrink-0 size-10 rounded-sm" :src="product.image_url || product.image"
-                                alt="Product Image">
+                                :alt="$t('products.labels.product_image_alt')">
                             <div class="flex flex-col gap-1">
                                 <Link
                                     :href="route('product.show', product.id)"
@@ -894,9 +897,9 @@ const submitImport = () => {
                                     {{ product.name }}
                                 </Link>
                                 <div class="text-xs text-stone-500 dark:text-neutral-500">
-                                    {{ product.sku || product.number || 'No SKU' }}
+                                    {{ product.sku || product.number || $t('products.labels.no_sku') }}
                                     <span v-if="product.barcode" class="ml-2">
-                                        - Barcode {{ product.barcode }}
+                                        - {{ $t('products.labels.barcode') }} {{ product.barcode }}
                                     </span>
                                 </div>
                                 <div class="flex flex-wrap items-center gap-1">
@@ -906,7 +909,7 @@ const submitImport = () => {
                                     </span>
                                     <span v-if="product.unit"
                                         class="py-1 px-2 rounded-full text-[10px] font-medium bg-stone-100 text-stone-700 dark:bg-neutral-700 dark:text-neutral-200">
-                                        Unit {{ product.unit }}
+                                        {{ $t('products.labels.unit') }} {{ product.unit }}
                                     </span>
                                 </div>
                             </div>
@@ -915,25 +918,25 @@ const submitImport = () => {
                     <td class="size-px whitespace-nowrap px-4 py-2">
                         <span v-if="product.is_active"
                             class="py-1.5 px-2 inline-flex items-center gap-x-1.5 text-xs font-medium bg-emerald-100 text-emerald-800 rounded-full dark:bg-emerald-500/10 dark:text-emerald-400">
-                            Active
+                            {{ $t('products.status.active') }}
                         </span>
                         <span v-else
                             class="py-1.5 px-2 inline-flex items-center gap-x-1.5 text-xs font-medium bg-stone-200 text-stone-700 rounded-full dark:bg-neutral-700 dark:text-neutral-300">
-                            Archived
+                            {{ $t('products.status.archived') }}
                         </span>
                     </td>
                     <td class="size-px whitespace-nowrap px-4 py-2">
                         <span v-if="isOutOfStock(product)"
                             class="py-1.5 px-2 inline-flex items-center gap-x-1.5 text-xs font-medium bg-red-100 text-red-800 rounded-full dark:bg-red-500/10 dark:text-red-500">
-                            Out of stock
+                            {{ $t('products.stock_status.out_of_stock') }}
                         </span>
                         <span v-else-if="!isLowStock(product)"
                             class="py-1.5 px-2 inline-flex items-center gap-x-1.5 text-xs font-medium bg-green-100 text-green-800 rounded-full dark:bg-green-500/10 dark:text-green-500">
-                            In stock
+                            {{ $t('products.stock_status.in_stock') }}
                         </span>
                         <span v-else
                             class="py-1.5 px-2 inline-flex items-center gap-x-1.5 text-xs font-medium bg-amber-100 text-amber-800 rounded-full dark:bg-amber-500/10 dark:text-amber-400">
-                            Low stock
+                            {{ $t('products.stock_status.low_stock') }}
                         </span>
                     </td>
                     <td class="size-px whitespace-nowrap px-4 py-2">
@@ -941,10 +944,10 @@ const submitImport = () => {
                             <input type="number" step="0.01" v-model="inlineForm.price"
                                 class="w-28 py-1.5 px-2 bg-white border border-stone-200 rounded-sm text-xs text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
                             <div class="text-xs text-stone-500 dark:text-neutral-500">
-                                Cost {{ formatCurrency(product.cost_price) }}
+                                {{ $t('products.labels.cost') }} {{ formatCurrency(product.cost_price) }}
                             </div>
                             <div class="text-xs text-stone-500 dark:text-neutral-500">
-                                Margin {{ formatPercent(product.margin_percent) }}
+                                {{ $t('products.labels.margin') }} {{ formatPercent(product.margin_percent) }}
                             </div>
                         </div>
                         <div v-else class="space-y-1">
@@ -952,10 +955,10 @@ const submitImport = () => {
                                 {{ formatCurrency(product.price) }}
                             </div>
                             <div class="text-xs text-stone-500 dark:text-neutral-500">
-                                Cost {{ formatCurrency(product.cost_price) }}
+                                {{ $t('products.labels.cost') }} {{ formatCurrency(product.cost_price) }}
                             </div>
                             <div class="text-xs text-stone-500 dark:text-neutral-500">
-                                Margin {{ formatPercent(product.margin_percent) }}
+                                {{ $t('products.labels.margin') }} {{ formatPercent(product.margin_percent) }}
                             </div>
                         </div>
                     </td>
@@ -963,26 +966,28 @@ const submitImport = () => {
                         <div v-if="editingId === product.id" class="space-y-2">
                             <input type="number" step="1" v-model="inlineForm.stock"
                                 class="w-24 py-1.5 px-2 bg-white border border-stone-200 rounded-sm text-xs text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
-                                placeholder="Available">
+                                :placeholder="$t('products.labels.available')">
                             <input type="number" step="1" v-model="inlineForm.minimum_stock"
                                 class="w-24 py-1.5 px-2 bg-white border border-stone-200 rounded-sm text-xs text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
-                                placeholder="Min">
+                                :placeholder="$t('products.labels.minimum_short')">
                         </div>
                         <div v-else class="space-y-1">
                             <div class="flex flex-wrap items-center gap-2">
                                 <span
                                     class="py-1.5 px-2 inline-flex items-center gap-x-1.5 text-xs font-medium bg-stone-100 text-stone-800 rounded-full dark:bg-neutral-700 dark:text-neutral-200">
-                                    Avail {{ formatNumber(getAvailableStock(product)) }}
+                                    {{ $t('products.labels.available') }} {{ formatNumber(getAvailableStock(product)) }}
                                 </span>
                                 <span class="text-xs text-stone-500 dark:text-neutral-500">
-                                    Min {{ formatNumber(product.minimum_stock) }}
+                                    {{ $t('products.labels.minimum_short') }} {{ formatNumber(product.minimum_stock) }}
                                 </span>
                             </div>
                             <div class="text-xs text-stone-500 dark:text-neutral-500">
-                                Reserved {{ formatNumber(getReservedStock(product)) }} - Damaged {{ formatNumber(getDamagedStock(product)) }}
+                                {{ $t('products.labels.reserved') }} {{ formatNumber(getReservedStock(product)) }}
+                                - {{ $t('products.labels.damaged') }} {{ formatNumber(getDamagedStock(product)) }}
                             </div>
                             <div class="text-xs text-stone-500 dark:text-neutral-500">
-                                Value {{ formatCurrency(getStockValue(product)) }} - {{ formatNumber(product.warehouse_count || 0) }} wh
+                                {{ $t('products.labels.value') }} {{ formatCurrency(getStockValue(product)) }}
+                                - {{ formatNumber(product.warehouse_count || 0) }} {{ $t('products.labels.warehouse_short') }}
                             </div>
                         </div>
                     </td>
@@ -993,17 +998,17 @@ const submitImport = () => {
                             </div>
                             <div class="text-xs text-stone-500 dark:text-neutral-500">
                                 <span v-if="product.tracking_type === 'lot'">
-                                    Lots {{ formatNumber(getLotCount(product)) }}
+                                    {{ $t('products.tracking.lots') }} {{ formatNumber(getLotCount(product)) }}
                                 </span>
                                 <span v-else-if="product.tracking_type === 'serial'">
-                                    Serials {{ formatNumber(getLotCount(product)) }}
+                                    {{ $t('products.tracking.serials') }} {{ formatNumber(getLotCount(product)) }}
                                 </span>
                                 <span v-else>
-                                    No lots
+                                    {{ $t('products.tracking.none') }}
                                 </span>
                             </div>
                             <div v-if="getNextExpiry(product)" class="text-xs text-stone-500 dark:text-neutral-500">
-                                Next exp {{ formatDate(getNextExpiry(product)) }}
+                                {{ $t('products.labels.next_expiry') }} {{ formatDate(getNextExpiry(product)) }}
                             </div>
                         </div>
                     </td>
@@ -1013,45 +1018,45 @@ const submitImport = () => {
                                 type="button"
                                 class="py-1 px-2 rounded-full text-[10px] font-medium transition hover:shadow-sm focus:outline-none focus:ring-2 focus:ring-green-500"
                                 :class="alertBadgeClasses[alert.tone]"
-                                :aria-label="`Open ${alert.label} details`"
+                                :aria-label="t('products.alerts.open_details', { label: alert.label })"
                                 @click="openAlertDetails(product, alert.key)">
                                 {{ alert.label }}
                             </button>
                         </div>
                         <div v-else class="text-xs text-stone-400 dark:text-neutral-500">
-                            No alerts
+                            {{ $t('products.alerts.none') }}
                         </div>
                     </td>
                     <td class="size-px whitespace-nowrap px-4 py-2">
                         <div class="space-y-1">
                             <div class="text-sm text-stone-600 dark:text-neutral-300">
-                                {{ product.supplier_name || 'No supplier' }}
+                                {{ product.supplier_name || $t('products.labels.no_supplier') }}
                             </div>
                             <div v-if="getPrimaryInventory(product)" class="text-xs text-stone-500 dark:text-neutral-500">
-                                {{ getPrimaryInventory(product)?.warehouse?.name || 'Main warehouse' }}
+                                {{ getPrimaryInventory(product)?.warehouse?.name || $t('products.labels.main_warehouse') }}
                                 <span v-if="getPrimaryInventory(product)?.bin_location">
-                                    - Bin {{ getPrimaryInventory(product)?.bin_location }}
+                                    - {{ $t('products.labels.bin') }} {{ getPrimaryInventory(product)?.bin_location }}
                                 </span>
                             </div>
                             <div v-else class="text-xs text-stone-400 dark:text-neutral-500">
-                                No location set
+                                {{ $t('products.labels.no_location') }}
                             </div>
                         </div>
                     </td>
                     <td class="size-px whitespace-nowrap px-4 py-2">
                         <span class="inline-flex items-center gap-x-1 text-sm text-stone-600 dark:text-neutral-400">
-                            {{ product.category ? product.category.name : 'Uncategorized' }}
+                            {{ product.category ? product.category.name : $t('products.labels.uncategorized') }}
                         </span>
                     </td>
                     <td class="size-px whitespace-nowrap px-4 py-2 text-end">
                         <div v-if="editingId === product.id && canEdit" class="flex items-center justify-end gap-2">
                             <button type="button" @click="saveInlineEdit"
                                 class="py-1.5 px-2 text-xs font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 action-feedback">
-                                Save
+                                {{ $t('products.actions.save') }}
                             </button>
                             <button type="button" @click="cancelInlineEdit"
                                 class="py-1.5 px-2 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 action-feedback">
-                                Cancel
+                                {{ $t('products.actions.cancel') }}
                             </button>
                         </div>
                         <div v-else>
@@ -1075,32 +1080,32 @@ const submitImport = () => {
                                             :href="route('product.show', product.id)"
                                             class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800"
                                         >
-                                            View
+                                            {{ $t('products.actions.view') }}
                                         </Link>
                                         <button type="button" @click="startInlineEdit(product)"
                                             class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800 action-feedback">
-                                            Quick edit
+                                            {{ $t('products.actions.quick_edit') }}
                                         </button>
                                         <button type="button" @click="openAdjust(product)"
                                             class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800 action-feedback">
-                                            Adjust stock
+                                            {{ $t('products.actions.adjust_stock') }}
                                         </button>
                                         <button type="button" @click="duplicateProduct(product)"
                                             class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800 action-feedback">
-                                            Duplicate
+                                            {{ $t('products.actions.duplicate') }}
                                         </button>
                                         <button type="button" @click="toggleArchive(product)"
                                             class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800 action-feedback" data-tone="warning">
-                                            {{ product.is_active ? 'Archive' : 'Restore' }}
+                                            {{ product.is_active ? $t('products.actions.archive') : $t('products.actions.restore') }}
                                         </button>
                                         <button type="button" :data-hs-overlay="'#hs-pro-edit' + product.id"
                                             class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800 action-feedback">
-                                            Edit
+                                            {{ $t('products.actions.edit') }}
                                         </button>
                                         <div class="my-1 border-t border-stone-200 dark:border-neutral-800"></div>
                                         <button type="button" @click="destroyProduct(product)"
                                             class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-neutral-800 action-feedback" data-tone="danger">
-                                            Delete
+                                            {{ $t('products.actions.delete') }}
                                         </button>
                                     </div>
                                 </div>
@@ -1110,13 +1115,13 @@ const submitImport = () => {
                                     :href="route('product.show', product.id)"
                                     class="text-xs font-semibold text-green-700 hover:underline dark:text-green-400"
                                 >
-                                    Voir
+                                    {{ $t('products.actions.view') }}
                                 </Link>
                             </div>
                         </div>
                     </td>
 
-                    <Modal v-if="canEdit" :title="'Edit product'" :id="'hs-pro-edit' + product.id">
+                    <Modal v-if="canEdit" :title="$t('products.actions.edit_product')" :id="'hs-pro-edit' + product.id">
                         <ProductForm :product="product" :categories="categories" :id="'hs-pro-edit' + product.id" />
                     </Modal>
                 </tr>
@@ -1128,20 +1133,20 @@ const submitImport = () => {
         <div class="mt-5 flex flex-wrap justify-between items-center gap-2">
             <p class="text-sm text-stone-800 dark:text-neutral-200">
                 <span class="font-medium"> {{ count }} </span>
-                <span class="text-stone-500 dark:text-neutral-500"> results</span>
+                <span class="text-stone-500 dark:text-neutral-500"> {{ $t('products.pagination.results') }}</span>
             </p>
 
             <nav class="flex justify-end items-center gap-x-1" aria-label="Pagination">
                 <Link :href="products.prev_page_url" v-if="products.prev_page_url">
                 <button type="button"
                     class="min-h-[38px] min-w-[38px] py-2 px-2.5 inline-flex justify-center items-center gap-x-2 text-sm rounded-sm text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-100 dark:text-white dark:hover:bg-white/10 dark:focus:bg-neutral-700"
-                    aria-label="Previous">
+                    :aria-label="$t('products.pagination.previous')">
                     <svg class="shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
                         viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                         stroke-linejoin="round">
                         <path d="m15 18-6-6 6-6" />
                     </svg>
-                    <span class="sr-only">Previous</span>
+                    <span class="sr-only">{{ $t('products.pagination.previous') }}</span>
                 </button>
                 </Link>
                 <div class="flex items-center gap-x-1">
@@ -1149,7 +1154,7 @@ const submitImport = () => {
                         class="min-h-[38px] min-w-[38px] flex justify-center items-center bg-stone-100 text-stone-800 py-2 px-3 text-sm rounded-sm disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-700 dark:text-white"
                         aria-current="page">{{ products.from }}</span>
                     <span
-                        class="min-h-[38px] flex justify-center items-center text-stone-500 py-2 px-1.5 text-sm dark:text-neutral-500">of</span>
+                        class="min-h-[38px] flex justify-center items-center text-stone-500 py-2 px-1.5 text-sm dark:text-neutral-500">{{ $t('products.pagination.of') }}</span>
                     <span
                         class="min-h-[38px] flex justify-center items-center text-stone-500 py-2 px-1.5 text-sm dark:text-neutral-500">{{
                             products.to }}</span>
@@ -1158,8 +1163,8 @@ const submitImport = () => {
                 <Link :href="products.next_page_url" v-if="products.next_page_url">
                 <button type="button"
                     class="min-h-[38px] min-w-[38px] py-2 px-2.5 inline-flex justify-center items-center gap-x-2 text-sm rounded-sm text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-100 dark:text-white dark:hover:bg-white/10 dark:focus:bg-neutral-700"
-                    aria-label="Next">
-                    <span class="sr-only">Next</span>
+                    :aria-label="$t('products.pagination.next')">
+                    <span class="sr-only">{{ $t('products.pagination.next') }}</span>
                     <svg class="shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
                         viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                         stroke-linejoin="round">
@@ -1178,16 +1183,16 @@ const submitImport = () => {
                 <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                     <div class="flex items-center gap-3">
                         <img class="size-12 rounded-sm border border-stone-200 object-cover dark:border-neutral-700"
-                            :src="alertDetailsProduct.image_url || alertDetailsProduct.image" alt="Product image">
+                            :src="alertDetailsProduct.image_url || alertDetailsProduct.image" :alt="$t('products.labels.product_image_alt')">
                         <div class="space-y-1">
                             <Link :href="route('product.show', alertDetailsProduct.id)"
                                 class="text-sm font-semibold text-stone-800 hover:underline dark:text-neutral-100">
                                 {{ alertDetailsProduct.name }}
                             </Link>
                             <div class="text-xs text-stone-500 dark:text-neutral-400">
-                                {{ alertDetailsProduct.sku || alertDetailsProduct.number || 'No SKU' }}
+                                {{ alertDetailsProduct.sku || alertDetailsProduct.number || $t('products.labels.no_sku') }}
                                 <span v-if="alertDetailsProduct.barcode" class="ml-2">
-                                    - Barcode {{ alertDetailsProduct.barcode }}
+                                    - {{ $t('products.labels.barcode') }} {{ alertDetailsProduct.barcode }}
                                 </span>
                             </div>
                             <div class="flex flex-wrap items-center gap-1">
@@ -1197,18 +1202,18 @@ const submitImport = () => {
                                 </span>
                                 <span v-if="alertDetailsProduct.unit"
                                     class="py-1 px-2 rounded-full text-[10px] font-medium bg-white text-stone-700 border border-stone-200 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200">
-                                    Unit {{ alertDetailsProduct.unit }}
+                                    {{ $t('products.labels.unit') }} {{ alertDetailsProduct.unit }}
                                 </span>
                             </div>
                         </div>
                     </div>
                     <div class="flex flex-wrap gap-2 text-xs text-stone-500 dark:text-neutral-400">
                         <span class="font-semibold text-stone-700 dark:text-neutral-200">
-                            Avail {{ formatNumber(getAvailableStock(alertDetailsProduct)) }}
+                            {{ $t('products.labels.available') }} {{ formatNumber(getAvailableStock(alertDetailsProduct)) }}
                         </span>
-                        <span>Reserved {{ formatNumber(getReservedStock(alertDetailsProduct)) }}</span>
-                        <span>Damaged {{ formatNumber(getDamagedStock(alertDetailsProduct)) }}</span>
-                        <span>Min {{ formatNumber(alertDetailsProduct.minimum_stock) }}</span>
+                        <span>{{ $t('products.labels.reserved') }} {{ formatNumber(getReservedStock(alertDetailsProduct)) }}</span>
+                        <span>{{ $t('products.labels.damaged') }} {{ formatNumber(getDamagedStock(alertDetailsProduct)) }}</span>
+                        <span>{{ $t('products.labels.minimum_short') }} {{ formatNumber(alertDetailsProduct.minimum_stock) }}</span>
                     </div>
                 </div>
             </div>
@@ -1229,25 +1234,25 @@ const submitImport = () => {
                 <template v-if="alertDetailsType === 'out' || alertDetailsType === 'low'">
                     <div class="grid gap-3 md:grid-cols-4">
                         <div class="rounded-sm border border-stone-200 p-3 dark:border-neutral-700">
-                            <div class="text-xs uppercase text-stone-500 dark:text-neutral-400">Available</div>
+                            <div class="text-xs uppercase text-stone-500 dark:text-neutral-400">{{ $t('products.labels.available') }}</div>
                             <div class="text-lg font-semibold text-stone-800 dark:text-neutral-200">
                                 {{ formatNumber(getAvailableStock(alertDetailsProduct)) }}
                             </div>
                         </div>
                         <div class="rounded-sm border border-stone-200 p-3 dark:border-neutral-700">
-                            <div class="text-xs uppercase text-stone-500 dark:text-neutral-400">Minimum</div>
+                            <div class="text-xs uppercase text-stone-500 dark:text-neutral-400">{{ $t('products.labels.minimum') }}</div>
                             <div class="text-lg font-semibold text-stone-800 dark:text-neutral-200">
                                 {{ formatNumber(alertDetailsProduct.minimum_stock) }}
                             </div>
                         </div>
                         <div class="rounded-sm border border-stone-200 p-3 dark:border-neutral-700">
-                            <div class="text-xs uppercase text-stone-500 dark:text-neutral-400">Reserved</div>
+                            <div class="text-xs uppercase text-stone-500 dark:text-neutral-400">{{ $t('products.labels.reserved') }}</div>
                             <div class="text-lg font-semibold text-stone-800 dark:text-neutral-200">
                                 {{ formatNumber(getReservedStock(alertDetailsProduct)) }}
                             </div>
                         </div>
                         <div class="rounded-sm border border-stone-200 p-3 dark:border-neutral-700">
-                            <div class="text-xs uppercase text-stone-500 dark:text-neutral-400">Damaged</div>
+                            <div class="text-xs uppercase text-stone-500 dark:text-neutral-400">{{ $t('products.labels.damaged') }}</div>
                             <div class="text-lg font-semibold text-stone-800 dark:text-neutral-200">
                                 {{ formatNumber(getDamagedStock(alertDetailsProduct)) }}
                             </div>
@@ -1255,25 +1260,25 @@ const submitImport = () => {
                     </div>
                     <div class="mt-3 flex flex-wrap items-center gap-2 text-xs text-stone-500 dark:text-neutral-400">
                         <span v-if="getAvailableStock(alertDetailsProduct) <= 0" class="text-red-600 dark:text-red-400">
-                            Stock is depleted.
+                            {{ $t('products.alerts.stock_depleted') }}
                         </span>
                         <span v-else-if="getAvailableStock(alertDetailsProduct) <= alertDetailsProduct.minimum_stock"
                             class="text-amber-600 dark:text-amber-400">
-                            Stock is below minimum threshold.
+                            {{ $t('products.alerts.stock_below_min') }}
                         </span>
                         <span v-if="getNextExpiry(alertDetailsProduct)">
-                            Next expiry {{ formatDate(getNextExpiry(alertDetailsProduct)) }}
+                            {{ $t('products.labels.next_expiry') }} {{ formatDate(getNextExpiry(alertDetailsProduct)) }}
                         </span>
                     </div>
                     <div class="mt-4 flex flex-wrap gap-2">
                         <button v-if="canEdit" type="button"
                             class="inline-flex items-center rounded-sm border border-green-600 bg-green-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-green-700"
                             @click="openAdjust(alertDetailsProduct)">
-                            Adjust stock
+                            {{ $t('products.actions.adjust_stock') }}
                         </button>
                         <Link :href="route('product.show', alertDetailsProduct.id)"
                             class="inline-flex items-center rounded-sm border border-stone-200 bg-white px-3 py-1.5 text-xs font-semibold text-stone-700 hover:bg-stone-50 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-800">
-                            View product
+                            {{ $t('products.actions.view_product') }}
                         </Link>
                     </div>
                 </template>
@@ -1281,34 +1286,34 @@ const submitImport = () => {
                 <template v-else-if="alertDetailsType === 'damaged'">
                     <div class="space-y-4">
                         <div>
-                            <div class="text-sm font-medium text-stone-700 dark:text-neutral-200">Damaged stock</div>
+                            <div class="text-sm font-medium text-stone-700 dark:text-neutral-200">{{ $t('products.alerts.damaged_stock') }}</div>
                             <div v-if="!getDamagedInventories(alertDetailsProduct).length"
                                 class="text-sm text-stone-500 dark:text-neutral-400">
-                                No damaged stock recorded for this product.
+                                {{ $t('products.alerts.no_damaged_stock') }}
                             </div>
                             <div v-else class="space-y-2 pt-2">
                                 <div v-for="inventory in getDamagedInventories(alertDetailsProduct)" :key="inventory.id"
                                     class="flex items-center justify-between rounded-sm border border-stone-200 px-3 py-2 text-sm dark:border-neutral-700">
                                     <div>
                                         <div class="text-xs uppercase text-stone-500 dark:text-neutral-400">
-                                            {{ inventory.warehouse?.name || 'Warehouse' }}
+                                            {{ inventory.warehouse?.name || $t('products.labels.warehouse') }}
                                         </div>
                                         <div class="text-sm text-stone-700 dark:text-neutral-200">
-                                            Damaged {{ formatNumber(inventory.damaged) }}
+                                            {{ $t('products.labels.damaged') }} {{ formatNumber(inventory.damaged) }}
                                         </div>
                                     </div>
                                     <div class="text-xs text-stone-500 dark:text-neutral-400">
-                                        On hand {{ formatNumber(inventory.on_hand) }}
+                                        {{ $t('products.labels.on_hand') }} {{ formatNumber(inventory.on_hand) }}
                                     </div>
                                 </div>
                             </div>
                         </div>
 
                         <div>
-                            <div class="text-sm font-medium text-stone-700 dark:text-neutral-200">Recent damage movements</div>
+                            <div class="text-sm font-medium text-stone-700 dark:text-neutral-200">{{ $t('products.alerts.recent_damage_movements') }}</div>
                             <div v-if="!getDamageMovements(alertDetailsProduct).length"
                                 class="text-sm text-stone-500 dark:text-neutral-400">
-                                No damage movements yet.
+                                {{ $t('products.alerts.no_damage_movements') }}
                             </div>
                             <div v-else class="space-y-2 pt-2">
                                 <div v-for="movement in getDamageMovements(alertDetailsProduct)" :key="movement.id"
@@ -1317,11 +1322,11 @@ const submitImport = () => {
                                         <div class="text-xs uppercase text-stone-500 dark:text-neutral-400">
                                             {{ movement.type }}
                                             <span v-if="movement.warehouse"> - {{ movement.warehouse.name }}</span>
-                                            <span v-if="movement.lot?.lot_number"> - Lot {{ movement.lot.lot_number }}</span>
-                                            <span v-else-if="movement.lot?.serial_number"> - SN {{ movement.lot.serial_number }}</span>
+                                            <span v-if="movement.lot?.lot_number"> - {{ $t('products.lots.lot_short', { number: movement.lot.lot_number }) }}</span>
+                                            <span v-else-if="movement.lot?.serial_number"> - {{ $t('products.lots.serial_short', { number: movement.lot.serial_number }) }}</span>
                                         </div>
                                         <div class="text-sm text-stone-700 dark:text-neutral-200">
-                                            {{ movement.reason || movement.note || 'No note' }}
+                                            {{ movement.reason || movement.note || $t('products.labels.no_note') }}
                                         </div>
                                         <div class="text-xs text-stone-500 dark:text-neutral-400">
                                             {{ formatDate(movement.created_at) }}
@@ -1340,7 +1345,7 @@ const submitImport = () => {
                     <div class="space-y-3">
                         <div v-if="!getReservedOrders(alertDetailsProduct).length"
                             class="text-sm text-stone-500 dark:text-neutral-400">
-                            No reserved orders for this product.
+                            {{ $t('products.alerts.no_reserved_orders') }}
                         </div>
                         <div v-else class="space-y-2">
                             <div v-for="order in getReservedOrders(alertDetailsProduct)" :key="order.id"
@@ -1348,27 +1353,27 @@ const submitImport = () => {
                                 <div class="flex flex-wrap items-center justify-between gap-2">
                                     <Link :href="route('sales.show', order.id)"
                                         class="text-sm font-semibold text-green-700 hover:underline dark:text-green-400">
-                                        Order {{ order.number || `#${order.id}` }}
+                                        {{ $t('products.orders.order_label', { number: order.number || `#${order.id}` }) }}
                                     </Link>
                                     <div class="text-xs text-stone-500 dark:text-neutral-400">
-                                        Qty {{ formatNumber(order.quantity) }}
+                                        {{ $t('products.labels.quantity') }} {{ formatNumber(order.quantity) }}
                                     </div>
                                 </div>
                                 <div class="pt-1 text-xs text-stone-500 dark:text-neutral-400">
-                                    {{ order.customer_name || 'Client' }}
+                                    {{ order.customer_name || $t('products.orders.customer_fallback') }}
                                 </div>
                                 <div class="flex flex-wrap gap-2 pt-2 text-xs text-stone-500 dark:text-neutral-400">
-                                    <span>Status {{ formatOrderStatus(order.status, orderStatusLabels) }}</span>
+                                    <span>{{ $t('products.labels.status') }} {{ formatOrderStatus(order.status, orderStatusLabels.value) }}</span>
                                     <span v-if="order.fulfillment_status">
-                                        Fulfillment {{ formatOrderStatus(order.fulfillment_status, fulfillmentStatusLabels) }}
+                                        {{ $t('products.orders.fulfillment_label') }} {{ formatOrderStatus(order.fulfillment_status, fulfillmentStatusLabels.value) }}
                                     </span>
                                     <span v-if="order.fulfillment_method">
-                                        Method {{ order.fulfillment_method.replace('_', ' ') }}
+                                        {{ $t('products.orders.method') }} {{ order.fulfillment_method.replace('_', ' ') }}
                                     </span>
                                 </div>
                                 <div class="flex flex-wrap gap-2 pt-2 text-xs text-stone-500 dark:text-neutral-400">
-                                    <span v-if="order.scheduled_for">Scheduled {{ formatDate(order.scheduled_for) }}</span>
-                                    <span>Created {{ formatDate(order.created_at) }}</span>
+                                    <span v-if="order.scheduled_for">{{ $t('products.orders.scheduled') }} {{ formatDate(order.scheduled_for) }}</span>
+                                    <span>{{ $t('products.labels.created') }} {{ formatDate(order.created_at) }}</span>
                                 </div>
                                 <div v-if="order.notes || order.delivery_notes || order.pickup_notes"
                                     class="pt-2 text-xs text-stone-500 dark:text-neutral-400">
@@ -1383,7 +1388,7 @@ const submitImport = () => {
                     <div class="space-y-3">
                         <div v-if="!getAlertLots(alertDetailsProduct, alertDetailsType).length"
                             class="text-sm text-stone-500 dark:text-neutral-400">
-                            No lots to show for this alert.
+                            {{ $t('products.alerts.no_lots_for_alert') }}
                         </div>
                         <div v-else class="space-y-2">
                             <div v-for="lot in getAlertLots(alertDetailsProduct, alertDetailsType)" :key="lot.id"
@@ -1394,11 +1399,11 @@ const submitImport = () => {
                                         <span v-if="lot.warehouse"> - {{ lot.warehouse.name }}</span>
                                     </div>
                                     <div class="text-sm text-stone-700 dark:text-neutral-200">
-                                        Qty {{ formatNumber(lot.quantity) }}
+                                        {{ $t('products.labels.quantity') }} {{ formatNumber(lot.quantity) }}
                                     </div>
                                 </div>
                                 <div class="text-xs text-stone-500 dark:text-neutral-400">
-                                    Expires {{ formatDate(lot.expires_at) }}
+                                    {{ $t('products.labels.expires') }} {{ formatDate(lot.expires_at) }}
                                 </div>
                             </div>
                         </div>
@@ -1407,83 +1412,83 @@ const submitImport = () => {
 
                 <template v-else>
                     <div class="text-sm text-stone-500 dark:text-neutral-400">
-                        Select an alert to view details.
+                        {{ $t('products.alerts.select_alert') }}
                     </div>
                 </template>
             </div>
         </div>
         <div v-else class="text-sm text-stone-500 dark:text-neutral-400">
-            Select an alert badge to view its details.
+            {{ $t('products.alerts.select_alert_badge') }}
         </div>
     </Modal>
 
-    <Modal v-if="canEdit" :title="'Add product'" :id="'hs-pro-dasadpm'">
+    <Modal v-if="canEdit" :title="$t('products.actions.add_product')" :id="'hs-pro-dasadpm'">
         <ProductForm :product="product" :categories="categories" :id="'hs-pro-dasadpm'" />
     </Modal>
 
-    <Modal v-if="canEdit" :title="'Import products'" :id="'hs-pro-import'">
+    <Modal v-if="canEdit" :title="$t('products.import.title')" :id="'hs-pro-import'">
         <form @submit.prevent="submitImport" class="space-y-4">
             <div>
-                <label class="block text-sm font-medium text-stone-700 dark:text-neutral-300">CSV file</label>
+                <label class="block text-sm font-medium text-stone-700 dark:text-neutral-300">{{ $t('products.import.csv_file') }}</label>
                 <input type="file" accept=".csv,text/csv" @change="importForm.file = $event.target.files[0]"
                     class="mt-2 block w-full text-sm text-stone-600 file:me-4 file:py-2 file:px-4 file:rounded-sm file:border-0 file:text-sm file:font-medium file:bg-stone-100 file:text-stone-700 hover:file:bg-stone-200 dark:text-neutral-400 dark:file:bg-neutral-700 dark:file:text-neutral-200 dark:hover:file:bg-neutral-600">
             </div>
             <div class="flex justify-end gap-2">
                 <button type="button" data-hs-overlay="#hs-pro-import"
                     class="py-2 px-3 inline-flex items-center text-sm font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 action-feedback">
-                    Cancel
+                    {{ $t('products.actions.cancel') }}
                 </button>
                 <button type="submit"
                     class="py-2 px-3 inline-flex items-center text-sm font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 action-feedback">
-                    Import
+                    {{ $t('products.actions.import') }}
                 </button>
             </div>
         </form>
     </Modal>
 
-    <Modal v-if="canEdit" :title="'Adjust stock'" :id="'hs-pro-stock-adjust'">
+    <Modal v-if="canEdit" :title="$t('products.adjust.title')" :id="'hs-pro-stock-adjust'">
         <div v-if="activeProduct" class="space-y-4">
             <div class="flex flex-wrap items-center justify-between gap-2">
                 <div>
-                    <div class="text-xs uppercase text-stone-500 dark:text-neutral-400">Product</div>
+                    <div class="text-xs uppercase text-stone-500 dark:text-neutral-400">{{ $t('products.adjust.product') }}</div>
                     <div class="text-sm font-medium text-stone-800 dark:text-neutral-200">{{ activeProduct.name }}</div>
                 </div>
                 <div class="text-sm text-stone-500 dark:text-neutral-400">
                     <span class="font-medium text-stone-800 dark:text-neutral-200">
-                        Avail {{ formatNumber(getAvailableStock(activeProduct)) }}
+                        {{ $t('products.labels.available') }} {{ formatNumber(getAvailableStock(activeProduct)) }}
                     </span>
                     <span class="ml-2 text-xs text-stone-500 dark:text-neutral-400">
-                        Reserved {{ formatNumber(getReservedStock(activeProduct)) }}
+                        {{ $t('products.labels.reserved') }} {{ formatNumber(getReservedStock(activeProduct)) }}
                     </span>
                     <span class="ml-2 text-xs text-stone-500 dark:text-neutral-400">
-                        Damaged {{ formatNumber(getDamagedStock(activeProduct)) }}
+                        {{ $t('products.labels.damaged') }} {{ formatNumber(getDamagedStock(activeProduct)) }}
                     </span>
                 </div>
             </div>
 
             <div v-if="getAvailableStock(activeProduct) <= activeProduct.minimum_stock" class="text-xs text-amber-600">
-                Low stock alert. Minimum is {{ activeProduct.minimum_stock }}.
+                {{ $t('products.adjust.low_stock_alert', { min: activeProduct.minimum_stock }) }}
             </div>
 
             <form @submit.prevent="submitAdjust" class="space-y-3">
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
                     <select v-model="adjustForm.type"
                         class="py-2 px-3 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
-                        <option value="in">Stock in</option>
-                        <option value="out">Stock out</option>
-                        <option value="adjust">Adjust</option>
-                        <option value="damage">Damage</option>
-                        <option value="spoilage">Spoilage</option>
+                        <option value="in">{{ $t('products.adjust.types.in') }}</option>
+                        <option value="out">{{ $t('products.adjust.types.out') }}</option>
+                        <option value="adjust">{{ $t('products.adjust.types.adjust') }}</option>
+                        <option value="damage">{{ $t('products.adjust.types.damage') }}</option>
+                        <option value="spoilage">{{ $t('products.adjust.types.spoilage') }}</option>
                     </select>
                     <input type="number" step="1" v-model="adjustForm.quantity"
                         class="py-2 px-3 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
-                        :placeholder="adjustForm.type === 'adjust' ? 'Quantity change' : 'Quantity'">
+                        :placeholder="adjustForm.type === 'adjust' ? $t('products.adjust.quantity_change') : $t('products.labels.quantity')">
                     <select v-model="adjustForm.warehouse_id"
                         class="py-2 px-3 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-600 focus:ring-green-600 disabled:opacity-60 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
                         :disabled="!activeWarehouses.length">
-                        <option value="">Select warehouse</option>
+                        <option value="">{{ $t('products.adjust.select_warehouse') }}</option>
                         <option v-for="warehouse in activeWarehouses" :key="warehouse.id" :value="warehouse.id">
-                            {{ warehouse.name }}{{ warehouse.is_default ? ' (Default)' : '' }}
+                            {{ warehouse.name }}{{ warehouse.is_default ? ' (' + $t('products.filters.warehouse.default') + ')' : '' }}
                         </option>
                     </select>
                 </div>
@@ -1496,50 +1501,50 @@ const submitImport = () => {
                     </select>
                     <input type="number" step="0.01" v-model="adjustForm.unit_cost"
                         class="py-2 px-3 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
-                        placeholder="Unit cost (optional)">
+                        :placeholder="$t('products.adjust.unit_cost_optional')">
                     <input type="text" v-model="adjustForm.note"
                         class="py-2 px-3 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
-                        placeholder="Note (optional)">
+                        :placeholder="$t('products.adjust.note_optional')">
                 </div>
                 <div v-if="activeProduct.tracking_type === 'lot'" class="grid grid-cols-1 md:grid-cols-3 gap-3">
                     <input type="text" v-model="adjustForm.lot_number"
                         class="py-2 px-3 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
-                        placeholder="Lot number">
+                        :placeholder="$t('products.adjust.lot_number')">
                     <input type="date" v-model="adjustForm.expires_at"
                         class="py-2 px-3 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
-                        placeholder="Expires at">
+                        :placeholder="$t('products.labels.expires')">
                     <input type="date" v-model="adjustForm.received_at"
                         class="py-2 px-3 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
-                        placeholder="Received at">
+                        :placeholder="$t('products.labels.received')">
                 </div>
                 <div v-else-if="activeProduct.tracking_type === 'serial'" class="grid grid-cols-1 md:grid-cols-3 gap-3">
                     <input type="text" v-model="adjustForm.serial_number"
                         class="py-2 px-3 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
-                        placeholder="Serial number">
+                        :placeholder="$t('products.adjust.serial_number')">
                     <div class="md:col-span-2 text-xs text-stone-500 dark:text-neutral-400 flex items-center">
-                        Serial-tracked items are adjusted one at a time.
+                        {{ $t('products.adjust.serial_note') }}
                     </div>
                 </div>
                 <div v-if="!activeWarehouses.length" class="text-xs text-amber-600">
-                    Add a warehouse in settings before adjusting stock.
+                    {{ $t('products.adjust.no_warehouse_hint') }}
                 </div>
                 <div class="flex justify-end gap-2">
                     <button type="button" data-hs-overlay="#hs-pro-stock-adjust"
                         class="py-2 px-3 inline-flex items-center text-sm font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 action-feedback">
-                        Cancel
+                        {{ $t('products.actions.cancel') }}
                     </button>
                     <button type="submit"
                         class="py-2 px-3 inline-flex items-center text-sm font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 action-feedback">
-                        Save
+                        {{ $t('products.actions.save') }}
                     </button>
                 </div>
             </form>
 
             <div class="space-y-2">
-                <div class="text-sm font-medium text-stone-700 dark:text-neutral-300">Recent movements</div>
+                <div class="text-sm font-medium text-stone-700 dark:text-neutral-300">{{ $t('products.adjust.recent_movements') }}</div>
                 <div v-if="!activeProduct.stock_movements || !activeProduct.stock_movements.length"
                     class="text-sm text-stone-500 dark:text-neutral-400">
-                    No movements yet.
+                    {{ $t('products.adjust.no_movements') }}
                 </div>
                 <div v-else class="space-y-2">
                     <div v-for="movement in activeProduct.stock_movements" :key="movement.id"
@@ -1548,12 +1553,12 @@ const submitImport = () => {
                             <div class="text-xs uppercase text-stone-500 dark:text-neutral-400">
                                 {{ movement.type }}
                                 <span v-if="movement.warehouse"> - {{ movement.warehouse.name }}</span>
-                                <span v-if="movement.lot?.lot_number"> - Lot {{ movement.lot.lot_number }}</span>
-                                <span v-else-if="movement.lot?.serial_number"> - SN {{ movement.lot.serial_number }}</span>
+                                <span v-if="movement.lot?.lot_number"> - {{ $t('products.lots.lot_short', { number: movement.lot.lot_number }) }}</span>
+                                <span v-else-if="movement.lot?.serial_number"> - {{ $t('products.lots.serial_short', { number: movement.lot.serial_number }) }}</span>
                                 - {{ formatDate(movement.created_at) }}
                             </div>
                             <div class="text-sm text-stone-700 dark:text-neutral-300">
-                                {{ movement.reason || movement.note || 'No note' }}
+                                {{ movement.reason || movement.note || $t('products.labels.no_note') }}
                             </div>
                         </div>
                         <div
@@ -1566,7 +1571,7 @@ const submitImport = () => {
             </div>
         </div>
         <div v-else class="text-sm text-stone-500 dark:text-neutral-400">
-            Select a product to adjust stock.
+            {{ $t('products.adjust.select_product') }}
         </div>
     </Modal>
 </template>

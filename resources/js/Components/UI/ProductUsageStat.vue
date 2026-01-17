@@ -1,5 +1,6 @@
 <script setup>
 import { computed } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 const props = defineProps({
     items: {
@@ -8,9 +9,11 @@ const props = defineProps({
     },
     title: {
         type: String,
-        default: 'Most used products',
+        default: '',
     },
 });
+
+const { t } = useI18n();
 
 const colors = ['bg-blue-500', 'bg-violet-500', 'bg-teal-400', 'bg-amber-400', 'bg-stone-300'];
 
@@ -28,6 +31,8 @@ const getPercent = (value) => {
 
     return Math.round((Number(value || 0) / total.value) * 100);
 };
+
+const displayTitle = computed(() => props.title || t('products.usage.title'));
 </script>
 
 <template>
@@ -36,20 +41,20 @@ const getPercent = (value) => {
         <div class="p-5 pb-4 flex items-center justify-between gap-x-4">
             <div>
                 <h2 class="inline-block font-semibold text-stone-800 dark:text-neutral-200">
-                    {{ title }}
+                    {{ displayTitle }}
                 </h2>
                 <p class="text-xs text-stone-500 dark:text-neutral-500">
-                    Based on quotes and jobs
+                    {{ $t('products.usage.subtitle') }}
                 </p>
             </div>
             <div class="text-sm text-stone-500 dark:text-neutral-400">
-                {{ formatNumber(total) }} used
+                {{ $t('products.usage.used', { count: formatNumber(total) }) }}
             </div>
         </div>
 
         <div class="h-full p-5 pt-0">
             <div v-if="!items.length" class="text-sm text-stone-500 dark:text-neutral-400">
-                No usage data yet.
+                {{ $t('products.usage.empty') }}
             </div>
             <div v-else class="h-full flex flex-col justify-between space-y-4">
                 <div class="space-y-4">

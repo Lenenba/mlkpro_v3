@@ -32,7 +32,7 @@ const formatRatio = (value) =>
                 </svg>
                 <div class="sm:order-1 grow space-y-1">
                     <h2 class="sm:mb-2 text-sm text-stone-500 dark:text-neutral-400">
-                        Total products
+                        {{ $t('products.stats.total') }}
                     </h2>
                     <p class="text-lg md:text-xl font-semibold text-stone-800 dark:text-neutral-200">
                         {{ formatNumber(stats.total) }}
@@ -52,7 +52,7 @@ const formatRatio = (value) =>
                 </svg>
                 <div class="sm:order-1 grow space-y-1">
                     <h2 class="sm:mb-2 text-sm text-stone-500 dark:text-neutral-400">
-                        Inventory value
+                        {{ $t('products.stats.inventory_value') }}
                     </h2>
                     <p class="text-lg md:text-xl font-semibold text-stone-800 dark:text-neutral-200">
                         {{ formatCurrency(stats.inventory_value) }}
@@ -73,7 +73,7 @@ const formatRatio = (value) =>
                 </svg>
                 <div class="sm:order-1 grow space-y-1">
                     <h2 class="sm:mb-2 text-sm text-stone-500 dark:text-neutral-400">
-                        In stock
+                        {{ $t('products.stats.in_stock') }}
                     </h2>
                     <p class="text-lg md:text-xl font-semibold text-stone-800 dark:text-neutral-200">
                         {{ formatNumber(stats.in_stock) }}
@@ -94,7 +94,7 @@ const formatRatio = (value) =>
                 </svg>
                 <div class="sm:order-1 grow space-y-1">
                     <h2 class="sm:mb-2 text-sm text-stone-500 dark:text-neutral-400">
-                        Low stock
+                        {{ $t('products.stats.low_stock') }}
                     </h2>
                     <p class="text-lg md:text-xl font-semibold text-stone-800 dark:text-neutral-200">
                         {{ formatNumber(stats.low_stock) }}
@@ -115,7 +115,7 @@ const formatRatio = (value) =>
                 </svg>
                 <div class="sm:order-1 grow space-y-1">
                     <h2 class="sm:mb-2 text-sm text-stone-500 dark:text-neutral-400">
-                        Out of stock
+                        {{ $t('products.stats.out_of_stock') }}
                     </h2>
                     <p class="text-lg md:text-xl font-semibold text-stone-800 dark:text-neutral-200">
                         {{ formatNumber(stats.out_of_stock) }}
@@ -135,7 +135,7 @@ const formatRatio = (value) =>
                 </svg>
                 <div class="sm:order-1 grow space-y-1">
                     <h2 class="sm:mb-2 text-sm text-stone-500 dark:text-neutral-400">
-                        Stock rotation
+                        {{ $t('products.stats.rotation') }}
                     </h2>
                     <p class="text-lg md:text-xl font-semibold text-stone-800 dark:text-neutral-200">
                         {{ formatRatio(stats.rotation) }}x

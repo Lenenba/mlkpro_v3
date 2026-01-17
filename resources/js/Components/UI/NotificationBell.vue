@@ -1,6 +1,7 @@
 <script setup>
 import { computed, nextTick, onBeforeUnmount, ref } from 'vue';
 import { router, usePage } from '@inertiajs/vue3';
+import { useI18n } from 'vue-i18n';
 
 const props = defineProps({
     buttonClass: {
@@ -15,6 +16,7 @@ const props = defineProps({
 });
 
 const page = usePage();
+const { t } = useI18n();
 const notifications = computed(() => page.props.notifications?.items || []);
 const unreadCount = computed(() => page.props.notifications?.unread_count || 0);
 const hasNotifications = computed(() => notifications.value.length > 0);
@@ -177,7 +179,7 @@ onBeforeUnmount(() => {
 
 <template>
     <div class="relative">
-        <button ref="toggleRef" type="button" :class="buttonClass" @click="toggleMenu" aria-label="Notifications" data-testid="demo-notifications-bell">
+        <button ref="toggleRef" type="button" :class="buttonClass" @click="toggleMenu" :aria-label="t('notifications_panel.title')" data-testid="demo-notifications-bell">
             <svg class="size-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
                 stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M10 5a2 2 0 1 1 4 0" />
@@ -197,18 +199,18 @@ onBeforeUnmount(() => {
                 :style="menuStyle"
             >
                 <div class="flex items-center justify-between border-b border-stone-200 px-4 py-3 dark:border-neutral-700">
-                    <div class="text-sm font-semibold text-stone-800 dark:text-neutral-100">Notifications</div>
+                    <div class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ t('notifications_panel.title') }}</div>
                     <button
                         v-if="unreadCount"
                         type="button"
                         class="text-[11px] font-semibold text-green-700 hover:underline dark:text-green-400"
                         @click="markAllRead"
                     >
-                        Tout marquer
+                        {{ t('notifications_panel.mark_all') }}
                     </button>
                 </div>
                 <div v-if="!hasNotifications" class="px-4 py-5 text-sm text-stone-500 dark:text-neutral-400">
-                    Aucune notification.
+                    {{ t('notifications_panel.empty') }}
                 </div>
                 <div v-else class="max-h-80 divide-y divide-stone-100 overflow-y-auto dark:divide-neutral-800">
                     <a

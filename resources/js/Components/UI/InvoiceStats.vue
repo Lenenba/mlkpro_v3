@@ -1,4 +1,7 @@
 <script setup>
+import { useI18n } from 'vue-i18n';
+
+const { t } = useI18n();
 const props = defineProps({
     stats: {
         type: Object,
@@ -20,7 +23,7 @@ const formatCurrency = (value) =>
             <div class="sm:flex sm:gap-x-3">
                 <div class="sm:order-1 grow space-y-1">
                     <h2 class="sm:mb-2 text-sm text-stone-500 dark:text-neutral-400">
-                        Total invoices
+                        {{ t('invoices.stats.total') }}
                     </h2>
                     <p class="text-lg md:text-xl font-semibold text-stone-800 dark:text-neutral-200">
                         {{ formatNumber(stats.total) }}
@@ -34,7 +37,7 @@ const formatCurrency = (value) =>
             <div class="sm:flex sm:gap-x-3">
                 <div class="sm:order-1 grow space-y-1">
                     <h2 class="sm:mb-2 text-sm text-stone-500 dark:text-neutral-400">
-                        Total value
+                        {{ t('invoices.stats.total_value') }}
                     </h2>
                     <p class="text-lg md:text-xl font-semibold text-stone-800 dark:text-neutral-200">
                         {{ formatCurrency(stats.total_value) }}
@@ -48,7 +51,7 @@ const formatCurrency = (value) =>
             <div class="sm:flex sm:gap-x-3">
                 <div class="sm:order-1 grow space-y-1">
                     <h2 class="sm:mb-2 text-sm text-stone-500 dark:text-neutral-400">
-                        Outstanding
+                        {{ t('invoices.stats.outstanding') }}
                     </h2>
                     <p class="text-lg md:text-xl font-semibold text-stone-800 dark:text-neutral-200">
                         {{ formatCurrency(stats.outstanding) }}
@@ -62,7 +65,7 @@ const formatCurrency = (value) =>
             <div class="sm:flex sm:gap-x-3">
                 <div class="sm:order-1 grow space-y-1">
                     <h2 class="sm:mb-2 text-sm text-stone-500 dark:text-neutral-400">
-                        Open
+                        {{ t('invoices.stats.open') }}
                     </h2>
                     <p class="text-lg md:text-xl font-semibold text-stone-800 dark:text-neutral-200">
                         {{ formatNumber(stats.open) }}
@@ -76,7 +79,7 @@ const formatCurrency = (value) =>
             <div class="sm:flex sm:gap-x-3">
                 <div class="sm:order-1 grow space-y-1">
                     <h2 class="sm:mb-2 text-sm text-stone-500 dark:text-neutral-400">
-                        Paid
+                        {{ t('invoices.stats.paid') }}
                     </h2>
                     <p class="text-lg md:text-xl font-semibold text-stone-800 dark:text-neutral-200">
                         {{ formatNumber(stats.paid) }}
@@ -90,7 +93,7 @@ const formatCurrency = (value) =>
             <div class="sm:flex sm:gap-x-3">
                 <div class="sm:order-1 grow space-y-1">
                     <h2 class="sm:mb-2 text-sm text-stone-500 dark:text-neutral-400">
-                        Partial
+                        {{ t('invoices.stats.partial') }}
                     </h2>
                     <p class="text-lg md:text-xl font-semibold text-stone-800 dark:text-neutral-200">
                         {{ formatNumber(stats.partial) }}

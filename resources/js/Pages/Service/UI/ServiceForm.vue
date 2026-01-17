@@ -7,6 +7,7 @@ import FloatingSelect from '@/Components/FloatingSelect.vue';
 import FloatingNumberInput from '@/Components/FloatingNumberInput.vue';
 import FloatingTextarea from '@/Components/FloatingTextarea.vue';
 import Checkbox from '@/Components/Checkbox.vue';
+import { useI18n } from 'vue-i18n';
 
 const props = defineProps({
     categories: {
@@ -29,6 +30,8 @@ const props = defineProps({
 
 const emit = defineEmits(['submitted']);
 const overlayTarget = computed(() => (props.id ? `#${props.id}` : null));
+
+const { t } = useI18n();
 
 const buildMaterial = (material = {}, index = 0) => ({
     id: material.id ?? null,
@@ -55,12 +58,12 @@ const form = useForm({
     ),
 });
 
-const unitOptions = [
-    { id: 'piece', name: 'Piece' },
-    { id: 'hour', name: 'Hour' },
-    { id: 'm2', name: 'm2' },
-    { id: 'other', name: 'Other' },
-];
+const unitOptions = computed(() => ([
+    { id: 'piece', name: t('services.units.piece') },
+    { id: 'hour', name: t('services.units.hour') },
+    { id: 'm2', name: t('services.units.m2') },
+    { id: 'other', name: t('services.units.other') },
+]));
 
 const categoryOptions = ref(Array.isArray(props.categories) ? [...props.categories] : []);
 
@@ -131,7 +134,7 @@ const addCategoryOption = (category) => {
 const createCategory = async () => {
     const name = categoryName.value.trim();
     if (!name) {
-        categoryError.value = 'Enter a category name.';
+        categoryError.value = t('services.form.errors.category_name_required');
         return;
     }
 
@@ -150,12 +153,12 @@ const createCategory = async () => {
             categoryName.value = '';
             showCategoryForm.value = false;
         } else {
-            categoryError.value = 'Unable to create category.';
+            categoryError.value = t('services.form.errors.category_create_failed');
         }
     } catch (error) {
         categoryError.value = error?.response?.data?.errors?.name?.[0]
             || error?.response?.data?.message
-            || 'Unable to create category.';
+            || t('services.form.errors.category_create_failed');
     } finally {
         creatingCategory.value = false;
     }
@@ -189,7 +192,7 @@ const closeOverlay = () => {
 
 const submit = () => {
     if (!isValid.value) {
-        form.setError('form', 'Please fill all required fields.');
+        form.setError('form', t('services.form.errors.required_fields'));
         return;
     }
 
@@ -213,25 +216,25 @@ const submit = () => {
 <template>
     <form @submit.prevent="submit" class="space-y-4">
         <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <FloatingInput v-model="form.name" label="Name" :required="true" />
-            <FloatingSelect v-model="form.category_id" label="Category" :options="categoryOptions" :required="true" />
+            <FloatingInput v-model="form.name" :label="$t('services.form.name')" :required="true" />
+            <FloatingSelect v-model="form.category_id" :label="$t('services.form.category')" :options="categoryOptions" :required="true" />
             <div class="md:col-span-2 space-y-2">
                 <div class="flex items-center justify-between">
-                    <p class="text-xs text-stone-500 dark:text-neutral-400">Need a new category?</p>
+                    <p class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('services.form.category_hint') }}</p>
                     <button
                         type="button"
                         class="text-xs font-semibold text-green-700 hover:text-green-800 dark:text-green-400"
                         @click="showCategoryForm = !showCategoryForm"
                     >
-                        {{ showCategoryForm ? 'Hide' : 'Add category' }}
+                        {{ showCategoryForm ? $t('services.form.category_hide') : $t('services.form.category_add') }}
                     </button>
                 </div>
                 <p v-if="!categoryOptions.length" class="text-xs text-amber-600 dark:text-amber-300">
-                    No categories yet. Create one below.
+                    {{ $t('services.form.category_empty') }}
                 </p>
                 <div v-if="showCategoryForm" class="flex flex-col gap-2 sm:flex-row sm:items-end">
                     <div class="flex-1">
-                        <FloatingInput v-model="categoryName" label="New category name" />
+                        <FloatingInput v-model="categoryName" :label="$t('services.form.category_new')" />
                         <p v-if="categoryError" class="mt-1 text-xs text-red-600">{{ categoryError }}</p>
                     </div>
                     <button
@@ -240,30 +243,30 @@ const submit = () => {
                         :disabled="creatingCategory"
                         @click="createCategory"
                     >
-                        Create
+                        {{ $t('services.form.category_create') }}
                     </button>
                 </div>
             </div>
-            <FloatingSelect v-model="form.unit" label="Unit" :options="unitOptions" />
-            <FloatingNumberInput v-model="form.tax_rate" label="Tax rate (%)" :step="0.01" />
+            <FloatingSelect v-model="form.unit" :label="$t('services.form.unit')" :options="unitOptions" />
+            <FloatingNumberInput v-model="form.tax_rate" :label="$t('services.form.tax_rate')" :step="0.01" />
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <FloatingNumberInput v-model="form.price" label="Price" :step="0.01" :required="true" />
+            <FloatingNumberInput v-model="form.price" :label="$t('services.form.price')" :step="0.01" :required="true" />
             <div class="flex items-center gap-2 p-2 rounded-sm border border-stone-200 bg-white dark:bg-neutral-900 dark:border-neutral-700">
                 <Checkbox v-model:checked="form.is_active" />
-                <span class="text-sm text-stone-600 dark:text-neutral-400">Active</span>
+                <span class="text-sm text-stone-600 dark:text-neutral-400">{{ $t('services.status.active') }}</span>
             </div>
         </div>
 
-        <FloatingTextarea v-model="form.description" label="Description" />
+        <FloatingTextarea v-model="form.description" :label="$t('services.form.description')" />
 
         <div class="space-y-3">
             <div class="flex items-center justify-between">
-                <h3 class="text-sm font-semibold text-stone-700 dark:text-neutral-200">Materials</h3>
+                <h3 class="text-sm font-semibold text-stone-700 dark:text-neutral-200">{{ $t('services.materials.title') }}</h3>
                 <button type="button" @click="addMaterial"
                     class="py-1.5 px-2.5 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200">
-                    Add material
+                    {{ $t('services.materials.add') }}
                 </button>
             </div>
 
@@ -274,31 +277,31 @@ const submit = () => {
                         <FloatingSelect
                             v-model="material.product_id"
                             :options="materialOptions"
-                            label="Product"
+                            :label="$t('services.materials.product')"
                             @update:modelValue="applyMaterialDefaults(material)"
                         />
-                        <FloatingInput v-model="material.label" label="Label" />
-                        <FloatingNumberInput v-model="material.quantity" label="Quantity" :step="0.01" />
-                        <FloatingNumberInput v-model="material.unit_price" label="Unit price" :step="0.01" />
-                        <FloatingInput v-model="material.unit" label="Unit" />
+                        <FloatingInput v-model="material.label" :label="$t('services.materials.label')" />
+                        <FloatingNumberInput v-model="material.quantity" :label="$t('services.materials.quantity')" :step="0.01" />
+                        <FloatingNumberInput v-model="material.unit_price" :label="$t('services.materials.unit_price')" :step="0.01" />
+                        <FloatingInput v-model="material.unit" :label="$t('services.materials.unit')" />
                         <div class="flex items-center gap-2 p-2 rounded-sm border border-stone-200 bg-white dark:bg-neutral-900 dark:border-neutral-700">
                             <Checkbox v-model:checked="material.billable" />
-                            <span class="text-sm text-stone-600 dark:text-neutral-400">Billable</span>
+                            <span class="text-sm text-stone-600 dark:text-neutral-400">{{ $t('services.materials.billable') }}</span>
                         </div>
                     </div>
 
-                    <FloatingTextarea v-model="material.description" label="Description (optional)" />
+                    <FloatingTextarea v-model="material.description" :label="$t('services.materials.description_optional')" />
 
                     <div class="flex justify-end">
                         <button type="button" @click="removeMaterial(index)"
                             class="py-1.5 px-2.5 text-xs font-medium rounded-sm border border-red-200 bg-white text-red-600 hover:bg-red-50 dark:bg-neutral-800 dark:border-red-500/40 dark:text-red-400">
-                            Remove
+                            {{ $t('services.materials.remove') }}
                         </button>
                     </div>
                 </div>
             </div>
             <p v-else class="text-xs text-stone-500 dark:text-neutral-500">
-                No materials yet.
+                {{ $t('services.materials.empty') }}
             </p>
         </div>
 
@@ -311,11 +314,11 @@ const submit = () => {
         <div class="flex justify-end gap-2">
             <button type="button" :data-hs-overlay="overlayTarget || undefined"
                 class="py-2 px-3 inline-flex items-center text-sm font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200">
-                Cancel
+                {{ $t('services.actions.cancel') }}
             </button>
             <button type="submit" :disabled="form.processing"
                 class="py-2 px-3 inline-flex items-center text-sm font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50">
-                {{ props.service ? 'Update service' : 'Create service' }}
+                {{ props.service ? $t('services.actions.update_service') : $t('services.actions.create_service') }}
             </button>
         </div>
     </form>
