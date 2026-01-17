@@ -12,6 +12,7 @@ import FloatingSelect from '@/Components/FloatingSelect.vue';
 import FloatingTextarea from '@/Components/FloatingTextarea.vue';
 import InputError from '@/Components/InputError.vue';
 import { humanizeDate } from '@/utils/date';
+import { useI18n } from 'vue-i18n';
 
 const props = defineProps({
     customer: Object,
@@ -57,6 +58,8 @@ const props = defineProps({
     },
 });
 
+const { t } = useI18n();
+
 const page = usePage();
 const companyType = computed(() => page.props.auth?.account?.company?.type ?? null);
 const showSales = computed(() => companyType.value === 'products');
@@ -76,7 +79,19 @@ const formatNumber = (value, fractionDigits = 0) =>
         minimumFractionDigits: fractionDigits,
         maximumFractionDigits: fractionDigits,
     });
-const formatStatus = (status) => (status || '-').replace(/_/g, ' ');
+const formatStatus = (status, keyPrefix = '') => {
+    if (!status) {
+        return t('customers.labels.unknown_status');
+    }
+    if (keyPrefix) {
+        const key = `${keyPrefix}.${status}`;
+        const translated = t(key);
+        if (translated && translated !== key) {
+            return translated;
+        }
+    }
+    return String(status).replace(/_/g, ' ');
+};
 const hasValue = (value) => value !== null && value !== undefined;
 const topProducts = computed(() => props.topProducts || []);
 const kpiMax = computed(() => {
@@ -124,55 +139,55 @@ const purchaseCards = computed(() => {
             maximumFractionDigits: fractionDigits,
         });
     };
-    const preferred = [insights.preferred_day, insights.preferred_period].filter(Boolean).join(' • ');
+    const preferred = [insights.preferred_day, insights.preferred_period].filter(Boolean).join(' - ');
 
     return [
         {
-            label: 'Dernier achat',
-            value: insights.last_purchase_at ? formatDate(insights.last_purchase_at) : '-',
+            label: t('customers.details.purchase.last_purchase'),
+            value: insights.last_purchase_at ? formatDate(insights.last_purchase_at) : t('customers.labels.none'),
         },
         {
-            label: 'Jours depuis',
+            label: t('customers.details.purchase.days_since'),
             value: hasValue(insights.days_since_last_purchase)
-                ? `${numberLabel(insights.days_since_last_purchase)} j`
-                : '-',
+                ? t('customers.details.days_label', { count: numberLabel(insights.days_since_last_purchase) })
+                : t('customers.labels.none'),
         },
         {
-            label: 'Achat moyen',
+            label: t('customers.details.purchase.average_order'),
             value: formatCurrency(insights.average_order_value || 0),
         },
         {
-            label: 'Articles moyens',
-            value: hasValue(insights.average_items) ? numberLabel(insights.average_items, 1) : '-',
+            label: t('customers.details.purchase.average_items'),
+            value: hasValue(insights.average_items) ? numberLabel(insights.average_items, 1) : t('customers.labels.none'),
         },
         {
-            label: 'Cadence moyenne',
+            label: t('customers.details.purchase.frequency'),
             value: hasValue(insights.purchase_frequency_days)
-                ? `${numberLabel(insights.purchase_frequency_days, 1)} j`
-                : '-',
+                ? t('customers.details.days_label', { count: numberLabel(insights.purchase_frequency_days, 1) })
+                : t('customers.labels.none'),
         },
         {
-            label: 'Achats 30 jours',
+            label: t('customers.details.purchase.recent_30'),
             value: numberLabel(insights.recent_30_count || 0),
         },
         {
-            label: 'Habitude',
-            value: preferred || '-',
+            label: t('customers.details.purchase.preference'),
+            value: preferred || t('customers.labels.none'),
         },
     ];
 });
 
-const propertyTypes = [
-    { id: 'physical', name: 'Physical' },
-    { id: 'billing', name: 'Billing' },
-    { id: 'other', name: 'Other' },
-];
+const propertyTypes = computed(() => [
+    { id: 'physical', name: t('customers.properties.types.physical') },
+    { id: 'billing', name: t('customers.properties.types.billing') },
+    { id: 'other', name: t('customers.properties.types.other') },
+]);
 
-const propertyTypeLabel = (type) => propertyTypes.find((option) => option.id === type)?.name || type;
+const propertyTypeLabel = (type) => propertyTypes.value.find((option) => option.id === type)?.name || type;
 
 const propertyHeading = (property) => {
     const chunks = [propertyTypeLabel(property.type), property.country].filter(Boolean);
-    return chunks.join(' • ') || 'Property';
+    return chunks.join(' - ') || t('customers.properties.fallback');
 };
 
 const editingTags = ref(false);
@@ -379,7 +394,7 @@ const setDefaultProperty = (property) => {
 };
 
 const deleteProperty = (property) => {
-    if (!confirm('Delete this property?')) {
+    if (!confirm(t('customers.properties.delete_confirm'))) {
         return;
     }
 
@@ -394,7 +409,7 @@ const deleteProperty = (property) => {
 </script>
 
 <template>
-    <Head :title="customer.company_name || `${customer.first_name || ''} ${customer.last_name || ''}`.trim() || 'Customer'" />
+    <Head :title="customer.company_name || `${customer.first_name || ''} ${customer.last_name || ''}`.trim() || $t('customers.labels.customer_fallback')" />
     <AuthenticatedLayout>
         <div class="grid grid-cols-1 gap-5 md:grid-cols-3">
             <div class="md:col-span-2 rise-stagger">
@@ -403,34 +418,34 @@ const deleteProperty = (property) => {
                 <Card v-if="showSales" class="mt-5">
                     <template #title>
                         <div class="flex items-center justify-between gap-3">
-                            <span>Sales</span>
+                            <span>{{ $t('customers.details.sales.title') }}</span>
                             <Link
                                 :href="route('sales.index')"
                                 class="text-xs font-semibold text-green-700 hover:underline dark:text-green-400"
                             >
-                                View all
+                                {{ $t('customers.details.sales.view_all') }}
                             </Link>
                         </div>
                     </template>
 
                     <div class="grid grid-cols-1 gap-3 md:grid-cols-3">
                         <div class="rounded-sm border border-stone-200 bg-stone-50 p-3 text-sm text-stone-700 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200">
-                            <div class="text-xs uppercase text-stone-400">Sales</div>
+                            <div class="text-xs uppercase text-stone-400">{{ $t('customers.details.sales.count') }}</div>
                             <div class="mt-1 text-lg font-semibold">{{ salesSummary?.count || 0 }}</div>
                         </div>
                         <div class="rounded-sm border border-stone-200 bg-stone-50 p-3 text-sm text-stone-700 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200">
-                            <div class="text-xs uppercase text-stone-400">Paid</div>
+                            <div class="text-xs uppercase text-stone-400">{{ $t('customers.details.sales.paid') }}</div>
                             <div class="mt-1 text-lg font-semibold">{{ formatCurrency(salesSummary?.paid || 0) }}</div>
                         </div>
                         <div class="rounded-sm border border-stone-200 bg-stone-50 p-3 text-sm text-stone-700 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200">
-                            <div class="text-xs uppercase text-stone-400">Total</div>
+                            <div class="text-xs uppercase text-stone-400">{{ $t('customers.details.sales.total') }}</div>
                             <div class="mt-1 text-lg font-semibold">{{ formatCurrency(salesSummary?.total || 0) }}</div>
                         </div>
                     </div>
 
                     <div class="mt-4">
                         <div v-if="!sales.length" class="text-sm text-stone-500 dark:text-neutral-400">
-                            No sales for this customer yet.
+                            {{ $t('customers.details.sales.empty') }}
                         </div>
                         <div v-else class="divide-y divide-stone-200 dark:divide-neutral-700">
                             <div v-for="sale in sales" :key="sale.id" class="flex items-center justify-between gap-3 py-3 text-sm">
@@ -439,7 +454,7 @@ const deleteProperty = (property) => {
                                         :href="route('sales.show', sale.id)"
                                         class="font-semibold text-stone-800 hover:underline dark:text-neutral-200"
                                     >
-                                        {{ sale.number || `Sale #${sale.id}` }}
+                                        {{ sale.number || $t('customers.details.sales.sale_fallback', { id: sale.id }) }}
                                     </Link>
                                     <div class="text-xs text-stone-500 dark:text-neutral-400">
                                         {{ formatDate(sale.created_at) }}
@@ -459,7 +474,7 @@ const deleteProperty = (property) => {
                 </Card>
 
                 <Card v-if="showSales" class="mt-5">
-                    <template #title>Habitudes d'achat</template>
+                    <template #title>{{ $t('customers.details.purchase.title') }}</template>
 
                     <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
                         <div
@@ -475,7 +490,7 @@ const deleteProperty = (property) => {
                     </div>
 
                     <div class="mt-5">
-                        <h3 class="text-sm font-semibold text-stone-800 dark:text-neutral-200">Produits favoris</h3>
+                        <h3 class="text-sm font-semibold text-stone-800 dark:text-neutral-200">{{ $t('customers.details.top_products.title') }}</h3>
 
                         <div v-if="topProducts.length" class="mt-3 space-y-2">
                             <div
@@ -490,17 +505,17 @@ const deleteProperty = (property) => {
                                         <img
                                             v-if="product.image"
                                             :src="product.image"
-                                            :alt="product.name || 'Produit'"
+                                            :alt="product.name || $t('customers.details.top_products.product_fallback')"
                                             class="h-full w-full object-cover"
                                         />
-                                        <span v-else>{{ (product.name || 'P').charAt(0).toUpperCase() }}</span>
+                                        <span v-else>{{ (product.name || $t('customers.details.top_products.initial_fallback')).charAt(0).toUpperCase() }}</span>
                                     </div>
                                     <div>
                                         <div class="text-sm font-medium text-stone-800 dark:text-neutral-200">
-                                            {{ product.name || 'Produit' }}
+                                            {{ product.name || $t('customers.details.top_products.product_fallback') }}
                                         </div>
                                         <div class="text-xs text-stone-500 dark:text-neutral-400">
-                                            {{ product.sku || 'SKU -' }}
+                                            {{ product.sku || $t('customers.details.top_products.sku_fallback') }}
                                         </div>
                                     </div>
                                 </div>
@@ -514,20 +529,20 @@ const deleteProperty = (property) => {
                                 </div>
                             </div>
                         </div>
-                        <div v-else class="mt-2 text-sm text-stone-500 dark:text-neutral-400">Aucun achat recent.</div>
+                        <div v-else class="mt-2 text-sm text-stone-500 dark:text-neutral-400">{{ $t('customers.details.top_products.empty') }}</div>
                     </div>
                 </Card>
 
                 <Card class="mt-5">
                     <template #title>
                         <div class="flex items-center justify-between gap-3">
-                            <span>Properties</span>
+                            <span>{{ $t('customers.properties.title') }}</span>
                             <button
                                 type="button"
                                 @click="showAddProperty ? cancelAddProperty() : startAddProperty()"
                                 class="py-2 px-2.5 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500"
                             >
-                                Add property
+                                {{ $t('customers.properties.add') }}
                             </button>
                         </div>
                     </template>
@@ -539,7 +554,7 @@ const deleteProperty = (property) => {
                         <form class="space-y-3" @submit.prevent="submitNewProperty">
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                                 <div>
-                                    <FloatingSelect v-model="newPropertyForm.type" label="Type" :options="propertyTypes" />
+                                    <FloatingSelect v-model="newPropertyForm.type" :label="$t('customers.properties.fields.type')" :options="propertyTypes" />
                                     <InputError class="mt-1" :message="newPropertyForm.errors.type" />
                                 </div>
                                 <label class="flex items-center gap-2 text-sm text-stone-700 dark:text-neutral-200">
@@ -548,31 +563,31 @@ const deleteProperty = (property) => {
                                         v-model="newPropertyForm.is_default"
                                         class="size-3.5 rounded border-stone-300 text-green-600 focus:ring-green-500 dark:bg-neutral-900 dark:border-neutral-700"
                                     />
-                                    Set as default
+                                    {{ $t('customers.properties.set_default') }}
                                 </label>
                                 <div class="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-3">
                                     <div>
-                                        <FloatingInput v-model="newPropertyForm.street1" label="Street 1" />
+                                        <FloatingInput v-model="newPropertyForm.street1" :label="$t('customers.properties.fields.street1')" />
                                         <InputError class="mt-1" :message="newPropertyForm.errors.street1" />
                                     </div>
                                     <div>
-                                        <FloatingInput v-model="newPropertyForm.street2" label="Street 2" />
+                                        <FloatingInput v-model="newPropertyForm.street2" :label="$t('customers.properties.fields.street2')" />
                                         <InputError class="mt-1" :message="newPropertyForm.errors.street2" />
                                     </div>
                                     <div>
-                                        <FloatingInput v-model="newPropertyForm.city" label="City" />
+                                        <FloatingInput v-model="newPropertyForm.city" :label="$t('customers.properties.fields.city')" />
                                         <InputError class="mt-1" :message="newPropertyForm.errors.city" />
                                     </div>
                                     <div>
-                                        <FloatingInput v-model="newPropertyForm.state" label="State" />
+                                        <FloatingInput v-model="newPropertyForm.state" :label="$t('customers.properties.fields.state')" />
                                         <InputError class="mt-1" :message="newPropertyForm.errors.state" />
                                     </div>
                                     <div>
-                                        <FloatingInput v-model="newPropertyForm.zip" label="Zip code" />
+                                        <FloatingInput v-model="newPropertyForm.zip" :label="$t('customers.properties.fields.zip')" />
                                         <InputError class="mt-1" :message="newPropertyForm.errors.zip" />
                                     </div>
                                     <div>
-                                        <FloatingInput v-model="newPropertyForm.country" label="Country" />
+                                        <FloatingInput v-model="newPropertyForm.country" :label="$t('customers.properties.fields.country')" />
                                         <InputError class="mt-1" :message="newPropertyForm.errors.country" />
                                     </div>
                                 </div>
@@ -584,21 +599,21 @@ const deleteProperty = (property) => {
                                     @click="cancelAddProperty"
                                     class="py-2 px-2.5 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 focus:outline-none focus:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700"
                                 >
-                                    Cancel
+                                    {{ $t('customers.actions.cancel') }}
                                 </button>
                                 <button
                                     type="submit"
                                     :disabled="newPropertyForm.processing"
                                     class="py-2 px-2.5 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-green-500"
                                 >
-                                    Save
+                                    {{ $t('customers.actions.save') }}
                                 </button>
                             </div>
                         </form>
                     </div>
 
                     <div v-if="!properties.length" class="text-sm text-stone-500 dark:text-neutral-400">
-                        No properties yet.
+                        {{ $t('customers.properties.empty') }}
                     </div>
 
                     <ul v-else class="flex flex-col divide-y divide-stone-200 dark:divide-neutral-700">
@@ -633,7 +648,7 @@ const deleteProperty = (property) => {
                                                 v-if="property.is_default"
                                                 class="inline-flex items-center rounded-sm bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700 dark:bg-green-500/10 dark:text-green-400"
                                             >
-                                                Default
+                                                {{ $t('customers.properties.default_label') }}
                                             </span>
                                         </div>
                                         <p class="text-xs text-stone-500 dark:text-neutral-500">
@@ -654,21 +669,21 @@ const deleteProperty = (property) => {
                                         @click="setDefaultProperty(property)"
                                         class="py-2 px-2.5 inline-flex items-center gap-x-2 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700"
                                     >
-                                        Set as default
+                                        {{ $t('customers.properties.set_default') }}
                                     </button>
                                     <button
                                         type="button"
                                         @click="startEditProperty(property)"
                                         class="py-2 px-2.5 inline-flex items-center gap-x-2 text-xs font-semibold rounded-sm border border-transparent bg-stone-200 text-stone-800 hover:bg-stone-300 focus:outline-none focus:bg-stone-300 dark:bg-neutral-600 dark:text-neutral-200 dark:hover:bg-neutral-500"
                                     >
-                                        Edit
+                                        {{ $t('customers.actions.edit') }}
                                     </button>
                                     <button
                                         type="button"
                                         @click="deleteProperty(property)"
                                         class="py-2 px-2.5 inline-flex items-center gap-x-2 text-xs font-semibold rounded-sm border border-transparent bg-red-100 text-red-700 hover:bg-red-200 focus:outline-none focus:bg-red-200 dark:bg-red-500/10 dark:text-red-400 dark:hover:bg-red-500/20"
                                     >
-                                        Delete
+                                        {{ $t('customers.actions.delete') }}
                                     </button>
                                 </div>
                             </div>
@@ -680,33 +695,33 @@ const deleteProperty = (property) => {
                                 <form class="space-y-3" @submit.prevent="submitEditProperty">
                                     <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                                         <div>
-                                            <FloatingSelect v-model="editPropertyForm.type" label="Type" :options="propertyTypes" />
+                                            <FloatingSelect v-model="editPropertyForm.type" :label="$t('customers.properties.fields.type')" :options="propertyTypes" />
                                             <InputError class="mt-1" :message="editPropertyForm.errors.type" />
                                         </div>
                                         <div></div>
                                         <div class="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-3">
                                             <div>
-                                                <FloatingInput v-model="editPropertyForm.street1" label="Street 1" />
+                                                <FloatingInput v-model="editPropertyForm.street1" :label="$t('customers.properties.fields.street1')" />
                                                 <InputError class="mt-1" :message="editPropertyForm.errors.street1" />
                                             </div>
                                             <div>
-                                                <FloatingInput v-model="editPropertyForm.street2" label="Street 2" />
+                                                <FloatingInput v-model="editPropertyForm.street2" :label="$t('customers.properties.fields.street2')" />
                                                 <InputError class="mt-1" :message="editPropertyForm.errors.street2" />
                                             </div>
                                             <div>
-                                                <FloatingInput v-model="editPropertyForm.city" label="City" />
+                                                <FloatingInput v-model="editPropertyForm.city" :label="$t('customers.properties.fields.city')" />
                                                 <InputError class="mt-1" :message="editPropertyForm.errors.city" />
                                             </div>
                                             <div>
-                                                <FloatingInput v-model="editPropertyForm.state" label="State" />
+                                                <FloatingInput v-model="editPropertyForm.state" :label="$t('customers.properties.fields.state')" />
                                                 <InputError class="mt-1" :message="editPropertyForm.errors.state" />
                                             </div>
                                             <div>
-                                                <FloatingInput v-model="editPropertyForm.zip" label="Zip code" />
+                                                <FloatingInput v-model="editPropertyForm.zip" :label="$t('customers.properties.fields.zip')" />
                                                 <InputError class="mt-1" :message="editPropertyForm.errors.zip" />
                                             </div>
                                             <div>
-                                                <FloatingInput v-model="editPropertyForm.country" label="Country" />
+                                                <FloatingInput v-model="editPropertyForm.country" :label="$t('customers.properties.fields.country')" />
                                                 <InputError class="mt-1" :message="editPropertyForm.errors.country" />
                                             </div>
                                         </div>
@@ -718,14 +733,14 @@ const deleteProperty = (property) => {
                                             @click="cancelEditProperty"
                                             class="py-2 px-2.5 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 focus:outline-none focus:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700"
                                         >
-                                            Cancel
+                                            {{ $t('customers.actions.cancel') }}
                                         </button>
                                         <button
                                             type="submit"
                                             :disabled="editPropertyForm.processing"
                                             class="py-2 px-2.5 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-green-500"
                                         >
-                                            Save changes
+                                            {{ $t('customers.actions.save_changes') }}
                                         </button>
                                     </div>
                                 </form>
@@ -737,17 +752,17 @@ const deleteProperty = (property) => {
                 <CardNav v-if="showServiceOps" class="mt-5" :customer="customer" :stats="stats" />
 
                 <Card v-if="showServiceOps" class="mt-5">
-                    <template #title>Schedule</template>
+                    <template #title>{{ $t('customers.details.schedule.title') }}</template>
 
                     <div class="space-y-5">
                         <div>
                             <div class="flex items-center justify-between gap-3">
-                                <h3 class="text-sm font-semibold text-stone-800 dark:text-neutral-200">Upcoming jobs</h3>
+                                <h3 class="text-sm font-semibold text-stone-800 dark:text-neutral-200">{{ $t('customers.details.schedule.upcoming_jobs') }}</h3>
                                 <Link
                                     :href="route('jobs.index')"
                                     class="text-xs font-medium text-green-700 hover:underline dark:text-green-400"
                                 >
-                                    View all
+                                    {{ $t('customers.details.schedule.view_all') }}
                                 </Link>
                             </div>
                             <div class="mt-3 space-y-2">
@@ -764,30 +779,30 @@ const deleteProperty = (property) => {
                                             {{ work.job_title }}
                                         </Link>
                                         <div class="mt-0.5 text-xs text-stone-500 dark:text-neutral-400">
-                                            Starts {{ formatDate(work.start_date || work.created_at) }}
+                                            {{ $t('customers.details.schedule.starts') }} {{ formatDate(work.start_date || work.created_at) }}
                                         </div>
                                     </div>
                                     <div class="text-xs text-stone-500 dark:text-neutral-400">
-                                        {{ work.status }}
+                                        {{ formatStatus(work.status, 'jobs.status') }}
                                     </div>
                                 </div>
                                 <div
                                     v-if="!(schedule?.upcomingJobs || []).length"
                                     class="text-sm text-stone-500 dark:text-neutral-400"
                                 >
-                                    No upcoming jobs.
+                                    {{ $t('customers.details.schedule.no_upcoming_jobs') }}
                                 </div>
                             </div>
                         </div>
 
                         <div>
                             <div class="flex items-center justify-between gap-3">
-                                <h3 class="text-sm font-semibold text-stone-800 dark:text-neutral-200">Tasks</h3>
+                                <h3 class="text-sm font-semibold text-stone-800 dark:text-neutral-200">{{ $t('customers.details.schedule.tasks') }}</h3>
                                 <Link
                                     :href="route('task.index')"
                                     class="text-xs font-medium text-green-700 hover:underline dark:text-green-400"
                                 >
-                                    View all
+                                    {{ $t('customers.details.schedule.view_all') }}
                                 </Link>
                             </div>
                             <div class="mt-3 space-y-2">
@@ -801,17 +816,17 @@ const deleteProperty = (property) => {
                                             {{ task.title }}
                                         </div>
                                         <div class="mt-0.5 text-xs text-stone-500 dark:text-neutral-400">
-                                            <span v-if="task.due_date">Due {{ formatDate(task.due_date) }}</span>
-                                            <span v-else>No due date</span>
+                                            <span v-if="task.due_date">{{ $t('customers.details.schedule.due') }} {{ formatDate(task.due_date) }}</span>
+                                            <span v-else>{{ $t('customers.details.schedule.no_due_date') }}</span>
                                         </div>
                                     </div>
                                     <div class="text-right text-xs text-stone-500 dark:text-neutral-400">
-                                        <div class="capitalize">{{ task.status }}</div>
+                                        <div class="capitalize">{{ formatStatus(task.status, 'tasks.status') }}</div>
                                         <div v-if="task.assignee">{{ task.assignee }}</div>
                                     </div>
                                 </div>
                                 <div v-if="!(schedule?.tasks || []).length" class="text-sm text-stone-500 dark:text-neutral-400">
-                                    No tasks yet.
+                                    {{ $t('customers.details.schedule.no_tasks') }}
                                 </div>
                             </div>
                         </div>
@@ -819,7 +834,7 @@ const deleteProperty = (property) => {
                 </Card>
 
                 <Card class="mt-5">
-                    <template #title>Recent activity for this client</template>
+                    <template #title>{{ $t('customers.details.activity.title') }}</template>
 
                     <div class="space-y-3 text-sm">
                         <div
@@ -838,20 +853,20 @@ const deleteProperty = (property) => {
                             </div>
                         </div>
                         <div v-if="!activity.length" class="text-sm text-stone-500 dark:text-neutral-400">
-                            No recent activity yet.
+                            {{ $t('customers.details.activity.empty') }}
                         </div>
                     </div>
                 </Card>
             </div>
             <div class="rise-stagger">
                 <CardNoHeader v-if="showServiceOps">
-                    <template #title>Apercu client</template>
+                    <template #title>{{ $t('customers.details.preview.title') }}</template>
 
                     <div class="grid grid-cols-2 gap-3 rise-stagger">
                         <div class="rounded-sm border border-stone-200 bg-white p-3 dark:border-neutral-700 dark:bg-neutral-900">
                             <div class="flex items-start justify-between gap-3">
                                 <div>
-                                    <div class="text-xs uppercase text-stone-500 dark:text-neutral-400">Devis</div>
+                                    <div class="text-xs uppercase text-stone-500 dark:text-neutral-400">{{ $t('customers.details.preview.quotes') }}</div>
                                     <div class="mt-1 text-lg font-semibold text-stone-800 dark:text-neutral-100">
                                         {{ formatNumber(stats?.quotes ?? 0) }}
                                     </div>
@@ -884,7 +899,7 @@ const deleteProperty = (property) => {
                         <div class="rounded-sm border border-stone-200 bg-white p-3 dark:border-neutral-700 dark:bg-neutral-900">
                             <div class="flex items-start justify-between gap-3">
                                 <div>
-                                    <div class="text-xs uppercase text-stone-500 dark:text-neutral-400">Chantiers actifs</div>
+                                    <div class="text-xs uppercase text-stone-500 dark:text-neutral-400">{{ $t('customers.details.preview.active_jobs') }}</div>
                                     <div class="mt-1 text-lg font-semibold text-stone-800 dark:text-neutral-100">
                                         {{ formatNumber(stats?.active_works ?? 0) }}
                                     </div>
@@ -925,7 +940,7 @@ const deleteProperty = (property) => {
                         <div class="rounded-sm border border-stone-200 bg-white p-3 dark:border-neutral-700 dark:bg-neutral-900">
                             <div class="flex items-start justify-between gap-3">
                                 <div>
-                                    <div class="text-xs uppercase text-stone-500 dark:text-neutral-400">Chantiers</div>
+                                    <div class="text-xs uppercase text-stone-500 dark:text-neutral-400">{{ $t('customers.details.preview.jobs') }}</div>
                                     <div class="mt-1 text-lg font-semibold text-stone-800 dark:text-neutral-100">
                                         {{ formatNumber(stats?.jobs ?? 0) }}
                                     </div>
@@ -958,7 +973,7 @@ const deleteProperty = (property) => {
                         <div class="rounded-sm border border-stone-200 bg-white p-3 dark:border-neutral-700 dark:bg-neutral-900">
                             <div class="flex items-start justify-between gap-3">
                                 <div>
-                                    <div class="text-xs uppercase text-stone-500 dark:text-neutral-400">Factures</div>
+                                    <div class="text-xs uppercase text-stone-500 dark:text-neutral-400">{{ $t('customers.details.preview.invoices') }}</div>
                                     <div class="mt-1 text-lg font-semibold text-stone-800 dark:text-neutral-100">
                                         {{ formatNumber(stats?.invoices ?? 0) }}
                                     </div>
@@ -992,7 +1007,7 @@ const deleteProperty = (property) => {
                         <div class="rounded-sm border border-stone-200 bg-white p-3 dark:border-neutral-700 dark:bg-neutral-900">
                             <div class="flex items-start justify-between gap-3">
                                 <div>
-                                    <div class="text-xs uppercase text-stone-500 dark:text-neutral-400">Demandes</div>
+                                    <div class="text-xs uppercase text-stone-500 dark:text-neutral-400">{{ $t('customers.details.preview.requests') }}</div>
                                     <div class="mt-1 text-lg font-semibold text-stone-800 dark:text-neutral-100">
                                         {{ formatNumber(stats?.requests ?? 0) }}
                                     </div>
@@ -1025,7 +1040,7 @@ const deleteProperty = (property) => {
                         <div class="rounded-sm border border-stone-200 bg-white p-3 dark:border-neutral-700 dark:bg-neutral-900">
                             <div class="flex items-start justify-between gap-3">
                                 <div>
-                                    <div class="text-xs uppercase text-stone-500 dark:text-neutral-400">Solde du</div>
+                                    <div class="text-xs uppercase text-stone-500 dark:text-neutral-400">{{ $t('customers.details.preview.balance_due') }}</div>
                                     <div class="mt-1 text-lg font-semibold text-stone-800 dark:text-neutral-100">
                                         {{ formatCurrency(billing?.summary?.balance_due) }}
                                     </div>
@@ -1059,64 +1074,64 @@ const deleteProperty = (property) => {
 
                     <div class="mt-4 space-y-3 text-sm">
                         <div class="rounded-sm border border-stone-200 px-3 py-2 dark:border-neutral-700">
-                            <div class="text-xs uppercase text-stone-500 dark:text-neutral-400">Dernier devis</div>
+                            <div class="text-xs uppercase text-stone-500 dark:text-neutral-400">{{ $t('customers.details.preview.latest_quote') }}</div>
                             <div v-if="latestQuote">
                                 <Link
                                     :href="route('customer.quote.show', latestQuote.id)"
                                     class="font-medium text-stone-800 hover:underline dark:text-neutral-200"
                                 >
-                                    {{ latestQuote.number ? `Devis ${latestQuote.number}` : 'Devis' }}
+                                    {{ latestQuote.number ? $t('customers.details.preview.quote_number', { number: latestQuote.number }) : $t('customers.details.preview.quote_fallback') }}
                                 </Link>
                                 <div class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
-                                    {{ formatStatus(latestQuote.status) }} | {{ formatDate(latestQuote.created_at) }}
+                                    {{ formatStatus(latestQuote.status, 'quotes.status') }} | {{ formatDate(latestQuote.created_at) }}
                                 </div>
                                 <div v-if="hasValue(latestQuote.total)" class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
-                                    Total {{ formatCurrency(latestQuote.total) }}
+                                    {{ $t('customers.details.preview.total') }} {{ formatCurrency(latestQuote.total) }}
                                 </div>
                             </div>
-                            <div v-else class="text-xs text-stone-500 dark:text-neutral-400">Aucun devis.</div>
+                            <div v-else class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('customers.details.preview.no_quotes') }}</div>
                         </div>
                         <div class="rounded-sm border border-stone-200 px-3 py-2 dark:border-neutral-700">
-                            <div class="text-xs uppercase text-stone-500 dark:text-neutral-400">Dernier chantier</div>
+                            <div class="text-xs uppercase text-stone-500 dark:text-neutral-400">{{ $t('customers.details.preview.latest_job') }}</div>
                             <div v-if="latestWork">
                                 <Link
                                     :href="route('work.show', latestWork.id)"
                                     class="font-medium text-stone-800 hover:underline dark:text-neutral-200"
                                 >
-                                    {{ latestWork.job_title || 'Chantier' }}
+                                    {{ latestWork.job_title || $t('customers.details.preview.job_fallback') }}
                                 </Link>
                                 <div class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
-                                    {{ formatStatus(latestWork.status) }} | {{ formatDate(latestWork.start_date || latestWork.created_at) }}
+                                    {{ formatStatus(latestWork.status, 'jobs.status') }} | {{ formatDate(latestWork.start_date || latestWork.created_at) }}
                                 </div>
                             </div>
-                            <div v-else class="text-xs text-stone-500 dark:text-neutral-400">Aucun chantier.</div>
+                            <div v-else class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('customers.details.preview.no_jobs') }}</div>
                         </div>
                         <div class="rounded-sm border border-stone-200 px-3 py-2 dark:border-neutral-700">
-                            <div class="text-xs uppercase text-stone-500 dark:text-neutral-400">Derniere facture</div>
+                            <div class="text-xs uppercase text-stone-500 dark:text-neutral-400">{{ $t('customers.details.preview.latest_invoice') }}</div>
                             <div v-if="latestInvoice">
                                 <Link
                                     :href="route('invoice.show', latestInvoice.id)"
                                     class="font-medium text-stone-800 hover:underline dark:text-neutral-200"
                                 >
-                                    {{ latestInvoice.number ? `Facture ${latestInvoice.number}` : 'Facture' }}
+                                    {{ latestInvoice.number ? $t('customers.details.preview.invoice_number', { number: latestInvoice.number }) : $t('customers.details.preview.invoice_fallback') }}
                                 </Link>
                                 <div class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
-                                    {{ formatStatus(latestInvoice.status) }} | {{ formatDate(latestInvoice.created_at) }}
+                                    {{ formatStatus(latestInvoice.status, 'dashboard.status.invoice') }} | {{ formatDate(latestInvoice.created_at) }}
                                 </div>
                                 <div v-if="hasValue(latestInvoice.total)" class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
-                                    Total {{ formatCurrency(latestInvoice.total) }}
+                                    {{ $t('customers.details.preview.total') }} {{ formatCurrency(latestInvoice.total) }}
                                 </div>
                             </div>
-                            <div v-else class="text-xs text-stone-500 dark:text-neutral-400">Aucune facture.</div>
+                            <div v-else class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('customers.details.preview.no_invoices') }}</div>
                         </div>
                     </div>
                 </CardNoHeader>
                 <CardNoHeader>
-                    <template #title>Coordonnees</template>
+                    <template #title>{{ $t('customers.details.contact.title') }}</template>
                     <DescriptionList :item="customer" />
                 </CardNoHeader>
                 <CardNoHeader class="mt-5">
-                    <template #title>Tags</template>
+                    <template #title>{{ $t('customers.details.tags.title') }}</template>
 
                     <div v-if="!editingTags" class="space-y-3">
                         <div v-if="tags.length" class="flex flex-wrap gap-2">
@@ -1128,7 +1143,7 @@ const deleteProperty = (property) => {
                                 {{ tag }}
                             </span>
                         </div>
-                        <div v-else class="text-sm text-stone-500 dark:text-neutral-400">Aucun tag.</div>
+                        <div v-else class="text-sm text-stone-500 dark:text-neutral-400">{{ $t('customers.details.tags.empty') }}</div>
 
                         <div class="flex justify-end">
                             <button
@@ -1136,14 +1151,14 @@ const deleteProperty = (property) => {
                                 @click="startEditTags"
                                 class="py-2 px-2.5 inline-flex items-center gap-x-2 text-xs font-semibold rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 focus:outline-none focus:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700"
                             >
-                                Modifier
+                                {{ $t('customers.actions.edit') }}
                             </button>
                         </div>
                     </div>
 
                     <form v-else class="space-y-3" @submit.prevent="submitTags">
                         <div>
-                            <FloatingInput v-model="tagsForm.tags" label="Tags (separes par virgules)" />
+                            <FloatingInput v-model="tagsForm.tags" :label="$t('customers.details.tags.field')" />
                             <InputError class="mt-1" :message="tagsForm.errors.tags" />
                         </div>
                         <div class="flex items-center justify-end gap-2">
@@ -1152,20 +1167,20 @@ const deleteProperty = (property) => {
                                 @click="cancelEditTags"
                                 class="py-2 px-2.5 inline-flex items-center gap-x-2 text-xs font-semibold rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 focus:outline-none focus:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700"
                             >
-                                Annuler
+                                {{ $t('customers.actions.cancel') }}
                             </button>
                             <button
                                 type="submit"
                                 :disabled="tagsForm.processing"
                                 class="py-2 px-2.5 inline-flex items-center gap-x-2 text-xs font-semibold rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-green-500"
                             >
-                                Enregistrer
+                                {{ $t('customers.actions.save') }}
                             </button>
                         </div>
                     </form>
                 </CardNoHeader>
                 <CardNoHeader v-if="showServiceOps" class="mt-5">
-                    <template #title>Validation auto</template>
+                    <template #title>{{ $t('customers.details.auto_validation.title') }}</template>
 
                     <form class="space-y-3" @submit.prevent="submitAutoValidation">
                         <div class="space-y-2">
@@ -1173,7 +1188,7 @@ const deleteProperty = (property) => {
                                 for="customer-auto-accept-quotes"
                                 class="flex items-center justify-between gap-3 text-sm text-stone-700 dark:text-neutral-200"
                             >
-                                <span>Validation auto des devis</span>
+                                <span>{{ $t('customers.details.auto_validation.quotes') }}</span>
                                 <input
                                     id="customer-auto-accept-quotes"
                                     type="checkbox"
@@ -1187,7 +1202,7 @@ const deleteProperty = (property) => {
                                 for="customer-auto-validate-jobs"
                                 class="flex items-center justify-between gap-3 text-sm text-stone-700 dark:text-neutral-200"
                             >
-                                <span>Validation auto des chantiers</span>
+                                <span>{{ $t('customers.details.auto_validation.jobs') }}</span>
                                 <input
                                     id="customer-auto-validate-jobs"
                                     type="checkbox"
@@ -1201,7 +1216,7 @@ const deleteProperty = (property) => {
                                 for="customer-auto-validate-tasks"
                                 class="flex items-center justify-between gap-3 text-sm text-stone-700 dark:text-neutral-200"
                             >
-                                <span>Validation auto des taches</span>
+                                <span>{{ $t('customers.details.auto_validation.tasks') }}</span>
                                 <input
                                     id="customer-auto-validate-tasks"
                                     type="checkbox"
@@ -1215,7 +1230,7 @@ const deleteProperty = (property) => {
                                 for="customer-auto-validate-invoices"
                                 class="flex items-center justify-between gap-3 text-sm text-stone-700 dark:text-neutral-200"
                             >
-                                <span>Validation auto des factures</span>
+                                <span>{{ $t('customers.details.auto_validation.invoices') }}</span>
                                 <input
                                     id="customer-auto-validate-invoices"
                                     type="checkbox"
@@ -1233,13 +1248,13 @@ const deleteProperty = (property) => {
                                 :disabled="autoValidationForm.processing"
                                 class="py-2 px-2.5 inline-flex items-center gap-x-2 text-xs font-semibold rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-green-500"
                             >
-                                Enregistrer
+                                {{ $t('customers.actions.save') }}
                             </button>
                         </div>
                     </form>
                 </CardNoHeader>
                 <CardNoHeader class="mt-5">
-                    <template #title>Derniere interaction client</template>
+                    <template #title>{{ $t('customers.details.last_interaction.title') }}</template>
 
                     <div v-if="lastInteraction" class="space-y-1 text-sm">
                         <div class="text-xs uppercase text-stone-500 dark:text-neutral-400">
@@ -1249,26 +1264,26 @@ const deleteProperty = (property) => {
                             {{ lastInteraction.description || lastInteraction.action }}
                         </div>
                     </div>
-                    <div v-else class="text-sm text-stone-500 dark:text-neutral-400">Aucune interaction.</div>
+                    <div v-else class="text-sm text-stone-500 dark:text-neutral-400">{{ $t('customers.details.last_interaction.empty') }}</div>
                 </CardNoHeader>
                 <Card v-if="showServiceOps" class="mt-5">
-                    <template #title>Historique facturation</template>
+                    <template #title>{{ $t('customers.details.billing_history.title') }}</template>
 
                     <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
                         <div class="rounded-sm border border-stone-200 p-3 dark:border-neutral-700">
-                            <div class="text-xs text-stone-500 dark:text-neutral-400">Facture</div>
+                            <div class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('customers.details.billing_history.invoiced') }}</div>
                             <div class="mt-1 text-sm font-semibold text-stone-800 dark:text-neutral-200">
                                 {{ formatCurrency(billing?.summary?.total_invoiced) }}
                             </div>
                         </div>
                         <div class="rounded-sm border border-stone-200 p-3 dark:border-neutral-700">
-                            <div class="text-xs text-stone-500 dark:text-neutral-400">Encaisse</div>
+                            <div class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('customers.details.billing_history.paid') }}</div>
                             <div class="mt-1 text-sm font-semibold text-stone-800 dark:text-neutral-200">
                                 {{ formatCurrency(billing?.summary?.total_paid) }}
                             </div>
                         </div>
                         <div class="rounded-sm border border-stone-200 p-3 dark:border-neutral-700">
-                            <div class="text-xs text-stone-500 dark:text-neutral-400">Solde du</div>
+                            <div class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('customers.details.billing_history.balance_due') }}</div>
                             <div class="mt-1 text-sm font-semibold text-stone-800 dark:text-neutral-200">
                                 {{ formatCurrency(billing?.summary?.balance_due) }}
                             </div>
@@ -1276,7 +1291,7 @@ const deleteProperty = (property) => {
                     </div>
 
                     <div class="mt-5">
-                        <h3 class="text-sm font-semibold text-stone-800 dark:text-neutral-200">Paiements recents</h3>
+                        <h3 class="text-sm font-semibold text-stone-800 dark:text-neutral-200">{{ $t('customers.details.billing_history.recent_payments') }}</h3>
                         <div class="mt-3 space-y-2 text-sm">
                             <div
                                 v-for="payment in billing?.recentPayments || []"
@@ -1289,11 +1304,11 @@ const deleteProperty = (property) => {
                                         :href="route('invoice.show', payment.invoice.id)"
                                         class="font-medium text-stone-800 hover:underline dark:text-neutral-200"
                                     >
-                                        {{ payment.invoice.number || 'Invoice' }}
+                                        {{ payment.invoice.number || $t('customers.details.billing_history.invoice_fallback') }}
                                     </Link>
-                                    <div v-else class="font-medium text-stone-800 dark:text-neutral-200">Paiement</div>
+                                    <div v-else class="font-medium text-stone-800 dark:text-neutral-200">{{ $t('customers.details.billing_history.payment_fallback') }}</div>
                                     <div class="mt-0.5 text-xs text-stone-500 dark:text-neutral-400">
-                                        Paye {{ formatDate(payment.paid_at || payment.created_at) }}
+                                        {{ $t('customers.details.billing_history.paid_on') }} {{ formatDate(payment.paid_at || payment.created_at) }}
                                     </div>
                                 </div>
                                 <div class="text-right">
@@ -1309,17 +1324,17 @@ const deleteProperty = (property) => {
                                 v-if="!(billing?.recentPayments || []).length"
                                 class="text-sm text-stone-500 dark:text-neutral-400"
                             >
-                                Aucun paiement.
+                                {{ $t('customers.details.billing_history.empty') }}
                             </div>
                         </div>
                     </div>
                 </Card>
                 <Card class="mt-5">
-                    <template #title>Notes internes</template>
+                    <template #title>{{ $t('customers.details.notes.title') }}</template>
 
                     <div v-if="!editingNotes" class="space-y-3">
                         <p class="text-sm text-stone-700 whitespace-pre-wrap dark:text-neutral-200">
-                            {{ customer.description || 'Aucune note.' }}
+                            {{ customer.description || $t('customers.details.notes.empty') }}
                         </p>
                         <div class="flex justify-end">
                             <button
@@ -1327,14 +1342,14 @@ const deleteProperty = (property) => {
                                 @click="startEditNotes"
                                 class="py-2 px-2.5 inline-flex items-center gap-x-2 text-xs font-semibold rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 focus:outline-none focus:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700"
                             >
-                                Modifier
+                                {{ $t('customers.actions.edit') }}
                             </button>
                         </div>
                     </div>
 
                     <form v-else class="space-y-3" @submit.prevent="submitNotes">
                         <div>
-                            <FloatingTextarea v-model="notesForm.description" label="Notes internes" />
+                            <FloatingTextarea v-model="notesForm.description" :label="$t('customers.details.notes.field')" />
                             <InputError class="mt-1" :message="notesForm.errors.description" />
                         </div>
                         <div class="flex items-center justify-end gap-2">
@@ -1343,14 +1358,14 @@ const deleteProperty = (property) => {
                                 @click="cancelEditNotes"
                                 class="py-2 px-2.5 inline-flex items-center gap-x-2 text-xs font-semibold rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 focus:outline-none focus:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700"
                             >
-                                Annuler
+                                {{ $t('customers.actions.cancel') }}
                             </button>
                             <button
                                 type="submit"
                                 :disabled="notesForm.processing"
                                 class="py-2 px-2.5 inline-flex items-center gap-x-2 text-xs font-semibold rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-green-500"
                             >
-                                Enregistrer
+                                {{ $t('customers.actions.save') }}
                             </button>
                         </div>
                     </form>

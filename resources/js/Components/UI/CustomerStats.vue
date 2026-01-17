@@ -1,10 +1,14 @@
 <script setup>
+import { useI18n } from 'vue-i18n';
+
 const props = defineProps({
     stats: {
         type: Object,
         required: true,
     },
 });
+
+const { t } = useI18n();
 
 const formatNumber = (value) =>
     Number(value || 0).toLocaleString(undefined, { maximumFractionDigits: 0 });
@@ -25,7 +29,7 @@ const formatNumber = (value) =>
                 </svg>
                 <div class="sm:order-1 grow space-y-1">
                     <h2 class="sm:mb-2 text-sm text-stone-500 dark:text-neutral-400">
-                        Total customers
+                        {{ t('customers.stats.total') }}
                     </h2>
                     <p class="text-lg md:text-xl font-semibold text-stone-800 dark:text-neutral-200">
                         {{ formatNumber(stats.total) }}
@@ -46,7 +50,7 @@ const formatNumber = (value) =>
                 </svg>
                 <div class="sm:order-1 grow space-y-1">
                     <h2 class="sm:mb-2 text-sm text-stone-500 dark:text-neutral-400">
-                        New (30 days)
+                        {{ t('customers.stats.new') }}
                     </h2>
                     <p class="text-lg md:text-xl font-semibold text-stone-800 dark:text-neutral-200">
                         {{ formatNumber(stats.new) }}
@@ -66,7 +70,7 @@ const formatNumber = (value) =>
                 </svg>
                 <div class="sm:order-1 grow space-y-1">
                     <h2 class="sm:mb-2 text-sm text-stone-500 dark:text-neutral-400">
-                        Active (30 days)
+                        {{ t('customers.stats.active') }}
                     </h2>
                     <p class="text-lg md:text-xl font-semibold text-stone-800 dark:text-neutral-200">
                         {{ formatNumber(stats.active) }}
@@ -86,7 +90,7 @@ const formatNumber = (value) =>
                 </svg>
                 <div class="sm:order-1 grow space-y-1">
                     <h2 class="sm:mb-2 text-sm text-stone-500 dark:text-neutral-400">
-                        With quotes
+                        {{ t('customers.stats.with_quotes') }}
                     </h2>
                     <p class="text-lg md:text-xl font-semibold text-stone-800 dark:text-neutral-200">
                         {{ formatNumber(stats.with_quotes) }}
@@ -107,7 +111,7 @@ const formatNumber = (value) =>
                 </svg>
                 <div class="sm:order-1 grow space-y-1">
                     <h2 class="sm:mb-2 text-sm text-stone-500 dark:text-neutral-400">
-                        With jobs
+                        {{ t('customers.stats.with_jobs') }}
                     </h2>
                     <p class="text-lg md:text-xl font-semibold text-stone-800 dark:text-neutral-200">
                         {{ formatNumber(stats.with_works) }}

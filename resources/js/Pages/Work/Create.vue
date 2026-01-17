@@ -527,7 +527,7 @@ onBeforeUnmount(() => {
 
 <template>
 
-    <Head title="Creer un job" />
+    <Head :title="$t('jobs.create_title')" />
     <AuthenticatedLayout>
         <div class="mx-auto w-full max-w-6xl">
             <form @submit.prevent="submit">

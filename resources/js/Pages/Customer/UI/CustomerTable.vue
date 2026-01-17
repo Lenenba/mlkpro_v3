@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue';
 import { Link, router, useForm } from '@inertiajs/vue3';
 import { humanizeDate } from '@/utils/date';
 import Checkbox from '@/Components/Checkbox.vue';
+import { useI18n } from 'vue-i18n';
 
 const props = defineProps({
     filters: Object,
@@ -19,6 +20,8 @@ const props = defineProps({
         default: false,
     },
 });
+
+const { t } = useI18n();
 
 const canEdit = computed(() => Boolean(props.canEdit));
 
@@ -184,7 +187,7 @@ const runBulk = (action) => {
     if (!selected.value.length) {
         return;
     }
-    if (action === 'delete' && !confirm('Delete selected customers?')) {
+    if (action === 'delete' && !confirm(t('customers.bulk.delete_confirm'))) {
         return;
     }
     bulkForm.action = action;
@@ -201,9 +204,9 @@ const toggleArchive = (customer) => {
     if (!customer) {
         return;
     }
-    const label = customer.is_active ? 'Archive' : 'Restore';
-    const name = customer.company_name || `${customer.first_name} ${customer.last_name}`.trim() || 'Customer';
-    if (!confirm(`${label} "${name}"?`)) {
+    const actionLabel = customer.is_active ? t('customers.actions.archive') : t('customers.actions.restore');
+    const name = customer.company_name || `${customer.first_name} ${customer.last_name}`.trim() || t('customers.labels.customer_fallback');
+    if (!confirm(t('customers.actions.archive_confirm', { action: actionLabel, name }))) {
         return;
     }
     const action = customer.is_active ? 'archive' : 'restore';
@@ -212,7 +215,7 @@ const toggleArchive = (customer) => {
 
 const destroyCustomer = (customer) => {
     const label = customer.company_name || `${customer.first_name} ${customer.last_name}`;
-    if (!confirm(`Delete "${label}"?`)) {
+    if (!confirm(t('customers.actions.delete_confirm', { name: label }))) {
         return;
     }
 
@@ -241,7 +244,7 @@ const getCustomerInitials = (customer) => {
     const name = customer?.company_name
         || `${customer?.first_name || ''} ${customer?.last_name || ''}`.trim();
     if (!name) {
-        return 'C';
+        return t('customers.labels.customer_initial');
     }
     const parts = name.split(' ').filter(Boolean);
     const first = parts[0]?.[0] || '';
@@ -267,7 +270,7 @@ const getCustomerInitials = (customer) => {
                         </div>
                         <input type="text" v-model="filterForm.name" data-testid="demo-customer-search"
                             class="py-[7px] ps-10 pe-8 block w-full bg-white border border-stone-200 rounded-sm text-sm placeholder:text-stone-500 focus:border-green-500 focus:ring-green-600 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 dark:placeholder:text-neutral-400 dark:focus:ring-neutral-600"
-                            placeholder="Search name, company, email, or phone">
+                            :placeholder="$t('customers.filters.search_placeholder')">
                     </div>
                 </div>
 
@@ -286,7 +289,7 @@ const getCustomerInitials = (customer) => {
                                 <path d="M3 3h18v6H3z" />
                                 <path d="M3 13h18v8H3z" />
                             </svg>
-                            Table
+                            {{ $t('customers.view.table') }}
                         </button>
                         <button
                             type="button"
@@ -303,16 +306,16 @@ const getCustomerInitials = (customer) => {
                                 <rect x="3" y="14" width="7" height="7" rx="1" />
                                 <rect x="14" y="14" width="7" height="7" rx="1" />
                             </svg>
-                            Cards
+                            {{ $t('customers.view.cards') }}
                         </button>
                     </div>
                     <button type="button" @click="showAdvanced = !showAdvanced"
                         class="py-2 px-2.5 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 focus:outline-none focus:bg-stone-100 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700">
-                        Filters
+                        {{ $t('customers.actions.filters') }}
                     </button>
                     <button type="button" @click="clearFilters"
                         class="py-2 px-2.5 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 focus:outline-none focus:bg-stone-100 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700">
-                        Clear
+                        {{ $t('customers.actions.clear') }}
                     </button>
                     <Link :href="route('customer.create')" data-testid="demo-add-customer"
                         class="py-2 px-2.5 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:ring-2 focus:ring-green-500">
@@ -322,44 +325,44 @@ const getCustomerInitials = (customer) => {
                             <path d="M5 12h14" />
                             <path d="M12 5v14" />
                         </svg>
-                        Add customer
+                        {{ $t('customers.actions.add_customer') }}
                     </Link>
                 </div>
             </div>
 
             <div v-if="canEdit && selected.length" class="flex items-center gap-2">
                 <span class="text-xs text-stone-500 dark:text-neutral-400">
-                    {{ selected.length }} selected
+                    {{ $t('customers.labels.selected', { count: selected.length }) }}
                 </span>
                 <div class="hs-dropdown [--auto-close:inside] [--placement:bottom-right] relative inline-flex">
                     <button type="button"
                         class="py-2 px-2.5 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 focus:outline-none focus:bg-stone-100 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700 action-feedback"
                         aria-haspopup="menu" aria-expanded="false" aria-label="Dropdown">
-                        Bulk actions
+                        {{ $t('customers.bulk.title') }}
                     </button>
                     <div class="hs-dropdown-menu hs-dropdown-open:opacity-100 w-44 transition-[opacity,margin] duration opacity-0 hidden z-10 bg-white rounded-sm shadow-[0_10px_40px_10px_rgba(0,0,0,0.08)] dark:shadow-[0_10px_40px_10px_rgba(0,0,0,0.2)] dark:bg-neutral-900"
                         role="menu" aria-orientation="vertical">
                         <div class="p-1">
                             <button type="button" @click="runBulk('portal_enable')"
                                 class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-emerald-700 hover:bg-emerald-50 dark:text-emerald-300 dark:hover:bg-neutral-800 action-feedback">
-                                Enable portal access
+                                {{ $t('customers.bulk.enable_portal') }}
                             </button>
                             <button type="button" @click="runBulk('portal_disable')"
                                 class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-amber-700 hover:bg-amber-50 dark:text-amber-300 dark:hover:bg-neutral-800 action-feedback">
-                                Disable portal access
+                                {{ $t('customers.bulk.disable_portal') }}
                             </button>
                             <button type="button" @click="runBulk('archive')"
                                 class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-slate-700 hover:bg-slate-100 dark:text-neutral-300 dark:hover:bg-neutral-800 action-feedback" data-tone="warning">
-                                Archive
+                                {{ $t('customers.actions.archive') }}
                             </button>
                             <button type="button" @click="runBulk('restore')"
                                 class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-emerald-700 hover:bg-emerald-50 dark:text-emerald-300 dark:hover:bg-neutral-800 action-feedback">
-                                Restore
+                                {{ $t('customers.actions.restore') }}
                             </button>
                             <div class="my-1 border-t border-stone-200 dark:border-neutral-800"></div>
                             <button type="button" @click="runBulk('delete')"
                                 class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-neutral-800 action-feedback" data-tone="danger">
-                                Delete
+                                {{ $t('customers.actions.delete') }}
                             </button>
                         </div>
                     </div>
@@ -369,34 +372,34 @@ const getCustomerInitials = (customer) => {
             <div v-if="showAdvanced" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-2">
                 <input type="text" v-model="filterForm.city"
                     class="py-2 px-3 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
-                    placeholder="City">
+                    :placeholder="$t('customers.filters.city')">
                 <input type="text" v-model="filterForm.country"
                     class="py-2 px-3 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
-                    placeholder="Country">
+                    :placeholder="$t('customers.filters.country')">
                 <select v-model="filterForm.has_quotes"
                     class="py-2 ps-3 pe-8 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
-                    <option value="">Quotes</option>
-                    <option value="1">With quotes</option>
-                    <option value="0">No quotes</option>
+                    <option value="">{{ $t('customers.filters.quotes') }}</option>
+                    <option value="1">{{ $t('customers.filters.with_quotes') }}</option>
+                    <option value="0">{{ $t('customers.filters.no_quotes') }}</option>
                 </select>
                 <select v-model="filterForm.has_works"
                     class="py-2 ps-3 pe-8 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
-                    <option value="">Jobs</option>
-                    <option value="1">With jobs</option>
-                    <option value="0">No jobs</option>
+                    <option value="">{{ $t('customers.filters.jobs') }}</option>
+                    <option value="1">{{ $t('customers.filters.with_jobs') }}</option>
+                    <option value="0">{{ $t('customers.filters.no_jobs') }}</option>
                 </select>
                 <select v-model="filterForm.status"
                     class="py-2 ps-3 pe-8 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
-                    <option value="">Status</option>
-                    <option value="active">Active</option>
-                    <option value="archived">Archived</option>
+                    <option value="">{{ $t('customers.filters.status') }}</option>
+                    <option value="active">{{ $t('customers.status.active') }}</option>
+                    <option value="archived">{{ $t('customers.status.archived') }}</option>
                 </select>
                 <input type="date" v-model="filterForm.created_from"
                     class="py-2 px-3 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
-                    placeholder="Created from">
+                    :placeholder="$t('customers.filters.created_from')">
                 <input type="date" v-model="filterForm.created_to"
                     class="py-2 px-3 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
-                    placeholder="Created to">
+                    :placeholder="$t('customers.filters.created_to')">
             </div>
         </div>
 
@@ -414,7 +417,7 @@ const getCustomerInitials = (customer) => {
                             <th scope="col" class="min-w-[240px]">
                                 <button type="button" @click="toggleSort('company_name')"
                                     class="px-5 py-2.5 text-start w-full flex items-center gap-x-1 text-sm font-normal text-stone-500 hover:text-stone-700 focus:outline-none dark:text-neutral-500 dark:hover:text-neutral-300">
-                                    Company
+                                    {{ $t('customers.table.company') }}
                                     <svg v-if="filterForm.sort === 'company_name'" class="size-3" xmlns="http://www.w3.org/2000/svg"
                                         viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                                         stroke-linecap="round" stroke-linejoin="round"
@@ -426,7 +429,7 @@ const getCustomerInitials = (customer) => {
                             <th scope="col" class="min-w-40">
                                 <button type="button" @click="toggleSort('first_name')"
                                     class="px-5 py-2.5 text-start w-full flex items-center gap-x-1 text-sm font-normal text-stone-500 hover:text-stone-700 focus:outline-none dark:text-neutral-500 dark:hover:text-neutral-300">
-                                    Contact
+                                    {{ $t('customers.table.contact') }}
                                     <svg v-if="filterForm.sort === 'first_name'" class="size-3" xmlns="http://www.w3.org/2000/svg"
                                         viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                                         stroke-linecap="round" stroke-linejoin="round"
@@ -437,18 +440,18 @@ const getCustomerInitials = (customer) => {
                             </th>
                             <th scope="col" class="min-w-40">
                                 <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
-                                    Phone
+                                    {{ $t('customers.table.phone') }}
                                 </div>
                             </th>
                             <th scope="col" class="min-w-36">
                                 <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
-                                    City
+                                    {{ $t('customers.table.city') }}
                                 </div>
                             </th>
                             <th scope="col" class="min-w-28">
                                 <button type="button" @click="toggleSort('quotes_count')"
                                     class="px-5 py-2.5 text-start w-full flex items-center gap-x-1 text-sm font-normal text-stone-500 hover:text-stone-700 focus:outline-none dark:text-neutral-500 dark:hover:text-neutral-300">
-                                    Quotes
+                                    {{ $t('customers.table.quotes') }}
                                     <svg v-if="filterForm.sort === 'quotes_count'" class="size-3" xmlns="http://www.w3.org/2000/svg"
                                         viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                                         stroke-linecap="round" stroke-linejoin="round"
@@ -460,7 +463,7 @@ const getCustomerInitials = (customer) => {
                             <th scope="col" class="min-w-28">
                                 <button type="button" @click="toggleSort('works_count')"
                                     class="px-5 py-2.5 text-start w-full flex items-center gap-x-1 text-sm font-normal text-stone-500 hover:text-stone-700 focus:outline-none dark:text-neutral-500 dark:hover:text-neutral-300">
-                                    Jobs
+                                    {{ $t('customers.table.jobs') }}
                                     <svg v-if="filterForm.sort === 'works_count'" class="size-3" xmlns="http://www.w3.org/2000/svg"
                                         viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                                         stroke-linecap="round" stroke-linejoin="round"
@@ -472,7 +475,7 @@ const getCustomerInitials = (customer) => {
                             <th scope="col" class="min-w-32">
                                 <button type="button" @click="toggleSort('created_at')"
                                     class="px-5 py-2.5 text-start w-full flex items-center gap-x-1 text-sm font-normal text-stone-500 hover:text-stone-700 focus:outline-none dark:text-neutral-500 dark:hover:text-neutral-300">
-                                    Created
+                                    {{ $t('customers.table.created') }}
                                     <svg v-if="filterForm.sort === 'created_at'" class="size-3" xmlns="http://www.w3.org/2000/svg"
                                         viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                                         stroke-linecap="round" stroke-linejoin="round"
@@ -506,17 +509,17 @@ const getCustomerInitials = (customer) => {
                             <td colspan="9" class="px-4 py-10 text-center text-stone-600 dark:text-neutral-300">
                                 <div class="space-y-2">
                                     <div class="text-sm font-semibold text-stone-700 dark:text-neutral-200">
-                                        Aucun client
+                                        {{ $t('customers.empty.title') }}
                                     </div>
                                     <div class="text-xs text-stone-500 dark:text-neutral-400">
-                                        Ajoutez un client pour demarrer votre base.
+                                        {{ $t('customers.empty.subtitle') }}
                                     </div>
                                     <div class="flex justify-center pt-2">
                                         <Link
                                             :href="route('customer.create')"
                                             class="inline-flex items-center rounded-sm border border-green-600 bg-green-600 px-3 py-2 text-xs font-semibold text-white hover:bg-green-700"
                                         >
-                                            Ajouter un client
+                                            {{ $t('customers.empty.action') }}
                                         </Link>
                                     </div>
                                 </div>
@@ -530,7 +533,7 @@ const getCustomerInitials = (customer) => {
                                 <Link :href="route('customer.show', customer)">
                                     <div class="w-full flex items-center gap-x-3">
                                         <img class="shrink-0 size-10 rounded-sm" :src="customer.logo_url || customer.logo"
-                                            alt="Customer logo">
+                                            :alt="$t('customers.labels.logo_alt')">
                                         <div class="flex flex-col">
                                             <div class="flex items-center gap-2">
                                                 <span class="text-sm text-stone-600 dark:text-neutral-300">
@@ -538,7 +541,7 @@ const getCustomerInitials = (customer) => {
                                                 </span>
                                                 <span v-if="!customer.is_active"
                                                     class="inline-flex items-center rounded-full bg-stone-100 px-2 py-0.5 text-[11px] font-semibold text-stone-600 dark:bg-neutral-700 dark:text-neutral-300">
-                                                    Archived
+                                                    {{ $t('customers.status.archived') }}
                                                 </span>
                                             </div>
                                             <span class="text-xs text-stone-500 dark:text-neutral-500">
@@ -604,20 +607,20 @@ const getCustomerInitials = (customer) => {
                                         <div class="p-1">
                                             <Link :href="route('customer.show', customer)"
                                                 class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
-                                                View
+                                                {{ $t('customers.actions.view') }}
                                             </Link>
                                             <Link v-if="canEdit" :href="route('customer.edit', customer)"
                                                 class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
-                                                Edit
+                                                {{ $t('customers.actions.edit') }}
                                             </Link>
                                             <button v-if="canEdit" type="button" @click="toggleArchive(customer)"
                                                 class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800 action-feedback" data-tone="warning">
-                                                {{ customer.is_active ? 'Archive' : 'Restore' }}
+                                                {{ customer.is_active ? $t('customers.actions.archive') : $t('customers.actions.restore') }}
                                             </button>
                                             <div class="my-1 border-t border-stone-200 dark:border-neutral-800"></div>
                                             <button v-if="canEdit" type="button" @click="destroyCustomer(customer)"
                                                 class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-neutral-800 action-feedback" data-tone="danger">
-                                                Delete
+                                                {{ $t('customers.actions.delete') }}
                                             </button>
                                         </div>
                                     </div>
@@ -659,17 +662,17 @@ const getCustomerInitials = (customer) => {
                 class="rounded-sm border border-dashed border-stone-200 bg-white px-4 py-10 text-center text-stone-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300">
                 <div class="space-y-2">
                     <div class="text-sm font-semibold text-stone-700 dark:text-neutral-200">
-                        Aucun client
+                        {{ $t('customers.empty.title') }}
                     </div>
                     <div class="text-xs text-stone-500 dark:text-neutral-400">
-                        Ajoutez un client pour demarrer votre base.
+                        {{ $t('customers.empty.subtitle') }}
                     </div>
                     <div class="flex justify-center pt-2">
                         <Link
                             :href="route('customer.create')"
                             class="inline-flex items-center rounded-sm border border-green-600 bg-green-600 px-3 py-2 text-xs font-semibold text-white hover:bg-green-700"
                         >
-                            Ajouter un client
+                            {{ $t('customers.empty.action') }}
                         </Link>
                     </div>
                 </div>
@@ -687,7 +690,7 @@ const getCustomerInitials = (customer) => {
                                     v-if="hasCustomerLogo(customer)"
                                     class="size-11 rounded-sm object-cover"
                                     :src="customer.logo_url || customer.logo"
-                                    alt="Customer logo"
+                                    :alt="$t('customers.labels.logo_alt')"
                                 >
                                 <span v-else>{{ getCustomerInitials(customer) }}</span>
                             </div>
@@ -705,14 +708,14 @@ const getCustomerInitials = (customer) => {
                                             ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-200'
                                             : 'bg-stone-100 text-stone-600 dark:bg-neutral-700 dark:text-neutral-300'"
                                     >
-                                        {{ customer.is_active ? 'Active' : 'Archived' }}
+                                        {{ customer.is_active ? $t('customers.status.active') : $t('customers.status.archived') }}
                                     </span>
                                 </div>
                                 <div class="text-xs text-stone-500 dark:text-neutral-400">
-                                    {{ customer.number || 'Client' }}
+                                    {{ customer.number || $t('customers.labels.customer_fallback') }}
                                 </div>
                                 <div class="mt-1 text-[11px] text-stone-400 dark:text-neutral-500">
-                                    {{ getCity(customer) || 'Unknown city' }}
+                                    {{ getCity(customer) || $t('customers.labels.unknown_city') }}
                                 </div>
                             </div>
                         </div>
@@ -736,20 +739,20 @@ const getCustomerInitials = (customer) => {
                                     <div class="p-1">
                                         <Link :href="route('customer.show', customer)"
                                             class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
-                                            View
+                                            {{ $t('customers.actions.view') }}
                                         </Link>
                                         <Link v-if="canEdit" :href="route('customer.edit', customer)"
                                             class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
-                                            Edit
+                                            {{ $t('customers.actions.edit') }}
                                         </Link>
                                         <button v-if="canEdit" type="button" @click="toggleArchive(customer)"
                                             class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800 action-feedback" data-tone="warning">
-                                            {{ customer.is_active ? 'Archive' : 'Restore' }}
+                                            {{ customer.is_active ? $t('customers.actions.archive') : $t('customers.actions.restore') }}
                                         </button>
                                         <div class="my-1 border-t border-stone-200 dark:border-neutral-800"></div>
                                         <button v-if="canEdit" type="button" @click="destroyCustomer(customer)"
                                             class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-neutral-800 action-feedback" data-tone="danger">
-                                            Delete
+                                            {{ $t('customers.actions.delete') }}
                                         </button>
                                     </div>
                                 </div>
@@ -802,14 +805,14 @@ const getCustomerInitials = (customer) => {
                     <div class="mt-4 flex flex-wrap items-center gap-2 text-xs text-stone-500 dark:text-neutral-400">
                         <span
                             class="py-1.5 px-2 inline-flex items-center gap-x-1.5 font-medium bg-stone-100 text-stone-800 rounded-full dark:bg-neutral-700 dark:text-neutral-200">
-                            Quotes {{ customer.quotes_count ?? 0 }}
+                            {{ $t('customers.labels.quotes') }} {{ customer.quotes_count ?? 0 }}
                         </span>
                         <span
                             class="py-1.5 px-2 inline-flex items-center gap-x-1.5 font-medium bg-stone-100 text-stone-800 rounded-full dark:bg-neutral-700 dark:text-neutral-200">
-                            Jobs {{ customer.works_count ?? 0 }}
+                            {{ $t('customers.labels.jobs') }} {{ customer.works_count ?? 0 }}
                         </span>
                         <span class="text-[11px]">
-                            Created {{ formatDate(customer.created_at) }}
+                            {{ $t('customers.labels.created') }} {{ formatDate(customer.created_at) }}
                         </span>
                     </div>
                 </div>
@@ -819,20 +822,20 @@ const getCustomerInitials = (customer) => {
         <div v-if="customers.data.length > 0" class="mt-5 flex flex-wrap justify-between items-center gap-2">
             <p class="text-sm text-stone-800 dark:text-neutral-200">
                 <span class="font-medium"> {{ count }} </span>
-                <span class="text-stone-500 dark:text-neutral-500"> results</span>
+                <span class="text-stone-500 dark:text-neutral-500"> {{ $t('customers.pagination.results') }}</span>
             </p>
 
             <nav class="flex justify-end items-center gap-x-1" aria-label="Pagination">
                 <Link :href="customers.prev_page_url" v-if="customers.prev_page_url">
                 <button type="button"
                     class="min-h-[38px] min-w-[38px] py-2 px-2.5 inline-flex justify-center items-center gap-x-2 text-sm rounded-sm text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-100 dark:text-white dark:hover:bg-white/10 dark:focus:bg-neutral-700"
-                    aria-label="Previous">
+                    :aria-label="$t('customers.pagination.previous')">
                     <svg class="shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
                         viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                         stroke-linejoin="round">
                         <path d="m15 18-6-6 6-6" />
                     </svg>
-                    <span class="sr-only">Previous</span>
+                    <span class="sr-only">{{ $t('customers.pagination.previous') }}</span>
                 </button>
                 </Link>
                 <div class="flex items-center gap-x-1">
@@ -840,7 +843,7 @@ const getCustomerInitials = (customer) => {
                         class="min-h-[38px] min-w-[38px] flex justify-center items-center bg-stone-100 text-stone-800 py-2 px-3 text-sm rounded-sm disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-700 dark:text-white"
                         aria-current="page">{{ customers.from }}</span>
                     <span
-                        class="min-h-[38px] flex justify-center items-center text-stone-500 py-2 px-1.5 text-sm dark:text-neutral-500">of</span>
+                        class="min-h-[38px] flex justify-center items-center text-stone-500 py-2 px-1.5 text-sm dark:text-neutral-500">{{ $t('customers.pagination.of') }}</span>
                     <span
                         class="min-h-[38px] flex justify-center items-center text-stone-500 py-2 px-1.5 text-sm dark:text-neutral-500">{{
                             customers.to }}</span>
@@ -849,8 +852,8 @@ const getCustomerInitials = (customer) => {
                 <Link :href="customers.next_page_url" v-if="customers.next_page_url">
                 <button type="button"
                     class="min-h-[38px] min-w-[38px] py-2 px-2.5 inline-flex justify-center items-center gap-x-2 text-sm rounded-sm text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-100 dark:text-white dark:hover:bg-white/10 dark:focus:bg-neutral-700"
-                    aria-label="Next">
-                    <span class="sr-only">Next</span>
+                    :aria-label="$t('customers.pagination.next')">
+                    <span class="sr-only">{{ $t('customers.pagination.next') }}</span>
                     <svg class="shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
                         viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                         stroke-linejoin="round">

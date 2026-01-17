@@ -79,7 +79,7 @@ const proofType = (type) => {
 </script>
 
 <template>
-    <Head title="Preuves du job" />
+    <Head :title="$t('jobs.proofs_title')" />
 
     <AuthenticatedLayout>
         <div class="mx-auto w-full max-w-6xl space-y-5">

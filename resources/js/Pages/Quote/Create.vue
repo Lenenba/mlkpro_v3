@@ -6,6 +6,7 @@ import FloatingTextarea from '@/Components/FloatingTextarea.vue';
 import ProductTableList from '@/Components/ProductTableList.vue';
 import ValidationSummary from '@/Components/ValidationSummary.vue';
 import { ref, watch, computed } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 const props = defineProps({
     customer: Object,
@@ -24,13 +25,20 @@ const props = defineProps({
 });
 
 const page = usePage();
-const companyName = computed(() => page.props.auth?.account?.company?.name || 'Entreprise');
+const { t } = useI18n();
+
+const companyName = computed(() => page.props.auth?.account?.company?.name || t('quotes.company_fallback'));
 const companyLogo = computed(() => page.props.auth?.account?.company?.logo_url || null);
 const isEditing = computed(() => Boolean(props.quote?.id));
 const templateDefaults = computed(() => props.templateDefaults || {});
 const templateExamples = computed(() => props.templateExamples || []);
 const defaultMessages = computed(() => templateDefaults.value?.messages || '');
 const defaultNotes = computed(() => templateDefaults.value?.notes || '');
+const customerLabel = computed(() => {
+    const label = props.customer?.company_name
+        || `${props.customer?.first_name || ''} ${props.customer?.last_name || ''}`.trim();
+    return label || t('quotes.labels.customer_fallback');
+});
 
 const parseSourceDetails = (value) => {
     if (!value) {
@@ -94,7 +102,7 @@ const templateOptions = computed(() => {
     if (defaultMessages.value || defaultNotes.value) {
         options.unshift({
             key: 'default',
-            label: 'Default template',
+            label: t('quotes.form.template_default'),
             messages: defaultMessages.value,
             notes: defaultNotes.value,
         });
@@ -208,7 +216,7 @@ const submit = () => {
 
 <template>
 
-    <Head title="Create quote" />
+    <Head :title="$t('quotes.create_title')" />
 
     <AuthenticatedLayout>
         <div class="mx-auto w-full max-w-6xl">

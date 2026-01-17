@@ -67,7 +67,7 @@ const createInvoice = () => {
 </script>
 <template>
 
-    <Head title="Voir le job" />
+    <Head :title="$t('jobs.show_title')" />
     <AuthenticatedLayout>
         <div class="max-w-5xl mx-auto space-y-4 rise-stagger">
             <div class="p-5 bg-white border border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700">

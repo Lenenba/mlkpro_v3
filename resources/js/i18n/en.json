@@ -258,8 +258,278 @@
             }
         }
     },
+
+    
+
+    "customers": {
+        "title": "Customers",
+        "stats": {
+            "total": "Total customers",
+            "new": "New (30 days)",
+            "active": "Active (30 days)",
+            "with_quotes": "With quotes",
+            "with_jobs": "With jobs"
+        },
+        "activity": {
+            "title": "Top customer activity",
+            "subtitle": "Quotes + jobs activity",
+            "actions": "{count} actions",
+            "empty": "No customer activity yet.",
+            "quotes_short": "q",
+            "jobs_short": "j"
+        },
+        "view": {
+            "table": "Table",
+            "cards": "Cards"
+        },
+        "filters": {
+            "search_placeholder": "Search name, company, email, or phone",
+            "city": "City",
+            "country": "Country",
+            "quotes": "Quotes",
+            "jobs": "Jobs",
+            "status": "Status",
+            "created_from": "Created from",
+            "created_to": "Created to",
+            "with_quotes": "With quotes",
+            "no_quotes": "No quotes",
+            "with_jobs": "With jobs",
+            "no_jobs": "No jobs"
+        },
+        "actions": {
+            "filters": "Filters",
+            "clear": "Clear",
+            "add_customer": "Add customer",
+            "archive": "Archive",
+            "restore": "Restore",
+            "delete": "Delete",
+            "delete_confirm": "Delete \"{name}\"?",
+            "archive_confirm": "{action} \"{name}\"?",
+            "view": "View",
+            "edit": "Edit",
+            "back_to_list": "Back to list",
+            "more_actions": "... More actions",
+            "create_quote": "Create quote",
+            "create_request": "Create request",
+            "create_job": "Create job",
+            "create_invoice": "Create invoice",
+            "cancel": "Cancel",
+            "save": "Save",
+            "save_changes": "Save changes"
+        },
+        "bulk": {
+            "title": "Bulk actions",
+            "enable_portal": "Enable portal access",
+            "disable_portal": "Disable portal access",
+            "delete_confirm": "Delete selected customers?"
+        },
+        "table": {
+            "company": "Company",
+            "contact": "Contact",
+            "phone": "Phone",
+            "city": "City",
+            "quotes": "Quotes",
+            "jobs": "Jobs",
+            "created": "Created"
+        },
+        "labels": {
+            "selected": "{count} selected",
+            "customer_fallback": "Customer",
+            "customer_initial": "C",
+            "unknown_city": "Unknown city",
+            "logo_alt": "Customer logo",
+            "quotes": "Quotes",
+            "jobs": "Jobs",
+            "created": "Created",
+            "no_phone": "No phone",
+            "none": "-",
+            "unknown_status": "Unknown status"
+        },
+        "empty": {
+            "title": "No customers",
+            "subtitle": "Add a customer to start your database.",
+            "action": "Add customer"
+        },
+        "pagination": {
+            "previous": "Previous",
+            "next": "Next",
+            "of": "of",
+            "results": "results"
+        },
+        "status": {
+            "active": "Active",
+            "archived": "Archived"
+        },
+        "details": {
+            "sales": {
+                "title": "Sales",
+                "view_all": "View all",
+                "count": "Sales",
+                "paid": "Paid",
+                "total": "Total",
+                "empty": "No sales for this customer yet.",
+                "sale_fallback": "Sale #{id}"
+            },
+            "purchase": {
+                "title": "Purchase habits",
+                "last_purchase": "Last purchase",
+                "days_since": "Days since",
+                "average_order": "Average order",
+                "average_items": "Average items",
+                "frequency": "Average cadence",
+                "recent_30": "30-day purchases",
+                "preference": "Preference"
+            },
+            "top_products": {
+                "title": "Top products",
+                "product_fallback": "Product",
+                "initial_fallback": "P",
+                "sku_fallback": "SKU -",
+                "empty": "No recent purchases."
+            },
+            "schedule": {
+                "title": "Schedule",
+                "upcoming_jobs": "Upcoming jobs",
+                "view_all": "View all",
+                "starts": "Starts",
+                "no_upcoming_jobs": "No upcoming jobs.",
+                "tasks": "Tasks",
+                "due": "Due",
+                "no_due_date": "No due date",
+                "no_tasks": "No tasks yet."
+            },
+            "activity": {
+                "title": "Recent activity for this client",
+                "empty": "No recent activity yet."
+            },
+            "preview": {
+                "title": "Customer overview",
+                "quotes": "Quotes",
+                "active_jobs": "Active jobs",
+                "jobs": "Jobs",
+                "invoices": "Invoices",
+                "requests": "Requests",
+                "balance_due": "Balance due",
+                "latest_quote": "Latest quote",
+                "quote_number": "Quote {number}",
+                "quote_fallback": "Quote",
+                "total": "Total",
+                "no_quotes": "No quotes.",
+                "latest_job": "Latest job",
+                "job_fallback": "Job",
+                "no_jobs": "No jobs.",
+                "latest_invoice": "Latest invoice",
+                "invoice_number": "Invoice {number}",
+                "invoice_fallback": "Invoice",
+                "no_invoices": "No invoices."
+            },
+            "contact": {
+                "title": "Contact details",
+                "fields": {
+                    "number": "Number",
+                    "name": "Name",
+                    "phone": "Phone",
+                    "email": "Email"
+                }
+            },
+            "tags": {
+                "title": "Tags",
+                "field": "Tags (comma separated)",
+                "empty": "No tags yet."
+            },
+            "auto_validation": {
+                "title": "Auto validation",
+                "quotes": "Auto-validate quotes",
+                "jobs": "Auto-validate jobs",
+                "tasks": "Auto-validate tasks",
+                "invoices": "Auto-validate invoices"
+            },
+            "last_interaction": {
+                "title": "Last customer interaction",
+                "empty": "No interactions yet."
+            },
+            "billing_history": {
+                "title": "Billing history",
+                "invoiced": "Invoiced",
+                "paid": "Paid",
+                "balance_due": "Balance due",
+                "recent_payments": "Recent payments",
+                "invoice_fallback": "Invoice",
+                "payment_fallback": "Payment",
+                "paid_on": "Paid on",
+                "empty": "No payments yet."
+            },
+            "notes": {
+                "title": "Internal notes",
+                "field": "Internal notes",
+                "empty": "No notes yet."
+            },
+            "days_label": "{count} days"
+        },
+        "properties": {
+            "title": "Properties",
+            "add": "Add property",
+            "set_default": "Set as default",
+            "default_label": "Default",
+            "empty": "No properties yet.",
+            "delete_confirm": "Delete this property?",
+            "fallback": "Property",
+            "types": {
+                "physical": "Physical",
+                "billing": "Billing",
+                "other": "Other"
+            },
+            "fields": {
+                "type": "Type",
+                "street1": "Street 1",
+                "street2": "Street 2",
+                "city": "City",
+                "state": "State",
+                "zip": "Zip code",
+                "country": "Country"
+            }
+        },
+        "tabs": {
+            "overview": "Overview",
+            "empty_modules": "No modules are enabled for this plan.",
+            "status_label": "Status",
+            "filters": {
+                "all": "All statuses"
+            },
+            "active_works": "Active works",
+            "requests": "Requests",
+            "quotes": "Quotes",
+            "jobs": "Jobs",
+            "invoices": "Invoices",
+            "items": "{count} items",
+            "empty_filtered": "No {type} match this filter.",
+            "empty_title": "No {type} data",
+            "empty_subtitle": "In the meantime, you can create new custom {type} to monitor your most important metrics",
+            "types": {
+                "works": "works",
+                "requests": "requests",
+                "quotes": "quotes",
+                "jobs": "jobs",
+                "invoices": "invoices"
+            },
+            "actions": {
+                "create_quote": "Create quote",
+                "create_job": "Create job",
+                "view_invoices": "View invoices",
+                "create_request": "Create request"
+            },
+            "requests": {
+                "status": {
+                    "new": "New",
+                    "converted": "Converted"
+                }
+            }
+        }
+    },
     "quotes": {
         "title": "Quotes",
+        "create_title": "Create quote",
+        "show_title": "View quote",
         "view": {
             "table": "Table",
             "cards": "Cards"
@@ -346,6 +616,9 @@
     },
     "jobs": {
         "title": "Jobs",
+        "create_title": "Create job",
+        "show_title": "View job",
+        "proofs_title": "Job proofs",
         "stats": {
             "total": "Total jobs",
             "scheduled": "Scheduled",
@@ -403,6 +676,158 @@
             "previous": "Previous",
             "next": "Next",
             "of": "of"
+        }
+    },
+    "tasks": {
+        "title": "Tasks",
+        "stats": {
+            "total": "Total tasks",
+            "todo": "To do",
+            "in_progress": "In progress",
+            "done": "Done"
+        },
+        "view": {
+            "board": "Board",
+            "schedule": "Schedule"
+        },
+        "filters": {
+            "search_placeholder": "Search tasks, details, or assignee",
+            "status": {
+                "all": "All status"
+            }
+        },
+        "actions": {
+            "filters": "Filters",
+            "clear": "Clear",
+            "add_task": "Add task",
+            "set_status": "Set status",
+            "edit": "Edit",
+            "add_proof": "Add proof",
+            "delete": "Delete",
+            "delete_confirm": "Delete task \"{title}\"?",
+            "cancel": "Cancel",
+            "create": "Create",
+            "save": "Save",
+            "close": "Close"
+        },
+        "status": {
+            "todo": "To do",
+            "in_progress": "In progress",
+            "done": "Done"
+        },
+        "schedule": {
+            "title": "Schedule",
+            "range_label": "Range",
+            "show_all": "Show all",
+            "all_dates": "All dates",
+            "range": {
+                "week": "Week",
+                "two_weeks": "2 weeks",
+                "month": "Month",
+                "all": "All"
+            }
+        },
+        "calendar": {
+            "weekdays": {
+                "mon": "Mon",
+                "tue": "Tue",
+                "wed": "Wed",
+                "thu": "Thu",
+                "fri": "Fri",
+                "sat": "Sat",
+                "sun": "Sun"
+            },
+            "day_count_one": "{count} task",
+            "day_count_many": "{count} tasks",
+            "tasks_due": "Tasks due"
+        },
+        "empty": {
+            "no_tasks": "No tasks yet.",
+            "no_tasks_in_range": "No tasks in this range.",
+            "no_tasks_for_date": "No tasks for {date}.",
+            "no_tasks_column": "No tasks"
+        },
+        "labels": {
+            "no_due_date": "No due date",
+            "unassigned": "Unassigned",
+            "task_count_one": "{count} task",
+            "task_count_many": "{count} tasks",
+            "job_number": "Job #{id}",
+            "unknown_status": "Unknown status",
+            "task": "Task"
+        },
+        "table": {
+            "task": "Task",
+            "status": "Status",
+            "due": "Due",
+            "assignee": "Assignee",
+            "created": "Created",
+            "results": "results"
+        },
+        "pagination": {
+            "previous": "Previous",
+            "next": "Next",
+            "of": "of"
+        },
+        "details": {
+            "title": "Task details",
+            "status": "Status",
+            "due": "Due",
+            "created": "Created",
+            "assignee": "Assignee",
+            "description": "Description",
+            "no_description": "No description.",
+            "materials": "Materials",
+            "material_fallback": "Item",
+            "no_materials": "No materials.",
+            "open_full_task": "Open full task",
+            "page_title": "View task",
+            "address_label": "Address",
+            "open_in_maps": "Open in Maps",
+            "address_unavailable": "Address unavailable for this task.",
+            "timeline": "Timeline",
+            "back_to_tasks": "Back to tasks"
+        },
+        "modal": {
+            "add_title": "Add task",
+            "edit_title": "Edit task"
+        },
+        "form": {
+            "title": "Title",
+            "description_optional": "Description (optional)",
+            "job": "Job",
+            "select_job": "Select job",
+            "one_off_task": "One-off task",
+            "status": "Status",
+            "due_date": "Due date",
+            "assignee": "Assignee",
+            "unassigned": "Unassigned"
+        },
+        "materials": {
+            "title": "Materials",
+            "add": "Add material",
+            "custom": "Custom",
+            "product": "Product",
+            "label": "Label",
+            "quantity": "Quantity",
+            "unit_price": "Unit price",
+            "unit": "Unit",
+            "billable": "Billable",
+            "description_optional": "Description (optional)",
+            "remove": "Remove",
+            "empty": "No materials yet."
+        },
+        "proof": {
+            "title": "Upload proof",
+            "type": "Type",
+            "types": {
+                "execution": "Execution",
+                "completion": "Completion",
+                "other": "Other"
+            },
+            "file": "File",
+            "note_optional": "Note (optional)",
+            "upload": "Upload"
         }
     },
     "quick_create": {
@@ -489,7 +914,11 @@
             "title": "Everything to sell, schedule, and deliver",
             "subtitle": "Quote faster, track jobs, and keep every team aligned.",
             "items": {
-                "quotes": {
+            
+    
+
+    
+    "quotes": {
                     "title": "Smart quotes",
                     "desc": "Mix services and products, control margins, and save sources."
                 },

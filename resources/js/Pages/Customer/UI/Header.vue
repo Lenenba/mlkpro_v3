@@ -2,6 +2,7 @@
 import { computed } from 'vue';
 import { Link, usePage } from '@inertiajs/vue3';
 import { isFeatureEnabled } from '@/utils/features';
+import { useI18n } from 'vue-i18n';
 
 const props = defineProps({
     customer: Object,
@@ -14,6 +15,7 @@ const props = defineProps({
 const page = usePage();
 const featureFlags = computed(() => page.props.auth?.account?.features || {});
 const hasFeature = (key) => isFeatureEnabled(featureFlags.value, key);
+const { t } = useI18n();
 
 const openRequestModal = () => {
     if (!props.customer?.id) {
@@ -59,7 +61,7 @@ const openRequestModal = () => {
                         {{ customer.company_name || `${customer.first_name} ${customer.last_name}` }}
                     </p>
                     <p class="text-sm text-stone-500 dark:text-neutral-400">
-                        {{ customer.email }} | {{ customer.phone || 'No phone' }}
+                        {{ customer.email }} | {{ customer.phone || t('customers.labels.no_phone') }}
                     </p>
                 </div>
             </div>
@@ -71,12 +73,12 @@ const openRequestModal = () => {
                 <!-- Button -->
                 <Link :href="route('customer.index')"
                     class="py-1 px-3 inline-flex items-center gap-x-1.5 text-sm font-medium rounded-sm border border-stone-100 bg-white text-stone-800 hover:bg-stone-50 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-50 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800 dark:focus:bg-neutral-800">
-                    Back to list
+                    {{ t('customers.actions.back_to_list') }}
                 </Link>
                 <!-- End Button -->
                 <Link v-if="canEdit" :href="route('customer.edit', customer)"
                     class="py-1 px-3 inline-flex items-center gap-x-1.5 text-sm font-medium rounded-sm border border-stone-100 bg-white text-stone-800 hover:bg-stone-50 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-50 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800 dark:focus:bg-neutral-800">
-                    Edit
+                    {{ t('customers.actions.edit') }}
                 </Link>
 
                 <!-- Button Group -->
@@ -89,13 +91,13 @@ const openRequestModal = () => {
                         <div class="hs-tooltip [--placement:bottom-right] inline-block">
                             <button id="hs-pro-in1trsbgwmdid1" type="button"
                                 class="hs-tooltip-toggle py-2 px-2.5 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:ring-2 focus:ring-green-500">
-                                ... More action
-                                <span class="sr-only">More send options</span>
+                                {{ t('customers.actions.more_actions') }}
+                                <span class="sr-only">{{ t('customers.actions.more_actions') }}</span>
                             </button>
                             <span
                                 class="hs-tooltip-content hs-tooltip-shown:opacity-100 hs-tooltip-shown:visible opacity-0 inline-block absolute invisible z-[60] py-1.5 px-2.5 bg-stone-900 text-xs text-white rounded-sm whitespace-nowrap dark:bg-neutral-700"
                                 role="tooltip">
-                                More send options
+                                {{ t('customers.actions.more_actions') }}
                             </span>
                         </div>
 
@@ -115,7 +117,7 @@ const openRequestModal = () => {
                                             <path d="M21 18H8" />
                                             <path d="M3 12v6" />
                                         </svg>
-                                        Create quote
+                                        {{ t('customers.actions.create_quote') }}
                                     </button>
                                 </Link>
 
@@ -129,7 +131,7 @@ const openRequestModal = () => {
                                         <path d="M13 6h3a2 2 0 0 1 2 2v7" />
                                         <line x1="6" x2="6" y1="9" y2="21" />
                                     </svg>
-                                    Create request
+                                    {{ t('customers.actions.create_request') }}
                                 </button>
                                 <Link v-if="hasFeature('jobs')" :href="route('work.create', customer)">
                                     <button type="button"
@@ -150,7 +152,7 @@ const openRequestModal = () => {
                                             <path d="M8 21h8" />
                                             <circle cx="18" cy="6" r="3" />
                                         </svg>
-                                        Create job
+                                        {{ t('customers.actions.create_job') }}
                                     </button>
                                 </Link>
                                 <button v-if="hasFeature('invoices')" type="button"
@@ -164,7 +166,7 @@ const openRequestModal = () => {
                                         <path d="M16 13H8" />
                                         <path d="M16 17H8" />
                                     </svg>
-                                    Create invoice
+                                    {{ t('customers.actions.create_invoice') }}
                                 </button>
                             </div>
                             <!-- List -->

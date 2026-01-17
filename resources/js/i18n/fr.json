@@ -258,8 +258,278 @@
       }
     }
   },
+
+  
+
+  "customers": {
+    "title": "Clients",
+    "stats": {
+      "total": "Total clients",
+      "new": "Nouveaux (30 jours)",
+      "active": "Actifs (30 jours)",
+      "with_quotes": "Avec devis",
+      "with_jobs": "Avec chantiers"
+    },
+    "activity": {
+      "title": "Activite client",
+      "subtitle": "Devis + chantiers",
+      "actions": "{count} actions",
+      "empty": "Aucune activite client.",
+      "quotes_short": "d",
+      "jobs_short": "c"
+    },
+    "view": {
+      "table": "Table",
+      "cards": "Cartes"
+    },
+    "filters": {
+      "search_placeholder": "Rechercher nom, societe, email ou telephone",
+      "city": "Ville",
+      "country": "Pays",
+      "quotes": "Devis",
+      "jobs": "Chantiers",
+      "status": "Statut",
+      "created_from": "Cree a partir du",
+      "created_to": "Cree jusqu'au",
+      "with_quotes": "Avec devis",
+      "no_quotes": "Sans devis",
+      "with_jobs": "Avec chantiers",
+      "no_jobs": "Sans chantiers"
+    },
+    "actions": {
+      "filters": "Filtres",
+      "clear": "Effacer",
+      "add_customer": "Ajouter client",
+      "archive": "Archiver",
+      "restore": "Restaurer",
+      "delete": "Supprimer",
+      "delete_confirm": "Supprimer \"{name}\" ?",
+      "archive_confirm": "{action} \"{name}\" ?",
+      "view": "Voir",
+      "edit": "Modifier",
+      "back_to_list": "Retour a la liste",
+      "more_actions": "... Plus d'actions",
+      "create_quote": "Creer devis",
+      "create_request": "Creer demande",
+      "create_job": "Creer chantier",
+      "create_invoice": "Creer facture",
+      "cancel": "Annuler",
+      "save": "Enregistrer",
+      "save_changes": "Enregistrer modifications"
+    },
+    "bulk": {
+      "title": "Actions en lot",
+      "enable_portal": "Activer acces portail",
+      "disable_portal": "Desactiver acces portail",
+      "delete_confirm": "Supprimer les clients selectionnes ?"
+    },
+    "table": {
+      "company": "Societe",
+      "contact": "Contact",
+      "phone": "Telephone",
+      "city": "Ville",
+      "quotes": "Devis",
+      "jobs": "Chantiers",
+      "created": "Cree"
+    },
+    "labels": {
+      "selected": "{count} selectionnes",
+      "customer_fallback": "Client",
+      "customer_initial": "C",
+      "unknown_city": "Ville inconnue",
+      "logo_alt": "Logo client",
+      "quotes": "Devis",
+      "jobs": "Chantiers",
+      "created": "Cree",
+      "no_phone": "Pas de telephone",
+      "none": "-",
+      "unknown_status": "Statut inconnu"
+    },
+    "empty": {
+      "title": "Aucun client",
+      "subtitle": "Ajoutez un client pour demarrer votre base.",
+      "action": "Ajouter un client"
+    },
+    "pagination": {
+      "previous": "Precedent",
+      "next": "Suivant",
+      "of": "sur",
+      "results": "resultats"
+    },
+    "status": {
+      "active": "Actif",
+      "archived": "Archive"
+    },
+    "details": {
+      "sales": {
+        "title": "Ventes",
+        "view_all": "Voir tout",
+        "count": "Ventes",
+        "paid": "Paye",
+        "total": "Total",
+        "empty": "Aucune vente pour ce client.",
+        "sale_fallback": "Vente #{id}"
+      },
+      "purchase": {
+        "title": "Habitudes d'achat",
+        "last_purchase": "Dernier achat",
+        "days_since": "Jours depuis",
+        "average_order": "Achat moyen",
+        "average_items": "Articles moyens",
+        "frequency": "Cadence moyenne",
+        "recent_30": "Achats 30 jours",
+        "preference": "Habitude"
+      },
+      "top_products": {
+        "title": "Produits favoris",
+        "product_fallback": "Produit",
+        "initial_fallback": "P",
+        "sku_fallback": "SKU -",
+        "empty": "Aucun achat recent."
+      },
+      "schedule": {
+        "title": "Planning",
+        "upcoming_jobs": "Chantiers a venir",
+        "view_all": "Voir tout",
+        "starts": "Debute",
+        "no_upcoming_jobs": "Aucun chantier a venir.",
+        "tasks": "Taches",
+        "due": "Echeance",
+        "no_due_date": "Aucune date",
+        "no_tasks": "Aucune tache pour le moment."
+      },
+      "activity": {
+        "title": "Activite recente pour ce client",
+        "empty": "Aucune activite recente."
+      },
+      "preview": {
+        "title": "Apercu client",
+        "quotes": "Devis",
+        "active_jobs": "Chantiers actifs",
+        "jobs": "Chantiers",
+        "invoices": "Factures",
+        "requests": "Demandes",
+        "balance_due": "Solde du",
+        "latest_quote": "Dernier devis",
+        "quote_number": "Devis {number}",
+        "quote_fallback": "Devis",
+        "total": "Total",
+        "no_quotes": "Aucun devis.",
+        "latest_job": "Dernier chantier",
+        "job_fallback": "Chantier",
+        "no_jobs": "Aucun chantier.",
+        "latest_invoice": "Derniere facture",
+        "invoice_number": "Facture {number}",
+        "invoice_fallback": "Facture",
+        "no_invoices": "Aucune facture."
+      },
+      "contact": {
+        "title": "Coordonnees",
+        "fields": {
+          "number": "Numero",
+          "name": "Nom",
+          "phone": "Telephone",
+          "email": "Email"
+        }
+      },
+      "tags": {
+        "title": "Tags",
+        "field": "Tags (separes par virgules)",
+        "empty": "Aucun tag."
+      },
+      "auto_validation": {
+        "title": "Validation auto",
+        "quotes": "Validation auto des devis",
+        "jobs": "Validation auto des chantiers",
+        "tasks": "Validation auto des taches",
+        "invoices": "Validation auto des factures"
+      },
+      "last_interaction": {
+        "title": "Derniere interaction client",
+        "empty": "Aucune interaction."
+      },
+      "billing_history": {
+        "title": "Historique facturation",
+        "invoiced": "Facture",
+        "paid": "Encaisse",
+        "balance_due": "Solde du",
+        "recent_payments": "Paiements recents",
+        "invoice_fallback": "Facture",
+        "payment_fallback": "Paiement",
+        "paid_on": "Paye le",
+        "empty": "Aucun paiement."
+      },
+      "notes": {
+        "title": "Notes internes",
+        "field": "Notes internes",
+        "empty": "Aucune note."
+      },
+      "days_label": "{count} j"
+    },
+    "properties": {
+      "title": "Proprietes",
+      "add": "Ajouter propriete",
+      "set_default": "Definir par defaut",
+      "default_label": "Par defaut",
+      "empty": "Aucune propriete.",
+      "delete_confirm": "Supprimer cette propriete ?",
+      "fallback": "Propriete",
+      "types": {
+        "physical": "Physique",
+        "billing": "Facturation",
+        "other": "Autre"
+      },
+      "fields": {
+        "type": "Type",
+        "street1": "Rue 1",
+        "street2": "Rue 2",
+        "city": "Ville",
+        "state": "Etat",
+        "zip": "Code postal",
+        "country": "Pays"
+      }
+    },
+    "tabs": {
+      "overview": "Apercu",
+      "empty_modules": "Aucun module active pour ce plan.",
+      "status_label": "Statut",
+      "filters": {
+        "all": "Tous les statuts"
+      },
+      "active_works": "Chantiers actifs",
+      "requests": "Demandes",
+      "quotes": "Devis",
+      "jobs": "Chantiers",
+      "invoices": "Factures",
+      "items": "{count} elements",
+      "empty_filtered": "Aucun {type} ne correspond a ce filtre.",
+      "empty_title": "Aucune donnee {type}",
+      "empty_subtitle": "En attendant, vous pouvez creer des {type} pour suivre vos indicateurs",
+      "types": {
+        "works": "chantiers actifs",
+        "requests": "demandes",
+        "quotes": "devis",
+        "jobs": "chantiers",
+        "invoices": "factures"
+      },
+      "actions": {
+        "create_quote": "Creer devis",
+        "create_job": "Creer chantier",
+        "view_invoices": "Voir factures",
+        "create_request": "Creer demande"
+      },
+      "requests": {
+        "status": {
+          "new": "Nouveau",
+          "converted": "Converti"
+        }
+      }
+    }
+  },
   "quotes": {
     "title": "Devis",
+    "create_title": "Creer devis",
+    "show_title": "Voir le devis",
     "view": {
       "table": "Table",
       "cards": "Cartes"
@@ -346,6 +616,9 @@
   },
   "jobs": {
     "title": "Chantiers",
+    "create_title": "Creer chantier",
+    "show_title": "Voir le chantier",
+    "proofs_title": "Preuves du chantier",
     "stats": {
       "total": "Total chantiers",
       "scheduled": "Planifie",
@@ -403,6 +676,158 @@
       "previous": "Precedent",
       "next": "Suivant",
       "of": "sur"
+    }
+  },
+  "tasks": {
+    "title": "Taches",
+    "stats": {
+      "total": "Total taches",
+      "todo": "A faire",
+      "in_progress": "En cours",
+      "done": "Terminee"
+    },
+    "view": {
+      "board": "Tableau",
+      "schedule": "Planning"
+    },
+    "filters": {
+      "search_placeholder": "Rechercher taches, details ou assignes",
+      "status": {
+        "all": "Tous les statuts"
+      }
+    },
+    "actions": {
+      "filters": "Filtres",
+      "clear": "Effacer",
+      "add_task": "Ajouter tache",
+      "set_status": "Definir statut",
+      "edit": "Modifier",
+      "add_proof": "Ajouter preuve",
+      "delete": "Supprimer",
+      "delete_confirm": "Supprimer la tache \"{title}\" ?",
+      "cancel": "Annuler",
+      "create": "Creer",
+      "save": "Enregistrer",
+      "close": "Fermer"
+    },
+    "status": {
+      "todo": "A faire",
+      "in_progress": "En cours",
+      "done": "Terminee"
+    },
+    "schedule": {
+      "title": "Planning",
+      "range_label": "Periode",
+      "show_all": "Tout afficher",
+      "all_dates": "Toutes dates",
+      "range": {
+        "week": "Semaine",
+        "two_weeks": "2 semaines",
+        "month": "Mois",
+        "all": "Tout"
+      }
+    },
+    "calendar": {
+      "weekdays": {
+        "mon": "Lun",
+        "tue": "Mar",
+        "wed": "Mer",
+        "thu": "Jeu",
+        "fri": "Ven",
+        "sat": "Sam",
+        "sun": "Dim"
+      },
+      "day_count_one": "{count} tache",
+      "day_count_many": "{count} taches",
+      "tasks_due": "Taches a faire"
+    },
+    "empty": {
+      "no_tasks": "Aucune tache pour le moment.",
+      "no_tasks_in_range": "Aucune tache sur cette periode.",
+      "no_tasks_for_date": "Aucune tache pour {date}.",
+      "no_tasks_column": "Aucune tache"
+    },
+    "labels": {
+      "no_due_date": "Aucune date",
+      "unassigned": "Non assigne",
+      "task_count_one": "{count} tache",
+      "task_count_many": "{count} taches",
+      "job_number": "Chantier #{id}",
+      "unknown_status": "Statut inconnu",
+      "task": "Tache"
+    },
+    "table": {
+      "task": "Tache",
+      "status": "Statut",
+      "due": "Echeance",
+      "assignee": "Assigne",
+      "created": "Cree",
+      "results": "resultats"
+    },
+    "pagination": {
+      "previous": "Precedent",
+      "next": "Suivant",
+      "of": "sur"
+    },
+    "details": {
+      "title": "Details de la tache",
+      "status": "Statut",
+      "due": "Echeance",
+      "created": "Cree",
+      "assignee": "Assigne",
+      "description": "Description",
+      "no_description": "Aucune description.",
+      "materials": "Materiaux",
+      "material_fallback": "Element",
+      "no_materials": "Aucun materiau.",
+      "open_full_task": "Ouvrir la tache",
+      "page_title": "Voir la tache",
+      "address_label": "Adresse",
+      "open_in_maps": "Ouvrir dans Maps",
+      "address_unavailable": "Adresse indisponible pour cette tache.",
+      "timeline": "Timeline",
+      "back_to_tasks": "Retour aux taches"
+    },
+    "modal": {
+      "add_title": "Ajouter une tache",
+      "edit_title": "Modifier la tache"
+    },
+    "form": {
+      "title": "Titre",
+      "description_optional": "Description (optionnel)",
+      "job": "Chantier",
+      "select_job": "Selectionner chantier",
+      "one_off_task": "Tache ponctuelle",
+      "status": "Statut",
+      "due_date": "Date d'echeance",
+      "assignee": "Assigne",
+      "unassigned": "Non assigne"
+    },
+    "materials": {
+      "title": "Materiaux",
+      "add": "Ajouter materiau",
+      "custom": "Personnalise",
+      "product": "Produit",
+      "label": "Libelle",
+      "quantity": "Quantite",
+      "unit_price": "Prix unitaire",
+      "unit": "Unite",
+      "billable": "Facturable",
+      "description_optional": "Description (optionnel)",
+      "remove": "Retirer",
+      "empty": "Aucun materiau."
+    },
+    "proof": {
+      "title": "Ajouter une preuve",
+      "type": "Type",
+      "types": {
+        "execution": "Execution",
+        "completion": "Completion",
+        "other": "Autre"
+      },
+      "file": "Fichier",
+      "note_optional": "Note (optionnel)",
+      "upload": "Televerser"
     }
   },
   "quick_create": {
@@ -489,7 +914,11 @@
       "title": "Tout pour vendre, planifier et livrer",
       "subtitle": "Devis rapides, suivi des chantiers, équipe alignée.",
       "items": {
-        "quotes": {
+      
+  
+
+  
+  "quotes": {
           "title": "Devis intelligents",
           "desc": "Mixez services et produits, et suivez marges et sources."
         },

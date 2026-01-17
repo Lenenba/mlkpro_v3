@@ -74,7 +74,7 @@ const sourceLines = computed(() => {
 
 <template>
 
-    <Head title="View quote" />
+    <Head :title="$t('quotes.show_title')" />
 
     <AuthenticatedLayout>
         <div class="mx-auto w-full max-w-6xl space-y-5 rise-stagger">
