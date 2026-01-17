@@ -530,6 +530,72 @@
         "title": "Quotes",
         "create_title": "Create quote",
         "show_title": "View quote",
+        "company_fallback": "Company",
+        "form": {
+            "quote_for": "Quote for {customer}",
+            "quote_locked": "This quote is locked because it has been accepted or archived.",
+            "job_title": "Job title",
+            "property": "Property",
+            "no_property": "No property",
+            "property_address": "Property address",
+            "no_property_selected": "No property selected.",
+            "contact_details": "Contact details",
+            "quote_details": "Quote details",
+            "quote_label": "Quote",
+            "status": "Status",
+            "rate_opportunity": "Rate opportunity",
+            "add_custom_fields": "Add custom fields",
+            "templates": "Templates",
+            "template_help": "Pick a starting point for this quote.",
+            "client_message": "Client message",
+            "subtotal": "Subtotal",
+            "discount": "Discount (%)",
+            "add_discount": "Add discount",
+            "tax": "Tax",
+            "hide_taxes": "Hide taxes",
+            "add_tax": "Add tax",
+            "no_taxes": "No taxes configured.",
+            "total_taxes": "Total taxes",
+            "total_amount": "Total amount",
+            "required_deposit": "Required deposit",
+            "minimum_label": "Min: ${amount}",
+            "add_required_deposit": "Add required deposit",
+            "terms": "Terms and conditions",
+            "cancel": "Cancel",
+            "save_and_create_another": "Save and create another",
+            "save_quote": "Save quote"
+        },
+        "show": {
+            "timeline": "Timeline",
+            "no_rating_yet": "No rating yet",
+            "table": {
+                "product_services": "Product/Services",
+                "qty": "Qty.",
+                "unit_cost": "Unit cost",
+                "total": "Total"
+            },
+            "price_sources_title": "Price sources & justification",
+            "price_sources_subtitle": "Supplier benchmarks, selected source, and why each price was chosen.",
+            "variant_label": "Variant {value}",
+            "basis_label": "Basis {value}",
+            "selected_supplier": "Selected supplier",
+            "not_available": "Not available",
+            "supplier_unit_cost": "Supplier unit cost: ${price}",
+            "product_label": "Product: {name}",
+            "quote_unit_price": "Quote unit price: ${price}",
+            "best_price": "Best price: {name} ${price}",
+            "preferred_supplier": "Preferred supplier: {name} ${price}",
+            "source_status_missing": "No live price found for this line.",
+            "source_status_skipped": "Live pricing skipped to keep scan fast.",
+            "open_source_link": "Open source link",
+            "selection_reason": "Selection reason",
+            "query_label": "Query: {query}",
+            "benchmarks_label": "Benchmarks: min ${min}, median ${median}, max ${max}",
+            "benchmarks_preferred": "preferred min ${value}",
+            "all_supplier_prices": "All supplier prices",
+            "source_link": "Source link",
+            "tax_fallback": "Tax"
+        },
         "view": {
             "table": "Table",
             "cards": "Cards"
@@ -590,6 +656,7 @@
         },
         "labels": {
             "unknown_customer": "Unknown",
+            "customer_fallback": "Customer",
             "quote_fallback": "Quote",
             "quote_initial": "Q",
             "job_fallback": "Job"
@@ -619,6 +686,189 @@
         "create_title": "Create job",
         "show_title": "View job",
         "proofs_title": "Job proofs",
+        "company_fallback": "Company",
+        "form": {
+            "customer_fallback": "Customer",
+            "job_for": "Job for: {customer}",
+            "job_title": "Job title",
+            "instructions": "Instructions",
+            "locked_notice": "This job is locked because it comes from an accepted quote. Only scheduling can be updated.",
+            "property_address": "Property address",
+            "contact_details": "Contact details",
+            "job_details": "Job details",
+            "job_label": "Job",
+            "rating_label": "Rating",
+            "status_label": "Status",
+            "add_custom_fields": "Add custom fields",
+            "tabs": {
+                "single": {
+                    "title": "ONE-TIME JOB",
+                    "subtitle": "A one-time job with one or more visits"
+                },
+                "recurring": {
+                    "title": "RECURRING JOB",
+                    "subtitle": "A contract job with repeated visits"
+                }
+            },
+            "planning_title": "SCHEDULING",
+            "start_date": "Start date",
+            "end_date": "End date",
+            "start_time": "Start time",
+            "end_time": "End time",
+            "pick_date": "Choose a date",
+            "pick_time": "Choose a time",
+            "quick_summary": "Quick summary",
+            "summary_date": "Date",
+            "summary_time": "Time",
+            "calendar_tip": "Click a day on the calendar to fill the date.",
+            "plan_later": "Schedule later",
+            "team": {
+                "title": "TEAM",
+                "empty": "No team members yet.",
+                "member_fallback": "Team member",
+                "filter_hint": "Select a member to filter the calendar."
+            },
+            "calendar": {
+                "title": "Calendar",
+                "subtitle": "The calendar shows already scheduled visits.",
+                "all_members": "All members"
+            },
+            "recurrence": {
+                "title": "RECURRENCE",
+                "subtitle": "Define the rhythm of recurring visits.",
+                "repeat_every": "Repeat every:",
+                "repeat_on": "Repeat on:",
+                "repeat_hint": "Choose the days when visits repeat.",
+                "count_label": "Count",
+                "times_suffix": "times",
+                "preview_title": "Visit preview",
+                "preview_first": "First",
+                "preview_last": "Last",
+                "preview_total": "Total"
+            },
+            "billing": {
+                "title": "BILLING",
+                "mode": "Billing mode",
+                "grouping": "Grouping",
+                "cycle": "Cycle",
+                "delay": "Delay (days)",
+                "date_rule": "Date rule (ex: 1st of month)",
+                "reminder": "Remind me to invoice when the job closes"
+            },
+            "actions": {
+                "cancel": "Cancel",
+                "save_and_create_another": "Save and create another",
+                "save_job": "Save job"
+            }
+        },
+        "recurrence": {
+            "frequency": {
+                "label": "Frequency",
+                "daily": "Daily",
+                "weekly": "Weekly",
+                "monthly": "Monthly",
+                "yearly": "Yearly"
+            },
+            "ends": {
+                "label": "End",
+                "never": "Never",
+                "on": "On",
+                "after": "After"
+            },
+            "weekdays": {
+                "mo": "Mon",
+                "tu": "Tue",
+                "we": "Wed",
+                "th": "Thu",
+                "fr": "Fri",
+                "sa": "Sat",
+                "su": "Sun"
+            }
+        },
+        "billing": {
+            "modes": {
+                "per_task": "Per task",
+                "per_segment": "Per segment",
+                "end_of_job": "End of job",
+                "deferred": "Deferred"
+            },
+            "groupings": {
+                "single": "Single invoice",
+                "periodic": "Grouped"
+            },
+            "cycles": {
+                "weekly": "Weekly",
+                "biweekly": "Every 2 weeks",
+                "monthly": "Monthly",
+                "every_n_tasks": "Every N tasks"
+            }
+        },
+        "show": {
+            "timeline": "Timeline",
+            "edit_job": "Edit job",
+            "locked_notice": "Job locked after validation.",
+            "proofs": "Proofs",
+            "view_invoice": "View invoice",
+            "create_invoice": "Create invoice",
+            "no_rating": "No rating yet",
+            "locked_from_quote": "This job is locked because it comes from an accepted quote.",
+            "cards": {
+                "customer": "Customer",
+                "dates": "Dates",
+                "start": "Start",
+                "end": "End",
+                "totals": "Totals",
+                "subtotal": "Subtotal",
+                "total": "Total",
+                "rating": "Rating"
+            },
+            "table": {
+                "product_service": "Product/Service",
+                "qty": "Qty",
+                "unit_price": "Unit price",
+                "total": "Total",
+                "empty": "No products/services attached."
+            }
+        },
+        "proofs": {
+            "title": "Job proofs",
+            "job_fallback": "Job",
+            "view_job": "View job",
+            "back_to_dashboard": "Back to dashboard",
+            "cards": {
+                "customer": "Customer",
+                "period": "Period",
+                "status": "Status"
+            },
+            "task_fallback": "Task",
+            "assigned": "Assigned",
+            "materials": "Materials",
+            "billable": "Billable",
+            "proof_fallback": "Proof",
+            "media": {
+                "type": "Type",
+                "source": "Source",
+                "by": "By",
+                "note": "Note"
+            },
+            "empty_task": "No proof available for this task.",
+            "empty": "No tasks available.",
+            "status": {
+                "todo": "To do",
+                "in_progress": "In progress",
+                "done": "Done"
+            },
+            "source": {
+                "client": "Client",
+                "team": "Team",
+                "internal": "Internal"
+            },
+            "type": {
+                "execution": "Execution",
+                "completion": "Completion",
+                "other": "Other"
+            }
+        },
         "stats": {
             "total": "Total jobs",
             "scheduled": "Scheduled",

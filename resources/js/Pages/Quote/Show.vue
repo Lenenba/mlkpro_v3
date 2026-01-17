@@ -3,13 +3,21 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, Link, usePage } from '@inertiajs/vue3';
 import { computed } from 'vue';
 import StarRating from '@/Components/UI/StarRating.vue';
+import { useI18n } from 'vue-i18n';
 const props = defineProps({
     quote: Object,
 });
 
 const page = usePage();
-const companyName = computed(() => page.props.auth?.account?.company?.name || 'Entreprise');
+const { t } = useI18n();
+const companyName = computed(() => page.props.auth?.account?.company?.name || t('quotes.company_fallback'));
 const companyLogo = computed(() => page.props.auth?.account?.company?.logo_url || null);
+const customerLabel = computed(() => {
+    const customer = props.quote?.customer;
+    const label = customer?.company_name
+        || `${customer?.first_name || ''} ${customer?.last_name || ''}`.trim();
+    return label || t('quotes.labels.customer_fallback');
+});
 
 const fallbackProperty = computed(() => {
     const properties = props.quote.customer?.properties || [];
@@ -92,7 +100,7 @@ const sourceLines = computed(() => {
                                     {{ companyName }}
                                 </p>
                                 <h1 class="text-xl inline-block font-semibold text-stone-800 dark:text-green-100">
-                                    Quote For {{ quote.customer.company_name }}
+                                    {{ $t('quotes.form.quote_for', { customer: customerLabel }) }}
                                 </h1>
                             </div>
                         </div>
@@ -101,7 +109,7 @@ const sourceLines = computed(() => {
                                 :href="route('pipeline.timeline', { entityType: 'quote', entityId: quote.id })"
                                 class="py-2 px-3 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700"
                             >
-                                Timeline
+                                {{ $t('quotes.show.timeline') }}
                             </Link>
                         </div>
                     </div>
@@ -113,7 +121,7 @@ const sourceLines = computed(() => {
                                 <div class="flex flex-row space-x-6">
                                     <div class="lg:col-span-3">
                                         <p>
-                                            Property address
+                                            {{ $t('quotes.form.property_address') }}
                                         </p>
                                         <div v-if="property" class="space-y-1">
                                             <div class="text-xs text-stone-600 dark:text-neutral-400">
@@ -127,12 +135,12 @@ const sourceLines = computed(() => {
                                             </div>
                                         </div>
                                         <div v-else class="text-xs text-stone-600 dark:text-neutral-400">
-                                            No property selected.
+                                            {{ $t('quotes.form.no_property_selected') }}
                                         </div>
                                     </div>
                                     <div class="lg:col-span-3">
                                         <p>
-                                            Contact details
+                                            {{ $t('quotes.form.contact_details') }}
                                         </p>
                                         <div class="text-xs text-stone-600 dark:text-neutral-400">
                                             {{ quote.customer.first_name }} {{ quote.customer.last_name }}
@@ -150,16 +158,16 @@ const sourceLines = computed(() => {
                             <div class="bg-white p-4 rounded-sm border border-stone-200 dark:bg-neutral-900 dark:border-neutral-700">
                                 <div class="lg:col-span-3">
                                     <p>
-                                        Quote details
+                                        {{ $t('quotes.form.quote_details') }}
                                     </p>
                                 <div class="text-xs text-stone-600 dark:text-neutral-400 flex justify-between">
-                                    <span> Quote :</span>
+                                    <span>{{ $t('quotes.form.quote_label') }}:</span>
                                     <span>{{ quote?.number }} </span>
                                 </div>
                                 <div class="text-xs text-stone-600 dark:text-neutral-400 flex justify-between">
-                                    <span> Rate opportunity :</span>
+                                    <span>{{ $t('quotes.form.rate_opportunity') }}:</span>
                                     <span class="flex items-center gap-2">
-                                        <StarRating :value="ratingValue" show-value empty-label="No rating yet" />
+                                        <StarRating :value="ratingValue" show-value :empty-label="$t('quotes.show.no_rating_yet')" />
                                         <span v-if="ratingCount" class="text-xs text-stone-500 dark:text-neutral-400">
                                             ({{ ratingCount }})
                                         </span>
@@ -168,7 +176,7 @@ const sourceLines = computed(() => {
                                 <div class="text-xs text-stone-600 dark:text-neutral-400 flex justify-between mt-5">
                                     <button type="button" disabled
                                         class="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-sm border border-green-200 bg-white text-green-800 shadow-sm hover:bg-green-50 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-green-50 dark:bg-neutral-900 dark:border-neutral-700 dark:text-green-300 dark:hover:bg-green-700 dark:focus:bg-green-700">
-                                        Add custom fields</button>
+                                        {{ $t('quotes.form.add_custom_fields') }}</button>
                                 </div>
                             </div>
                         </div>
@@ -187,28 +195,28 @@ const sourceLines = computed(() => {
                                         <th scope="col" class="min-w-[450px] ">
                                             <div
                                                 class="pe-4 py-3 text-start flex items-center gap-x-1 text-sm font-medium text-stone-800 dark:text-neutral-200">
-                                                Product/Services
+                                                {{ $t('quotes.show.table.product_services') }}
                                             </div>
                                         </th>
 
                                         <th scope="col">
                                             <div
                                                 class="px-4 py-3 text-start flex items-center gap-x-1 text-sm font-medium text-stone-800 dark:text-neutral-200">
-                                                Qty.
+                                                {{ $t('quotes.show.table.qty') }}
                                             </div>
                                         </th>
 
                                         <th scope="col">
                                             <div
                                                 class="px-4 py-3 text-start flex items-center gap-x-1 text-sm font-medium text-stone-800 dark:text-neutral-200">
-                                                Unit cost
+                                                {{ $t('quotes.show.table.unit_cost') }}
                                             </div>
                                         </th>
 
                                         <th scope="col">
                                             <div
                                                 class="px-4 py-3 text-start flex items-center gap-x-1 text-sm font-medium text-stone-800 dark:text-neutral-200">
-                                                Total
+                                                {{ $t('quotes.show.table.total') }}
                                             </div>
                                         </th>
                                     </tr>
@@ -241,10 +249,10 @@ const sourceLines = computed(() => {
                     <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                         <div>
                             <h2 class="text-lg font-semibold text-stone-800 dark:text-neutral-100">
-                                Price sources & justification
+                                {{ $t('quotes.show.price_sources_title') }}
                             </h2>
                             <p class="text-sm text-stone-500 dark:text-neutral-400">
-                                Supplier benchmarks, selected source, and why each price was chosen.
+                                {{ $t('quotes.show.price_sources_subtitle') }}
                             </p>
                         </div>
                     </div>
@@ -265,65 +273,65 @@ const sourceLines = computed(() => {
                                 <div class="flex flex-wrap items-center gap-2 text-xs text-stone-500 dark:text-neutral-400">
                                     <span v-if="line.details.strategy"
                                         class="rounded-full border border-stone-200 px-2 py-1 dark:border-neutral-700">
-                                        Variant {{ line.details.strategy }}
+                                        {{ $t('quotes.show.variant_label', { value: line.details.strategy }) }}
                                     </span>
                                     <span v-if="line.details.selection_basis"
                                         class="rounded-full border border-stone-200 px-2 py-1 dark:border-neutral-700">
-                                        Basis {{ line.details.selection_basis }}
+                                        {{ $t('quotes.show.basis_label', { value: line.details.selection_basis }) }}
                                     </span>
                                 </div>
                             </div>
 
                             <div class="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-2">
                                 <div class="rounded-sm border border-stone-200 bg-stone-50 p-3 text-xs text-stone-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300">
-                                    <p class="text-xs font-semibold text-stone-700 dark:text-neutral-200">Selected supplier</p>
+                                    <p class="text-xs font-semibold text-stone-700 dark:text-neutral-200">{{ $t('quotes.show.selected_supplier') }}</p>
                                     <div class="mt-1 text-sm font-semibold text-stone-800 dark:text-neutral-100">
-                                        {{ line.details.selected_source?.name || 'Not available' }}
+                                        {{ line.details.selected_source?.name || $t('quotes.show.not_available') }}
                                     </div>
                                     <div
                                         v-if="line.details.selected_source?.price !== undefined && line.details.selected_source?.price !== null"
                                         class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
-                                        Supplier unit cost: ${{ line.details.selected_source.price }}
+                                        {{ $t('quotes.show.supplier_unit_cost', { price: line.details.selected_source.price }) }}
                                     </div>
                                     <div v-if="line.details.selected_source?.title" class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
-                                        Product: {{ line.details.selected_source.title }}
+                                        {{ $t('quotes.show.product_label', { name: line.details.selected_source.title }) }}
                                     </div>
                                     <div class="text-xs text-stone-500 dark:text-neutral-400">
-                                        Quote unit price: ${{ line.product.pivot.price }}
+                                        {{ $t('quotes.show.quote_unit_price', { price: line.product.pivot.price }) }}
                                     </div>
                                     <div v-if="line.details.best_source" class="mt-2 text-xs text-stone-500 dark:text-neutral-400">
-                                        Best price: {{ line.details.best_source.name }} ${{ line.details.best_source.price }}
+                                        {{ $t('quotes.show.best_price', { name: line.details.best_source.name, price: line.details.best_source.price }) }}
                                     </div>
                                     <div v-if="line.details.preferred_source" class="text-xs text-stone-500 dark:text-neutral-400">
-                                        Preferred supplier: {{ line.details.preferred_source.name }} ${{ line.details.preferred_source.price }}
+                                        {{ $t('quotes.show.preferred_supplier', { name: line.details.preferred_source.name, price: line.details.preferred_source.price }) }}
                                     </div>
                                     <div v-if="line.details.source_status === 'missing'" class="mt-2 text-xs text-amber-600 dark:text-amber-300">
-                                        No live price found for this line.
+                                        {{ $t('quotes.show.source_status_missing') }}
                                     </div>
                                     <div v-if="line.details.source_status === 'skipped'" class="mt-2 text-xs text-amber-600 dark:text-amber-300">
-                                        Live pricing skipped to keep scan fast.
+                                        {{ $t('quotes.show.source_status_skipped') }}
                                     </div>
                                     <a v-if="line.details.selected_source?.url"
                                         :href="line.details.selected_source.url"
                                         target="_blank"
                                         rel="noopener"
                                         class="mt-2 inline-flex text-xs text-green-700 hover:underline dark:text-green-400">
-                                        Open source link
+                                        {{ $t('quotes.show.open_source_link') }}
                                     </a>
                                 </div>
 
                                 <div class="rounded-sm border border-stone-200 bg-stone-50 p-3 text-xs text-stone-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300">
-                                    <p class="text-xs font-semibold text-stone-700 dark:text-neutral-200">Selection reason</p>
+                                    <p class="text-xs font-semibold text-stone-700 dark:text-neutral-200">{{ $t('quotes.show.selection_reason') }}</p>
                                     <p class="mt-1 text-xs text-stone-600 dark:text-neutral-300">
-                                        {{ line.details.selection_reason || 'Not available' }}
+                                        {{ line.details.selection_reason || $t('quotes.show.not_available') }}
                                     </p>
                                     <div v-if="line.details.source_query" class="mt-2 text-xs text-stone-500 dark:text-neutral-400">
-                                        Query: {{ line.details.source_query }}
+                                        {{ $t('quotes.show.query_label', { query: line.details.source_query }) }}
                                     </div>
                                     <div v-if="line.details.benchmarks" class="mt-2 text-xs text-stone-500 dark:text-neutral-400">
-                                        Benchmarks: min ${{ line.details.benchmarks.min }}, median ${{ line.details.benchmarks.median }}, max ${{ line.details.benchmarks.max }}
+                                        {{ $t('quotes.show.benchmarks_label', { min: line.details.benchmarks.min, median: line.details.benchmarks.median, max: line.details.benchmarks.max }) }}
                                         <span v-if="line.details.benchmarks.preferred_min !== null && line.details.benchmarks.preferred_min !== undefined">
-                                            , preferred min ${{ line.details.benchmarks.preferred_min }}
+                                            , {{ $t('quotes.show.benchmarks_preferred', { value: line.details.benchmarks.preferred_min }) }}
                                         </span>
                                     </div>
                                 </div>
@@ -331,7 +339,7 @@ const sourceLines = computed(() => {
 
                             <div v-if="line.details.sources?.length"
                                 class="mt-3 rounded-sm border border-stone-200 bg-white p-3 text-xs text-stone-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300">
-                                <p class="text-xs font-semibold text-stone-700 dark:text-neutral-200">All supplier prices</p>
+                                <p class="text-xs font-semibold text-stone-700 dark:text-neutral-200">{{ $t('quotes.show.all_supplier_prices') }}</p>
                                 <div class="mt-2 space-y-2">
                                     <div v-for="source in line.details.sources" :key="source.name"
                                         class="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
@@ -348,7 +356,7 @@ const sourceLines = computed(() => {
                                                 target="_blank"
                                                 rel="noopener"
                                                 class="text-green-700 hover:underline dark:text-green-400">
-                                                Source link
+                                                {{ $t('quotes.show.source_link') }}
                                             </a>
                                         </div>
                                     </div>
@@ -367,7 +375,7 @@ const sourceLines = computed(() => {
                         <div class="py-4 grid grid-cols-2 gap-x-4  dark:border-neutral-700">
                             <div class="col-span-1">
                                 <p class="text-sm text-stone-500 dark:text-neutral-500">
-                                    Subtotal:
+                                    {{ $t('quotes.form.subtotal') }}:
                                 </p>
                             </div>
                             <div class="col-span-1 flex justify-end">
@@ -385,12 +393,12 @@ const sourceLines = computed(() => {
                         <div class="py-4 grid grid-cols-2 gap-x-4 border-t border-stone-200 dark:border-neutral-700">
                             <div class="col-span-1">
                                 <p class="text-sm text-stone-500 dark:text-neutral-500">
-                                    Discount (%):
+                                    {{ $t('quotes.form.discount') }}:
                                 </p>
                             </div>
                             <div class="flex justify-end">
                                 <p class="text-sm text-stone-800 dark:text-neutral-200">
-                                    Add discount
+                                    {{ $t('quotes.form.add_discount') }}
                                 </p>
                             </div>
                         </div>
@@ -401,14 +409,14 @@ const sourceLines = computed(() => {
                             class="space-y-2 py-4 border-t border-stone-200 dark:border-neutral-700">
                             <div v-for="tax in quote.taxes" :key="tax.id" class="flex justify-between">
                                 <p class="text-sm text-stone-500 dark:text-neutral-500">
-                                    {{ tax.tax?.name || 'Tax' }} ({{ Number(tax.rate || 0).toFixed(2) }}%) :
+                                    {{ tax.tax?.name || $t('quotes.show.tax_fallback') }} ({{ Number(tax.rate || 0).toFixed(2) }}%) :
                                 </p>
                                 <p class="text-sm text-stone-800 dark:text-neutral-200">
                                     ${{ Number(tax.amount || 0).toFixed(2) }}
                                 </p>
                             </div>
                             <div class="flex justify-between font-bold">
-                                <p class="text-sm text-stone-800 dark:text-neutral-200">Total taxes :</p>
+                                <p class="text-sm text-stone-800 dark:text-neutral-200">{{ $t('quotes.form.total_taxes') }}:</p>
                                 <p class="text-sm text-stone-800 dark:text-neutral-200">${{ taxTotal.toFixed(2) }}</p>
                             </div>
                         </div>
@@ -418,7 +426,7 @@ const sourceLines = computed(() => {
                         <div class="py-4 grid grid-cols-2 gap-x-4 border-t border-stone-200 dark:border-neutral-700">
                             <div class="col-span-1">
                                 <p class="text-sm text-stone-800 font-bold dark:text-neutral-500">
-                                    Total amount:
+                                    {{ $t('quotes.form.total_amount') }}:
                                 </p>
                             </div>
                             <div class="flex justify-end">
@@ -436,7 +444,7 @@ const sourceLines = computed(() => {
                             class="py-4 grid grid-cols-2 items-center gap-x-4 border-t border-stone-600 dark:border-neutral-700">
                             <!-- Label -->
                             <div class="col-span-1">
-                                <p class="text-sm text-stone-500 dark:text-neutral-500">Required deposit:</p>
+                                <p class="text-sm text-stone-500 dark:text-neutral-500">{{ $t('quotes.form.required_deposit') }}:</p>
                             </div>
 
                             <!-- Contenu dynamique -->
@@ -444,7 +452,7 @@ const sourceLines = computed(() => {
                                 <!-- Si le champ est affiché -->
                                 <div class="flex items-center gap-x-2">
                                     <span class="text-xs text-stone-500 dark:text-neutral-500">
-                                        (Min: ${{ quote.initial_deposit }})
+                                        ({{ $t('quotes.form.minimum_label', { amount: quote.initial_deposit }) }})
                                     </span>
                                 </div>
                             </div>

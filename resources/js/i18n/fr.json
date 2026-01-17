@@ -530,6 +530,72 @@
     "title": "Devis",
     "create_title": "Creer devis",
     "show_title": "Voir le devis",
+    "company_fallback": "Entreprise",
+    "form": {
+      "quote_for": "Devis pour {customer}",
+      "quote_locked": "Ce devis est verrouille car il a ete accepte ou archive.",
+      "job_title": "Titre du job",
+      "property": "Propriete",
+      "no_property": "Aucune propriete",
+      "property_address": "Adresse du bien",
+      "no_property_selected": "Aucune propriete selectionnee.",
+      "contact_details": "Coordonnees",
+      "quote_details": "Details du devis",
+      "quote_label": "Devis",
+      "status": "Statut",
+      "rate_opportunity": "Evaluer l'opportunite",
+      "add_custom_fields": "Ajouter des champs",
+      "templates": "Modeles",
+      "template_help": "Choisir un point de depart pour ce devis.",
+      "client_message": "Message client",
+      "subtotal": "Sous-total",
+      "discount": "Remise (%)",
+      "add_discount": "Ajouter une remise",
+      "tax": "Taxe",
+      "hide_taxes": "Masquer les taxes",
+      "add_tax": "Ajouter une taxe",
+      "no_taxes": "Aucune taxe configuree.",
+      "total_taxes": "Total taxes",
+      "total_amount": "Montant total",
+      "required_deposit": "Acompte requis",
+      "minimum_label": "Min: ${amount}",
+      "add_required_deposit": "Ajouter un acompte",
+      "terms": "Conditions",
+      "cancel": "Annuler",
+      "save_and_create_another": "Sauvegarder et creer un autre",
+      "save_quote": "Sauvegarder le devis"
+    },
+    "show": {
+      "timeline": "Chronologie",
+      "no_rating_yet": "Pas encore d'evaluation",
+      "table": {
+        "product_services": "Produits/Services",
+        "qty": "Qt.",
+        "unit_cost": "Cout unitaire",
+        "total": "Total"
+      },
+      "price_sources_title": "Sources de prix et justification",
+      "price_sources_subtitle": "Benchmarks fournisseurs, source choisie, et pourquoi chaque prix a ete choisi.",
+      "variant_label": "Variante {value}",
+      "basis_label": "Base {value}",
+      "selected_supplier": "Fournisseur selectionne",
+      "not_available": "Non disponible",
+      "supplier_unit_cost": "Cout unitaire fournisseur: ${price}",
+      "product_label": "Produit: {name}",
+      "quote_unit_price": "Prix unitaire du devis: ${price}",
+      "best_price": "Meilleur prix: {name} ${price}",
+      "preferred_supplier": "Fournisseur prefere: {name} ${price}",
+      "source_status_missing": "Aucun prix en direct trouve pour cette ligne.",
+      "source_status_skipped": "Prix en direct ignore pour garder le scan rapide.",
+      "open_source_link": "Ouvrir la source",
+      "selection_reason": "Raison de selection",
+      "query_label": "Requete: {query}",
+      "benchmarks_label": "Benchmarks: min ${min}, median ${median}, max ${max}",
+      "benchmarks_preferred": "min prefere ${value}",
+      "all_supplier_prices": "Tous les prix fournisseurs",
+      "source_link": "Lien source",
+      "tax_fallback": "Taxe"
+    },
     "view": {
       "table": "Table",
       "cards": "Cartes"
@@ -590,6 +656,7 @@
     },
     "labels": {
       "unknown_customer": "Client inconnu",
+      "customer_fallback": "Client",
       "quote_fallback": "Devis",
       "quote_initial": "D",
       "job_fallback": "Chantier"
@@ -619,6 +686,189 @@
     "create_title": "Creer chantier",
     "show_title": "Voir le chantier",
     "proofs_title": "Preuves du chantier",
+    "company_fallback": "Entreprise",
+    "form": {
+      "customer_fallback": "Client",
+      "job_for": "Job pour : {customer}",
+      "job_title": "Titre du job",
+      "instructions": "Instructions",
+      "locked_notice": "Ce job est verrouille car il provient d'un devis accepte. Seule la planification peut etre modifiee.",
+      "property_address": "Adresse du bien",
+      "contact_details": "Coordonnees",
+      "job_details": "Details du job",
+      "job_label": "Job",
+      "rating_label": "Note",
+      "status_label": "Statut",
+      "add_custom_fields": "Ajouter des champs",
+      "tabs": {
+        "single": {
+          "title": "JOB UNIQUE",
+          "subtitle": "Un job unique avec une ou plusieurs visites"
+        },
+        "recurring": {
+          "title": "JOB RECURRENT",
+          "subtitle": "Un job contractuel avec des visites repetees"
+        }
+      },
+      "planning_title": "PLANIFICATION",
+      "start_date": "Date de debut",
+      "end_date": "Date de fin",
+      "start_time": "Heure de debut",
+      "end_time": "Heure de fin",
+      "pick_date": "Choisir une date",
+      "pick_time": "Choisir une heure",
+      "quick_summary": "Resume rapide",
+      "summary_date": "Date",
+      "summary_time": "Heure",
+      "calendar_tip": "Cliquer un jour sur le calendrier pour remplir la date.",
+      "plan_later": "Planifier plus tard",
+      "team": {
+        "title": "EQUIPE",
+        "empty": "Aucun membre pour l'instant.",
+        "member_fallback": "Membre equipe",
+        "filter_hint": "Selectionner un membre pour filtrer le calendrier."
+      },
+      "calendar": {
+        "title": "Calendrier",
+        "subtitle": "Le calendrier affiche les interventions deja planifiees.",
+        "all_members": "Tous les membres"
+      },
+      "recurrence": {
+        "title": "RECURRENCE",
+        "subtitle": "Definis la cadence des visites recurrentes.",
+        "repeat_every": "Repeter chaque :",
+        "repeat_on": "Repete le :",
+        "repeat_hint": "Choisis les jours ou les visites se repetent.",
+        "count_label": "Nombre",
+        "times_suffix": "fois",
+        "preview_title": "Apercu des visites",
+        "preview_first": "Premiere",
+        "preview_last": "Derniere",
+        "preview_total": "Total"
+      },
+      "billing": {
+        "title": "FACTURATION",
+        "mode": "Mode de facturation",
+        "grouping": "Regroupement",
+        "cycle": "Cycle",
+        "delay": "Delai (jours)",
+        "date_rule": "Regle de date (ex: 1er du mois)",
+        "reminder": "Me rappeler de facturer a la fermeture du job"
+      },
+      "actions": {
+        "cancel": "Annuler",
+        "save_and_create_another": "Sauvegarder et creer un autre",
+        "save_job": "Sauvegarder le job"
+      }
+    },
+    "recurrence": {
+      "frequency": {
+        "label": "Frequence",
+        "daily": "Quotidien",
+        "weekly": "Hebdomadaire",
+        "monthly": "Mensuel",
+        "yearly": "Annuel"
+      },
+      "ends": {
+        "label": "Fin",
+        "never": "Jamais",
+        "on": "Le",
+        "after": "Apres"
+      },
+      "weekdays": {
+        "mo": "Lu",
+        "tu": "Ma",
+        "we": "Me",
+        "th": "Je",
+        "fr": "Ve",
+        "sa": "Sa",
+        "su": "Di"
+      }
+    },
+    "billing": {
+      "modes": {
+        "per_task": "Par tache",
+        "per_segment": "Par segment",
+        "end_of_job": "Fin de job",
+        "deferred": "Differe"
+      },
+      "groupings": {
+        "single": "Une facture",
+        "periodic": "Regrouper"
+      },
+      "cycles": {
+        "weekly": "Chaque semaine",
+        "biweekly": "Toutes les 2 semaines",
+        "monthly": "Chaque mois",
+        "every_n_tasks": "Chaque N taches"
+      }
+    },
+    "show": {
+      "timeline": "Chronologie",
+      "edit_job": "Modifier le job",
+      "locked_notice": "Job verrouille apres validation.",
+      "proofs": "Preuves",
+      "view_invoice": "Voir la facture",
+      "create_invoice": "Creer une facture",
+      "no_rating": "Aucune note",
+      "locked_from_quote": "Ce job est verrouille car il provient d'un devis accepte.",
+      "cards": {
+        "customer": "Client",
+        "dates": "Dates",
+        "start": "Debut",
+        "end": "Fin",
+        "totals": "Totaux",
+        "subtotal": "Sous-total",
+        "total": "Total",
+        "rating": "Note"
+      },
+      "table": {
+        "product_service": "Produit/Service",
+        "qty": "Qte",
+        "unit_price": "Prix unitaire",
+        "total": "Total",
+        "empty": "Aucun produit/service associe."
+      }
+    },
+    "proofs": {
+      "title": "Preuves du job",
+      "job_fallback": "Job",
+      "view_job": "Voir le job",
+      "back_to_dashboard": "Retour au tableau de bord",
+      "cards": {
+        "customer": "Client",
+        "period": "Periode",
+        "status": "Statut"
+      },
+      "task_fallback": "Tache",
+      "assigned": "Assigne",
+      "materials": "Materiel",
+      "billable": "Facturable",
+      "proof_fallback": "Preuve",
+      "media": {
+        "type": "Type",
+        "source": "Source",
+        "by": "Par",
+        "note": "Note"
+      },
+      "empty_task": "Aucune preuve disponible pour cette tache.",
+      "empty": "Aucune tache disponible.",
+      "status": {
+        "todo": "A faire",
+        "in_progress": "En cours",
+        "done": "Termine"
+      },
+      "source": {
+        "client": "Client",
+        "team": "Equipe",
+        "internal": "Interne"
+      },
+      "type": {
+        "execution": "Execution",
+        "completion": "Finalisation",
+        "other": "Autre"
+      }
+    },
     "stats": {
       "total": "Total chantiers",
       "scheduled": "Planifie",
