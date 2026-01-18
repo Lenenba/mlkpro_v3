@@ -1,6 +1,7 @@
 <script setup>
 import { computed, ref, watch } from 'vue';
 import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
+import { useI18n } from 'vue-i18n';
 import GuestLayout from '@/Layouts/GuestLayout.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import InputError from '@/Components/InputError.vue';
@@ -14,19 +15,20 @@ const props = defineProps({
 
 const page = usePage();
 const isGuest = computed(() => !page.props.auth?.user);
+const { t } = useI18n();
 
-const baseStepItems = [
-    { key: 'company', title: 'Entreprise', description: 'Infos principales et identite.' },
-    { key: 'type', title: 'Type', description: 'Services ou produits.' },
-    { key: 'sector', title: 'Secteur', description: 'Votre activite principale.' },
-    { key: 'team', title: 'Equipe', description: 'Invitez votre equipe.' },
-];
+const baseStepItems = computed(() => ([
+    { key: 'company', title: t('onboarding.steps.company.title'), description: t('onboarding.steps.company.description') },
+    { key: 'type', title: t('onboarding.steps.type.title'), description: t('onboarding.steps.type.description') },
+    { key: 'sector', title: t('onboarding.steps.sector.title'), description: t('onboarding.steps.sector.description') },
+    { key: 'team', title: t('onboarding.steps.team.title'), description: t('onboarding.steps.team.description') },
+]));
 
 const step = ref(1);
 const showTerms = ref(false);
 const stepOffset = computed(() => (isGuest.value ? 1 : 0));
 const stepItems = computed(() => {
-    const items = baseStepItems.map((item, index) => ({
+    const items = baseStepItems.value.map((item, index) => ({
         ...item,
         id: index + 1 + stepOffset.value,
     }));
@@ -36,7 +38,7 @@ const stepItems = computed(() => {
     }
 
     return [
-        { id: 1, key: 'account', title: 'Compte', description: 'Identifiants et securite.' },
+        { id: 1, key: 'account', title: t('onboarding.steps.account.title'), description: t('onboarding.steps.account.description') },
         ...items,
     ];
 });
@@ -66,32 +68,32 @@ const registerForm = useForm({
     password_confirmation: '',
 });
 
-const SERVICE_SECTOR_OPTIONS = [
-    { id: '', name: 'Selectionner un secteur' },
-    { id: 'menuiserie', name: 'Menuiserie' },
-    { id: 'plomberie', name: 'Plomberie' },
-    { id: 'electricite', name: 'Electricite' },
-    { id: 'peinture', name: 'Peinture' },
-    { id: 'toiture', name: 'Toiture' },
-    { id: 'renovation', name: 'Renovation' },
-    { id: 'paysagisme', name: 'Paysagisme' },
-    { id: 'climatisation', name: 'Climatisation' },
-    { id: 'nettoyage', name: 'Nettoyage' },
-    { id: '__other__', name: 'Autre...' },
-];
+const serviceSectorOptions = computed(() => ([
+    { id: '', name: t('onboarding.sectors.service.placeholder') },
+    { id: 'menuiserie', name: t('onboarding.sectors.service.menuiserie') },
+    { id: 'plomberie', name: t('onboarding.sectors.service.plomberie') },
+    { id: 'electricite', name: t('onboarding.sectors.service.electricite') },
+    { id: 'peinture', name: t('onboarding.sectors.service.peinture') },
+    { id: 'toiture', name: t('onboarding.sectors.service.toiture') },
+    { id: 'renovation', name: t('onboarding.sectors.service.renovation') },
+    { id: 'paysagisme', name: t('onboarding.sectors.service.paysagisme') },
+    { id: 'climatisation', name: t('onboarding.sectors.service.climatisation') },
+    { id: 'nettoyage', name: t('onboarding.sectors.service.nettoyage') },
+    { id: '__other__', name: t('onboarding.sectors.other') },
+]));
 
-const PRODUCT_SECTOR_OPTIONS = [
-    { id: '', name: 'Selectionner un type de commerce' },
-    { id: 'retail', name: 'Commerce de detail' },
-    { id: 'wholesale', name: 'Commerce de gros' },
-    { id: 'grocery', name: 'Epicerie' },
-    { id: 'convenience', name: 'Depanneur' },
-    { id: 'specialty', name: 'Boutique specialisee' },
-    { id: 'pharmacy', name: 'Pharmacie / parapharmacie' },
-    { id: 'electronics', name: 'Electronique' },
-    { id: 'home_hardware', name: 'Maison & bricolage' },
-    { id: '__other__', name: 'Autre...' },
-];
+const productSectorOptions = computed(() => ([
+    { id: '', name: t('onboarding.sectors.product.placeholder') },
+    { id: 'retail', name: t('onboarding.sectors.product.retail') },
+    { id: 'wholesale', name: t('onboarding.sectors.product.wholesale') },
+    { id: 'grocery', name: t('onboarding.sectors.product.grocery') },
+    { id: 'convenience', name: t('onboarding.sectors.product.convenience') },
+    { id: 'specialty', name: t('onboarding.sectors.product.specialty') },
+    { id: 'pharmacy', name: t('onboarding.sectors.product.pharmacy') },
+    { id: 'electronics', name: t('onboarding.sectors.product.electronics') },
+    { id: 'home_hardware', name: t('onboarding.sectors.product.home_hardware') },
+    { id: '__other__', name: t('onboarding.sectors.other') },
+]));
 
 const hasOption = (options, value) => {
     return (options || []).some((option) => option.id === value);
@@ -122,7 +124,7 @@ const form = useForm({
     accept_terms: false,
 });
 
-const sectorOptions = computed(() => (form.company_type === 'products' ? PRODUCT_SECTOR_OPTIONS : SERVICE_SECTOR_OPTIONS));
+const sectorOptions = computed(() => (form.company_type === 'products' ? productSectorOptions.value : serviceSectorOptions.value));
 
 const sectorPreset = resolveSelectValue(preset.value.company_sector, sectorOptions.value);
 form.company_sector = sectorPreset.select;
@@ -182,7 +184,7 @@ const searchAddress = async () => {
 
     if (!geoapifyKey) {
         addressSuggestions.value = [];
-        setAddressError('Cle Geoapify manquante. Ajoutez VITE_GEOAPIFY_KEY dans .env.');
+        setAddressError(t('onboarding.company.address_error_key'));
         return;
     }
 
@@ -205,7 +207,7 @@ const searchAddress = async () => {
     } catch (error) {
         console.error('Erreur lors de la recherche d\'adresse :', error);
         addressSuggestions.value = [];
-        setAddressError('Recherche impossible. Verifiez la cle Geoapify ou utilisez la saisie manuelle.');
+        setAddressError(t('onboarding.company.address_error_failed'));
     } finally {
         isSearchingAddress.value = false;
     }
@@ -304,10 +306,12 @@ watch(
     }
 );
 
-const companyTypeLabel = computed(() => (form.company_type === 'products' ? 'Entreprise de produits' : 'Entreprise de services'));
+const companyTypeLabel = computed(() => (form.company_type === 'products'
+    ? t('onboarding.type.products')
+    : t('onboarding.type.services')));
 const companySectorLabel = computed(() => {
     if (form.company_sector === '__other__') {
-        return form.company_sector_other || 'Autre';
+        return form.company_sector_other || t('onboarding.sector.other_label');
     }
     const match = sectorOptions.value.find((option) => option.id === form.company_sector);
     return match?.name || form.company_sector || '-';
@@ -379,18 +383,18 @@ const closeTerms = () => {
 
 <template>
     <GuestLayout card-class="mt-6 w-full max-w-6xl space-y-6">
-        <Head title="Onboarding" />
+        <Head :title="$t('onboarding.title')" />
 
         <section class="rounded-sm border border-stone-200 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
             <div class="flex flex-wrap items-center justify-between gap-3">
                 <div class="space-y-1">
-                    <h1 class="text-xl font-semibold text-stone-800 dark:text-neutral-100">Creer votre espace</h1>
+                    <h1 class="text-xl font-semibold text-stone-800 dark:text-neutral-100">{{ $t('onboarding.header.title') }}</h1>
                     <p class="text-sm text-stone-600 dark:text-neutral-400">
-                        Finalisez la configuration en {{ totalSteps }} etapes.
+                        {{ $t('onboarding.header.subtitle', { count: totalSteps }) }}
                     </p>
                 </div>
                 <div class="rounded-sm border border-stone-200 bg-stone-50 px-3 py-2 text-xs text-stone-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300">
-                    Etape {{ step }} / {{ totalSteps }}
+                    {{ $t('onboarding.header.step', { current: step, total: totalSteps }) }}
                 </div>
             </div>
         </section>
@@ -399,7 +403,7 @@ const closeTerms = () => {
             <aside class="space-y-3">
                 <div class="rounded-sm border border-stone-200 bg-white p-3 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
                     <p class="text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">
-                        Progression
+                        {{ $t('onboarding.progress.title') }}
                     </p>
                     <div class="mt-3 space-y-2">
                         <button
@@ -422,7 +426,7 @@ const closeTerms = () => {
                 </div>
 
                 <div class="rounded-sm border border-stone-200 bg-white p-3 text-xs text-stone-600 shadow-sm dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300">
-                    Gardez ces infos a jour pour activer toutes les fonctions du dashboard.
+                    {{ $t('onboarding.progress.note') }}
                 </div>
             </aside>
 
@@ -435,21 +439,21 @@ const closeTerms = () => {
                 <div class="p-4 space-y-4">
                     <div v-if="isGuest && step === stepIds.account" class="space-y-4">
                         <div class="rounded-sm border border-stone-200 bg-stone-50 p-3 text-xs text-stone-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300">
-                            Ce compte deviendra le proprietaire de l'entreprise.
+                            {{ $t('onboarding.account.owner_notice') }}
                         </div>
 
                         <form class="space-y-3" @submit.prevent="submitRegister">
-                            <FloatingInput v-model="registerForm.name" label="Nom complet" autocomplete="name" required />
+                            <FloatingInput v-model="registerForm.name" :label="$t('onboarding.account.full_name')" autocomplete="name" required />
                             <InputError class="mt-1" :message="registerForm.errors.name" />
 
-                            <FloatingInput v-model="registerForm.email" label="Email" type="email" autocomplete="email" required />
+                            <FloatingInput v-model="registerForm.email" :label="$t('onboarding.account.email')" type="email" autocomplete="email" required />
                             <InputError class="mt-1" :message="registerForm.errors.email" />
 
                             <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
                                 <div>
                                     <FloatingInput
                                         v-model="registerForm.password"
-                                        label="Mot de passe"
+                                        :label="$t('onboarding.account.password')"
                                         type="password"
                                         autocomplete="new-password"
                                         required
@@ -459,7 +463,7 @@ const closeTerms = () => {
                                 <div>
                                     <FloatingInput
                                         v-model="registerForm.password_confirmation"
-                                        label="Confirmer le mot de passe"
+                                        :label="$t('onboarding.account.confirm_password')"
                                         type="password"
                                         autocomplete="new-password"
                                         required
@@ -473,31 +477,31 @@ const closeTerms = () => {
                                     :href="route('login')"
                                     class="text-xs text-stone-600 hover:text-stone-900 dark:text-neutral-400 dark:hover:text-neutral-200"
                                 >
-                                    Deja un compte ? Se connecter
+                                    {{ $t('onboarding.account.have_account') }}
                                 </Link>
                                 <button
                                     type="submit"
                                     :disabled="registerForm.processing"
                                     class="rounded-sm border border-transparent bg-green-600 px-3 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50"
                                 >
-                                    Creer mon compte
+                                    {{ $t('onboarding.account.create_account') }}
                                 </button>
                             </div>
                         </form>
                     </div>
 
                     <div v-else-if="step === stepIds.company" class="space-y-3">
-                        <FloatingInput v-model="form.company_name" label="Nom de l'entreprise" />
+                        <FloatingInput v-model="form.company_name" :label="$t('onboarding.company.name')" />
                         <InputError class="mt-1" :message="form.errors.company_name" />
 
                         <div class="space-y-2">
-                            <p class="text-xs text-stone-500 dark:text-neutral-400">Logo (optionnel)</p>
-                            <DropzoneInput v-model="form.company_logo" label="Telecharger votre logo" />
+                            <p class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('onboarding.company.logo_optional') }}</p>
+                            <DropzoneInput v-model="form.company_logo" :label="$t('onboarding.company.logo_upload')" />
                             <InputError class="mt-1" :message="form.errors.company_logo" />
                         </div>
 
                         <div>
-                            <label class="block text-xs text-stone-500 dark:text-neutral-400">Description (optionnel)</label>
+                            <label class="block text-xs text-stone-500 dark:text-neutral-400">{{ $t('onboarding.company.description_optional') }}</label>
                             <textarea v-model="form.company_description"
                                 class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
                                 rows="3" />
@@ -505,7 +509,7 @@ const closeTerms = () => {
                         </div>
 
                         <div class="space-y-3">
-                            <label class="block text-xs text-stone-500 dark:text-neutral-400">Adresse de l'entreprise</label>
+                            <label class="block text-xs text-stone-500 dark:text-neutral-400">{{ $t('onboarding.company.address') }}</label>
                             <div class="relative w-full">
                                 <div class="relative">
                                     <div class="absolute inset-y-0 start-0 flex items-center pointer-events-none z-20 ps-3.5">
@@ -524,7 +528,7 @@ const closeTerms = () => {
                                         type="text"
                                         role="combobox"
                                         aria-expanded="false"
-                                        placeholder="Rechercher une adresse"
+                                        :placeholder="$t('onboarding.company.address_search_placeholder')"
                                     />
                                 </div>
 
@@ -544,7 +548,7 @@ const closeTerms = () => {
                             </div>
 
                             <div v-if="isSearchingAddress" class="text-xs text-stone-500 dark:text-neutral-400">
-                                Recherche en cours...
+                                {{ $t('onboarding.company.address_searching') }}
                             </div>
                             <div v-if="addressError" class="text-xs text-red-600 dark:text-red-400">
                                 {{ addressError }}
@@ -553,44 +557,44 @@ const closeTerms = () => {
                         </div>
 
                         <div v-if="validatedAddress" class="rounded-sm border border-stone-200 bg-stone-50 p-3 text-xs text-stone-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300">
-                            <p class="text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">Adresse validee</p>
+                            <p class="text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">{{ $t('onboarding.company.address_validated') }}</p>
                             <div class="mt-2 grid gap-2">
                                 <div v-if="validatedAddress.formatted">
-                                    <span class="font-medium">Adresse :</span> {{ validatedAddress.formatted }}
+                                    <span class="font-medium">{{ $t('onboarding.company.address_label') }}:</span> {{ validatedAddress.formatted }}
                                 </div>
                                 <div v-if="validatedAddress.street">
-                                    <span class="font-medium">Rue :</span> {{ validatedAddress.street }}
+                                    <span class="font-medium">{{ $t('onboarding.company.street') }}:</span> {{ validatedAddress.street }}
                                 </div>
                                 <div>
-                                    <span class="font-medium">Ville :</span> {{ validatedAddress.city || '-' }}
+                                    <span class="font-medium">{{ $t('onboarding.company.city') }}:</span> {{ validatedAddress.city || '-' }}
                                     <span class="mx-2">/</span>
-                                    <span class="font-medium">Province :</span> {{ validatedAddress.province || '-' }}
+                                    <span class="font-medium">{{ $t('onboarding.company.province') }}:</span> {{ validatedAddress.province || '-' }}
                                 </div>
                                 <div>
-                                    <span class="font-medium">Pays :</span> {{ validatedAddress.country || '-' }}
+                                    <span class="font-medium">{{ $t('onboarding.company.country') }}:</span> {{ validatedAddress.country || '-' }}
                                     <span v-if="validatedAddress.postalCode" class="mx-2">/</span>
                                     <span v-if="validatedAddress.postalCode">
-                                        <span class="font-medium">Code postal :</span> {{ validatedAddress.postalCode }}
+                                        <span class="font-medium">{{ $t('onboarding.company.postal_code') }}:</span> {{ validatedAddress.postalCode }}
                                     </span>
                                 </div>
                             </div>
                         </div>
 
                         <div class="flex items-center justify-between text-xs text-stone-500 dark:text-neutral-400">
-                            <span>Adresse manuelle</span>
+                            <span>{{ $t('onboarding.company.address_manual') }}</span>
                             <button
                                 type="button"
                                 class="text-green-700 hover:underline dark:text-green-400"
                                 @click="showManualAddress = !showManualAddress"
                             >
-                                {{ showManualAddress ? 'Masquer' : 'Saisir manuellement' }}
+                                {{ showManualAddress ? $t('onboarding.company.address_hide') : $t('onboarding.company.address_show') }}
                             </button>
                         </div>
 
                         <div v-if="showManualAddress" class="grid grid-cols-1 gap-3 md:grid-cols-3">
-                            <FloatingInput v-model="form.company_city" label="Ville" />
-                            <FloatingInput v-model="form.company_province" label="Province / Region" />
-                            <FloatingInput v-model="form.company_country" label="Pays" />
+                            <FloatingInput v-model="form.company_city" :label="$t('onboarding.company.city')" />
+                            <FloatingInput v-model="form.company_province" :label="$t('onboarding.company.province_region')" />
+                            <FloatingInput v-model="form.company_country" :label="$t('onboarding.company.country')" />
                         </div>
                     </div>
 
@@ -598,25 +602,27 @@ const closeTerms = () => {
                         <div class="space-y-2">
                             <label class="flex items-center gap-2 text-sm text-stone-700 dark:text-neutral-200">
                                 <input type="radio" name="company_type" value="services" v-model="form.company_type" />
-                                <span>Entreprise de services</span>
+                                <span>{{ $t('onboarding.type.services') }}</span>
                             </label>
                             <label class="flex items-center gap-2 text-sm text-stone-700 dark:text-neutral-200">
                                 <input type="radio" name="company_type" value="products" v-model="form.company_type" />
-                                <span>Entreprise de produits</span>
+                                <span>{{ $t('onboarding.type.products') }}</span>
                             </label>
                         </div>
 
                         <InputError class="mt-1" :message="form.errors.company_type" />
 
                         <div class="rounded-sm border border-stone-200 bg-stone-50 p-3 text-sm text-stone-700 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200">
-                            Modules actifs : <span class="font-medium">{{ companyTypeLabel }}</span>
+                            {{ $t('onboarding.type.modules_active', { label: companyTypeLabel }) }}
                         </div>
                     </div>
 
-                        <div v-else-if="step === stepIds.sector" class="space-y-3">
+                    <div v-else-if="step === stepIds.sector" class="space-y-3">
                         <div>
                             <label class="block text-xs text-stone-500 dark:text-neutral-400">
-                                {{ form.company_type === 'products' ? 'Type de commerce' : "Secteur d'activite" }}
+                                {{ form.company_type === 'products'
+                                    ? $t('onboarding.sector.label_products')
+                                    : $t('onboarding.sector.label_services') }}
                             </label>
                             <select v-model="form.company_sector"
                                 class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
@@ -626,18 +632,18 @@ const closeTerms = () => {
                             </select>
                             <InputError class="mt-1" :message="form.errors.company_sector" />
                             <div v-if="form.company_sector === '__other__'" class="mt-2">
-                                <FloatingInput v-model="form.company_sector_other" label="Secteur (autre)" />
+                                <FloatingInput v-model="form.company_sector_other" :label="$t('onboarding.sector.other_input')" />
                             </div>
                             <p class="mt-2 text-xs text-stone-500 dark:text-neutral-400">
-                                Si votre secteur n'est pas liste, choisissez Autre pour le creer.
+                                {{ $t('onboarding.sector.hint') }}
                             </p>
                         </div>
                         <div class="rounded-sm border border-stone-200 bg-stone-50 p-3 text-sm text-stone-700 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200">
                             <span v-if="form.company_type === 'products'">
-                                Le module Ventes sera active pour vendre vos produits via la plateforme.
+                                {{ $t('onboarding.sector.products_note') }}
                             </span>
                             <span v-else>
-                                Des categories de services seront creees automatiquement, y compris pour un secteur ajoute.
+                                {{ $t('onboarding.sector.services_note') }}
                             </span>
                         </div>
                     </div>
@@ -645,17 +651,17 @@ const closeTerms = () => {
                     <div v-else-if="step === stepIds.team" class="space-y-3">
                         <div class="flex items-center justify-between">
                             <div>
-                                <h3 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">Inviter l'equipe (optionnel)</h3>
-                                <p class="text-xs text-stone-500 dark:text-neutral-400">Ajoutez des membres maintenant ou plus tard.</p>
+                                <h3 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ $t('onboarding.team.title') }}</h3>
+                                <p class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('onboarding.team.subtitle') }}</p>
                             </div>
                             <button type="button" @click="addInvite"
                                 class="rounded-sm border border-stone-200 bg-white px-2 py-1 text-xs text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800">
-                                + Ajouter
+                                {{ $t('onboarding.team.add') }}
                             </button>
                         </div>
 
                         <div v-if="!form.invites.length" class="text-sm text-stone-600 dark:text-neutral-400">
-                            Aucune invitation ajoutee.
+                            {{ $t('onboarding.team.empty') }}
                         </div>
 
                         <div v-else class="space-y-3">
@@ -663,11 +669,11 @@ const closeTerms = () => {
                                 class="rounded-sm border border-stone-200 p-3 dark:border-neutral-700">
                                 <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
                                     <div>
-                                        <FloatingInput v-model="invite.name" label="Nom" />
+                                        <FloatingInput v-model="invite.name" :label="$t('onboarding.team.name')" />
                                         <InputError class="mt-1" :message="form.errors[`invites.${index}.name`]" />
                                     </div>
                                     <div>
-                                        <FloatingInput v-model="invite.email" label="Email" />
+                                        <FloatingInput v-model="invite.email" :label="$t('onboarding.team.email')" />
                                         <InputError class="mt-1" :message="form.errors[`invites.${index}.email`]" />
                                     </div>
                                 </div>
@@ -677,32 +683,32 @@ const closeTerms = () => {
                                         <label class="flex items-center gap-2">
                                             <input type="radio" :name="`invite-role-${index}`" value="admin"
                                                 v-model="invite.role" />
-                                            <span>Administrateur</span>
+                                            <span>{{ $t('onboarding.team.role_admin') }}</span>
                                         </label>
                                         <label class="flex items-center gap-2">
                                             <input type="radio" :name="`invite-role-${index}`" value="member"
                                                 v-model="invite.role" />
-                                            <span>Membre</span>
+                                            <span>{{ $t('onboarding.team.role_member') }}</span>
                                         </label>
                                         <InputError class="mt-1" :message="form.errors[`invites.${index}.role`]" />
                                     </div>
 
                                     <button type="button" @click="removeInvite(index)"
                                         class="rounded-sm border border-red-200 bg-white px-2 py-1 text-xs text-red-700 hover:bg-red-50 dark:border-red-900/50 dark:bg-neutral-900 dark:text-red-300 dark:hover:bg-red-900/20">
-                                        Supprimer
+                                        {{ $t('onboarding.team.remove') }}
                                     </button>
                                 </div>
                             </div>
                         </div>
 
                         <div class="rounded-sm border border-stone-200 bg-stone-50 p-3 text-sm text-stone-700 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200">
-                            <p class="font-medium">Resume</p>
+                            <p class="font-medium">{{ $t('onboarding.team.summary') }}</p>
                             <p class="mt-1">
-                                <span class="font-medium">Entreprise :</span> {{ form.company_name || '-' }}
+                                <span class="font-medium">{{ $t('onboarding.team.summary_company') }}:</span> {{ form.company_name || '-' }}
                                 <span class="mx-2">/</span>
-                                <span class="font-medium">Type :</span> {{ companyTypeLabel }}
+                                <span class="font-medium">{{ $t('onboarding.team.summary_type') }}:</span> {{ companyTypeLabel }}
                                 <span class="mx-2">/</span>
-                                <span class="font-medium">Secteur :</span> {{ companySectorLabel }}
+                                <span class="font-medium">{{ $t('onboarding.team.summary_sector') }}:</span> {{ companySectorLabel }}
                             </p>
                         </div>
 
@@ -714,13 +720,13 @@ const closeTerms = () => {
                                     class="mt-1 rounded-sm border-stone-300 text-green-600 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-900"
                                 />
                                 <span>
-                                    J'accepte les
+                                    {{ $t('onboarding.team.terms_label') }}
                                     <button
                                         type="button"
                                         class="inline-flex items-center border-0 bg-transparent p-0 text-green-700 hover:underline dark:text-green-400"
                                         @click.stop="openTerms"
                                     >
-                                        conditions d'utilisation
+                                        {{ $t('onboarding.team.terms_action') }}
                                     </button>
                                     .
                                 </span>
@@ -733,18 +739,18 @@ const closeTerms = () => {
                 <div v-if="!(isGuest && step === stepIds.account)" class="border-t border-stone-200 p-4 dark:border-neutral-700 flex items-center justify-between">
                     <button type="button" @click="goBack" :disabled="step === 1"
                         class="rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm text-stone-700 hover:bg-stone-50 disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800">
-                        Retour
+                        {{ $t('onboarding.actions.back') }}
                     </button>
 
                     <div class="flex items-center gap-2">
                         <button v-if="step < totalSteps" type="button" @click="goNext"
                             class="rounded-sm border border-transparent bg-green-600 px-3 py-2 text-sm font-medium text-white hover:bg-green-700">
-                            Continuer
+                            {{ $t('onboarding.actions.continue') }}
                         </button>
 
                         <button v-else type="button" @click="submit" :disabled="form.processing"
                             class="rounded-sm border border-transparent bg-green-600 px-3 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50">
-                            Acceder au tableau de bord
+                            {{ $t('onboarding.actions.finish') }}
                         </button>
                     </div>
                 </div>
@@ -758,7 +764,7 @@ const closeTerms = () => {
                     class="rounded-sm border border-stone-200 bg-white px-3 py-1 text-xs text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
                     @click="closeTerms"
                 >
-                    Fermer
+                    {{ $t('onboarding.actions.close') }}
                 </button>
             </div>
             <div class="max-h-[70vh] overflow-y-auto p-4">

@@ -1,6 +1,7 @@
 <script setup>
 import { computed, ref } from 'vue';
 import { Head, useForm, usePage } from '@inertiajs/vue3';
+import { useI18n } from 'vue-i18n';
 import GuestLayout from '@/Layouts/GuestLayout.vue';
 import { humanizeDate } from '@/utils/date';
 import { prepareMediaFile, MEDIA_LIMITS } from '@/utils/media';
@@ -20,6 +21,7 @@ const props = defineProps({
 const page = usePage();
 const flashSuccess = computed(() => page.props.flash?.success);
 const flashError = computed(() => page.props.flash?.error);
+const { t } = useI18n();
 
 const proofOpen = ref(false);
 const proofTask = ref(null);
@@ -97,7 +99,15 @@ const formatTimeRange = (start, end) => {
     return `${startLabel} - ${endLabel}`;
 };
 
-const statusLabel = (status) => (status || 'todo').replace(/_/g, ' ');
+const statusLabel = (status) => {
+    const normalized = status || 'todo';
+    const labels = {
+        todo: t('work_proofs.status.todo'),
+        in_progress: t('work_proofs.status.in_progress'),
+        done: t('work_proofs.status.done'),
+    };
+    return labels[normalized] || normalized.replace(/_/g, ' ');
+};
 const statusClass = (status) => {
     switch (status) {
         case 'done':
@@ -110,26 +120,26 @@ const statusClass = (status) => {
 };
 const proofSource = (source) => {
     if (source === 'client' || source === 'client-public') {
-        return 'Client';
+        return t('work_proofs.source.client');
     }
     if (source === 'team') {
-        return 'Team';
+        return t('work_proofs.source.team');
     }
-    return 'Internal';
+    return t('work_proofs.source.internal');
 };
 const proofType = (type) => {
     if (type === 'execution') {
-        return 'Execution';
+        return t('work_proofs.type.execution');
     }
     if (type === 'completion') {
-        return 'Completion';
+        return t('work_proofs.type.completion');
     }
-    return 'Other';
+    return t('work_proofs.type.other');
 };
 </script>
 
 <template>
-    <Head title="Job proofs" />
+    <Head :title="$t('work_proofs.title')" />
 
     <GuestLayout :card-class="'mt-6 w-full max-w-5xl rounded-sm border border-stone-200 bg-white px-6 py-6 shadow-md'">
         <div class="space-y-5">
@@ -138,13 +148,13 @@ const proofType = (type) => {
                     <img
                         v-if="company?.logo_url"
                         :src="company.logo_url"
-                        :alt="company?.name || 'Company'"
+                        :alt="company?.name || $t('work_proofs.company_fallback')"
                         class="h-10 w-10 rounded-sm border border-stone-200 object-cover"
                     />
                     <div>
-                        <div class="text-xs uppercase tracking-wide text-stone-500">Job proofs</div>
+                        <div class="text-xs uppercase tracking-wide text-stone-500">{{ $t('work_proofs.title') }}</div>
                         <div class="text-lg font-semibold text-stone-800">
-                            {{ company?.name || 'Company' }}
+                            {{ company?.name || $t('work_proofs.company_fallback') }}
                         </div>
                         <div class="text-sm text-stone-600">
                             {{ work?.job_title || work?.number || `#${work?.id}` }}
@@ -158,20 +168,20 @@ const proofType = (type) => {
 
             <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
                 <div class="rounded-sm border border-stone-200 bg-stone-50 p-3 text-sm">
-                    <div class="text-xs uppercase text-stone-500">Customer</div>
+                    <div class="text-xs uppercase text-stone-500">{{ $t('work_proofs.labels.customer') }}</div>
                     <div class="mt-1 text-sm text-stone-800">
                         {{ customer?.company_name || `${customer?.first_name || ''} ${customer?.last_name || ''}`.trim() || '-' }}
                     </div>
                     <div class="text-xs text-stone-500">{{ customer?.email || '-' }}</div>
                 </div>
                 <div class="rounded-sm border border-stone-200 bg-stone-50 p-3 text-sm">
-                    <div class="text-xs uppercase text-stone-500">Period</div>
+                    <div class="text-xs uppercase text-stone-500">{{ $t('work_proofs.labels.period') }}</div>
                     <div class="mt-1 text-sm text-stone-800">
                         {{ formatDate(work?.start_date) }} - {{ formatDate(work?.end_date) }}
                     </div>
                 </div>
                 <div class="rounded-sm border border-stone-200 bg-stone-50 p-3 text-sm">
-                    <div class="text-xs uppercase text-stone-500">Status</div>
+                    <div class="text-xs uppercase text-stone-500">{{ $t('work_proofs.labels.status') }}</div>
                     <div class="mt-1 text-sm text-stone-800">{{ statusLabel(work?.status) }}</div>
                 </div>
             </div>
@@ -192,13 +202,13 @@ const proofType = (type) => {
                     <div class="flex flex-wrap items-start justify-between gap-3">
                         <div>
                             <div class="text-sm font-semibold text-stone-800">
-                                {{ task.title || 'Task' }}
+                                {{ task.title || $t('work_proofs.labels.task') }}
                             </div>
                             <div class="text-xs text-stone-500">
                                 {{ formatDate(task.due_date) }} - {{ formatTimeRange(task.start_time, task.end_time) }}
                             </div>
                             <div v-if="task.assignee" class="text-xs text-stone-500">
-                                Assigned: {{ task.assignee }}
+                                {{ $t('work_proofs.labels.assigned') }}: {{ task.assignee }}
                             </div>
                         </div>
                         <div class="flex items-center gap-2">
@@ -211,7 +221,7 @@ const proofType = (type) => {
                                 @click="openProof(task)"
                                 class="rounded-sm border border-stone-200 bg-white px-3 py-1.5 text-xs font-medium text-stone-700 hover:bg-stone-50"
                             >
-                                Upload proof
+                                {{ $t('work_proofs.actions.upload_proof') }}
                             </button>
                         </div>
                     </div>
@@ -221,39 +231,39 @@ const proofType = (type) => {
                             class="rounded-sm border border-stone-200 bg-white p-3 text-sm">
                             <img v-if="media.media_type !== 'video'"
                                 :src="media.url"
-                                :alt="media.note || 'Proof'"
+                                :alt="media.note || $t('work_proofs.labels.proof')"
                                 class="h-40 w-full rounded-sm border border-stone-200 object-cover" />
                             <video v-else controls class="h-40 w-full rounded-sm border border-stone-200">
                                 <source :src="media.url" />
                             </video>
                             <div class="mt-3 space-y-1 text-xs text-stone-500">
                                 <div>
-                                    <span class="text-stone-700">Type:</span>
+                                    <span class="text-stone-700">{{ $t('work_proofs.labels.type') }}:</span>
                                     {{ proofType(media.type) }}
                                 </div>
                                 <div>
-                                    <span class="text-stone-700">Source:</span>
+                                    <span class="text-stone-700">{{ $t('work_proofs.labels.source') }}:</span>
                                     {{ proofSource(media.source) }}
                                 </div>
                                 <div v-if="media.uploaded_by">
-                                    <span class="text-stone-700">By:</span>
+                                    <span class="text-stone-700">{{ $t('work_proofs.labels.by') }}:</span>
                                     {{ media.uploaded_by }}
                                 </div>
                                 <div v-if="media.note">
-                                    <span class="text-stone-700">Note:</span>
+                                    <span class="text-stone-700">{{ $t('work_proofs.labels.note') }}:</span>
                                     {{ media.note }}
                                 </div>
                             </div>
                         </div>
                     </div>
                     <div v-else class="mt-3 text-sm text-stone-500">
-                        No proofs available for this task.
+                        {{ $t('work_proofs.empty.task_proofs') }}
                     </div>
                 </div>
 
                 <div v-if="!tasks.length"
                     class="rounded-sm border border-stone-200 bg-white p-5 text-sm text-stone-500">
-                    No tasks available.
+                    {{ $t('work_proofs.empty.tasks') }}
                 </div>
             </div>
         </div>
@@ -265,26 +275,26 @@ const proofType = (type) => {
             <div class="flex items-start justify-between gap-4">
                 <div>
                     <h3 class="text-base font-semibold text-stone-800">
-                        Upload proof
+                        {{ $t('work_proofs.proof.title') }}
                     </h3>
                     <p class="text-sm text-stone-500">
-                        {{ proofTask?.title || 'Task' }}
+                        {{ proofTask?.title || $t('work_proofs.labels.task') }}
                     </p>
                 </div>
                 <button type="button" @click="closeProof"
                     class="py-1.5 px-3 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50">
-                    Close
+                    {{ $t('work_proofs.actions.close') }}
                 </button>
             </div>
 
             <form class="mt-4 space-y-4" @submit.prevent="submitProof">
                 <div>
-                    <label class="block text-xs text-stone-500">Type</label>
+                    <label class="block text-xs text-stone-500">{{ $t('work_proofs.proof.type') }}</label>
                     <select v-model="form.type"
                         class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-emerald-600 focus:ring-emerald-600">
-                        <option value="execution">Execution</option>
-                        <option value="completion">Completion</option>
-                        <option value="other">Other</option>
+                        <option value="execution">{{ $t('work_proofs.type.execution') }}</option>
+                        <option value="completion">{{ $t('work_proofs.type.completion') }}</option>
+                        <option value="other">{{ $t('work_proofs.type.other') }}</option>
                     </select>
                     <div v-if="form.errors.type" class="mt-1 text-xs text-red-600">
                         {{ form.errors.type }}
@@ -292,7 +302,7 @@ const proofType = (type) => {
                 </div>
 
                 <div>
-                    <label class="block text-xs text-stone-500">File (photo or video)</label>
+                    <label class="block text-xs text-stone-500">{{ $t('work_proofs.proof.file_label') }}</label>
                     <input type="file" @change="handleFile" accept="image/*,video/*"
                         class="mt-1 block w-full text-sm text-stone-600 file:mr-4 file:py-2 file:px-3 file:rounded-sm file:border-0 file:text-sm file:font-medium file:bg-stone-100 file:text-stone-700 hover:file:bg-stone-200" />
                     <div v-if="form.errors.file" class="mt-1 text-xs text-red-600">
@@ -301,7 +311,7 @@ const proofType = (type) => {
                 </div>
 
                 <div>
-                    <label class="block text-xs text-stone-500">Note (optional)</label>
+                    <label class="block text-xs text-stone-500">{{ $t('work_proofs.proof.note_optional') }}</label>
                     <input v-model="form.note" type="text"
                         class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-emerald-600 focus:ring-emerald-600" />
                     <div v-if="form.errors.note" class="mt-1 text-xs text-red-600">
@@ -312,11 +322,11 @@ const proofType = (type) => {
                 <div class="flex justify-end gap-2">
                     <button type="button" @click="closeProof"
                         class="py-2 px-3 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50">
-                        Cancel
+                        {{ $t('work_proofs.actions.cancel') }}
                     </button>
                     <button type="submit" :disabled="form.processing"
                         class="py-2 px-3 text-xs font-medium rounded-sm border border-transparent bg-emerald-600 text-white hover:bg-emerald-700 disabled:pointer-events-none disabled:opacity-50">
-                        Upload
+                        {{ $t('work_proofs.actions.upload') }}
                     </button>
                 </div>
             </form>

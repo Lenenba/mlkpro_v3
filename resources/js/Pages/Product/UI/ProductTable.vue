@@ -690,7 +690,7 @@ const submitImport = () => {
                     <div class="hs-dropdown [--auto-close:inside] [--placement:bottom-right] relative inline-flex">
                         <button type="button"
                             class="py-2 px-2.5 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700 action-feedback"
-                            aria-haspopup="menu" aria-expanded="false" aria-label="Dropdown">
+                            aria-haspopup="menu" aria-expanded="false" :aria-label="$t('products.aria.dropdown')">
                             {{ $t('products.bulk.actions') }}
                         </button>
                         <div class="hs-dropdown-menu hs-dropdown-open:opacity-100 w-36 transition-[opacity,margin] duration opacity-0 hidden z-10 bg-white rounded-sm shadow-[0_10px_40px_10px_rgba(0,0,0,0.08)] dark:shadow-[0_10px_40px_10px_rgba(0,0,0,0.2)] dark:bg-neutral-900"
@@ -1063,7 +1063,7 @@ const submitImport = () => {
                             <div v-if="canEdit" class="hs-dropdown [--auto-close:inside] [--placement:bottom-right] relative inline-flex">
                                 <button type="button"
                                     class="size-7 inline-flex justify-center items-center gap-x-2 rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-50 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700"
-                                    aria-haspopup="menu" aria-expanded="false" aria-label="Dropdown">
+                                    aria-haspopup="menu" aria-expanded="false" :aria-label="$t('products.aria.dropdown')">
                                     <svg class="shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
                                         viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                                         stroke-linecap="round" stroke-linejoin="round">
@@ -1136,7 +1136,7 @@ const submitImport = () => {
                 <span class="text-stone-500 dark:text-neutral-500"> {{ $t('products.pagination.results') }}</span>
             </p>
 
-            <nav class="flex justify-end items-center gap-x-1" aria-label="Pagination">
+            <nav class="flex justify-end items-center gap-x-1" :aria-label="$t('products.pagination.label')">
                 <Link :href="products.prev_page_url" v-if="products.prev_page_url">
                 <button type="button"
                     class="min-h-[38px] min-w-[38px] py-2 px-2.5 inline-flex justify-center items-center gap-x-2 text-sm rounded-sm text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-100 dark:text-white dark:hover:bg-white/10 dark:focus:bg-neutral-700"

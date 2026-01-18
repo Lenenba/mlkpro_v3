@@ -1,5 +1,6 @@
 <script setup>
 import { ref } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 
@@ -23,6 +24,7 @@ const props = defineProps({
 });
 
 const showFilters = ref(false);
+const { t } = useI18n();
 const formatNumber = (value) =>
     Number(value || 0).toLocaleString(undefined, { maximumFractionDigits: 0 });
 
@@ -50,53 +52,65 @@ const reset = () => {
 
 const statusLabel = (tenant) => {
     if (tenant.is_suspended) {
-        return 'Suspended';
+        return t('super_admin.tenants.status.suspended');
     }
-    return 'Active';
+    return t('super_admin.tenants.status.active');
 };
 </script>
 
 <template>
-    <Head title="Tenants" />
+    <Head :title="$t('super_admin.tenants.page_title')" />
 
     <AuthenticatedLayout>
         <div class="space-y-6">
             <section class="rounded-sm border border-stone-200 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
                 <div class="space-y-1">
-                    <h1 class="text-xl font-semibold text-stone-800 dark:text-neutral-100">Tenants</h1>
+                    <h1 class="text-xl font-semibold text-stone-800 dark:text-neutral-100">
+                        {{ $t('super_admin.tenants.title') }}
+                    </h1>
                     <p class="text-sm text-stone-600 dark:text-neutral-400">
-                        Search and manage all companies on the platform.
+                        {{ $t('super_admin.tenants.subtitle') }}
                     </p>
                 </div>
             </section>
 
             <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-2 md:gap-3 lg:gap-5">
                 <div class="p-4 bg-white border border-t-4 border-t-emerald-600 border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
-                    <p class="text-xs text-stone-500 dark:text-neutral-400">Total companies</p>
+                    <p class="text-xs text-stone-500 dark:text-neutral-400">
+                        {{ $t('super_admin.tenants.stats.total_companies') }}
+                    </p>
                     <p class="mt-1 text-2xl font-semibold text-stone-800 dark:text-neutral-100">
                         {{ formatNumber(stats.total) }}
                     </p>
                 </div>
                 <div class="p-4 bg-white border border-t-4 border-t-blue-600 border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
-                    <p class="text-xs text-stone-500 dark:text-neutral-400">Active</p>
+                    <p class="text-xs text-stone-500 dark:text-neutral-400">
+                        {{ $t('super_admin.tenants.stats.active') }}
+                    </p>
                     <p class="mt-1 text-2xl font-semibold text-stone-800 dark:text-neutral-100">
                         {{ formatNumber(stats.active) }}
                     </p>
                 </div>
                 <div class="p-4 bg-white border border-t-4 border-t-rose-600 border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
-                    <p class="text-xs text-stone-500 dark:text-neutral-400">Suspended</p>
+                    <p class="text-xs text-stone-500 dark:text-neutral-400">
+                        {{ $t('super_admin.tenants.stats.suspended') }}
+                    </p>
                     <p class="mt-1 text-2xl font-semibold text-stone-800 dark:text-neutral-100">
                         {{ formatNumber(stats.suspended) }}
                     </p>
                 </div>
                 <div class="p-4 bg-white border border-t-4 border-t-amber-600 border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
-                    <p class="text-xs text-stone-500 dark:text-neutral-400">New (30d)</p>
+                    <p class="text-xs text-stone-500 dark:text-neutral-400">
+                        {{ $t('super_admin.tenants.stats.new_30d') }}
+                    </p>
                     <p class="mt-1 text-2xl font-semibold text-stone-800 dark:text-neutral-100">
                         {{ formatNumber(stats.new_30d) }}
                     </p>
                 </div>
                 <div class="p-4 bg-white border border-t-4 border-t-sky-600 border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
-                    <p class="text-xs text-stone-500 dark:text-neutral-400">Onboarded</p>
+                    <p class="text-xs text-stone-500 dark:text-neutral-400">
+                        {{ $t('super_admin.tenants.stats.onboarded') }}
+                    </p>
                     <p class="mt-1 text-2xl font-semibold text-stone-800 dark:text-neutral-100">
                         {{ formatNumber(stats.onboarded) }}
                     </p>
@@ -119,61 +133,71 @@ const statusLabel = (tenant) => {
                                 </div>
                                 <input v-model="form.search" type="text"
                                     class="py-[7px] ps-10 pe-8 block w-full bg-white border border-stone-200 rounded-sm text-sm placeholder:text-stone-500 focus:border-green-500 focus:ring-green-600 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 dark:placeholder:text-neutral-400"
-                                    placeholder="Search company, owner, or email">
+                                    :placeholder="$t('super_admin.tenants.filters.search_placeholder')">
                             </div>
                         </div>
                         <div class="flex flex-wrap items-center gap-2 justify-end">
                             <button type="button" @click="showFilters = !showFilters"
                                 class="py-2 px-2.5 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700">
-                                Filters
+                                {{ $t('super_admin.common.filters') }}
                             </button>
                             <button type="button" @click="reset"
                                 class="py-2 px-2.5 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700">
-                                Clear
+                                {{ $t('super_admin.common.clear') }}
                             </button>
                             <button type="submit"
                                 class="py-2 px-3 inline-flex items-center gap-x-2 text-xs font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700">
-                                Apply filters
+                                {{ $t('super_admin.common.apply_filters') }}
                             </button>
                         </div>
                     </div>
 
                     <div v-if="showFilters" class="grid gap-3 md:grid-cols-3">
                         <div>
-                            <label class="block text-xs text-stone-500 dark:text-neutral-400">Company type</label>
+                            <label class="block text-xs text-stone-500 dark:text-neutral-400">
+                                {{ $t('super_admin.tenants.filters.company_type') }}
+                            </label>
                             <select v-model="form.company_type"
                                 class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
-                                <option value="">All</option>
-                                <option value="services">Services</option>
-                                <option value="products">Products</option>
+                                <option value="">{{ $t('super_admin.common.all') }}</option>
+                                <option value="services">{{ $t('super_admin.tenants.company_types.services') }}</option>
+                                <option value="products">{{ $t('super_admin.tenants.company_types.products') }}</option>
                             </select>
                         </div>
                         <div>
-                            <label class="block text-xs text-stone-500 dark:text-neutral-400">Status</label>
+                            <label class="block text-xs text-stone-500 dark:text-neutral-400">
+                                {{ $t('super_admin.tenants.filters.status') }}
+                            </label>
                             <select v-model="form.status"
                                 class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
-                                <option value="">All</option>
-                                <option value="active">Active</option>
-                                <option value="suspended">Suspended</option>
+                                <option value="">{{ $t('super_admin.common.all') }}</option>
+                                <option value="active">{{ $t('super_admin.tenants.status.active') }}</option>
+                                <option value="suspended">{{ $t('super_admin.tenants.status.suspended') }}</option>
                             </select>
                         </div>
                         <div>
-                            <label class="block text-xs text-stone-500 dark:text-neutral-400">Plan</label>
+                            <label class="block text-xs text-stone-500 dark:text-neutral-400">
+                                {{ $t('super_admin.tenants.filters.plan') }}
+                            </label>
                             <select v-model="form.plan"
                                 class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
-                                <option value="">All</option>
+                                <option value="">{{ $t('super_admin.common.all') }}</option>
                                 <option v-for="plan in plans" :key="plan.price_id" :value="plan.price_id">
                                     {{ plan.name }}
                                 </option>
                             </select>
                         </div>
                         <div>
-                            <label class="block text-xs text-stone-500 dark:text-neutral-400">Created from</label>
+                            <label class="block text-xs text-stone-500 dark:text-neutral-400">
+                                {{ $t('super_admin.tenants.filters.created_from') }}
+                            </label>
                             <input v-model="form.created_from" type="date"
                                 class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200" />
                         </div>
                         <div>
-                            <label class="block text-xs text-stone-500 dark:text-neutral-400">Created to</label>
+                            <label class="block text-xs text-stone-500 dark:text-neutral-400">
+                                {{ $t('super_admin.tenants.filters.created_to') }}
+                            </label>
                             <input v-model="form.created_to" type="date"
                                 class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200" />
                         </div>
@@ -185,12 +209,12 @@ const statusLabel = (tenant) => {
                     <table class="min-w-full divide-y divide-stone-200 text-sm text-left text-stone-600 dark:divide-neutral-700 dark:text-neutral-300">
                         <thead class="text-xs uppercase text-stone-500 dark:text-neutral-400">
                             <tr>
-                                <th class="px-4 py-3">Company</th>
-                                <th class="px-4 py-3">Owner</th>
-                                <th class="px-4 py-3">Type</th>
-                                <th class="px-4 py-3">Plan</th>
-                                <th class="px-4 py-3">Status</th>
-                                <th class="px-4 py-3">Created</th>
+                                <th class="px-4 py-3">{{ $t('super_admin.tenants.table.company') }}</th>
+                                <th class="px-4 py-3">{{ $t('super_admin.tenants.table.owner') }}</th>
+                                <th class="px-4 py-3">{{ $t('super_admin.tenants.table.type') }}</th>
+                                <th class="px-4 py-3">{{ $t('super_admin.tenants.table.plan') }}</th>
+                                <th class="px-4 py-3">{{ $t('super_admin.tenants.table.status') }}</th>
+                                <th class="px-4 py-3">{{ $t('super_admin.tenants.table.created') }}</th>
                                 <th class="px-4 py-3"></th>
                             </tr>
                         </thead>
@@ -198,13 +222,13 @@ const statusLabel = (tenant) => {
                             <tr v-for="tenant in tenants.data" :key="tenant.id">
                                 <td class="px-4 py-3">
                                     <div class="font-medium text-stone-800 dark:text-neutral-100">
-                                        {{ tenant.company_name || 'Unnamed company' }}
+                                        {{ tenant.company_name || $t('super_admin.tenants.table.unnamed_company') }}
                                     </div>
                                     <div class="text-xs text-stone-500 dark:text-neutral-400">{{ tenant.email }}</div>
                                 </td>
                                 <td class="px-4 py-3">{{ tenant.name }}</td>
-                                <td class="px-4 py-3">{{ tenant.company_type || 'n/a' }}</td>
-                                <td class="px-4 py-3">{{ tenant.subscription?.plan_name || 'n/a' }}</td>
+                                <td class="px-4 py-3">{{ tenant.company_type || $t('super_admin.common.not_available') }}</td>
+                                <td class="px-4 py-3">{{ tenant.subscription?.plan_name || $t('super_admin.common.not_available') }}</td>
                                 <td class="px-4 py-3">
                                     <span
                                         class="inline-flex items-center rounded-full px-2 py-0.5 text-xs"
@@ -217,7 +241,7 @@ const statusLabel = (tenant) => {
                                     <div class="hs-dropdown [--auto-close:inside] [--placement:bottom-right] relative inline-flex">
                                         <button type="button"
                                             class="size-7 inline-flex justify-center items-center gap-x-2 rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700"
-                                            aria-haspopup="menu" aria-expanded="false" aria-label="Actions">
+                                            aria-haspopup="menu" aria-expanded="false" :aria-label="$t('super_admin.common.actions')">
                                             <svg class="shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" width="24"
                                                 height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                                                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -231,7 +255,7 @@ const statusLabel = (tenant) => {
                                             <div class="p-1">
                                                 <Link :href="route('superadmin.tenants.show', tenant.id)"
                                                     class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
-                                                    View
+                                                    {{ $t('super_admin.common.view') }}
                                                 </Link>
                                             </div>
                                         </div>
@@ -240,7 +264,7 @@ const statusLabel = (tenant) => {
                             </tr>
                             <tr v-if="!tenants.data.length">
                                 <td colspan="7" class="px-4 py-6 text-center text-sm text-stone-500 dark:text-neutral-400">
-                                    No tenants found.
+                                    {{ $t('super_admin.tenants.empty') }}
                                 </td>
                             </tr>
                         </tbody>

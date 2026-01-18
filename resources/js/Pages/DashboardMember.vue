@@ -1,5 +1,6 @@
 <script setup>
 import { computed } from 'vue';
+import { useI18n } from 'vue-i18n';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import AnnouncementsPanel from '@/Components/Dashboard/AnnouncementsPanel.vue';
 import KpiSparkline from '@/Components/Dashboard/KpiSparkline.vue';
@@ -28,7 +29,8 @@ const props = defineProps({
 });
 
 const page = usePage();
-const userName = computed(() => page.props.auth?.user?.name || 'there');
+const { t } = useI18n();
+const userName = computed(() => page.props.auth?.user?.name || t('dashboard_tasks.fallback_name'));
 const hasAnnouncements = computed(() => (props.announcements || []).length > 0);
 const tasksToday = computed(() => props.tasksToday || []);
 const worksToday = computed(() => props.worksToday || []);
@@ -75,7 +77,7 @@ const formatTimeRange = (task) => {
     if (end) {
         return end;
     }
-    return 'Any time';
+    return t('dashboard.time.any');
 };
 const buildItemDateTime = (item) => {
     if (!item?.due_date) {
@@ -103,54 +105,66 @@ const resolvePriorityKey = (item) => {
     }
     return 'low';
 };
-const priorityConfig = {
+const priorityConfig = computed(() => ({
     high: {
-        label: 'High',
+        label: t('dashboard.priority.high'),
         class: 'bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-200',
     },
     medium: {
-        label: 'Medium',
+        label: t('dashboard.priority.medium'),
         class: 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-200',
     },
     low: {
-        label: 'Low',
+        label: t('dashboard.priority.low'),
         class: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-200',
     },
-};
-const autoBadgeConfig = {
+}));
+const autoBadgeConfig = computed(() => ({
     started: {
-        label: 'Auto start',
+        label: t('dashboard.auto.started'),
         class: 'bg-sky-100 text-sky-700 dark:bg-sky-500/20 dark:text-sky-200',
     },
     completed: {
-        label: 'Auto done',
+        label: t('dashboard.auto.completed'),
         class: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-200',
     },
-};
-const resolvePriority = (task) => priorityConfig[resolvePriorityKey(task)];
+}));
+const resolvePriority = (task) => priorityConfig.value[resolvePriorityKey(task)];
 const resolveAutoBadges = (item) => {
     const badges = [];
     if (item?.auto_started_at) {
         badges.push({
             key: `${item.key}-auto-start`,
-            label: autoBadgeConfig.started.label,
-            class: autoBadgeConfig.started.class,
+            label: autoBadgeConfig.value.started.label,
+            class: autoBadgeConfig.value.started.class,
         });
     }
     if (item?.auto_completed_at) {
         badges.push({
             key: `${item.key}-auto-complete`,
-            label: autoBadgeConfig.completed.label,
-            class: autoBadgeConfig.completed.class,
+            label: autoBadgeConfig.value.completed.label,
+            class: autoBadgeConfig.value.completed.class,
         });
     }
     return badges;
 };
-const formatStatus = (status) => {
-    if (!status) {
+const resolveStatusLabel = (key, fallback) => {
+    const label = t(key);
+    return label === key ? fallback : label;
+};
+const workStatusLabel = (status) => {
+    const key = status || 'scheduled';
+    return resolveStatusLabel(`dashboard.status.work.${key}`, key.replace('_', ' '));
+};
+const taskStatusLabel = (status) => {
+    const key = status || 'todo';
+    return resolveStatusLabel(`dashboard.status.task.${key}`, key.replace('_', ' '));
+};
+const formatStatus = (item) => {
+    if (!item?.status) {
         return '-';
     }
-    return status.replace('_', ' ');
+    return item.type === 'work' ? workStatusLabel(item.status) : taskStatusLabel(item.status);
 };
 const todayItems = computed(() => {
     const taskItems = (tasksToday.value || []).map((task) => ({
@@ -179,8 +193,10 @@ const todayItems = computed(() => {
         return dateA.getTime() - dateB.getTime();
     });
 });
-const formatAgendaCount = (count, singular, plural) =>
-    `${count} ${count === 1 ? singular : plural}`;
+const formatAgendaCount = (count, singularKey, pluralKey) => {
+    const label = count === 1 ? t(singularKey) : t(pluralKey);
+    return `${count} ${label}`;
+};
 const agendaAlertItems = computed(() => {
     const alerts = agendaAlerts.value || {};
     const tasksStarted = Number(alerts.tasks_started || 0);
@@ -192,29 +208,38 @@ const agendaAlertItems = computed(() => {
     if (tasksStarted > 0) {
         items.push({
             key: 'tasks-started',
-            label: `${formatAgendaCount(tasksStarted, 'task', 'tasks')} auto-started`,
-            class: autoBadgeConfig.started.class,
+            label: t('dashboard.agenda.auto_started', {
+                count: formatAgendaCount(tasksStarted, 'dashboard.agenda.task', 'dashboard.agenda.tasks'),
+            }),
+            class: autoBadgeConfig.value.started.class,
         });
     }
     if (worksStarted > 0) {
         items.push({
             key: 'works-started',
-            label: `${formatAgendaCount(worksStarted, 'job', 'jobs')} auto-started`,
-            class: autoBadgeConfig.started.class,
+            label: t('dashboard.agenda.auto_started', {
+                count: formatAgendaCount(worksStarted, 'dashboard.agenda.job', 'dashboard.agenda.jobs'),
+            }),
+            class: autoBadgeConfig.value.started.class,
         });
     }
     if (tasksCompleted > 0) {
         items.push({
             key: 'tasks-completed',
-            label: `${formatAgendaCount(tasksCompleted, 'task', 'tasks')} auto-completed at 18:00`,
-            class: autoBadgeConfig.completed.class,
+            label: t('dashboard.agenda.auto_completed_at', {
+                count: formatAgendaCount(tasksCompleted, 'dashboard.agenda.task', 'dashboard.agenda.tasks'),
+                time: '18:00',
+            }),
+            class: autoBadgeConfig.value.completed.class,
         });
     }
     if (worksCompleted > 0) {
         items.push({
             key: 'works-completed',
-            label: `${formatAgendaCount(worksCompleted, 'job', 'jobs')} auto-completed`,
-            class: autoBadgeConfig.completed.class,
+            label: t('dashboard.agenda.auto_completed', {
+                count: formatAgendaCount(worksCompleted, 'dashboard.agenda.job', 'dashboard.agenda.jobs'),
+            }),
+            class: autoBadgeConfig.value.completed.class,
         });
     }
 
@@ -224,14 +249,14 @@ const hasAgendaAlerts = computed(() => agendaAlertItems.value.length > 0);
 </script>
 
 <template>
-    <Head title="Dashboard" />
+    <Head :title="$t('dashboard.title')" />
 
     <AuthenticatedLayout>
         <div class="mx-auto w-full max-w-6xl space-y-5">
             <div class="rounded-sm border border-stone-200 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-800">
-                <h1 class="text-xl font-semibold text-stone-800 dark:text-neutral-100">Dashboard</h1>
+                <h1 class="text-xl font-semibold text-stone-800 dark:text-neutral-100">{{ $t('dashboard.title') }}</h1>
                 <p class="mt-1 text-sm text-stone-600 dark:text-neutral-400">
-                    Welcome back, {{ userName }}. Here are your tasks.
+                    {{ $t('dashboard_tasks.subtitle_member', { name: userName }) }}
                 </p>
             </div>
 
@@ -239,7 +264,7 @@ const hasAgendaAlerts = computed(() => agendaAlertItems.value.length > 0);
                 <div class="grid grid-cols-1 gap-3 md:grid-cols-3">
                     <div class="rounded-sm border border-stone-200 border-t-4 border-t-amber-600 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-800">
                         <div class="flex items-center justify-between gap-2">
-                            <p class="text-xs text-stone-500 dark:text-neutral-400">To do</p>
+                            <p class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('status.task.todo') }}</p>
                             <KpiTrendBadge :trend="kpiData.tasks_todo.trend" />
                         </div>
                         <p class="mt-1 text-2xl font-semibold text-stone-900 dark:text-neutral-100">{{ stat('tasks_todo') }}</p>
@@ -250,7 +275,7 @@ const hasAgendaAlerts = computed(() => agendaAlertItems.value.length > 0);
                     </div>
                     <div class="rounded-sm border border-stone-200 border-t-4 border-t-blue-600 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-800">
                         <div class="flex items-center justify-between gap-2">
-                            <p class="text-xs text-stone-500 dark:text-neutral-400">In progress</p>
+                            <p class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('status.task.in_progress') }}</p>
                             <KpiTrendBadge :trend="kpiData.tasks_in_progress.trend" />
                         </div>
                         <p class="mt-1 text-2xl font-semibold text-stone-900 dark:text-neutral-100">{{ stat('tasks_in_progress') }}</p>
@@ -261,7 +286,7 @@ const hasAgendaAlerts = computed(() => agendaAlertItems.value.length > 0);
                     </div>
                     <div class="rounded-sm border border-stone-200 border-t-4 border-t-emerald-600 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-800">
                         <div class="flex items-center justify-between gap-2">
-                            <p class="text-xs text-stone-500 dark:text-neutral-400">Done</p>
+                            <p class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('status.task.done') }}</p>
                             <KpiTrendBadge :trend="kpiData.tasks_done.trend" />
                         </div>
                         <p class="mt-1 text-2xl font-semibold text-stone-900 dark:text-neutral-100">{{ stat('tasks_done') }}</p>
@@ -275,8 +300,8 @@ const hasAgendaAlerts = computed(() => agendaAlertItems.value.length > 0);
                     v-if="hasAnnouncements"
                     :announcements="announcements"
                     variant="side"
-                    title="Announcements"
-                    subtitle="Active notices for your team."
+                    :title="$t('dashboard_tasks.announcements.title')"
+                    :subtitle="$t('dashboard_tasks.announcements.subtitle')"
                     :limit="2"
                 />
             </div>
@@ -284,8 +309,12 @@ const hasAgendaAlerts = computed(() => agendaAlertItems.value.length > 0);
             <div class="flex flex-col bg-white border border-stone-200 shadow-sm rounded-sm overflow-hidden dark:bg-neutral-800 dark:border-neutral-700">
                 <div class="py-3 px-4 border-b border-stone-200 dark:border-neutral-700 flex items-center justify-between">
                     <div>
-                        <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">Today's timeline</h2>
-                        <p class="text-xs text-stone-500 dark:text-neutral-400">Priorities are based on time.</p>
+                        <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                            {{ $t('dashboard_tasks.timeline.title') }}
+                        </h2>
+                        <p class="text-xs text-stone-500 dark:text-neutral-400">
+                            {{ $t('dashboard_tasks.timeline.subtitle') }}
+                        </p>
                     </div>
                     <a
                         :href="route('tasks.calendar')"
@@ -294,13 +323,13 @@ const hasAgendaAlerts = computed(() => agendaAlertItems.value.length > 0);
                         rel="noreferrer"
                         download
                     >
-                        Sync calendar
+                        {{ $t('dashboard.timeline.sync_calendar') }}
                     </a>
                 </div>
 
                 <div class="p-4">
                     <div v-if="hasAgendaAlerts" class="mb-3 rounded-sm border border-sky-200 bg-sky-50 p-3 text-xs text-sky-800 dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-200">
-                        <div class="font-semibold">Auto alerts today</div>
+                        <div class="font-semibold">{{ $t('dashboard_tasks.timeline.auto_alerts') }}</div>
                         <div class="mt-2 flex flex-wrap gap-2">
                             <span
                                 v-for="item in agendaAlertItems"
@@ -312,7 +341,7 @@ const hasAgendaAlerts = computed(() => agendaAlertItems.value.length > 0);
                         </div>
                     </div>
                     <div v-if="!todayItems.length" class="text-sm text-stone-600 dark:text-neutral-400">
-                        No tasks or jobs scheduled for today.
+                        {{ $t('dashboard_tasks.timeline.empty') }}
                     </div>
 
                     <div v-else class="space-y-3">
@@ -326,7 +355,7 @@ const hasAgendaAlerts = computed(() => agendaAlertItems.value.length > 0);
                                     <div class="min-w-0">
                                         <div class="text-xs text-stone-500 dark:text-neutral-400">{{ formatTimeRange(item) }}</div>
                                         <div class="truncate font-medium text-stone-900 dark:text-neutral-100">
-                                            {{ item.title || (item.type === 'work' ? 'Job' : 'Task') }}
+                                            {{ item.title || (item.type === 'work' ? $t('dashboard.labels.job') : $t('dashboard.labels.task')) }}
                                         </div>
                                     </div>
                                     <div class="flex flex-col items-end gap-1">
@@ -341,15 +370,15 @@ const hasAgendaAlerts = computed(() => agendaAlertItems.value.length > 0);
                                             {{ badge.label }}
                                         </span>
                                         <span class="text-[11px] uppercase text-stone-400 dark:text-neutral-500">
-                                            {{ item.type === 'work' ? 'Job' : 'Task' }}
+                                            {{ item.type === 'work' ? $t('dashboard.labels.job') : $t('dashboard.labels.task') }}
                                         </span>
                                         <span class="text-[11px] uppercase text-stone-400 dark:text-neutral-500">
-                                            {{ formatStatus(item.status) }}
+                                            {{ formatStatus(item) }}
                                         </span>
                                     </div>
                                 </div>
                                 <div v-if="item.assignee?.name" class="mt-2 text-xs text-stone-500 dark:text-neutral-400">
-                                    Assignee: {{ item.assignee.name }}
+                                    {{ $t('dashboard.labels.assignee', { name: item.assignee.name }) }}
                                 </div>
                             </div>
                         </div>
@@ -359,15 +388,17 @@ const hasAgendaAlerts = computed(() => agendaAlertItems.value.length > 0);
 
             <div class="flex flex-col bg-white border border-stone-200 shadow-sm rounded-sm overflow-hidden dark:bg-neutral-800 dark:border-neutral-700">
                 <div class="py-3 px-4 border-b border-stone-200 dark:border-neutral-700 flex items-center justify-between">
-                    <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">My tasks</h2>
+                    <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                        {{ $t('dashboard_tasks.my_tasks.title') }}
+                    </h2>
                     <Link :href="route('task.index')" class="text-xs font-medium text-green-600 hover:text-green-700">
-                        View all
+                        {{ $t('dashboard_tasks.my_tasks.view_all') }}
                     </Link>
                 </div>
 
                 <div class="p-4">
                     <div v-if="!tasks?.length" class="text-sm text-stone-600 dark:text-neutral-400">
-                        No tasks assigned yet.
+                        {{ $t('dashboard_tasks.my_tasks.empty') }}
                     </div>
 
                     <div v-else class="space-y-2">
@@ -376,7 +407,7 @@ const hasAgendaAlerts = computed(() => agendaAlertItems.value.length > 0);
                             <div class="min-w-0">
                                 <div class="truncate font-medium text-stone-900 dark:text-neutral-100">{{ task.title }}</div>
                                 <div class="text-xs text-stone-500 dark:text-neutral-400">
-                                    Due: {{ formatDate(task.due_date) }}
+                                    {{ $t('dashboard_tasks.labels.due', { date: formatDate(task.due_date) }) }}
                                 </div>
                             </div>
                             <div class="shrink-0 rounded-full bg-stone-100 px-2 py-0.5 text-xs text-stone-700 dark:bg-neutral-900 dark:text-neutral-200">

@@ -95,7 +95,7 @@ const impersonate = () => {
 </script>
 
 <template>
-    <Head :title="tenant.company_name || 'Tenant'" />
+    <Head :title="tenant.company_name || $t('super_admin.tenants.detail.fallback_title')" />
 
     <AuthenticatedLayout>
         <div class="space-y-6">
@@ -103,7 +103,7 @@ const impersonate = () => {
                 <div class="flex flex-wrap items-start justify-between gap-3">
                     <div class="space-y-1">
                         <h1 class="text-xl font-semibold text-stone-800 dark:text-neutral-100">
-                            {{ tenant.company_name || 'Tenant' }}
+                            {{ tenant.company_name || $t('super_admin.tenants.detail.fallback_title') }}
                         </h1>
                         <p class="text-sm text-stone-600 dark:text-neutral-400">
                             {{ tenant.email }}
@@ -112,11 +112,11 @@ const impersonate = () => {
                     <div class="flex flex-wrap gap-2">
                         <Link :href="route('superadmin.tenants.export', tenant.id)"
                             class="py-2 px-3 text-sm font-medium rounded-sm border border-stone-200 text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700">
-                            Export data
+                            {{ $t('super_admin.tenants.detail.export_data') }}
                         </Link>
                         <button v-if="canImpersonate" type="button" @click="impersonate"
                             class="py-2 px-3 text-sm font-medium rounded-sm border border-transparent bg-blue-600 text-white hover:bg-blue-700">
-                            Impersonate
+                            {{ $t('super_admin.tenants.detail.impersonate') }}
                         </button>
                     </div>
                 </div>
@@ -124,92 +124,123 @@ const impersonate = () => {
 
             <div class="grid gap-3 lg:grid-cols-3">
                 <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-800 lg:col-span-2">
-                    <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">Company details</h2>
+                    <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                        {{ $t('super_admin.tenants.detail.company_details') }}
+                    </h2>
                     <div class="mt-3 grid gap-3 sm:grid-cols-2 text-sm text-stone-700 dark:text-neutral-200">
                         <div>
-                            <span class="text-xs text-stone-500 dark:text-neutral-400">Owner</span>
+                            <span class="text-xs text-stone-500 dark:text-neutral-400">
+                                {{ $t('super_admin.tenants.detail.owner') }}
+                            </span>
                             <div class="font-medium">{{ tenant.name }}</div>
                         </div>
                         <div>
-                            <span class="text-xs text-stone-500 dark:text-neutral-400">Type</span>
-                            <div class="font-medium">{{ tenant.company_type || 'n/a' }}</div>
+                            <span class="text-xs text-stone-500 dark:text-neutral-400">
+                                {{ $t('super_admin.tenants.detail.type') }}
+                            </span>
+                            <div class="font-medium">{{ tenant.company_type || $t('super_admin.common.not_available') }}</div>
                         </div>
                         <div>
-                            <span class="text-xs text-stone-500 dark:text-neutral-400">Location</span>
-                            <div class="font-medium">{{ tenant.company_country || 'n/a' }} {{ tenant.company_city || '' }}</div>
+                            <span class="text-xs text-stone-500 dark:text-neutral-400">
+                                {{ $t('super_admin.tenants.detail.location') }}
+                            </span>
+                            <div class="font-medium">
+                                {{ tenant.company_country || $t('super_admin.common.not_available') }} {{ tenant.company_city || '' }}
+                            </div>
                         </div>
                         <div>
-                            <span class="text-xs text-stone-500 dark:text-neutral-400">Created</span>
+                            <span class="text-xs text-stone-500 dark:text-neutral-400">
+                                {{ $t('super_admin.tenants.detail.created') }}
+                            </span>
                             <div class="font-medium">{{ new Date(tenant.created_at).toLocaleDateString() }}</div>
                         </div>
                         <div>
-                            <span class="text-xs text-stone-500 dark:text-neutral-400">Onboarding</span>
-                            <div class="font-medium">{{ tenant.onboarding_completed_at ? 'Completed' : 'Pending' }}</div>
+                            <span class="text-xs text-stone-500 dark:text-neutral-400">
+                                {{ $t('super_admin.tenants.detail.onboarding') }}
+                            </span>
+                            <div class="font-medium">
+                                {{ tenant.onboarding_completed_at ? $t('super_admin.tenants.detail.onboarding_completed') : $t('super_admin.tenants.detail.onboarding_pending') }}
+                            </div>
                         </div>
                         <div>
-                            <span class="text-xs text-stone-500 dark:text-neutral-400">Status</span>
-                            <div class="font-medium">{{ tenant.is_suspended ? 'Suspended' : 'Active' }}</div>
+                            <span class="text-xs text-stone-500 dark:text-neutral-400">
+                                {{ $t('super_admin.tenants.detail.status') }}
+                            </span>
+                            <div class="font-medium">
+                                {{ tenant.is_suspended ? $t('super_admin.tenants.status.suspended') : $t('super_admin.tenants.status.active') }}
+                            </div>
                         </div>
                     </div>
 
                     <div v-if="tenant.subscription" class="mt-4 rounded-sm border border-stone-200 bg-stone-50 p-3 text-sm text-stone-700 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200">
-                        <div class="font-medium">Subscription</div>
-                        <div class="mt-1">Plan: {{ tenant.subscription.plan_name || tenant.subscription.price_id }}</div>
-                        <div>Status: {{ tenant.subscription.status }}</div>
+                        <div class="font-medium">{{ $t('super_admin.tenants.detail.subscription') }}</div>
+                        <div class="mt-1">
+                            {{ $t('super_admin.tenants.detail.plan_label') }}: {{ tenant.subscription.plan_name || tenant.subscription.price_id }}
+                        </div>
+                        <div>
+                            {{ $t('super_admin.tenants.detail.subscription_status') }}: {{ tenant.subscription.status }}
+                        </div>
                     </div>
                 </div>
 
                 <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-800">
-                    <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">Usage</h2>
+                    <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                        {{ $t('super_admin.tenants.detail.usage') }}
+                    </h2>
                         <div class="mt-3 space-y-2 text-sm text-stone-700 dark:text-neutral-200">
-                            <div>Customers: <span class="font-semibold">{{ stats.customers }}</span></div>
-                            <div>Quotes: <span class="font-semibold">{{ stats.quotes }}</span></div>
-                            <div>Plan scan quotes: <span class="font-semibold">{{ stats.plan_scan_quotes }}</span></div>
-                            <div>Invoices: <span class="font-semibold">{{ stats.invoices }}</span></div>
-                            <div>Jobs: <span class="font-semibold">{{ stats.works }}</span></div>
-                        <div>Products: <span class="font-semibold">{{ stats.products }}</span></div>
-                        <div>Services: <span class="font-semibold">{{ stats.services }}</span></div>
-                        <div>Tasks: <span class="font-semibold">{{ stats.tasks }}</span></div>
-                        <div>Team members: <span class="font-semibold">{{ stats.team_members }}</span></div>
+                            <div>{{ $t('super_admin.tenants.detail.usage_customers') }}: <span class="font-semibold">{{ stats.customers }}</span></div>
+                            <div>{{ $t('super_admin.tenants.detail.usage_quotes') }}: <span class="font-semibold">{{ stats.quotes }}</span></div>
+                            <div>{{ $t('super_admin.tenants.detail.usage_plan_scan_quotes') }}: <span class="font-semibold">{{ stats.plan_scan_quotes }}</span></div>
+                            <div>{{ $t('super_admin.tenants.detail.usage_invoices') }}: <span class="font-semibold">{{ stats.invoices }}</span></div>
+                            <div>{{ $t('super_admin.tenants.detail.usage_jobs') }}: <span class="font-semibold">{{ stats.works }}</span></div>
+                        <div>{{ $t('super_admin.tenants.detail.usage_products') }}: <span class="font-semibold">{{ stats.products }}</span></div>
+                        <div>{{ $t('super_admin.tenants.detail.usage_services') }}: <span class="font-semibold">{{ stats.services }}</span></div>
+                        <div>{{ $t('super_admin.tenants.detail.usage_tasks') }}: <span class="font-semibold">{{ stats.tasks }}</span></div>
+                        <div>{{ $t('super_admin.tenants.detail.usage_team_members') }}: <span class="font-semibold">{{ stats.team_members }}</span></div>
                     </div>
                 </div>
             </div>
 
             <div class="grid gap-3 lg:grid-cols-2">
                 <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-800">
-                    <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">Account actions</h2>
+                    <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                        {{ $t('super_admin.tenants.detail.account_actions') }}
+                    </h2>
                     <div class="mt-4 space-y-3">
                         <div v-if="tenant.is_suspended" class="rounded-sm border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-                            Suspended: {{ tenant.suspension_reason || 'No reason provided.' }}
+                            {{ $t('super_admin.tenants.detail.suspended_label') }}:
+                            {{ tenant.suspension_reason || $t('super_admin.tenants.detail.suspended_reason_empty') }}
                         </div>
                         <div v-if="canManage" class="space-y-3">
                             <div>
-                                <FloatingInput v-model="suspendForm.reason" label="Suspension reason" />
+                                <FloatingInput v-model="suspendForm.reason" :label="$t('super_admin.tenants.detail.suspension_reason')" />
                                 <InputError class="mt-1" :message="suspendForm.errors.reason" />
                             </div>
                             <div class="flex flex-wrap gap-2">
                                 <button v-if="!tenant.is_suspended" type="button" @click="suspendTenant"
                                     class="py-2 px-3 text-sm font-medium rounded-sm border border-transparent bg-red-600 text-white hover:bg-red-700">
-                                    Suspend tenant
+                                    {{ $t('super_admin.tenants.detail.suspend_tenant') }}
                                 </button>
                                 <button v-else type="button" @click="restoreTenant"
                                     class="py-2 px-3 text-sm font-medium rounded-sm border border-transparent bg-emerald-600 text-white hover:bg-emerald-700">
-                                    Restore tenant
+                                    {{ $t('super_admin.tenants.detail.restore_tenant') }}
                                 </button>
                                 <button type="button" @click="resetOnboarding"
                                     class="py-2 px-3 text-sm font-medium rounded-sm border border-stone-200 text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700">
-                                    Reset onboarding
+                                    {{ $t('super_admin.tenants.detail.reset_onboarding') }}
                                 </button>
                             </div>
                         </div>
                         <div v-else class="text-sm text-stone-500 dark:text-neutral-400">
-                            You do not have permission to manage tenant actions.
+                            {{ $t('super_admin.tenants.detail.no_manage_permission') }}
                         </div>
                     </div>
                 </div>
 
                 <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-800">
-                    <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">Feature flags</h2>
+                    <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                        {{ $t('super_admin.tenants.detail.feature_flags') }}
+                    </h2>
                     <form v-if="canManage" class="mt-4 space-y-2" @submit.prevent="updateFeatures">
                         <label v-for="flag in feature_flags" :key="flag.key" class="flex items-center gap-2 text-sm text-stone-700 dark:text-neutral-200">
                             <Checkbox v-model:checked="featureForm.features[flag.key]" :value="true" />
@@ -218,34 +249,36 @@ const impersonate = () => {
                         <InputError class="mt-1" :message="featureForm.errors.features" />
                         <button type="submit"
                             class="mt-3 py-2 px-3 text-sm font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700">
-                            Update features
+                            {{ $t('super_admin.tenants.detail.update_features') }}
                         </button>
                     </form>
                     <div v-else class="mt-4 text-sm text-stone-500 dark:text-neutral-400">
-                        You do not have permission to update feature flags.
+                        {{ $t('super_admin.tenants.detail.no_feature_permission') }}
                     </div>
                 </div>
             </div>
 
             <div class="grid gap-3 lg:grid-cols-2">
                 <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-800">
-                    <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">Usage vs limits</h2>
+                    <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                        {{ $t('super_admin.tenants.detail.usage_vs_limits') }}
+                    </h2>
                     <div
                         class="mt-4 overflow-x-auto [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-stone-100 [&::-webkit-scrollbar-thumb]:bg-stone-300 dark:[&::-webkit-scrollbar-track]:bg-neutral-700 dark:[&::-webkit-scrollbar-thumb]:bg-neutral-500">
                         <table class="min-w-full divide-y divide-stone-200 text-sm text-left text-stone-600 dark:divide-neutral-700 dark:text-neutral-300">
                             <thead class="text-xs uppercase text-stone-500 dark:text-neutral-400">
                                 <tr>
-                                    <th class="py-2">Module</th>
-                                    <th class="py-2">Used</th>
-                                    <th class="py-2">Limit</th>
-                                    <th class="py-2">Usage</th>
+                                    <th class="py-2">{{ $t('super_admin.tenants.detail.usage_table.module') }}</th>
+                                    <th class="py-2">{{ $t('super_admin.tenants.detail.usage_table.used') }}</th>
+                                    <th class="py-2">{{ $t('super_admin.tenants.detail.usage_table.limit') }}</th>
+                                    <th class="py-2">{{ $t('super_admin.tenants.detail.usage_table.usage') }}</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-stone-200 dark:divide-neutral-700">
                                 <tr v-for="item in usage_limits.items" :key="item.key">
                                     <td class="py-2">{{ item.label }}</td>
                                     <td class="py-2">{{ item.used }}</td>
-                                    <td class="py-2">{{ item.limit ?? 'Unlimited' }}</td>
+                                    <td class="py-2">{{ item.limit ?? $t('super_admin.common.unlimited') }}</td>
                                     <td class="py-2">
                                         <span v-if="item.percent !== null"
                                             :class="item.status === 'over'
@@ -260,7 +293,7 @@ const impersonate = () => {
                                 </tr>
                                 <tr v-if="!usage_limits.items?.length">
                                     <td colspan="4" class="py-3 text-center text-sm text-stone-500 dark:text-neutral-400">
-                                        No usage data available.
+                                        {{ $t('super_admin.tenants.detail.usage_empty') }}
                                     </td>
                                 </tr>
                             </tbody>
@@ -268,12 +301,14 @@ const impersonate = () => {
                     </div>
                     <div v-if="usage_limits.items?.some((item) => item.status !== 'ok')"
                         class="mt-3 rounded-sm border border-amber-200 bg-amber-50 p-3 text-xs text-amber-700">
-                        Some modules are close to or above their limits.
+                        {{ $t('super_admin.tenants.detail.usage_warning') }}
                     </div>
                 </div>
 
                 <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-800">
-                    <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">Manual limit overrides</h2>
+                    <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                        {{ $t('super_admin.tenants.detail.manual_overrides') }}
+                    </h2>
                     <form v-if="canManage" class="mt-4 space-y-3" @submit.prevent="updateLimits">
                         <div class="grid gap-3 md:grid-cols-2">
                             <div v-for="item in usage_limits.items" :key="item.key">
@@ -285,11 +320,11 @@ const impersonate = () => {
                         </div>
                         <button type="submit"
                             class="mt-2 py-2 px-3 text-sm font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700">
-                            Save overrides
+                            {{ $t('super_admin.tenants.detail.save_overrides') }}
                         </button>
                     </form>
                     <div v-else class="mt-4 text-sm text-stone-500 dark:text-neutral-400">
-                        You do not have permission to update limits.
+                        {{ $t('super_admin.tenants.detail.no_limits_permission') }}
                     </div>
                 </div>
             </div>

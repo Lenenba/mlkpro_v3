@@ -266,6 +266,443 @@
 
   
 
+  "super_admin": {
+    "common": {
+      "not_available": "N/A",
+      "unknown": "Inconnu",
+      "actions": "Actions",
+      "edit": "Modifier",
+      "delete": "Supprimer",
+      "view": "Voir",
+      "close": "Fermer",
+      "cancel": "Annuler",
+      "save_changes": "Enregistrer",
+      "filters": "Filtres",
+      "clear": "Reinitialiser",
+      "apply_filters": "Appliquer les filtres",
+      "all": "Tous",
+      "unlimited": "Illimite",
+      "enabled": "Active",
+      "disabled": "Desactive"
+    },
+    "dashboard": {
+      "page_title": "Tableau de bord Super Admin",
+      "title": "Tableau de bord plateforme",
+      "subtitle": "KPI globaux et sante de la plateforme pour toutes les entreprises.",
+      "kpi": {
+        "total_companies": "Total entreprises",
+        "onboarded": "Onboardees : {count} ({percent})",
+        "new_companies_30d": "Nouvelles entreprises (30j)",
+        "onboarding_conversion_30d": "Conversion onboarding : {percent}",
+        "active_companies": "Entreprises actives",
+        "active_wau_mau": "WAU {wau} / MAU {mau}",
+        "activation_rates": "Activation J7 {j7} | J30 {j30}"
+      },
+      "acquisition": {
+        "title": "Acquisition (7 derniers jours)",
+        "empty": "Aucune donnee d'acquisition."
+      },
+      "usage": {
+        "title": "Usage (30 derniers jours)",
+        "quotes": "Devis",
+        "invoices": "Factures",
+        "jobs": "Chantiers",
+        "products": "Produits",
+        "services": "Services",
+        "avg_days_to_first": "Jours moyens avant premier : Devis {quote}, Facture {invoice}, Produit {product}, Service {service}, Chantier {job}",
+        "service_mix": "Mix services : {services} services / {products} produits ({percent}% services)"
+      },
+      "revenue": {
+        "title": "Revenus et retention",
+        "mrr": "MRR",
+        "arpu": "ARPU",
+        "active_subs": "Abonnements actifs",
+        "trialing": "En essai",
+        "payment_failed": "Paiement echoue",
+        "trial_conversion": "Conversion essai",
+        "churn_30d": "Churn (30j)",
+        "churn_rate": "Taux de churn"
+      },
+      "cohorts": {
+        "title": "Cohortes (retention 30j)",
+        "month": "Mois",
+        "new": "Nouveaux",
+        "retained": "Retenus",
+        "empty": "Aucune donnee de cohorte."
+      },
+      "health": {
+        "title": "Sante",
+        "failed_jobs_24h": "Jobs echoues 24h",
+        "failed_jobs_7d": "Jobs echoues 7j",
+        "email_failures_24h": "Echecs email 24h",
+        "pending_jobs": "Jobs en attente",
+        "oldest_job_minutes": "Anciennete job (min)",
+        "public_storage": "Stockage public"
+      },
+      "data_quality": {
+        "title": "Qualite des donnees",
+        "customer_email_duplicates": "Doublons email client",
+        "customer_name_duplicates": "Doublons nom client",
+        "product_name_duplicates": "Doublons nom produit"
+      },
+      "recent_activity": {
+        "title": "Activite admin recente",
+        "empty": "Aucune action admin recente.",
+        "action_by": "{action} par {user}"
+      }
+    },
+    "admins": {
+      "page_title": "Admins plateforme",
+      "title": "Admins plateforme",
+      "subtitle": "Creer et gerer les comptes admin delegues.",
+      "actions": {
+        "add": "Ajouter un admin",
+        "create": "Creer l'admin",
+        "edit": "Modifier l'admin"
+      },
+      "stats": {
+        "total": "Total admins",
+        "active": "Actifs",
+        "inactive": "Inactifs",
+        "require_2fa": "2FA requis"
+      },
+      "table": {
+        "name": "Nom",
+        "email": "Email",
+        "role": "Role",
+        "status": "Statut"
+      },
+      "status": {
+        "active": "Actif",
+        "inactive": "Inactif"
+      },
+      "empty": "Aucun admin plateforme.",
+      "form": {
+        "name": "Nom",
+        "email": "Email",
+        "role": "Role",
+        "permissions": "Permissions",
+        "require_2fa": "Exiger 2FA"
+      }
+    },
+    "tenants": {
+      "page_title": "Entreprises",
+      "title": "Entreprises",
+      "subtitle": "Rechercher et gerer toutes les entreprises de la plateforme.",
+      "stats": {
+        "total_companies": "Total entreprises",
+        "active": "Actives",
+        "suspended": "Suspendues",
+        "new_30d": "Nouvelles (30j)",
+        "onboarded": "Onboardees"
+      },
+      "filters": {
+        "search_placeholder": "Rechercher entreprise, proprietaire ou email",
+        "company_type": "Type d'entreprise",
+        "status": "Statut",
+        "plan": "Plan",
+        "created_from": "Cree a partir du",
+        "created_to": "Cree jusqu'au"
+      },
+      "company_types": {
+        "services": "Services",
+        "products": "Produits"
+      },
+      "table": {
+        "company": "Entreprise",
+        "owner": "Proprietaire",
+        "type": "Type",
+        "plan": "Plan",
+        "status": "Statut",
+        "created": "Cree",
+        "unnamed_company": "Entreprise sans nom"
+      },
+      "status": {
+        "active": "Active",
+        "suspended": "Suspendue"
+      },
+      "empty": "Aucune entreprise trouvee.",
+      "detail": {
+        "fallback_title": "Entreprise",
+        "export_data": "Exporter les donnees",
+        "impersonate": "Se connecter en tant que",
+        "company_details": "Details entreprise",
+        "owner": "Proprietaire",
+        "type": "Type",
+        "location": "Localisation",
+        "created": "Cree",
+        "onboarding": "Onboarding",
+        "onboarding_completed": "Termine",
+        "onboarding_pending": "En attente",
+        "status": "Statut",
+        "subscription": "Abonnement",
+        "plan_label": "Plan",
+        "subscription_status": "Statut",
+        "usage": "Usage",
+        "usage_customers": "Clients",
+        "usage_quotes": "Devis",
+        "usage_plan_scan_quotes": "Devis scan plan",
+        "usage_invoices": "Factures",
+        "usage_jobs": "Chantiers",
+        "usage_products": "Produits",
+        "usage_services": "Services",
+        "usage_tasks": "Taches",
+        "usage_team_members": "Membres equipe",
+        "account_actions": "Actions compte",
+        "suspended_label": "Suspendu",
+        "suspended_reason_empty": "Aucune raison fournie.",
+        "suspension_reason": "Raison de suspension",
+        "suspend_tenant": "Suspendre l'entreprise",
+        "restore_tenant": "Restaurer l'entreprise",
+        "reset_onboarding": "Reinitialiser l'onboarding",
+        "no_manage_permission": "Vous n'avez pas la permission de gerer les actions entreprise.",
+        "feature_flags": "Fonctionnalites",
+        "update_features": "Mettre a jour les fonctionnalites",
+        "no_feature_permission": "Vous n'avez pas la permission de modifier les fonctionnalites.",
+        "usage_vs_limits": "Usage vs limites",
+        "usage_table": {
+          "module": "Module",
+          "used": "Utilise",
+          "limit": "Limite",
+          "usage": "Usage"
+        },
+        "usage_empty": "Aucune donnee d'usage disponible.",
+        "usage_warning": "Certains modules sont proches ou au-dessus des limites.",
+        "manual_overrides": "Surcharges manuelles",
+        "save_overrides": "Enregistrer les surcharges",
+        "no_limits_permission": "Vous n'avez pas la permission de modifier les limites."
+      }
+    },
+    "support": {
+      "page_title": "Tickets support",
+      "title": "Tickets support",
+      "subtitle": "Suivre SLA, statut et tags pour les demandes support.",
+      "actions": {
+        "new_ticket": "Nouveau ticket",
+        "create_ticket": "Creer le ticket",
+        "update_ticket": "Mettre a jour le ticket",
+        "save_ticket": "Enregistrer le ticket"
+      },
+      "stats": {
+        "total": "Total tickets",
+        "open": "Ouverts",
+        "pending": "En attente",
+        "resolved": "Resolus",
+        "closed": "Fermes"
+      },
+      "filters": {
+        "search_placeholder": "Rechercher tickets ou entreprises",
+        "status": "Statut",
+        "priority": "Priorite",
+        "tenant": "Entreprise"
+      },
+      "table": {
+        "title": "Titre",
+        "tenant": "Entreprise",
+        "status": "Statut",
+        "priority": "Priorite",
+        "sla": "SLA",
+        "tags": "Tags"
+      },
+      "empty": "Aucun ticket trouve.",
+      "form": {
+        "tenant": "Entreprise",
+        "select_tenant": "Choisir une entreprise",
+        "title": "Titre",
+        "description": "Description",
+        "status": "Statut",
+        "priority": "Priorite",
+        "sla_due": "Echeance SLA",
+        "tags": "Tags (separes par virgule)"
+      }
+    },
+    "announcements": {
+      "page_title": "Annonces",
+      "title": "Annonces tableau de bord client",
+      "subtitle": "Gerer les videos ou flyers affiches sur les tableaux de bord.",
+      "actions": {
+        "preview": "Apercu des placements",
+        "add": "Ajouter une annonce",
+        "confirm_delete": "Supprimer cette annonce ?",
+        "create": "Creer une annonce"
+      },
+      "stats": {
+        "total": "Total",
+        "active": "Actives",
+        "drafts": "Brouillons",
+        "with_media": "Avec media",
+        "targeted": "Ciblees"
+      },
+      "filters": {
+        "search_placeholder": "Rechercher des annonces",
+        "status": "Statut",
+        "audience": "Audience",
+        "placement": "Placement",
+        "media": "Media"
+      },
+      "status": {
+        "active": "Active",
+        "draft": "Brouillon"
+      },
+      "audience": {
+        "tenants": "Entreprises ciblees",
+        "new_tenants": "Nouvelles entreprises",
+        "all": "Toutes les entreprises"
+      },
+      "placement": {
+        "internal": "Haut du tableau de bord",
+        "quick_actions": "Emplacement actions rapides"
+      },
+      "media": {
+        "image": "Image",
+        "video": "Video",
+        "none": "Aucun media"
+      },
+      "display_style": {
+        "media_only": "Media seul",
+        "standard": "Carte standard"
+      },
+      "window": {
+        "range": "{start} a {end}",
+        "until": "Jusqu'au {end}",
+        "from": "Depuis {start}"
+      },
+      "table": {
+        "title": "Titre",
+        "audience": "Audience",
+        "status": "Statut",
+        "window": "Periode",
+        "media": "Media",
+        "priority": "Priorite",
+        "targets": "Cibles",
+        "new_tenants": "Nouvelles entreprises : {days} jours",
+        "attached": "Attache"
+      },
+      "empty": "Aucune annonce trouvee.",
+      "form": {
+        "edit_title": "Modifier l'annonce",
+        "new_title": "Nouvelle annonce",
+        "title": "Titre",
+        "status": "Statut",
+        "message": "Message",
+        "display_style": "Style d'affichage",
+        "display_style_hint": "Media seul masque le titre, le message et le lien.",
+        "card_background": "Fond de carte",
+        "audience": "Audience",
+        "placement": "Placement",
+        "priority": "Priorite",
+        "target_tenants": "Entreprises ciblees",
+        "new_tenant_window": "Fenetre nouvelles entreprises (jours)",
+        "start_date": "Date de debut",
+        "end_date": "Date de fin",
+        "media_section": "Media",
+        "media_type": "Type de media",
+        "media_url": "URL media",
+        "upload_file": "Televerser un fichier",
+        "remove_media": "Supprimer le media existant",
+        "current_media": "Media actuel",
+        "link_label": "Libelle du lien",
+        "link_url": "URL du lien"
+      }
+    },
+    "announcements_preview": {
+      "page_title": "Apercu annonce",
+      "title": "Apercu annonce",
+      "subtitle": "Previsualiser l'affichage des annonces sur le tableau de bord.",
+      "manage": "Gerer les annonces",
+      "example_view": "Vue d'exemple",
+      "top": {
+        "title": "Placement haut",
+        "subtitle": "Affiche a cote des KPI en haut du tableau de bord.",
+        "panel_title": "Placement haut",
+        "empty": "Aucune annonce active pour le placement haut."
+      },
+      "quick": {
+        "title": "Placement actions rapides",
+        "subtitle": "Remplace la carte actions rapides a droite du tableau de bord.",
+        "panel_title": "Emplacement actions rapides",
+        "empty": "Aucune annonce active pour le placement actions rapides."
+      }
+    },
+    "notifications": {
+      "page_title": "Preferences notifications",
+      "title": "Preferences notifications",
+      "subtitle": "Choisissez les alertes et le canal de reception.",
+      "channels": "Canaux",
+      "categories": "Categories",
+      "digest_frequency": "Frequence du digest",
+      "quiet_start": "Debut heures calmes (HH:MM)",
+      "quiet_end": "Fin heures calmes (HH:MM)",
+      "alert_thresholds": "Seuils d'alerte",
+      "rules": {
+        "error_spike": "Pic d'erreurs",
+        "payment_failed": "Paiements echoues",
+        "churn_risk": "Risque de churn"
+      },
+      "save": "Enregistrer les preferences"
+    },
+    "settings": {
+      "page_title": "Parametres plateforme",
+      "title": "Parametres plateforme",
+      "subtitle": "Configurer les preferences globales.",
+      "maintenance": {
+        "title": "Mode maintenance",
+        "enable": "Activer la banniere de maintenance",
+        "message": "Message de maintenance",
+        "save": "Enregistrer"
+      },
+      "templates": {
+        "title": "Modeles globaux",
+        "email_default": "Modele email par defaut",
+        "quote_default": "Modele devis par defaut",
+        "invoice_default": "Modele facture par defaut",
+        "save": "Enregistrer les modeles"
+      },
+      "plan_limits": {
+        "title": "Limites de plan",
+        "subtitle": "Definir les plafonds par plan (laisser vide pour illimite).",
+        "empty": "Aucun plan configure.",
+        "edit_limits": "Modifier les limites",
+        "helper": "Cliquez sur un plan pour modifier ses limites (laisser vide pour illimite).",
+        "save": "Enregistrer les limites",
+        "edit_limits_title": "Modifier les limites - {plan}",
+        "modal_hint": "Laissez un champ vide pour garder illimite."
+      },
+      "plan_modules": {
+        "title": "Modules du plan",
+        "subtitle": "Choisir les modules actives par plan.",
+        "empty": "Aucun plan configure.",
+        "edit_modules": "Modifier les modules",
+        "helper": "Cliquez sur un plan pour modifier ses modules.",
+        "save": "Enregistrer les modules",
+        "edit_modules_title": "Modifier les modules - {plan}",
+        "modal_hint": "Desactivez des modules pour les cacher sur ce plan."
+      },
+      "limits": {
+        "quotes": "Devis",
+        "requests": "Demandes",
+        "plan_scan_quotes": "Devis scan plan",
+        "invoices": "Factures",
+        "jobs": "Chantiers",
+        "products": "Produits",
+        "services": "Services",
+        "tasks": "Taches",
+        "team_members": "Membres equipe"
+      },
+      "modules": {
+        "quotes": "Devis",
+        "requests": "Demandes",
+        "plan_scans": "Scans de plan",
+        "invoices": "Factures",
+        "jobs": "Chantiers",
+        "products": "Produits",
+        "services": "Services",
+        "tasks": "Taches",
+        "team_members": "Membres equipe",
+        "assistant": "Assistant IA"
+      }
+    }
+  },
   "client_dashboard": {
     "title": "Tableau client",
     "welcome": "Bon retour, {name}. Voici ce qui attend votre validation.",
@@ -424,6 +861,310 @@
       "completed": "Livree",
       "confirmed": "Confirmee",
       "completed_unconfirmed": "Livree - a confirmer"
+    }
+  },
+  "onboarding": {
+    "title": "Onboarding",
+    "header": {
+      "title": "Creez votre espace",
+      "subtitle": "Terminez la configuration en {count} etapes.",
+      "step": "Etape {current} / {total}"
+    },
+    "progress": {
+      "title": "Progression",
+      "note": "Gardez ces infos a jour pour debloquer toutes les fonctions du tableau de bord."
+    },
+    "steps": {
+      "account": {
+        "title": "Compte",
+        "description": "Identifiants et securite."
+      },
+      "company": {
+        "title": "Entreprise",
+        "description": "Infos principales et identite."
+      },
+      "type": {
+        "title": "Type",
+        "description": "Services ou produits."
+      },
+      "sector": {
+        "title": "Secteur",
+        "description": "Votre activite principale."
+      },
+      "team": {
+        "title": "Equipe",
+        "description": "Invitez votre equipe."
+      }
+    },
+    "account": {
+      "owner_notice": "Ce compte deviendra le proprietaire de l'entreprise.",
+      "full_name": "Nom complet",
+      "email": "Email",
+      "password": "Mot de passe",
+      "confirm_password": "Confirmer le mot de passe",
+      "have_account": "Deja un compte ? Se connecter",
+      "create_account": "Creer mon compte"
+    },
+    "company": {
+      "name": "Nom de l'entreprise",
+      "logo_optional": "Logo (optionnel)",
+      "logo_upload": "Televerser votre logo",
+      "description_optional": "Description (optionnel)",
+      "address": "Adresse de l'entreprise",
+      "address_search_placeholder": "Rechercher une adresse",
+      "address_searching": "Recherche...",
+      "address_validated": "Adresse validee",
+      "address_label": "Adresse",
+      "street": "Rue",
+      "city": "Ville",
+      "province": "Province",
+      "province_region": "Province / Region",
+      "country": "Pays",
+      "postal_code": "Code postal",
+      "address_manual": "Adresse manuelle",
+      "address_hide": "Masquer",
+      "address_show": "Saisir manuellement",
+      "address_error_key": "Cle Geoapify manquante. Ajoutez VITE_GEOAPIFY_KEY dans .env.",
+      "address_error_failed": "Echec de recherche. Verifiez la cle Geoapify ou utilisez la saisie manuelle."
+    },
+    "type": {
+      "services": "Entreprise de services",
+      "products": "Entreprise de produits",
+      "modules_active": "Modules actifs : {label}"
+    },
+    "sector": {
+      "label_products": "Type d'activite",
+      "label_services": "Secteur d'activite",
+      "other_label": "Autre",
+      "other_input": "Secteur (autre)",
+      "hint": "Si votre secteur n'est pas liste, choisissez Autre pour le creer.",
+      "products_note": "Le module Ventes sera active pour vendre vos produits via la plateforme.",
+      "services_note": "Les categories de services seront creees automatiquement, y compris pour un secteur personnalise."
+    },
+    "sectors": {
+      "service": {
+        "placeholder": "Choisir un secteur",
+        "menuiserie": "Menuiserie",
+        "plomberie": "Plomberie",
+        "electricite": "Electricite",
+        "peinture": "Peinture",
+        "toiture": "Toiture",
+        "renovation": "Renovation",
+        "paysagisme": "Paysagisme",
+        "climatisation": "Climatisation",
+        "nettoyage": "Nettoyage"
+      },
+      "product": {
+        "placeholder": "Choisir un type d'activite",
+        "retail": "Detail",
+        "wholesale": "Grossiste",
+        "grocery": "Epicerie",
+        "convenience": "Depanneur",
+        "specialty": "Boutique specialisee",
+        "pharmacy": "Pharmacie / parapharmacie",
+        "electronics": "Electronique",
+        "home_hardware": "Maison et quincaillerie"
+      },
+      "other": "Autre..."
+    },
+    "team": {
+      "title": "Inviter l'equipe (optionnel)",
+      "subtitle": "Ajoutez des membres maintenant ou plus tard.",
+      "add": "+ Ajouter",
+      "empty": "Aucune invitation ajoutee.",
+      "name": "Nom",
+      "email": "Email",
+      "role_admin": "Admin",
+      "role_member": "Membre",
+      "remove": "Supprimer",
+      "summary": "Resume",
+      "summary_company": "Entreprise",
+      "summary_type": "Type",
+      "summary_sector": "Secteur",
+      "terms_label": "J'accepte les",
+      "terms_action": "conditions d'utilisation"
+    },
+    "actions": {
+      "back": "Retour",
+      "continue": "Continuer",
+      "finish": "Acceder au tableau de bord",
+      "close": "Fermer"
+    }
+  },
+  "portal_shop": {
+    "page_title": {
+      "create": "Boutique",
+      "edit": "Modifier commande"
+    },
+    "header": {
+      "section": "Boutique",
+      "logo_alt": "Logo boutique",
+      "edit_title": "Modifier {order}",
+      "create_title": "Commander chez {company}",
+      "create_subtitle": "Choisissez vos produits, livraison ou retrait rapide.",
+      "edit_subtitle": "Mettez a jour vos articles avant la livraison.",
+      "company_fallback": "nos partenaires"
+    },
+    "actions": {
+      "back_to_dashboard": "Retour au tableau de bord",
+      "reset_filters": "Reinitialiser",
+      "cancel_order": "Annuler la commande",
+      "cancel_confirm": "Annuler cette commande ?"
+    },
+    "locked_notice": "Cette commande est deja en livraison ou finalisee. Les modifications sont bloquees.",
+    "status": {
+      "order_status": "Statut commande",
+      "confirmed_at": "Confirmee le {date}",
+      "payment": "Paiement: {status}",
+      "delivery_photo": "Photo livraison",
+      "delivery_photo_alt": "Photo livraison"
+    },
+    "confirm_receipt": {
+      "title": "Confirmer la reception",
+      "subtitle": "Ajoutez une photo si besoin, puis confirmez.",
+      "action": "Confirmer"
+    },
+    "filters": {
+      "title": "Filtres",
+      "category_label": "Categorie",
+      "category_all": "Toutes les categories",
+      "availability_label": "Disponibilite",
+      "availability_all": "Tous",
+      "availability_in": "En stock",
+      "availability_low": "Bientot",
+      "availability_out": "Rupture",
+      "tracking_label": "Type",
+      "tracking_all": "Tous",
+      "tracking_standard": "Standard",
+      "tracking_lot": "Lot",
+      "tracking_serial": "Serie"
+    },
+    "timeline": {
+      "title": "Suivi de commande",
+      "pickup_qr_title": "QR de retrait",
+      "pickup_qr_note": "Montrez ce QR code au comptoir pour confirmer le retrait.",
+      "pickup_qr_alt": "QR retrait {code}",
+      "pickup_code": "Code: {code}"
+    },
+    "search": {
+      "placeholder": "Rechercher un produit",
+      "results": "{count} produits"
+    },
+    "cart": {
+      "label": "Panier ({count})",
+      "title": "Panier",
+      "header_order": "Votre commande",
+      "header_cart": "Votre panier",
+      "items_count": "{count} articles",
+      "items_title": "Articles",
+      "items_empty": "Ajoutez des produits pour commencer.",
+      "remove": "Supprimer"
+    },
+    "empty": {
+      "no_products": "Aucun produit ne correspond aux filtres actuels.",
+      "no_description": "Aucune description.",
+      "product_description": "Aucune description disponible pour ce produit."
+    },
+    "product": {
+      "label": "Produit",
+      "sku_fallback": "SKU -",
+      "price_label": "Prix",
+      "supplier": "Fournisseur",
+      "barcode": "Code barre",
+      "min_stock": "Stock minimum",
+      "quantity": "Quantite",
+      "add": "Ajouter",
+      "add_another": "Ajouter un autre",
+      "add_to_cart": "Ajouter au panier",
+      "go_to_cart": "Aller au panier",
+      "description": "Description"
+    },
+    "labels": {
+      "stock": "Stock {count}"
+    },
+    "fulfillment": {
+      "title": "Livraison ou retrait",
+      "delivery": "Livraison",
+      "delivery_fee": "Frais {amount}",
+      "delivery_free": "Gratuite",
+      "pickup": "Retrait rapide",
+      "pickup_ready": "Pret en {minutes} min",
+      "delivery_address": "Adresse de livraison",
+      "delivery_instructions": "Instructions (optionnel)",
+      "delivery_zone": "Zone: {zone}",
+      "pickup_address_label": "Adresse de retrait",
+      "pickup_address_fallback": "Retrait en magasin",
+      "pickup_notes": "Notes (optionnel)",
+      "scheduled": "Horaire souhaite (optionnel)"
+    },
+    "notes": {
+      "title": "Notes & substitutions",
+      "customer_notes": "Notes pour l epicerie",
+      "substitution_allowed": "Autoriser les substitutions",
+      "substitution_notes": "Preferences de substitution"
+    },
+    "summary": {
+      "title": "Resume",
+      "subtotal": "Sous-total",
+      "taxes": "Taxes",
+      "delivery": "Livraison",
+      "total": "Total",
+      "checkout_update": "Mettre a jour la commande",
+      "checkout_create": "Commander maintenant"
+    },
+    "stock": {
+      "out": "Rupture",
+      "low": "Stock faible",
+      "in": "En stock"
+    },
+    "order_number": "Commande #{id}",
+    "order_fallback": "Commande"
+  },
+  "work_proofs": {
+    "title": "Preuves chantier",
+    "company_fallback": "Entreprise",
+    "labels": {
+      "customer": "Client",
+      "period": "Periode",
+      "status": "Statut",
+      "assigned": "Assigne",
+      "task": "Tache",
+      "type": "Type",
+      "source": "Source",
+      "by": "Par",
+      "note": "Note",
+      "proof": "Preuve"
+    },
+    "actions": {
+      "upload_proof": "Ajouter preuve",
+      "close": "Fermer",
+      "cancel": "Annuler",
+      "upload": "Televerser"
+    },
+    "empty": {
+      "task_proofs": "Aucune preuve pour cette tache.",
+      "tasks": "Aucune tache disponible."
+    },
+    "proof": {
+      "title": "Ajouter preuve",
+      "type": "Type",
+      "file_label": "Fichier (photo ou video)",
+      "note_optional": "Note (optionnel)"
+    },
+    "status": {
+      "todo": "A faire",
+      "in_progress": "En cours",
+      "done": "Termine"
+    },
+    "source": {
+      "client": "Client",
+      "team": "Equipe",
+      "internal": "Interne"
+    },
+    "type": {
+      "execution": "Execution",
+      "completion": "Completion",
+      "other": "Autre"
     }
   },
   "sales": {
@@ -990,6 +1731,9 @@
       "used": "{count} utilises",
       "empty": "Aucune donnee d'utilisation pour l'instant."
     },
+    "aria": {
+      "dropdown": "Menu deroulant"
+    },
     "labels": {
       "no_sku": "Aucun SKU",
       "barcode": "Code-barres",
@@ -1184,7 +1928,8 @@
       "results": "resultats",
       "previous": "Precedent",
       "next": "Suivant",
-      "of": "sur"
+      "of": "sur",
+      "label": "Pagination"
     },
     "import": {
       "title": "Importer produits",
@@ -1331,6 +2076,9 @@
       "created_from": "Cree a partir de",
       "created_to": "Cree jusqu'a"
     },
+    "aria": {
+      "dropdown": "Menu deroulant"
+    },
     "actions": {
       "filters": "Filtres",
       "clear": "Effacer",
@@ -1365,7 +2113,8 @@
       "results": "resultats",
       "previous": "Precedent",
       "next": "Suivant",
-      "of": "sur"
+      "of": "sur",
+      "label": "Pagination"
     },
     "form": {
       "name": "Nom",

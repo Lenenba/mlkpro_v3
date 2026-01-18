@@ -79,6 +79,24 @@ const canEditOrder = computed(() => {
 });
 const isLocked = computed(() => isEditing.value && !canEditOrder.value);
 const pageTitle = computed(() => (isEditing.value ? t('portal_shop.page_title.edit') : t('portal_shop.page_title.create')));
+const companyName = computed(() => props.company?.name || t('portal_shop.header.company_fallback'));
+const orderLabel = computed(() => {
+    if (order.value?.number) {
+        return order.value.number;
+    }
+    if (order.value?.id) {
+        return t('portal_shop.order_number', { id: order.value.id });
+    }
+    return t('portal_shop.order_fallback');
+});
+const headerTitle = computed(() => (isEditing.value
+    ? t('portal_shop.header.edit_title', { order: orderLabel.value })
+    : t('portal_shop.header.create_title', { company: companyName.value })
+));
+const headerSubtitle = computed(() => (isEditing.value
+    ? t('portal_shop.header.edit_subtitle')
+    : t('portal_shop.header.create_subtitle')
+));
 const pickupCode = computed(() => order.value?.pickup_code || null);
 const pickupQrUrl = computed(() => {
     if (!pickupCode.value) {
@@ -493,28 +511,22 @@ const cancelOrder = () => {
                         <img
                             v-if="company?.logo_url"
                             :src="company.logo_url"
-                            :alt="company?.name || 'Boutique'"
+                            :alt="company?.name || $t('portal_shop.header.logo_alt')"
                             class="h-full w-full object-cover"
                         >
                     </div>
                     <div>
-                        <p class="text-xs uppercase tracking-wide text-stone-500 dark:text-neutral-400">Boutique</p>
+                        <p class="text-xs uppercase tracking-wide text-stone-500 dark:text-neutral-400">{{ $t('portal_shop.header.section') }}</p>
                         <h1 class="text-xl font-semibold text-stone-800 dark:text-neutral-100">
-                            <span v-if="isEditing">
-                                Modifier {{ order?.number || `Commande #${order?.id || ''}` }}
-                            </span>
-                            <span v-else>
-                                Commander chez {{ company?.name || 'nos partenaires' }}
-                            </span>
+                            {{ headerTitle }}
                         </h1>
                         <p class="text-sm text-stone-500 dark:text-neutral-400">
-                            <span v-if="isEditing">Mettez a jour vos articles avant la livraison.</span>
-                            <span v-else>Choisissez vos produits, livraison ou retrait rapide.</span>
+                            {{ headerSubtitle }}
                         </p>
                     </div>
                 </div>
                 <Link :href="route('dashboard')" class="text-xs font-semibold text-green-700 hover:underline dark:text-green-400">
-                    Retour au tableau de bord
+                    {{ $t('portal_shop.actions.back_to_dashboard') }}
                 </Link>
             </div>
 
@@ -525,36 +537,36 @@ const cancelOrder = () => {
                 {{ flashError }}
             </div>
             <div v-if="isLocked" class="rounded-sm border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
-                Cette commande est deja en livraison ou finalisee. Les modifications sont bloquees.
+                {{ $t('portal_shop.locked_notice') }}
             </div>
             <div v-if="isEditing" class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
                 <div class="flex flex-wrap items-center justify-between gap-3">
                     <div>
-                        <p class="text-xs uppercase tracking-wide text-stone-500 dark:text-neutral-400">Statut commande</p>
+                        <p class="text-xs uppercase tracking-wide text-stone-500 dark:text-neutral-400">{{ $t('portal_shop.status.order_status') }}</p>
                         <p class="text-lg font-semibold text-stone-800 dark:text-neutral-100">
                             {{ orderStatusLabel }}
                         </p>
                         <p v-if="order?.delivery_confirmed_at" class="text-xs text-stone-500 dark:text-neutral-400">
-                            Confirmee le {{ formatDateTime(order.delivery_confirmed_at) }}
+                            {{ $t('portal_shop.status.confirmed_at', { date: formatDateTime(order.delivery_confirmed_at) }) }}
                         </p>
                     </div>
                     <div class="flex items-center gap-2">
                         <span class="rounded-full border border-stone-200 bg-stone-50 px-2 py-1 text-xs font-semibold text-stone-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200">
-                            Paiement: {{ paymentStatusLabel }}
+                            {{ $t('portal_shop.status.payment', { status: paymentStatusLabel }) }}
                         </span>
                     </div>
                 </div>
                 <div v-if="order?.delivery_proof_url" class="mt-3">
-                    <p class="text-xs uppercase tracking-wide text-stone-500 dark:text-neutral-400">Photo livraison</p>
+                    <p class="text-xs uppercase tracking-wide text-stone-500 dark:text-neutral-400">{{ $t('portal_shop.status.delivery_photo') }}</p>
                     <img
                         :src="order.delivery_proof_url"
-                        alt="Photo livraison"
+                        :alt="$t('portal_shop.status.delivery_photo_alt')"
                         class="mt-2 h-40 w-full rounded-sm border border-stone-200 object-cover dark:border-neutral-700"
                     >
                 </div>
                 <div v-if="canConfirmReceipt" class="mt-4 rounded-sm border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
-                    <p class="font-semibold">Confirmer la reception</p>
-                    <p class="text-xs text-emerald-700">Ajoutez une photo si besoin, puis confirmez.</p>
+                    <p class="font-semibold">{{ $t('portal_shop.confirm_receipt.title') }}</p>
+                    <p class="text-xs text-emerald-700">{{ $t('portal_shop.confirm_receipt.subtitle') }}</p>
                     <div class="mt-2 flex flex-wrap items-center gap-2">
                         <input
                             type="file"
@@ -568,7 +580,7 @@ const cancelOrder = () => {
                             :disabled="confirmForm.processing"
                             @click="submitReceiptConfirm"
                         >
-                            Confirmer
+                            {{ $t('portal_shop.confirm_receipt.action') }}
                         </button>
                     </div>
                     <div v-if="confirmForm.errors.proof" class="mt-1 text-xs text-red-600">
@@ -591,24 +603,24 @@ const cancelOrder = () => {
                                         <path d="M10 16h4" />
                                     </svg>
                                 </span>
-                                <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">Filtres</h2>
+                                <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ $t('portal_shop.filters.title') }}</h2>
                             </div>
                             <button
                                 type="button"
                                 class="text-xs font-semibold text-stone-500 hover:text-stone-700 dark:text-neutral-400"
                                 @click="resetFilters"
                             >
-                                Reinitialiser
+                                {{ $t('portal_shop.actions.reset_filters') }}
                             </button>
                         </div>
                         <div class="mt-4 space-y-4 text-sm">
                             <div>
-                                <label class="block text-xs text-stone-500 dark:text-neutral-400">Categorie</label>
+                                <label class="block text-xs text-stone-500 dark:text-neutral-400">{{ $t('portal_shop.filters.category_label') }}</label>
                                 <select
                                     v-model="selectedCategoryId"
                                     class="mt-2 w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
                                 >
-                                    <option value="">Toutes les categories</option>
+                                    <option value="">{{ $t('portal_shop.filters.category_all') }}</option>
                                     <option
                                         v-for="category in categories"
                                         :key="category.id"
@@ -619,7 +631,7 @@ const cancelOrder = () => {
                                 </select>
                             </div>
                             <div>
-                                <label class="block text-xs text-stone-500 dark:text-neutral-400">Disponibilite</label>
+                                <label class="block text-xs text-stone-500 dark:text-neutral-400">{{ $t('portal_shop.filters.availability_label') }}</label>
                                 <div class="mt-2 grid grid-cols-2 gap-2 text-xs">
                                     <button
                                         type="button"
@@ -629,7 +641,7 @@ const cancelOrder = () => {
                                             : 'border-stone-200 text-stone-600 dark:border-neutral-700 dark:text-neutral-300'"
                                         @click="stockFilter = 'all'"
                                     >
-                                        Tous
+                                        {{ $t('portal_shop.filters.availability_all') }}
                                     </button>
                                     <button
                                         type="button"
@@ -639,7 +651,7 @@ const cancelOrder = () => {
                                             : 'border-stone-200 text-stone-600 dark:border-neutral-700 dark:text-neutral-300'"
                                         @click="stockFilter = 'in'"
                                     >
-                                        En stock
+                                        {{ $t('portal_shop.filters.availability_in') }}
                                     </button>
                                     <button
                                         type="button"
@@ -649,7 +661,7 @@ const cancelOrder = () => {
                                             : 'border-stone-200 text-stone-600 dark:border-neutral-700 dark:text-neutral-300'"
                                         @click="stockFilter = 'low'"
                                     >
-                                        Bientot
+                                        {{ $t('portal_shop.filters.availability_low') }}
                                     </button>
                                     <button
                                         type="button"
@@ -659,20 +671,20 @@ const cancelOrder = () => {
                                             : 'border-stone-200 text-stone-600 dark:border-neutral-700 dark:text-neutral-300'"
                                         @click="stockFilter = 'out'"
                                     >
-                                        Rupture
+                                        {{ $t('portal_shop.filters.availability_out') }}
                                     </button>
                                 </div>
                             </div>
                             <div>
-                                <label class="block text-xs text-stone-500 dark:text-neutral-400">Type</label>
+                                <label class="block text-xs text-stone-500 dark:text-neutral-400">{{ $t('portal_shop.filters.tracking_label') }}</label>
                                 <select
                                     v-model="trackingFilter"
                                     class="mt-2 w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
                                 >
-                                    <option value="all">Tous</option>
-                                    <option value="none">Standard</option>
-                                    <option value="lot">Lot</option>
-                                    <option value="serial">Serie</option>
+                                    <option value="all">{{ $t('portal_shop.filters.tracking_all') }}</option>
+                                    <option value="none">{{ $t('portal_shop.filters.tracking_standard') }}</option>
+                                    <option value="lot">{{ $t('portal_shop.filters.tracking_lot') }}</option>
+                                    <option value="serial">{{ $t('portal_shop.filters.tracking_serial') }}</option>
                                 </select>
                             </div>
                         </div>
@@ -681,7 +693,7 @@ const cancelOrder = () => {
                 <div class="space-y-4">
                     <div v-if="timeline.length || showPickupQr" class="grid grid-cols-1 gap-3 lg:grid-cols-2">
                         <div v-if="timeline.length" class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                            <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">Suivi de commande</h2>
+                            <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ $t('portal_shop.timeline.title') }}</h2>
                             <div class="mt-3 space-y-3">
                                 <div v-for="event in timeline" :key="event.id" class="flex items-start gap-3 text-sm">
                                     <span class="mt-1 h-2.5 w-2.5 rounded-full bg-green-500"></span>
@@ -698,19 +710,19 @@ const cancelOrder = () => {
                         </div>
 
                         <div v-if="showPickupQr && pickupCode" class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                            <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">QR de retrait</h2>
+                            <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ $t('portal_shop.timeline.pickup_qr_title') }}</h2>
                             <p class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
-                                Montrez ce QR code au comptoir pour confirmer le retrait.
+                                {{ $t('portal_shop.timeline.pickup_qr_note') }}
                             </p>
                             <div class="mt-3 flex flex-col items-center gap-2">
                                 <img
                                     v-if="pickupQrUrl"
                                     :src="pickupQrUrl"
-                                    :alt="`QR ${pickupCode}`"
+                                    :alt="$t('portal_shop.timeline.pickup_qr_alt', { code: pickupCode })"
                                     class="h-40 w-40 rounded-sm border border-stone-200 bg-white object-contain p-2 dark:border-neutral-700"
                                 >
                                 <div class="text-xs font-semibold text-stone-700 dark:text-neutral-200">
-                                    Code: {{ pickupCode }}
+                                    {{ $t('portal_shop.timeline.pickup_code', { code: pickupCode }) }}
                                 </div>
                             </div>
                         </div>
@@ -730,11 +742,11 @@ const cancelOrder = () => {
                                 v-model="search"
                                 type="text"
                                 class="py-[7px] ps-10 pe-8 block w-full bg-white border border-stone-200 rounded-sm text-sm placeholder:text-stone-500 focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 dark:placeholder:text-neutral-400"
-                                placeholder="Rechercher un produit"
+                                :placeholder="$t('portal_shop.search.placeholder')"
                             >
                         </div>
                         <div class="flex items-center gap-3 text-xs text-stone-500 dark:text-neutral-400">
-                            <span>{{ filteredProducts.length }} produits</span>
+                            <span>{{ $t('portal_shop.search.results', { count: filteredProducts.length }) }}</span>
                             <button
                                 type="button"
                                 class="relative inline-flex items-center gap-2 rounded-sm border border-stone-200 bg-white px-3 py-1.5 text-xs font-semibold text-stone-700 transition hover:-translate-y-0.5 hover:bg-stone-50 hover:shadow-sm dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
@@ -753,13 +765,13 @@ const cancelOrder = () => {
                                         <span class="relative inline-flex h-3 w-3 rounded-full bg-emerald-500"></span>
                                     </span>
                                 </span>
-                                <span>Panier ({{ cartItemCount }})</span>
+                                <span>{{ $t('portal_shop.cart.label', { count: cartItemCount }) }}</span>
                             </button>
                         </div>
                     </div>
 
                     <div v-if="!filteredProducts.length" class="rounded-sm border border-stone-200 bg-white p-6 text-sm text-stone-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-400">
-                        Aucun produit ne correspond aux filtres actuels.
+                        {{ $t('portal_shop.empty.no_products') }}
                     </div>
                     <div v-else class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
                         <div
@@ -796,7 +808,7 @@ const cancelOrder = () => {
                                 <div class="flex items-start justify-between gap-2">
                                     <div>
                                         <p class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ product.name }}</p>
-                                        <p class="text-xs text-stone-500 dark:text-neutral-400">{{ product.sku || 'SKU -' }}</p>
+                                        <p class="text-xs text-stone-500 dark:text-neutral-400">{{ product.sku || $t('portal_shop.product.sku_fallback') }}</p>
                                     </div>
                                     <span class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
                                         {{ formatCurrency(product.price) }}
@@ -805,11 +817,11 @@ const cancelOrder = () => {
                                 <p v-if="product.description" class="max-h-10 overflow-hidden text-xs text-stone-500 dark:text-neutral-400">
                                     {{ product.description }}
                                 </p>
-                                <p v-else class="text-xs text-stone-400">Aucune description.</p>
+                                <p v-else class="text-xs text-stone-400">{{ $t('portal_shop.empty.no_description') }}</p>
                             </div>
                             <div class="mt-3 flex items-center justify-between text-xs text-stone-500 dark:text-neutral-400">
                                 <span>
-                                    Stock {{ product.stock }}
+                                    {{ $t('portal_shop.labels.stock', { count: product.stock }) }}
                                     <span v-if="product.unit">- {{ product.unit }}</span>
                                 </span>
                                 <div class="flex items-center gap-2">
@@ -841,7 +853,7 @@ const cancelOrder = () => {
                                         :disabled="product.stock <= 0 || isLocked"
                                         @click.stop="addToCart(product)"
                                     >
-                                        Ajouter
+                                        {{ $t('portal_shop.product.add') }}
                                     </button>
                                 </div>
                             </div>
@@ -854,11 +866,13 @@ const cancelOrder = () => {
         <Modal :show="showCart" @close="closeCart" maxWidth="2xl">
             <div class="flex items-start justify-between border-b border-stone-200 px-4 py-3 dark:border-neutral-700">
                 <div>
-                    <p class="text-[11px] uppercase tracking-wide text-stone-500 dark:text-neutral-400">Panier</p>
+                    <p class="text-[11px] uppercase tracking-wide text-stone-500 dark:text-neutral-400">{{ $t('portal_shop.cart.title') }}</p>
                     <h2 class="text-lg font-semibold text-stone-800 dark:text-neutral-100">
-                        {{ isEditing ? 'Votre commande' : 'Votre panier' }}
+                        {{ isEditing ? $t('portal_shop.cart.header_order') : $t('portal_shop.cart.header_cart') }}
                     </h2>
-                    <p class="text-xs text-stone-500 dark:text-neutral-400">{{ cartItemCount }} articles</p>
+                    <p class="text-xs text-stone-500 dark:text-neutral-400">
+                        {{ $t('portal_shop.cart.items_count', { count: cartItemCount }) }}
+                    </p>
                 </div>
                 <button
                     type="button"
@@ -875,11 +889,13 @@ const cancelOrder = () => {
             <div class="space-y-4 p-4">
                 <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
                     <div class="flex items-center justify-between">
-                        <h3 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">Articles</h3>
-                        <span class="text-xs text-stone-500 dark:text-neutral-400">{{ cartItemCount }} articles</span>
+                        <h3 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ $t('portal_shop.cart.items_title') }}</h3>
+                        <span class="text-xs text-stone-500 dark:text-neutral-400">
+                            {{ $t('portal_shop.cart.items_count', { count: cartItemCount }) }}
+                        </span>
                     </div>
                     <div v-if="!cart.length" class="mt-3 text-sm text-stone-500 dark:text-neutral-400">
-                        Ajoutez des produits pour commencer.
+                        {{ $t('portal_shop.cart.items_empty') }}
                     </div>
                     <div v-else class="mt-3 space-y-3">
                         <div v-for="entry in cart" :key="entry.product.id" class="flex items-center justify-between gap-2">
@@ -907,7 +923,7 @@ const cancelOrder = () => {
                                     class="text-xs text-red-600 hover:underline disabled:opacity-50"
                                     :disabled="isLocked"
                                     @click="removeItem(entry.product.id)">
-                                    Supprimer
+                                    {{ $t('portal_shop.cart.remove') }}
                                 </button>
                             </div>
                         </div>
@@ -915,7 +931,7 @@ const cancelOrder = () => {
                 </div>
 
                 <div v-if="cart.length" class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                    <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">Livraison ou retrait</h2>
+                    <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ $t('portal_shop.fulfillment.title') }}</h2>
                     <div class="mt-3 grid grid-cols-1 gap-2">
                         <button
                             v-if="fulfillment?.delivery_enabled"
@@ -935,10 +951,12 @@ const cancelOrder = () => {
                                     <circle cx="5.5" cy="18.5" r="1.5" />
                                     <circle cx="18.5" cy="18.5" r="1.5" />
                                 </svg>
-                                Livraison
+                                {{ $t('portal_shop.fulfillment.delivery') }}
                             </span>
                             <span class="text-xs text-stone-500 dark:text-neutral-400">
-                                {{ deliveryFee ? `Frais ${formatCurrency(deliveryFee)}` : 'Gratuite' }}
+                                {{ deliveryFee
+                                    ? $t('portal_shop.fulfillment.delivery_fee', { amount: formatCurrency(deliveryFee) })
+                                    : $t('portal_shop.fulfillment.delivery_free') }}
                             </span>
                         </button>
                         <button
@@ -960,37 +978,37 @@ const cancelOrder = () => {
                                     <path d="M17 9v9" />
                                     <path d="M9 18h6" />
                                 </svg>
-                                Retrait rapide
+                                {{ $t('portal_shop.fulfillment.pickup') }}
                             </span>
                             <span class="text-xs text-stone-500 dark:text-neutral-400">
-                                Pret en {{ fulfillment?.prep_time_minutes || 30 }} min
+                                {{ $t('portal_shop.fulfillment.pickup_ready', { minutes: fulfillment?.prep_time_minutes || 30 }) }}
                             </span>
                         </button>
                     </div>
 
                     <div v-if="form.fulfillment_method === 'delivery'" class="mt-3 space-y-2 text-sm">
-                        <label class="block text-xs text-stone-500 dark:text-neutral-400">Adresse de livraison</label>
+                        <label class="block text-xs text-stone-500 dark:text-neutral-400">{{ $t('portal_shop.fulfillment.delivery_address') }}</label>
                         <textarea v-model="form.delivery_address"
                             class="block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
                             rows="2" />
                         <div v-if="form.errors.delivery_address" class="text-xs text-red-600">
                             {{ form.errors.delivery_address }}
                         </div>
-                        <label class="block text-xs text-stone-500 dark:text-neutral-400">Instructions (optionnel)</label>
+                        <label class="block text-xs text-stone-500 dark:text-neutral-400">{{ $t('portal_shop.fulfillment.delivery_instructions') }}</label>
                         <textarea v-model="form.delivery_notes"
                             class="block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
                             rows="2" />
                         <p v-if="fulfillment?.delivery_zone" class="text-xs text-stone-500 dark:text-neutral-400">
-                            Zone: {{ fulfillment.delivery_zone }}
+                            {{ $t('portal_shop.fulfillment.delivery_zone', { zone: fulfillment.delivery_zone }) }}
                         </p>
                     </div>
 
                     <div v-else class="mt-3 space-y-2 text-sm">
-                        <p class="text-xs text-stone-500 dark:text-neutral-400">Adresse de retrait</p>
+                        <p class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('portal_shop.fulfillment.pickup_address_label') }}</p>
                         <p class="text-sm font-medium text-stone-800 dark:text-neutral-100">
-                            {{ fulfillment?.pickup_address || 'Retrait en magasin' }}
+                            {{ fulfillment?.pickup_address || $t('portal_shop.fulfillment.pickup_address_fallback') }}
                         </p>
-                        <label class="block text-xs text-stone-500 dark:text-neutral-400">Notes (optionnel)</label>
+                        <label class="block text-xs text-stone-500 dark:text-neutral-400">{{ $t('portal_shop.fulfillment.pickup_notes') }}</label>
                         <textarea v-model="form.pickup_notes"
                             class="block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
                             rows="2" />
@@ -1000,17 +1018,17 @@ const cancelOrder = () => {
                     </div>
 
                     <div class="mt-3">
-                        <label class="block text-xs text-stone-500 dark:text-neutral-400">Horaire souhaite (optionnel)</label>
+                        <label class="block text-xs text-stone-500 dark:text-neutral-400">{{ $t('portal_shop.fulfillment.scheduled') }}</label>
                         <input type="datetime-local" v-model="form.scheduled_for" :disabled="isLocked"
                             class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200" />
                     </div>
                 </div>
 
                 <div v-if="cart.length" class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                    <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">Notes & substitutions</h2>
+                    <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ $t('portal_shop.notes.title') }}</h2>
                     <div class="mt-3 space-y-3 text-sm">
                         <div>
-                            <label class="block text-xs text-stone-500 dark:text-neutral-400">Notes pour l epicerie</label>
+                            <label class="block text-xs text-stone-500 dark:text-neutral-400">{{ $t('portal_shop.notes.customer_notes') }}</label>
                             <textarea
                                 v-model="form.customer_notes"
                                 rows="2"
@@ -1020,10 +1038,10 @@ const cancelOrder = () => {
                         </div>
                         <label class="flex items-center gap-2 text-sm text-stone-700 dark:text-neutral-200">
                             <input type="checkbox" v-model="form.substitution_allowed" :disabled="isLocked" />
-                            <span>Autoriser les substitutions</span>
+                            <span>{{ $t('portal_shop.notes.substitution_allowed') }}</span>
                         </label>
                         <div v-if="form.substitution_allowed">
-                            <label class="block text-xs text-stone-500 dark:text-neutral-400">Preferences de substitution</label>
+                            <label class="block text-xs text-stone-500 dark:text-neutral-400">{{ $t('portal_shop.notes.substitution_notes') }}</label>
                             <textarea
                                 v-model="form.substitution_notes"
                                 rows="2"
@@ -1035,22 +1053,22 @@ const cancelOrder = () => {
                 </div>
 
                 <div v-if="cart.length" class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                    <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">Resume</h2>
+                    <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ $t('portal_shop.summary.title') }}</h2>
                     <div class="mt-3 space-y-2 text-sm text-stone-700 dark:text-neutral-200">
                         <div class="flex items-center justify-between">
-                            <span>Sous-total</span>
+                            <span>{{ $t('portal_shop.summary.subtotal') }}</span>
                             <span class="font-medium">{{ formatCurrency(subtotal) }}</span>
                         </div>
                         <div class="flex items-center justify-between">
-                            <span>Taxes</span>
+                            <span>{{ $t('portal_shop.summary.taxes') }}</span>
                             <span class="font-medium">{{ formatCurrency(taxTotal) }}</span>
                         </div>
                         <div v-if="deliveryFee" class="flex items-center justify-between">
-                            <span>Livraison</span>
+                            <span>{{ $t('portal_shop.summary.delivery') }}</span>
                             <span class="font-medium">{{ formatCurrency(deliveryFee) }}</span>
                         </div>
                         <div class="flex items-center justify-between border-t border-stone-200 pt-2 dark:border-neutral-700">
-                            <span class="font-semibold">Total</span>
+                            <span class="font-semibold">{{ $t('portal_shop.summary.total') }}</span>
                             <span class="font-semibold">{{ formatCurrency(grandTotal) }}</span>
                         </div>
                     </div>
@@ -1061,7 +1079,7 @@ const cancelOrder = () => {
                         class="mt-4 w-full rounded-sm bg-green-600 px-3 py-2 text-sm font-semibold text-white hover:bg-green-700 disabled:opacity-60"
                         :disabled="!canCheckout || form.processing || isLocked"
                         @click="submitOrder">
-                        {{ isEditing ? 'Mettre a jour la commande' : 'Commander maintenant' }}
+                        {{ isEditing ? $t('portal_shop.summary.checkout_update') : $t('portal_shop.summary.checkout_create') }}
                     </button>
                     <button
                         v-if="isEditing && canEditOrder"
@@ -1069,7 +1087,7 @@ const cancelOrder = () => {
                         class="mt-2 w-full rounded-sm border border-red-200 bg-white px-3 py-2 text-sm font-semibold text-red-600 hover:bg-red-50"
                         @click="cancelOrder"
                     >
-                        Annuler la commande
+                        {{ $t('portal_shop.actions.cancel_order') }}
                     </button>
                 </div>
             </div>
@@ -1078,9 +1096,9 @@ const cancelOrder = () => {
         <Modal :show="showProductDetails" @close="closeProductDetails" maxWidth="2xl">
             <div v-if="selectedProduct" class="flex items-start justify-between border-b border-stone-200 px-4 py-3 dark:border-neutral-700">
                 <div>
-                    <p class="text-[11px] uppercase tracking-wide text-stone-500 dark:text-neutral-400">Produit</p>
+                    <p class="text-[11px] uppercase tracking-wide text-stone-500 dark:text-neutral-400">{{ $t('portal_shop.product.label') }}</p>
                     <h2 class="text-lg font-semibold text-stone-800 dark:text-neutral-100">{{ selectedProduct.name }}</h2>
-                    <p class="text-xs text-stone-500 dark:text-neutral-400">{{ selectedProduct.sku || 'SKU -' }}</p>
+                    <p class="text-xs text-stone-500 dark:text-neutral-400">{{ selectedProduct.sku || $t('portal_shop.product.sku_fallback') }}</p>
                 </div>
                 <button
                     type="button"
@@ -1120,40 +1138,40 @@ const cancelOrder = () => {
                         >
                             {{ stockMeta(selectedProduct).label }}
                         </span>
-                        <span>Stock {{ selectedProduct.stock }}</span>
+                        <span>{{ $t('portal_shop.labels.stock', { count: selectedProduct.stock }) }}</span>
                         <span v-if="selectedProduct.unit">- {{ selectedProduct.unit }}</span>
                     </div>
                 </div>
                 <div class="space-y-4">
                     <div class="rounded-sm border border-stone-200 p-3 dark:border-neutral-700">
                         <div class="flex items-center justify-between">
-                            <span class="text-xs uppercase tracking-wide text-stone-500 dark:text-neutral-400">Prix</span>
+                            <span class="text-xs uppercase tracking-wide text-stone-500 dark:text-neutral-400">{{ $t('portal_shop.product.price_label') }}</span>
                             <span class="text-lg font-semibold text-stone-800 dark:text-neutral-100">
                                 {{ formatCurrency(selectedProduct.price) }}
                             </span>
                         </div>
                         <div class="mt-2 space-y-1 text-xs text-stone-500 dark:text-neutral-400">
                             <div class="flex items-center justify-between">
-                                <span>Fournisseur</span>
+                                <span>{{ $t('portal_shop.product.supplier') }}</span>
                                 <span class="font-medium text-stone-700 dark:text-neutral-200">
                                     {{ selectedProduct.supplier_name || '-' }}
                                 </span>
                             </div>
                             <div class="flex items-center justify-between">
-                                <span>Code barre</span>
+                                <span>{{ $t('portal_shop.product.barcode') }}</span>
                                 <span class="font-medium text-stone-700 dark:text-neutral-200">
                                     {{ selectedProduct.barcode || '-' }}
                                 </span>
                             </div>
                             <div class="flex items-center justify-between">
-                                <span>Stock minimum</span>
+                                <span>{{ $t('portal_shop.product.min_stock') }}</span>
                                 <span class="font-medium text-stone-700 dark:text-neutral-200">
                                     {{ selectedProduct.minimum_stock ?? '-' }}
                                 </span>
                             </div>
                         </div>
                         <div class="mt-4 flex items-center justify-between">
-                            <span class="text-xs font-semibold text-stone-600 dark:text-neutral-300">Quantite</span>
+                            <span class="text-xs font-semibold text-stone-600 dark:text-neutral-300">{{ $t('portal_shop.product.quantity') }}</span>
                             <div class="flex items-center gap-2">
                                 <button
                                     type="button"
@@ -1182,7 +1200,9 @@ const cancelOrder = () => {
                             :disabled="isLocked || selectedProduct.stock <= 0"
                             @click="addToCart(selectedProduct)"
                         >
-                            {{ cartQuantity(selectedProduct.id) > 0 ? 'Ajouter un autre' : 'Ajouter au panier' }}
+                            {{ cartQuantity(selectedProduct.id) > 0
+                                ? $t('portal_shop.product.add_another')
+                                : $t('portal_shop.product.add_to_cart') }}
                         </button>
                         <button
                             v-if="cartItemCount"
@@ -1190,13 +1210,13 @@ const cancelOrder = () => {
                             class="mt-2 w-full rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm font-semibold text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
                             @click="goToCart"
                         >
-                            Aller au panier
+                            {{ $t('portal_shop.product.go_to_cart') }}
                         </button>
                     </div>
                     <div>
-                        <p class="text-xs uppercase tracking-wide text-stone-500 dark:text-neutral-400">Description</p>
+                        <p class="text-xs uppercase tracking-wide text-stone-500 dark:text-neutral-400">{{ $t('portal_shop.product.description') }}</p>
                         <p class="mt-1 text-sm text-stone-700 dark:text-neutral-200">
-                            {{ selectedProduct.description || 'Aucune description disponible pour ce produit.' }}
+                            {{ selectedProduct.description || $t('portal_shop.empty.product_description') }}
                         </p>
                     </div>
                 </div>

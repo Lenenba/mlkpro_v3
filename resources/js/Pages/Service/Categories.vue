@@ -492,7 +492,7 @@ const restoreCategory = (category) => {
                                         <div v-if="canManageCategory(category)" class="hs-dropdown [--auto-close:inside] [--placement:bottom-right] relative inline-flex">
                                             <button type="button"
                                                 class="size-7 inline-flex justify-center items-center gap-x-2 rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700"
-                                                aria-haspopup="menu" aria-expanded="false" aria-label="Dropdown">
+                                                aria-haspopup="menu" aria-expanded="false" :aria-label="$t('services.aria.dropdown')">
                                                 <svg class="shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" width="24"
                                                     height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                                                     stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -540,7 +540,7 @@ const restoreCategory = (category) => {
                         <span class="text-stone-500 dark:text-neutral-500"> {{ $t('services.pagination.results') }}</span>
                     </p>
 
-                    <nav class="flex justify-end items-center gap-x-1" aria-label="Pagination">
+                    <nav class="flex justify-end items-center gap-x-1" :aria-label="$t('services.pagination.label')">
                         <Link :href="props.categories.prev_page_url" v-if="props.categories.prev_page_url">
                         <button type="button"
                             class="min-h-[38px] min-w-[38px] py-2 px-2.5 inline-flex justify-center items-center gap-x-2 text-sm rounded-sm text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-100 dark:text-white dark:hover:bg-white/10 dark:focus:bg-neutral-700"

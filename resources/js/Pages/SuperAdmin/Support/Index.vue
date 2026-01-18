@@ -116,52 +116,64 @@ const submitEdit = () => {
 </script>
 
 <template>
-    <Head title="Support Tickets" />
+    <Head :title="$t('super_admin.support.page_title')" />
 
     <AuthenticatedLayout>
         <div class="space-y-6">
             <section class="rounded-sm border border-stone-200 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
                 <div class="flex flex-wrap items-center justify-between gap-3">
                     <div class="space-y-1">
-                        <h1 class="text-xl font-semibold text-stone-800 dark:text-neutral-100">Support tickets</h1>
+                        <h1 class="text-xl font-semibold text-stone-800 dark:text-neutral-100">
+                            {{ $t('super_admin.support.title') }}
+                        </h1>
                         <p class="text-sm text-stone-600 dark:text-neutral-400">
-                            Track SLA, status, and tags for platform support requests.
+                            {{ $t('super_admin.support.subtitle') }}
                         </p>
                     </div>
                     <button type="button" @click="openCreate"
                         class="py-2 px-3 text-sm font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700">
-                        New ticket
+                        {{ $t('super_admin.support.actions.new_ticket') }}
                     </button>
                 </div>
             </section>
 
             <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-2 md:gap-3 lg:gap-5">
                 <div class="p-4 bg-white border border-t-4 border-t-emerald-600 border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
-                    <p class="text-xs text-stone-500 dark:text-neutral-400">Total tickets</p>
+                    <p class="text-xs text-stone-500 dark:text-neutral-400">
+                        {{ $t('super_admin.support.stats.total') }}
+                    </p>
                     <p class="mt-1 text-2xl font-semibold text-stone-800 dark:text-neutral-100">
                         {{ formatNumber(stats.total) }}
                     </p>
                 </div>
                 <div class="p-4 bg-white border border-t-4 border-t-blue-600 border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
-                    <p class="text-xs text-stone-500 dark:text-neutral-400">Open</p>
+                    <p class="text-xs text-stone-500 dark:text-neutral-400">
+                        {{ $t('super_admin.support.stats.open') }}
+                    </p>
                     <p class="mt-1 text-2xl font-semibold text-stone-800 dark:text-neutral-100">
                         {{ formatNumber(stats.open) }}
                     </p>
                 </div>
                 <div class="p-4 bg-white border border-t-4 border-t-amber-600 border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
-                    <p class="text-xs text-stone-500 dark:text-neutral-400">Pending</p>
+                    <p class="text-xs text-stone-500 dark:text-neutral-400">
+                        {{ $t('super_admin.support.stats.pending') }}
+                    </p>
                     <p class="mt-1 text-2xl font-semibold text-stone-800 dark:text-neutral-100">
                         {{ formatNumber(stats.pending) }}
                     </p>
                 </div>
                 <div class="p-4 bg-white border border-t-4 border-t-emerald-700 border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
-                    <p class="text-xs text-stone-500 dark:text-neutral-400">Resolved</p>
+                    <p class="text-xs text-stone-500 dark:text-neutral-400">
+                        {{ $t('super_admin.support.stats.resolved') }}
+                    </p>
                     <p class="mt-1 text-2xl font-semibold text-stone-800 dark:text-neutral-100">
                         {{ formatNumber(stats.resolved) }}
                     </p>
                 </div>
                 <div class="p-4 bg-white border border-t-4 border-t-rose-600 border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
-                    <p class="text-xs text-stone-500 dark:text-neutral-400">Closed</p>
+                    <p class="text-xs text-stone-500 dark:text-neutral-400">
+                        {{ $t('super_admin.support.stats.closed') }}
+                    </p>
                     <p class="mt-1 text-2xl font-semibold text-stone-800 dark:text-neutral-100">
                         {{ formatNumber(stats.closed) }}
                     </p>
@@ -184,47 +196,53 @@ const submitEdit = () => {
                                 </div>
                                 <input v-model="filterForm.search" type="text"
                                     class="py-[7px] ps-10 pe-8 block w-full bg-white border border-stone-200 rounded-sm text-sm placeholder:text-stone-500 focus:border-green-500 focus:ring-green-600 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 dark:placeholder:text-neutral-400"
-                                    placeholder="Search tickets or tenants">
+                                    :placeholder="$t('super_admin.support.filters.search_placeholder')">
                             </div>
                         </div>
                         <div class="flex flex-wrap items-center gap-2 justify-end">
                             <button type="button" @click="showFilters = !showFilters"
                                 class="py-2 px-2.5 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700">
-                                Filters
+                                {{ $t('super_admin.common.filters') }}
                             </button>
                             <button type="button" @click="resetFilters"
                                 class="py-2 px-2.5 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700">
-                                Clear
+                                {{ $t('super_admin.common.clear') }}
                             </button>
                             <button type="submit"
                                 class="py-2 px-3 inline-flex items-center gap-x-2 text-xs font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700">
-                                Apply filters
+                                {{ $t('super_admin.common.apply_filters') }}
                             </button>
                         </div>
                     </div>
 
                     <div v-if="showFilters" class="grid gap-3 md:grid-cols-3">
                         <div>
-                            <label class="block text-xs text-stone-500 dark:text-neutral-400">Status</label>
+                            <label class="block text-xs text-stone-500 dark:text-neutral-400">
+                                {{ $t('super_admin.support.filters.status') }}
+                            </label>
                             <select v-model="filterForm.status"
                                 class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
-                                <option value="">All</option>
+                                <option value="">{{ $t('super_admin.common.all') }}</option>
                                 <option v-for="status in statuses" :key="status" :value="status">{{ status }}</option>
                             </select>
                         </div>
                         <div>
-                            <label class="block text-xs text-stone-500 dark:text-neutral-400">Priority</label>
+                            <label class="block text-xs text-stone-500 dark:text-neutral-400">
+                                {{ $t('super_admin.support.filters.priority') }}
+                            </label>
                             <select v-model="filterForm.priority"
                                 class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
-                                <option value="">All</option>
+                                <option value="">{{ $t('super_admin.common.all') }}</option>
                                 <option v-for="priority in priorities" :key="priority" :value="priority">{{ priority }}</option>
                             </select>
                         </div>
                         <div>
-                            <label class="block text-xs text-stone-500 dark:text-neutral-400">Tenant</label>
+                            <label class="block text-xs text-stone-500 dark:text-neutral-400">
+                                {{ $t('super_admin.support.filters.tenant') }}
+                            </label>
                             <select v-model="filterForm.account_id"
                                 class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
-                                <option value="">All</option>
+                                <option value="">{{ $t('super_admin.common.all') }}</option>
                                 <option v-for="tenant in tenants" :key="tenant.id" :value="tenant.id">
                                     {{ tenant.company_name || tenant.email }}
                                 </option>
@@ -237,12 +255,12 @@ const submitEdit = () => {
                     <table class="min-w-full divide-y divide-stone-200 text-sm text-left text-stone-600 dark:divide-neutral-700 dark:text-neutral-300">
                         <thead class="text-xs uppercase text-stone-500 dark:text-neutral-400">
                             <tr>
-                                <th class="px-4 py-3">Title</th>
-                                <th class="px-4 py-3">Tenant</th>
-                                <th class="px-4 py-3">Status</th>
-                                <th class="px-4 py-3">Priority</th>
-                                <th class="px-4 py-3">SLA</th>
-                                <th class="px-4 py-3">Tags</th>
+                                <th class="px-4 py-3">{{ $t('super_admin.support.table.title') }}</th>
+                                <th class="px-4 py-3">{{ $t('super_admin.support.table.tenant') }}</th>
+                                <th class="px-4 py-3">{{ $t('super_admin.support.table.status') }}</th>
+                                <th class="px-4 py-3">{{ $t('super_admin.support.table.priority') }}</th>
+                                <th class="px-4 py-3">{{ $t('super_admin.support.table.sla') }}</th>
+                                <th class="px-4 py-3">{{ $t('super_admin.support.table.tags') }}</th>
                                 <th class="px-4 py-3"></th>
                             </tr>
                         </thead>
@@ -252,13 +270,15 @@ const submitEdit = () => {
                                 <td class="px-4 py-3">{{ ticket.account?.company_name || ticket.account?.email }}</td>
                                 <td class="px-4 py-3">{{ ticket.status }}</td>
                                 <td class="px-4 py-3">{{ ticket.priority }}</td>
-                                <td class="px-4 py-3">{{ ticket.sla_due_at ? new Date(ticket.sla_due_at).toLocaleString() : 'n/a' }}</td>
+                                <td class="px-4 py-3">
+                                    {{ ticket.sla_due_at ? new Date(ticket.sla_due_at).toLocaleString() : $t('super_admin.common.not_available') }}
+                                </td>
                                 <td class="px-4 py-3">{{ Array.isArray(ticket.tags) ? ticket.tags.join(', ') : '' }}</td>
                                 <td class="px-4 py-3 text-right">
                                     <div class="hs-dropdown [--auto-close:inside] [--placement:bottom-right] relative inline-flex">
                                         <button type="button"
                                             class="size-7 inline-flex justify-center items-center gap-x-2 rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700"
-                                            aria-haspopup="menu" aria-expanded="false" aria-label="Actions">
+                                            aria-haspopup="menu" aria-expanded="false" :aria-label="$t('super_admin.common.actions')">
                                             <svg class="shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" width="24"
                                                 height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                                                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -272,7 +292,7 @@ const submitEdit = () => {
                                             <div class="p-1">
                                                 <button type="button" @click="openEdit(ticket)"
                                                     class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
-                                                    Edit
+                                                    {{ $t('super_admin.common.edit') }}
                                                 </button>
                                             </div>
                                         </div>
@@ -281,7 +301,7 @@ const submitEdit = () => {
                             </tr>
                             <tr v-if="!tickets.data.length">
                                 <td colspan="7" class="px-4 py-6 text-center text-sm text-stone-500 dark:text-neutral-400">
-                                    No tickets found.
+                                    {{ $t('super_admin.support.empty') }}
                                 </td>
                             </tr>
                         </tbody>
@@ -307,62 +327,74 @@ const submitEdit = () => {
             <Modal :show="showCreate" @close="closeCreate">
                 <div class="p-5">
                     <div class="flex items-center justify-between">
-                        <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">Create ticket</h2>
+                        <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                            {{ $t('super_admin.support.actions.create_ticket') }}
+                        </h2>
                         <button type="button" @click="closeCreate" class="text-sm text-stone-500 dark:text-neutral-400">
-                            Close
+                            {{ $t('super_admin.common.close') }}
                         </button>
                     </div>
                     <form class="mt-4 space-y-3" @submit.prevent="submitTicket">
                         <div>
-                            <label class="block text-xs text-stone-500 dark:text-neutral-400">Tenant</label>
+                            <label class="block text-xs text-stone-500 dark:text-neutral-400">
+                                {{ $t('super_admin.support.form.tenant') }}
+                            </label>
                             <select v-model="createForm.account_id"
                                 class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
-                                <option value="">Select tenant</option>
+                                <option value="">{{ $t('super_admin.support.form.select_tenant') }}</option>
                                 <option v-for="tenant in tenants" :key="tenant.id" :value="tenant.id">
                                     {{ tenant.company_name || tenant.email }}
                                 </option>
                             </select>
                             <InputError class="mt-1" :message="createForm.errors.account_id" />
                         </div>
-                        <FloatingInput v-model="createForm.title" label="Title" />
+                        <FloatingInput v-model="createForm.title" :label="$t('super_admin.support.form.title')" />
                         <InputError class="mt-1" :message="createForm.errors.title" />
                         <div>
-                            <label class="block text-xs text-stone-500 dark:text-neutral-400">Description</label>
+                            <label class="block text-xs text-stone-500 dark:text-neutral-400">
+                                {{ $t('super_admin.support.form.description') }}
+                            </label>
                             <textarea v-model="createForm.description" rows="3"
                                 class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"></textarea>
                             <InputError class="mt-1" :message="createForm.errors.description" />
                         </div>
                         <div class="grid gap-3 md:grid-cols-3">
                             <div>
-                                <label class="block text-xs text-stone-500 dark:text-neutral-400">Status</label>
+                                <label class="block text-xs text-stone-500 dark:text-neutral-400">
+                                    {{ $t('super_admin.support.form.status') }}
+                                </label>
                                 <select v-model="createForm.status"
                                     class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
                                     <option v-for="status in statuses" :key="status" :value="status">{{ status }}</option>
                                 </select>
                             </div>
                             <div>
-                                <label class="block text-xs text-stone-500 dark:text-neutral-400">Priority</label>
+                                <label class="block text-xs text-stone-500 dark:text-neutral-400">
+                                    {{ $t('super_admin.support.form.priority') }}
+                                </label>
                                 <select v-model="createForm.priority"
                                     class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
                                     <option v-for="priority in priorities" :key="priority" :value="priority">{{ priority }}</option>
                                 </select>
                             </div>
                             <div>
-                                <label class="block text-xs text-stone-500 dark:text-neutral-400">SLA due</label>
+                                <label class="block text-xs text-stone-500 dark:text-neutral-400">
+                                    {{ $t('super_admin.support.form.sla_due') }}
+                                </label>
                                 <input v-model="createForm.sla_due_at" type="datetime-local"
                                     class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200" />
                             </div>
                         </div>
-                        <FloatingInput v-model="createForm.tags" label="Tags (comma separated)" />
+                        <FloatingInput v-model="createForm.tags" :label="$t('super_admin.support.form.tags')" />
                         <InputError class="mt-1" :message="createForm.errors.tags" />
                         <div class="flex justify-end gap-2">
                             <button type="button" @click="closeCreate"
                                 class="py-2 px-3 text-sm font-medium rounded-sm border border-stone-200 text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700">
-                                Cancel
+                                {{ $t('super_admin.common.cancel') }}
                             </button>
                             <button type="submit"
                                 class="py-2 px-3 text-sm font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700">
-                                Create ticket
+                                {{ $t('super_admin.support.actions.create_ticket') }}
                             </button>
                         </div>
                     </form>
@@ -372,43 +404,51 @@ const submitEdit = () => {
             <Modal :show="showEdit" @close="closeEdit">
                 <div class="p-5">
                     <div class="flex items-center justify-between">
-                        <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">Update ticket</h2>
+                        <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                            {{ $t('super_admin.support.actions.update_ticket') }}
+                        </h2>
                         <button type="button" @click="closeEdit" class="text-sm text-stone-500 dark:text-neutral-400">
-                            Close
+                            {{ $t('super_admin.common.close') }}
                         </button>
                     </div>
                     <form class="mt-4 space-y-3" @submit.prevent="submitEdit">
                         <div class="grid gap-3 md:grid-cols-3">
                             <div>
-                                <label class="block text-xs text-stone-500 dark:text-neutral-400">Status</label>
+                                <label class="block text-xs text-stone-500 dark:text-neutral-400">
+                                    {{ $t('super_admin.support.form.status') }}
+                                </label>
                                 <select v-model="editForm.status"
                                     class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
                                     <option v-for="status in statuses" :key="status" :value="status">{{ status }}</option>
                                 </select>
                             </div>
                             <div>
-                                <label class="block text-xs text-stone-500 dark:text-neutral-400">Priority</label>
+                                <label class="block text-xs text-stone-500 dark:text-neutral-400">
+                                    {{ $t('super_admin.support.form.priority') }}
+                                </label>
                                 <select v-model="editForm.priority"
                                     class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
                                     <option v-for="priority in priorities" :key="priority" :value="priority">{{ priority }}</option>
                                 </select>
                             </div>
                             <div>
-                                <label class="block text-xs text-stone-500 dark:text-neutral-400">SLA due</label>
+                                <label class="block text-xs text-stone-500 dark:text-neutral-400">
+                                    {{ $t('super_admin.support.form.sla_due') }}
+                                </label>
                                 <input v-model="editForm.sla_due_at" type="datetime-local"
                                     class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200" />
                             </div>
                         </div>
-                        <FloatingInput v-model="editForm.tags" label="Tags (comma separated)" />
+                        <FloatingInput v-model="editForm.tags" :label="$t('super_admin.support.form.tags')" />
                         <InputError class="mt-1" :message="editForm.errors.tags" />
                         <div class="flex justify-end gap-2">
                             <button type="button" @click="closeEdit"
                                 class="py-2 px-3 text-sm font-medium rounded-sm border border-stone-200 text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700">
-                                Cancel
+                                {{ $t('super_admin.common.cancel') }}
                             </button>
                             <button type="submit"
                                 class="py-2 px-3 text-sm font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700">
-                                Save ticket
+                                {{ $t('super_admin.support.actions.save_ticket') }}
                             </button>
                         </div>
                     </form>

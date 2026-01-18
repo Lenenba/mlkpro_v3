@@ -263,6 +263,443 @@
             }
         }
     },
+    "super_admin": {
+        "common": {
+            "not_available": "N/A",
+            "unknown": "Unknown",
+            "actions": "Actions",
+            "edit": "Edit",
+            "delete": "Delete",
+            "view": "View",
+            "close": "Close",
+            "cancel": "Cancel",
+            "save_changes": "Save changes",
+            "filters": "Filters",
+            "clear": "Clear",
+            "apply_filters": "Apply filters",
+            "all": "All",
+            "unlimited": "Unlimited",
+            "enabled": "Enabled",
+            "disabled": "Disabled"
+        },
+        "dashboard": {
+            "page_title": "Super Admin Dashboard",
+            "title": "Platform dashboard",
+            "subtitle": "Global KPIs and platform health across all companies.",
+            "kpi": {
+                "total_companies": "Total companies",
+                "onboarded": "Onboarded: {count} ({percent})",
+                "new_companies_30d": "New companies (30d)",
+                "onboarding_conversion_30d": "Onboarding conversion: {percent}",
+                "active_companies": "Active companies",
+                "active_wau_mau": "WAU {wau} / MAU {mau}",
+                "activation_rates": "Activation J7 {j7} | J30 {j30}"
+            },
+            "acquisition": {
+                "title": "Acquisition (last 7 days)",
+                "empty": "No acquisition data."
+            },
+            "usage": {
+                "title": "Usage (last 30 days)",
+                "quotes": "Quotes",
+                "invoices": "Invoices",
+                "jobs": "Jobs",
+                "products": "Products",
+                "services": "Services",
+                "avg_days_to_first": "Avg days to first: Quote {quote}, Invoice {invoice}, Product {product}, Service {service}, Job {job}",
+                "service_mix": "Service mix: {services} services / {products} products ({percent}% services)"
+            },
+            "revenue": {
+                "title": "Revenue & retention",
+                "mrr": "MRR",
+                "arpu": "ARPU",
+                "active_subs": "Active subs",
+                "trialing": "Trialing",
+                "payment_failed": "Payment failed",
+                "trial_conversion": "Trial conversion",
+                "churn_30d": "Churn (30d)",
+                "churn_rate": "Churn rate"
+            },
+            "cohorts": {
+                "title": "Cohorts (30d retention)",
+                "month": "Month",
+                "new": "New",
+                "retained": "Retained",
+                "empty": "No cohort data yet."
+            },
+            "health": {
+                "title": "Health",
+                "failed_jobs_24h": "Failed jobs 24h",
+                "failed_jobs_7d": "Failed jobs 7d",
+                "email_failures_24h": "Email failures 24h",
+                "pending_jobs": "Pending jobs",
+                "oldest_job_minutes": "Oldest job age (min)",
+                "public_storage": "Public storage"
+            },
+            "data_quality": {
+                "title": "Data quality",
+                "customer_email_duplicates": "Customer email duplicates",
+                "customer_name_duplicates": "Customer name duplicates",
+                "product_name_duplicates": "Product name duplicates"
+            },
+            "recent_activity": {
+                "title": "Recent admin activity",
+                "empty": "No recent admin actions.",
+                "action_by": "{action} by {user}"
+            }
+        },
+        "admins": {
+            "page_title": "Platform Admins",
+            "title": "Platform admins",
+            "subtitle": "Create and manage delegated admin accounts.",
+            "actions": {
+                "add": "Add admin",
+                "create": "Create admin",
+                "edit": "Edit admin"
+            },
+            "stats": {
+                "total": "Total admins",
+                "active": "Active",
+                "inactive": "Inactive",
+                "require_2fa": "Require 2FA"
+            },
+            "table": {
+                "name": "Name",
+                "email": "Email",
+                "role": "Role",
+                "status": "Status"
+            },
+            "status": {
+                "active": "Active",
+                "inactive": "Inactive"
+            },
+            "empty": "No platform admins yet.",
+            "form": {
+                "name": "Name",
+                "email": "Email",
+                "role": "Role",
+                "permissions": "Permissions",
+                "require_2fa": "Require 2FA"
+            }
+        },
+        "tenants": {
+            "page_title": "Tenants",
+            "title": "Tenants",
+            "subtitle": "Search and manage all companies on the platform.",
+            "stats": {
+                "total_companies": "Total companies",
+                "active": "Active",
+                "suspended": "Suspended",
+                "new_30d": "New (30d)",
+                "onboarded": "Onboarded"
+            },
+            "filters": {
+                "search_placeholder": "Search company, owner, or email",
+                "company_type": "Company type",
+                "status": "Status",
+                "plan": "Plan",
+                "created_from": "Created from",
+                "created_to": "Created to"
+            },
+            "company_types": {
+                "services": "Services",
+                "products": "Products"
+            },
+            "table": {
+                "company": "Company",
+                "owner": "Owner",
+                "type": "Type",
+                "plan": "Plan",
+                "status": "Status",
+                "created": "Created",
+                "unnamed_company": "Unnamed company"
+            },
+            "status": {
+                "active": "Active",
+                "suspended": "Suspended"
+            },
+            "empty": "No tenants found.",
+            "detail": {
+                "fallback_title": "Tenant",
+                "export_data": "Export data",
+                "impersonate": "Impersonate",
+                "company_details": "Company details",
+                "owner": "Owner",
+                "type": "Type",
+                "location": "Location",
+                "created": "Created",
+                "onboarding": "Onboarding",
+                "onboarding_completed": "Completed",
+                "onboarding_pending": "Pending",
+                "status": "Status",
+                "subscription": "Subscription",
+                "plan_label": "Plan",
+                "subscription_status": "Status",
+                "usage": "Usage",
+                "usage_customers": "Customers",
+                "usage_quotes": "Quotes",
+                "usage_plan_scan_quotes": "Plan scan quotes",
+                "usage_invoices": "Invoices",
+                "usage_jobs": "Jobs",
+                "usage_products": "Products",
+                "usage_services": "Services",
+                "usage_tasks": "Tasks",
+                "usage_team_members": "Team members",
+                "account_actions": "Account actions",
+                "suspended_label": "Suspended",
+                "suspended_reason_empty": "No reason provided.",
+                "suspension_reason": "Suspension reason",
+                "suspend_tenant": "Suspend tenant",
+                "restore_tenant": "Restore tenant",
+                "reset_onboarding": "Reset onboarding",
+                "no_manage_permission": "You do not have permission to manage tenant actions.",
+                "feature_flags": "Feature flags",
+                "update_features": "Update features",
+                "no_feature_permission": "You do not have permission to update feature flags.",
+                "usage_vs_limits": "Usage vs limits",
+                "usage_table": {
+                    "module": "Module",
+                    "used": "Used",
+                    "limit": "Limit",
+                    "usage": "Usage"
+                },
+                "usage_empty": "No usage data available.",
+                "usage_warning": "Some modules are close to or above their limits.",
+                "manual_overrides": "Manual limit overrides",
+                "save_overrides": "Save overrides",
+                "no_limits_permission": "You do not have permission to update limits."
+            }
+        },
+        "support": {
+            "page_title": "Support Tickets",
+            "title": "Support tickets",
+            "subtitle": "Track SLA, status, and tags for platform support requests.",
+            "actions": {
+                "new_ticket": "New ticket",
+                "create_ticket": "Create ticket",
+                "update_ticket": "Update ticket",
+                "save_ticket": "Save ticket"
+            },
+            "stats": {
+                "total": "Total tickets",
+                "open": "Open",
+                "pending": "Pending",
+                "resolved": "Resolved",
+                "closed": "Closed"
+            },
+            "filters": {
+                "search_placeholder": "Search tickets or tenants",
+                "status": "Status",
+                "priority": "Priority",
+                "tenant": "Tenant"
+            },
+            "table": {
+                "title": "Title",
+                "tenant": "Tenant",
+                "status": "Status",
+                "priority": "Priority",
+                "sla": "SLA",
+                "tags": "Tags"
+            },
+            "empty": "No tickets found.",
+            "form": {
+                "tenant": "Tenant",
+                "select_tenant": "Select tenant",
+                "title": "Title",
+                "description": "Description",
+                "status": "Status",
+                "priority": "Priority",
+                "sla_due": "SLA due",
+                "tags": "Tags (comma separated)"
+            }
+        },
+        "announcements": {
+            "page_title": "Announcements",
+            "title": "Client dashboard announcements",
+            "subtitle": "Manage videos or flyers shown on tenant/client dashboards.",
+            "actions": {
+                "preview": "Preview placement",
+                "add": "Add announcement",
+                "confirm_delete": "Delete this announcement?",
+                "create": "Create announcement"
+            },
+            "stats": {
+                "total": "Total",
+                "active": "Active",
+                "drafts": "Drafts",
+                "with_media": "With media",
+                "targeted": "Targeted"
+            },
+            "filters": {
+                "search_placeholder": "Search announcements",
+                "status": "Status",
+                "audience": "Audience",
+                "placement": "Placement",
+                "media": "Media"
+            },
+            "status": {
+                "active": "Active",
+                "draft": "Draft"
+            },
+            "audience": {
+                "tenants": "Specific tenants",
+                "new_tenants": "New tenants",
+                "all": "All tenants"
+            },
+            "placement": {
+                "internal": "Dashboard top",
+                "quick_actions": "Quick actions slot"
+            },
+            "media": {
+                "image": "Image",
+                "video": "Video",
+                "none": "No media"
+            },
+            "display_style": {
+                "media_only": "Media only",
+                "standard": "Standard card"
+            },
+            "window": {
+                "range": "{start} to {end}",
+                "until": "Until {end}",
+                "from": "From {start}"
+            },
+            "table": {
+                "title": "Title",
+                "audience": "Audience",
+                "status": "Status",
+                "window": "Window",
+                "media": "Media",
+                "priority": "Priority",
+                "targets": "Targets",
+                "new_tenants": "New tenants: {days} days",
+                "attached": "Attached"
+            },
+            "empty": "No announcements found.",
+            "form": {
+                "edit_title": "Edit announcement",
+                "new_title": "New announcement",
+                "title": "Title",
+                "status": "Status",
+                "message": "Message",
+                "display_style": "Display style",
+                "display_style_hint": "Media only hides the title, message, and link.",
+                "card_background": "Card background",
+                "audience": "Audience",
+                "placement": "Placement",
+                "priority": "Priority",
+                "target_tenants": "Target tenants",
+                "new_tenant_window": "New tenant window (days)",
+                "start_date": "Start date",
+                "end_date": "End date",
+                "media_section": "Media",
+                "media_type": "Media type",
+                "media_url": "Media URL",
+                "upload_file": "Upload file",
+                "remove_media": "Remove existing media",
+                "current_media": "Current media",
+                "link_label": "Link label",
+                "link_url": "Link URL"
+            }
+        },
+        "announcements_preview": {
+            "page_title": "Announcement Preview",
+            "title": "Announcement preview",
+            "subtitle": "Preview how announcements appear on the company dashboard.",
+            "manage": "Manage announcements",
+            "example_view": "Example view",
+            "top": {
+                "title": "Top placement",
+                "subtitle": "Shown next to KPI cards at the top of the dashboard.",
+                "panel_title": "Top placement",
+                "empty": "No active announcements for the top placement."
+            },
+            "quick": {
+                "title": "Quick actions placement",
+                "subtitle": "Replaces the quick actions card on the right side of the dashboard.",
+                "panel_title": "Quick actions slot",
+                "empty": "No active announcements for the quick actions placement."
+            }
+        },
+        "notifications": {
+            "page_title": "Notification Preferences",
+            "title": "Notification preferences",
+            "subtitle": "Choose what alerts you receive and how you receive them.",
+            "channels": "Channels",
+            "categories": "Categories",
+            "digest_frequency": "Digest frequency",
+            "quiet_start": "Quiet hours start (HH:MM)",
+            "quiet_end": "Quiet hours end (HH:MM)",
+            "alert_thresholds": "Alert thresholds",
+            "rules": {
+                "error_spike": "Error spike",
+                "payment_failed": "Payment failed",
+                "churn_risk": "Churn risk"
+            },
+            "save": "Save preferences"
+        },
+        "settings": {
+            "page_title": "Platform Settings",
+            "title": "Platform settings",
+            "subtitle": "Configure global platform preferences.",
+            "maintenance": {
+                "title": "Maintenance mode",
+                "enable": "Enable maintenance banner",
+                "message": "Maintenance message",
+                "save": "Save settings"
+            },
+            "templates": {
+                "title": "Global templates",
+                "email_default": "Default email template",
+                "quote_default": "Default quote template",
+                "invoice_default": "Default invoice template",
+                "save": "Save templates"
+            },
+            "plan_limits": {
+                "title": "Plan limits",
+                "subtitle": "Set default usage caps per plan (leave blank for unlimited).",
+                "empty": "No plans configured.",
+                "edit_limits": "Edit limits",
+                "helper": "Click a plan card to edit its limits (leave blank for unlimited).",
+                "save": "Save limits",
+                "edit_limits_title": "Edit limits - {plan}",
+                "modal_hint": "Leave a field blank to keep it unlimited."
+            },
+            "plan_modules": {
+                "title": "Plan modules",
+                "subtitle": "Choose which modules are enabled per plan.",
+                "empty": "No plans configured.",
+                "edit_modules": "Edit modules",
+                "helper": "Click a plan card to edit its enabled modules.",
+                "save": "Save modules",
+                "edit_modules_title": "Edit modules - {plan}",
+                "modal_hint": "Disable modules to hide them from this plan."
+            },
+            "limits": {
+                "quotes": "Quotes",
+                "requests": "Requests",
+                "plan_scan_quotes": "Plan scan quotes",
+                "invoices": "Invoices",
+                "jobs": "Jobs",
+                "products": "Products",
+                "services": "Services",
+                "tasks": "Tasks",
+                "team_members": "Team members"
+            },
+            "modules": {
+                "quotes": "Quotes",
+                "requests": "Requests",
+                "plan_scans": "Plan scans",
+                "invoices": "Invoices",
+                "jobs": "Jobs",
+                "products": "Products",
+                "services": "Services",
+                "tasks": "Tasks",
+                "team_members": "Team members",
+                "assistant": "AI assistant"
+            }
+        }
+    },
     "client_dashboard": {
         "title": "Client dashboard",
         "welcome": "Welcome back, {name}. Here is what is waiting for your validation.",
@@ -421,6 +858,310 @@
             "completed": "Delivered",
             "confirmed": "Confirmed",
             "completed_unconfirmed": "Delivered - to confirm"
+        }
+    },
+    "onboarding": {
+        "title": "Onboarding",
+        "header": {
+            "title": "Create your workspace",
+            "subtitle": "Finish setup in {count} steps.",
+            "step": "Step {current} / {total}"
+        },
+        "progress": {
+            "title": "Progress",
+            "note": "Keep this info up to date to unlock all dashboard features."
+        },
+        "steps": {
+            "account": {
+                "title": "Account",
+                "description": "Credentials and security."
+            },
+            "company": {
+                "title": "Company",
+                "description": "Core info and identity."
+            },
+            "type": {
+                "title": "Type",
+                "description": "Services or products."
+            },
+            "sector": {
+                "title": "Sector",
+                "description": "Your main activity."
+            },
+            "team": {
+                "title": "Team",
+                "description": "Invite your team."
+            }
+        },
+        "account": {
+            "owner_notice": "This account will become the company owner.",
+            "full_name": "Full name",
+            "email": "Email",
+            "password": "Password",
+            "confirm_password": "Confirm password",
+            "have_account": "Already have an account? Sign in",
+            "create_account": "Create my account"
+        },
+        "company": {
+            "name": "Company name",
+            "logo_optional": "Logo (optional)",
+            "logo_upload": "Upload your logo",
+            "description_optional": "Description (optional)",
+            "address": "Company address",
+            "address_search_placeholder": "Search for an address",
+            "address_searching": "Searching...",
+            "address_validated": "Validated address",
+            "address_label": "Address",
+            "street": "Street",
+            "city": "City",
+            "province": "Province",
+            "province_region": "Province / Region",
+            "country": "Country",
+            "postal_code": "Postal code",
+            "address_manual": "Manual address",
+            "address_hide": "Hide",
+            "address_show": "Enter manually",
+            "address_error_key": "Geoapify key missing. Add VITE_GEOAPIFY_KEY to .env.",
+            "address_error_failed": "Search failed. Check the Geoapify key or use manual entry."
+        },
+        "type": {
+            "services": "Service business",
+            "products": "Product business",
+            "modules_active": "Active modules: {label}"
+        },
+        "sector": {
+            "label_products": "Business type",
+            "label_services": "Activity sector",
+            "other_label": "Other",
+            "other_input": "Sector (other)",
+            "hint": "If your sector is not listed, choose Other to create it.",
+            "products_note": "The Sales module will be enabled to sell your products through the platform.",
+            "services_note": "Service categories will be created automatically, including for a custom sector."
+        },
+        "sectors": {
+            "service": {
+                "placeholder": "Select a sector",
+                "menuiserie": "Carpentry",
+                "plomberie": "Plumbing",
+                "electricite": "Electrical",
+                "peinture": "Painting",
+                "toiture": "Roofing",
+                "renovation": "Renovation",
+                "paysagisme": "Landscaping",
+                "climatisation": "HVAC",
+                "nettoyage": "Cleaning"
+            },
+            "product": {
+                "placeholder": "Select a business type",
+                "retail": "Retail",
+                "wholesale": "Wholesale",
+                "grocery": "Grocery",
+                "convenience": "Convenience store",
+                "specialty": "Specialty boutique",
+                "pharmacy": "Pharmacy / parapharmacy",
+                "electronics": "Electronics",
+                "home_hardware": "Home & hardware"
+            },
+            "other": "Other..."
+        },
+        "team": {
+            "title": "Invite the team (optional)",
+            "subtitle": "Add members now or later.",
+            "add": "+ Add",
+            "empty": "No invitations added.",
+            "name": "Name",
+            "email": "Email",
+            "role_admin": "Admin",
+            "role_member": "Member",
+            "remove": "Remove",
+            "summary": "Summary",
+            "summary_company": "Company",
+            "summary_type": "Type",
+            "summary_sector": "Sector",
+            "terms_label": "I accept the",
+            "terms_action": "terms of use"
+        },
+        "actions": {
+            "back": "Back",
+            "continue": "Continue",
+            "finish": "Go to dashboard",
+            "close": "Close"
+        }
+    },
+    "portal_shop": {
+        "page_title": {
+            "create": "Shop",
+            "edit": "Edit order"
+        },
+        "header": {
+            "section": "Shop",
+            "logo_alt": "Shop logo",
+            "edit_title": "Edit {order}",
+            "create_title": "Order from {company}",
+            "create_subtitle": "Choose your products, delivery or quick pickup.",
+            "edit_subtitle": "Update your items before delivery.",
+            "company_fallback": "our partners"
+        },
+        "actions": {
+            "back_to_dashboard": "Back to dashboard",
+            "reset_filters": "Reset",
+            "cancel_order": "Cancel order",
+            "cancel_confirm": "Cancel this order?"
+        },
+        "locked_notice": "This order is already in delivery or completed. Changes are locked.",
+        "status": {
+            "order_status": "Order status",
+            "confirmed_at": "Confirmed on {date}",
+            "payment": "Payment: {status}",
+            "delivery_photo": "Delivery photo",
+            "delivery_photo_alt": "Delivery photo"
+        },
+        "confirm_receipt": {
+            "title": "Confirm receipt",
+            "subtitle": "Add a photo if needed, then confirm.",
+            "action": "Confirm"
+        },
+        "filters": {
+            "title": "Filters",
+            "category_label": "Category",
+            "category_all": "All categories",
+            "availability_label": "Availability",
+            "availability_all": "All",
+            "availability_in": "In stock",
+            "availability_low": "Low",
+            "availability_out": "Out",
+            "tracking_label": "Type",
+            "tracking_all": "All",
+            "tracking_standard": "Standard",
+            "tracking_lot": "Lot",
+            "tracking_serial": "Serial"
+        },
+        "timeline": {
+            "title": "Order timeline",
+            "pickup_qr_title": "Pickup QR",
+            "pickup_qr_note": "Show this QR code at pickup to confirm.",
+            "pickup_qr_alt": "Pickup QR {code}",
+            "pickup_code": "Code: {code}"
+        },
+        "search": {
+            "placeholder": "Search products",
+            "results": "{count} products"
+        },
+        "cart": {
+            "label": "Cart ({count})",
+            "title": "Cart",
+            "header_order": "Your order",
+            "header_cart": "Your cart",
+            "items_count": "{count} items",
+            "items_title": "Items",
+            "items_empty": "Add products to get started.",
+            "remove": "Remove"
+        },
+        "empty": {
+            "no_products": "No products match the current filters.",
+            "no_description": "No description.",
+            "product_description": "No description available for this product."
+        },
+        "product": {
+            "label": "Product",
+            "sku_fallback": "SKU -",
+            "price_label": "Price",
+            "supplier": "Supplier",
+            "barcode": "Barcode",
+            "min_stock": "Minimum stock",
+            "quantity": "Quantity",
+            "add": "Add",
+            "add_another": "Add another",
+            "add_to_cart": "Add to cart",
+            "go_to_cart": "Go to cart",
+            "description": "Description"
+        },
+        "labels": {
+            "stock": "Stock {count}"
+        },
+        "fulfillment": {
+            "title": "Delivery or pickup",
+            "delivery": "Delivery",
+            "delivery_fee": "Fee {amount}",
+            "delivery_free": "Free",
+            "pickup": "Quick pickup",
+            "pickup_ready": "Ready in {minutes} min",
+            "delivery_address": "Delivery address",
+            "delivery_instructions": "Instructions (optional)",
+            "delivery_zone": "Zone: {zone}",
+            "pickup_address_label": "Pickup address",
+            "pickup_address_fallback": "Pickup in store",
+            "pickup_notes": "Notes (optional)",
+            "scheduled": "Preferred time (optional)"
+        },
+        "notes": {
+            "title": "Notes & substitutions",
+            "customer_notes": "Notes for the store",
+            "substitution_allowed": "Allow substitutions",
+            "substitution_notes": "Substitution preferences"
+        },
+        "summary": {
+            "title": "Summary",
+            "subtotal": "Subtotal",
+            "taxes": "Taxes",
+            "delivery": "Delivery",
+            "total": "Total",
+            "checkout_update": "Update order",
+            "checkout_create": "Place order"
+        },
+        "stock": {
+            "out": "Out of stock",
+            "low": "Low stock",
+            "in": "In stock"
+        },
+        "order_number": "Order #{id}",
+        "order_fallback": "Order"
+    },
+    "work_proofs": {
+        "title": "Job proofs",
+        "company_fallback": "Company",
+        "labels": {
+            "customer": "Customer",
+            "period": "Period",
+            "status": "Status",
+            "assigned": "Assigned",
+            "task": "Task",
+            "type": "Type",
+            "source": "Source",
+            "by": "By",
+            "note": "Note",
+            "proof": "Proof"
+        },
+        "actions": {
+            "upload_proof": "Upload proof",
+            "close": "Close",
+            "cancel": "Cancel",
+            "upload": "Upload"
+        },
+        "empty": {
+            "task_proofs": "No proofs available for this task.",
+            "tasks": "No tasks available."
+        },
+        "proof": {
+            "title": "Upload proof",
+            "type": "Type",
+            "file_label": "File (photo or video)",
+            "note_optional": "Note (optional)"
+        },
+        "status": {
+            "todo": "To do",
+            "in_progress": "In progress",
+            "done": "Done"
+        },
+        "source": {
+            "client": "Client",
+            "team": "Team",
+            "internal": "Internal"
+        },
+        "type": {
+            "execution": "Execution",
+            "completion": "Completion",
+            "other": "Other"
         }
     },
 
@@ -989,6 +1730,9 @@
             "used": "{count} used",
             "empty": "No usage data yet."
         },
+        "aria": {
+            "dropdown": "Dropdown"
+        },
         "labels": {
             "no_sku": "No SKU",
             "barcode": "Barcode",
@@ -1183,7 +1927,8 @@
             "results": "results",
             "previous": "Previous",
             "next": "Next",
-            "of": "of"
+            "of": "of",
+            "label": "Pagination"
         },
         "import": {
             "title": "Import products",
@@ -1330,6 +2075,9 @@
             "created_from": "Created from",
             "created_to": "Created to"
         },
+        "aria": {
+            "dropdown": "Dropdown"
+        },
         "actions": {
             "filters": "Filters",
             "clear": "Clear",
@@ -1364,7 +2112,8 @@
             "results": "results",
             "previous": "Previous",
             "next": "Next",
-            "of": "of"
+            "of": "of",
+            "label": "Pagination"
         },
         "form": {
             "name": "Name",
