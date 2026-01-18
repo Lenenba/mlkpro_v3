@@ -59,6 +59,10 @@ const props = defineProps({
         type: Boolean,
         default: false,
     },
+    canViewTeam: {
+        type: Boolean,
+        default: false,
+    },
 });
 
 const { t } = useI18n();
@@ -69,8 +73,10 @@ const filterForm = useForm({
 });
 const isLoading = ref(false);
 const taskList = computed(() => Array.isArray(props.tasks?.data) ? props.tasks.data : []);
-const allowedViews = ['board', 'schedule'];
-const initialView = allowedViews.includes(props.filters?.view) ? props.filters.view : 'board';
+const canViewTeam = computed(() => Boolean(props.canViewTeam));
+const allowedViews = computed(() => (canViewTeam.value ? ['board', 'schedule', 'team'] : ['board', 'schedule']));
+const resolveView = (value) => (allowedViews.value.includes(value) ? value : 'board');
+const initialView = resolveView(props.filters?.view);
 const viewMode = ref(initialView);
 const scheduleRangeOptions = computed(() => ([
     { id: 'week', label: t('tasks.schedule.range.week') },
@@ -83,7 +89,7 @@ const scheduleRange = ref('week');
 
 if (typeof window !== 'undefined') {
     const storedView = window.localStorage.getItem('task_view_mode');
-    if (allowedViews.includes(storedView)) {
+    if (allowedViews.value.includes(storedView)) {
         viewMode.value = storedView;
     }
     const storedRange = window.localStorage.getItem('task_schedule_range');
@@ -93,7 +99,7 @@ if (typeof window !== 'undefined') {
 }
 
 const setViewMode = (mode) => {
-    if (!allowedViews.includes(mode) || viewMode.value === mode) {
+    if (!allowedViews.value.includes(mode) || viewMode.value === mode) {
         return;
     }
     viewMode.value = mode;
@@ -318,6 +324,76 @@ const taskCountByDate = computed(() => {
     return map;
 });
 
+const teamMembersList = computed(() =>
+    Array.isArray(props.teamMembers) ? props.teamMembers : []
+);
+const statusKeys = computed(() =>
+    props.statuses?.length ? props.statuses : ['todo', 'in_progress', 'done']
+);
+const buildStatusCounts = (tasks) => {
+    const counts = {};
+    statusKeys.value.forEach((status) => {
+        counts[status] = 0;
+    });
+    tasks.forEach((task) => {
+        const status = statusKeys.value.includes(task?.status) ? task.status : statusKeys.value[0];
+        if (!status) {
+            return;
+        }
+        counts[status] = (counts[status] || 0) + 1;
+    });
+    return counts;
+};
+const shouldIncludeTaskInTeamView = (task) => {
+    const key = normalizeDateKey(task?.due_date);
+    if (selectedDateKey.value) {
+        return key === selectedDateKey.value;
+    }
+    if (!key) {
+        return scheduleRange.value === 'all';
+    }
+    return isWithinScheduleRange(key);
+};
+const filteredTeamTasks = computed(() =>
+    taskList.value.filter((task) => shouldIncludeTaskInTeamView(task))
+);
+const teamTaskCount = computed(() => filteredTeamTasks.value.length);
+const teamTaskGroups = computed(() => {
+    const groups = teamMembersList.value.map((member) => ({
+        id: member.id,
+        name: member.user?.name || `Member #${member.id}`,
+        role: member.role || '',
+        tasks: [],
+        counts: buildStatusCounts([]),
+    }));
+    const groupMap = new Map(groups.map((group) => [group.id, group]));
+    const unassigned = {
+        id: 'unassigned',
+        name: t('tasks.labels.unassigned'),
+        role: '',
+        tasks: [],
+        counts: buildStatusCounts([]),
+    };
+
+    filteredTeamTasks.value.forEach((task) => {
+        const group = groupMap.get(task?.assigned_team_member_id) || unassigned;
+        group.tasks.push(task);
+    });
+
+    groups.forEach((group) => {
+        group.counts = buildStatusCounts(group.tasks);
+    });
+
+    if (unassigned.tasks.length) {
+        unassigned.counts = buildStatusCounts(unassigned.tasks);
+    }
+
+    return {
+        groups,
+        unassigned: unassigned.tasks.length ? unassigned : null,
+    };
+});
+
 const calendarCursor = ref(new Date());
 const weekDays = computed(() => ([
     t('tasks.calendar.weekdays.mon'),
@@ -447,7 +523,7 @@ watch(taskList, (value) => {
     }
 });
 
-if (typeof window !== 'undefined' && allowedViews.includes(viewMode.value) && props.filters?.view !== viewMode.value) {
+if (typeof window !== 'undefined' && allowedViews.value.includes(viewMode.value) && props.filters?.view !== viewMode.value) {
     autoFilter();
 }
 
@@ -807,6 +883,10 @@ const deleteTask = (task) => {
 };
 
 const displayAssignee = (task) => task?.assignee?.user?.name || t('tasks.labels.unassigned');
+const memberInitial = (name) => {
+    const label = String(name || '').trim();
+    return label ? label[0].toUpperCase() : '?';
+};
 
 const dragInProgress = ref(false);
 const lastDragAt = ref(0);
@@ -965,6 +1045,24 @@ const submitProof = () => {
                                 <path d="M3 10h18" />
                             </svg>
                             {{ $t('tasks.view.schedule') }}
+                        </button>
+                        <button
+                            v-if="canViewTeam"
+                            type="button"
+                            @click="setViewMode('team')"
+                            class="inline-flex items-center gap-1.5 rounded-sm px-3 py-1.5"
+                            :class="viewMode === 'team'
+                                ? 'bg-green-600 text-white shadow-sm dark:bg-white dark:text-stone-900'
+                                : 'text-stone-600 hover:text-stone-800 dark:text-neutral-300 dark:hover:text-neutral-100'"
+                        >
+                            <svg class="size-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                                <circle cx="9" cy="7" r="4" />
+                                <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+                                <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                            </svg>
+                            {{ $t('tasks.view.team') }}
                         </button>
                     </div>
                     <select v-model="filterForm.status"

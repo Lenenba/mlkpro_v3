@@ -19,17 +19,19 @@ class TaskController extends Controller
 {
     public function index(Request $request)
     {
+        $user = Auth::user();
+        $accountId = $user?->accountOwnerId() ?? Auth::id();
+        $isOwner = $user && $user->id === $accountId;
+
         $filters = $request->only([
             'search',
             'status',
             'view',
         ]);
-        $filters['view'] = in_array($filters['view'] ?? null, ['board', 'schedule'], true)
+        $allowedViews = $isOwner ? ['board', 'schedule', 'team'] : ['board', 'schedule'];
+        $filters['view'] = in_array($filters['view'] ?? null, $allowedViews, true)
             ? $filters['view']
             : 'board';
-
-        $user = Auth::user();
-        $accountId = $user?->accountOwnerId() ?? Auth::id();
 
         $this->authorize('viewAny', Task::class);
 
@@ -73,7 +75,7 @@ class TaskController extends Controller
             ->orderByDesc('created_at');
 
         $view = $filters['view'];
-        $useFullList = in_array($view, ['board', 'schedule'], true);
+        $useFullList = in_array($view, ['board', 'schedule', 'team'], true);
 
         if ($useFullList) {
             $items = $tasksQuery->get();
@@ -141,6 +143,7 @@ class TaskController extends Controller
             'canManage' => $canManage,
             'canDelete' => $canDelete,
             'canEditStatus' => $canEditStatus,
+            'canViewTeam' => $isOwner,
         ]);
     }
 
