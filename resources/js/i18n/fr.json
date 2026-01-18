@@ -263,8 +263,94 @@
       }
     }
   },
-
-  
+  "dashboard_tasks": {
+    "fallback_name": "equipe",
+    "subtitle_admin": "Bienvenue {name}. Voici la vue d'ensemble des taches de l'equipe.",
+    "subtitle_member": "Bienvenue {name}. Voici vos taches a venir.",
+    "kpi": {
+      "total": "Total taches"
+    },
+    "announcements": {
+      "title": "Annonces",
+      "subtitle": "Dernieres nouvelles pour votre equipe."
+    },
+    "timeline": {
+      "title": "Planning du jour",
+      "subtitle": "Taches et chantiers prevus aujourd'hui.",
+      "auto_alerts": "Alertes auto",
+      "empty": "Aucune tache ni chantier prevu aujourd'hui."
+    },
+    "upcoming": {
+      "title": "Taches a venir",
+      "manage": "Gerer les taches",
+      "empty": "Aucune tache a venir."
+    },
+    "my_tasks": {
+      "title": "Mes taches",
+      "view_all": "Voir tout",
+      "empty": "Aucune tache assignee pour le moment."
+    },
+    "labels": {
+      "due": "Echeance {date}"
+    }
+  },
+  "dashboard_products": {
+    "common": {
+      "customer_fallback": "Client",
+      "confirm_supplier_request": "Envoyer une demande de stock au fournisseur ?",
+      "recent_sales_title": "Ventes recentes",
+      "recent_sales_empty": "Aucune vente recente.",
+      "sale_label": "Vente #{id}",
+      "stock_alerts_title": "Alertes stock",
+      "stock_alerts_empty": "Aucune alerte stock.",
+      "stock_line": "Stock : {stock} / Min : {min}",
+      "stock_out": "Rupture de stock",
+      "stock_low": "Stock faible",
+      "supplier_unknown": "Fournisseur",
+      "request_stock": "Demander du stock",
+      "top_products_title": "Produits phares",
+      "top_products_empty": "Aucun produit pour le moment.",
+      "quantity": "Quantite : {count}"
+    },
+    "owner": {
+      "page_title": "Dashboard produits",
+      "title": "Dashboard produits",
+      "subtitle": "Suivi des ventes et du stock.",
+      "actions": {
+        "new_sale": "Nouvelle vente",
+        "products": "Produits",
+        "customers": "Clients"
+      },
+      "kpi": {
+        "sales_today": "Ventes du jour",
+        "revenue_today": "Revenu du jour",
+        "sales_month": "Ventes du mois",
+        "inventory_value": "Valeur du stock",
+        "low_stock": "Stock faible",
+        "out_of_stock": "Rupture de stock"
+      },
+      "stock_signals": {
+        "reserved": "Reserves {count}",
+        "damaged": "Endommages {count}",
+        "expired": "Expire {count}",
+        "expiring": "Expire bientot {count}"
+      }
+    },
+    "team": {
+      "page_title": "Dashboard produits",
+      "title": "Dashboard produits",
+      "subtitle": "Apercu ventes et stock.",
+      "actions": {
+        "new_sale": "Nouvelle vente"
+      },
+      "kpi": {
+        "sales_today": "Ventes du jour",
+        "revenue_today": "Revenu du jour",
+        "low_stock": "Stock faible",
+        "out_of_stock": "Rupture de stock"
+      }
+    }
+  },
 
   "super_admin": {
     "common": {

@@ -263,6 +263,94 @@
             }
         }
     },
+    "dashboard_tasks": {
+        "fallback_name": "team",
+        "subtitle_admin": "Welcome, {name}. Here's the team task overview.",
+        "subtitle_member": "Welcome, {name}. Here's your task overview.",
+        "kpi": {
+            "total": "Total tasks"
+        },
+        "announcements": {
+            "title": "Announcements",
+            "subtitle": "Latest updates for your team."
+        },
+        "timeline": {
+            "title": "Today's schedule",
+            "subtitle": "Tasks and jobs due today.",
+            "auto_alerts": "Auto alerts",
+            "empty": "No tasks or jobs scheduled today."
+        },
+        "upcoming": {
+            "title": "Upcoming tasks",
+            "manage": "Manage tasks",
+            "empty": "No upcoming tasks."
+        },
+        "my_tasks": {
+            "title": "My tasks",
+            "view_all": "View all",
+            "empty": "No tasks assigned yet."
+        },
+        "labels": {
+            "due": "Due {date}"
+        }
+    },
+    "dashboard_products": {
+        "common": {
+            "customer_fallback": "Customer",
+            "confirm_supplier_request": "Send a stock request to the supplier?",
+            "recent_sales_title": "Recent sales",
+            "recent_sales_empty": "No recent sales.",
+            "sale_label": "Sale #{id}",
+            "stock_alerts_title": "Stock alerts",
+            "stock_alerts_empty": "No stock alerts.",
+            "stock_line": "Stock: {stock} / Min: {min}",
+            "stock_out": "Out of stock",
+            "stock_low": "Low stock",
+            "supplier_unknown": "Supplier",
+            "request_stock": "Request stock",
+            "top_products_title": "Top products",
+            "top_products_empty": "No top products yet.",
+            "quantity": "Qty: {count}"
+        },
+        "owner": {
+            "page_title": "Products dashboard",
+            "title": "Products dashboard",
+            "subtitle": "Sales and inventory overview.",
+            "actions": {
+                "new_sale": "New sale",
+                "products": "Products",
+                "customers": "Customers"
+            },
+            "kpi": {
+                "sales_today": "Sales today",
+                "revenue_today": "Revenue today",
+                "sales_month": "Sales this month",
+                "inventory_value": "Inventory value",
+                "low_stock": "Low stock",
+                "out_of_stock": "Out of stock"
+            },
+            "stock_signals": {
+                "reserved": "Reserved {count}",
+                "damaged": "Damaged {count}",
+                "expired": "Expired {count}",
+                "expiring": "Expiring {count}"
+            }
+        },
+        "team": {
+            "page_title": "Products dashboard",
+            "title": "Products dashboard",
+            "subtitle": "Sales and stock overview.",
+            "actions": {
+                "new_sale": "New sale"
+            },
+            "kpi": {
+                "sales_today": "Sales today",
+                "revenue_today": "Revenue today",
+                "low_stock": "Low stock",
+                "out_of_stock": "Out of stock"
+            }
+        }
+    },
     "super_admin": {
         "common": {
             "not_available": "N/A",

@@ -425,7 +425,7 @@ const hasAgendaAlerts = computed(() => agendaAlertItems.value.length > 0);
                                 </div>
                             </div>
                             <div class="shrink-0 rounded-full bg-stone-100 px-2 py-0.5 text-xs text-stone-700 dark:bg-neutral-900 dark:text-neutral-200">
-                                {{ task.status }}
+                                {{ taskStatusLabel(task.status) }}
                             </div>
                         </div>
                     </div>
