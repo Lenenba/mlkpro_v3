@@ -84,6 +84,12 @@ const scheduleRangeOptions = computed(() => ([
     { id: 'month', label: t('tasks.schedule.range.month') },
     { id: 'all', label: t('tasks.schedule.range.all') },
 ]));
+const scheduleRangeSelectOptions = computed(() =>
+    scheduleRangeOptions.value.map((option) => ({
+        value: option.id,
+        label: option.label,
+    }))
+);
 const allowedScheduleRanges = computed(() => scheduleRangeOptions.value.map((option) => option.id));
 const scheduleRange = ref('week');
 
@@ -358,41 +364,203 @@ const filteredTeamTasks = computed(() =>
     taskList.value.filter((task) => shouldIncludeTaskInTeamView(task))
 );
 const teamTaskCount = computed(() => filteredTeamTasks.value.length);
-const teamTaskGroups = computed(() => {
-    const groups = teamMembersList.value.map((member) => ({
+const teamMemberIdSet = computed(() => new Set(teamMembersList.value.map((member) => member.id)));
+const resolveTeamRowId = (task) => {
+    const id = task?.assigned_team_member_id;
+    return teamMemberIdSet.value.has(id) ? id : 'unassigned';
+};
+const teamRows = computed(() => {
+    const rows = teamMembersList.value.map((member) => ({
         id: member.id,
         name: member.user?.name || `Member #${member.id}`,
         role: member.role || '',
-        tasks: [],
-        counts: buildStatusCounts([]),
     }));
-    const groupMap = new Map(groups.map((group) => [group.id, group]));
-    const unassigned = {
-        id: 'unassigned',
-        name: t('tasks.labels.unassigned'),
-        role: '',
-        tasks: [],
-        counts: buildStatusCounts([]),
+    const hasUnassigned = filteredTeamTasks.value.some(
+        (task) => !teamMemberIdSet.value.has(task?.assigned_team_member_id)
+    );
+    if (hasUnassigned) {
+        rows.push({
+            id: 'unassigned',
+            name: t('tasks.labels.unassigned'),
+            role: '',
+        });
+    }
+    return rows;
+});
+
+const buildMemberColor = (index) => {
+    const hue = (index * 47) % 360;
+    return {
+        base: `hsl(${hue} 70% 45%)`,
+        soft: `hsl(${hue} 80% 95%)`,
+        text: `hsl(${hue} 35% 25%)`,
+        border: `hsl(${hue} 70% 60%)`,
     };
-
-    filteredTeamTasks.value.forEach((task) => {
-        const group = groupMap.get(task?.assigned_team_member_id) || unassigned;
-        group.tasks.push(task);
+};
+const unassignedColor = {
+    base: '#94a3b8',
+    soft: '#f1f5f9',
+    text: '#334155',
+    border: '#cbd5e1',
+};
+const teamColorMap = computed(() => {
+    const map = new Map();
+    teamMembersList.value.forEach((member, index) => {
+        map.set(member.id, buildMemberColor(index));
     });
+    map.set('unassigned', unassignedColor);
+    return map;
+});
+const teamRowColor = (rowId) => teamColorMap.value.get(rowId) || unassignedColor;
 
-    groups.forEach((group) => {
-        group.counts = buildStatusCounts(group.tasks);
-    });
+const teamRangeBounds = computed(() => {
+    if (scheduleRange.value === 'all') {
+        return null;
+    }
+    const today = new Date();
+    let start;
+    let end;
 
-    if (unassigned.tasks.length) {
-        unassigned.counts = buildStatusCounts(unassigned.tasks);
+    if (scheduleRange.value === 'month') {
+        start = new Date(today.getFullYear(), today.getMonth(), 1);
+        end = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+    } else {
+        start = startOfWeek(today);
+        end = new Date(start);
+        end.setDate(start.getDate() + (scheduleRange.value === '2weeks' ? 13 : 6));
     }
 
-    return {
-        groups,
-        unassigned: unassigned.tasks.length ? unassigned : null,
-    };
+    start.setHours(0, 0, 0, 0);
+    end.setHours(23, 59, 59, 999);
+    return { start, end };
 });
+
+const formatTeamDayLabel = (date) => date.toLocaleDateString(undefined, {
+    weekday: 'short',
+    day: 'numeric',
+});
+const formatTeamDaySubLabel = (date) => date.toLocaleDateString(undefined, {
+    month: 'short',
+});
+const teamDays = computed(() => {
+    if (scheduleRange.value === 'all') {
+        const keys = new Set();
+        filteredTeamTasks.value.forEach((task) => {
+            const key = normalizeDateKey(task?.due_date);
+            if (key) {
+                keys.add(key);
+            }
+        });
+        return Array.from(keys)
+            .sort((a, b) => a.localeCompare(b))
+            .map((key) => new Date(`${key}T00:00:00`));
+    }
+    const bounds = teamRangeBounds.value;
+    if (!bounds) {
+        return [];
+    }
+    const days = [];
+    const cursor = new Date(bounds.start);
+    while (cursor <= bounds.end) {
+        days.push(new Date(cursor));
+        cursor.setDate(cursor.getDate() + 1);
+    }
+    return days;
+});
+
+const teamColumns = computed(() => {
+    const todayKey = toDateKey(new Date());
+    const columns = teamDays.value.map((date) => {
+        const key = toDateKey(date);
+        return {
+            key,
+            label: formatTeamDayLabel(date),
+            subLabel: formatTeamDaySubLabel(date),
+            isToday: key === todayKey,
+            isSelected: selectedDateKey.value === key,
+            isUndated: false,
+        };
+    });
+    const includeUndated = scheduleRange.value === 'all'
+        && filteredTeamTasks.value.some((task) => !normalizeDateKey(task?.due_date));
+    if (includeUndated) {
+        columns.push({
+            key: 'undated',
+            label: t('tasks.labels.no_due_date'),
+            subLabel: '',
+            isToday: false,
+            isSelected: false,
+            isUndated: true,
+        });
+    }
+    return columns;
+});
+
+const teamColumnKeys = computed(() => new Set(teamColumns.value.map((column) => column.key)));
+const teamGridTemplate = computed(() =>
+    `240px repeat(${teamColumns.value.length}, minmax(160px, 1fr))`
+);
+const teamGridMinWidth = computed(() =>
+    `${240 + teamColumns.value.length * 160}px`
+);
+
+const teamTasksByRow = computed(() => {
+    const map = new Map();
+    teamRows.value.forEach((row) => map.set(row.id, []));
+    filteredTeamTasks.value.forEach((task) => {
+        const rowId = resolveTeamRowId(task);
+        if (!map.has(rowId)) {
+            map.set(rowId, []);
+        }
+        map.get(rowId).push(task);
+    });
+    return map;
+});
+const teamRowTaskCount = (rowId) => teamTasksByRow.value.get(rowId)?.length || 0;
+const teamStatusCounts = computed(() => {
+    const map = new Map();
+    teamRows.value.forEach((row) => map.set(row.id, buildStatusCounts([])));
+    filteredTeamTasks.value.forEach((task) => {
+        const rowId = resolveTeamRowId(task);
+        const status = statusKeys.value.includes(task?.status) ? task.status : statusKeys.value[0];
+        if (!status) {
+            return;
+        }
+        const counts = map.get(rowId) || buildStatusCounts([]);
+        counts[status] = (counts[status] || 0) + 1;
+        map.set(rowId, counts);
+    });
+    return map;
+});
+const teamRowStatusCounts = (rowId) => teamStatusCounts.value.get(rowId) || buildStatusCounts([]);
+
+const teamTaskMatrix = computed(() => {
+    const map = new Map();
+    const columnKeys = teamColumnKeys.value;
+    filteredTeamTasks.value.forEach((task) => {
+        const rowId = resolveTeamRowId(task);
+        const dateKey = normalizeDateKey(task?.due_date);
+        const columnKey = dateKey || (columnKeys.has('undated') ? 'undated' : null);
+        if (!columnKey || !columnKeys.has(columnKey)) {
+            return;
+        }
+        const key = `${rowId}::${columnKey}`;
+        if (!map.has(key)) {
+            map.set(key, []);
+        }
+        map.get(key).push(task);
+    });
+    map.forEach((tasks) => {
+        tasks.sort((a, b) => {
+            const aTitle = a?.title || '';
+            const bTitle = b?.title || '';
+            return aTitle.localeCompare(bTitle);
+        });
+    });
+    return map;
+});
+const tasksForCell = (rowId, columnKey) =>
+    teamTaskMatrix.value.get(`${rowId}::${columnKey}`) || [];
 
 const calendarCursor = ref(new Date());
 const weekDays = computed(() => ([
@@ -542,6 +710,44 @@ const statusLabel = (status) => {
     const label = t(key);
     return label === key ? String(status).replace('_', ' ') : label;
 };
+const timingStatusLabel = (status) => {
+    if (!status) {
+        return '';
+    }
+    const key = `tasks.timing.${status}`;
+    const label = t(key);
+    return label === key ? String(status).replace('_', ' ') : label;
+};
+const completionReasonLabel = (reason) => {
+    if (!reason) {
+        return '';
+    }
+    const key = `tasks.reasons.${reason}`;
+    const label = t(key);
+    return label === key ? String(reason).replace('_', ' ') : label;
+};
+
+const statusFilterOptions = computed(() =>
+    (props.statuses?.length ? props.statuses : ['todo', 'in_progress', 'done'])
+        .map((status) => ({
+            value: status,
+            label: statusLabel(status),
+        }))
+);
+
+const statusSelectOptions = computed(() =>
+    (props.statuses || []).map((status) => ({
+        id: status,
+        name: statusLabel(status),
+    }))
+);
+const completionReasonOptions = computed(() => ([
+    { id: 'client_available', name: t('tasks.reasons.client_available') },
+    { id: 'urgent_request', name: t('tasks.reasons.urgent_request') },
+    { id: 'optimized_planning', name: t('tasks.reasons.optimized_planning') },
+    { id: 'team_available', name: t('tasks.reasons.team_available') },
+    { id: 'materials_ready', name: t('tasks.reasons.materials_ready') },
+]));
 
 const statusClasses = (status) => {
     switch (status) {
@@ -554,6 +760,23 @@ const statusClasses = (status) => {
         default:
             return 'bg-stone-200 text-stone-700 dark:bg-neutral-700 dark:text-neutral-300';
     }
+};
+const timingStatusClasses = (status) => {
+    switch (status) {
+        case 'early':
+            return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-300';
+        case 'late':
+            return 'bg-rose-100 text-rose-800 dark:bg-rose-500/10 dark:text-rose-300';
+        case 'on_time':
+            return 'bg-stone-100 text-stone-600 dark:bg-neutral-700 dark:text-neutral-300';
+        default:
+            return 'bg-stone-100 text-stone-500 dark:bg-neutral-700 dark:text-neutral-400';
+    }
+};
+const isCompletionReasonRequired = (dueDate, completedAt) => {
+    const dueKey = normalizeDateKey(dueDate);
+    const completedKey = normalizeDateKey(completedAt);
+    return Boolean(dueKey && completedKey && dueKey !== completedKey);
 };
 
 const statusTone = (status) => {
@@ -614,6 +837,19 @@ const workOptions = computed(() =>
         name: workLabel(work),
     }))
 );
+
+const assigneeOptions = computed(() =>
+    (props.teamMembers || []).map((member) => ({
+        id: member.id,
+        name: `${member.user?.name || `Member #${member.id}`} (${member.role})`,
+    }))
+);
+
+const proofTypeOptions = computed(() => [
+    { id: 'execution', name: t('tasks.proof.types.execution') },
+    { id: 'completion', name: t('tasks.proof.types.completion') },
+    { id: 'other', name: t('tasks.proof.types.other') },
+]);
 
 const materialOptions = computed(() => [
     { id: '', name: t('tasks.materials.custom') },
@@ -692,6 +928,8 @@ const createForm = useForm({
     description: '',
     status: 'todo',
     due_date: '',
+    completed_at: '',
+    completion_reason: '',
     assigned_team_member_id: '',
     materials: [],
 });
@@ -742,6 +980,20 @@ const submitCreate = () => {
         return;
     }
 
+    createForm.clearErrors('completed_at', 'completion_reason');
+    if (createForm.status === 'done') {
+        if (!createForm.completed_at) {
+            createForm.completed_at = normalizeDateKey(new Date());
+        }
+        if (isCompletionReasonRequired(createForm.due_date, createForm.completed_at) && !createForm.completion_reason) {
+            createForm.setError('completion_reason', t('tasks.completion.reason_required'));
+            return;
+        }
+    } else {
+        createForm.completed_at = null;
+        createForm.completion_reason = null;
+    }
+
     createForm.materials = normalizeMaterials(createForm.materials);
     normalizeWorkSelection(createForm);
     const assignedId = createForm.assigned_team_member_id;
@@ -749,7 +1001,16 @@ const submitCreate = () => {
     createForm.post(route('task.store'), {
         preserveScroll: true,
         onSuccess: () => {
-            createForm.reset('work_id', 'standalone', 'title', 'description', 'due_date', 'assigned_team_member_id');
+            createForm.reset(
+                'work_id',
+                'standalone',
+                'title',
+                'description',
+                'due_date',
+                'completed_at',
+                'completion_reason',
+                'assigned_team_member_id'
+            );
             createForm.status = 'todo';
             createForm.materials = [];
             closeOverlay('#hs-task-create');
@@ -768,6 +1029,8 @@ const editForm = useForm({
     description: '',
     status: 'todo',
     due_date: '',
+    completed_at: '',
+    completion_reason: '',
     assigned_team_member_id: '',
     customer_id: null,
     product_id: null,
@@ -807,6 +1070,8 @@ const openEditTask = (task) => {
     editForm.description = task.description || '';
     editForm.status = task.status || 'todo';
     editForm.due_date = task.due_date || '';
+    editForm.completed_at = task.completed_at ? normalizeDateKey(task.completed_at) : '';
+    editForm.completion_reason = task.completion_reason || '';
     editForm.assigned_team_member_id = task.assigned_team_member_id || '';
     editForm.work_id = task.work_id ?? '';
     editForm.standalone = !task.work_id;
@@ -824,6 +1089,20 @@ const submitEdit = () => {
         return;
     }
 
+    editForm.clearErrors('completed_at', 'completion_reason');
+    if (editForm.status === 'done') {
+        if (!editForm.completed_at) {
+            editForm.completed_at = normalizeDateKey(new Date());
+        }
+        if (isCompletionReasonRequired(editForm.due_date, editForm.completed_at) && !editForm.completion_reason) {
+            editForm.setError('completion_reason', t('tasks.completion.reason_required'));
+            return;
+        }
+    } else {
+        editForm.completed_at = null;
+        editForm.completion_reason = null;
+    }
+
     editForm.materials = normalizeMaterials(editForm.materials);
     normalizeWorkSelection(editForm);
 
@@ -835,40 +1114,108 @@ const submitEdit = () => {
     });
 };
 
+const completionTask = ref(null);
+const completionForm = useForm({
+    completed_at: '',
+    completion_reason: '',
+});
+
+const completionReasonRequired = computed(() => {
+    if (!completionTask.value) {
+        return false;
+    }
+    return isCompletionReasonRequired(completionTask.value.due_date, completionForm.completed_at);
+});
+
+const buildStatusPayload = (task, status, extra = {}) => {
+    const payload = {
+        status,
+        ...extra,
+    };
+
+    if (!props.canManage) {
+        return payload;
+    }
+
+    return {
+        ...payload,
+        title: task.title || '',
+        description: task.description || '',
+        due_date: task.due_date || null,
+        assigned_team_member_id: task.assigned_team_member_id ?? null,
+        work_id: task.work_id ?? null,
+        standalone: !task.work_id,
+        customer_id: task.customer_id ?? null,
+        product_id: task.product_id ?? null,
+    };
+};
+
+const openCompletionModal = (task) => {
+    completionTask.value = task;
+    completionForm.clearErrors();
+    completionForm.completed_at = normalizeDateKey(task.completed_at || new Date());
+    completionForm.completion_reason = task.completion_reason || '';
+
+    if (window.HSOverlay) {
+        window.HSOverlay.open('#hs-task-completion');
+    }
+};
+
+const closeCompletionModal = () => {
+    completionTask.value = null;
+    completionForm.reset();
+    if (window.HSOverlay) {
+        window.HSOverlay.close('#hs-task-completion');
+    }
+};
+
+const submitCompletion = () => {
+    if (!completionTask.value || completionForm.processing) {
+        return;
+    }
+
+    completionForm.clearErrors('completed_at', 'completion_reason');
+    if (!completionForm.completed_at) {
+        completionForm.completed_at = normalizeDateKey(new Date());
+    }
+    if (completionReasonRequired.value && !completionForm.completion_reason) {
+        completionForm.setError('completion_reason', t('tasks.completion.reason_required'));
+        return;
+    }
+
+    const task = completionTask.value;
+    const onSuccess = () => {
+        dispatchDemoEvent('demo:task_completed', { task_id: task.id });
+        closeCompletionModal();
+    };
+
+    completionForm
+        .transform((data) => buildStatusPayload(task, 'done', data))
+        .put(route('task.update', task.id), {
+            preserveScroll: true,
+            only: ['tasks', 'flash'],
+            onSuccess,
+        });
+};
+
 const setTaskStatus = (task, status) => {
     if (!canChangeStatus.value || task.status === status || isTaskLocked(task)) {
         return;
     }
-    const onSuccess = () => {
-        if (status === 'done') {
-            dispatchDemoEvent('demo:task_completed', { task_id: task.id });
-        }
-    };
 
-    if (props.canManage) {
-        router.put(
-            route('task.update', task.id),
-            {
-                title: task.title || '',
-                description: task.description || '',
-                status,
-                due_date: task.due_date || null,
-                assigned_team_member_id: task.assigned_team_member_id ?? null,
-                work_id: task.work_id ?? null,
-                standalone: !task.work_id,
-                customer_id: task.customer_id ?? null,
-                product_id: task.product_id ?? null,
-            },
-            { preserveScroll: true, only: ['tasks', 'flash'], onSuccess }
-        );
+    if (status === 'done') {
+        openCompletionModal(task);
         return;
     }
 
-    router.put(
-        route('task.update', task.id),
-        { status },
-        { preserveScroll: true, only: ['tasks', 'flash'], onSuccess }
-    );
+    const onSuccess = () => {};
+    const payload = buildStatusPayload(task, status);
+
+    router.put(route('task.update', task.id), payload, {
+        preserveScroll: true,
+        only: ['tasks', 'flash'],
+        onSuccess,
+    });
 };
 
 const deleteTask = (task) => {
@@ -915,6 +1262,11 @@ const handleBoardChange = (status, event) => {
     }
     const task = event.added.element;
     if (!task || task.status === status) {
+        return;
+    }
+    if (status === 'done') {
+        openCompletionModal(task);
+        syncBoardTasks();
         return;
     }
     task.status = status;
@@ -1065,13 +1417,14 @@ const submitProof = () => {
                             {{ $t('tasks.view.team') }}
                         </button>
                     </div>
-                    <select v-model="filterForm.status"
-                        class="py-2 ps-3 pe-8 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 dark:focus:ring-neutral-600">
-                        <option value="">{{ $t('tasks.filters.status.all') }}</option>
-                        <option v-for="status in statuses" :key="status" :value="status">
-                            {{ statusLabel(status) }}
-                        </option>
-                    </select>
+                    <FloatingSelect
+                        v-model="filterForm.status"
+                        :label="$t('tasks.table.status')"
+                        :options="statusFilterOptions"
+                        :placeholder="$t('tasks.filters.status.all')"
+                        dense
+                        class="min-w-[150px]"
+                    />
 
                     <button type="button" @click="clearFilters"
                         class="py-2 px-3 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700 action-feedback">
@@ -1272,6 +1625,13 @@ const submitProof = () => {
                                     :class="statusClasses(task.status)">
                                     {{ statusLabel(task.status) || $t('tasks.status.todo') }}
                                 </span>
+                                <span
+                                    v-if="task.timing_status"
+                                    class="inline-flex items-center rounded-full px-2 py-0.5 font-semibold"
+                                    :class="timingStatusClasses(task.timing_status)"
+                                >
+                                    {{ timingStatusLabel(task.timing_status) }}
+                                </span>
                                 <span class="inline-flex items-center gap-1">
                                     <svg class="size-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
                                         fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
@@ -1358,18 +1718,14 @@ const submitProof = () => {
                         </span>
                     </div>
                     <div class="flex flex-wrap items-center gap-2">
-                        <label class="text-[11px] uppercase text-stone-400 dark:text-neutral-500">
-                            {{ $t('tasks.schedule.range_label') }}
-                        </label>
-                        <select
+                        <FloatingSelect
                             v-model="scheduleRange"
+                            :label="$t('tasks.schedule.range_label')"
+                            :options="scheduleRangeSelectOptions"
+                            dense
+                            class="min-w-[160px]"
                             @change="setScheduleRange(scheduleRange)"
-                            class="rounded-md border border-stone-200 bg-white px-2.5 py-1.5 text-xs text-stone-700 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
-                        >
-                            <option v-for="option in scheduleRangeOptions" :key="option.id" :value="option.id">
-                                {{ option.label }}
-                            </option>
-                        </select>
+                        />
                         <button
                             v-if="selectedDateKey"
                             type="button"
@@ -1437,6 +1793,13 @@ const submitProof = () => {
                                         <span class="inline-flex items-center rounded-full px-2 py-0.5 font-semibold"
                                             :class="statusClasses(task.status)">
                                             {{ statusLabel(task.status) || $t('tasks.status.todo') }}
+                                        </span>
+                                        <span
+                                            v-if="task.timing_status"
+                                            class="inline-flex items-center rounded-full px-2 py-0.5 font-semibold"
+                                            :class="timingStatusClasses(task.timing_status)"
+                                        >
+                                            {{ timingStatusLabel(task.timing_status) }}
                                         </span>
                                         <span class="inline-flex items-center gap-1">
                                             <svg class="size-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
@@ -1569,6 +1932,13 @@ const submitProof = () => {
                                         <span class="inline-flex items-center rounded-full px-2 py-0.5 font-semibold"
                                             :class="statusClasses(task.status)">
                                             {{ statusLabel(task.status) || $t('tasks.status.todo') }}
+                                        </span>
+                                        <span
+                                            v-if="task.timing_status"
+                                            class="inline-flex items-center rounded-full px-2 py-0.5 font-semibold"
+                                            :class="timingStatusClasses(task.timing_status)"
+                                        >
+                                            {{ timingStatusLabel(task.timing_status) }}
                                         </span>
                                         <span class="inline-flex items-center gap-1">
                                             <svg class="size-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
@@ -1712,6 +2082,165 @@ const submitProof = () => {
         </template>
     </div>
 
+    <div
+        v-else-if="viewMode === 'team'"
+        class="space-y-4"
+    >
+        <template v-if="isLoading">
+            <div class="rounded-md border border-stone-200 bg-white px-3 py-3 shadow-sm dark:border-neutral-700 dark:bg-neutral-800">
+                <div class="flex items-center justify-between animate-pulse">
+                    <div class="h-4 w-28 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                    <div class="h-6 w-36 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
+                </div>
+            </div>
+            <div class="rounded-md border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900 animate-pulse">
+                <div class="h-4 w-40 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                <div class="mt-4 h-64 rounded-md bg-stone-100 dark:bg-neutral-800"></div>
+            </div>
+        </template>
+        <template v-else>
+            <div class="flex flex-wrap items-center justify-between gap-3 rounded-md border border-stone-200 bg-stone-50/80 px-3 py-2 text-xs text-stone-500 shadow-sm dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-400">
+                <div class="flex items-center gap-2">
+                    <span class="size-2.5 rounded-sm bg-emerald-500"></span>
+                    <span class="font-semibold text-stone-700 dark:text-neutral-200">
+                        {{ $t('tasks.team.title') }}
+                    </span>
+                    <span class="rounded-full bg-white px-2 py-0.5 text-[11px] font-semibold text-stone-600 shadow-sm dark:bg-neutral-900 dark:text-neutral-200">
+                        {{ selectedDateLabel }}
+                    </span>
+                </div>
+                <div class="flex flex-wrap items-center gap-2">
+                    <FloatingSelect
+                        v-model="scheduleRange"
+                        :label="$t('tasks.schedule.range_label')"
+                        :options="scheduleRangeSelectOptions"
+                        dense
+                        class="min-w-[160px]"
+                        @change="setScheduleRange(scheduleRange)"
+                    />
+                    <button
+                        v-if="selectedDateKey"
+                        type="button"
+                        @click="clearSelectedDate"
+                        class="inline-flex items-center gap-1 text-emerald-600 hover:text-emerald-700"
+                    >
+                        {{ $t('tasks.schedule.show_all') }}
+                    </button>
+                </div>
+            </div>
+
+            <div v-if="!teamMembersList.length && !teamTaskCount" class="rounded-md border border-dashed border-stone-200 bg-white/80 px-3 py-6 text-center text-xs text-stone-500 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-400">
+                {{ $t('tasks.team.no_members') }}
+            </div>
+            <div v-else class="space-y-3">
+                <div v-if="selectedDateKey && !teamTaskCount" class="rounded-md border border-dashed border-stone-200 bg-white/80 px-3 py-4 text-center text-xs text-stone-500 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-400">
+                    {{ $t('tasks.empty.no_tasks_for_date', { date: selectedDateLabel }) }}
+                </div>
+                <div v-else-if="!teamTaskCount" class="rounded-md border border-dashed border-stone-200 bg-white/80 px-3 py-4 text-center text-xs text-stone-500 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-400">
+                    {{ $t('tasks.empty.no_tasks_in_range') }}
+                </div>
+                <div
+                    v-else
+                    class="overflow-auto rounded-md border border-stone-200 bg-white shadow-sm dark:border-neutral-700 dark:bg-neutral-900 [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-stone-100 [&::-webkit-scrollbar-thumb]:bg-stone-300 dark:[&::-webkit-scrollbar-track]:bg-neutral-700 dark:[&::-webkit-scrollbar-thumb]:bg-neutral-500"
+                >
+                    <div class="min-w-full" :style="{ minWidth: teamGridMinWidth }">
+                        <div class="grid text-xs" :style="{ gridTemplateColumns: teamGridTemplate }">
+                            <div class="sticky left-0 z-20 border-b border-r border-stone-200 bg-stone-50 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-stone-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-400">
+                                {{ $t('tasks.table.assignee') }}
+                            </div>
+                            <button
+                                v-for="column in teamColumns"
+                                :key="column.key"
+                                type="button"
+                                class="flex flex-col border-b border-r border-stone-200 bg-stone-50 px-3 py-2 text-left text-[11px] uppercase tracking-wide text-stone-500 transition hover:bg-stone-100 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-400 dark:hover:bg-neutral-800"
+                                :class="[
+                                    column.isSelected ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-200' : '',
+                                    column.isToday ? 'text-emerald-700 dark:text-emerald-200' : '',
+                                    column.isUndated ? 'cursor-default' : 'cursor-pointer',
+                                ]"
+                                :disabled="column.isUndated"
+                                @click="column.isUndated ? null : toggleSelectedDate(column.key)"
+                            >
+                                <span class="text-xs font-semibold">
+                                    {{ column.label }}
+                                </span>
+                                <span v-if="column.subLabel" class="text-[10px] text-stone-400 dark:text-neutral-500">
+                                    {{ column.subLabel }}
+                                </span>
+                            </button>
+
+                            <template v-for="row in teamRows" :key="row.id">
+                                <div class="sticky left-0 z-10 border-b border-r border-stone-200 bg-white px-3 py-3 dark:border-neutral-700 dark:bg-neutral-900">
+                                    <div class="flex items-center gap-3">
+                                        <div
+                                            class="flex size-9 items-center justify-center rounded-md text-sm font-semibold"
+                                            :style="{
+                                                backgroundColor: teamRowColor(row.id).soft,
+                                                color: teamRowColor(row.id).text,
+                                            }"
+                                        >
+                                            {{ memberInitial(row.name) }}
+                                        </div>
+                                        <div class="min-w-0">
+                                            <div class="truncate text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                                                {{ row.name }}
+                                            </div>
+                                            <div v-if="row.role" class="text-[11px] text-stone-500 dark:text-neutral-400">
+                                                {{ row.role }}
+                                            </div>
+                                            <div class="text-[11px] text-stone-500 dark:text-neutral-400">
+                                                {{ taskCountLabel(teamRowTaskCount(row.id)) }}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="mt-2 flex flex-wrap gap-1">
+                                        <span
+                                            v-for="status in statusKeys"
+                                            :key="`team-${row.id}-${status}`"
+                                            class="rounded-full px-2 py-0.5 text-[10px] font-semibold"
+                                            :class="statusClasses(status)"
+                                        >
+                                            {{ statusLabel(status) }} {{ teamRowStatusCounts(row.id)[status] || 0 }}
+                                        </span>
+                                    </div>
+                                </div>
+                                <div
+                                    v-for="column in teamColumns"
+                                    :key="`${row.id}-${column.key}`"
+                                    class="min-h-[96px] border-b border-r border-stone-200 px-2 py-2 dark:border-neutral-700"
+                                    :class="column.isSelected ? 'bg-emerald-50/60 dark:bg-emerald-500/10' : 'bg-white dark:bg-neutral-900'"
+                                >
+                                    <div v-if="tasksForCell(row.id, column.key).length" class="space-y-1.5">
+                                        <button
+                                            v-for="task in tasksForCell(row.id, column.key)"
+                                            :key="task.id"
+                                            type="button"
+                                            class="group w-full rounded-md px-2 py-1.5 text-left text-xs font-semibold text-white shadow-sm transition hover:brightness-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60"
+                                            :class="isTaskLocked(task) ? 'opacity-70' : ''"
+                                            :style="{ backgroundColor: teamRowColor(row.id).base }"
+                                            @click="openTaskDetails(task)"
+                                            @keydown.enter.prevent="openTaskDetails(task)"
+                                        >
+                                            <span class="block line-clamp-2 leading-snug">
+                                                {{ task.title }}
+                                            </span>
+                                            <span class="mt-1 inline-flex items-center gap-1 text-[10px] text-white/80">
+                                                {{ statusLabel(task.status) || $t('tasks.status.todo') }}
+                                                <span v-if="task.timing_status" class="text-white/70">
+                                                    · {{ timingStatusLabel(task.timing_status) }}
+                                                </span>
+                                            </span>
+                                        </button>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </template>
+    </div>
+
         <div v-else
             class="overflow-x-auto [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-stone-100 [&::-webkit-scrollbar-thumb]:bg-stone-300 dark:[&::-webkit-scrollbar-track]:bg-neutral-700 dark:[&::-webkit-scrollbar-thumb]:bg-neutral-500">
             <div class="min-w-full inline-block align-middle">
@@ -1780,6 +2309,13 @@ const submitProof = () => {
                                 <span class="py-1.5 px-2 inline-flex items-center text-xs font-medium rounded-full"
                                     :class="statusClasses(task.status)">
                                     {{ statusLabel(task.status) || $t('tasks.status.todo') }}
+                                </span>
+                                <span
+                                    v-if="task.timing_status"
+                                    class="ms-2 py-1.5 px-2 inline-flex items-center text-xs font-medium rounded-full"
+                                    :class="timingStatusClasses(task.timing_status)"
+                                >
+                                    {{ timingStatusLabel(task.timing_status) }}
                                 </span>
                             </td>
                             <td class="size-px whitespace-nowrap px-4 py-2">
@@ -1918,12 +2454,36 @@ const submitProof = () => {
                     :class="statusClasses(detailsTask.status)">
                     {{ statusLabel(detailsTask.status) || $t('tasks.status.todo') }}
                 </span>
+                <span v-if="detailsTask?.timing_status"
+                    class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold"
+                    :class="timingStatusClasses(detailsTask.timing_status)">
+                    {{ timingStatusLabel(detailsTask.timing_status) }}
+                </span>
                 <span class="text-xs text-stone-500 dark:text-neutral-400">
                     {{ $t('tasks.details.due') }} {{ formatDate(detailsTask.due_date) || $t('tasks.labels.no_due_date') }}
                 </span>
                 <span class="text-xs text-stone-500 dark:text-neutral-400">
                     {{ $t('tasks.details.created') }} {{ formatDate(detailsTask.created_at) }}
                 </span>
+            </div>
+
+            <div v-if="detailsTask.completed_at || detailsTask.completion_reason" class="grid grid-cols-1 md:grid-cols-2 gap-2">
+                <div v-if="detailsTask.completed_at">
+                    <div class="text-xs uppercase text-stone-400 dark:text-neutral-500">
+                        {{ $t('tasks.details.completed_at') }}
+                    </div>
+                    <div class="mt-1 text-sm text-stone-700 dark:text-neutral-200">
+                        {{ formatDate(detailsTask.completed_at) }}
+                    </div>
+                </div>
+                <div v-if="detailsTask.completion_reason">
+                    <div class="text-xs uppercase text-stone-400 dark:text-neutral-500">
+                        {{ $t('tasks.details.completion_reason') }}
+                    </div>
+                    <div class="mt-1 text-sm text-stone-700 dark:text-neutral-200">
+                        {{ completionReasonLabel(detailsTask.completion_reason) || detailsTask.completion_reason }}
+                    </div>
+                </div>
             </div>
 
             <div>
@@ -1999,17 +2559,13 @@ const submitProof = () => {
             </div>
 
             <div>
-                <label class="block text-xs text-stone-500 dark:text-neutral-400">{{ $t('tasks.form.job') }}</label>
-                <select
+                <FloatingSelect
                     v-model="createForm.work_id"
+                    :label="$t('tasks.form.job')"
+                    :options="workOptions"
+                    :placeholder="$t('tasks.form.select_job')"
                     :disabled="createForm.standalone"
-                    class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 disabled:bg-stone-100 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 dark:disabled:bg-neutral-800"
-                >
-                    <option value="">{{ $t('tasks.form.select_job') }}</option>
-                    <option v-for="work in workOptions" :key="work.id" :value="work.id">
-                        {{ work.name }}
-                    </option>
-                </select>
+                />
                 <InputError class="mt-1" :message="createForm.errors.work_id" />
                 <label class="mt-2 flex items-center gap-2">
                     <Checkbox v-model:checked="createForm.standalone" />
@@ -2021,13 +2577,11 @@ const submitProof = () => {
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
-                    <label class="block text-xs text-stone-500 dark:text-neutral-400">{{ $t('tasks.form.status') }}</label>
-                    <select v-model="createForm.status"
-                        class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
-                        <option v-for="status in statuses" :key="status" :value="status">
-                            {{ statusLabel(status) }}
-                        </option>
-                    </select>
+                    <FloatingSelect
+                        v-model="createForm.status"
+                        :label="$t('tasks.form.status')"
+                        :options="statusSelectOptions"
+                    />
                     <InputError class="mt-1" :message="createForm.errors.status" />
                 </div>
                 <div>
@@ -2035,15 +2589,29 @@ const submitProof = () => {
                     <InputError class="mt-1" :message="createForm.errors.due_date" />
                 </div>
                 <div v-if="teamMembers.length" class="md:col-span-2">
-                    <label class="block text-xs text-stone-500 dark:text-neutral-400">{{ $t('tasks.form.assignee') }}</label>
-                    <select v-model="createForm.assigned_team_member_id"
-                        class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
-                        <option value="">{{ $t('tasks.form.unassigned') }}</option>
-                        <option v-for="member in teamMembers" :key="member.id" :value="member.id">
-                            {{ member.user?.name || `Member #${member.id}` }} ({{ member.role }})
-                        </option>
-                    </select>
+                    <FloatingSelect
+                        v-model="createForm.assigned_team_member_id"
+                        :label="$t('tasks.form.assignee')"
+                        :options="assigneeOptions"
+                        :placeholder="$t('tasks.form.unassigned')"
+                    />
                     <InputError class="mt-1" :message="createForm.errors.assigned_team_member_id" />
+                </div>
+            </div>
+
+            <div v-if="createForm.status === 'done'" class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                    <DatePicker v-model="createForm.completed_at" :label="$t('tasks.completion.completed_at')" />
+                    <InputError class="mt-1" :message="createForm.errors.completed_at" />
+                </div>
+                <div>
+                    <FloatingSelect
+                        v-model="createForm.completion_reason"
+                        :label="$t('tasks.completion.reason')"
+                        :options="completionReasonOptions"
+                        :required="isCompletionReasonRequired(createForm.due_date, createForm.completed_at)"
+                    />
+                    <InputError class="mt-1" :message="createForm.errors.completion_reason" />
                 </div>
             </div>
 
@@ -2114,17 +2682,13 @@ const submitProof = () => {
             </div>
 
             <div>
-                <label class="block text-xs text-stone-500 dark:text-neutral-400">{{ $t('tasks.form.job') }}</label>
-                <select
+                <FloatingSelect
                     v-model="editForm.work_id"
+                    :label="$t('tasks.form.job')"
+                    :options="workOptions"
+                    :placeholder="$t('tasks.form.select_job')"
                     :disabled="editForm.standalone"
-                    class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 disabled:bg-stone-100 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 dark:disabled:bg-neutral-800"
-                >
-                    <option value="">{{ $t('tasks.form.select_job') }}</option>
-                    <option v-for="work in workOptions" :key="work.id" :value="work.id">
-                        {{ work.name }}
-                    </option>
-                </select>
+                />
                 <InputError class="mt-1" :message="editForm.errors.work_id" />
                 <label class="mt-2 flex items-center gap-2">
                     <Checkbox v-model:checked="editForm.standalone" />
@@ -2136,13 +2700,11 @@ const submitProof = () => {
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
-                    <label class="block text-xs text-stone-500 dark:text-neutral-400">{{ $t('tasks.form.status') }}</label>
-                    <select v-model="editForm.status"
-                        class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
-                        <option v-for="status in statuses" :key="status" :value="status">
-                            {{ statusLabel(status) }}
-                        </option>
-                    </select>
+                    <FloatingSelect
+                        v-model="editForm.status"
+                        :label="$t('tasks.form.status')"
+                        :options="statusSelectOptions"
+                    />
                     <InputError class="mt-1" :message="editForm.errors.status" />
                 </div>
                 <div>
@@ -2150,15 +2712,29 @@ const submitProof = () => {
                     <InputError class="mt-1" :message="editForm.errors.due_date" />
                 </div>
                 <div v-if="teamMembers.length" class="md:col-span-2">
-                    <label class="block text-xs text-stone-500 dark:text-neutral-400">{{ $t('tasks.form.assignee') }}</label>
-                    <select v-model="editForm.assigned_team_member_id"
-                        class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
-                        <option value="">{{ $t('tasks.form.unassigned') }}</option>
-                        <option v-for="member in teamMembers" :key="member.id" :value="member.id">
-                            {{ member.user?.name || `Member #${member.id}` }} ({{ member.role }})
-                        </option>
-                    </select>
+                    <FloatingSelect
+                        v-model="editForm.assigned_team_member_id"
+                        :label="$t('tasks.form.assignee')"
+                        :options="assigneeOptions"
+                        :placeholder="$t('tasks.form.unassigned')"
+                    />
                     <InputError class="mt-1" :message="editForm.errors.assigned_team_member_id" />
+                </div>
+            </div>
+
+            <div v-if="editForm.status === 'done'" class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                    <DatePicker v-model="editForm.completed_at" :label="$t('tasks.completion.completed_at')" />
+                    <InputError class="mt-1" :message="editForm.errors.completed_at" />
+                </div>
+                <div>
+                    <FloatingSelect
+                        v-model="editForm.completion_reason"
+                        :label="$t('tasks.completion.reason')"
+                        :options="completionReasonOptions"
+                        :required="isCompletionReasonRequired(editForm.due_date, editForm.completed_at)"
+                    />
+                    <InputError class="mt-1" :message="editForm.errors.completion_reason" />
                 </div>
             </div>
 
@@ -2216,16 +2792,44 @@ const submitProof = () => {
         </form>
     </Modal>
 
+    <Modal v-if="canChangeStatus" :title="$t('tasks.completion.title')" :id="'hs-task-completion'">
+        <form class="space-y-4" @submit.prevent="submitCompletion">
+            <div>
+                <DatePicker v-model="completionForm.completed_at" :label="$t('tasks.completion.completed_at')" />
+                <InputError class="mt-1" :message="completionForm.errors.completed_at" />
+            </div>
+
+            <div>
+                <FloatingSelect
+                    v-model="completionForm.completion_reason"
+                    :label="$t('tasks.completion.reason')"
+                    :options="completionReasonOptions"
+                    :required="completionReasonRequired"
+                />
+                <InputError class="mt-1" :message="completionForm.errors.completion_reason" />
+            </div>
+
+            <div class="flex justify-end gap-2">
+                <button type="button" @click="closeCompletionModal"
+                    class="py-2 px-3 inline-flex items-center text-sm font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200 action-feedback">
+                    {{ $t('tasks.actions.cancel') }}
+                </button>
+                <button type="submit" :disabled="completionForm.processing"
+                    class="py-2 px-3 inline-flex items-center text-sm font-medium rounded-sm border border-transparent bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50 action-feedback">
+                    {{ $t('tasks.completion.confirm') }}
+                </button>
+            </div>
+        </form>
+    </Modal>
+
     <Modal v-if="canChangeStatus" :title="$t('tasks.proof.title')" :id="'hs-task-proof'">
         <form class="space-y-4" @submit.prevent="submitProof">
             <div>
-                <label class="block text-xs text-stone-500 dark:text-neutral-400">{{ $t('tasks.proof.type') }}</label>
-                <select v-model="proofForm.type"
-                    class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
-                    <option value="execution">{{ $t('tasks.proof.types.execution') }}</option>
-                    <option value="completion">{{ $t('tasks.proof.types.completion') }}</option>
-                    <option value="other">{{ $t('tasks.proof.types.other') }}</option>
-                </select>
+                <FloatingSelect
+                    v-model="proofForm.type"
+                    :label="$t('tasks.proof.type')"
+                    :options="proofTypeOptions"
+                />
                 <InputError class="mt-1" :message="proofForm.errors.type" />
             </div>
 

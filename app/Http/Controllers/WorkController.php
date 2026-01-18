@@ -17,6 +17,7 @@ use App\Models\User;
 use App\Services\WorkBillingService;
 use App\Services\WorkScheduleService;
 use App\Services\UsageLimitService;
+use App\Services\TaskTimingService;
 use App\Notifications\ActionEmailNotification;
 use App\Support\NotificationDispatcher;
 use Illuminate\Http\Request;
@@ -69,11 +70,19 @@ class WorkController extends Controller
             ? $filters['sort']
             : 'start_date';
         $direction = ($filters['direction'] ?? 'desc') === 'asc' ? 'asc' : 'desc';
+        $today = TaskTimingService::todayForAccountId($accountId);
 
         $works = (clone $baseQuery)
             ->with(['customer', 'invoice'])
             ->withAvg('ratings', 'rating')
             ->withCount('ratings')
+            ->withCount([
+                'tasks as overdue_tasks_count' => function ($query) use ($today) {
+                    $query->whereNotNull('due_date')
+                        ->where('status', '!=', 'done')
+                        ->whereDate('due_date', '<', $today);
+                },
+            ])
             ->orderBy($sort, $direction)
             ->simplePaginate(10)
             ->withQueryString();

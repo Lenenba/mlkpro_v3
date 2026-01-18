@@ -2,6 +2,7 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import { computed, ref, watch } from 'vue';
+import FloatingSelect from '@/Components/FloatingSelect.vue';
 
 const props = defineProps({
     scan: Object,
@@ -29,6 +30,12 @@ const selectedCustomer = computed(() =>
 );
 
 const properties = computed(() => selectedCustomer.value?.properties || []);
+const propertyOptions = computed(() =>
+    properties.value.map((property) => ({
+        id: property.id,
+        name: `${property.street1 || 'Property'}${property.city ? `, ${property.city}` : ''}`,
+    }))
+);
 
 watch(
     () => selectedCustomerId.value,
@@ -164,30 +171,18 @@ const convert = (variantKey) => {
                 <div v-if="needsCustomer" class="rounded-sm border border-amber-200 bg-amber-50 p-4 text-sm text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
                     Select a customer to create a quote from a variant.
                     <div class="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
-                        <div>
-                            <label class="text-xs text-amber-700 dark:text-amber-200">Customer</label>
-                            <select
-                                v-model.number="selectedCustomerId"
-                                class="mt-2 w-full rounded-sm border border-amber-200 bg-white px-3 py-2 text-sm text-stone-700 focus:border-green-500 focus:ring-green-500 dark:border-amber-500/40 dark:bg-neutral-900 dark:text-neutral-200"
-                            >
-                                <option value="">Select customer</option>
-                                <option v-for="customer in customerOptions" :key="customer.id" :value="customer.id">
-                                    {{ customer.name }}
-                                </option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="text-xs text-amber-700 dark:text-amber-200">Property</label>
-                            <select
-                                v-model.number="selectedPropertyId"
-                                class="mt-2 w-full rounded-sm border border-amber-200 bg-white px-3 py-2 text-sm text-stone-700 focus:border-green-500 focus:ring-green-500 dark:border-amber-500/40 dark:bg-neutral-900 dark:text-neutral-200"
-                            >
-                                <option value="">No property</option>
-                                <option v-for="property in properties" :key="property.id" :value="property.id">
-                                    {{ property.street1 }}{{ property.city ? `, ${property.city}` : '' }}
-                                </option>
-                            </select>
-                        </div>
+                        <FloatingSelect
+                            v-model="selectedCustomerId"
+                            label="Customer"
+                            :options="customerOptions"
+                            placeholder="Select customer"
+                        />
+                        <FloatingSelect
+                            v-model="selectedPropertyId"
+                            label="Property"
+                            :options="propertyOptions"
+                            placeholder="No property"
+                        />
                     </div>
                 </div>
 

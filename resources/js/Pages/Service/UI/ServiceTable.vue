@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue';
 import { Link, router, useForm } from '@inertiajs/vue3';
 import Modal from '@/Components/UI/Modal.vue';
 import ServiceForm from '@/Pages/Service/UI/ServiceForm.vue';
+import FloatingSelect from '@/Components/FloatingSelect.vue';
 import { humanizeDate } from '@/utils/date';
 import { useI18n } from 'vue-i18n';
 
@@ -42,6 +43,16 @@ const filterForm = useForm({
 
 const showAdvanced = ref(false);
 const isLoading = ref(false);
+const categoryOptions = computed(() =>
+    (props.categories || []).map((category) => ({
+        value: String(category.id),
+        label: category.name,
+    }))
+);
+const statusOptions = computed(() => ([
+    { value: 'active', label: t('services.status.active') },
+    { value: 'archived', label: t('services.status.archived') },
+]));
 
 const filterPayload = () => {
     const payload = {
@@ -208,19 +219,20 @@ const destroyService = (service) => {
             </div>
 
             <div v-if="showAdvanced" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-2">
-                <select v-model="filterForm.category_id"
-                    class="py-2 ps-3 pe-8 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
-                    <option value="">{{ $t('services.filters.category') }}</option>
-                    <option v-for="category in categories" :key="category.id" :value="category.id">
-                        {{ category.name }}
-                    </option>
-                </select>
-                <select v-model="filterForm.status"
-                    class="py-2 ps-3 pe-8 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
-                    <option value="">{{ $t('services.filters.status') }}</option>
-                    <option value="active">{{ $t('services.status.active') }}</option>
-                    <option value="archived">{{ $t('services.status.archived') }}</option>
-                </select>
+                <FloatingSelect
+                    v-model="filterForm.category_id"
+                    :label="$t('services.filters.category')"
+                    :options="categoryOptions"
+                    :placeholder="$t('services.filters.category')"
+                    dense
+                />
+                <FloatingSelect
+                    v-model="filterForm.status"
+                    :label="$t('services.filters.status')"
+                    :options="statusOptions"
+                    :placeholder="$t('services.filters.status')"
+                    dense
+                />
                 <input type="number" step="0.01" v-model="filterForm.price_min"
                     class="py-2 px-3 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
                     :placeholder="$t('services.filters.price_min')">

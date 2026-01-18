@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue';
 import { Link, router, useForm, usePage } from '@inertiajs/vue3';
 import Modal from '@/Components/UI/Modal.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
+import FloatingSelect from '@/Components/FloatingSelect.vue';
 import FloatingTextarea from '@/Components/FloatingTextarea.vue';
 import InputError from '@/Components/InputError.vue';
 import { humanizeDate } from '@/utils/date';
@@ -43,6 +44,12 @@ const filterForm = useForm({
     customer_id: props.filters?.customer_id ?? '',
 });
 const isLoading = ref(false);
+const statusSelectOptions = computed(() =>
+    (props.statuses || []).map((status) => ({
+        value: String(status.id),
+        label: status.name,
+    }))
+);
 
 const filterPayload = () => {
     const payload = {
@@ -114,6 +121,18 @@ const selectedCustomer = computed(() => {
 });
 
 const propertyOptions = computed(() => selectedCustomer.value?.properties || []);
+const customerSelectOptions = computed(() =>
+    (props.customers || []).map((customer) => ({
+        id: String(customer.id),
+        name: displayCustomer(customer),
+    }))
+);
+const propertySelectOptions = computed(() =>
+    propertyOptions.value.map((property) => ({
+        id: String(property.id),
+        name: `${property.street1 || t('requests.convert.location_fallback')}${property.city ? `, ${property.city}` : ''}`,
+    }))
+);
 
 watch(selectedCustomer, (customer) => {
     const nextProperty =
@@ -247,25 +266,23 @@ const openQuickCreate = () => {
                     />
                 </div>
 
-                <select
+                <FloatingSelect
                     v-model="filterForm.status"
-                    class="py-2 px-3 border-transparent rounded-sm bg-stone-100 text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-700 dark:text-neutral-200"
-                >
-                    <option value="">{{ $t('requests.filters.all_statuses') }}</option>
-                    <option v-for="status in statuses" :key="status.id" :value="status.id">
-                        {{ status.name }}
-                    </option>
-                </select>
+                    :label="$t('requests.table.status')"
+                    :options="statusSelectOptions"
+                    :placeholder="$t('requests.filters.all_statuses')"
+                    dense
+                    class="min-w-[150px]"
+                />
 
-                <select
+                <FloatingSelect
                     v-model="filterForm.customer_id"
-                    class="py-2 px-3 border-transparent rounded-sm bg-stone-100 text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-700 dark:text-neutral-200"
-                >
-                    <option value="">{{ $t('requests.filters.all_customers') }}</option>
-                    <option v-for="customer in customers" :key="customer.id" :value="customer.id">
-                        {{ displayCustomer(customer) }}
-                    </option>
-                </select>
+                    :label="$t('requests.table.customer')"
+                    :options="customerSelectOptions"
+                    :placeholder="$t('requests.filters.all_customers')"
+                    dense
+                    class="min-w-[170px]"
+                />
 
                 <button
                     type="button"
@@ -436,30 +453,22 @@ const openQuickCreate = () => {
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
-                    <label class="text-sm text-stone-600 dark:text-neutral-400">{{ $t('requests.convert.customer') }}</label>
-                    <select
+                    <FloatingSelect
                         v-model="convertForm.customer_id"
-                        class="mt-1 w-full rounded-sm border border-stone-200 bg-stone-100 py-2 px-3 text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200"
-                    >
-                        <option value="">{{ $t('requests.convert.select_customer') }}</option>
-                        <option v-for="customer in customers" :key="customer.id" :value="String(customer.id)">
-                            {{ displayCustomer(customer) }}
-                        </option>
-                    </select>
+                        :label="$t('requests.convert.customer')"
+                        :options="customerSelectOptions"
+                        :placeholder="$t('requests.convert.select_customer')"
+                    />
                     <InputError class="mt-1" :message="convertForm.errors.customer_id" />
                 </div>
                 <div>
-                    <label class="text-sm text-stone-600 dark:text-neutral-400">{{ $t('requests.convert.location') }}</label>
-                    <select
+                    <FloatingSelect
                         v-model="convertForm.property_id"
+                        :label="$t('requests.convert.location')"
+                        :options="propertySelectOptions"
+                        :placeholder="$t('requests.convert.no_location')"
                         :disabled="!propertyOptions.length"
-                        class="mt-1 w-full rounded-sm border border-stone-200 bg-stone-100 py-2 px-3 text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 disabled:opacity-60 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200"
-                    >
-                        <option value="">{{ $t('requests.convert.no_location') }}</option>
-                        <option v-for="property in propertyOptions" :key="property.id" :value="String(property.id)">
-                            {{ property.street1 || $t('requests.convert.location_fallback') }}{{ property.city ? ', ' + property.city : '' }}
-                        </option>
-                    </select>
+                    />
                     <InputError class="mt-1" :message="convertForm.errors.property_id" />
                 </div>
             </div>

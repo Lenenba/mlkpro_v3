@@ -3,6 +3,7 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, useForm, usePage } from '@inertiajs/vue3';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingTextarea from '@/Components/FloatingTextarea.vue';
+import FloatingSelect from '@/Components/FloatingSelect.vue';
 import ProductTableList from '@/Components/ProductTableList.vue';
 import ValidationSummary from '@/Components/ValidationSummary.vue';
 import { ref, watch, computed } from 'vue';
@@ -88,6 +89,12 @@ const form = useForm({
 });
 
 const properties = computed(() => props.customer?.properties || []);
+const propertyOptions = computed(() =>
+    properties.value.map((property) => ({
+        id: property.id,
+        name: `${property.street1 || t('quotes.form.property')}${property.city ? `, ${property.city}` : ''}`,
+    }))
+);
 const selectedProperty = computed(() => {
     if (!properties.value.length || !form.property_id) {
         return null;
@@ -97,6 +104,12 @@ const selectedProperty = computed(() => {
 
 const availableTaxes = computed(() => props.taxes || []);
 const isLocked = computed(() => Boolean(props.quote?.archived_at) || props.quote?.status === 'accepted');
+const statusOptions = computed(() => [
+    { id: 'draft', name: t('quotes.status.draft') },
+    { id: 'sent', name: t('quotes.status.sent') },
+    { id: 'accepted', name: t('quotes.status.accepted') },
+    { id: 'declined', name: t('quotes.status.declined') },
+]);
 const templateOptions = computed(() => {
     const options = templateExamples.value.slice();
     if (defaultMessages.value || defaultNotes.value) {
@@ -247,15 +260,13 @@ const submit = () => {
                             <div class="col-span-2 space-x-2">
                                 <FloatingInput v-model="form.job_title" :label="$t('quotes.form.job_title')" class="mb-2" :disabled="isLocked" />
                                 <div class="mb-3">
-                                    <label class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('quotes.form.property') }}</label>
-                                    <select v-model.number="form.property_id"
+                                    <FloatingSelect
+                                        v-model="form.property_id"
+                                        :label="$t('quotes.form.property')"
+                                        :options="propertyOptions"
+                                        :placeholder="$t('quotes.form.no_property')"
                                         :disabled="isLocked"
-                                        class="mt-1 w-full py-2 px-3 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-500 focus:ring-green-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
-                                        <option v-if="!customer.properties || !customer.properties.length" value="">{{ $t('quotes.form.no_property') }}</option>
-                                        <option v-for="property in customer.properties" :key="property.id" :value="property.id">
-                                            {{ property.street1 }}{{ property.city ? ', ' + property.city : '' }}
-                                        </option>
-                                    </select>
+                                    />
                                 </div>
                                 <div class="flex flex-row space-x-6">
                                     <div class="lg:col-span-3">
@@ -303,16 +314,14 @@ const submit = () => {
                                         <span>{{ $t('quotes.form.quote_label') }}:</span>
                                         <span>{{ lastQuotesNumber|| quote?.number }} </span>
                                     </div>
-                                    <div class="text-xs text-stone-600 dark:text-neutral-400 flex justify-between mt-2">
-                                    <span>{{ $t('quotes.form.status') }}:</span>
-                                    <select v-model="form.status"
+                                    <div class="mt-2">
+                                        <FloatingSelect
+                                            v-model="form.status"
+                                            :label="$t('quotes.form.status')"
+                                            :options="statusOptions"
                                             :disabled="isLocked"
-                                            class="py-1 px-2 text-xs bg-white border border-stone-200 rounded-sm text-stone-700 focus:border-green-500 focus:ring-green-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
-                                        <option value="draft">{{ $t('quotes.status.draft') }}</option>
-                                        <option value="sent">{{ $t('quotes.status.sent') }}</option>
-                                            <option value="accepted">{{ $t('quotes.status.accepted') }}</option>
-                                            <option value="declined">{{ $t('quotes.status.declined') }}</option>
-                                        </select>
+                                            dense
+                                        />
                                     </div>
                                     <div class="text-xs text-stone-600 dark:text-neutral-400 flex justify-between">
                                         <span>{{ $t('quotes.form.rate_opportunity') }}:</span>

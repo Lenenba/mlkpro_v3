@@ -6,6 +6,7 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import InputError from '@/Components/InputError.vue';
 import Modal from '@/Components/Modal.vue';
 import { prepareMediaFile, MEDIA_LIMITS } from '@/utils/media';
+import FloatingSelect from '@/Components/FloatingSelect.vue';
 
 const props = defineProps({
     announcements: {
@@ -81,6 +82,19 @@ const placementOptions = computed(() =>
         value: placement,
         label: placementLabels.value[placement] || placement,
     }))
+);
+
+const tenantOptions = computed(() =>
+    (props.tenants || []).map((tenant) => {
+        const baseLabel = tenant.label || tenant.company_name || tenant.email || '';
+        const label = tenant.email && baseLabel && baseLabel !== tenant.email
+            ? `${baseLabel} (${tenant.email})`
+            : (baseLabel || tenant.email || '');
+        return {
+            value: String(tenant.id),
+            label,
+        };
+    })
 );
 
 const mediaTypeOptions = computed(() =>
@@ -449,52 +463,40 @@ watch(
 
                     <div v-if="showFilters" class="grid gap-3 md:grid-cols-4">
                         <div>
-                            <label class="block text-xs text-stone-500 dark:text-neutral-400">
-                                {{ $t('super_admin.announcements.filters.status') }}
-                            </label>
-                            <select v-model="filters.status"
-                                class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
-                                <option value="">{{ $t('super_admin.common.all') }}</option>
-                                <option v-for="option in statusOptions" :key="option.value" :value="option.value">
-                                    {{ option.label }}
-                                </option>
-                            </select>
+                            <FloatingSelect
+                                v-model="filters.status"
+                                :label="$t('super_admin.announcements.filters.status')"
+                                :options="statusOptions"
+                                :placeholder="$t('super_admin.common.all')"
+                                dense
+                            />
                         </div>
                         <div>
-                            <label class="block text-xs text-stone-500 dark:text-neutral-400">
-                                {{ $t('super_admin.announcements.filters.audience') }}
-                            </label>
-                            <select v-model="filters.audience"
-                                class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
-                                <option value="">{{ $t('super_admin.common.all') }}</option>
-                                <option v-for="option in audienceOptions" :key="option.value" :value="option.value">
-                                    {{ option.label }}
-                                </option>
-                            </select>
+                            <FloatingSelect
+                                v-model="filters.audience"
+                                :label="$t('super_admin.announcements.filters.audience')"
+                                :options="audienceOptions"
+                                :placeholder="$t('super_admin.common.all')"
+                                dense
+                            />
                         </div>
                         <div>
-                            <label class="block text-xs text-stone-500 dark:text-neutral-400">
-                                {{ $t('super_admin.announcements.filters.placement') }}
-                            </label>
-                            <select v-model="filters.placement"
-                                class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
-                                <option value="">{{ $t('super_admin.common.all') }}</option>
-                                <option v-for="option in placementOptions" :key="option.value" :value="option.value">
-                                    {{ option.label }}
-                                </option>
-                            </select>
+                            <FloatingSelect
+                                v-model="filters.placement"
+                                :label="$t('super_admin.announcements.filters.placement')"
+                                :options="placementOptions"
+                                :placeholder="$t('super_admin.common.all')"
+                                dense
+                            />
                         </div>
                         <div>
-                            <label class="block text-xs text-stone-500 dark:text-neutral-400">
-                                {{ $t('super_admin.announcements.filters.media') }}
-                            </label>
-                            <select v-model="filters.media"
-                                class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
-                                <option value="">{{ $t('super_admin.common.all') }}</option>
-                                <option v-for="option in mediaTypeOptions" :key="option.value" :value="option.value">
-                                    {{ option.label }}
-                                </option>
-                            </select>
+                            <FloatingSelect
+                                v-model="filters.media"
+                                :label="$t('super_admin.announcements.filters.media')"
+                                :options="mediaTypeOptions"
+                                :placeholder="$t('super_admin.common.all')"
+                                dense
+                            />
                         </div>
                     </div>
                 </form>
@@ -619,15 +621,11 @@ watch(
                             <InputError class="mt-1" :message="form.errors.title" />
                         </div>
                         <div>
-                            <label class="block text-xs text-stone-500 dark:text-neutral-400">
-                                {{ $t('super_admin.announcements.form.status') }}
-                            </label>
-                            <select v-model="form.status"
-                                class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
-                                <option v-for="option in statusOptions" :key="option.value" :value="option.value">
-                                    {{ option.label }}
-                                </option>
-                            </select>
+                            <FloatingSelect
+                                v-model="form.status"
+                                :label="$t('super_admin.announcements.form.status')"
+                                :options="statusOptions"
+                            />
                             <InputError class="mt-1" :message="form.errors.status" />
                         </div>
                     </div>
@@ -643,15 +641,11 @@ watch(
 
                     <div class="grid gap-3 md:grid-cols-2">
                         <div>
-                            <label class="block text-xs text-stone-500 dark:text-neutral-400">
-                                {{ $t('super_admin.announcements.form.display_style') }}
-                            </label>
-                            <select v-model="form.display_style"
-                                class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
-                                <option v-for="option in displayStyleOptions" :key="option.value" :value="option.value">
-                                    {{ option.label }}
-                                </option>
-                            </select>
+                            <FloatingSelect
+                                v-model="form.display_style"
+                                :label="$t('super_admin.announcements.form.display_style')"
+                                :options="displayStyleOptions"
+                            />
                             <p class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
                                 {{ $t('super_admin.announcements.form.display_style_hint') }}
                             </p>
@@ -678,27 +672,19 @@ watch(
 
                     <div class="grid gap-3 md:grid-cols-3">
                         <div>
-                            <label class="block text-xs text-stone-500 dark:text-neutral-400">
-                                {{ $t('super_admin.announcements.form.audience') }}
-                            </label>
-                            <select v-model="form.audience"
-                                class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
-                                <option v-for="option in audienceOptions" :key="option.value" :value="option.value">
-                                    {{ option.label }}
-                                </option>
-                            </select>
+                            <FloatingSelect
+                                v-model="form.audience"
+                                :label="$t('super_admin.announcements.form.audience')"
+                                :options="audienceOptions"
+                            />
                             <InputError class="mt-1" :message="form.errors.audience" />
                         </div>
                         <div>
-                            <label class="block text-xs text-stone-500 dark:text-neutral-400">
-                                {{ $t('super_admin.announcements.form.placement') }}
-                            </label>
-                            <select v-model="form.placement"
-                                class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
-                                <option v-for="option in placementOptions" :key="option.value" :value="option.value">
-                                    {{ option.label }}
-                                </option>
-                            </select>
+                            <FloatingSelect
+                                v-model="form.placement"
+                                :label="$t('super_admin.announcements.form.placement')"
+                                :options="placementOptions"
+                            />
                             <InputError class="mt-1" :message="form.errors.placement" />
                         </div>
                         <div>
@@ -712,15 +698,12 @@ watch(
                     </div>
 
                     <div v-if="form.audience === 'tenants'">
-                        <label class="block text-xs text-stone-500 dark:text-neutral-400">
-                            {{ $t('super_admin.announcements.form.target_tenants') }}
-                        </label>
-                        <select v-model="form.tenant_ids" multiple
-                            class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
-                            <option v-for="tenant in tenants" :key="tenant.id" :value="tenant.id">
-                                {{ tenant.label }} ({{ tenant.email }})
-                            </option>
-                        </select>
+                        <FloatingSelect
+                            v-model="form.tenant_ids"
+                            :label="$t('super_admin.announcements.form.target_tenants')"
+                            :options="tenantOptions"
+                            multiple
+                        />
                         <InputError class="mt-1" :message="form.errors.tenant_ids" />
                     </div>
 
@@ -758,15 +741,11 @@ watch(
                         </div>
                         <div class="mt-3 grid gap-3 md:grid-cols-3">
                             <div>
-                                <label class="block text-xs text-stone-500 dark:text-neutral-400">
-                                    {{ $t('super_admin.announcements.form.media_type') }}
-                                </label>
-                                <select v-model="form.media_type"
-                                    class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
-                                    <option v-for="option in mediaTypeOptions" :key="option.value" :value="option.value">
-                                        {{ option.label }}
-                                    </option>
-                                </select>
+                                <FloatingSelect
+                                    v-model="form.media_type"
+                                    :label="$t('super_admin.announcements.form.media_type')"
+                                    :options="mediaTypeOptions"
+                                />
                                 <InputError class="mt-1" :message="form.errors.media_type" />
                             </div>
                             <div>

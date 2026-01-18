@@ -5,6 +5,7 @@ import { usePage } from '@inertiajs/vue3';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingNumberMiniInput from '@/Components/FloatingNumberMiniInput.vue';
 import Modal from '@/Components/UI/Modal.vue';
+import FloatingSelect from '@/Components/FloatingSelect.vue';
 
 // Define component props
 const props = defineProps({
@@ -56,6 +57,7 @@ const lineItemLabel = computed(() => {
   }
   return defaultItemType.value === 'service' ? 'Service' : 'Produit';
 });
+const itemTypeLabel = 'Type';
 const itemTypeOptions = [
   { id: 'product', name: 'Produit' },
   { id: 'service', name: 'Service' },
@@ -410,16 +412,15 @@ const handleItemTypeChange = (index) => {
               <td class="size-px whitespace-nowrap px-4 py-3">
                 <div class="relative">
                   <div v-if="allowMixed" class="mb-2">
-                    <select
+                    <FloatingSelect
                       v-model="products[index].item_type"
+                      :label="itemTypeLabel"
+                      :options="itemTypeOptions"
                       :disabled="readOnly"
-                      class="w-full rounded-sm border border-stone-200 bg-white px-2 py-1 text-xs text-stone-700 focus:border-green-600 focus:ring-green-600 disabled:opacity-50 disabled:pointer-events-none dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
+                      dense
+                      class="text-[11px]"
                       @change="handleItemTypeChange(index)"
-                    >
-                      <option v-for="option in itemTypeOptions" :key="option.id" :value="option.id">
-                        {{ option.name }}
-                      </option>
-                    </select>
+                    />
                   </div>
                   <FloatingInput autofocus v-model="products[index].name" label="Nom" :disabled="readOnly"
                     @input="searchProducts(products[index].name, index)" />

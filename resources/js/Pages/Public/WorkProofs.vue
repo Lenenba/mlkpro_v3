@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue';
 import { Head, useForm, usePage } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
+import FloatingSelect from '@/Components/FloatingSelect.vue';
 import GuestLayout from '@/Layouts/GuestLayout.vue';
 import { humanizeDate } from '@/utils/date';
 import { prepareMediaFile, MEDIA_LIMITS } from '@/utils/media';
@@ -289,13 +290,15 @@ const proofType = (type) => {
 
             <form class="mt-4 space-y-4" @submit.prevent="submitProof">
                 <div>
-                    <label class="block text-xs text-stone-500">{{ $t('work_proofs.proof.type') }}</label>
-                    <select v-model="form.type"
-                        class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-emerald-600 focus:ring-emerald-600">
-                        <option value="execution">{{ $t('work_proofs.type.execution') }}</option>
-                        <option value="completion">{{ $t('work_proofs.type.completion') }}</option>
-                        <option value="other">{{ $t('work_proofs.type.other') }}</option>
-                    </select>
+                    <FloatingSelect
+                        v-model="form.type"
+                        :label="$t('work_proofs.proof.type')"
+                        :options="[
+                            { id: 'execution', name: $t('work_proofs.type.execution') },
+                            { id: 'completion', name: $t('work_proofs.type.completion') },
+                            { id: 'other', name: $t('work_proofs.type.other') },
+                        ]"
+                    />
                     <div v-if="form.errors.type" class="mt-1 text-xs text-red-600">
                         {{ form.errors.type }}
                     </div>

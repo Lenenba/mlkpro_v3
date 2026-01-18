@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use App\Services\TaskTimingService;
 
 class Task extends Model
 {
@@ -35,15 +36,25 @@ class Task extends Model
         'start_time',
         'end_time',
         'completed_at',
+        'completion_reason',
+        'delay_reason',
+        'delay_started_at',
+        'client_notified_at',
         'auto_started_at',
         'auto_completed_at',
         'start_alerted_at',
         'end_alerted_at',
     ];
 
+    protected $appends = [
+        'timing_status',
+    ];
+
     protected $casts = [
         'due_date' => 'date',
         'completed_at' => 'datetime',
+        'delay_started_at' => 'datetime',
+        'client_notified_at' => 'datetime',
         'auto_started_at' => 'datetime',
         'auto_completed_at' => 'datetime',
         'start_alerted_at' => 'datetime',
@@ -96,8 +107,18 @@ class Task extends Model
         return $this->hasMany(TaskMedia::class);
     }
 
+    public function statusHistories(): HasMany
+    {
+        return $this->hasMany(TaskStatusHistory::class)->latest('created_at');
+    }
+
     public function scopeForAccount(Builder $query, int $accountId): Builder
     {
         return $query->where('account_id', $accountId);
+    }
+
+    public function getTimingStatusAttribute(): ?string
+    {
+        return TaskTimingService::resolveTimingStatus($this);
     }
 }

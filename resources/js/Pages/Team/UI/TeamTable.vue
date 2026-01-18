@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue';
 import { router, useForm } from '@inertiajs/vue3';
 import Modal from '@/Components/UI/Modal.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
+import FloatingSelect from '@/Components/FloatingSelect.vue';
 import InputError from '@/Components/InputError.vue';
 import Checkbox from '@/Components/Checkbox.vue';
 import DropzoneInput from '@/Components/DropzoneInput.vue';
@@ -22,6 +23,11 @@ const props = defineProps({
 
 const query = ref('');
 const isAvatarIcon = (value) => avatarIconPresets.includes(value);
+const roleOptions = [
+    { id: 'admin', name: 'Administrator' },
+    { id: 'member', name: 'Team member' },
+    { id: 'seller', name: 'Seller (POS)' },
+];
 
 const normalize = (value) => String(value || '').toLowerCase();
 const filteredMembers = computed(() => {
@@ -443,13 +449,7 @@ watch(() => editForm.profile_picture, (value) => {
                     <InputError class="mt-1" :message="createForm.errors.avatar_icon" />
                 </div>
                 <div>
-                    <label class="block text-xs text-stone-500 dark:text-neutral-400">Role</label>
-                    <select v-model="createForm.role"
-                        class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
-                        <option value="admin">Administrator</option>
-                        <option value="member">Team member</option>
-                        <option value="seller">Seller (POS)</option>
-                    </select>
+                    <FloatingSelect v-model="createForm.role" label="Role" :options="roleOptions" />
                     <InputError class="mt-1" :message="createForm.errors.role" />
                 </div>
                 <div>
@@ -538,13 +538,7 @@ watch(() => editForm.profile_picture, (value) => {
                     <InputError class="mt-1" :message="editForm.errors.password" />
                 </div>
                 <div>
-                    <label class="block text-xs text-stone-500 dark:text-neutral-400">Role</label>
-                    <select v-model="editForm.role"
-                        class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
-                        <option value="admin">Administrator</option>
-                        <option value="member">Team member</option>
-                        <option value="seller">Seller (POS)</option>
-                    </select>
+                    <FloatingSelect v-model="editForm.role" label="Role" :options="roleOptions" />
                     <InputError class="mt-1" :message="editForm.errors.role" />
                 </div>
                 <div>

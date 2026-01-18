@@ -37,6 +37,12 @@ const customerOptions = computed(() =>
 );
 
 const properties = computed(() => selectedCustomer.value?.properties || []);
+const propertyOptions = computed(() =>
+    properties.value.map((property) => ({
+        id: property.id,
+        name: `${property.street1 || 'Property'}${property.city ? `, ${property.city}` : ''}`,
+    }))
+);
 
 watch(
     () => form.customer_id,
@@ -121,18 +127,12 @@ const submit = () => {
                     <h2 class="text-sm font-semibold text-stone-700 dark:text-neutral-200">Customer</h2>
                     <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
                         <FloatingSelect v-model="form.customer_id" label="Customer" :options="customerOptions" />
-                        <div>
-                            <label class="text-xs text-stone-500 dark:text-neutral-400">Property</label>
-                            <select
-                                v-model.number="form.property_id"
-                                class="mt-2 w-full rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm text-stone-700 focus:border-green-500 focus:ring-green-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
-                            >
-                                <option value="">No property</option>
-                                <option v-for="property in properties" :key="property.id" :value="property.id">
-                                    {{ property.street1 }}{{ property.city ? `, ${property.city}` : '' }}
-                                </option>
-                            </select>
-                        </div>
+                        <FloatingSelect
+                            v-model="form.property_id"
+                            label="Property"
+                            :options="propertyOptions"
+                            placeholder="No property"
+                        />
                     </div>
                 </div>
 

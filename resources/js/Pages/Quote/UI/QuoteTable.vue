@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue';
 import { Link, router, useForm } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
 import StarRating from '@/Components/UI/StarRating.vue';
+import FloatingSelect from '@/Components/FloatingSelect.vue';
 import { humanizeDate } from '@/utils/date';
 
 const props = defineProps({
@@ -154,6 +155,28 @@ const displayCustomer = (customer) =>
     customer?.company_name ||
     `${customer?.first_name || ''} ${customer?.last_name || ''}`.trim() ||
     t('quotes.labels.unknown_customer');
+
+const statusFilterOptions = computed(() => ([
+    { value: 'draft', label: t('quotes.status.draft') },
+    { value: 'sent', label: t('quotes.status.sent') },
+    { value: 'accepted', label: t('quotes.status.accepted') },
+    { value: 'declined', label: t('quotes.status.declined') },
+    { value: 'archived', label: t('quotes.status.archived') },
+]));
+const customerSelectOptions = computed(() =>
+    (props.customers || []).map((customer) => ({
+        value: String(customer.id),
+        label: displayCustomer(customer),
+    }))
+);
+const depositFilterOptions = computed(() => ([
+    { value: '1', label: t('quotes.filters.deposit.with') },
+    { value: '0', label: t('quotes.filters.deposit.none') },
+]));
+const taxFilterOptions = computed(() => ([
+    { value: '1', label: t('quotes.filters.tax.with') },
+    { value: '0', label: t('quotes.filters.tax.none') },
+]));
 
 const isArchived = (quote) => Boolean(quote?.archived_at);
 const displayStatus = (quote) => (isArchived(quote) ? 'archived' : (quote?.status || 'draft'));
@@ -319,23 +342,23 @@ const startQuote = () => {
                             {{ $t('quotes.view.cards') }}
                         </button>
                     </div>
-                    <select v-model="filterForm.status"
-                        class="py-2 ps-3 pe-8 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 dark:focus:ring-neutral-600">
-                        <option value="">{{ $t('quotes.filters.status.all') }}</option>
-                        <option value="draft">{{ $t('quotes.status.draft') }}</option>
-                        <option value="sent">{{ $t('quotes.status.sent') }}</option>
-                        <option value="accepted">{{ $t('quotes.status.accepted') }}</option>
-                        <option value="declined">{{ $t('quotes.status.declined') }}</option>
-                        <option value="archived">{{ $t('quotes.status.archived') }}</option>
-                    </select>
+                    <FloatingSelect
+                        v-model="filterForm.status"
+                        :label="$t('quotes.form.status')"
+                        :options="statusFilterOptions"
+                        :placeholder="$t('quotes.filters.status.all')"
+                        dense
+                        class="min-w-[150px]"
+                    />
 
-                    <select v-model="filterForm.customer_id"
-                        class="py-2 ps-3 pe-8 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 dark:focus:ring-neutral-600">
-                        <option value="">{{ $t('quotes.filters.customer.all') }}</option>
-                        <option v-for="customer in customers" :key="customer.id" :value="customer.id">
-                            {{ customer.company_name || `${customer.first_name || ''} ${customer.last_name || ''}`.trim() }}
-                        </option>
-                    </select>
+                    <FloatingSelect
+                        v-model="filterForm.customer_id"
+                        :label="$t('quotes.table.customer')"
+                        :options="customerSelectOptions"
+                        :placeholder="$t('quotes.filters.customer.all')"
+                        dense
+                        class="min-w-[170px]"
+                    />
 
                     <button type="button" @click="showAdvanced = !showAdvanced"
                         class="py-2 px-2.5 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700">
@@ -347,13 +370,14 @@ const startQuote = () => {
                     </button>
 
                     <div class="flex items-center gap-2">
-                        <select v-model="newQuoteCustomerId"
-                            class="py-2 ps-3 pe-8 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 dark:focus:ring-neutral-600">
-                            <option value="">{{ $t('quotes.actions.new_quote_for') }}</option>
-                            <option v-for="customer in customers" :key="customer.id" :value="customer.id">
-                                {{ customer.company_name || `${customer.first_name || ''} ${customer.last_name || ''}`.trim() }}
-                            </option>
-                        </select>
+                        <FloatingSelect
+                            v-model="newQuoteCustomerId"
+                            :label="$t('quotes.table.customer')"
+                            :options="customerSelectOptions"
+                            :placeholder="$t('quotes.actions.new_quote_for')"
+                            dense
+                            class="min-w-[190px]"
+                        />
                         <button type="button" @click="startQuote" :disabled="!newQuoteCustomerId"
                             class="py-2 px-2.5 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:ring-2 focus:ring-green-500">
                             {{ $t('quotes.actions.new_quote') }}
@@ -375,18 +399,20 @@ const startQuote = () => {
                 <input type="date" v-model="filterForm.created_to"
                     class="py-2 px-3 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
                     :placeholder="$t('quotes.filters.created_to')">
-                <select v-model="filterForm.has_deposit"
-                    class="py-2 ps-3 pe-8 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 dark:focus:ring-neutral-600">
-                    <option value="">{{ $t('quotes.filters.deposit.label') }}</option>
-                    <option value="1">{{ $t('quotes.filters.deposit.with') }}</option>
-                    <option value="0">{{ $t('quotes.filters.deposit.none') }}</option>
-                </select>
-                <select v-model="filterForm.has_tax"
-                    class="py-2 ps-3 pe-8 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 dark:focus:ring-neutral-600">
-                    <option value="">{{ $t('quotes.filters.tax.label') }}</option>
-                    <option value="1">{{ $t('quotes.filters.tax.with') }}</option>
-                    <option value="0">{{ $t('quotes.filters.tax.none') }}</option>
-                </select>
+                <FloatingSelect
+                    v-model="filterForm.has_deposit"
+                    :label="$t('quotes.filters.deposit.label')"
+                    :options="depositFilterOptions"
+                    :placeholder="$t('quotes.filters.deposit.label')"
+                    dense
+                />
+                <FloatingSelect
+                    v-model="filterForm.has_tax"
+                    :label="$t('quotes.filters.tax.label')"
+                    :options="taxFilterOptions"
+                    :placeholder="$t('quotes.filters.tax.label')"
+                    dense
+                />
             </div>
         </div>
 

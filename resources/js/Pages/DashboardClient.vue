@@ -11,6 +11,7 @@ import timeGridPlugin from '@fullcalendar/timegrid';
 import { buildPreviewEvents } from '@/utils/schedule';
 import { prepareMediaFile, MEDIA_LIMITS } from '@/utils/media';
 import { buildSparklinePoints, buildTrend } from '@/utils/kpi';
+import FloatingSelect from '@/Components/FloatingSelect.vue';
 import { useI18n } from 'vue-i18n';
 
 const props = defineProps({
@@ -202,6 +203,19 @@ const statusClass = (status) => {
             return 'bg-stone-100 text-stone-700 dark:bg-neutral-700 dark:text-neutral-200';
     }
 };
+
+const ratingOptions = computed(() =>
+    [1, 2, 3, 4, 5].map((value) => ({
+        value,
+        label: `${value} ${value > 1 ? t('client_dashboard.ratings.stars') : t('client_dashboard.ratings.star')}`,
+    }))
+);
+
+const proofTypeOptions = computed(() => ([
+    { value: 'execution', label: t('client_dashboard.proof.types.execution') },
+    { value: 'completion', label: t('client_dashboard.proof.types.completion') },
+    { value: 'other', label: t('client_dashboard.proof.types.other') },
+]));
 
 const paymentAmounts = reactive({});
 const ratingForms = reactive({
@@ -802,12 +816,13 @@ const submitWorkRating = (workId) => {
                                         </span>
                                     </div>
                                     <div class="mt-2 flex flex-wrap items-center gap-2">
-                                        <select v-model.number="ratingForms.quotes[quote.id].rating"
-                                            class="py-2 px-3 rounded-sm border border-stone-200 text-sm text-stone-700 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
-                                            <option v-for="value in [1, 2, 3, 4, 5]" :key="value" :value="value">
-                                                {{ value }} {{ value > 1 ? $t('client_dashboard.ratings.stars') : $t('client_dashboard.ratings.star') }}
-                                            </option>
-                                        </select>
+                                        <FloatingSelect
+                                            v-model="ratingForms.quotes[quote.id].rating"
+                                            :label="$t('client_dashboard.ratings.label')"
+                                            :options="ratingOptions"
+                                            dense
+                                            class="min-w-[140px] text-sm"
+                                        />
                                         <input v-model="ratingForms.quotes[quote.id].feedback" type="text"
                                             class="flex-1 min-w-[160px] py-2 px-3 rounded-sm border border-stone-200 text-sm text-stone-700 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
                                             :placeholder="$t('client_dashboard.labels.feedback_placeholder')" />
@@ -840,12 +855,13 @@ const submitWorkRating = (workId) => {
                                         </span>
                                     </div>
                                     <div class="mt-2 flex flex-wrap items-center gap-2">
-                                        <select v-model.number="ratingForms.works[work.id].rating"
-                                            class="py-2 px-3 rounded-sm border border-stone-200 text-sm text-stone-700 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
-                                            <option v-for="value in [1, 2, 3, 4, 5]" :key="value" :value="value">
-                                                {{ value }} {{ value > 1 ? $t('client_dashboard.ratings.stars') : $t('client_dashboard.ratings.star') }}
-                                            </option>
-                                        </select>
+                                        <FloatingSelect
+                                            v-model="ratingForms.works[work.id].rating"
+                                            :label="$t('client_dashboard.ratings.label')"
+                                            :options="ratingOptions"
+                                            dense
+                                            class="min-w-[140px] text-sm"
+                                        />
                                         <input v-model="ratingForms.works[work.id].feedback" type="text"
                                             class="flex-1 min-w-[160px] py-2 px-3 rounded-sm border border-stone-200 text-sm text-stone-700 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
                                             :placeholder="$t('client_dashboard.labels.feedback_placeholder')" />
@@ -1061,13 +1077,13 @@ const submitWorkRating = (workId) => {
 
                 <form class="mt-4 space-y-4" @submit.prevent="submitTaskProof">
                     <div>
-                        <label class="block text-xs text-stone-500 dark:text-neutral-400">{{ $t('client_dashboard.proof.type') }}</label>
-                        <select v-model="taskProofForm.type"
-                            class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
-                            <option value="execution">{{ $t('client_dashboard.proof.types.execution') }}</option>
-                            <option value="completion">{{ $t('client_dashboard.proof.types.completion') }}</option>
-                            <option value="other">{{ $t('client_dashboard.proof.types.other') }}</option>
-                        </select>
+                        <div class="mt-1">
+                            <FloatingSelect
+                                v-model="taskProofForm.type"
+                                :label="$t('client_dashboard.proof.type')"
+                                :options="proofTypeOptions"
+                            />
+                        </div>
                         <div v-if="taskProofForm.errors.type" class="mt-1 text-xs text-red-600">
                             {{ taskProofForm.errors.type }}
                         </div>

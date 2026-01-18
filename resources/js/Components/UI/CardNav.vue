@@ -8,6 +8,7 @@ import TabEmptyState from './TabEmptyState.vue';
 import RequestList from './RequestList.vue';
 import InvoiceList from './InvoiceList.vue';
 import OverviewSkeletonList from './OverviewSkeletonList.vue';
+import FloatingSelect from '@/Components/FloatingSelect.vue';
 import { computed, reactive, ref, watch } from 'vue';
 import { usePage } from '@inertiajs/vue3';
 import { isFeatureEnabled } from '@/utils/features';
@@ -196,13 +197,13 @@ const defaultPropertyId = computed(() => {
                                 {{ t('customers.tabs.active_works') }}
                             </div>
                             <div class="flex w-full items-center gap-2 sm:w-auto">
-                                <span class="text-xs text-stone-500 dark:text-neutral-400">{{ t('customers.tabs.status_label') }}</span>
-                                <select v-model="filters.active_works"
-                                    class="w-full rounded-sm border border-stone-200 bg-white py-1.5 ps-2.5 pe-8 text-xs text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 sm:w-auto">
-                                    <option v-for="option in filterOptions.active_works" :key="option.value" :value="option.value">
-                                        {{ option.label }}
-                                    </option>
-                                </select>
+                                <FloatingSelect
+                                    v-model="filters.active_works"
+                                    :label="t('customers.tabs.status_label')"
+                                    :options="filterOptions.active_works"
+                                    dense
+                                    class="min-w-[160px]"
+                                />
                             </div>
                         </div>
                         <OverviewSkeletonList v-if="isFiltering" />
@@ -226,13 +227,13 @@ const defaultPropertyId = computed(() => {
                                 {{ t('customers.tabs.requests') }}
                             </div>
                             <div class="flex w-full items-center gap-2 sm:w-auto">
-                                <span class="text-xs text-stone-500 dark:text-neutral-400">{{ t('customers.tabs.status_label') }}</span>
-                                <select v-model="filters.requests"
-                                    class="w-full rounded-sm border border-stone-200 bg-white py-1.5 ps-2.5 pe-8 text-xs text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 sm:w-auto">
-                                    <option v-for="option in filterOptions.requests" :key="option.value" :value="option.value">
-                                        {{ option.label }}
-                                    </option>
-                                </select>
+                                <FloatingSelect
+                                    v-model="filters.requests"
+                                    :label="t('customers.tabs.status_label')"
+                                    :options="filterOptions.requests"
+                                    dense
+                                    class="min-w-[160px]"
+                                />
                             </div>
                         </div>
                         <OverviewSkeletonList v-if="isFiltering" />
@@ -260,13 +261,13 @@ const defaultPropertyId = computed(() => {
                                 {{ t('customers.tabs.quotes') }}
                             </div>
                             <div class="flex w-full items-center gap-2 sm:w-auto">
-                                <span class="text-xs text-stone-500 dark:text-neutral-400">{{ t('customers.tabs.status_label') }}</span>
-                                <select v-model="filters.quotes"
-                                    class="w-full rounded-sm border border-stone-200 bg-white py-1.5 ps-2.5 pe-8 text-xs text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 sm:w-auto">
-                                    <option v-for="option in filterOptions.quotes" :key="option.value" :value="option.value">
-                                        {{ option.label }}
-                                    </option>
-                                </select>
+                                <FloatingSelect
+                                    v-model="filters.quotes"
+                                    :label="t('customers.tabs.status_label')"
+                                    :options="filterOptions.quotes"
+                                    dense
+                                    class="min-w-[160px]"
+                                />
                             </div>
                         </div>
                         <OverviewSkeletonList v-if="isFiltering" />
@@ -289,13 +290,13 @@ const defaultPropertyId = computed(() => {
                                 {{ t('customers.tabs.jobs') }}
                             </div>
                             <div class="flex w-full items-center gap-2 sm:w-auto">
-                                <span class="text-xs text-stone-500 dark:text-neutral-400">{{ t('customers.tabs.status_label') }}</span>
-                                <select v-model="filters.jobs"
-                                    class="w-full rounded-sm border border-stone-200 bg-white py-1.5 ps-2.5 pe-8 text-xs text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 sm:w-auto">
-                                    <option v-for="option in filterOptions.jobs" :key="option.value" :value="option.value">
-                                        {{ option.label }}
-                                    </option>
-                                </select>
+                                <FloatingSelect
+                                    v-model="filters.jobs"
+                                    :label="t('customers.tabs.status_label')"
+                                    :options="filterOptions.jobs"
+                                    dense
+                                    class="min-w-[160px]"
+                                />
                             </div>
                         </div>
                         <OverviewSkeletonList v-if="isFiltering" />
@@ -318,13 +319,13 @@ const defaultPropertyId = computed(() => {
                                 {{ t('customers.tabs.invoices') }}
                             </div>
                             <div class="flex w-full items-center gap-2 sm:w-auto">
-                                <span class="text-xs text-stone-500 dark:text-neutral-400">{{ t('customers.tabs.status_label') }}</span>
-                                <select v-model="filters.invoices"
-                                    class="w-full rounded-sm border border-stone-200 bg-white py-1.5 ps-2.5 pe-8 text-xs text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 sm:w-auto">
-                                    <option v-for="option in filterOptions.invoices" :key="option.value" :value="option.value">
-                                        {{ option.label }}
-                                    </option>
-                                </select>
+                                <FloatingSelect
+                                    v-model="filters.invoices"
+                                    :label="t('customers.tabs.status_label')"
+                                    :options="filterOptions.invoices"
+                                    dense
+                                    class="min-w-[160px]"
+                                />
                             </div>
                         </div>
                         <OverviewSkeletonList v-if="isFiltering" />

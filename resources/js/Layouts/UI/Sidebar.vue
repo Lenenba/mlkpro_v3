@@ -42,6 +42,7 @@ const avatarUrl = computed(() =>
 const showNotifications = computed(() => Boolean(page.props.notifications));
 const unreadCount = computed(() => page.props.notifications?.unread_count || 0);
 const hasUnread = computed(() => unreadCount.value > 0);
+const menuIconButtonClass = 'relative inline-flex size-9 items-center justify-center rounded-sm text-stone-600 hover:bg-stone-100 focus:outline-none focus:ring-2 focus:ring-green-500 dark:text-neutral-200 dark:hover:bg-neutral-800';
 const avatarInitial = computed(() => {
     const label = (userName.value || userEmail.value || '?').trim();
     return label.length ? label[0].toUpperCase() : '?';
@@ -206,7 +207,7 @@ const isCustomerActive = computed(() => {
                                     </LinkAncor>
                                 </template>
                                 <template v-else>
-                                <LanguageSwitcherMenu />
+                                <LanguageSwitcherMenu :button-class="menuIconButtonClass" :icon-class="'size-6'" />
                                 <MenuDropdown v-if="!isClient && !isSeller" active-item="/profile">
                                     <template #toggle-icon>
                                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
@@ -454,8 +455,9 @@ const isCustomerActive = computed(() => {
                                 </template>
                                 <li v-if="showNotifications" class="flex justify-center">
                                     <NotificationBell
-                                        :button-class="'relative inline-flex size-9 items-center justify-center rounded-sm text-stone-600 hover:bg-stone-100 focus:outline-none focus:ring-2 focus:ring-green-500 dark:text-neutral-200 dark:hover:bg-neutral-800'"
+                                        :button-class="menuIconButtonClass"
                                         :badge-class="'absolute -top-1 -end-1 rounded-full bg-amber-500 px-1.5 text-[10px] font-semibold text-white'"
+                                        :icon-class="'size-6'"
                                     />
                                 </li>
                             </ul>

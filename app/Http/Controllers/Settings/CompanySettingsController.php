@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Settings;
 use App\Http\Controllers\Controller;
 use App\Models\ProductCategory;
 use App\Models\Warehouse;
+use App\Services\CompanyNotificationPreferenceService;
 use App\Services\SupplierDirectory;
 use App\Services\UsageLimitService;
 use Illuminate\Http\Request;
@@ -42,6 +43,7 @@ class CompanySettingsController extends Controller
             ->forAccount($accountId)
             ->orderBy('name')
             ->get(['id', 'name', 'code', 'address', 'city', 'state', 'postal_code', 'country', 'is_default', 'is_active']);
+        $notificationSettings = app(CompanyNotificationPreferenceService::class)->resolveFor($user);
 
         return $this->inertiaOrJson('Settings/Company', [
             'company' => [
@@ -51,8 +53,10 @@ class CompanySettingsController extends Controller
                 'company_country' => $user->company_country,
                 'company_province' => $user->company_province,
                 'company_city' => $user->company_city,
+                'company_timezone' => $user->company_timezone,
                 'company_type' => $user->company_type,
                 'fulfillment' => $user->company_fulfillment ?? null,
+                'company_notification_settings' => $notificationSettings,
             ],
             'categories' => ProductCategory::forAccount($accountId)
                 ->active()
@@ -95,6 +99,7 @@ class CompanySettingsController extends Controller
             'company_country' => 'nullable|string|max:255',
             'company_province' => 'nullable|string|max:255',
             'company_city' => 'nullable|string|max:255',
+            'company_timezone' => 'nullable|string|max:255',
             'company_type' => 'required|string|in:services,products',
             'company_fulfillment' => 'nullable|array',
             'company_fulfillment.delivery_enabled' => 'nullable|boolean',
@@ -105,6 +110,11 @@ class CompanySettingsController extends Controller
             'company_fulfillment.prep_time_minutes' => 'nullable|integer|min:0|max:1440',
             'company_fulfillment.delivery_notes' => 'nullable|string|max:500',
             'company_fulfillment.pickup_notes' => 'nullable|string|max:500',
+            'company_notification_settings' => 'nullable|array',
+            'company_notification_settings.task_day' => 'nullable|array',
+            'company_notification_settings.task_day.email' => 'nullable|boolean',
+            'company_notification_settings.task_day.sms' => 'nullable|boolean',
+            'company_notification_settings.task_day.whatsapp' => 'nullable|boolean',
             'custom_suppliers' => 'nullable|array',
             'custom_suppliers.*.key' => 'required|string|max:80',
             'custom_suppliers.*.name' => 'required|string|max:255',
@@ -150,6 +160,12 @@ class CompanySettingsController extends Controller
             ]);
         }
 
+        $notificationSettings = $user->company_notification_settings;
+        if (array_key_exists('company_notification_settings', $validated)) {
+            $notificationSettings = app(CompanyNotificationPreferenceService::class)
+                ->mergeSettings($user, $validated['company_notification_settings'] ?? []);
+        }
+
         $user->update([
             'company_name' => $validated['company_name'],
             'company_logo' => $companyLogoPath,
@@ -157,6 +173,7 @@ class CompanySettingsController extends Controller
             'company_country' => $validated['company_country'] ?? null,
             'company_province' => $validated['company_province'] ?? null,
             'company_city' => $validated['company_city'] ?? null,
+            'company_timezone' => $validated['company_timezone'] ?? null,
             'company_type' => $validated['company_type'],
             'company_supplier_preferences' => [
                 'enabled' => $enabledSuppliers,
@@ -164,6 +181,7 @@ class CompanySettingsController extends Controller
                 'custom_suppliers' => $customSuppliers,
             ],
             'company_fulfillment' => $validated['company_fulfillment'] ?? $user->company_fulfillment,
+            'company_notification_settings' => $notificationSettings,
         ]);
 
         if ($this->shouldReturnJson($request)) {

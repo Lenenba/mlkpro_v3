@@ -4,6 +4,7 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import Checkbox from '@/Components/Checkbox.vue';
 import InputError from '@/Components/InputError.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
+import FloatingSelect from '@/Components/FloatingSelect.vue';
 
 const props = defineProps({
     settings: {
@@ -89,13 +90,11 @@ const submit = () => {
                     </div>
 
                     <div>
-                        <label class="block text-xs text-stone-500 dark:text-neutral-400">
-                            {{ $t('super_admin.notifications.digest_frequency') }}
-                        </label>
-                        <select v-model="form.digest_frequency"
-                            class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
-                            <option v-for="option in digest_options" :key="option" :value="option">{{ option }}</option>
-                        </select>
+                        <FloatingSelect
+                            v-model="form.digest_frequency"
+                            :label="$t('super_admin.notifications.digest_frequency')"
+                            :options="digest_options"
+                        />
                         <InputError class="mt-1" :message="form.errors.digest_frequency" />
                     </div>
 

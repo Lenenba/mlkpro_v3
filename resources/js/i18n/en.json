@@ -854,6 +854,7 @@
             "accept_creates_tasks": "Accepting will create tasks for each visit."
         },
         "ratings": {
+            "label": "Rating",
             "star": "star",
             "stars": "stars"
         },
@@ -1827,6 +1828,7 @@
             "unit": "Unit",
             "category": "Category",
             "tracking": "Tracking",
+            "stock": "Stock",
             "available": "Available",
             "minimum": "Minimum",
             "minimum_short": "Min",
@@ -1932,7 +1934,8 @@
                 "all": "All stock"
             },
             "alerts": {
-                "all": "All alerts"
+                "all": "All alerts",
+                "label": "Alerts"
             },
             "tracking": {
                 "all": "All tracking"
@@ -1946,6 +1949,7 @@
             },
             "media": {
                 "all": "All media",
+                "label": "Media",
                 "with_image": "With image",
                 "without_image": "Without image"
             },
@@ -1956,6 +1960,7 @@
             "supplier_name": "Supplier name",
             "barcodes": {
                 "all": "All barcodes",
+                "label": "Barcodes",
                 "with": "With barcode",
                 "without": "Without barcode"
             },
@@ -2025,6 +2030,9 @@
         "adjust": {
             "title": "Adjust stock",
             "product": "Product",
+            "type_label": "Adjustment type",
+            "warehouse_label": "Warehouse",
+            "reason_label": "Reason",
             "low_stock_alert": "Low stock alert. Minimum is {min}.",
             "types": {
                 "in": "Stock in",
@@ -2528,6 +2536,9 @@
         "show_title": "View job",
         "proofs_title": "Job proofs",
         "company_fallback": "Company",
+        "badges": {
+            "overdue": "Overdue ({count})"
+        },
         "form": {
             "customer_fallback": "Customer",
             "job_for": "Job for: {customer}",
@@ -2567,12 +2578,17 @@
                 "title": "TEAM",
                 "empty": "No team members yet.",
                 "member_fallback": "Team member",
-                "filter_hint": "Select a member to filter the calendar."
+                "filter_hint": "Select a member to filter the calendar.",
+                "search_label": "Search team members",
+                "selected_title": "Selected members",
+                "selected_badge": "Selected",
+                "search_empty": "No matching team members."
             },
             "calendar": {
                 "title": "Calendar",
                 "subtitle": "The calendar shows already scheduled visits.",
-                "all_members": "All members"
+                "all_members": "All members",
+                "filter_label": "Team filter"
             },
             "recurrence": {
                 "title": "RECURRENCE",
@@ -2892,7 +2908,12 @@
         },
         "view": {
             "board": "Board",
-            "schedule": "Schedule"
+            "schedule": "Schedule",
+            "team": "Team"
+        },
+        "team": {
+            "title": "Team schedule",
+            "no_members": "No team members yet."
         },
         "filters": {
             "search_placeholder": "Search tasks, details, or assignee",
@@ -2918,6 +2939,12 @@
             "todo": "To do",
             "in_progress": "In progress",
             "done": "Done"
+        },
+        "timing": {
+            "early": "Completed early",
+            "late": "Overdue",
+            "on_time": "On time",
+            "unscheduled": "Unscheduled"
         },
         "schedule": {
             "title": "Schedule",
@@ -2990,7 +3017,26 @@
             "open_in_maps": "Open in Maps",
             "address_unavailable": "Address unavailable for this task.",
             "timeline": "Timeline",
-            "back_to_tasks": "Back to tasks"
+            "back_to_tasks": "Back to tasks",
+            "execution": "Execution",
+            "completed_at": "Completed on",
+            "completion_reason": "Completion reason",
+            "not_completed": "Not completed",
+            "no_reason": "No reason provided"
+        },
+        "history": {
+            "title": "History",
+            "empty": "No history yet.",
+            "by": "By {name}",
+            "system": "System update",
+            "actions": {
+                "created": "Created",
+                "manual": "Manual update",
+                "auto_started": "Auto started",
+                "auto_completed": "Auto completed",
+                "overdue": "Marked overdue",
+                "client_notified": "Client notified"
+            }
         },
         "modal": {
             "add_title": "Add task",
@@ -3006,6 +3052,20 @@
             "due_date": "Due date",
             "assignee": "Assignee",
             "unassigned": "Unassigned"
+        },
+        "completion": {
+            "title": "Complete task",
+            "completed_at": "Completed date",
+            "reason": "Completion reason",
+            "confirm": "Confirm completion",
+            "reason_required": "A completion reason is required when the date differs."
+        },
+        "reasons": {
+            "client_available": "Client available",
+            "urgent_request": "Urgent request",
+            "optimized_planning": "Planning optimized",
+            "team_available": "Team available",
+            "materials_ready": "Materials ready"
         },
         "materials": {
             "title": "Materials",
@@ -3127,6 +3187,9 @@
                 "province_other": "Province / State (other)",
                 "city_optional": "City (optional)",
                 "city_other": "City (other)",
+                "timezone": "Time zone",
+                "timezone_placeholder": "Select a time zone",
+                "timezone_search_placeholder": "Search time zone",
                 "company_type": "Company type",
                 "type_services": "Service business",
                 "type_products": "Product business"
@@ -3156,6 +3219,13 @@
                 "pickup_address": "Pickup address",
                 "delivery_notes_optional": "Delivery notes (optional)",
                 "pickup_notes_optional": "Pickup notes (optional)"
+            },
+            "notifications": {
+                "title": "Task-day notifications",
+                "description": "Choose how clients are notified on the day of the task.",
+                "email": "Email",
+                "sms": "SMS",
+                "whatsapp": "WhatsApp"
             },
             "actions": {
                 "save": "Save"

@@ -4,6 +4,7 @@ import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
 import Modal from '@/Components/Modal.vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import FloatingSelect from '@/Components/FloatingSelect.vue';
 
 const props = defineProps({
     company: {
@@ -110,6 +111,13 @@ const showPickupQr = computed(() =>
 const canConfirmReceipt = computed(() =>
     order.value?.fulfillment_status === 'completed' && !order.value?.delivery_confirmed_at
 );
+const categoryOptions = computed(() => props.categories || []);
+const trackingOptions = computed(() => ([
+    { value: 'all', label: t('portal_shop.filters.tracking_all') },
+    { value: 'none', label: t('portal_shop.filters.tracking_standard') },
+    { value: 'lot', label: t('portal_shop.filters.tracking_lot') },
+    { value: 'serial', label: t('portal_shop.filters.tracking_serial') },
+]));
 
 const search = ref('');
 const cart = ref([]);
@@ -615,20 +623,12 @@ const cancelOrder = () => {
                         </div>
                         <div class="mt-4 space-y-4 text-sm">
                             <div>
-                                <label class="block text-xs text-stone-500 dark:text-neutral-400">{{ $t('portal_shop.filters.category_label') }}</label>
-                                <select
+                                <FloatingSelect
                                     v-model="selectedCategoryId"
-                                    class="mt-2 w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
-                                >
-                                    <option value="">{{ $t('portal_shop.filters.category_all') }}</option>
-                                    <option
-                                        v-for="category in categories"
-                                        :key="category.id"
-                                        :value="category.id"
-                                    >
-                                        {{ category.name }}
-                                    </option>
-                                </select>
+                                    :label="$t('portal_shop.filters.category_label')"
+                                    :options="categoryOptions"
+                                    :placeholder="$t('portal_shop.filters.category_all')"
+                                />
                             </div>
                             <div>
                                 <label class="block text-xs text-stone-500 dark:text-neutral-400">{{ $t('portal_shop.filters.availability_label') }}</label>
@@ -676,16 +676,11 @@ const cancelOrder = () => {
                                 </div>
                             </div>
                             <div>
-                                <label class="block text-xs text-stone-500 dark:text-neutral-400">{{ $t('portal_shop.filters.tracking_label') }}</label>
-                                <select
+                                <FloatingSelect
                                     v-model="trackingFilter"
-                                    class="mt-2 w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
-                                >
-                                    <option value="all">{{ $t('portal_shop.filters.tracking_all') }}</option>
-                                    <option value="none">{{ $t('portal_shop.filters.tracking_standard') }}</option>
-                                    <option value="lot">{{ $t('portal_shop.filters.tracking_lot') }}</option>
-                                    <option value="serial">{{ $t('portal_shop.filters.tracking_serial') }}</option>
-                                </select>
+                                    :label="$t('portal_shop.filters.tracking_label')"
+                                    :options="trackingOptions"
+                                />
                             </div>
                         </div>
                     </div>
