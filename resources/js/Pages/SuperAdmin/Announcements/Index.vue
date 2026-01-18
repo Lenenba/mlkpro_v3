@@ -1,5 +1,6 @@
 <script setup>
 import { computed, reactive, ref, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import InputError from '@/Components/InputError.vue';
@@ -37,6 +38,8 @@ const props = defineProps({
     },
 });
 
+const { t } = useI18n();
+
 const showForm = ref(false);
 const showFilters = ref(false);
 const editingId = ref(null);
@@ -52,7 +55,7 @@ const filters = reactive({
 const statusOptions = computed(() =>
     (props.statuses || []).map((status) => ({
         value: status,
-        label: status === 'active' ? 'Active' : 'Draft',
+        label: status === 'active' ? t('super_admin.announcements.status.active') : t('super_admin.announcements.status.draft'),
     }))
 );
 
@@ -61,22 +64,22 @@ const audienceOptions = computed(() =>
         value: audience,
         label:
             audience === 'tenants'
-                ? 'Specific tenants'
+                ? t('super_admin.announcements.audience.tenants')
                 : audience === 'new_tenants'
-                    ? 'New tenants'
-                    : 'All tenants',
+                    ? t('super_admin.announcements.audience.new_tenants')
+                    : t('super_admin.announcements.audience.all'),
     }))
 );
 
-const placementLabels = {
-    internal: 'Dashboard top',
-    quick_actions: 'Quick actions slot',
-};
+const placementLabels = computed(() => ({
+    internal: t('super_admin.announcements.placement.internal'),
+    quick_actions: t('super_admin.announcements.placement.quick_actions'),
+}));
 
 const placementOptions = computed(() =>
     (props.placements || []).map((placement) => ({
         value: placement,
-        label: placementLabels[placement] || placement,
+        label: placementLabels.value[placement] || placement,
     }))
 );
 
@@ -85,10 +88,10 @@ const mediaTypeOptions = computed(() =>
         value: type,
         label:
             type === 'image'
-                ? 'Image'
+                ? t('super_admin.announcements.media.image')
                 : type === 'video'
-                    ? 'Video'
-                    : 'No media',
+                    ? t('super_admin.announcements.media.video')
+                    : t('super_admin.announcements.media.none'),
     }))
 );
 
@@ -97,7 +100,7 @@ const displayStyleOptions = computed(() => {
 
     return styles.map((style) => ({
         value: style,
-        label: style === 'media_only' ? 'Media only' : 'Standard card',
+        label: style === 'media_only' ? t('super_admin.announcements.display_style.media_only') : t('super_admin.announcements.display_style.standard'),
     }));
 });
 
@@ -173,13 +176,13 @@ const mediaLabel = (value) => resolveLabel(mediaTypeOptions.value, value || 'non
 
 const announcementWindow = (item) => {
     if (item.starts_at && item.ends_at) {
-        return `${item.starts_at} to ${item.ends_at}`;
+        return t('super_admin.announcements.window.range', { start: item.starts_at, end: item.ends_at });
     }
     if (item.ends_at) {
-        return `Until ${item.ends_at}`;
+        return t('super_admin.announcements.window.until', { end: item.ends_at });
     }
     if (item.starts_at) {
-        return `From ${item.starts_at}`;
+        return t('super_admin.announcements.window.from', { start: item.starts_at });
     }
     return '';
 };
@@ -317,7 +320,7 @@ const deleteAnnouncement = (announcement) => {
     if (form.processing) {
         return;
     }
-    if (!window.confirm('Delete this announcement?')) {
+    if (!window.confirm(t('super_admin.announcements.actions.confirm_delete'))) {
         return;
     }
     router.delete(route('superadmin.announcements.destroy', announcement.id), {
@@ -339,26 +342,28 @@ watch(
 </script>
 
 <template>
-    <Head title="Announcements" />
+    <Head :title="$t('super_admin.announcements.page_title')" />
 
     <AuthenticatedLayout>
         <div class="space-y-6">
             <section class="rounded-sm border border-stone-200 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
                 <div class="flex flex-wrap items-center justify-between gap-3">
                     <div class="space-y-1">
-                        <h1 class="text-xl font-semibold text-stone-800 dark:text-neutral-100">Client dashboard announcements</h1>
+                        <h1 class="text-xl font-semibold text-stone-800 dark:text-neutral-100">
+                            {{ $t('super_admin.announcements.title') }}
+                        </h1>
                         <p class="text-sm text-stone-600 dark:text-neutral-400">
-                            Manage videos or flyers shown on tenant/client dashboards.
+                            {{ $t('super_admin.announcements.subtitle') }}
                         </p>
                     </div>
                     <div class="flex flex-wrap items-center gap-2">
                         <Link :href="route('superadmin.announcements.preview')"
                             class="py-2 px-3 text-sm font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
-                            Preview placement
+                            {{ $t('super_admin.announcements.actions.preview') }}
                         </Link>
                         <button type="button" @click="openCreate"
                             class="py-2 px-3 text-sm font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700">
-                            Add announcement
+                            {{ $t('super_admin.announcements.actions.add') }}
                         </button>
                     </div>
                 </div>
@@ -366,31 +371,41 @@ watch(
 
             <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-2 md:gap-3 lg:gap-5">
                 <div class="p-4 bg-white border border-t-4 border-t-emerald-600 border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
-                    <p class="text-xs text-stone-500 dark:text-neutral-400">Total</p>
+                    <p class="text-xs text-stone-500 dark:text-neutral-400">
+                        {{ $t('super_admin.announcements.stats.total') }}
+                    </p>
                     <p class="mt-1 text-2xl font-semibold text-stone-800 dark:text-neutral-100">
                         {{ formatNumber(totalCount) }}
                     </p>
                 </div>
                 <div class="p-4 bg-white border border-t-4 border-t-blue-600 border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
-                    <p class="text-xs text-stone-500 dark:text-neutral-400">Active</p>
+                    <p class="text-xs text-stone-500 dark:text-neutral-400">
+                        {{ $t('super_admin.announcements.stats.active') }}
+                    </p>
                     <p class="mt-1 text-2xl font-semibold text-stone-800 dark:text-neutral-100">
                         {{ formatNumber(activeCount) }}
                     </p>
                 </div>
                 <div class="p-4 bg-white border border-t-4 border-t-rose-600 border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
-                    <p class="text-xs text-stone-500 dark:text-neutral-400">Drafts</p>
+                    <p class="text-xs text-stone-500 dark:text-neutral-400">
+                        {{ $t('super_admin.announcements.stats.drafts') }}
+                    </p>
                     <p class="mt-1 text-2xl font-semibold text-stone-800 dark:text-neutral-100">
                         {{ formatNumber(draftCount) }}
                     </p>
                 </div>
                 <div class="p-4 bg-white border border-t-4 border-t-amber-600 border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
-                    <p class="text-xs text-stone-500 dark:text-neutral-400">With media</p>
+                    <p class="text-xs text-stone-500 dark:text-neutral-400">
+                        {{ $t('super_admin.announcements.stats.with_media') }}
+                    </p>
                     <p class="mt-1 text-2xl font-semibold text-stone-800 dark:text-neutral-100">
                         {{ formatNumber(mediaCount) }}
                     </p>
                 </div>
                 <div class="p-4 bg-white border border-t-4 border-t-sky-600 border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
-                    <p class="text-xs text-stone-500 dark:text-neutral-400">Targeted</p>
+                    <p class="text-xs text-stone-500 dark:text-neutral-400">
+                        {{ $t('super_admin.announcements.stats.targeted') }}
+                    </p>
                     <p class="mt-1 text-2xl font-semibold text-stone-800 dark:text-neutral-100">
                         {{ formatNumber(targetedCount) }}
                     </p>
@@ -413,61 +428,69 @@ watch(
                                 </div>
                                 <input v-model="filters.search" type="text"
                                     class="py-[7px] ps-10 pe-8 block w-full bg-white border border-stone-200 rounded-sm text-sm placeholder:text-stone-500 focus:border-green-500 focus:ring-green-600 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 dark:placeholder:text-neutral-400"
-                                    placeholder="Search announcements">
+                                    :placeholder="$t('super_admin.announcements.filters.search_placeholder')">
                             </div>
                         </div>
                         <div class="flex flex-wrap items-center gap-2 justify-end">
                             <button type="button" @click="showFilters = !showFilters"
                                 class="py-2 px-2.5 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700">
-                                Filters
+                                {{ $t('super_admin.common.filters') }}
                             </button>
                             <button type="button" @click="resetFilters"
                                 class="py-2 px-2.5 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700">
-                                Clear
+                                {{ $t('super_admin.common.clear') }}
                             </button>
                             <button type="submit"
                                 class="py-2 px-3 inline-flex items-center gap-x-2 text-xs font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700">
-                                Apply filters
+                                {{ $t('super_admin.common.apply_filters') }}
                             </button>
                         </div>
                     </div>
 
                     <div v-if="showFilters" class="grid gap-3 md:grid-cols-4">
                         <div>
-                            <label class="block text-xs text-stone-500 dark:text-neutral-400">Status</label>
+                            <label class="block text-xs text-stone-500 dark:text-neutral-400">
+                                {{ $t('super_admin.announcements.filters.status') }}
+                            </label>
                             <select v-model="filters.status"
                                 class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
-                                <option value="">All</option>
+                                <option value="">{{ $t('super_admin.common.all') }}</option>
                                 <option v-for="option in statusOptions" :key="option.value" :value="option.value">
                                     {{ option.label }}
                                 </option>
                             </select>
                         </div>
                         <div>
-                            <label class="block text-xs text-stone-500 dark:text-neutral-400">Audience</label>
+                            <label class="block text-xs text-stone-500 dark:text-neutral-400">
+                                {{ $t('super_admin.announcements.filters.audience') }}
+                            </label>
                             <select v-model="filters.audience"
                                 class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
-                                <option value="">All</option>
+                                <option value="">{{ $t('super_admin.common.all') }}</option>
                                 <option v-for="option in audienceOptions" :key="option.value" :value="option.value">
                                     {{ option.label }}
                                 </option>
                             </select>
                         </div>
                         <div>
-                            <label class="block text-xs text-stone-500 dark:text-neutral-400">Placement</label>
+                            <label class="block text-xs text-stone-500 dark:text-neutral-400">
+                                {{ $t('super_admin.announcements.filters.placement') }}
+                            </label>
                             <select v-model="filters.placement"
                                 class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
-                                <option value="">All</option>
+                                <option value="">{{ $t('super_admin.common.all') }}</option>
                                 <option v-for="option in placementOptions" :key="option.value" :value="option.value">
                                     {{ option.label }}
                                 </option>
                             </select>
                         </div>
                         <div>
-                            <label class="block text-xs text-stone-500 dark:text-neutral-400">Media</label>
+                            <label class="block text-xs text-stone-500 dark:text-neutral-400">
+                                {{ $t('super_admin.announcements.filters.media') }}
+                            </label>
                             <select v-model="filters.media"
                                 class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
-                                <option value="">All</option>
+                                <option value="">{{ $t('super_admin.common.all') }}</option>
                                 <option v-for="option in mediaTypeOptions" :key="option.value" :value="option.value">
                                     {{ option.label }}
                                 </option>
@@ -481,12 +504,12 @@ watch(
                     <table class="min-w-full divide-y divide-stone-200 text-sm text-left text-stone-600 dark:divide-neutral-700 dark:text-neutral-300">
                         <thead class="text-xs uppercase text-stone-500 dark:text-neutral-400">
                             <tr>
-                                <th class="px-4 py-3">Title</th>
-                                <th class="px-4 py-3">Audience</th>
-                                <th class="px-4 py-3">Status</th>
-                                <th class="px-4 py-3">Window</th>
-                                <th class="px-4 py-3">Media</th>
-                                <th class="px-4 py-3">Priority</th>
+                                <th class="px-4 py-3">{{ $t('super_admin.announcements.table.title') }}</th>
+                                <th class="px-4 py-3">{{ $t('super_admin.announcements.table.audience') }}</th>
+                                <th class="px-4 py-3">{{ $t('super_admin.announcements.table.status') }}</th>
+                                <th class="px-4 py-3">{{ $t('super_admin.announcements.table.window') }}</th>
+                                <th class="px-4 py-3">{{ $t('super_admin.announcements.table.media') }}</th>
+                                <th class="px-4 py-3">{{ $t('super_admin.announcements.table.priority') }}</th>
                                 <th class="px-4 py-3"></th>
                             </tr>
                         </thead>
@@ -507,17 +530,17 @@ watch(
                                     </div>
                                     <div v-if="announcement.audience === 'tenants' && announcement.tenant_labels?.length"
                                         class="text-xs text-stone-500 dark:text-neutral-400">
-                                        Targets: {{ announcement.tenant_labels.join(', ') }}
+                                        {{ $t('super_admin.announcements.table.targets') }}: {{ announcement.tenant_labels.join(', ') }}
                                     </div>
                                     <div v-if="announcement.audience === 'new_tenants' && announcement.new_tenant_days"
                                         class="text-xs text-stone-500 dark:text-neutral-400">
-                                        New tenants: {{ announcement.new_tenant_days }} days
+                                        {{ $t('super_admin.announcements.table.new_tenants', { days: announcement.new_tenant_days }) }}
                                     </div>
                                 </td>
                                 <td class="px-4 py-3">
                                     <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold"
                                         :class="statusClass(announcement.status)">
-                                        {{ announcement.status }}
+                                        {{ announcement.status === 'active' ? $t('super_admin.announcements.status.active') : $t('super_admin.announcements.status.draft') }}
                                     </span>
                                 </td>
                                 <td class="px-4 py-3">
@@ -529,7 +552,7 @@ watch(
                                         {{ mediaLabel(announcement.media_type) }}
                                     </div>
                                     <div v-if="announcement.media_url" class="text-xs text-stone-500 dark:text-neutral-400">
-                                        Attached
+                                        {{ $t('super_admin.announcements.table.attached') }}
                                     </div>
                                 </td>
                                 <td class="px-4 py-3">{{ announcement.priority ?? 0 }}</td>
@@ -537,7 +560,7 @@ watch(
                                     <div class="hs-dropdown [--auto-close:inside] [--placement:bottom-right] relative inline-flex">
                                         <button type="button"
                                             class="size-7 inline-flex justify-center items-center gap-x-2 rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700"
-                                            aria-haspopup="menu" aria-expanded="false" aria-label="Actions">
+                                            aria-haspopup="menu" aria-expanded="false" :aria-label="$t('super_admin.common.actions')">
                                             <svg class="shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" width="24"
                                                 height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                                                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -551,12 +574,12 @@ watch(
                                             <div class="p-1">
                                                 <button type="button" @click="openEdit(announcement)"
                                                     class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
-                                                    Edit
+                                                    {{ $t('super_admin.common.edit') }}
                                                 </button>
                                                 <div class="my-1 border-t border-stone-200 dark:border-neutral-800"></div>
                                                 <button type="button" @click="deleteAnnouncement(announcement)"
                                                     class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-neutral-800">
-                                                    Delete
+                                                    {{ $t('super_admin.common.delete') }}
                                                 </button>
                                             </div>
                                         </div>
@@ -565,7 +588,7 @@ watch(
                             </tr>
                             <tr v-if="!filteredAnnouncements.length">
                                 <td colspan="7" class="px-4 py-6 text-center text-sm text-stone-500 dark:text-neutral-400">
-                                    No announcements found.
+                                    {{ $t('super_admin.announcements.empty') }}
                                 </td>
                             </tr>
                         </tbody>
@@ -578,23 +601,27 @@ watch(
             <div class="p-5">
                 <div class="flex items-center justify-between">
                     <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
-                        {{ isEditing ? 'Edit announcement' : 'New announcement' }}
+                        {{ isEditing ? $t('super_admin.announcements.form.edit_title') : $t('super_admin.announcements.form.new_title') }}
                     </h2>
                     <button type="button" @click="closeForm" class="text-sm text-stone-500 dark:text-neutral-400">
-                        Close
+                        {{ $t('super_admin.common.close') }}
                     </button>
                 </div>
 
                 <form class="mt-4 space-y-4" @submit.prevent="submit">
                     <div class="grid gap-3 md:grid-cols-2">
                         <div>
-                            <label class="block text-xs text-stone-500 dark:text-neutral-400">Title</label>
+                            <label class="block text-xs text-stone-500 dark:text-neutral-400">
+                                {{ $t('super_admin.announcements.form.title') }}
+                            </label>
                             <input v-model="form.title" type="text"
                                 class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200" />
                             <InputError class="mt-1" :message="form.errors.title" />
                         </div>
                         <div>
-                            <label class="block text-xs text-stone-500 dark:text-neutral-400">Status</label>
+                            <label class="block text-xs text-stone-500 dark:text-neutral-400">
+                                {{ $t('super_admin.announcements.form.status') }}
+                            </label>
                             <select v-model="form.status"
                                 class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
                                 <option v-for="option in statusOptions" :key="option.value" :value="option.value">
@@ -606,7 +633,9 @@ watch(
                     </div>
 
                     <div>
-                        <label class="block text-xs text-stone-500 dark:text-neutral-400">Message</label>
+                        <label class="block text-xs text-stone-500 dark:text-neutral-400">
+                            {{ $t('super_admin.announcements.form.message') }}
+                        </label>
                         <textarea v-model="form.body" rows="3"
                             class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"></textarea>
                         <InputError class="mt-1" :message="form.errors.body" />
@@ -614,7 +643,9 @@ watch(
 
                     <div class="grid gap-3 md:grid-cols-2">
                         <div>
-                            <label class="block text-xs text-stone-500 dark:text-neutral-400">Display style</label>
+                            <label class="block text-xs text-stone-500 dark:text-neutral-400">
+                                {{ $t('super_admin.announcements.form.display_style') }}
+                            </label>
                             <select v-model="form.display_style"
                                 class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
                                 <option v-for="option in displayStyleOptions" :key="option.value" :value="option.value">
@@ -622,12 +653,14 @@ watch(
                                 </option>
                             </select>
                             <p class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
-                                Media only hides the title, message, and link.
+                                {{ $t('super_admin.announcements.form.display_style_hint') }}
                             </p>
                             <InputError class="mt-1" :message="form.errors.display_style" />
                         </div>
                         <div>
-                            <label class="block text-xs text-stone-500 dark:text-neutral-400">Card background</label>
+                            <label class="block text-xs text-stone-500 dark:text-neutral-400">
+                                {{ $t('super_admin.announcements.form.card_background') }}
+                            </label>
                             <div class="mt-1 flex items-center gap-2">
                                 <input v-model="form.background_color" type="text" placeholder="#F8FAFC"
                                     class="block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200" />
@@ -636,7 +669,7 @@ watch(
                                     class="h-9 w-10 rounded-sm border border-stone-200 bg-white p-1 dark:bg-neutral-900 dark:border-neutral-700" />
                                 <button type="button" @click="form.background_color = ''"
                                     class="py-2 px-2.5 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
-                                    Clear
+                                    {{ $t('super_admin.common.clear') }}
                                 </button>
                             </div>
                             <InputError class="mt-1" :message="form.errors.background_color" />
@@ -645,7 +678,9 @@ watch(
 
                     <div class="grid gap-3 md:grid-cols-3">
                         <div>
-                            <label class="block text-xs text-stone-500 dark:text-neutral-400">Audience</label>
+                            <label class="block text-xs text-stone-500 dark:text-neutral-400">
+                                {{ $t('super_admin.announcements.form.audience') }}
+                            </label>
                             <select v-model="form.audience"
                                 class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
                                 <option v-for="option in audienceOptions" :key="option.value" :value="option.value">
@@ -655,7 +690,9 @@ watch(
                             <InputError class="mt-1" :message="form.errors.audience" />
                         </div>
                         <div>
-                            <label class="block text-xs text-stone-500 dark:text-neutral-400">Placement</label>
+                            <label class="block text-xs text-stone-500 dark:text-neutral-400">
+                                {{ $t('super_admin.announcements.form.placement') }}
+                            </label>
                             <select v-model="form.placement"
                                 class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
                                 <option v-for="option in placementOptions" :key="option.value" :value="option.value">
@@ -665,7 +702,9 @@ watch(
                             <InputError class="mt-1" :message="form.errors.placement" />
                         </div>
                         <div>
-                            <label class="block text-xs text-stone-500 dark:text-neutral-400">Priority</label>
+                            <label class="block text-xs text-stone-500 dark:text-neutral-400">
+                                {{ $t('super_admin.announcements.form.priority') }}
+                            </label>
                             <input v-model.number="form.priority" type="number" min="0"
                                 class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200" />
                             <InputError class="mt-1" :message="form.errors.priority" />
@@ -673,7 +712,9 @@ watch(
                     </div>
 
                     <div v-if="form.audience === 'tenants'">
-                        <label class="block text-xs text-stone-500 dark:text-neutral-400">Target tenants</label>
+                        <label class="block text-xs text-stone-500 dark:text-neutral-400">
+                            {{ $t('super_admin.announcements.form.target_tenants') }}
+                        </label>
                         <select v-model="form.tenant_ids" multiple
                             class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
                             <option v-for="tenant in tenants" :key="tenant.id" :value="tenant.id">
@@ -684,7 +725,9 @@ watch(
                     </div>
 
                     <div v-if="form.audience === 'new_tenants'">
-                        <label class="block text-xs text-stone-500 dark:text-neutral-400">New tenant window (days)</label>
+                        <label class="block text-xs text-stone-500 dark:text-neutral-400">
+                            {{ $t('super_admin.announcements.form.new_tenant_window') }}
+                        </label>
                         <input v-model.number="form.new_tenant_days" type="number" min="1" max="365"
                             class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200" />
                         <InputError class="mt-1" :message="form.errors.new_tenant_days" />
@@ -692,13 +735,17 @@ watch(
 
                     <div class="grid gap-3 md:grid-cols-2">
                         <div>
-                            <label class="block text-xs text-stone-500 dark:text-neutral-400">Start date</label>
+                            <label class="block text-xs text-stone-500 dark:text-neutral-400">
+                                {{ $t('super_admin.announcements.form.start_date') }}
+                            </label>
                             <input v-model="form.starts_at" type="date"
                                 class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200" />
                             <InputError class="mt-1" :message="form.errors.starts_at" />
                         </div>
                         <div>
-                            <label class="block text-xs text-stone-500 dark:text-neutral-400">End date</label>
+                            <label class="block text-xs text-stone-500 dark:text-neutral-400">
+                                {{ $t('super_admin.announcements.form.end_date') }}
+                            </label>
                             <input v-model="form.ends_at" type="date"
                                 class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200" />
                             <InputError class="mt-1" :message="form.errors.ends_at" />
@@ -706,10 +753,14 @@ watch(
                     </div>
 
                     <div class="rounded-sm border border-stone-200 p-3 dark:border-neutral-700">
-                        <div class="text-xs font-semibold text-stone-600 dark:text-neutral-300">Media</div>
+                        <div class="text-xs font-semibold text-stone-600 dark:text-neutral-300">
+                            {{ $t('super_admin.announcements.form.media_section') }}
+                        </div>
                         <div class="mt-3 grid gap-3 md:grid-cols-3">
                             <div>
-                                <label class="block text-xs text-stone-500 dark:text-neutral-400">Media type</label>
+                                <label class="block text-xs text-stone-500 dark:text-neutral-400">
+                                    {{ $t('super_admin.announcements.form.media_type') }}
+                                </label>
                                 <select v-model="form.media_type"
                                     class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
                                     <option v-for="option in mediaTypeOptions" :key="option.value" :value="option.value">
@@ -719,13 +770,17 @@ watch(
                                 <InputError class="mt-1" :message="form.errors.media_type" />
                             </div>
                             <div>
-                                <label class="block text-xs text-stone-500 dark:text-neutral-400">Media URL</label>
+                                <label class="block text-xs text-stone-500 dark:text-neutral-400">
+                                    {{ $t('super_admin.announcements.form.media_url') }}
+                                </label>
                                 <input v-model="form.media_url" type="url" placeholder="https://"
                                     class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200" />
                                 <InputError class="mt-1" :message="form.errors.media_url" />
                             </div>
                             <div>
-                                <label class="block text-xs text-stone-500 dark:text-neutral-400">Upload file</label>
+                                <label class="block text-xs text-stone-500 dark:text-neutral-400">
+                                    {{ $t('super_admin.announcements.form.upload_file') }}
+                                </label>
                                 <input :key="fileInputKey" type="file" @change="handleMediaFile"
                                     class="mt-1 block w-full text-xs text-stone-600 dark:text-neutral-200"
                                     accept="image/*,video/*" />
@@ -734,10 +789,12 @@ watch(
                         </div>
                         <label v-if="isEditing && hasExistingMedia" class="mt-3 flex items-center gap-2 text-xs text-stone-600 dark:text-neutral-300">
                             <input v-model="form.clear_media" type="checkbox" class="rounded-sm border-stone-300 text-green-600 focus:ring-green-600" />
-                            Remove existing media
+                            {{ $t('super_admin.announcements.form.remove_media') }}
                         </label>
                         <div v-if="isEditing && hasExistingMedia" class="mt-3 rounded-sm border border-stone-200 p-2 dark:border-neutral-700">
-                            <div class="text-xs text-stone-500 dark:text-neutral-400">Current media</div>
+                            <div class="text-xs text-stone-500 dark:text-neutral-400">
+                                {{ $t('super_admin.announcements.form.current_media') }}
+                            </div>
                             <div class="mt-2 overflow-hidden rounded-sm border border-stone-200 dark:border-neutral-700">
                                 <img v-if="editingAnnouncement?.media_type === 'image'" :src="editingAnnouncement?.media_url"
                                     alt="" class="h-32 w-full object-cover" />
@@ -750,13 +807,17 @@ watch(
 
                     <div class="grid gap-3 md:grid-cols-2">
                         <div>
-                            <label class="block text-xs text-stone-500 dark:text-neutral-400">Link label</label>
+                            <label class="block text-xs text-stone-500 dark:text-neutral-400">
+                                {{ $t('super_admin.announcements.form.link_label') }}
+                            </label>
                             <input v-model="form.link_label" type="text"
                                 class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200" />
                             <InputError class="mt-1" :message="form.errors.link_label" />
                         </div>
                         <div>
-                            <label class="block text-xs text-stone-500 dark:text-neutral-400">Link URL</label>
+                            <label class="block text-xs text-stone-500 dark:text-neutral-400">
+                                {{ $t('super_admin.announcements.form.link_url') }}
+                            </label>
                             <input v-model="form.link_url" type="url" placeholder="https://"
                                 class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200" />
                             <InputError class="mt-1" :message="form.errors.link_url" />
@@ -766,11 +827,11 @@ watch(
                     <div class="flex justify-end gap-2">
                         <button type="button" @click="closeForm"
                             class="py-2 px-3 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
-                            Cancel
+                            {{ $t('super_admin.common.cancel') }}
                         </button>
                         <button type="submit" :disabled="form.processing"
                             class="py-2 px-3 text-xs font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50">
-                            {{ isEditing ? 'Save changes' : 'Create announcement' }}
+                            {{ isEditing ? $t('super_admin.common.save_changes') : $t('super_admin.announcements.actions.create') }}
                         </button>
                     </div>
                 </form>

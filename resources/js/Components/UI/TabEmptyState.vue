@@ -1,10 +1,15 @@
 <script setup>
 import { Link } from '@inertiajs/vue3';
 import { computed } from 'vue';
+import { useI18n } from 'vue-i18n';
 const props = defineProps({
     type: String,
     customer: Object,
 });
+
+const { t } = useI18n();
+
+const typeLabel = computed(() => t(`customers.tabs.types.${props.type}`));
 
 const action = computed(() => {
     if (!props.customer) {
@@ -14,28 +19,28 @@ const action = computed(() => {
     if (props.type === 'quotes') {
         return {
             href: route('customer.quote.create', props.customer),
-            label: 'Create quote',
+            label: t('customers.tabs.actions.create_quote'),
         };
     }
 
     if (props.type === 'works' || props.type === 'jobs') {
         return {
             href: route('work.create', props.customer),
-            label: 'Create job',
+            label: t('customers.tabs.actions.create_job'),
         };
     }
 
     if (props.type === 'invoices') {
         return {
             href: route('invoice.index'),
-            label: 'View invoices',
+            label: t('customers.tabs.actions.view_invoices'),
         };
     }
 
     if (props.type === 'requests') {
         return {
             href: route('request.index'),
-            label: 'Create request',
+            label: t('customers.tabs.actions.create_request'),
         };
     }
 
@@ -97,11 +102,10 @@ const action = computed(() => {
 
         <div class="max-w-sm mx-auto">
             <p class="mt-2 font-medium text-stone-800 dark:text-neutral-200">
-                No {{ type }} data
+                {{ t('customers.tabs.empty_title', { type: typeLabel }) }}
             </p>
             <p class="mb-5 text-sm text-stone-500 dark:text-neutral-500">
-                In the meantime, you can create new custom {{ type }} to monitor your most important
-                metrics
+                {{ t('customers.tabs.empty_subtitle', { type: typeLabel }) }}
             </p>
         </div>
         <Link v-if="action" :href="action.href">

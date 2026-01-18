@@ -5,6 +5,7 @@ import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingTextarea from '@/Components/FloatingTextarea.vue';
 import InputError from '@/Components/InputError.vue';
 import CustomerQuickForm from '@/Components/QuickCreate/CustomerQuickForm.vue';
+import { useI18n } from 'vue-i18n';
 
 const props = defineProps({
     customers: {
@@ -22,6 +23,8 @@ const props = defineProps({
 });
 
 const emit = defineEmits(['customer-created']);
+
+const { t } = useI18n();
 
 const mode = ref('existing');
 const searchQuery = ref('');
@@ -60,7 +63,7 @@ watch(mode, () => {
 const displayCustomer = (customer) =>
     customer.company_name ||
     `${customer.first_name || ''} ${customer.last_name || ''}`.trim() ||
-    'Unknown';
+    t('requests.labels.unknown_customer');
 
 const customerLogo = (customer) =>
     customer?.logo_url || customer?.logo || '/images/presets/company-1.svg';
@@ -223,7 +226,7 @@ const submit = () => {
                         <path d="M22 11h-6" />
                     </svg>
                 </span>
-                Nouveau client
+                {{ $t('requests.quick_form.new_customer') }}
             </button>
             <button
                 type="button"
@@ -242,22 +245,22 @@ const submit = () => {
                         <path d="M19 7a4 4 0 1 1-2 7.5" />
                     </svg>
                 </span>
-                Client existant
+                {{ $t('requests.quick_form.existing_customer') }}
             </button>
         </div>
 
         <CustomerQuickForm
             v-if="mode === 'new'"
             :overlay-id="overlayId"
-            submit-label="Create customer"
+            :submit-label="$t('requests.quick_form.create_customer')"
             @created="handleCustomerCreated"
         />
 
         <form v-else @submit.prevent="submit" class="space-y-4">
             <div>
-                <label class="text-sm text-stone-600 dark:text-neutral-400">Client (optionnel)</label>
+                <label class="text-sm text-stone-600 dark:text-neutral-400">{{ $t('requests.quick_form.customer_optional') }}</label>
                 <div v-if="loading" class="mt-2 text-sm text-stone-500 dark:text-neutral-400">
-                    Chargement des clients...
+                    {{ $t('requests.quick_form.loading_customers') }}
                 </div>
                 <div v-else class="mt-2 space-y-3">
                     <div class="relative">
@@ -271,7 +274,7 @@ const submit = () => {
                         <input
                             v-model="searchQuery"
                             type="text"
-                            placeholder="Rechercher un client"
+                            :placeholder="$t('requests.quick_form.search_placeholder')"
                             class="w-full rounded-sm border border-stone-200 bg-white py-2 ps-9 pe-3 text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200"
                         />
                     </div>
@@ -294,10 +297,10 @@ const submit = () => {
                                 </span>
                                 <div class="min-w-0 flex-1">
                                     <div class="truncate font-medium text-stone-800 dark:text-neutral-100">
-                                        Aucun client
+                                        {{ $t('requests.quick_form.no_customer') }}
                                     </div>
                                     <div class="truncate text-xs text-stone-500 dark:text-neutral-400">
-                                        Continuer sans client
+                                        {{ $t('requests.quick_form.continue_without') }}
                                     </div>
                                 </div>
                                 <span v-if="!form.customer_id" class="text-green-600">
@@ -340,7 +343,7 @@ const submit = () => {
                                 </span>
                             </button>
                             <div v-if="!filteredCustomers.length" class="px-3 py-6 text-sm text-stone-500 dark:text-neutral-400">
-                                Aucun client
+                                {{ $t('requests.quick_form.no_customer') }}
                             </div>
                         </div>
                     </div>
@@ -350,33 +353,33 @@ const submit = () => {
 
             <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
                 <div>
-                    <FloatingInput v-model="form.title" label="Title" />
+                    <FloatingInput v-model="form.title" :label="$t('requests.quick_form.title')" />
                     <InputError class="mt-1" :message="form.errors.title" />
                 </div>
                 <div>
-                    <FloatingInput v-model="form.service_type" label="Service type" />
+                    <FloatingInput v-model="form.service_type" :label="$t('requests.quick_form.service_type')" />
                     <InputError class="mt-1" :message="form.errors.service_type" />
                 </div>
                 <div>
-                    <FloatingInput v-model="form.urgency" label="Urgency (optional)" />
+                    <FloatingInput v-model="form.urgency" :label="$t('requests.quick_form.urgency_optional')" />
                     <InputError class="mt-1" :message="form.errors.urgency" />
                 </div>
                 <div>
-                    <FloatingInput v-model="form.contact_name" label="Contact name (optional)" />
+                    <FloatingInput v-model="form.contact_name" :label="$t('requests.quick_form.contact_name_optional')" />
                     <InputError class="mt-1" :message="form.errors.contact_name" />
                 </div>
                 <div>
-                    <FloatingInput v-model="form.contact_email" label="Contact email (optional)" />
+                    <FloatingInput v-model="form.contact_email" :label="$t('requests.quick_form.contact_email_optional')" />
                     <InputError class="mt-1" :message="form.errors.contact_email" />
                 </div>
                 <div>
-                    <FloatingInput v-model="form.contact_phone" label="Contact phone (optional)" />
+                    <FloatingInput v-model="form.contact_phone" :label="$t('requests.quick_form.contact_phone_optional')" />
                     <InputError class="mt-1" :message="form.errors.contact_phone" />
                 </div>
             </div>
 
             <div>
-                <FloatingTextarea v-model="form.description" label="Description (optional)" />
+                <FloatingTextarea v-model="form.description" :label="$t('requests.quick_form.description_optional')" />
                 <InputError class="mt-1" :message="form.errors.description" />
             </div>
 
@@ -386,14 +389,14 @@ const submit = () => {
                     :data-hs-overlay="overlayId || undefined"
                     class="inline-flex items-center rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200"
                 >
-                    Cancel
+                    {{ $t('requests.actions.cancel') }}
                 </button>
                 <button
                     type="submit"
                     :disabled="form.processing"
                     class="inline-flex items-center rounded-sm border border-transparent bg-green-600 px-3 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50"
                 >
-                    Create request
+                    {{ $t('requests.actions.create_request') }}
                 </button>
             </div>
         </form>

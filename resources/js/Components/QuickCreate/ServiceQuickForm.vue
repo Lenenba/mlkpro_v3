@@ -6,6 +6,7 @@ import FloatingSelect from '@/Components/FloatingSelect.vue';
 import FloatingNumberInput from '@/Components/FloatingNumberInput.vue';
 import FloatingTextarea from '@/Components/FloatingTextarea.vue';
 import Checkbox from '@/Components/Checkbox.vue';
+import { useI18n } from 'vue-i18n';
 
 const props = defineProps({
     categories: {
@@ -20,12 +21,14 @@ const props = defineProps({
 
 const emit = defineEmits(['created', 'category-created']);
 
-const unitOptions = [
-    { id: 'piece', name: 'Piece' },
-    { id: 'hour', name: 'Hour' },
-    { id: 'm2', name: 'm2' },
-    { id: 'other', name: 'Other' },
-];
+const { t } = useI18n();
+
+const unitOptions = computed(() => ([
+    { id: 'piece', name: t('services.units.piece') },
+    { id: 'hour', name: t('services.units.hour') },
+    { id: 'm2', name: t('services.units.m2') },
+    { id: 'other', name: t('services.units.other') },
+]));
 
 const categoryOptions = ref(Array.isArray(props.categories) ? [...props.categories] : []);
 
@@ -71,7 +74,7 @@ const addCategoryOption = (category) => {
 const createCategory = async () => {
     const name = categoryName.value.trim();
     if (!name) {
-        categoryError.value = 'Enter a category name.';
+        categoryError.value = t('services.form.errors.category_name_required');
         return;
     }
 
@@ -90,12 +93,12 @@ const createCategory = async () => {
             categoryName.value = '';
             showCategoryForm.value = false;
         } else {
-            categoryError.value = 'Unable to create category.';
+            categoryError.value = t('services.form.errors.category_create_failed');
         }
     } catch (error) {
         categoryError.value = error?.response?.data?.errors?.name?.[0]
             || error?.response?.data?.message
-            || 'Unable to create category.';
+            || t('services.form.errors.category_create_failed');
     } finally {
         creatingCategory.value = false;
     }
@@ -151,7 +154,7 @@ const submit = async () => {
     }
 
     if (!isValid.value) {
-        formError.value = 'Please fill all required fields.';
+        formError.value = t('services.form.errors.required_fields');
         return;
     }
 
@@ -178,7 +181,7 @@ const submit = async () => {
         if (error.response?.status === 422) {
             errors.value = error.response.data?.errors || {};
         } else {
-            formError.value = 'Unable to save service. Please try again.';
+            formError.value = t('services.form.errors.save_failed');
         }
     } finally {
         isSubmitting.value = false;
@@ -189,25 +192,25 @@ const submit = async () => {
 <template>
     <form @submit.prevent="submit" class="space-y-4">
         <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <FloatingInput v-model="form.name" label="Name" :required="true" />
-            <FloatingSelect v-model="form.category_id" label="Category" :options="categoryOptions" :required="true" />
+            <FloatingInput v-model="form.name" :label="$t('services.form.name')" :required="true" />
+            <FloatingSelect v-model="form.category_id" :label="$t('services.form.category')" :options="categoryOptions" :required="true" />
             <div class="md:col-span-2 space-y-2">
                 <div class="flex items-center justify-between">
-                    <p class="text-xs text-stone-500 dark:text-neutral-400">Need a new category?</p>
+                    <p class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('services.form.category_hint') }}</p>
                     <button
                         type="button"
                         class="text-xs font-semibold text-green-700 hover:text-green-800 dark:text-green-400"
                         @click="showCategoryForm = !showCategoryForm"
                     >
-                        {{ showCategoryForm ? 'Hide' : 'Add category' }}
+                        {{ showCategoryForm ? $t('services.form.category_hide') : $t('services.form.category_add') }}
                     </button>
                 </div>
                 <p v-if="!categoryOptions.length" class="text-xs text-amber-600 dark:text-amber-300">
-                    No categories yet. Create one below.
+                    {{ $t('services.form.category_empty') }}
                 </p>
                 <div v-if="showCategoryForm" class="flex flex-col gap-2 sm:flex-row sm:items-end">
                     <div class="flex-1">
-                        <FloatingInput v-model="categoryName" label="New category name" />
+                        <FloatingInput v-model="categoryName" :label="$t('services.form.category_new')" />
                         <p v-if="categoryError" class="mt-1 text-xs text-red-600">{{ categoryError }}</p>
                     </div>
                     <button
@@ -216,23 +219,23 @@ const submit = async () => {
                         :disabled="creatingCategory"
                         @click="createCategory"
                     >
-                        Create
+                        {{ $t('services.form.category_create') }}
                     </button>
                 </div>
             </div>
-            <FloatingSelect v-model="form.unit" label="Unit" :options="unitOptions" />
-            <FloatingNumberInput v-model="form.tax_rate" label="Tax rate (%)" :step="0.01" />
+            <FloatingSelect v-model="form.unit" :label="$t('services.form.unit')" :options="unitOptions" />
+            <FloatingNumberInput v-model="form.tax_rate" :label="$t('services.form.tax_rate')" :step="0.01" />
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <FloatingNumberInput v-model="form.price" label="Price" :step="0.01" :required="true" />
+            <FloatingNumberInput v-model="form.price" :label="$t('services.form.price')" :step="0.01" :required="true" />
             <div class="flex items-center gap-2">
                 <Checkbox v-model:checked="form.is_active" />
-                <span class="text-sm text-stone-600 dark:text-neutral-400">Active</span>
+                <span class="text-sm text-stone-600 dark:text-neutral-400">{{ $t('services.status.active') }}</span>
             </div>
         </div>
 
-        <FloatingTextarea v-model="form.description" label="Description" />
+        <FloatingTextarea v-model="form.description" :label="$t('services.form.description')" />
 
         <div v-if="errorMessages.length" class="rounded-sm border border-red-200 bg-red-50 p-3 text-sm text-red-700">
             <div v-for="(message, index) in errorMessages" :key="index">
@@ -243,11 +246,11 @@ const submit = async () => {
         <div class="flex justify-end gap-2">
             <button type="button" :data-hs-overlay="overlayId || undefined"
                 class="py-2 px-3 inline-flex items-center text-sm font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200">
-                Cancel
+                {{ $t('services.actions.cancel') }}
             </button>
             <button type="submit" :disabled="isSubmitting"
                 class="py-2 px-3 inline-flex items-center text-sm font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50">
-                Create service
+                {{ $t('services.actions.create_service') }}
             </button>
         </div>
     </form>

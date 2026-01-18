@@ -4,6 +4,7 @@ import { Link, router, useForm } from '@inertiajs/vue3';
 import Modal from '@/Components/UI/Modal.vue';
 import ServiceForm from '@/Pages/Service/UI/ServiceForm.vue';
 import { humanizeDate } from '@/utils/date';
+import { useI18n } from 'vue-i18n';
 
 const props = defineProps({
     filters: Object,
@@ -24,6 +25,8 @@ const props = defineProps({
         required: true,
     },
 });
+
+const { t } = useI18n();
 
 const filterForm = useForm({
     name: props.filters?.name ?? '',
@@ -151,7 +154,7 @@ const openEdit = (service) => {
 };
 
 const destroyService = (service) => {
-    if (!confirm(`Delete "${service.name}"?`)) {
+    if (!confirm(t('services.actions.delete_confirm', { name: service.name }))) {
         return;
     }
 
@@ -178,18 +181,18 @@ const destroyService = (service) => {
                         </div>
                         <input type="text" v-model="filterForm.name" data-testid="demo-service-search"
                             class="py-[7px] ps-10 pe-8 block w-full bg-white border border-stone-200 rounded-sm text-sm placeholder:text-stone-500 focus:border-green-600 focus:ring-green-600 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 dark:placeholder:text-neutral-400"
-                            placeholder="Search services">
+                            :placeholder="$t('services.filters.search_placeholder')">
                     </div>
                 </div>
 
                 <div class="flex flex-wrap items-center gap-2 justify-end">
                     <button type="button" @click="showAdvanced = !showAdvanced"
                         class="py-2 px-2.5 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 focus:outline-none focus:bg-stone-100 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700">
-                        Filters
+                        {{ $t('services.actions.filters') }}
                     </button>
                     <button type="button" @click="clearFilters"
                         class="py-2 px-2.5 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 focus:outline-none focus:bg-stone-100 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700">
-                        Clear
+                        {{ $t('services.actions.clear') }}
                     </button>
                     <button type="button" data-hs-overlay="#hs-service-upsert" @click="openCreate"
                         class="py-2 px-2.5 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:ring-2 focus:ring-green-500">
@@ -199,7 +202,7 @@ const destroyService = (service) => {
                             <path d="M5 12h14" />
                             <path d="M12 5v14" />
                         </svg>
-                        Add service
+                        {{ $t('services.actions.add_service') }}
                     </button>
                 </div>
             </div>
@@ -207,29 +210,29 @@ const destroyService = (service) => {
             <div v-if="showAdvanced" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-2">
                 <select v-model="filterForm.category_id"
                     class="py-2 ps-3 pe-8 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
-                    <option value="">Category</option>
+                    <option value="">{{ $t('services.filters.category') }}</option>
                     <option v-for="category in categories" :key="category.id" :value="category.id">
                         {{ category.name }}
                     </option>
                 </select>
                 <select v-model="filterForm.status"
                     class="py-2 ps-3 pe-8 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
-                    <option value="">Status</option>
-                    <option value="active">Active</option>
-                    <option value="archived">Archived</option>
+                    <option value="">{{ $t('services.filters.status') }}</option>
+                    <option value="active">{{ $t('services.status.active') }}</option>
+                    <option value="archived">{{ $t('services.status.archived') }}</option>
                 </select>
                 <input type="number" step="0.01" v-model="filterForm.price_min"
                     class="py-2 px-3 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
-                    placeholder="Price min">
+                    :placeholder="$t('services.filters.price_min')">
                 <input type="number" step="0.01" v-model="filterForm.price_max"
                     class="py-2 px-3 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
-                    placeholder="Price max">
+                    :placeholder="$t('services.filters.price_max')">
                 <input type="date" v-model="filterForm.created_from"
                     class="py-2 px-3 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
-                    placeholder="Created from">
+                    :placeholder="$t('services.filters.created_from')">
                 <input type="date" v-model="filterForm.created_to"
                     class="py-2 px-3 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
-                    placeholder="Created to">
+                    :placeholder="$t('services.filters.created_to')">
             </div>
         </div>
 
@@ -242,7 +245,7 @@ const destroyService = (service) => {
                             <th scope="col" class="min-w-[260px]">
                                 <button type="button" @click="toggleSort('name')"
                                     class="px-5 py-2.5 text-start w-full flex items-center gap-x-1 text-sm font-normal text-stone-500 hover:text-stone-700 focus:outline-none dark:text-neutral-500 dark:hover:text-neutral-300">
-                                    Service
+                                    {{ $t('services.table.service') }}
                                     <svg v-if="filterForm.sort === 'name'" class="size-3" xmlns="http://www.w3.org/2000/svg"
                                         viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                                         stroke-linecap="round" stroke-linejoin="round"
@@ -254,7 +257,7 @@ const destroyService = (service) => {
                             <th scope="col" class="min-w-[140px]">
                                 <button type="button" @click="toggleSort('price')"
                                     class="px-5 py-2.5 text-start w-full flex items-center gap-x-1 text-sm font-normal text-stone-500 hover:text-stone-700 focus:outline-none dark:text-neutral-500 dark:hover:text-neutral-300">
-                                    Price
+                                    {{ $t('services.table.price') }}
                                     <svg v-if="filterForm.sort === 'price'" class="size-3" xmlns="http://www.w3.org/2000/svg"
                                         viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                                         stroke-linecap="round" stroke-linejoin="round"
@@ -265,18 +268,18 @@ const destroyService = (service) => {
                             </th>
                             <th scope="col" class="min-w-[180px]">
                                 <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
-                                    Category
+                                    {{ $t('services.table.category') }}
                                 </div>
                             </th>
                             <th scope="col" class="min-w-[120px]">
                                 <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
-                                    Status
+                                    {{ $t('services.table.status') }}
                                 </div>
                             </th>
                             <th scope="col" class="min-w-[120px]">
                                 <button type="button" @click="toggleSort('created_at')"
                                     class="px-5 py-2.5 text-start w-full flex items-center gap-x-1 text-sm font-normal text-stone-500 hover:text-stone-700 focus:outline-none dark:text-neutral-500 dark:hover:text-neutral-300">
-                                    Created
+                                    {{ $t('services.table.created') }}
                                     <svg v-if="filterForm.sort === 'created_at'" class="size-3" xmlns="http://www.w3.org/2000/svg"
                                         viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                                         stroke-linecap="round" stroke-linejoin="round"
@@ -315,17 +318,17 @@ const destroyService = (service) => {
                             </td>
                             <td class="size-px whitespace-nowrap px-5 py-2">
                                 <span class="text-sm text-stone-600 dark:text-neutral-400">
-                                    {{ service.category?.name || 'Uncategorized' }}
+                                    {{ service.category?.name || $t('services.labels.uncategorized') }}
                                 </span>
                             </td>
                             <td class="size-px whitespace-nowrap px-5 py-2">
                                 <span v-if="service.is_active"
                                     class="py-1.5 px-2 inline-flex items-center gap-x-1.5 text-xs font-medium bg-emerald-100 text-emerald-800 rounded-full dark:bg-emerald-500/10 dark:text-emerald-400">
-                                    Active
+                                    {{ $t('services.status.active') }}
                                 </span>
                                 <span v-else
                                     class="py-1.5 px-2 inline-flex items-center gap-x-1.5 text-xs font-medium bg-stone-200 text-stone-700 rounded-full dark:bg-neutral-700 dark:text-neutral-300">
-                                    Archived
+                                    {{ $t('services.status.archived') }}
                                 </span>
                             </td>
                             <td class="size-px whitespace-nowrap px-5 py-2">
@@ -337,7 +340,7 @@ const destroyService = (service) => {
                                 <div class="hs-dropdown [--auto-close:inside] [--placement:bottom-right] relative inline-flex">
                                     <button type="button"
                                         class="size-7 inline-flex justify-center items-center gap-x-2 rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700"
-                                        aria-haspopup="menu" aria-expanded="false" aria-label="Dropdown">
+                                        aria-haspopup="menu" aria-expanded="false" :aria-label="$t('services.aria.dropdown')">
                                         <svg class="shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" width="24"
                                             height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                                             stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -352,12 +355,12 @@ const destroyService = (service) => {
                                         <div class="p-1">
                                             <button type="button" @click="openEdit(service)"
                                                 class="w-full text-start flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
-                                                Edit
+                                                {{ $t('services.actions.edit') }}
                                             </button>
                                             <div class="my-1 border-t border-stone-200 dark:border-neutral-800"></div>
                                             <button type="button" @click="destroyService(service)"
                                                 class="w-full text-start flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-neutral-800">
-                                                Delete
+                                                {{ $t('services.actions.delete') }}
                                             </button>
                                         </div>
                                     </div>
@@ -367,7 +370,7 @@ const destroyService = (service) => {
 
                         <tr v-if="services.data.length === 0">
                             <td colspan="6" class="px-5 py-10 text-center text-sm text-stone-500 dark:text-neutral-500">
-                                No services found.
+                                {{ $t('services.empty') }}
                             </td>
                         </tr>
                         </template>
@@ -379,20 +382,20 @@ const destroyService = (service) => {
         <div v-if="services.data.length > 0" class="mt-5 flex flex-wrap justify-between items-center gap-2">
             <p class="text-sm text-stone-800 dark:text-neutral-200">
                 <span class="font-medium">{{ count }}</span>
-                <span class="text-stone-500 dark:text-neutral-500"> results</span>
+                <span class="text-stone-500 dark:text-neutral-500"> {{ $t('services.pagination.results') }}</span>
             </p>
 
-            <nav class="flex justify-end items-center gap-x-1" aria-label="Pagination">
+            <nav class="flex justify-end items-center gap-x-1" :aria-label="$t('services.pagination.label')">
                 <Link :href="services.prev_page_url" v-if="services.prev_page_url">
                 <button type="button"
                     class="min-h-[38px] min-w-[38px] py-2 px-2.5 inline-flex justify-center items-center gap-x-2 text-sm rounded-sm text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-100 dark:text-white dark:hover:bg-white/10 dark:focus:bg-neutral-700"
-                    aria-label="Previous">
+                    :aria-label="$t('services.pagination.previous')">
                     <svg class="shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
                         viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                         stroke-linejoin="round">
                         <path d="m15 18-6-6 6-6" />
                     </svg>
-                    <span class="sr-only">Previous</span>
+                    <span class="sr-only">{{ $t('services.pagination.previous') }}</span>
                 </button>
                 </Link>
 
@@ -401,7 +404,7 @@ const destroyService = (service) => {
                         class="min-h-[38px] min-w-[38px] flex justify-center items-center bg-stone-100 text-stone-800 py-2 px-3 text-sm rounded-sm disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-700 dark:text-white"
                         aria-current="page">{{ services.from }}</span>
                     <span
-                        class="min-h-[38px] flex justify-center items-center text-stone-500 py-2 px-1.5 text-sm dark:text-neutral-500">of</span>
+                        class="min-h-[38px] flex justify-center items-center text-stone-500 py-2 px-1.5 text-sm dark:text-neutral-500">{{ $t('services.pagination.of') }}</span>
                     <span
                         class="min-h-[38px] flex justify-center items-center text-stone-500 py-2 px-1.5 text-sm dark:text-neutral-500">{{ services.to }}</span>
                 </div>
@@ -409,8 +412,8 @@ const destroyService = (service) => {
                 <Link :href="services.next_page_url" v-if="services.next_page_url">
                 <button type="button"
                     class="min-h-[38px] min-w-[38px] py-2 px-2.5 inline-flex justify-center items-center gap-x-2 text-sm rounded-sm text-stone-800 hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-100 dark:text-white dark:hover:bg-white/10 dark:focus:bg-neutral-700"
-                    aria-label="Next">
-                    <span class="sr-only">Next</span>
+                    :aria-label="$t('services.pagination.next')">
+                    <span class="sr-only">{{ $t('services.pagination.next') }}</span>
                     <svg class="shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
                         viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                         stroke-linejoin="round">
@@ -421,7 +424,7 @@ const destroyService = (service) => {
             </nav>
         </div>
 
-        <Modal :title="editingService ? 'Edit service' : 'New service'" :id="'hs-service-upsert'">
+        <Modal :title="editingService ? $t('services.actions.edit_service') : $t('services.actions.new_service')" :id="'hs-service-upsert'">
             <ServiceForm
                 :key="editingService?.id || 'new'"
                 :id="'hs-service-upsert'"

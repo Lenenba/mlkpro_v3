@@ -8,41 +8,44 @@ import InputError from '@/Components/InputError.vue';
 import { companyIconPresets, defaultCompanyIcon } from '@/utils/iconPresets';
 import { Link, useForm, Head, usePage } from '@inertiajs/vue3';
 import { computed, onMounted, ref, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 
 const props = defineProps({
     customer: Object,
 });
 
+const { t } = useI18n();
+
 const isCreating = !props.customer?.id;
 const page = usePage();
 const isGuidedDemo = computed(() => Boolean(page.props.demo?.is_guided));
 const demoPrefilled = ref(false);
 
-const Salutation = [
-    { id: 'Mr', name: 'Mr' },
-    { id: 'Mrs', name: 'Mrs' },
-    { id: 'Miss', name: 'Miss' },
-];
+const salutations = computed(() => ([
+    { id: 'Mr', name: t('customers.form.salutations.mr') },
+    { id: 'Mrs', name: t('customers.form.salutations.mrs') },
+    { id: 'Miss', name: t('customers.form.salutations.miss') },
+]));
 
-const billingModes = [
-    { id: 'per_task', name: 'Par tache' },
-    { id: 'per_segment', name: 'Par segment' },
-    { id: 'end_of_job', name: 'Fin de job' },
-    { id: 'deferred', name: 'Differe' },
-];
+const billingModes = computed(() => ([
+    { id: 'per_task', name: t('customers.form.billing_modes.per_task') },
+    { id: 'per_segment', name: t('customers.form.billing_modes.per_segment') },
+    { id: 'end_of_job', name: t('customers.form.billing_modes.end_of_job') },
+    { id: 'deferred', name: t('customers.form.billing_modes.deferred') },
+]));
 
-const billingGroupings = [
-    { id: 'single', name: 'Une facture' },
-    { id: 'periodic', name: 'Regrouper' },
-];
+const billingGroupings = computed(() => ([
+    { id: 'single', name: t('customers.form.billing_groupings.single') },
+    { id: 'periodic', name: t('customers.form.billing_groupings.periodic') },
+]));
 
-const billingCycles = [
-    { id: 'weekly', name: 'Chaque semaine' },
-    { id: 'biweekly', name: 'Toutes les 2 semaines' },
-    { id: 'monthly', name: 'Chaque mois' },
-    { id: 'every_n_tasks', name: 'Chaque N taches' },
-];
+const billingCycles = computed(() => ([
+    { id: 'weekly', name: t('customers.form.billing_cycles.weekly') },
+    { id: 'biweekly', name: t('customers.form.billing_cycles.biweekly') },
+    { id: 'monthly', name: t('customers.form.billing_cycles.monthly') },
+    { id: 'every_n_tasks', name: t('customers.form.billing_cycles.every_n_tasks') },
+]));
 
 const isCompanyIcon = (value) => companyIconPresets.includes(value);
 const initialLogoPath = props.customer?.logo_url || props.customer?.logo || '';
@@ -256,13 +259,13 @@ const selectAddress = (details) => {
 </script>
 <template>
 
-    <Head :title="isCreating ? 'New Client' : 'Edit Client'" />
+    <Head :title="isCreating ? $t('customers.form.title.new') : $t('customers.form.title.edit')" />
     <AuthenticatedLayout>
         <div class="grid grid-cols-1 lg:grid-cols-4 gap-1 md:gap-3 lg:gap-1 ">
             <div></div>
             <div>
                 <h1 class="text-xl font-bold text-stone-800 dark:text-white">
-                    {{ isCreating ? 'New Client' : 'Edit Client' }}
+                    {{ isCreating ? $t('customers.form.title.new') : $t('customers.form.title.edit') }}
                 </h1>
             </div>
             <div></div>
@@ -282,24 +285,24 @@ const selectAddress = (details) => {
                             <circle cx="12" cy="7" r="4" />
                         </svg>
                         <h3 class="text-lg  ml-2 font-bold text-stone-800 dark:text-white">
-                            Client details
+                            {{ $t('customers.form.sections.client_details') }}
                         </h3>
                     </div>
                     <div class="p-4 md:p-5">
                         <div class="flex flex-row">
-                            <FloatingSelect label="Title" v-model="form.salutation" class="w-1/5" :required="true"
-                                :options="Salutation" />
-                            <FloatingInput v-model="form.first_name" label="First name" class="w-2/5" :required="true" />
-                            <FloatingInput v-model="form.last_name" label="Last name" class="w-2/5" :required="true" />
+                            <FloatingSelect v-model="form.salutation" class="w-1/5" :required="true"
+                                :label="$t('customers.form.fields.title')" :options="salutations" />
+                            <FloatingInput v-model="form.first_name" :label="$t('customers.form.fields.first_name')" class="w-2/5" :required="true" />
+                            <FloatingInput v-model="form.last_name" :label="$t('customers.form.fields.last_name')" class="w-2/5" :required="true" />
                         </div>
-                        <FloatingInput v-model="form.company_name" label="Company name" />
+                        <FloatingInput v-model="form.company_name" :label="$t('customers.form.fields.company_name')" />
                         <div class="mt-4 space-y-2">
-                            <label class="text-sm font-semibold text-stone-800 dark:text-white">Company logo</label>
-                            <DropzoneInput v-model="form.logo" label="Upload company logo" />
+                            <label class="text-sm font-semibold text-stone-800 dark:text-white">{{ $t('customers.form.fields.company_logo') }}</label>
+                            <DropzoneInput v-model="form.logo" :label="$t('customers.form.fields.upload_company_logo')" />
                             <InputError class="mt-1" :message="form.errors.logo" />
                             <div class="mt-3 space-y-2">
                                 <p class="text-xs text-stone-500 dark:text-neutral-400">
-                                    Or choose a company icon
+                                    {{ $t('customers.form.fields.choose_company_icon') }}
                                 </p>
                                 <div class="grid grid-cols-4 gap-2">
                                     <button
@@ -310,38 +313,37 @@ const selectAddress = (details) => {
                                         class="relative flex items-center justify-center rounded-sm border border-stone-200 bg-white p-2 transition hover:border-green-500 dark:border-neutral-700 dark:bg-neutral-900"
                                         :class="form.logo_icon === icon ? 'ring-2 ring-green-500 border-green-500' : ''"
                                     >
-                                        <img :src="icon" alt="Company icon" class="size-10" />
+                                        <img :src="icon" :alt="$t('customers.form.fields.company_icon_alt')" class="size-10" />
                                         <span
                                             v-if="icon === defaultCompanyIcon"
                                             class="absolute top-1 right-1 rounded-full bg-green-600 px-1.5 py-0.5 text-[10px] font-semibold text-white"
                                         >
-                                            Default
+                                            {{ $t('customers.form.fields.default_icon') }}
                                         </span>
                                     </button>
                                 </div>
                                 <div v-if="form.logo_icon" class="flex justify-end">
                                     <button type="button" @click="clearCompanyIcon"
                                         class="text-xs font-semibold text-stone-600 hover:text-stone-800 dark:text-neutral-400 dark:hover:text-neutral-200">
-                                        Clear icon
+                                        {{ $t('customers.form.fields.clear_icon') }}
                                     </button>
                                 </div>
                                 <InputError class="mt-1" :message="form.errors.logo_icon" />
                             </div>
                         </div>
-                        <h2 class="pt-4 text-sm  my-2 font-bold text-stone-800 dark:text-white"> Contact details</h2>
-                        <FloatingInput v-model="form.phone" label="Phone" />
-                        <FloatingInput v-model="form.email" label="Email address" :required="true" />
+                        <h2 class="pt-4 text-sm  my-2 font-bold text-stone-800 dark:text-white">{{ $t('customers.form.sections.contact_details') }}</h2>
+                        <FloatingInput v-model="form.phone" :label="$t('customers.form.fields.phone')" />
+                        <FloatingInput v-model="form.email" :label="$t('customers.form.fields.email')" :required="true" />
                         <div class="mt-3 flex items-start gap-2">
                             <input id="customer-portal-access" type="checkbox" v-model="form.portal_access"
                                 class="mt-1 size-4 rounded border-stone-300 text-green-600 focus:ring-green-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-900 dark:border-neutral-700 dark:checked:bg-green-500 dark:checked:border-green-500" />
                             <div>
                                 <label for="customer-portal-access" class="text-sm text-stone-800 dark:text-neutral-200">
-                                    Donner acces a la plateforme
+                                    {{ $t('customers.form.fields.portal_access') }}
                                 </label>
                             </div>
                         </div>
-                        <h2 class="pt-4 text-sm  my-2 font-bold text-stone-800 dark:text-white"> Client auto validation
-                        </h2>
+                        <h2 class="pt-4 text-sm  my-2 font-bold text-stone-800 dark:text-white">{{ $t('customers.form.sections.auto_validation') }}</h2>
                         <div class="-mx-3 flex flex-col gap-y-1">
                             <label for="customer-auto-accept-quotes"
                                 class="py-2 px-3 group flex justify-between items-center gap-x-3 cursor-pointer hover:bg-stone-100 rounded-sm dark:hover:bg-neutral-800 dark:focus:bg-neutral-800">
@@ -360,7 +362,7 @@ const selectAddress = (details) => {
                                         </span>
                                         <span class="grow">
                                             <span class="block text-sm text-stone-800 dark:text-neutral-200">
-                                                Auto validation devis (quotes)
+                                                {{ $t('customers.form.auto_accept_quotes') }}
                                             </span>
                                         </span>
                                     </span>
@@ -387,7 +389,7 @@ const selectAddress = (details) => {
                                         </span>
                                         <span class="grow">
                                             <span class="block text-sm text-stone-800 dark:text-neutral-200">
-                                                Auto validation jobs
+                                                {{ $t('customers.details.auto_validation.jobs') }}
                                             </span>
                                         </span>
                                     </span>
@@ -413,7 +415,7 @@ const selectAddress = (details) => {
                                         </span>
                                         <span class="grow">
                                             <span class="block text-sm text-stone-800 dark:text-neutral-200">
-                                                Auto validation taches
+                                                {{ $t('customers.details.auto_validation.tasks') }}
                                             </span>
                                         </span>
                                     </span>
@@ -441,7 +443,7 @@ const selectAddress = (details) => {
                                         </span>
                                         <span class="grow">
                                             <span class="block text-sm text-stone-800 dark:text-neutral-200">
-                                                Auto validation factures
+                                                {{ $t('customers.details.auto_validation.invoices') }}
                                             </span>
                                         </span>
                                     </span>
@@ -453,11 +455,10 @@ const selectAddress = (details) => {
                                 before:inline-block before:size-5 before:bg-white checked:before:bg-white before:translate-x-0 checked:before:translate-x-full before:rounded-full before:shadow before:transform before:ring-0 before:transition before:ease-in-out before:duration-200 dark:before:bg-neutral-400 dark:checked:before:bg-white">
                             </label>
                         </div>
-                        <h2 class="pt-4 text-sm  my-2 font-bold text-stone-800 dark:text-white"> Additional client detail
-                        </h2>
-                        <FloatingTextarea v-model="form.description" label="Description" />
-                        <FloatingInput v-model="form.refer_by" label="Referred by" />
-                        <FloatingInput v-model="form.discount_rate" type="number" label="Remise fidelite (%)" />
+                        <h2 class="pt-4 text-sm  my-2 font-bold text-stone-800 dark:text-white">{{ $t('customers.form.sections.additional_details') }}</h2>
+                        <FloatingTextarea v-model="form.description" :label="$t('customers.form.fields.description')" />
+                        <FloatingInput v-model="form.refer_by" :label="$t('customers.form.fields.referred_by')" />
+                        <FloatingInput v-model="form.discount_rate" type="number" :label="$t('customers.form.fields.discount_rate')" />
                     </div>
                 </div>
                 <div
@@ -471,7 +472,7 @@ const selectAddress = (details) => {
                                 d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
                         </svg>
                         <h3 class="text-lg  ml-2 font-bold text-stone-800 dark:text-white">
-                            Properties
+                            {{ $t('customers.properties.title') }}
                         </h3>
                     </div>
                     <div class="p-4 md:p-5">
@@ -494,7 +495,7 @@ const selectAddress = (details) => {
                                     <input v-model="query" @input="searchAddress"
                                         class="py-3 ps-10 pe-4 block w-full border-stone-200 rounded-sm text-sm focus:border-green-600 focus:ring-green-600"
                                         type="text" role="combobox" aria-expanded="false"
-                                        placeholder="Search for an address" />
+                                        :placeholder="$t('customers.form.fields.search_address')" />
                                 </div>
 
                                 <!-- Suggestions Dropdown -->
@@ -515,15 +516,15 @@ const selectAddress = (details) => {
                             </div>
                             <!-- End SearchBox -->
                         </div>
-                        <FloatingInput v-model="form.properties.street1" label="Street1" />
-                        <FloatingInput v-model="form.properties.street2" label="Street2" />
+                        <FloatingInput v-model="form.properties.street1" :label="$t('customers.properties.fields.street1')" />
+                        <FloatingInput v-model="form.properties.street2" :label="$t('customers.properties.fields.street2')" />
                         <div class="flex flex-row">
-                            <FloatingInput v-model="form.properties.city" label="City" class="w-full" />
-                            <FloatingInput v-model="form.properties.state" label="State" class="w-full" />
+                            <FloatingInput v-model="form.properties.city" :label="$t('customers.properties.fields.city')" class="w-full" />
+                            <FloatingInput v-model="form.properties.state" :label="$t('customers.properties.fields.state')" class="w-full" />
                         </div>
                         <div class="flex flex-row">
-                            <FloatingInput v-model="form.properties.zip" label="Zip code" class="w-full" />
-                            <FloatingInput v-model="form.properties.country" label="Country" class="w-full" />
+                            <FloatingInput v-model="form.properties.zip" :label="$t('customers.properties.fields.zip')" class="w-full" />
+                            <FloatingInput v-model="form.properties.country" :label="$t('customers.properties.fields.country')" class="w-full" />
                         </div>
 
                         <!-- Input Group -->
@@ -533,7 +534,7 @@ const selectAddress = (details) => {
                                     class="shrink-0 size-3.5 border-stone-300 rounded text-green-600 focus:ring-green-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-800 dark:border-neutral-600 dark:checked:bg-green-500 dark:checked:border-green-500 dark:focus:ring-offset-stone-800"
                                     id="hs-pro-danscch">
                                 <label for="hs-pro-danscch" class="text-sm text-stone-500 ms-2 dark:text-neutral-500">
-                                    Billing address is the same as the property address
+                                    {{ $t('customers.form.billing.same_as_property') }}
                                 </label>
                             </div>
                         </div>
@@ -556,26 +557,26 @@ const selectAddress = (details) => {
                             <path d="M10 16h-2" />
                         </svg>
                         <h3 class="text-lg  ml-2 font-bold text-stone-800 dark:text-white">
-                            Billing preferences
+                            {{ $t('customers.form.sections.billing_preferences') }}
                         </h3>
                     </div>
                     <div class="p-4 md:p-5 space-y-3">
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                            <FloatingSelect v-model="form.billing_mode" label="Mode de facturation"
+                            <FloatingSelect v-model="form.billing_mode" :label="$t('customers.form.billing.mode')"
                                 :options="billingModes" />
-                            <FloatingSelect v-model="form.billing_grouping" label="Regroupement"
+                            <FloatingSelect v-model="form.billing_grouping" :label="$t('customers.form.billing.grouping')"
                                 :options="billingGroupings" />
                         </div>
                         <div v-if="form.billing_mode === 'per_segment' || form.billing_grouping === 'periodic' || form.billing_mode === 'deferred'"
                             class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                            <FloatingSelect v-model="form.billing_cycle" label="Cycle"
+                            <FloatingSelect v-model="form.billing_cycle" :label="$t('customers.form.billing.cycle')"
                                 :options="billingCycles" />
                             <FloatingInput v-if="form.billing_mode === 'deferred'"
-                                v-model="form.billing_delay_days" type="number" label="Delai (jours)" />
+                                v-model="form.billing_delay_days" type="number" :label="$t('customers.form.billing.delay_days')" />
                         </div>
                         <div v-if="form.billing_mode === 'deferred'">
                             <FloatingInput v-model="form.billing_date_rule"
-                                label="Regle de date (ex: 1er du mois)" />
+                                :label="$t('customers.form.billing.date_rule')" />
                         </div>
                     </div>
                 </div>
@@ -587,17 +588,17 @@ const selectAddress = (details) => {
                 <div>
                     <button type="button"
                         class="py-1.5 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-800 focus:outline-none focus:bg-stone-100 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700">
-                        Cancel
+                        {{ $t('customers.actions.cancel') }}
                     </button>
                 </div>
                 <div class="flex justify-end">
                     <button type="button"
                         class="py-1.5 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-sm border border-green-600 text-green-600 hover:border-green-700 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:ring-2 focus:ring-green-500 action-feedback">
-                        Save and create another
+                        {{ $t('customers.form.actions.save_create_another') }}
                     </button>
                     <button type="submit" data-testid="demo-customer-save"
                         class="py-1.5 ml-4 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:ring-2 focus:ring-green-500 action-feedback">
-                        {{ isCreating ? 'Save client' : 'Update client' }}
+                        {{ isCreating ? $t('customers.form.actions.save_client') : $t('customers.form.actions.update_client') }}
                     </button>
                 </div>
                 <div></div>

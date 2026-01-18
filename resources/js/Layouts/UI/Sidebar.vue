@@ -2,12 +2,13 @@
 import { computed } from 'vue';
 import ApplicationLogo from "@/Components/ApplicationLogo.vue";
 import LinkAncor from "@/Components/UI/LinkAncor.vue";
-import { Link, router, usePage } from '@inertiajs/vue3';
+import { Link, usePage } from '@inertiajs/vue3';
 import MenuDropdown from "@/Components/UI/LinkAncor2.vue";
+import LanguageSwitcherMenu from '@/Components/UI/LanguageSwitcherMenu.vue';
 import QuickCreateModals from "@/Components/QuickCreate/QuickCreateModals.vue";
-import NotificationBell from "@/Components/UI/NotificationBell.vue";
 import { isFeatureEnabled } from '@/utils/features';
 import { defaultAvatarIcon } from '@/utils/iconPresets';
+import NotificationBell from '@/Components/UI/NotificationBell.vue';
 
 const page = usePage()
 const companyType = computed(() => page.props.auth?.account?.company?.type ?? null);
@@ -38,15 +39,13 @@ const avatarUrl = computed(() =>
     || page.props.auth?.user?.profile_picture
     || defaultAvatarIcon
 );
+const showNotifications = computed(() => Boolean(page.props.notifications));
 const unreadCount = computed(() => page.props.notifications?.unread_count || 0);
 const hasUnread = computed(() => unreadCount.value > 0);
-const showNotifications = computed(() => Boolean(page.props.notifications));
 const avatarInitial = computed(() => {
     const label = (userName.value || userEmail.value || '?').trim();
     return label.length ? label[0].toUpperCase() : '?';
 });
-const currentLocale = computed(() => page.props.locale || 'fr');
-const availableLocales = computed(() => page.props.locales || ['fr', 'en']);
 const isCustomerActive = computed(() => {
     const isCustomerRoute = route().current('customer.*')
         || page.url.startsWith('/customer')
@@ -57,13 +56,6 @@ const isCustomerActive = computed(() => {
     return isCustomerRoute && !isQuoteRoute;
 });
 
-const setLocale = (locale) => {
-    if (locale === currentLocale.value) {
-        return;
-    }
-
-    router.post(route('locale.update'), { locale }, { preserveScroll: true });
-};
 </script>
 
 <template>
@@ -214,6 +206,7 @@ const setLocale = (locale) => {
                                     </LinkAncor>
                                 </template>
                                 <template v-else>
+                                <LanguageSwitcherMenu />
                                 <MenuDropdown v-if="!isClient && !isSeller" active-item="/profile">
                                     <template #toggle-icon>
                                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
@@ -244,7 +237,7 @@ const setLocale = (locale) => {
                                 <!-- End Item -->
 
                                 <!-- Item -->
-                                <LinkAncor v-if="isClient && companyType === 'products'" label="Commander" :href="'portal.orders.index'" tone="orders"
+                                <LinkAncor v-if="isClient && companyType === 'products'" :label="$t('nav.orders')" :href="'portal.orders.index'" tone="orders"
                                     :active="route().current('portal.orders.*')">
                                     <template #icon>
                                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
@@ -459,6 +452,12 @@ const setLocale = (locale) => {
                                 </LinkAncor>
                                 <!-- End Item -->
                                 </template>
+                                <li v-if="showNotifications" class="flex justify-center">
+                                    <NotificationBell
+                                        :button-class="'relative inline-flex size-9 items-center justify-center rounded-sm text-stone-600 hover:bg-stone-100 focus:outline-none focus:ring-2 focus:ring-green-500 dark:text-neutral-200 dark:hover:bg-neutral-800'"
+                                        :badge-class="'absolute -top-1 -end-1 rounded-full bg-amber-500 px-1.5 text-[10px] font-semibold text-white'"
+                                    />
+                                </li>
                             </ul>
                         </nav>
                         <!-- End Nav -->
@@ -467,9 +466,6 @@ const setLocale = (locale) => {
 
                     <!-- Footer -->
                     <footer class="w-16 text-center space-y-3">
-                        <div v-if="showNotifications" class="flex justify-center">
-                            <NotificationBell />
-                        </div>
                         <!-- Account Dropdown -->
                         <div class="inline-flex justify-center w-full">
                             <div
@@ -507,25 +503,6 @@ const setLocale = (locale) => {
                                         </div>
                                         <div v-if="page.props.auth?.account?.company?.name" class="mt-1 text-xs text-stone-500 dark:text-neutral-400 truncate">
                                             {{ $t('account.company_label') }}: {{ page.props.auth.account.company.name }}
-                                        </div>
-                                    </div>
-                                    <div v-if="showNotifications" class="px-2 pb-2">
-                                        <div
-                                            class="flex items-center justify-between rounded-sm border border-stone-200 bg-stone-50 px-2.5 py-2 text-sm text-stone-700 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200">
-                                            <div class="flex items-center gap-x-2">
-                                                <svg class="size-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
-                                                    viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                                                    stroke-linecap="round" stroke-linejoin="round">
-                                                    <path d="M10 5a2 2 0 1 1 4 0" />
-                                                    <path d="M6 8a6 6 0 0 1 12 0c0 7 3 7 3 7H3s3 0 3-7" />
-                                                    <path d="M10 21a2 2 0 0 0 4 0" />
-                                                </svg>
-                                                <span>{{ $t('nav.notifications') }}</span>
-                                            </div>
-                                            <NotificationBell
-                                                button-class="relative inline-flex size-7 items-center justify-center rounded-sm border border-stone-200 bg-white text-stone-600 hover:bg-stone-100 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
-                                                badge-class="absolute -top-1 -end-1 rounded-full bg-amber-500 px-1.5 text-[10px] font-semibold text-white"
-                                            />
                                         </div>
                                     </div>
                                     <div class="p-1">
@@ -578,24 +555,6 @@ const setLocale = (locale) => {
                                             </div>
                                         </div>
                                         <!-- End Switch/Toggle -->
-                                        <div class="mt-3">
-                                            <p class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('account.language') }}</p>
-                                            <div class="mt-2 flex flex-wrap gap-2">
-                                                <button
-                                                    v-for="locale in availableLocales"
-                                                    :key="locale"
-                                                    type="button"
-                                                    :aria-pressed="currentLocale === locale"
-                                                    :disabled="currentLocale === locale"
-                                                    class="px-2 py-1 text-xs font-semibold border rounded-sm transition disabled:opacity-60 disabled:cursor-default"
-                                                    :class="currentLocale === locale
-                                                        ? 'bg-stone-900 text-white border-stone-900 dark:bg-neutral-800 dark:border-neutral-700'
-                                                        : 'text-stone-700 border-stone-200 hover:bg-stone-100 dark:text-neutral-300 dark:border-neutral-700 dark:hover:bg-neutral-800'"
-                                                    @click="setLocale(locale)">
-                                                    {{ $t(`language.${locale}`) }}
-                                                </button>
-                                            </div>
-                                        </div>
                                     </div>
                                     <div class="p-1">
                                         <Link :href="route('logout')" method="post" as="button" type="button"

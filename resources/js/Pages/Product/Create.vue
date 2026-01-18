@@ -19,7 +19,7 @@ const props = defineProps({
 
 <template>
 
-    <Head title="Product" />
+    <Head :title="$t('products.single')" />
     <AuthenticatedLayout >
         <ProductForm :product="product" :categories="categories" />
     </AuthenticatedLayout>

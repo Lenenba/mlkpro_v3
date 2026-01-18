@@ -18,7 +18,7 @@ defineProps({
 </script>
 
 <template>
-    <Head title="Services" />
+    <Head :title="$t('services.title')" />
     <AuthenticatedLayout>
         <ServiceStats :stats="stats" />
         <div class="grid grid-cols-1 gap-5">

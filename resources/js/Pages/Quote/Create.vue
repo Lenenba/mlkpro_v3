@@ -6,6 +6,7 @@ import FloatingTextarea from '@/Components/FloatingTextarea.vue';
 import ProductTableList from '@/Components/ProductTableList.vue';
 import ValidationSummary from '@/Components/ValidationSummary.vue';
 import { ref, watch, computed } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 const props = defineProps({
     customer: Object,
@@ -24,13 +25,20 @@ const props = defineProps({
 });
 
 const page = usePage();
-const companyName = computed(() => page.props.auth?.account?.company?.name || 'Entreprise');
+const { t } = useI18n();
+
+const companyName = computed(() => page.props.auth?.account?.company?.name || t('quotes.company_fallback'));
 const companyLogo = computed(() => page.props.auth?.account?.company?.logo_url || null);
 const isEditing = computed(() => Boolean(props.quote?.id));
 const templateDefaults = computed(() => props.templateDefaults || {});
 const templateExamples = computed(() => props.templateExamples || []);
 const defaultMessages = computed(() => templateDefaults.value?.messages || '');
 const defaultNotes = computed(() => templateDefaults.value?.notes || '');
+const customerLabel = computed(() => {
+    const label = props.customer?.company_name
+        || `${props.customer?.first_name || ''} ${props.customer?.last_name || ''}`.trim();
+    return label || t('quotes.labels.customer_fallback');
+});
 
 const parseSourceDetails = (value) => {
     if (!value) {
@@ -94,7 +102,7 @@ const templateOptions = computed(() => {
     if (defaultMessages.value || defaultNotes.value) {
         options.unshift({
             key: 'default',
-            label: 'Default template',
+            label: t('quotes.form.template_default'),
             messages: defaultMessages.value,
             notes: defaultNotes.value,
         });
@@ -208,7 +216,7 @@ const submit = () => {
 
 <template>
 
-    <Head title="Create quote" />
+    <Head :title="$t('quotes.create_title')" />
 
     <AuthenticatedLayout>
         <div class="mx-auto w-full max-w-6xl">
@@ -227,23 +235,23 @@ const submit = () => {
                                         {{ companyName }}
                                     </p>
                                     <h1 class="text-xl inline-block font-semibold text-stone-800 dark:text-green-100">
-                                        Quote For {{ customer.company_name }}
+                                        {{ $t('quotes.form.quote_for', { customer: customerLabel }) }}
                                     </h1>
                                 </div>
                             </div>
                         </div>
                         <div v-if="isLocked" class="text-xs text-amber-600">
-                            This quote is locked because it has been accepted or archived.
+                            {{ $t('quotes.form.quote_locked') }}
                         </div>
                         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                             <div class="col-span-2 space-x-2">
-                                <FloatingInput v-model="form.job_title" label="Job title" class="mb-2" :disabled="isLocked" />
+                                <FloatingInput v-model="form.job_title" :label="$t('quotes.form.job_title')" class="mb-2" :disabled="isLocked" />
                                 <div class="mb-3">
-                                    <label class="text-xs text-stone-500 dark:text-neutral-400">Property</label>
+                                    <label class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('quotes.form.property') }}</label>
                                     <select v-model.number="form.property_id"
                                         :disabled="isLocked"
                                         class="mt-1 w-full py-2 px-3 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-500 focus:ring-green-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
-                                        <option v-if="!customer.properties || !customer.properties.length" value="">No property</option>
+                                        <option v-if="!customer.properties || !customer.properties.length" value="">{{ $t('quotes.form.no_property') }}</option>
                                         <option v-for="property in customer.properties" :key="property.id" :value="property.id">
                                             {{ property.street1 }}{{ property.city ? ', ' + property.city : '' }}
                                         </option>
@@ -252,7 +260,7 @@ const submit = () => {
                                 <div class="flex flex-row space-x-6">
                                     <div class="lg:col-span-3">
                                         <p>
-                                            Property address
+                                            {{ $t('quotes.form.property_address') }}
                                         </p>
                                         <div v-if="selectedProperty" class="space-y-1">
                                             <div class="text-xs text-stone-600 dark:text-neutral-400">
@@ -266,12 +274,12 @@ const submit = () => {
                                             </div>
                                         </div>
                                         <div v-else class="text-xs text-stone-600 dark:text-neutral-400">
-                                            No property selected.
+                                            {{ $t('quotes.form.no_property_selected') }}
                                         </div>
                                     </div>
                                     <div class="lg:col-span-3">
                                         <p>
-                                            Contact details
+                                            {{ $t('quotes.form.contact_details') }}
                                         </p>
                                         <div class="text-xs text-stone-600 dark:text-neutral-400">
                                             {{ customer.first_name }} {{ customer.last_name }}
@@ -289,25 +297,25 @@ const submit = () => {
                             <div class="bg-white p-4 rounded-sm border border-stone-200 dark:bg-neutral-900 dark:border-neutral-700">
                                 <div class="lg:col-span-3">
                                     <p>
-                                        Quote details
+                                        {{ $t('quotes.form.quote_details') }}
                                     </p>
                                     <div class="text-xs text-stone-600 dark:text-neutral-400 flex justify-between">
-                                        <span> Quote :</span>
+                                        <span>{{ $t('quotes.form.quote_label') }}:</span>
                                         <span>{{ lastQuotesNumber|| quote?.number }} </span>
                                     </div>
                                     <div class="text-xs text-stone-600 dark:text-neutral-400 flex justify-between mt-2">
-                                    <span>Status :</span>
+                                    <span>{{ $t('quotes.form.status') }}:</span>
                                     <select v-model="form.status"
                                             :disabled="isLocked"
                                             class="py-1 px-2 text-xs bg-white border border-stone-200 rounded-sm text-stone-700 focus:border-green-500 focus:ring-green-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
-                                        <option value="draft">Draft</option>
-                                        <option value="sent">Sent</option>
-                                            <option value="accepted">Accepted</option>
-                                            <option value="declined">Declined</option>
+                                        <option value="draft">{{ $t('quotes.status.draft') }}</option>
+                                        <option value="sent">{{ $t('quotes.status.sent') }}</option>
+                                            <option value="accepted">{{ $t('quotes.status.accepted') }}</option>
+                                            <option value="declined">{{ $t('quotes.status.declined') }}</option>
                                         </select>
                                     </div>
                                     <div class="text-xs text-stone-600 dark:text-neutral-400 flex justify-between">
-                                        <span> Rate opportunity :</span>
+                                        <span>{{ $t('quotes.form.rate_opportunity') }}:</span>
                                         <span class="flex flex-row space-x-1">
                                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
                                                 stroke="currentColor" stroke-width="2" stroke-linecap="round"
@@ -320,7 +328,7 @@ const submit = () => {
                                     <div class="text-xs text-stone-600 dark:text-neutral-400 flex justify-between mt-5">
                                         <button type="button" disabled
                                             class="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-sm border border-green-200 bg-white text-green-800 shadow-sm hover:bg-green-50 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-green-50 dark:bg-neutral-900 dark:border-neutral-700 dark:text-green-300 dark:hover:bg-green-700 dark:focus:bg-green-700">
-                                            Add custom fields</button>
+                                            {{ $t('quotes.form.add_custom_fields') }}</button>
                                     </div>
                                 </div>
                             </div>
@@ -343,8 +351,8 @@ const submit = () => {
 
                         <div v-if="showTemplatePicker" class="col-span-2 rounded-sm border border-stone-200 bg-stone-50 p-3 text-xs text-stone-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300">
                             <div class="flex flex-wrap items-center justify-between gap-2">
-                                <span class="font-semibold text-stone-700 dark:text-neutral-200">Templates</span>
-                                <span>Pick a starting point for this quote.</span>
+                                <span class="font-semibold text-stone-700 dark:text-neutral-200">{{ $t('quotes.form.templates') }}</span>
+                                <span>{{ $t('quotes.form.template_help') }}</span>
                             </div>
                             <div class="mt-2 flex flex-wrap gap-2">
                                 <button
@@ -360,14 +368,14 @@ const submit = () => {
                         </div>
 
                         <div>
-                            <FloatingTextarea v-model="form.messages" label="Client message" :disabled="isLocked" />
+                            <FloatingTextarea v-model="form.messages" :label="$t('quotes.form.client_message')" :disabled="isLocked" />
                         </div>
                         <div class="border-l border-stone-200 dark:border-neutral-700 rounded-sm p-4">
                             <!-- List Item -->
                             <div class="py-4 grid grid-cols-2 gap-x-4  dark:border-neutral-700">
                                 <div class="col-span-1">
                                     <p class="text-sm text-stone-500 dark:text-neutral-500">
-                                        Subtotal:
+                                        {{ $t('quotes.form.subtotal') }}:
                                     </p>
                                 </div>
                                 <div class="col-span-1 flex justify-end">
@@ -385,12 +393,12 @@ const submit = () => {
                             <div class="py-4 grid grid-cols-2 gap-x-4 border-t border-stone-200 dark:border-neutral-700">
                                 <div class="col-span-1">
                                     <p class="text-sm text-stone-500 dark:text-neutral-500">
-                                        Discount (%):
+                                        {{ $t('quotes.form.discount') }}:
                                     </p>
                                 </div>
                                 <div class="flex justify-end">
                                     <p class="text-sm text-stone-800 dark:text-neutral-200">
-                                        Add discount
+                                        {{ $t('quotes.form.add_discount') }}
                                     </p>
                                 </div>
                             </div>
@@ -401,14 +409,14 @@ const submit = () => {
                                 <!-- Label pour la ligne des taxes -->
                                 <div class="col-span-1">
                                     <p class="text-sm text-stone-500 dark:text-neutral-500">
-                                        Tax:
+                                        {{ $t('quotes.form.tax') }}:
                                     </p>
                                 </div>
                                 <div class="flex justify-end">
                                     <div class="flex items-center gap-x-2">
                                         <button @click="toggleTaxDetails" type="button" :disabled="isLocked"
                                             class="py-1.5 ps-1.5 pe-2.5 inline-flex items-center gap-x-1 text-xs font-medium border border-green-500 text-green-800 rounded-sm disabled:opacity-50 disabled:pointer-events-none dark:bg-green-500/10 dark:text-green-500">
-                                            {{ showTaxDetails ? 'Hide taxes' : 'Add tax' }}
+                                            {{ showTaxDetails ? $t('quotes.form.hide_taxes') : $t('quotes.form.add_tax') }}
                                         </button>
                                     </div>
                                 </div>
@@ -417,7 +425,7 @@ const submit = () => {
                             <div v-if="showTaxDetails"
                                 class="space-y-3 py-4 border-t border-stone-200 dark:border-neutral-700">
                                 <div v-if="!availableTaxes.length" class="text-xs text-stone-500 dark:text-neutral-500">
-                                    No taxes configured.
+                                    {{ $t('quotes.form.no_taxes') }}
                                 </div>
                                 <div v-else class="space-y-2">
                                     <label v-for="tax in availableTaxes" :key="tax.id"
@@ -433,7 +441,7 @@ const submit = () => {
                                     </label>
                                 </div>
                                 <div class="flex justify-between font-bold">
-                                    <p class="text-sm text-stone-800 dark:text-neutral-200">Total taxes :</p>
+                                    <p class="text-sm text-stone-800 dark:text-neutral-200">{{ $t('quotes.form.total_taxes') }}:</p>
                                     <p class="text-sm text-stone-800 dark:text-neutral-200">${{ totalTaxAmount.toFixed(2) }}</p>
                                 </div>
                             </div>
@@ -443,7 +451,7 @@ const submit = () => {
                             <div class="py-4 grid grid-cols-2 gap-x-4 border-t border-stone-200 dark:border-neutral-700">
                                 <div class="col-span-1">
                                     <p class="text-sm text-stone-800 font-bold dark:text-neutral-500">
-                                        Total amount:
+                                        {{ $t('quotes.form.total_amount') }}:
                                     </p>
                                 </div>
                                 <div class="flex justify-end">
@@ -461,7 +469,7 @@ const submit = () => {
                                 class="py-4 grid grid-cols-2 items-center gap-x-4 border-t border-stone-600 dark:border-neutral-700">
                                 <!-- Label -->
                                 <div class="col-span-1">
-                                    <p class="text-sm text-stone-500 dark:text-neutral-500">Required deposit:</p>
+                                    <p class="text-sm text-stone-500 dark:text-neutral-500">{{ $t('quotes.form.required_deposit') }}:</p>
                                 </div>
 
                                 <!-- Contenu dynamique -->
@@ -472,14 +480,14 @@ const submit = () => {
                                             class="w-20 p-1 text-sm border border-stone-300 rounded-sm focus:outline-none focus:ring focus:ring-green-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-900 dark:border-neutral-700 dark:text-white"
                                             :min="minimumDeposit" />
                                         <span class="text-xs text-stone-500 dark:text-neutral-500">
-                                            (Min: ${{ minimumDeposit }})
+                                            ({{ $t('quotes.form.minimum_label', { amount: minimumDeposit }) }})
                                         </span>
                                     </div>
 
                                     <!-- Si le champ n'est pas affiché -->
                                     <span v-else-if="!isLocked" @click="toggleDepositInput"
                                         class="py-1.5 ps-1.5 pe-2.5 inline-flex items-center gap-x-1 text-xs font-medium bg-green-100 text-green-800 rounded-sm cursor-pointer hover:bg-green-200 dark:bg-green-500/10 dark:text-green-500 dark:hover:bg-green-600">
-                                        Add required deposit
+                                        {{ $t('quotes.form.add_required_deposit') }}
                                     </span>
                                 </div>
                             </div>
@@ -488,22 +496,22 @@ const submit = () => {
                     </div>
                     <div
                         class="p-5 grid grid-cols-1 gap-4 justify-between bg-white border border-stone-200 rounded-sm shadow-sm xl:shadow-none dark:bg-neutral-900 dark:border-neutral-700">
-                        <FloatingTextarea v-model="form.notes" label="Terms and conditions" :disabled="isLocked" />
+                        <FloatingTextarea v-model="form.notes" :label="$t('quotes.form.terms')" :disabled="isLocked" />
 
                         <div class="flex justify-between">
                             <button type="button"
                                 class="py-1.5 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-800 focus:outline-none focus:bg-stone-100 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700">
-                                Cancel
+                                {{ $t('quotes.form.cancel') }}
                             </button>
                             <div>
                                 <button type="button" disabled
                                     class="py-1.5 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-sm border border-green-600 text-green-600 hover:border-stone-700 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:ring-2 focus:ring-stone-500">
-                                    Save and create another
+                                    {{ $t('quotes.form.save_and_create_another') }}
                                 </button>
                                 <button id="hs-pro-in1trsbgwmdid1" type="submit" data-testid="demo-quote-save"
                                     :disabled="isLocked || form.processing"
                                     class="hs-tooltip-toggle ml-4 py-2 px-2.5 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:ring-2 focus:ring-green-500">
-                                    Save quote
+                                    {{ $t('quotes.form.save_quote') }}
                                 </button>
                             </div>
                         </div>

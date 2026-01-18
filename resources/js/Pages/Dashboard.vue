@@ -1,5 +1,6 @@
 <script setup>
 import { computed } from 'vue';
+import { useI18n } from 'vue-i18n';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import AnnouncementsPanel from '@/Components/Dashboard/AnnouncementsPanel.vue';
 import KpiSparkline from '@/Components/Dashboard/KpiSparkline.vue';
@@ -69,7 +70,13 @@ const props = defineProps({
 });
 
 const page = usePage();
-const userName = computed(() => page.props.auth?.user?.name || 'there');
+const { t } = useI18n();
+const userName = computed(() => page.props.auth?.user?.name || '');
+const greeting = computed(() =>
+    userName.value
+        ? t('dashboard.welcome_named', { name: userName.value })
+        : t('dashboard.welcome_generic')
+);
 const companyType = computed(() => page.props.auth?.account?.company?.type ?? null);
 const showServices = computed(() => companyType.value !== 'products');
 const isOwner = computed(() => Boolean(page.props.auth?.account?.is_owner));
@@ -89,15 +96,18 @@ const usageItems = computed(() => props.usage_limits?.items || []);
 const usageAlerts = computed(() => usageItems.value.filter((item) => item.status !== 'ok'));
 const hasUsageAlerts = computed(() => usageAlerts.value.length > 0);
 const planName = computed(() => props.usage_limits?.plan_name || props.usage_limits?.plan_key || '');
+const usagePlanSuffix = computed(() =>
+    planName.value ? t('dashboard.usage.plan_suffix', { plan: planName.value }) : ''
+);
 const limitLabelMap = {
-    quotes: 'Quotes',
-    requests: 'Requests',
-    invoices: 'Invoices',
-    jobs: 'Jobs',
-    products: 'Products',
-    services: 'Services',
-    tasks: 'Tasks',
-    team_members: 'Team members',
+    quotes: 'dashboard.limits.quotes',
+    requests: 'dashboard.limits.requests',
+    invoices: 'dashboard.limits.invoices',
+    jobs: 'dashboard.limits.jobs',
+    products: 'dashboard.limits.products',
+    services: 'dashboard.limits.services',
+    tasks: 'dashboard.limits.tasks',
+    team_members: 'dashboard.limits.team_members',
 };
 
 const isPlanActive = (plan) =>
@@ -137,7 +147,7 @@ const formatTimeRange = (task) => {
     if (end) {
         return end;
     }
-    return 'Any time';
+    return t('dashboard.time.any');
 };
 const buildItemDateTime = (item) => {
     if (!item?.due_date) {
@@ -165,54 +175,74 @@ const resolvePriorityKey = (item) => {
     }
     return 'low';
 };
-const priorityConfig = {
+const priorityConfig = computed(() => ({
     high: {
-        label: 'High',
+        label: t('dashboard.priority.high'),
         class: 'bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-200',
     },
     medium: {
-        label: 'Medium',
+        label: t('dashboard.priority.medium'),
         class: 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-200',
     },
     low: {
-        label: 'Low',
+        label: t('dashboard.priority.low'),
         class: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-200',
     },
-};
-const autoBadgeConfig = {
+}));
+const autoBadgeConfig = computed(() => ({
     started: {
-        label: 'Auto start',
+        label: t('dashboard.auto.started'),
         class: 'bg-sky-100 text-sky-700 dark:bg-sky-500/20 dark:text-sky-200',
     },
     completed: {
-        label: 'Auto done',
+        label: t('dashboard.auto.completed'),
         class: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-200',
     },
-};
-const resolvePriority = (task) => priorityConfig[resolvePriorityKey(task)];
+}));
+const resolvePriority = (task) => priorityConfig.value[resolvePriorityKey(task)];
 const resolveAutoBadges = (item) => {
     const badges = [];
     if (item?.auto_started_at) {
         badges.push({
             key: `${item.key}-auto-start`,
-            label: autoBadgeConfig.started.label,
-            class: autoBadgeConfig.started.class,
+            label: autoBadgeConfig.value.started.label,
+            class: autoBadgeConfig.value.started.class,
         });
     }
     if (item?.auto_completed_at) {
         badges.push({
             key: `${item.key}-auto-complete`,
-            label: autoBadgeConfig.completed.label,
-            class: autoBadgeConfig.completed.class,
+            label: autoBadgeConfig.value.completed.label,
+            class: autoBadgeConfig.value.completed.class,
         });
     }
     return badges;
 };
-const formatStatus = (status) => {
-    if (!status) {
+const resolveStatusLabel = (key, fallback) => {
+    const label = t(key);
+    return label === key ? fallback : label;
+};
+const quoteStatusLabel = (status) => {
+    const key = status || 'draft';
+    return resolveStatusLabel(`dashboard.status.quote.${key}`, key.replace('_', ' '));
+};
+const workStatusLabel = (status) => {
+    const key = status || 'scheduled';
+    return resolveStatusLabel(`dashboard.status.work.${key}`, key.replace('_', ' '));
+};
+const taskStatusLabel = (status) => {
+    const key = status || 'todo';
+    return resolveStatusLabel(`dashboard.status.task.${key}`, key.replace('_', ' '));
+};
+const invoiceStatusLabel = (status) => {
+    const key = status || 'draft';
+    return resolveStatusLabel(`dashboard.status.invoice.${key}`, key.replace('_', ' '));
+};
+const formatStatus = (item) => {
+    if (!item?.status) {
         return '-';
     }
-    return status.replace('_', ' ');
+    return item.type === 'work' ? workStatusLabel(item.status) : taskStatusLabel(item.status);
 };
 const todayItems = computed(() => {
     const taskItems = (tasksToday.value || []).map((task) => ({
@@ -241,8 +271,10 @@ const todayItems = computed(() => {
         return dateA.getTime() - dateB.getTime();
     });
 });
-const formatAgendaCount = (count, singular, plural) =>
-    `${count} ${count === 1 ? singular : plural}`;
+const formatAgendaCount = (count, singularKey, pluralKey) => {
+    const label = count === 1 ? t(singularKey) : t(pluralKey);
+    return `${count} ${label}`;
+};
 const agendaAlertItems = computed(() => {
     const alerts = agendaAlerts.value || {};
     const tasksStarted = Number(alerts.tasks_started || 0);
@@ -254,29 +286,38 @@ const agendaAlertItems = computed(() => {
     if (tasksStarted > 0) {
         items.push({
             key: 'tasks-started',
-            label: `${formatAgendaCount(tasksStarted, 'task', 'tasks')} auto-started`,
-            class: autoBadgeConfig.started.class,
+            label: t('dashboard.agenda.auto_started', {
+                count: formatAgendaCount(tasksStarted, 'dashboard.agenda.task', 'dashboard.agenda.tasks'),
+            }),
+            class: autoBadgeConfig.value.started.class,
         });
     }
     if (worksStarted > 0) {
         items.push({
             key: 'works-started',
-            label: `${formatAgendaCount(worksStarted, 'job', 'jobs')} auto-started`,
-            class: autoBadgeConfig.started.class,
+            label: t('dashboard.agenda.auto_started', {
+                count: formatAgendaCount(worksStarted, 'dashboard.agenda.job', 'dashboard.agenda.jobs'),
+            }),
+            class: autoBadgeConfig.value.started.class,
         });
     }
     if (tasksCompleted > 0) {
         items.push({
             key: 'tasks-completed',
-            label: `${formatAgendaCount(tasksCompleted, 'task', 'tasks')} auto-completed at 18:00`,
-            class: autoBadgeConfig.completed.class,
+            label: t('dashboard.agenda.auto_completed_at', {
+                count: formatAgendaCount(tasksCompleted, 'dashboard.agenda.task', 'dashboard.agenda.tasks'),
+                time: '18:00',
+            }),
+            class: autoBadgeConfig.value.completed.class,
         });
     }
     if (worksCompleted > 0) {
         items.push({
             key: 'works-completed',
-            label: `${formatAgendaCount(worksCompleted, 'job', 'jobs')} auto-completed`,
-            class: autoBadgeConfig.completed.class,
+            label: t('dashboard.agenda.auto_completed', {
+                count: formatAgendaCount(worksCompleted, 'dashboard.agenda.job', 'dashboard.agenda.jobs'),
+            }),
+            class: autoBadgeConfig.value.completed.class,
         });
     }
 
@@ -334,7 +375,7 @@ const kpiData = computed(() => {
 const displayCustomer = (customer) =>
     customer?.company_name ||
     `${customer?.first_name || ''} ${customer?.last_name || ''}`.trim() ||
-    'Unknown';
+    t('dashboard.labels.unknown_customer');
 
 const quoteStatusClass = (status) => {
     switch (status) {
@@ -395,13 +436,22 @@ const invoiceStatusClass = (status) => {
     }
 };
 
-const displayLimitLabel = (item) => limitLabelMap[item.key] || item.label || item.key;
+const displayLimitLabel = (item) => {
+    const translationKey = limitLabelMap[item.key];
+    if (translationKey) {
+        const label = t(translationKey);
+        if (label !== translationKey) {
+            return label;
+        }
+    }
+    return item.label || item.key;
+};
 const displayLimitValue = (item) => {
     if (item.limit === null || item.limit === undefined) {
-        return 'Unlimited';
+        return t('dashboard.usage.unlimited');
     }
     if (Number(item.limit) <= 0) {
-        return 'Not available';
+        return t('dashboard.usage.not_available');
     }
     return item.limit;
 };
@@ -413,7 +463,9 @@ const onboardingChecklist = computed(() => {
     if (hasCatalogFeature.value) {
         steps.push({
             key: 'catalog',
-            label: isServices ? 'Add your first service' : 'Add your first product',
+            label: isServices
+                ? t('dashboard.onboarding.add_first_service')
+                : t('dashboard.onboarding.add_first_product'),
             route: isServices ? 'service.index' : 'product.index',
             completed: stat('products_total') > 0,
         });
@@ -421,7 +473,7 @@ const onboardingChecklist = computed(() => {
 
     steps.push({
         key: 'customer',
-        label: 'Add your first customer',
+        label: t('dashboard.onboarding.add_first_customer'),
         route: 'customer.create',
         completed: stat('customers_total') > 0,
     });
@@ -429,7 +481,7 @@ const onboardingChecklist = computed(() => {
     if (hasFeature('quotes')) {
         steps.push({
             key: 'quote',
-            label: 'Create your first quote',
+            label: t('dashboard.onboarding.create_first_quote'),
             route: 'quote.index',
             completed: stat('quotes_total') > 0,
         });
@@ -458,7 +510,7 @@ const suggestionActions = computed(() => {
 
     actions.push({
         key: 'customer',
-        label: 'Create customer',
+        label: t('dashboard.suggestions.create_customer'),
         type: 'overlay',
         overlay: '#hs-quick-create-customer',
         priority: customersEmpty.value ? 1 : 5,
@@ -467,7 +519,9 @@ const suggestionActions = computed(() => {
     if (hasCatalogFeature.value) {
         actions.push({
             key: 'catalog',
-            label: showServices.value ? 'Add service' : 'Add product',
+            label: showServices.value
+                ? t('dashboard.suggestions.add_service')
+                : t('dashboard.suggestions.add_product'),
             type: showServices.value ? 'link' : 'overlay',
             route: showServices.value ? 'service.index' : null,
             overlay: showServices.value ? null : '#hs-quick-create-product',
@@ -478,7 +532,7 @@ const suggestionActions = computed(() => {
     if (hasFeature('quotes')) {
         actions.push({
             key: 'quote',
-            label: 'Create quote',
+            label: t('dashboard.suggestions.create_quote'),
             type: 'overlay',
             overlay: '#hs-quick-create-quote',
             priority: quotesEmpty.value ? 3 : 7,
@@ -488,7 +542,7 @@ const suggestionActions = computed(() => {
     if (hasPlanScans.value) {
         actions.push({
             key: 'plan_scan',
-            label: 'Import a plan',
+            label: t('dashboard.suggestions.import_plan'),
             type: 'link',
             route: 'plan-scans.create',
             priority: planScansEmpty.value ? 4 : 8,
@@ -498,7 +552,7 @@ const suggestionActions = computed(() => {
     if (showServices.value && isOwner.value && hasFeature('requests')) {
         actions.push({
             key: 'request',
-            label: 'Create request',
+            label: t('dashboard.suggestions.create_request'),
             type: 'overlay',
             overlay: '#hs-quick-create-request',
             priority: 9,
@@ -508,7 +562,7 @@ const suggestionActions = computed(() => {
     if (hasFeature('jobs')) {
         actions.push({
             key: 'jobs',
-            label: 'Review jobs',
+            label: t('dashboard.suggestions.review_jobs'),
             type: 'link',
             route: 'jobs.index',
             priority: 10,
@@ -523,7 +577,7 @@ const secondaryActions = computed(() => suggestionActions.value.slice(1, 5));
 </script>
 
 <template>
-    <Head title="Dashboard" />
+    <Head :title="$t('dashboard.title')" />
 
     <AuthenticatedLayout>
         <div class="space-y-6">
@@ -532,14 +586,18 @@ const secondaryActions = computed(() => suggestionActions.value.slice(1, 5));
                 <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                     <div class="space-y-1">
                         <h1 class="text-xl font-semibold text-stone-800 dark:text-neutral-100">
-                            Dashboard
+                            {{ $t('dashboard.title') }}
                         </h1>
                         <p class="text-sm text-stone-600 dark:text-neutral-400">
-                            Welcome back, {{ userName }}. Here is your business snapshot.
+                            {{ greeting }}
                         </p>
                         <div class="flex flex-wrap gap-3 text-xs text-stone-500 dark:text-neutral-400">
-                            <span v-if="hasFeature('quotes')">Quotes this month: {{ formatNumber(stat('quotes_month')) }}</span>
-                            <span v-if="hasFeature('invoices')">Payments this month: {{ formatCurrency(stat('payments_month')) }}</span>
+                            <span v-if="hasFeature('quotes')">
+                                {{ $t('dashboard.meta.quotes_month', { count: formatNumber(stat('quotes_month')) }) }}
+                            </span>
+                            <span v-if="hasFeature('invoices')">
+                                {{ $t('dashboard.meta.payments_month', { amount: formatCurrency(stat('payments_month')) }) }}
+                            </span>
                         </div>
                     </div>
                     <!-- <div class="flex flex-wrap items-center gap-2">
@@ -566,13 +624,13 @@ const secondaryActions = computed(() => suggestionActions.value.slice(1, 5));
             <section v-if="hasUsageAlerts" class="rounded-sm border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-200">
                 <div class="flex flex-wrap items-start justify-between gap-3">
                     <div>
-                        <div class="font-semibold">Usage alerts</div>
+                        <div class="font-semibold">{{ $t('dashboard.usage.title') }}</div>
                         <p class="text-xs text-amber-700 dark:text-amber-200">
-                            Some modules are close to their limits{{ planName ? ` for plan ${planName}` : '' }}.
+                            {{ $t('dashboard.usage.description', { planSuffix: usagePlanSuffix }) }}
                         </p>
                     </div>
                     <Link :href="route('settings.company.edit')" class="text-xs font-semibold text-amber-800 hover:underline dark:text-amber-200">
-                        View limits
+                        {{ $t('dashboard.usage.view_limits') }}
                     </Link>
                 </div>
                 <div class="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
@@ -592,14 +650,16 @@ const secondaryActions = computed(() => suggestionActions.value.slice(1, 5));
                     class="p-4 bg-white border border-t-4 border-t-emerald-600 border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
                     <div class="space-y-1">
                         <div class="flex items-center justify-between gap-2">
-                            <p class="text-xs text-stone-500 dark:text-neutral-400">Revenue paid</p>
+                            <p class="text-xs text-stone-500 dark:text-neutral-400">
+                                {{ $t('dashboard.kpi.revenue_paid') }}
+                            </p>
                             <KpiTrendBadge :trend="kpiData.revenue_paid.trend" />
                         </div>
                         <p class="text-lg font-semibold text-stone-800 dark:text-neutral-100">
                             {{ formatCurrency(stat('revenue_paid')) }}
                         </p>
                         <p class="text-xs text-stone-500 dark:text-neutral-400">
-                            Billed {{ formatCurrency(stat('revenue_billed')) }}
+                            {{ $t('dashboard.kpi.revenue_billed', { amount: formatCurrency(stat('revenue_billed')) }) }}
                         </p>
                         <KpiSparkline
                             :points="kpiData.revenue_paid.points"
@@ -611,14 +671,16 @@ const secondaryActions = computed(() => suggestionActions.value.slice(1, 5));
                     class="p-4 bg-white border border-t-4 border-t-amber-600 border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
                     <div class="space-y-1">
                         <div class="flex items-center justify-between gap-2">
-                            <p class="text-xs text-stone-500 dark:text-neutral-400">Outstanding balance</p>
+                            <p class="text-xs text-stone-500 dark:text-neutral-400">
+                                {{ $t('dashboard.kpi.outstanding_balance') }}
+                            </p>
                             <KpiTrendBadge :trend="kpiData.revenue_outstanding.trend" />
                         </div>
                         <p class="text-lg font-semibold text-stone-800 dark:text-neutral-100">
                             {{ formatCurrency(stat('revenue_outstanding')) }}
                         </p>
                         <p class="text-xs text-stone-500 dark:text-neutral-400">
-                            Partial invoices {{ formatNumber(stat('invoices_partial')) }}
+                            {{ $t('dashboard.kpi.partial_invoices', { count: formatNumber(stat('invoices_partial')) }) }}
                         </p>
                         <KpiSparkline
                             :points="kpiData.revenue_outstanding.points"
@@ -630,14 +692,16 @@ const secondaryActions = computed(() => suggestionActions.value.slice(1, 5));
                     class="p-4 bg-white border border-t-4 border-t-blue-600 border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
                     <div class="space-y-1">
                         <div class="flex items-center justify-between gap-2">
-                            <p class="text-xs text-stone-500 dark:text-neutral-400">Open quotes</p>
+                            <p class="text-xs text-stone-500 dark:text-neutral-400">
+                                {{ $t('dashboard.kpi.open_quotes') }}
+                            </p>
                             <KpiTrendBadge :trend="kpiData.quotes_open.trend" />
                         </div>
                         <p class="text-lg font-semibold text-stone-800 dark:text-neutral-100">
                             {{ formatNumber(stat('quotes_open')) }}
                         </p>
                         <p class="text-xs text-stone-500 dark:text-neutral-400">
-                            Accepted {{ formatNumber(stat('quotes_accepted')) }}
+                            {{ $t('dashboard.kpi.accepted_quotes', { count: formatNumber(stat('quotes_accepted')) }) }}
                         </p>
                         <KpiSparkline
                             :points="kpiData.quotes_open.points"
@@ -649,14 +713,16 @@ const secondaryActions = computed(() => suggestionActions.value.slice(1, 5));
                     class="p-4 bg-white border border-t-4 border-t-indigo-600 border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
                     <div class="space-y-1">
                         <div class="flex items-center justify-between gap-2">
-                            <p class="text-xs text-stone-500 dark:text-neutral-400">Jobs in progress</p>
+                            <p class="text-xs text-stone-500 dark:text-neutral-400">
+                                {{ $t('dashboard.kpi.jobs_in_progress') }}
+                            </p>
                             <KpiTrendBadge :trend="kpiData.works_in_progress.trend" />
                         </div>
                         <p class="text-lg font-semibold text-stone-800 dark:text-neutral-100">
                             {{ formatNumber(stat('works_in_progress')) }}
                         </p>
                         <p class="text-xs text-stone-500 dark:text-neutral-400">
-                            Scheduled {{ formatNumber(stat('works_scheduled')) }}
+                            {{ $t('dashboard.kpi.jobs_scheduled', { count: formatNumber(stat('works_scheduled')) }) }}
                         </p>
                         <KpiSparkline
                             :points="kpiData.works_in_progress.points"
@@ -668,14 +734,16 @@ const secondaryActions = computed(() => suggestionActions.value.slice(1, 5));
                     class="p-4 bg-white border border-t-4 border-t-sky-600 border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
                     <div class="space-y-1">
                         <div class="flex items-center justify-between gap-2">
-                            <p class="text-xs text-stone-500 dark:text-neutral-400">Customers</p>
+                            <p class="text-xs text-stone-500 dark:text-neutral-400">
+                                {{ $t('dashboard.kpi.customers') }}
+                            </p>
                             <KpiTrendBadge :trend="kpiData.customers_total.trend" />
                         </div>
                         <p class="text-lg font-semibold text-stone-800 dark:text-neutral-100">
                             {{ formatNumber(stat('customers_total')) }}
                         </p>
                         <p class="text-xs text-stone-500 dark:text-neutral-400">
-                            New last 30 days {{ formatNumber(stat('customers_new')) }}
+                            {{ $t('dashboard.kpi.customers_new', { count: formatNumber(stat('customers_new')) }) }}
                         </p>
                         <KpiSparkline
                             :points="kpiData.customers_total.points"
@@ -687,14 +755,16 @@ const secondaryActions = computed(() => suggestionActions.value.slice(1, 5));
                     class="p-4 bg-white border border-t-4 border-t-red-600 border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
                     <div class="space-y-1">
                         <div class="flex items-center justify-between gap-2">
-                            <p class="text-xs text-stone-500 dark:text-neutral-400">Low stock</p>
+                            <p class="text-xs text-stone-500 dark:text-neutral-400">
+                                {{ $t('dashboard.kpi.low_stock') }}
+                            </p>
                             <KpiTrendBadge :trend="kpiData.products_low_stock.trend" />
                         </div>
                         <p class="text-lg font-semibold text-stone-800 dark:text-neutral-100">
                             {{ formatNumber(stat('products_low_stock')) }}
                         </p>
                         <p class="text-xs text-stone-500 dark:text-neutral-400">
-                            Out of stock {{ formatNumber(stat('products_out')) }}
+                            {{ $t('dashboard.kpi.out_of_stock', { count: formatNumber(stat('products_out')) }) }}
                         </p>
                         <KpiSparkline
                             :points="kpiData.products_low_stock.points"
@@ -706,14 +776,16 @@ const secondaryActions = computed(() => suggestionActions.value.slice(1, 5));
                     class="p-4 bg-white border border-t-4 border-t-teal-600 border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
                     <div class="space-y-1">
                         <div class="flex items-center justify-between gap-2">
-                            <p class="text-xs text-stone-500 dark:text-neutral-400">Invoices paid</p>
+                            <p class="text-xs text-stone-500 dark:text-neutral-400">
+                                {{ $t('dashboard.kpi.invoices_paid') }}
+                            </p>
                             <KpiTrendBadge :trend="kpiData.invoices_paid.trend" />
                         </div>
                         <p class="text-lg font-semibold text-stone-800 dark:text-neutral-100">
                             {{ formatNumber(stat('invoices_paid')) }}
                         </p>
                         <p class="text-xs text-stone-500 dark:text-neutral-400">
-                            Total invoices {{ formatNumber(stat('invoices_total')) }}
+                            {{ $t('dashboard.kpi.invoices_total', { count: formatNumber(stat('invoices_total')) }) }}
                         </p>
                         <KpiSparkline
                             :points="kpiData.invoices_paid.points"
@@ -725,14 +797,16 @@ const secondaryActions = computed(() => suggestionActions.value.slice(1, 5));
                     class="p-4 bg-white border border-t-4 border-t-stone-600 border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
                     <div class="space-y-1">
                         <div class="flex items-center justify-between gap-2">
-                            <p class="text-xs text-stone-500 dark:text-neutral-400">Inventory value</p>
+                            <p class="text-xs text-stone-500 dark:text-neutral-400">
+                                {{ $t('dashboard.kpi.inventory_value') }}
+                            </p>
                             <KpiTrendBadge :trend="kpiData.inventory_value.trend" />
                         </div>
                         <p class="text-lg font-semibold text-stone-800 dark:text-neutral-100">
                             {{ formatCurrency(stat('inventory_value')) }}
                         </p>
                         <p class="text-xs text-stone-500 dark:text-neutral-400">
-                            Products {{ formatNumber(stat('products_total')) }}
+                            {{ $t('dashboard.kpi.products_total', { count: formatNumber(stat('products_total')) }) }}
                         </p>
                         <KpiSparkline
                             :points="kpiData.inventory_value.points"
@@ -745,8 +819,8 @@ const secondaryActions = computed(() => suggestionActions.value.slice(1, 5));
                     v-if="hasTopAnnouncements"
                     :announcements="announcements"
                     variant="side"
-                    title="Announcements"
-                    subtitle="Active notices for your team."
+                    :title="$t('dashboard.announcements.title')"
+                    :subtitle="$t('dashboard.announcements.subtitle')"
                     :limit="3"
                 />
             </div>
@@ -757,10 +831,10 @@ const secondaryActions = computed(() => suggestionActions.value.slice(1, 5));
                         <div class="flex items-start justify-between gap-3">
                             <div>
                                 <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
-                                    Today's timeline
+                                    {{ $t('dashboard.timeline.title') }}
                                 </h2>
                                 <p class="text-xs text-stone-500 dark:text-neutral-400">
-                                    Priorities are based on time.
+                                    {{ $t('dashboard.timeline.subtitle') }}
                                 </p>
                             </div>
                             <div class="flex items-center gap-3">
@@ -771,16 +845,16 @@ const secondaryActions = computed(() => suggestionActions.value.slice(1, 5));
                                     rel="noreferrer"
                                     download
                                 >
-                                    Sync calendar
+                                    {{ $t('dashboard.timeline.sync_calendar') }}
                                 </a>
                                 <Link :href="route('task.index')" class="text-xs font-medium text-stone-500 hover:text-stone-700 dark:text-neutral-400 dark:hover:text-neutral-200">
-                                    View tasks
+                                    {{ $t('dashboard.timeline.view_tasks') }}
                                 </Link>
                             </div>
                         </div>
                         <div class="mt-4">
                             <div v-if="hasAgendaAlerts" class="mb-3 rounded-sm border border-sky-200 bg-sky-50 p-3 text-xs text-sky-800 dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-200">
-                                <div class="font-semibold">Auto alerts today</div>
+                                <div class="font-semibold">{{ $t('dashboard.timeline.auto_alerts') }}</div>
                                 <div class="mt-2 flex flex-wrap gap-2">
                                     <span
                                         v-for="item in agendaAlertItems"
@@ -792,7 +866,7 @@ const secondaryActions = computed(() => suggestionActions.value.slice(1, 5));
                                 </div>
                             </div>
                             <div v-if="!todayItems.length" class="text-sm text-stone-500 dark:text-neutral-400">
-                                No tasks or jobs scheduled for today.
+                                {{ $t('dashboard.timeline.empty') }}
                             </div>
                             <div v-else class="space-y-3">
                                 <div v-for="(item, index) in todayItems" :key="item.key" class="flex gap-3">
@@ -807,7 +881,7 @@ const secondaryActions = computed(() => suggestionActions.value.slice(1, 5));
                                                     {{ formatTimeRange(item) }}
                                                 </div>
                                                 <div class="truncate font-medium text-stone-900 dark:text-neutral-100">
-                                                    {{ item.title || (item.type === 'work' ? 'Job' : 'Task') }}
+                                                    {{ item.title || (item.type === 'work' ? $t('dashboard.labels.job') : $t('dashboard.labels.task')) }}
                                                 </div>
                                             </div>
                                             <div class="flex flex-col items-end gap-1">
@@ -822,15 +896,15 @@ const secondaryActions = computed(() => suggestionActions.value.slice(1, 5));
                                                     {{ badge.label }}
                                                 </span>
                                                 <span class="text-[11px] uppercase text-stone-400 dark:text-neutral-500">
-                                                    {{ item.type === 'work' ? 'Job' : 'Task' }}
+                                                    {{ item.type === 'work' ? $t('dashboard.labels.job') : $t('dashboard.labels.task') }}
                                                 </span>
                                                 <span class="text-[11px] uppercase text-stone-400 dark:text-neutral-500">
-                                                    {{ formatStatus(item.status) }}
+                                                    {{ formatStatus(item) }}
                                                 </span>
                                             </div>
                                         </div>
                                         <div v-if="item.assignee?.name" class="mt-2 text-xs text-stone-500 dark:text-neutral-400">
-                                            Assignee: {{ item.assignee.name }}
+                                            {{ $t('dashboard.labels.assignee', { name: item.assignee.name }) }}
                                         </div>
                                     </div>
                                 </div>
@@ -842,15 +916,15 @@ const secondaryActions = computed(() => suggestionActions.value.slice(1, 5));
                         <div class="flex flex-wrap items-center justify-between gap-2">
                             <div>
                                 <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
-                                    Revenue trend
+                                    {{ $t('dashboard.revenue.title') }}
                                 </h2>
                                 <p class="text-xs text-stone-500 dark:text-neutral-400">
-                                    Last 6 months payments
+                                    {{ $t('dashboard.revenue.subtitle') }}
                                 </p>
                             </div>
                             <Link :href="route('invoice.index')"
                                 class="text-xs font-medium text-green-600 hover:text-green-700">
-                                View invoices
+                                {{ $t('dashboard.revenue.view_invoices') }}
                             </Link>
                         </div>
                         <div class="mt-4 flex items-end gap-2 h-36">
@@ -865,19 +939,25 @@ const secondaryActions = computed(() => suggestionActions.value.slice(1, 5));
                         </div>
                         <div class="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
                             <div>
-                                <div class="text-xs text-stone-500 dark:text-neutral-400">Paid to date</div>
+                                <div class="text-xs text-stone-500 dark:text-neutral-400">
+                                    {{ $t('dashboard.revenue.paid_to_date') }}
+                                </div>
                                 <div class="font-semibold text-stone-800 dark:text-neutral-100">
                                     {{ formatCurrency(stat('revenue_paid')) }}
                                 </div>
                             </div>
                             <div>
-                                <div class="text-xs text-stone-500 dark:text-neutral-400">Outstanding</div>
+                                <div class="text-xs text-stone-500 dark:text-neutral-400">
+                                    {{ $t('dashboard.revenue.outstanding') }}
+                                </div>
                                 <div class="font-semibold text-stone-800 dark:text-neutral-100">
                                     {{ formatCurrency(stat('revenue_outstanding')) }}
                                 </div>
                             </div>
                             <div>
-                                <div class="text-xs text-stone-500 dark:text-neutral-400">Overdue invoices</div>
+                                <div class="text-xs text-stone-500 dark:text-neutral-400">
+                                    {{ $t('dashboard.revenue.overdue') }}
+                                </div>
                                 <div class="font-semibold text-stone-800 dark:text-neutral-100">
                                     {{ formatNumber(stat('invoices_overdue')) }}
                                 </div>
@@ -888,10 +968,10 @@ const secondaryActions = computed(() => suggestionActions.value.slice(1, 5));
                     <div v-if="hasFeature('quotes')" class="bg-white border border-stone-200 rounded-sm p-5 shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
                         <div class="flex items-center justify-between">
                             <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
-                                Recent quotes
+                                {{ $t('dashboard.sections.recent_quotes') }}
                             </h2>
                             <Link :href="route('quote.index')" class="text-xs font-medium text-green-600 hover:text-green-700">
-                                View all
+                                {{ $t('dashboard.actions.view_all') }}
                             </Link>
                         </div>
                         <div class="mt-3 overflow-x-auto">
@@ -899,19 +979,19 @@ const secondaryActions = computed(() => suggestionActions.value.slice(1, 5));
                                 <thead>
                                     <tr>
                                         <th class="py-2 text-left text-xs font-medium text-stone-500 dark:text-neutral-400">
-                                            Quote
+                                            {{ $t('dashboard.table.quote') }}
                                         </th>
                                         <th class="py-2 text-left text-xs font-medium text-stone-500 dark:text-neutral-400">
-                                            Customer
+                                            {{ $t('dashboard.table.customer') }}
                                         </th>
                                         <th class="py-2 text-left text-xs font-medium text-stone-500 dark:text-neutral-400">
-                                            Status
+                                            {{ $t('dashboard.table.status') }}
                                         </th>
                                         <th class="py-2 text-right text-xs font-medium text-stone-500 dark:text-neutral-400">
-                                            Total
+                                            {{ $t('dashboard.table.total') }}
                                         </th>
                                         <th class="py-2 text-right text-xs font-medium text-stone-500 dark:text-neutral-400">
-                                            Created
+                                            {{ $t('dashboard.table.created') }}
                                         </th>
                                     </tr>
                                 </thead>
@@ -919,7 +999,7 @@ const secondaryActions = computed(() => suggestionActions.value.slice(1, 5));
                                     <tr v-for="quote in recentQuotes" :key="quote.id">
                                         <td class="py-2 text-sm text-stone-700 dark:text-neutral-200">
                                             <Link :href="route('customer.quote.show', quote.id)" class="hover:underline">
-                                                {{ quote.number || 'Quote' }}
+                                                {{ quote.number || $t('dashboard.labels.quote_fallback') }}
                                             </Link>
                                         </td>
                                         <td class="py-2 text-sm text-stone-600 dark:text-neutral-300">
@@ -928,7 +1008,7 @@ const secondaryActions = computed(() => suggestionActions.value.slice(1, 5));
                                         <td class="py-2">
                                             <span class="px-2 py-1 text-xs font-medium rounded-full"
                                                 :class="quoteStatusClass(quote.status)">
-                                                {{ quote.status || 'draft' }}
+                                                {{ quoteStatusLabel(quote.status) }}
                                             </span>
                                         </td>
                                         <td class="py-2 text-sm text-right text-stone-600 dark:text-neutral-300">
@@ -940,7 +1020,7 @@ const secondaryActions = computed(() => suggestionActions.value.slice(1, 5));
                                     </tr>
                                     <tr v-if="!recentQuotes.length">
                                         <td colspan="5" class="py-4 text-sm text-center text-stone-500 dark:text-neutral-400">
-                                            No quotes yet.
+                                            {{ $t('dashboard.empty.quotes') }}
                                         </td>
                                     </tr>
                                 </tbody>
@@ -951,10 +1031,10 @@ const secondaryActions = computed(() => suggestionActions.value.slice(1, 5));
                     <div v-if="hasFeature('jobs')" class="bg-white border border-stone-200 rounded-sm p-5 shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
                         <div class="flex items-center justify-between">
                             <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
-                                Upcoming jobs
+                                {{ $t('dashboard.sections.upcoming_jobs') }}
                             </h2>
                             <Link :href="route('jobs.index')" class="text-xs font-medium text-green-600 hover:text-green-700">
-                                View all
+                                {{ $t('dashboard.actions.view_all') }}
                             </Link>
                         </div>
                         <div class="mt-3 space-y-3">
@@ -974,12 +1054,12 @@ const secondaryActions = computed(() => suggestionActions.value.slice(1, 5));
                                     </span>
                                     <span class="px-2 py-1 text-xs font-medium rounded-full"
                                         :class="jobStatusClass(job.status)">
-                                        {{ job.status || 'scheduled' }}
+                                        {{ workStatusLabel(job.status) }}
                                     </span>
                                 </div>
                             </div>
                             <div v-if="!upcomingJobs.length" class="text-sm text-stone-500 dark:text-neutral-400">
-                                No upcoming jobs scheduled.
+                                {{ $t('dashboard.empty.jobs') }}
                             </div>
                         </div>
                     </div>
@@ -993,10 +1073,10 @@ const secondaryActions = computed(() => suggestionActions.value.slice(1, 5));
                         <div class="flex items-start justify-between gap-3">
                             <div>
                                 <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
-                                    Getting started checklist
+                                    {{ $t('dashboard.checklist.title') }}
                                 </h2>
                                 <p class="text-xs text-stone-500 dark:text-neutral-400">
-                                    Complete these steps to get comfortable with the platform.
+                                    {{ $t('dashboard.checklist.subtitle') }}
                                 </p>
                             </div>
                             <div class="text-xs font-semibold text-emerald-700 dark:text-emerald-300">
@@ -1032,7 +1112,7 @@ const secondaryActions = computed(() => suggestionActions.value.slice(1, 5));
                                     {{ item.label }}
                                 </Link>
                                 <span v-if="item.completed" class="text-[11px] font-semibold text-emerald-700 dark:text-emerald-300">
-                                    Done
+                                    {{ $t('dashboard.checklist.done') }}
                                 </span>
                             </li>
                         </ul>
@@ -1042,18 +1122,20 @@ const secondaryActions = computed(() => suggestionActions.value.slice(1, 5));
                         >
                             <div class="flex flex-wrap items-center justify-between gap-3">
                                 <div>
-                                    <div class="font-semibold text-stone-700 dark:text-neutral-100">Plan scans</div>
+                                    <div class="font-semibold text-stone-700 dark:text-neutral-100">
+                                        {{ $t('dashboard.checklist.plan_scans_title') }}
+                                    </div>
                                     <div class="text-[11px] text-stone-500 dark:text-neutral-400">
                                         {{ planScansEmpty
-                                            ? 'Import your first plan to speed up quotes.'
-                                            : `You have ${formatNumber(stat('plan_scans_total'))} plan scans.` }}
+                                            ? $t('dashboard.checklist.plan_scans_empty')
+                                            : $t('dashboard.checklist.plan_scans_count', { count: formatNumber(stat('plan_scans_total')) }) }}
                                     </div>
                                 </div>
                                 <Link
                                     :href="route('plan-scans.create')"
                                     class="rounded-sm border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-[11px] font-semibold text-emerald-800 hover:bg-emerald-100 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200 dark:hover:bg-emerald-500/20"
                                 >
-                                    Import a plan
+                                    {{ $t('dashboard.checklist.plan_scans_cta') }}
                                 </Link>
                             </div>
                         </div>
@@ -1063,13 +1145,13 @@ const secondaryActions = computed(() => suggestionActions.value.slice(1, 5));
                         :announcements="quickAnnouncements"
                         variant="side"
                         :fill-height="false"
-                        title="Announcements"
-                        subtitle="Displayed in the quick actions slot."
+                        :title="$t('dashboard.announcements.quick_title')"
+                        :subtitle="$t('dashboard.announcements.quick_subtitle')"
                         :limit="3"
                     />
                     <div v-else class="bg-white border border-stone-200 rounded-sm p-5 shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
                         <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
-                            Quick actions
+                            {{ $t('dashboard.quick_actions.title') }}
                         </h2>
                         <div class="mt-4 space-y-3 text-sm">
                             <div v-if="primaryAction">
@@ -1080,9 +1162,11 @@ const secondaryActions = computed(() => suggestionActions.value.slice(1, 5));
                                     class="w-full rounded-sm border border-emerald-600 bg-emerald-600 px-3 py-2 text-white hover:bg-emerald-700"
                                 >
                                     <div class="flex items-center justify-between">
-                                        <span class="text-xs font-semibold uppercase tracking-wide">+ Create</span>
+                                        <span class="text-xs font-semibold uppercase tracking-wide">
+                                            + {{ $t('dashboard.quick_actions.create') }}
+                                        </span>
                                         <span class="text-[11px] font-medium text-emerald-100">
-                                            Suggested: {{ primaryAction.label }}
+                                            {{ $t('dashboard.quick_actions.suggested', { label: primaryAction.label }) }}
                                         </span>
                                     </div>
                                 </button>
@@ -1092,15 +1176,19 @@ const secondaryActions = computed(() => suggestionActions.value.slice(1, 5));
                                     class="block w-full rounded-sm border border-emerald-600 bg-emerald-600 px-3 py-2 text-white hover:bg-emerald-700"
                                 >
                                     <div class="flex items-center justify-between">
-                                        <span class="text-xs font-semibold uppercase tracking-wide">+ Create</span>
+                                        <span class="text-xs font-semibold uppercase tracking-wide">
+                                            + {{ $t('dashboard.quick_actions.create') }}
+                                        </span>
                                         <span class="text-[11px] font-medium text-emerald-100">
-                                            Suggested: {{ primaryAction.label }}
+                                            {{ $t('dashboard.quick_actions.suggested', { label: primaryAction.label }) }}
                                         </span>
                                     </div>
                                 </Link>
                             </div>
                             <div v-if="secondaryActions.length" class="space-y-2">
-                                <div class="text-xs text-stone-500 dark:text-neutral-400">Suggested next</div>
+                                <div class="text-xs text-stone-500 dark:text-neutral-400">
+                                    {{ $t('dashboard.quick_actions.suggested_next') }}
+                                </div>
                                 <div class="grid grid-cols-1 gap-2 text-sm">
                                     <template v-for="action in secondaryActions" :key="action.key">
                                         <button
@@ -1127,10 +1215,10 @@ const secondaryActions = computed(() => suggestionActions.value.slice(1, 5));
                     <div v-if="hasFeature('invoices')" class="bg-white border border-stone-200 rounded-sm p-5 shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
                         <div class="flex items-center justify-between">
                             <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
-                                Outstanding invoices
+                                {{ $t('dashboard.sections.outstanding_invoices') }}
                             </h2>
                             <Link :href="route('invoice.index')" class="text-xs font-medium text-green-600 hover:text-green-700">
-                                View all
+                                {{ $t('dashboard.actions.view_all') }}
                             </Link>
                         </div>
                         <div class="mt-3 space-y-3">
@@ -1138,7 +1226,7 @@ const secondaryActions = computed(() => suggestionActions.value.slice(1, 5));
                                 class="flex items-center justify-between gap-3 rounded-sm border border-stone-200 px-3 py-2 text-sm dark:border-neutral-700">
                                 <div>
                                     <Link :href="route('invoice.show', invoice.id)" class="font-medium text-stone-800 hover:underline dark:text-neutral-200">
-                                        {{ invoice.number || 'Invoice' }}
+                                        {{ invoice.number || $t('dashboard.labels.invoice_fallback') }}
                                     </Link>
                                     <div class="text-xs text-stone-500 dark:text-neutral-400">
                                         {{ displayCustomer(invoice.customer) }}
@@ -1150,12 +1238,12 @@ const secondaryActions = computed(() => suggestionActions.value.slice(1, 5));
                                     </div>
                                     <span class="px-2 py-0.5 text-xs font-medium rounded-full"
                                         :class="invoiceStatusClass(invoice.status)">
-                                        {{ invoice.status }}
+                                        {{ invoiceStatusLabel(invoice.status) }}
                                     </span>
                                 </div>
                             </div>
                             <div v-if="!outstandingInvoices.length" class="text-sm text-stone-500 dark:text-neutral-400">
-                                All invoices are settled.
+                                {{ $t('dashboard.empty.invoices') }}
                             </div>
                         </div>
                     </div>
@@ -1163,21 +1251,21 @@ const secondaryActions = computed(() => suggestionActions.value.slice(1, 5));
                     <div class="bg-white border border-stone-200 rounded-sm p-5 shadow-sm dark:bg-neutral-800 dark:border-neutral-700" data-testid="demo-dashboard-activity">
                         <div class="flex items-center justify-between">
                             <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
-                                Recent activity
+                                {{ $t('dashboard.sections.recent_activity') }}
                             </h2>
                         </div>
                         <div class="mt-3 space-y-3 text-sm">
                             <div v-for="log in activity" :key="log.id"
                                 class="rounded-sm border border-stone-200 px-3 py-2 dark:border-neutral-700">
                                 <div class="text-xs uppercase text-stone-500 dark:text-neutral-400">
-                                    {{ log.subject }} · {{ formatDate(log.created_at) }}
+                                    {{ log.subject }} - {{ formatDate(log.created_at) }}
                                 </div>
                                 <div class="text-sm text-stone-700 dark:text-neutral-200">
                                     {{ log.description || log.action }}
                                 </div>
                             </div>
                             <div v-if="!activity.length" class="text-sm text-stone-500 dark:text-neutral-400">
-                                No recent activity yet.
+                                {{ $t('dashboard.empty.activity') }}
                             </div>
                         </div>
                     </div>

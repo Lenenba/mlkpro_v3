@@ -18,6 +18,7 @@ import TimePicker from '@/Components/TimePicker.vue';
 import Checkbox from '@/Components/Checkbox.vue';
 import ProductTableList from '@/Components/ProductTableList.vue';
 import InputError from '@/Components/InputError.vue';
+import { useI18n } from 'vue-i18n';
 
 const props = defineProps({
     works: Object,
@@ -36,55 +37,61 @@ const props = defineProps({
 });
 
 const page = usePage();
-const companyName = computed(() => page.props.auth?.account?.company?.name || 'Entreprise');
+const { t } = useI18n();
+const companyName = computed(() => page.props.auth?.account?.company?.name || t('jobs.company_fallback'));
 const companyLogo = computed(() => page.props.auth?.account?.company?.logo_url || null);
+const customerLabel = computed(() => {
+    const label = props.customer?.company_name
+        || `${props.customer?.first_name || ''} ${props.customer?.last_name || ''}`.trim();
+    return label || t('jobs.form.customer_fallback');
+});
 
-const Frequence = [
-    { id: 'Daily', name: 'Quotidien' },
-    { id: 'Weekly', name: 'Hebdomadaire' },
-    { id: 'Monthly', name: 'Mensuel' },
-    { id: 'Yearly', name: 'Annuel' },
-];
+const Frequence = computed(() => [
+    { id: 'Daily', name: t('jobs.recurrence.frequency.daily') },
+    { id: 'Weekly', name: t('jobs.recurrence.frequency.weekly') },
+    { id: 'Monthly', name: t('jobs.recurrence.frequency.monthly') },
+    { id: 'Yearly', name: t('jobs.recurrence.frequency.yearly') },
+]);
 
-const endOptions = [
-    { id: 'Never', name: 'Jamais' },
-    { id: 'On', name: 'Le' },
-    { id: 'After', name: 'Apres' },
-];
+const endOptions = computed(() => [
+    { id: 'Never', name: t('jobs.recurrence.ends.never') },
+    { id: 'On', name: t('jobs.recurrence.ends.on') },
+    { id: 'After', name: t('jobs.recurrence.ends.after') },
+]);
 
-const statusOptions = [
-    { id: 'to_schedule', name: 'A planifier' },
-    { id: 'scheduled', name: 'Planifie' },
-    { id: 'en_route', name: 'En route' },
-    { id: 'in_progress', name: 'En cours' },
-    { id: 'tech_complete', name: 'Tech termine' },
-    { id: 'pending_review', name: 'En attente de validation' },
-    { id: 'validated', name: 'Valide' },
-    { id: 'auto_validated', name: 'Auto valide' },
-    { id: 'dispute', name: 'Litige' },
-    { id: 'closed', name: 'Cloture' },
-    { id: 'cancelled', name: 'Annule' },
-    { id: 'completed', name: 'Termine (ancien)' },
-];
+const statusOptions = computed(() => [
+    { id: 'to_schedule', name: t('jobs.status.to_schedule') },
+    { id: 'scheduled', name: t('jobs.status.scheduled') },
+    { id: 'en_route', name: t('jobs.status.en_route') },
+    { id: 'in_progress', name: t('jobs.status.in_progress') },
+    { id: 'tech_complete', name: t('jobs.status.tech_complete') },
+    { id: 'pending_review', name: t('jobs.status.pending_review') },
+    { id: 'validated', name: t('jobs.status.validated') },
+    { id: 'auto_validated', name: t('jobs.status.auto_validated') },
+    { id: 'dispute', name: t('jobs.status.dispute') },
+    { id: 'closed', name: t('jobs.status.closed') },
+    { id: 'cancelled', name: t('jobs.status.cancelled') },
+    { id: 'completed', name: t('jobs.status.completed') },
+]);
 
-const billingModes = [
-    { id: 'per_task', name: 'Par tache' },
-    { id: 'per_segment', name: 'Par segment' },
-    { id: 'end_of_job', name: 'Fin de job' },
-    { id: 'deferred', name: 'Differe' },
-];
+const billingModes = computed(() => [
+    { id: 'per_task', name: t('jobs.billing.modes.per_task') },
+    { id: 'per_segment', name: t('jobs.billing.modes.per_segment') },
+    { id: 'end_of_job', name: t('jobs.billing.modes.end_of_job') },
+    { id: 'deferred', name: t('jobs.billing.modes.deferred') },
+]);
 
-const billingGroupings = [
-    { id: 'single', name: 'Une facture' },
-    { id: 'periodic', name: 'Regrouper' },
-];
+const billingGroupings = computed(() => [
+    { id: 'single', name: t('jobs.billing.groupings.single') },
+    { id: 'periodic', name: t('jobs.billing.groupings.periodic') },
+]);
 
-const billingCycles = [
-    { id: 'weekly', name: 'Chaque semaine' },
-    { id: 'biweekly', name: 'Toutes les 2 semaines' },
-    { id: 'monthly', name: 'Chaque mois' },
-    { id: 'every_n_tasks', name: 'Chaque N taches' },
-];
+const billingCycles = computed(() => [
+    { id: 'weekly', name: t('jobs.billing.cycles.weekly') },
+    { id: 'biweekly', name: t('jobs.billing.cycles.biweekly') },
+    { id: 'monthly', name: t('jobs.billing.cycles.monthly') },
+    { id: 'every_n_tasks', name: t('jobs.billing.cycles.every_n_tasks') },
+]);
 
 const toIsoDate = (dateInput) => {
     if (!dateInput) {
@@ -256,15 +263,15 @@ watch([() => form.start_date, () => form.frequency, () => form.ends, () => form.
 
 
 // Array of days of the week for weekly recurrence
-const daysOfWeek = [
-    { value: 'Mo', label: 'Lu' },
-    { value: 'Tu', label: 'Ma' },
-    { value: 'We', label: 'Me' },
-    { value: 'Th', label: 'Je' },
-    { value: 'Fr', label: 'Ve' },
-    { value: 'Sa', label: 'Sa' },
-    { value: 'Su', label: 'Di' },
-];
+const daysOfWeek = computed(() => [
+    { value: 'Mo', label: t('jobs.recurrence.weekdays.mo') },
+    { value: 'Tu', label: t('jobs.recurrence.weekdays.tu') },
+    { value: 'We', label: t('jobs.recurrence.weekdays.we') },
+    { value: 'Th', label: t('jobs.recurrence.weekdays.th') },
+    { value: 'Fr', label: t('jobs.recurrence.weekdays.fr') },
+    { value: 'Sa', label: t('jobs.recurrence.weekdays.sa') },
+    { value: 'Su', label: t('jobs.recurrence.weekdays.su') },
+]);
 
 // Array of day numbers (1 to 31) for monthly recurrence
 const daysOfMonth = [];
@@ -326,7 +333,7 @@ const previewAssignees = computed(() => {
 
     const members = props.teamMembers || [];
     const memberMap = new Map(
-        members.map((member) => [Number(member.id), member.user?.name ?? 'Membre equipe'])
+        members.map((member) => [Number(member.id), member.user?.name ?? t('jobs.form.team.member_fallback')])
     );
 
     if (selectedIds.length) {
@@ -335,7 +342,7 @@ const previewAssignees = computed(() => {
 
     return members.map((member) => ({
         id: member.id,
-        name: member.user?.name ?? 'Membre equipe',
+        name: member.user?.name ?? t('jobs.form.team.member_fallback'),
     }));
 });
 
@@ -527,7 +534,7 @@ onBeforeUnmount(() => {
 
 <template>
 
-    <Head title="Creer un job" />
+    <Head :title="$t('jobs.create_title')" />
     <AuthenticatedLayout>
         <div class="mx-auto w-full max-w-6xl">
             <form @submit.prevent="submit">
@@ -545,7 +552,7 @@ onBeforeUnmount(() => {
                                         {{ companyName }}
                                     </p>
                                     <h1 class="text-xl inline-block font-semibold text-stone-800 dark:text-green-100">
-                                        Job pour : {{ customer.company_name }}
+                                        {{ $t('jobs.form.job_for', { customer: customerLabel }) }}
                                     </h1>
                                 </div>
                             </div>
@@ -553,17 +560,17 @@ onBeforeUnmount(() => {
                         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                             <div class="col-span-2 space-x-2">
                                 <div class="mb-4" x-data="{ open: false }">
-                                    <FloatingInput v-model="form.job_title" label="Titre du job" :required="true" :disabled="isLockedFromQuote" />
+                                    <FloatingInput v-model="form.job_title" :label="$t('jobs.form.job_title')" :required="true" :disabled="isLockedFromQuote" />
                                     <InputError class="mt-1" :message="form.errors.job_title" />
-                                    <FloatingTextarea v-model="form.instructions" label="Instructions" :disabled="isLockedFromQuote" />
+                                    <FloatingTextarea v-model="form.instructions" :label="$t('jobs.form.instructions')" :disabled="isLockedFromQuote" />
                                 </div>
                                 <div v-if="isLockedFromQuote" class="mb-2 text-xs text-amber-600">
-                                    Ce job est verrouille car il provient d'un devis accepte. Seule la planification peut etre modifiee.
+                                    {{ $t('jobs.form.locked_notice') }}
                                 </div>
                                 <div class="flex flex-row space-x-6">
                                     <div class="lg:col-span-3">
                                         <p>
-                                            Adresse du bien
+                                            {{ $t('jobs.form.property_address') }}
                                         </p>
                                         <div class="text-xs text-stone-600 dark:text-neutral-400">
                                             {{ primaryProperty?.country ?? '-' }}
@@ -577,7 +584,7 @@ onBeforeUnmount(() => {
                                     </div>
                                     <div class="lg:col-span-3">
                                         <p>
-                                            Coordonnees
+                                            {{ $t('jobs.form.contact_details') }}
                                         </p>
                                         <div class="text-xs text-stone-600 dark:text-neutral-400">
                                             {{ customer.first_name }} {{ customer.last_name }}
@@ -595,14 +602,14 @@ onBeforeUnmount(() => {
                             <div class="bg-white p-4 rounded-sm border border-stone-100 dark:bg-neutral-900 dark:border-neutral-700">
                                 <div class="lg:col-span-3">
                                     <p>
-                                        Details du job
+                                        {{ $t('jobs.form.job_details') }}
                                     </p>
                                     <div class="text-xs text-stone-600 dark:text-neutral-400 flex justify-between">
-                                        <span> Job :</span>
+                                        <span>{{ $t('jobs.form.job_label') }}:</span>
                                         <span>{{ lastWorkNumber }} </span>
                                     </div>
                                     <div class="text-xs text-stone-600 dark:text-neutral-400 flex justify-between">
-                                        <span> Note :</span>
+                                        <span>{{ $t('jobs.form.rating_label') }}:</span>
                                         <span class="flex flex-row space-x-1">
                                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
                                                 stroke="currentColor" stroke-width="2" stroke-linecap="round"
@@ -613,12 +620,12 @@ onBeforeUnmount(() => {
                                         </span>
                                     </div>
                                     <div class="mt-4">
-                                        <FloatingSelect v-model="form.status" label="Statut" :options="statusOptions" />
+                                        <FloatingSelect v-model="form.status" :label="$t('jobs.form.status_label')" :options="statusOptions" />
                                     </div>
                                     <div class="text-xs text-stone-600 dark:text-neutral-400 flex justify-between mt-5">
                                         <button type="button" disabled
                                             class="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-sm border border-green-200 bg-white text-green-800 shadow-sm hover:bg-green-50 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-green-50 dark:bg-neutral-900 dark:border-neutral-700 dark:text-green-300 dark:hover:bg-green-700 dark:focus:bg-green-700">
-                                            Ajouter des champs</button>
+                                            {{ $t('jobs.form.add_custom_fields') }}</button>
                                     </div>
                                 </div>
                             </div>
@@ -649,13 +656,13 @@ onBeforeUnmount(() => {
                                         </svg>
                                             <span class="grow text-center md:text-start">
                                                 <span class="block text-xs md:text-sm text-stone-700 dark:text-neutral-300">
-                                                JOB UNIQUE
+                                                {{ $t('jobs.form.tabs.single.title') }}
                                             </span>
                                             <span
                                                 class="hidden xl:mt-1 md:flex md:justify-between md:items-center md:gap-x-2">
                                                 <span
                                                     class="block text-xs md:text-sm text-stone-500 dark:text-neutral-500">
-                                                    Un job unique avec une ou plusieurs visites
+                                                    {{ $t('jobs.form.tabs.single.subtitle') }}
                                                 </span>
                                             </span>
                                         </span>
@@ -684,13 +691,13 @@ onBeforeUnmount(() => {
                                         </svg>
                                         <span class="grow text-center md:text-start">
                                             <span class="block text-xs md:text-sm text-stone-700 dark:text-neutral-300">
-                                                JOB RECURRENT
+                                                {{ $t('jobs.form.tabs.recurring.title') }}
                                             </span>
                                             <span
                                                 class="hidden xl:mt-1 md:flex md:justify-between md:items-center md:gap-x-2">
                                                 <span
                                                     class="block text-xs md:text-sm text-stone-500 dark:text-neutral-500">
-                                                    Un job contractuel avec des visites repetees
+                                                    {{ $t('jobs.form.tabs.recurring.subtitle') }}
                                                 </span>
                                             </span>
                                         </span>
@@ -715,34 +722,34 @@ onBeforeUnmount(() => {
                                                         class="flex flex-row bg-white dark:bg-neutral-900 border-b border-stone-200 rounded-t-sm py-3 px-4 md:px-5 dark:border-neutral-700">
                                                         <h3
                                                             class="text-lg  ml-2 font-bold text-stone-800 dark:text-white">
-                                                            PLANIFICATION
+                                                            {{ $t('jobs.form.planning_title') }}
                                                         </h3>
                                                     </div>
                                                     <div class="p-4 md:p-5">
                                                         <div class="flex flex-row space-x-1 mb-4">
-                                                            <DatePicker v-model="form.start_date" label="Date de debut" :required="true"
-                                                                placeholder="Choisir une date" />
+                                                            <DatePicker v-model="form.start_date" :label="$t('jobs.form.start_date')" :required="true"
+                                                                :placeholder="$t('jobs.form.pick_date')" />
                                                         </div>
                                                         <InputError class="mt-1" :message="form.errors.start_date" />
                                                         <div class="flex flex-row space-x-1">
-                                                            <TimePicker v-model="form.start_time" label="Heure de debut"
-                                                                placeholder="Choisir une heure" />
+                                                            <TimePicker v-model="form.start_time" :label="$t('jobs.form.start_time')"
+                                                                :placeholder="$t('jobs.form.pick_time')" />
                                                             <TimePicker v-model="form.end_time"
-                                                                label="Heure de fin"
-                                                                placeholder="Choisir une heure" />
+                                                                :label="$t('jobs.form.end_time')"
+                                                                :placeholder="$t('jobs.form.pick_time')" />
                                                         </div>
                                                         <div
                                                             class="mt-3 rounded-sm border border-stone-200 bg-stone-50 p-3 text-xs text-stone-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-400">
                                                             <div class="text-xs font-semibold text-stone-700 dark:text-neutral-300">
-                                                                Resume rapide
+                                                                {{ $t('jobs.form.quick_summary') }}
                                                             </div>
                                                             <div class="mt-2 space-y-1">
                                                                 <div class="flex items-center justify-between">
-                                                                    <span>Date</span>
+                                                                    <span>{{ $t('jobs.form.summary_date') }}</span>
                                                                     <span>{{ formatDateLabel(form.start_date) }}</span>
                                                                 </div>
                                                                 <div class="flex items-center justify-between">
-                                                                    <span>Heure</span>
+                                                                    <span>{{ $t('jobs.form.summary_time') }}</span>
                                                                     <span>
                                                                         {{ form.start_time || '-' }}
                                                                         <span v-if="form.end_time"> - {{ form.end_time }}</span>
@@ -750,14 +757,14 @@ onBeforeUnmount(() => {
                                                                 </div>
                                                             </div>
                                                             <p class="mt-2 text-[11px] text-stone-500 dark:text-neutral-500">
-                                                                Cliquer un jour sur le calendrier pour remplir la date.
+                                                                {{ $t('jobs.form.calendar_tip') }}
                                                             </p>
                                                         </div>
                                                         <div class="mt-4 block">
                                                             <label class="flex items-center">
                                                                 <Checkbox name="later"
                                                                     v-model:checked="form.later" />
-                                                                <span class="ms-2 text-sm text-stone-600 dark:text-neutral-400">Planifier plus tard</span>
+                                                                <span class="ms-2 text-sm text-stone-600 dark:text-neutral-400">{{ $t('jobs.form.plan_later') }}</span>
                                                             </label>
                                                         </div>
                                                     </div>
@@ -768,14 +775,14 @@ onBeforeUnmount(() => {
                                                         class="flex flex-row bg-white dark:bg-neutral-900 border-b border-stone-200 rounded-t-sm py-3 px-4 md:px-5 dark:border-neutral-700">
                                                         <h3
                                                             class="text-lg  ml-2 font-bold text-stone-800 dark:text-white">
-                                                            EQUIPE
+                                                            {{ $t('jobs.form.team.title') }}
                                                         </h3>
                                                     </div>
                                                     <div class="p-4 md:p-5">
                                                         <div class="space-y-3">
                                                             <div v-if="!teamMembers?.length"
                                                                 class="text-sm text-stone-600 dark:text-neutral-400">
-                                                                Aucun membre pour l'instant.
+                                                                {{ $t('jobs.form.team.empty') }}
                                                             </div>
                                                             <div v-else class="space-y-2">
                                                                 <label v-for="member in teamMembers" :key="member.id"
@@ -785,7 +792,7 @@ onBeforeUnmount(() => {
                                                                     <div class="flex flex-col">
                                                                         <span
                                                                             class="text-sm text-stone-800 dark:text-neutral-200">
-                                                                            {{ member.user?.name ?? 'Membre equipe' }}
+                                                                            {{ member.user?.name ?? $t('jobs.form.team.member_fallback') }}
                                                                         </span>
                                                                         <span
                                                                             class="text-xs text-stone-500 dark:text-neutral-500">
@@ -813,20 +820,20 @@ onBeforeUnmount(() => {
                                                         <span class="mt-1 h-2 w-2 rounded-full bg-emerald-500"></span>
                                                         <div>
                                                             <div class="text-sm font-semibold text-stone-700 dark:text-neutral-300">
-                                                                Calendrier
+                                                                {{ $t('jobs.form.calendar.title') }}
                                                             </div>
                                                             <p class="text-xs text-stone-500 dark:text-neutral-500">
-                                                                Le calendrier affiche les interventions deja planifiees.
+                                                                {{ $t('jobs.form.calendar.subtitle') }}
                                                             </p>
                                                         </div>
                                                     </div>
                                                     <div class="flex items-center">
                                                         <select v-model="calendarTeamFilter"
                                                             class="h-8 w-full rounded-md border border-stone-200 bg-white/90 px-2 pe-8 text-[11px] text-stone-700 shadow-sm focus:border-emerald-500 focus:ring-emerald-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200 sm:w-auto">
-                                                            <option value="">Tous les membres</option>
+                                                            <option value="">{{ $t('jobs.form.calendar.all_members') }}</option>
                                                             <option v-for="member in teamMembers" :key="member.id"
                                                                 :value="member.id">
-                                                                {{ member.user?.name ?? 'Membre equipe' }}
+                                                                {{ member.user?.name ?? $t('jobs.form.team.member_fallback') }}
                                                             </option>
                                                         </select>
                                                     </div>
@@ -853,31 +860,31 @@ onBeforeUnmount(() => {
                                                 <div
                                                     class="flex flex-row bg-white dark:bg-neutral-900 border-b border-stone-200 rounded-t-sm py-3 px-4 md:px-5 dark:border-neutral-700">
                                                     <h3 class="text-lg  ml-2 font-bold text-stone-800 dark:text-white">
-                                                        PLANIFICATION
+                                                        {{ $t('jobs.form.planning_title') }}
                                                     </h3>
                                                 </div>
                                                 <div class="p-4 md:p-5">
-                                                    <DatePicker v-model="form.start_date" label="Date de debut" :required="true"
-                                                        placeholder="Choisir une date" />
+                                                    <DatePicker v-model="form.start_date" :label="$t('jobs.form.start_date')" :required="true"
+                                                        :placeholder="$t('jobs.form.pick_date')" />
                                                     <InputError class="mt-1" :message="form.errors.start_date" />
                                                     <div class="flex flex-row space-x-1 my-4">
-                                                        <TimePicker v-model="form.start_time" label="Heure de debut"
-                                                            placeholder="Choisir une heure" />
-                                                        <TimePicker v-model="form.end_time" label="Heure de fin"
-                                                            placeholder="Choisir une heure" />
+                                                        <TimePicker v-model="form.start_time" :label="$t('jobs.form.start_time')"
+                                                            :placeholder="$t('jobs.form.pick_time')" />
+                                                        <TimePicker v-model="form.end_time" :label="$t('jobs.form.end_time')"
+                                                            :placeholder="$t('jobs.form.pick_time')" />
                                                     </div>
                                                     <div
                                                         class="mt-3 rounded-sm border border-stone-200 bg-stone-50 p-3 text-xs text-stone-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-400">
                                                         <div class="text-xs font-semibold text-stone-700 dark:text-neutral-300">
-                                                            Resume rapide
+                                                            {{ $t('jobs.form.quick_summary') }}
                                                         </div>
                                                         <div class="mt-2 space-y-1">
                                                             <div class="flex items-center justify-between">
-                                                                <span>Date</span>
+                                                                <span>{{ $t('jobs.form.summary_date') }}</span>
                                                                 <span>{{ formatDateLabel(form.start_date) }}</span>
                                                             </div>
                                                             <div class="flex items-center justify-between">
-                                                                <span>Heure</span>
+                                                                <span>{{ $t('jobs.form.summary_time') }}</span>
                                                                 <span>
                                                                     {{ form.start_time || '-' }}
                                                                     <span v-if="form.end_time"> - {{ form.end_time }}</span>
@@ -885,7 +892,7 @@ onBeforeUnmount(() => {
                                                             </div>
                                                         </div>
                                                         <p class="mt-2 text-[11px] text-stone-500 dark:text-neutral-500">
-                                                            Cliquer un jour sur le calendrier pour remplir la date.
+                                                            {{ $t('jobs.form.calendar_tip') }}
                                                         </p>
                                                     </div>
 
@@ -897,30 +904,30 @@ onBeforeUnmount(() => {
                                                 <div
                                                     class="flex flex-row bg-white dark:bg-neutral-900 border-b border-stone-200 rounded-t-sm py-3 px-4 md:px-5 dark:border-neutral-700">
                                                     <h3 class="text-lg  ml-2 font-bold text-stone-800 dark:text-white">
-                                                        RECURRENCE
+                                                        {{ $t('jobs.form.recurrence.title') }}
                                                     </h3>
                                                 </div>
                                                 <div class="p-4 md:p-5">
                                                     <p class="text-xs text-stone-500 dark:text-neutral-500">
-                                                        Definis la cadence des visites recurrentes.
+                                                        {{ $t('jobs.form.recurrence.subtitle') }}
                                                     </p>
                                                     <div id="hs-modal-custom-recurrence-event" class="mt-4 space-y-4">
                                                         <div>
                                                             <label for="hs-pro-ccremre"
                                                                 class="mb-1.5 block text-[13px] text-stone-400 dark:text-neutral-500">
-                                                                Repeter chaque :
+                                                                {{ $t('jobs.form.recurrence.repeat_every') }}
                                                             </label>
                                                             <FloatingSelect v-model="form.frequency"
-                                                                label="Frequence" :options="Frequence" />
+                                                                :label="$t('jobs.recurrence.frequency.label')" :options="Frequence" />
                                                         </div>
 
                                                         <div v-if="form.frequency !== 'Daily'">
                                                             <label
                                                                 class="mb-1.5 block text-[13px] text-stone-400 dark:text-neutral-500">
-                                                                Repete le :
+                                                                {{ $t('jobs.form.recurrence.repeat_on') }}
                                                             </label>
                                                             <p class="mb-2 text-[11px] text-stone-400 dark:text-neutral-500">
-                                                                Choisis les jours ou les visites se repetent.
+                                                                {{ $t('jobs.form.recurrence.repeat_hint') }}
                                                             </p>
                                                             <div v-if="form.frequency === 'Weekly'"
                                                                 class="flex flex-wrap items-center gap-2">
@@ -933,18 +940,18 @@ onBeforeUnmount(() => {
                                                         </div>
 
                                                         <div>
-                                                            <FloatingSelect :label="'Fin'" v-model="form.ends"
+                                                            <FloatingSelect :label="$t('jobs.recurrence.ends.label')" v-model="form.ends"
                                                                 :options="endOptions" />
 
                                                             <div class="w-full mt-4" v-if="form.ends === 'On'">
-                                                                <DatePicker v-model="form.end_date" label="Date de fin"
-                                                                    placeholder="Choisir une date" />
+                                                                <DatePicker v-model="form.end_date" :label="$t('jobs.form.end_date')"
+                                                                    :placeholder="$t('jobs.form.pick_date')" />
                                                             </div>
                                                             <div class="w-full flex items-center gap-x-2 mt-4" v-if="form.ends === 'After'">
                                                                 <FloatingNumberMiniInput v-model="form.frequencyNumber"
-                                                                    label="Nombre" />
+                                                                    :label="$t('jobs.form.recurrence.count_label')" />
                                                                 <span
-                                                                    class="text-xs text-stone-400 dark:text-neutral-500">fois</span>
+                                                                    class="text-xs text-stone-400 dark:text-neutral-500">{{ $t('jobs.form.recurrence.times_suffix') }}</span>
                                                             </div>
                                                         </div>
                                                     </div>
@@ -952,13 +959,13 @@ onBeforeUnmount(() => {
                                                     <div
                                                         class="mt-4 rounded-sm border border-stone-200 bg-stone-50 p-3 dark:border-neutral-700 dark:bg-neutral-800">
                                                         <div class="text-xs font-semibold text-stone-700 dark:text-neutral-300">
-                                                            Apercu des visites
+                                                            {{ $t('jobs.form.recurrence.preview_title') }}
                                                         </div>
                                                         <div class="mt-2 grid grid-cols-3 gap-3">
                                                             <div class="flex flex-col">
                                                                 <span
                                                                     class="text-[11px] text-stone-500 dark:text-neutral-500">
-                                                                    Premiere
+                                                                    {{ $t('jobs.form.recurrence.preview_first') }}
                                                                 </span>
                                                                 <span
                                                                     class="text-xs text-stone-700 dark:text-neutral-300">
@@ -968,7 +975,7 @@ onBeforeUnmount(() => {
                                                             <div class="flex flex-col">
                                                                 <span
                                                                     class="text-[11px] text-stone-500 dark:text-neutral-500">
-                                                                    Derniere
+                                                                    {{ $t('jobs.form.recurrence.preview_last') }}
                                                                 </span>
                                                                 <span
                                                                     class="text-xs text-stone-700 dark:text-neutral-300">
@@ -978,7 +985,7 @@ onBeforeUnmount(() => {
                                                             <div class="flex flex-col">
                                                                 <span
                                                                     class="text-[11px] text-stone-500 dark:text-neutral-500">
-                                                                    Total
+                                                                    {{ $t('jobs.form.recurrence.preview_total') }}
                                                                 </span>
                                                                 <span
                                                                     class="text-xs text-stone-700 dark:text-neutral-300">
@@ -994,14 +1001,14 @@ onBeforeUnmount(() => {
                                                 <div
                                                     class="flex flex-row bg-white dark:bg-neutral-900 border-b border-stone-200 rounded-t-sm py-3 px-4 md:px-5 dark:border-neutral-700">
                                                     <h3 class="text-lg  ml-2 font-bold text-stone-800 dark:text-white">
-                                                        EQUIPE
+                                                        {{ $t('jobs.form.team.title') }}
                                                     </h3>
                                                 </div>
                                                 <div class="p-4 md:p-5">
                                                     <div class="space-y-3">
                                                         <div v-if="!teamMembers?.length"
                                                             class="text-sm text-stone-600 dark:text-neutral-400">
-                                                            Aucun membre pour l'instant.
+                                                            {{ $t('jobs.form.team.empty') }}
                                                         </div>
                                                         <div v-else class="space-y-2">
                                                             <label v-for="member in teamMembers" :key="member.id"
@@ -1011,7 +1018,7 @@ onBeforeUnmount(() => {
                                                                 <div class="flex flex-col">
                                                                     <span
                                                                         class="text-sm text-stone-800 dark:text-neutral-200">
-                                                                        {{ member.user?.name ?? 'Membre equipe' }}
+                                                                        {{ member.user?.name ?? $t('jobs.form.team.member_fallback') }}
                                                                     </span>
                                                                     <span
                                                                         class="text-xs text-stone-500 dark:text-neutral-500">
@@ -1026,7 +1033,7 @@ onBeforeUnmount(() => {
                                                         </div>
                                                         <div v-if="teamMembers?.length"
                                                             class="text-xs text-stone-500 dark:text-neutral-500">
-                                                            Selectionner un membre pour filtrer le calendrier.
+                                                            {{ $t('jobs.form.team.filter_hint') }}
                                                         </div>
                                                     </div>
                                                 </div>
@@ -1039,20 +1046,20 @@ onBeforeUnmount(() => {
                                                     <span class="mt-1 h-2 w-2 rounded-full bg-emerald-500"></span>
                                                     <div>
                                                         <div class="text-sm font-semibold text-stone-700 dark:text-neutral-300">
-                                                            Calendrier
+                                                            {{ $t('jobs.form.calendar.title') }}
                                                         </div>
                                                         <p class="text-xs text-stone-500 dark:text-neutral-500">
-                                                            Le calendrier affiche les interventions deja planifiees.
+                                                            {{ $t('jobs.form.calendar.subtitle') }}
                                                         </p>
                                                     </div>
                                                 </div>
                                                 <div class="flex items-center">
                                                     <select v-model="calendarTeamFilter"
                                                         class="h-8 w-full rounded-md border border-stone-200 bg-white/90 px-2 pe-8 text-[11px] text-stone-700 shadow-sm focus:border-emerald-500 focus:ring-emerald-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200 sm:w-auto">
-                                                        <option value="">Tous les membres</option>
+                                                        <option value="">{{ $t('jobs.form.calendar.all_members') }}</option>
                                                         <option v-for="member in teamMembers" :key="member.id"
                                                             :value="member.id">
-                                                            {{ member.user?.name ?? 'Membre equipe' }}
+                                                            {{ member.user?.name ?? $t('jobs.form.team.member_fallback') }}
                                                         </option>
                                                     </select>
                                                 </div>
@@ -1077,34 +1084,33 @@ onBeforeUnmount(() => {
                         <div
                             class="flex flex-row bg-white dark:bg-neutral-900 border-b border-stone-200 rounded-t-sm py-3 px-4 md:px-5 dark:border-neutral-700">
                             <h3 class="text-lg  ml-2 font-bold text-stone-800 dark:text-white">
-                                FACTURATION
+                                {{ $t('jobs.form.billing.title') }}
                             </h3>
                         </div>
                         <div class="p-4 md:p-5">
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                <FloatingSelect v-model="form.billing_mode" label="Mode de facturation"
+                                <FloatingSelect v-model="form.billing_mode" :label="$t('jobs.form.billing.mode')"
                                     :options="billingModes" />
-                                <FloatingSelect v-model="form.billing_grouping" label="Regroupement"
+                                <FloatingSelect v-model="form.billing_grouping" :label="$t('jobs.form.billing.grouping')"
                                     :options="billingGroupings" />
                             </div>
 
                             <div v-if="form.billing_mode === 'per_segment' || form.billing_grouping === 'periodic' || form.billing_mode === 'deferred'"
                                 class="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
-                                <FloatingSelect v-model="form.billing_cycle" label="Cycle"
+                                <FloatingSelect v-model="form.billing_cycle" :label="$t('jobs.form.billing.cycle')"
                                     :options="billingCycles" />
                                 <FloatingInput v-if="form.billing_mode === 'deferred'"
-                                    v-model="form.billing_delay_days" type="number" label="Delai (jours)" />
+                                    v-model="form.billing_delay_days" type="number" :label="$t('jobs.form.billing.delay')" />
                             </div>
 
                             <div v-if="form.billing_mode === 'deferred'" class="mt-3">
                                 <FloatingInput v-model="form.billing_date_rule"
-                                    label="Regle de date (ex: 1er du mois)" />
+                                    :label="$t('jobs.form.billing.date_rule')" />
                             </div>
 
                             <label v-if="form.billing_mode === 'end_of_job'" class="mt-4 flex items-center">
                                 <Checkbox name="later" v-model:checked="form.later" />
-                                <span class="ms-2 text-sm text-stone-600 dark:text-neutral-400">Me rappeler de facturer a la fermeture du
-                                    job</span>
+                                <span class="ms-2 text-sm text-stone-600 dark:text-neutral-400">{{ $t('jobs.form.billing.reminder') }}</span>
                             </label>
                         </div>
                     </div>
@@ -1114,16 +1120,16 @@ onBeforeUnmount(() => {
                         <div class="flex justify-between">
                             <button type="button"
                                 class="py-1.5 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-800 focus:outline-none focus:bg-stone-100 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700 action-feedback">
-                                Annuler
+                                {{ $t('jobs.form.actions.cancel') }}
                             </button>
                             <div>
                                 <button type="button" disabled
                                     class="py-1.5 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-sm border border-green-600 text-green-600 hover:border-stone-700 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:ring-2 focus:ring-stone-500 action-feedback">
-                                    Sauvegarder et creer un autre
+                                    {{ $t('jobs.form.actions.save_and_create_another') }}
                                 </button>
                                 <button id="hs-pro-in1trsbgwmdid1" type="submit"
                                     class="hs-tooltip-toggle ml-4 py-2 px-2.5 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:ring-2 focus:ring-green-500 action-feedback">
-                                    Sauvegarder le job
+                                    {{ $t('jobs.form.actions.save_job') }}
                                 </button>
                             </div>
                         </div>

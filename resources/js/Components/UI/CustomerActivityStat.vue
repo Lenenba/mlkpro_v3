@@ -1,5 +1,6 @@
 <script setup>
 import { computed } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 const props = defineProps({
     items: {
@@ -8,9 +9,13 @@ const props = defineProps({
     },
     title: {
         type: String,
-        default: 'Top customer activity',
+        default: '',
     },
 });
+
+const { t } = useI18n();
+
+const resolvedTitle = computed(() => props.title || t('customers.activity.title'));
 
 const total = computed(() =>
     props.items.reduce((sum, item) => sum + Number(item.quotes_count || 0) + Number(item.works_count || 0), 0)
@@ -36,20 +41,20 @@ const getPercent = (item) => {
         <div class="p-5 pb-4 flex items-center justify-between gap-x-4">
             <div>
                 <h2 class="inline-block font-semibold text-stone-800 dark:text-neutral-200">
-                    {{ title }}
+                    {{ resolvedTitle }}
                 </h2>
                 <p class="text-xs text-stone-500 dark:text-neutral-500">
-                    Quotes + jobs activity
+                    {{ t('customers.activity.subtitle') }}
                 </p>
             </div>
             <div class="text-sm text-stone-500 dark:text-neutral-400">
-                {{ formatNumber(total) }} actions
+                {{ t('customers.activity.actions', { count: formatNumber(total) }) }}
             </div>
         </div>
 
         <div class="h-full p-5 pt-0">
             <div v-if="!items.length" class="text-sm text-stone-500 dark:text-neutral-400">
-                No customer activity yet.
+                {{ t('customers.activity.empty') }}
             </div>
             <div v-else class="space-y-4">
                 <div class="flex gap-x-1 w-full h-2.5 rounded-full overflow-hidden">
@@ -87,7 +92,7 @@ const getPercent = (item) => {
                         </div>
                         <div class="text-end">
                             <span class="text-sm text-stone-500 dark:text-neutral-500">
-                                {{ formatNumber(item.quotes_count || 0) }} q / {{ formatNumber(item.works_count || 0) }} j
+                                {{ formatNumber(item.quotes_count || 0) }} {{ t('customers.activity.quotes_short') }} / {{ formatNumber(item.works_count || 0) }} {{ t('customers.activity.jobs_short') }}
                             </span>
                         </div>
                     </li>

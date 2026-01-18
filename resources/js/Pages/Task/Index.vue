@@ -27,7 +27,7 @@ const props = defineProps({
 </script>
 
 <template>
-    <Head title="Tasks" />
+    <Head :title="$t('tasks.title')" />
     <AuthenticatedLayout>
         <TaskStats :stats="stats" />
         <div class="mt-3">

@@ -2,6 +2,7 @@
 import { Link, router } from '@inertiajs/vue3';
 import { ref } from 'vue';
 import { humanizeDate } from '@/utils/date';
+import { useI18n } from 'vue-i18n';
 
 const props = defineProps({
     requests: {
@@ -19,21 +20,22 @@ const props = defineProps({
 });
 
 const processingId = ref(null);
+const { t } = useI18n();
 
 const formatDate = (value) => humanizeDate(value);
 
-const titleForRequest = (lead) => lead?.title || lead?.service_type || 'Request';
+const titleForRequest = (lead) => lead?.title || lead?.service_type || t('requests.labels.request');
 
-const requestSubtitle = (lead) => lead?.service_type || `Request #${lead?.id || '-'}`;
+const requestSubtitle = (lead) => lead?.service_type || t('requests.labels.request_number', { id: lead?.id || '-' });
 
 const statusLabel = (status) => {
     if (status === 'REQ_NEW') {
-        return 'New';
+        return t('requests.status.new');
     }
     if (status === 'REQ_CONVERTED') {
-        return 'Converted';
+        return t('requests.status.converted');
     }
-    return status || 'Unknown';
+    return status || t('requests.labels.unknown_status');
 };
 
 const statusPillClass = (status) => {
@@ -122,7 +124,7 @@ const isProcessing = (lead) => processingId.value === lead?.id;
                                     <path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0" />
                                     <circle cx="12" cy="12" r="3" />
                                 </svg>
-                                View quote
+                                {{ $t('requests.actions.view_quote') }}
                             </Link>
                             <button
                                 v-else-if="lead.status === 'REQ_NEW'"
@@ -137,7 +139,7 @@ const isProcessing = (lead) => processingId.value === lead?.id;
                                     <path d="M12 5v14" />
                                     <path d="M5 12h14" />
                                 </svg>
-                                Convert to quote
+                                {{ $t('requests.actions.convert_to_quote') }}
                             </button>
                         </div>
                     </div>
@@ -146,13 +148,13 @@ const isProcessing = (lead) => processingId.value === lead?.id;
 
             <div class="divide-y divide-stone-200 px-4 py-2 text-xs text-stone-500 dark:divide-neutral-700 dark:text-neutral-400">
                 <div class="flex flex-col gap-1 py-2 sm:flex-row sm:items-center sm:justify-between">
-                    <span>Created</span>
+                    <span>{{ $t('requests.table.created') }}</span>
                     <span class="text-sm font-semibold text-stone-800 dark:text-neutral-200 sm:text-right">
                         {{ formatDate(lead.created_at) }}
                     </span>
                 </div>
                 <div class="flex flex-col gap-1 py-2 sm:flex-row sm:items-center sm:justify-between">
-                    <span>Status</span>
+                    <span>{{ $t('requests.table.status') }}</span>
                     <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold"
                         :class="statusPillClass(lead.status)">
                         {{ statusLabel(lead.status) }}

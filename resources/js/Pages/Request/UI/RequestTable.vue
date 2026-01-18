@@ -7,6 +7,7 @@ import FloatingTextarea from '@/Components/FloatingTextarea.vue';
 import InputError from '@/Components/InputError.vue';
 import { humanizeDate } from '@/utils/date';
 import { isFeatureEnabled } from '@/utils/features';
+import { useI18n } from 'vue-i18n';
 
 const props = defineProps({
     requests: {
@@ -27,12 +28,14 @@ const props = defineProps({
     },
 });
 
+const { t } = useI18n();
+
 const formatDate = (value) => humanizeDate(value);
 
 const displayCustomer = (customer) =>
     customer?.company_name ||
     `${customer?.first_name || ''} ${customer?.last_name || ''}`.trim() ||
-    'Unknown';
+    t('requests.labels.unknown_customer');
 
 const filterForm = useForm({
     search: props.filters?.search ?? '',
@@ -126,7 +129,7 @@ const openConvert = (lead) => {
     convertForm.clearErrors();
 
     convertForm.customer_id = lead?.customer_id ? String(lead.customer_id) : '';
-    convertForm.job_title = lead?.title || lead?.service_type || 'New Quote';
+    convertForm.job_title = lead?.title || lead?.service_type || t('requests.convert.default_job_title');
     convertForm.description = lead?.description || '';
 
     if (window.HSOverlay) {
@@ -162,7 +165,7 @@ const deleteLead = (lead) => {
         return;
     }
 
-    if (!confirm('Delete this request?')) {
+    if (!confirm(t('requests.actions.delete_confirm'))) {
         return;
     }
 
@@ -181,12 +184,12 @@ const deleteLead = (lead) => {
 
 const statusLabel = (status) => {
     if (status === 'REQ_NEW') {
-        return 'New';
+        return t('requests.status.new');
     }
     if (status === 'REQ_CONVERTED') {
-        return 'Converted';
+        return t('requests.status.converted');
     }
-    return status || 'Unknown';
+    return status || t('requests.labels.unknown_status');
 };
 
 const statusClass = (status) => {
@@ -240,7 +243,7 @@ const openQuickCreate = () => {
                         v-model="filterForm.search"
                         type="text"
                         class="py-2 ps-10 pe-3 block w-full border-transparent rounded-sm bg-stone-100 text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-700 dark:text-neutral-200"
-                        placeholder="Search requests..."
+                        :placeholder="$t('requests.filters.search_placeholder')"
                     />
                 </div>
 
@@ -248,7 +251,7 @@ const openQuickCreate = () => {
                     v-model="filterForm.status"
                     class="py-2 px-3 border-transparent rounded-sm bg-stone-100 text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-700 dark:text-neutral-200"
                 >
-                    <option value="">All statuses</option>
+                    <option value="">{{ $t('requests.filters.all_statuses') }}</option>
                     <option v-for="status in statuses" :key="status.id" :value="status.id">
                         {{ status.name }}
                     </option>
@@ -258,7 +261,7 @@ const openQuickCreate = () => {
                     v-model="filterForm.customer_id"
                     class="py-2 px-3 border-transparent rounded-sm bg-stone-100 text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-700 dark:text-neutral-200"
                 >
-                    <option value="">All customers</option>
+                    <option value="">{{ $t('requests.filters.all_customers') }}</option>
                     <option v-for="customer in customers" :key="customer.id" :value="customer.id">
                         {{ displayCustomer(customer) }}
                     </option>
@@ -269,7 +272,7 @@ const openQuickCreate = () => {
                     class="py-2 px-3 rounded-sm border border-stone-200 bg-white text-sm text-stone-700 hover:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200"
                     @click="clearFilters"
                 >
-                    Clear
+                    {{ $t('requests.actions.clear') }}
                 </button>
             </div>
 
@@ -279,7 +282,7 @@ const openQuickCreate = () => {
                 class="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700"
                 @click="openQuickCreate"
             >
-                New request
+                {{ $t('requests.actions.new_request') }}
             </button>
         </div>
 
@@ -288,19 +291,19 @@ const openQuickCreate = () => {
                 <thead>
                     <tr>
                         <th class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
-                            Request
+                            {{ $t('requests.table.request') }}
                         </th>
                         <th class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
-                            Customer
+                            {{ $t('requests.table.customer') }}
                         </th>
                         <th class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
-                            Status
+                            {{ $t('requests.table.status') }}
                         </th>
                         <th class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
-                            Created
+                            {{ $t('requests.table.created') }}
                         </th>
                         <th class="px-5 py-2.5 text-end text-sm font-normal text-stone-500 dark:text-neutral-500">
-                            Actions
+                            {{ $t('requests.table.actions') }}
                         </th>
                     </tr>
                 </thead>
@@ -322,7 +325,7 @@ const openQuickCreate = () => {
                     <tr v-for="lead in requests.data" :key="lead.id">
                         <td class="px-5 py-3">
                             <div class="text-sm font-medium text-stone-800 dark:text-neutral-200">
-                                {{ lead.title || lead.service_type || `Request #${lead.id}` }}
+                                {{ lead.title || lead.service_type || $t('requests.labels.request_number', { id: lead.id }) }}
                             </div>
                             <div v-if="lead.description" class="mt-1 text-xs text-stone-500 dark:text-neutral-400 line-clamp-2">
                                 {{ lead.description }}
@@ -333,7 +336,7 @@ const openQuickCreate = () => {
                                 {{ displayCustomer(lead.customer) }}
                             </div>
                             <div v-else class="text-xs text-stone-500 dark:text-neutral-400">
-                                Unassigned
+                                {{ $t('requests.labels.unassigned') }}
                             </div>
                         </td>
                         <td class="px-5 py-3">
@@ -349,7 +352,7 @@ const openQuickCreate = () => {
                                 <div class="hs-dropdown [--auto-close:inside] [--placement:bottom-right] relative inline-flex">
                                     <button type="button"
                                         class="size-7 inline-flex justify-center items-center gap-x-2 rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700"
-                                        aria-haspopup="menu" aria-expanded="false" aria-label="Actions">
+                                        aria-haspopup="menu" aria-expanded="false" :aria-label="$t('requests.table.actions')">
                                         <svg class="shrink-0 size-3.5" xmlns="http://www.w3.org/2000/svg" width="24"
                                             height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                                             stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -365,23 +368,23 @@ const openQuickCreate = () => {
                                             <Link v-if="lead.quote"
                                                 :href="route('customer.quote.show', lead.quote.id)"
                                                 class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
-                                                View quote
+                                                {{ $t('requests.actions.view_quote') }}
                                             </Link>
                                             <button v-else-if="lead.status === 'REQ_NEW' && canUseQuotes" type="button" @click="openConvert(lead)"
                                                 class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-emerald-600 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-neutral-800">
-                                                Convert
+                                                {{ $t('requests.actions.convert') }}
                                             </button>
                                             <Link
                                                 :href="route('pipeline.timeline', { entityType: 'request', entityId: lead.id })"
                                                 class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800"
                                             >
-                                                Timeline
+                                                {{ $t('requests.actions.timeline') }}
                                             </Link>
                                             <div class="my-1 border-t border-stone-200 dark:border-neutral-800"></div>
                                             <button type="button" @click="deleteLead(lead)"
                                                 class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-neutral-800"
                                                 :disabled="processingId === lead.id">
-                                                Delete
+                                                {{ $t('requests.actions.delete') }}
                                             </button>
                                         </div>
                                     </div>
@@ -392,7 +395,7 @@ const openQuickCreate = () => {
 
                     <tr v-if="!requests.data.length">
                         <td colspan="5" class="px-5 py-6 text-center text-sm text-stone-500 dark:text-neutral-400">
-                            No requests found.
+                            {{ $t('requests.empty') }}
                         </td>
                     </tr>
                     </template>
@@ -406,26 +409,26 @@ const openQuickCreate = () => {
                 :href="requests.prev_page_url"
                 class="py-2 px-3 rounded-sm border border-stone-200 bg-white text-sm text-stone-700 hover:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200"
             >
-                Previous
+                {{ $t('requests.pagination.previous') }}
             </Link>
             <span class="text-xs text-stone-500 dark:text-neutral-400">
-                Showing {{ requests.from || 0 }}-{{ requests.to || 0 }}
+                {{ $t('requests.pagination.showing', { from: requests.from || 0, to: requests.to || 0 }) }}
             </span>
             <Link
                 v-if="requests.next_page_url"
                 :href="requests.next_page_url"
                 class="py-2 px-3 rounded-sm border border-stone-200 bg-white text-sm text-stone-700 hover:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200"
             >
-                Next
+                {{ $t('requests.pagination.next') }}
             </Link>
         </div>
     </div>
 
-    <Modal :title="'Convert request to quote'" :id="convertModalId">
+    <Modal :title="$t('requests.convert.title')" :id="convertModalId">
         <div class="space-y-4">
             <div v-if="selectedLead" class="rounded-sm border border-stone-200 p-3 text-sm text-stone-600 dark:border-neutral-700 dark:text-neutral-400">
                 <div class="font-medium text-stone-800 dark:text-neutral-200">
-                    {{ selectedLead.title || selectedLead.service_type || `Request #${selectedLead.id}` }}
+                    {{ selectedLead.title || selectedLead.service_type || $t('requests.labels.request_number', { id: selectedLead.id }) }}
                 </div>
                 <div v-if="selectedLead.contact_email">{{ selectedLead.contact_email }}</div>
                 <div v-if="selectedLead.contact_phone">{{ selectedLead.contact_phone }}</div>
@@ -433,12 +436,12 @@ const openQuickCreate = () => {
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
-                    <label class="text-sm text-stone-600 dark:text-neutral-400">Customer</label>
+                    <label class="text-sm text-stone-600 dark:text-neutral-400">{{ $t('requests.convert.customer') }}</label>
                     <select
                         v-model="convertForm.customer_id"
                         class="mt-1 w-full rounded-sm border border-stone-200 bg-stone-100 py-2 px-3 text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200"
                     >
-                        <option value="">Select customer</option>
+                        <option value="">{{ $t('requests.convert.select_customer') }}</option>
                         <option v-for="customer in customers" :key="customer.id" :value="String(customer.id)">
                             {{ displayCustomer(customer) }}
                         </option>
@@ -446,15 +449,15 @@ const openQuickCreate = () => {
                     <InputError class="mt-1" :message="convertForm.errors.customer_id" />
                 </div>
                 <div>
-                    <label class="text-sm text-stone-600 dark:text-neutral-400">Location</label>
+                    <label class="text-sm text-stone-600 dark:text-neutral-400">{{ $t('requests.convert.location') }}</label>
                     <select
                         v-model="convertForm.property_id"
                         :disabled="!propertyOptions.length"
                         class="mt-1 w-full rounded-sm border border-stone-200 bg-stone-100 py-2 px-3 text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 disabled:opacity-60 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200"
                     >
-                        <option value="">No location</option>
+                        <option value="">{{ $t('requests.convert.no_location') }}</option>
                         <option v-for="property in propertyOptions" :key="property.id" :value="String(property.id)">
-                            {{ property.street1 || 'Location' }}{{ property.city ? ', ' + property.city : '' }}
+                            {{ property.street1 || $t('requests.convert.location_fallback') }}{{ property.city ? ', ' + property.city : '' }}
                         </option>
                     </select>
                     <InputError class="mt-1" :message="convertForm.errors.property_id" />
@@ -462,12 +465,12 @@ const openQuickCreate = () => {
             </div>
 
             <div>
-                <FloatingInput v-model="convertForm.job_title" label="Job title" />
+                <FloatingInput v-model="convertForm.job_title" :label="$t('requests.convert.job_title')" />
                 <InputError class="mt-1" :message="convertForm.errors.job_title" />
             </div>
 
             <div>
-                <FloatingTextarea v-model="convertForm.description" label="Notes (optional)" />
+                <FloatingTextarea v-model="convertForm.description" :label="$t('requests.convert.notes_optional')" />
             </div>
 
             <div class="flex justify-end gap-2">
@@ -477,7 +480,7 @@ const openQuickCreate = () => {
                     class="py-2 px-3 inline-flex items-center text-sm font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200"
                     @click="closeConvert"
                 >
-                    Cancel
+                    {{ $t('requests.actions.cancel') }}
                 </button>
                 <button
                     type="button"
@@ -485,7 +488,7 @@ const openQuickCreate = () => {
                     class="py-2 px-3 inline-flex items-center text-sm font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50"
                     @click="submitConvert"
                 >
-                    Convert
+                    {{ $t('requests.actions.convert') }}
                 </button>
             </div>
         </div>

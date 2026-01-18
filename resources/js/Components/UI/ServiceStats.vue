@@ -26,7 +26,7 @@ const formatCurrency = (value) =>
                 </svg>
                 <div class="sm:order-1 grow space-y-1">
                     <h2 class="sm:mb-2 text-sm text-stone-500 dark:text-neutral-400">
-                        Total services
+                        {{ $t('services.stats.total') }}
                     </h2>
                     <p class="text-lg md:text-xl font-semibold text-stone-800 dark:text-neutral-200">
                         {{ formatNumber(stats.total) }}
@@ -46,7 +46,7 @@ const formatCurrency = (value) =>
                 </svg>
                 <div class="sm:order-1 grow space-y-1">
                     <h2 class="sm:mb-2 text-sm text-stone-500 dark:text-neutral-400">
-                        Active
+                        {{ $t('services.stats.active') }}
                     </h2>
                     <p class="text-lg md:text-xl font-semibold text-stone-800 dark:text-neutral-200">
                         {{ formatNumber(stats.active) }}
@@ -66,7 +66,7 @@ const formatCurrency = (value) =>
                 </svg>
                 <div class="sm:order-1 grow space-y-1">
                     <h2 class="sm:mb-2 text-sm text-stone-500 dark:text-neutral-400">
-                        Archived
+                        {{ $t('services.stats.archived') }}
                     </h2>
                     <p class="text-lg md:text-xl font-semibold text-stone-800 dark:text-neutral-200">
                         {{ formatNumber(stats.archived) }}
@@ -86,7 +86,7 @@ const formatCurrency = (value) =>
                 </svg>
                 <div class="sm:order-1 grow space-y-1">
                     <h2 class="sm:mb-2 text-sm text-stone-500 dark:text-neutral-400">
-                        Avg price
+                        {{ $t('services.stats.avg_price') }}
                     </h2>
                     <p class="text-lg md:text-xl font-semibold text-stone-800 dark:text-neutral-200">
                         {{ formatCurrency(stats.average_price) }}
@@ -96,4 +96,3 @@ const formatCurrency = (value) =>
         </div>
     </div>
 </template>
-

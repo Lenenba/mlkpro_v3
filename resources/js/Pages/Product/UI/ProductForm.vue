@@ -12,6 +12,7 @@ import DropzoneInput from '@/Components/DropzoneInput.vue';
 import Checkbox from '@/Components/Checkbox.vue';
 import MultiImageInput from '@/Components/MultiImageInput.vue';
 import ValidationSummary from '@/Components/ValidationSummary.vue';
+import { useI18n } from 'vue-i18n';
 
 const props = defineProps({
     categories: {
@@ -32,6 +33,8 @@ const emit = defineEmits(['submitted']); // Déclare l'événement "submitted"
 const overlayTarget = computed(() => (props.id ? `#${props.id}` : null));
 const initialImageUrl = ref(props.product?.image_url || '');
 const initialImage = ref(props.product?.image_url || props.product?.image || '');
+
+const { t } = useI18n();
 
 // Initialize the form
 const form = useForm({
@@ -66,18 +69,18 @@ watch(
     { immediate: true }
 );
 
-const unitOptions = [
-    { id: 'piece', name: 'Piece' },
-    { id: 'hour', name: 'Hour' },
-    { id: 'm2', name: 'm2' },
-    { id: 'other', name: 'Other' },
-];
+const unitOptions = computed(() => ([
+    { id: 'piece', name: t('products.units.piece') },
+    { id: 'hour', name: t('products.units.hour') },
+    { id: 'm2', name: t('products.units.m2') },
+    { id: 'other', name: t('products.units.other') },
+]));
 
-const trackingOptions = [
-    { id: 'none', name: 'Standard (no lot/serial)' },
-    { id: 'lot', name: 'Lot tracking' },
-    { id: 'serial', name: 'Serial tracking' },
-];
+const trackingOptions = computed(() => ([
+    { id: 'none', name: t('products.tracking.standard_full') },
+    { id: 'lot', name: t('products.tracking.lot_tracked') },
+    { id: 'serial', name: t('products.tracking.serial_tracked') },
+]));
 
 const formatNumber = (value) =>
     Number(value || 0).toLocaleString(undefined, { maximumFractionDigits: 0 });
@@ -148,12 +151,12 @@ const isLotExpiringSoon = (lot) => {
 
 const getLotStatus = (lot) => {
     if (isLotExpired(lot)) {
-        return 'Expired';
+        return t('products.lots.status.expired');
     }
     if (isLotExpiringSoon(lot)) {
-        return 'Expiring soon';
+        return t('products.lots.status.expiring');
     }
-    return 'Active';
+    return t('products.lots.status.active');
 };
 
 const lotStatusClasses = {
@@ -174,12 +177,12 @@ const getLotStatusClass = (lot) => {
 
 const getLotLabel = (lot) => {
     if (lot?.serial_number) {
-        return `Serial ${lot.serial_number}`;
+        return t('products.lots.serial_label', { number: lot.serial_number });
     }
     if (lot?.lot_number) {
-        return `Lot ${lot.lot_number}`;
+        return t('products.lots.lot_label', { number: lot.lot_number });
     }
-    return 'Lot';
+    return t('products.lots.lot_fallback');
 };
 
 watch([() => form.price, () => form.cost_price], () => {
@@ -246,7 +249,7 @@ const applyImage = (source) => {
 const applyBestPrice = () => {
     const best = priceLookupResults.value[0];
     if (!best) {
-        priceLookupError.value = 'No live prices found.';
+        priceLookupError.value = t('products.price_lookup.no_live_prices');
         return;
     }
     if (!form.name?.trim()) {
@@ -275,7 +278,7 @@ const addCategoryOption = (category) => {
 const createCategory = async () => {
     const name = categoryName.value.trim();
     if (!name) {
-        categoryError.value = 'Enter a category name.';
+        categoryError.value = t('products.form.errors.category_name_required');
         return;
     }
 
@@ -294,12 +297,12 @@ const createCategory = async () => {
             categoryName.value = '';
             showCategoryForm.value = false;
         } else {
-            categoryError.value = 'Unable to create category.';
+            categoryError.value = t('products.form.errors.category_create_failed');
         }
     } catch (error) {
         categoryError.value = error?.response?.data?.errors?.name?.[0]
             || error?.response?.data?.message
-            || 'Unable to create category.';
+            || t('products.form.errors.category_create_failed');
     } finally {
         creatingCategory.value = false;
     }
@@ -324,7 +327,7 @@ const searchPrices = async () => {
     priceLookupMeta.value = null;
 
     if (!query) {
-        priceLookupError.value = 'Enter a product name to search.';
+        priceLookupError.value = t('products.price_lookup.search_required');
         return;
     }
 
@@ -337,10 +340,10 @@ const searchPrices = async () => {
         priceLookupMeta.value = data;
         priceLookupResults.value = Array.isArray(data.sources) ? data.sources : [];
         if (!priceLookupResults.value.length) {
-            priceLookupError.value = 'No live prices found.';
+            priceLookupError.value = t('products.price_lookup.no_live_prices');
         }
     } catch (error) {
-        priceLookupError.value = error?.response?.data?.message || 'Price lookup failed.';
+        priceLookupError.value = error?.response?.data?.message || t('products.price_lookup.search_failed');
     } finally {
         priceLookupLoading.value = false;
     }
@@ -360,7 +363,7 @@ const isValid = computed(() => {
 // Function to handle form submission
 const submit = () => {
     if (!isValid.value) {
-        form.setError('form', 'Please fill all required fields.');
+        form.setError('form', t('products.form.errors.required_fields'));
         return;
     }
 
@@ -406,7 +409,9 @@ const cancel = () => {
     form.reset();
 };
 
-const buttonLabel = computed(() => (props.product ? 'Update Product' : 'Create Product'));
+const buttonLabel = computed(() => (props.product
+    ? t('products.actions.update_product')
+    : t('products.actions.create_product')));
 </script>
 
 
@@ -418,28 +423,28 @@ const buttonLabel = computed(() => (props.product ? 'Update Product' : 'Create P
             <div class="lg:col-span-4 space-y-4 min-w-0">
                 <productCard>
                     <template #title>
-                        Details
+                        {{ $t('products.form.details') }}
                     </template>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 gap-y-4">
-                        <FloatingInput v-model="form.name" label="Name" :required="true" />
-            <FloatingSelect v-model="form.category_id" label="Category" :options="selectableCategories" :required="true" />
+                        <FloatingInput v-model="form.name" :label="$t('products.form.name')" :required="true" />
+            <FloatingSelect v-model="form.category_id" :label="$t('products.form.category')" :options="selectableCategories" :required="true" />
                         <div class="md:col-span-2 space-y-2">
                             <div class="flex items-center justify-between">
-                                <p class="text-xs text-stone-500 dark:text-neutral-400">Need a new category?</p>
+                                <p class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('products.form.category_hint') }}</p>
                                 <button
                                     type="button"
                                     class="text-xs font-semibold text-green-700 hover:text-green-800 dark:text-green-400 action-feedback"
                                     @click="showCategoryForm = !showCategoryForm"
                                 >
-                                    {{ showCategoryForm ? 'Hide' : 'Add category' }}
+                                    {{ showCategoryForm ? $t('products.form.category_hide') : $t('products.form.category_add') }}
                                 </button>
                             </div>
                             <p v-if="!selectableCategories.length" class="text-xs text-amber-600 dark:text-amber-300">
-                                No categories yet. Create one below.
+                                {{ $t('products.form.category_empty') }}
                             </p>
                             <div v-if="showCategoryForm" class="flex flex-col gap-2 sm:flex-row sm:items-end">
                                 <div class="flex-1">
-                                    <FloatingInput v-model="categoryName" label="New category name" />
+                                    <FloatingInput v-model="categoryName" :label="$t('products.form.category_new')" />
                                     <p v-if="categoryError" class="mt-1 text-xs text-red-600">{{ categoryError }}</p>
                                 </div>
                                 <button
@@ -448,24 +453,24 @@ const buttonLabel = computed(() => (props.product ? 'Update Product' : 'Create P
                                     :disabled="creatingCategory"
                                     @click="createCategory"
                                 >
-                                    Create
+                                    {{ $t('products.form.category_create') }}
                                 </button>
                             </div>
                         </div>
-                        <FloatingInput v-model="form.sku" label="SKU" />
-                        <FloatingInput v-model="form.barcode" label="Barcode" />
-                        <FloatingSelect v-model="form.tracking_type" label="Tracking" :options="trackingOptions" />
-                        <FloatingSelect v-model="form.unit" label="Unit" :options="unitOptions" />
-                        <FloatingInput v-model="form.supplier_name" label="Supplier" />
-                        <FloatingInput v-model="form.supplier_email" label="Supplier email" />
-                        <FloatingNumberInput v-model="form.tax_rate" label="Tax rate (%)" :step="0.01" />
+                        <FloatingInput v-model="form.sku" :label="$t('products.form.sku')" />
+                        <FloatingInput v-model="form.barcode" :label="$t('products.form.barcode')" />
+                        <FloatingSelect v-model="form.tracking_type" :label="$t('products.form.tracking')" :options="trackingOptions" />
+                        <FloatingSelect v-model="form.unit" :label="$t('products.form.unit')" :options="unitOptions" />
+                        <FloatingInput v-model="form.supplier_name" :label="$t('products.form.supplier')" />
+                        <FloatingInput v-model="form.supplier_email" :label="$t('products.form.supplier_email')" />
+                        <FloatingNumberInput v-model="form.tax_rate" :label="$t('products.form.tax_rate')" :step="0.01" />
                         <div class="flex items-center gap-x-2">
                             <Checkbox v-model:checked="form.is_active" />
-                            <span class="text-sm text-stone-600 dark:text-neutral-400">Active</span>
+                            <span class="text-sm text-stone-600 dark:text-neutral-400">{{ $t('products.status.active') }}</span>
                         </div>
                     </div>
-                    <FloatingTextarea v-model="form.description" label="Description" />
-                    <DropzoneInput v-model="form.image" label="Primary image" />
+                    <FloatingTextarea v-model="form.description" :label="$t('products.form.description')" />
+                    <DropzoneInput v-model="form.image" :label="$t('products.form.primary_image')" />
                     <MultiImageInput
                         v-model:files="form.images"
                         v-model:removedIds="form.remove_image_ids"
@@ -476,21 +481,21 @@ const buttonLabel = computed(() => (props.product ? 'Update Product' : 'Create P
             <div class="lg:col-span-2 space-y-4 min-w-0">
                 <productCard>
                     <template #title>
-                        Pricing
+                        {{ $t('products.form.pricing') }}
                     </template>
 
                     <div class="grid grid-cols-1 gap-4 gap-y-4">
-                        <FloatingNumberInput v-model="form.price" label="Price" :step="0.01" :required="true" />
-                        <FloatingNumberInput v-model="form.cost_price" label="Cost price" :step="0.01" />
-                        <FloatingNumberInput v-model="form.margin_percent" label="Margin (%)" :step="0.01" />
-                        <FloatingNumberInput v-model="form.stock" label="Stock" :required="true" />
-                        <FloatingNumberInput v-model="form.minimum_stock" label="Minimum stock" :required="true" />
+                        <FloatingNumberInput v-model="form.price" :label="$t('products.form.price')" :step="0.01" :required="true" />
+                        <FloatingNumberInput v-model="form.cost_price" :label="$t('products.form.cost_price')" :step="0.01" />
+                        <FloatingNumberInput v-model="form.margin_percent" :label="$t('products.form.margin')" :step="0.01" />
+                        <FloatingNumberInput v-model="form.stock" :label="$t('products.form.stock')" :required="true" />
+                        <FloatingNumberInput v-model="form.minimum_stock" :label="$t('products.form.minimum_stock')" :required="true" />
                     </div>
                 </productCard>
 
                 <productCard v-if="props.product?.inventories?.length">
                     <template #title>
-                        Inventory
+                        {{ $t('products.form.inventory') }}
                     </template>
 
                     <div class="space-y-3 text-sm text-stone-600 dark:text-neutral-300">
@@ -498,17 +503,17 @@ const buttonLabel = computed(() => (props.product ? 'Update Product' : 'Create P
                             class="rounded-sm border border-stone-200 p-3 dark:border-neutral-700">
                             <div class="flex items-center justify-between">
                                 <div class="font-medium text-stone-700 dark:text-neutral-200">
-                                    {{ inventory.warehouse?.name || 'Warehouse' }}
+                                    {{ inventory.warehouse?.name || $t('products.labels.warehouse') }}
                                 </div>
                                 <span class="text-xs text-stone-500 dark:text-neutral-400">
-                                    Bin {{ inventory.bin_location || '—' }}
+                                    {{ $t('products.labels.bin') }} {{ inventory.bin_location || '-' }}
                                 </span>
                             </div>
                             <div class="mt-2 grid grid-cols-2 gap-2 text-xs text-stone-500 dark:text-neutral-400">
-                                <div>On hand: {{ formatNumber(inventory.on_hand) }}</div>
-                                <div>Reserved: {{ formatNumber(inventory.reserved) }}</div>
-                                <div>Damaged: {{ formatNumber(inventory.damaged) }}</div>
-                                <div>Min: {{ formatNumber(inventory.minimum_stock) }}</div>
+                                <div>{{ $t('products.labels.on_hand') }}: {{ formatNumber(inventory.on_hand) }}</div>
+                                <div>{{ $t('products.labels.reserved') }}: {{ formatNumber(inventory.reserved) }}</div>
+                                <div>{{ $t('products.labels.damaged') }}: {{ formatNumber(inventory.damaged) }}</div>
+                                <div>{{ $t('products.labels.minimum') }}: {{ formatNumber(inventory.minimum_stock) }}</div>
                             </div>
                         </div>
                     </div>
@@ -516,11 +521,11 @@ const buttonLabel = computed(() => (props.product ? 'Update Product' : 'Create P
 
                 <productCard v-if="Array.isArray(props.product?.lots)">
                     <template #title>
-                        Lots & Serials
+                        {{ $t('products.form.lots_title') }}
                     </template>
 
                     <div v-if="!lotItems.length" class="text-xs text-stone-500 dark:text-neutral-400">
-                        No lots or serials yet.
+                        {{ $t('products.form.lots_empty') }}
                     </div>
                     <div v-else class="space-y-2">
                         <div v-for="lot in lotItems" :key="lot.id"
@@ -536,16 +541,16 @@ const buttonLabel = computed(() => (props.product ? 'Update Product' : 'Create P
                             </div>
                             <div class="mt-2 grid grid-cols-1 gap-2 text-xs text-stone-500 dark:text-neutral-400">
                                 <div>
-                                    Warehouse: {{ lot.warehouse?.name || 'Warehouse' }}
+                                    {{ $t('products.labels.warehouse') }}: {{ lot.warehouse?.name || $t('products.labels.warehouse') }}
                                 </div>
                                 <div>
-                                    Quantity: {{ formatNumber(lot.quantity) }}
+                                    {{ $t('products.labels.quantity') }}: {{ formatNumber(lot.quantity) }}
                                 </div>
                                 <div v-if="lot.received_at">
-                                    Received {{ formatRelativeDate(lot.received_at) }}
+                                    {{ $t('products.labels.received') }} {{ formatRelativeDate(lot.received_at) }}
                                 </div>
                                 <div v-if="lot.expires_at">
-                                    Expires {{ formatRelativeDate(lot.expires_at) }}
+                                    {{ $t('products.labels.expires') }} {{ formatRelativeDate(lot.expires_at) }}
                                 </div>
                             </div>
                         </div>
@@ -554,13 +559,13 @@ const buttonLabel = computed(() => (props.product ? 'Update Product' : 'Create P
 
                 <productCard>
                     <template #title>
-                        Price lookup
+                        {{ $t('products.price_lookup.title') }}
                     </template>
 
                     <div class="space-y-3">
                         <FloatingInput
                             v-model="priceLookupQuery"
-                            label="Search term"
+                            :label="$t('products.price_lookup.search_term')"
                             @update:modelValue="markManualQuery"
                         />
 
@@ -571,7 +576,7 @@ const buttonLabel = computed(() => (props.product ? 'Update Product' : 'Create P
                                 :disabled="priceLookupLoading"
                                 @click="searchPrices"
                             >
-                                Search prices
+                                {{ $t('products.price_lookup.search_action') }}
                             </button>
                             <button
                                 v-if="priceLookupResults.length"
@@ -580,7 +585,7 @@ const buttonLabel = computed(() => (props.product ? 'Update Product' : 'Create P
                                 :disabled="priceLookupLoading"
                                 @click="applyBestPrice"
                             >
-                                Apply best price
+                                {{ $t('products.price_lookup.apply_best') }}
                             </button>
                             <button
                                 type="button"
@@ -588,26 +593,26 @@ const buttonLabel = computed(() => (props.product ? 'Update Product' : 'Create P
                                 :disabled="priceLookupLoading"
                                 @click="clearLookup"
                             >
-                                Clear
+                                {{ $t('products.price_lookup.clear') }}
                             </button>
                         </div>
 
                         <div v-if="priceLookupMeta?.provider" class="text-xs text-stone-500 dark:text-neutral-400">
-                            Provider:
+                            {{ $t('products.price_lookup.provider') }}
                             <span class="font-semibold text-stone-600 dark:text-neutral-300">{{ priceLookupMeta.provider }}</span>
                             <span v-if="priceLookupMeta.provider_ready === false" class="text-amber-600 dark:text-amber-300">
-                                (not configured)
+                                {{ $t('products.price_lookup.provider_not_configured') }}
                             </span>
                         </div>
                         <div v-if="priceLookupMeta?.preferred_suppliers?.length" class="text-xs text-stone-500 dark:text-neutral-400">
-                            Preferred: {{ priceLookupMeta.preferred_suppliers.join(', ') }}
+                            {{ $t('products.price_lookup.preferred') }}: {{ priceLookupMeta.preferred_suppliers.join(', ') }}
                         </div>
                         <div v-if="priceLookupMeta?.enabled_suppliers?.length" class="text-xs text-stone-500 dark:text-neutral-400">
-                            Enabled: {{ priceLookupMeta.enabled_suppliers.join(', ') }}
+                            {{ $t('products.price_lookup.enabled') }}: {{ priceLookupMeta.enabled_suppliers.join(', ') }}
                         </div>
 
                         <div v-if="priceLookupLoading" class="text-xs text-stone-500 dark:text-neutral-400">
-                            Searching suppliers...
+                            {{ $t('products.price_lookup.searching') }}
                         </div>
                         <div v-if="priceLookupError" class="text-xs text-rose-600 dark:text-rose-300">
                             {{ priceLookupError }}
@@ -634,7 +639,7 @@ const buttonLabel = computed(() => (props.product ? 'Update Product' : 'Create P
                                                     v-if="index === 0"
                                                     class="ml-2 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300"
                                                 >
-                                                    Best price
+                                                    {{ $t('products.price_lookup.best_price') }}
                                                 </span>
                                             </div>
                                             <div v-if="source.title" class="mt-1 text-[10px] text-stone-400 dark:text-neutral-500">
@@ -654,21 +659,21 @@ const buttonLabel = computed(() => (props.product ? 'Update Product' : 'Create P
                                         rel="noopener"
                                         class="text-green-700 hover:underline dark:text-green-400"
                                     >
-                                        Open link
+                                        {{ $t('products.price_lookup.open_link') }}
                                     </a>
                                     <button
                                         type="button"
                                         class="rounded-sm border border-stone-200 px-2 py-1 text-[10px] font-semibold text-stone-600 hover:bg-stone-50 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800"
                                         @click="applyCost(source)"
                                     >
-                                        Use as cost
+                                        {{ $t('products.price_lookup.use_cost') }}
                                     </button>
                                     <button
                                         type="button"
                                         class="rounded-sm border border-stone-200 px-2 py-1 text-[10px] font-semibold text-stone-600 hover:bg-stone-50 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800"
                                         @click="applyPrice(source)"
                                     >
-                                        Use as price
+                                        {{ $t('products.price_lookup.use_price') }}
                                     </button>
                                     <button
                                         v-if="source.image_url"
@@ -676,7 +681,7 @@ const buttonLabel = computed(() => (props.product ? 'Update Product' : 'Create P
                                         class="rounded-sm border border-stone-200 px-2 py-1 text-[10px] font-semibold text-stone-600 hover:bg-stone-50 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800"
                                         @click="applyImage(source)"
                                     >
-                                        Use image
+                                        {{ $t('products.price_lookup.use_image') }}
                                     </button>
                                 </div>
                             </div>
@@ -690,7 +695,7 @@ const buttonLabel = computed(() => (props.product ? 'Update Product' : 'Create P
             <div class="flex justify-end items-center gap-2">
                 <button :data-hs-overlay="overlayTarget || undefined" type="button" @click="cancel"
                     class="py-2 px-3 text-nowrap inline-flex justify-center items-center text-start bg-white border border-stone-200 text-stone-700 text-sm font-medium rounded-sm shadow-sm align-middle hover:bg-stone-50 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-800 dark:focus:bg-neutral-800 action-feedback">
-                    Cancel
+                    {{ $t('products.actions.cancel') }}
                 </button>
 
                 <button type="submit" :disabled="form.processing"

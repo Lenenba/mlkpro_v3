@@ -3,6 +3,7 @@ import { computed } from 'vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, Link, usePage } from '@inertiajs/vue3';
 import { humanizeDate } from '@/utils/date';
+import { useI18n } from 'vue-i18n';
 
 const props = defineProps({
     viewer: {
@@ -18,7 +19,8 @@ const props = defineProps({
 });
 
 const page = usePage();
-const companyName = computed(() => page.props.auth?.account?.company?.name || 'Entreprise');
+const { t } = useI18n();
+const companyName = computed(() => page.props.auth?.account?.company?.name || t('jobs.company_fallback'));
 const companyLogo = computed(() => page.props.auth?.account?.company?.logo_url || null);
 const isClient = computed(() => props.viewer === 'client');
 
@@ -44,7 +46,12 @@ const formatTimeRange = (start, end) => {
     return `${startLabel} - ${endLabel}`;
 };
 
-const statusLabel = (status) => (status || 'todo').replace(/_/g, ' ');
+const statusLabel = (status) => {
+    const key = status || 'todo';
+    const translationKey = `jobs.proofs.status.${key}`;
+    const translated = t(translationKey);
+    return translated === translationKey ? key.replace(/_/g, ' ') : translated;
+};
 
 const statusClass = (status) => {
     switch (status) {
@@ -59,27 +66,27 @@ const statusClass = (status) => {
 
 const proofSource = (source) => {
     if (source === 'client' || source === 'client-public') {
-        return 'Client';
+        return t('jobs.proofs.source.client');
     }
     if (source === 'team') {
-        return 'Equipe';
+        return t('jobs.proofs.source.team');
     }
-    return 'Interne';
+    return t('jobs.proofs.source.internal');
 };
 
 const proofType = (type) => {
     if (type === 'execution') {
-        return 'Execution';
+        return t('jobs.proofs.type.execution');
     }
     if (type === 'completion') {
-        return 'Finalisation';
+        return t('jobs.proofs.type.completion');
     }
-    return 'Autre';
+    return t('jobs.proofs.type.other');
 };
 </script>
 
 <template>
-    <Head title="Preuves du job" />
+    <Head :title="$t('jobs.proofs_title')" />
 
     <AuthenticatedLayout>
         <div class="mx-auto w-full max-w-6xl space-y-5">
@@ -95,28 +102,28 @@ const proofType = (type) => {
                                 {{ companyName }}
                             </p>
                             <h1 class="text-xl font-semibold text-stone-800 dark:text-neutral-100">
-                                Preuves du job
+                                {{ $t('jobs.proofs.title') }}
                             </h1>
                             <p class="text-sm text-stone-500 dark:text-neutral-400">
-                                {{ work?.job_title || work?.number || 'Job' }}
+                                {{ work?.job_title || work?.number || $t('jobs.proofs.job_fallback') }}
                             </p>
                         </div>
                     </div>
                     <div class="flex items-center gap-2">
                         <Link v-if="!isClient" :href="route('work.show', work.id)"
                             class="py-2 px-3 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200">
-                            Voir le job
+                            {{ $t('jobs.proofs.view_job') }}
                         </Link>
                         <Link v-else :href="route('dashboard')"
                             class="py-2 px-3 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200">
-                            Retour au tableau de bord
+                            {{ $t('jobs.proofs.back_to_dashboard') }}
                         </Link>
                     </div>
                 </div>
 
                 <div class="mt-4 grid grid-cols-1 gap-3 md:grid-cols-3">
                     <div class="rounded-sm border border-stone-200 bg-stone-50 p-3 text-sm dark:border-neutral-700 dark:bg-neutral-800">
-                        <div class="text-xs uppercase text-stone-500 dark:text-neutral-400">Client</div>
+                        <div class="text-xs uppercase text-stone-500 dark:text-neutral-400">{{ $t('jobs.proofs.cards.customer') }}</div>
                         <div class="mt-1 text-sm text-stone-800 dark:text-neutral-100">
                             {{ customer?.company_name || `${customer?.first_name || ''} ${customer?.last_name || ''}`.trim() || '-' }}
                         </div>
@@ -125,13 +132,13 @@ const proofType = (type) => {
                         </div>
                     </div>
                     <div class="rounded-sm border border-stone-200 bg-stone-50 p-3 text-sm dark:border-neutral-700 dark:bg-neutral-800">
-                        <div class="text-xs uppercase text-stone-500 dark:text-neutral-400">Periode</div>
+                        <div class="text-xs uppercase text-stone-500 dark:text-neutral-400">{{ $t('jobs.proofs.cards.period') }}</div>
                         <div class="mt-1 text-sm text-stone-800 dark:text-neutral-100">
                             {{ formatDate(work?.start_date) }} - {{ formatDate(work?.end_date) }}
                         </div>
                     </div>
                     <div class="rounded-sm border border-stone-200 bg-stone-50 p-3 text-sm dark:border-neutral-700 dark:bg-neutral-800">
-                        <div class="text-xs uppercase text-stone-500 dark:text-neutral-400">Statut</div>
+                        <div class="text-xs uppercase text-stone-500 dark:text-neutral-400">{{ $t('jobs.proofs.cards.status') }}</div>
                         <div class="mt-1 text-sm text-stone-800 dark:text-neutral-100">
                             {{ statusLabel(work?.status) }}
                         </div>
@@ -145,13 +152,13 @@ const proofType = (type) => {
                     <div class="flex flex-wrap items-start justify-between gap-3">
                         <div>
                             <div class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
-                                {{ task.title || 'Tache' }}
+                                {{ task.title || $t('jobs.proofs.task_fallback') }}
                             </div>
                             <div class="text-xs text-stone-500 dark:text-neutral-400">
                                 {{ formatDate(task.due_date) }} • {{ formatTimeRange(task.start_time, task.end_time) }}
                             </div>
                             <div v-if="task.assignee" class="text-xs text-stone-500 dark:text-neutral-400">
-                                Assigne : {{ task.assignee }}
+                                {{ $t('jobs.proofs.assigned') }}: {{ task.assignee }}
                             </div>
                         </div>
                         <span class="px-2 py-0.5 text-xs font-medium rounded-full" :class="statusClass(task.status)">
@@ -161,7 +168,7 @@ const proofType = (type) => {
 
                     <div v-if="task.materials?.length" class="mt-4">
                         <div class="text-xs uppercase tracking-wide text-stone-500 dark:text-neutral-400">
-                            Materiel
+                            {{ $t('jobs.proofs.materials') }}
                         </div>
                         <div class="mt-2 space-y-2">
                             <div v-for="material in task.materials" :key="material.id"
@@ -177,7 +184,7 @@ const proofType = (type) => {
                                 </div>
                                 <span v-if="!isClient && material.billable"
                                     class="rounded-sm bg-emerald-100 px-2 py-0.5 text-[11px] font-medium text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300">
-                                    Billable
+                                    {{ $t('jobs.proofs.billable') }}
                                 </span>
                             </div>
                         </div>
@@ -188,39 +195,39 @@ const proofType = (type) => {
                             class="rounded-sm border border-stone-200 bg-white p-3 text-sm dark:border-neutral-700 dark:bg-neutral-900">
                             <img v-if="media.media_type !== 'video'"
                                 :src="media.url"
-                                :alt="media.note || 'Preuve'"
+                                :alt="media.note || $t('jobs.proofs.proof_fallback')"
                                 class="h-40 w-full rounded-sm border border-stone-200 object-cover dark:border-neutral-700" />
                             <video v-else controls class="h-40 w-full rounded-sm border border-stone-200 dark:border-neutral-700">
                                 <source :src="media.url" />
                             </video>
                             <div class="mt-3 space-y-1 text-xs text-stone-500 dark:text-neutral-400">
                                 <div>
-                                    <span class="text-stone-700 dark:text-neutral-200">Type :</span>
+                                    <span class="text-stone-700 dark:text-neutral-200">{{ $t('jobs.proofs.media.type') }}:</span>
                                     {{ proofType(media.type) }}
                                 </div>
                                 <div>
-                                    <span class="text-stone-700 dark:text-neutral-200">Source :</span>
+                                    <span class="text-stone-700 dark:text-neutral-200">{{ $t('jobs.proofs.media.source') }}:</span>
                                     {{ proofSource(media.source) }}
                                 </div>
                                 <div v-if="media.uploaded_by">
-                                    <span class="text-stone-700 dark:text-neutral-200">Par :</span>
+                                    <span class="text-stone-700 dark:text-neutral-200">{{ $t('jobs.proofs.media.by') }}:</span>
                                     {{ media.uploaded_by }}
                                 </div>
                                 <div v-if="media.note">
-                                    <span class="text-stone-700 dark:text-neutral-200">Note :</span>
+                                    <span class="text-stone-700 dark:text-neutral-200">{{ $t('jobs.proofs.media.note') }}:</span>
                                     {{ media.note }}
                                 </div>
                             </div>
                         </div>
                     </div>
                     <div v-else class="mt-3 text-sm text-stone-500 dark:text-neutral-400">
-                        Aucune preuve disponible pour cette tache.
+                        {{ $t('jobs.proofs.empty_task') }}
                     </div>
                 </div>
 
                 <div v-if="!tasks.length"
                     class="rounded-sm border border-stone-200 bg-white p-5 text-sm text-stone-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-400">
-                    Aucune tache disponible.
+                    {{ $t('jobs.proofs.empty') }}
                 </div>
             </div>
         </div>

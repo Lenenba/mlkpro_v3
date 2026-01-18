@@ -2,6 +2,7 @@
 import { computed } from 'vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, Link, usePage } from '@inertiajs/vue3';
+import { useI18n } from 'vue-i18n';
 import { humanizeDate } from '@/utils/date';
 
 const props = defineProps({
@@ -11,23 +12,25 @@ const props = defineProps({
     },
 });
 
+const { t } = useI18n();
+
 const page = usePage();
-const companyName = computed(() => page.props.auth?.account?.company?.name || 'Entreprise');
+const companyName = computed(() => page.props.auth?.account?.company?.name || t('sales.show.company_fallback'));
 const companyLogo = computed(() => page.props.auth?.account?.company?.logo_url || null);
 const createdBy = computed(() => props.sale?.created_by || null);
-const sellerName = computed(() => createdBy.value?.name || page.props.auth?.user?.name || 'Vendeur');
+const sellerName = computed(() => createdBy.value?.name || page.props.auth?.user?.name || t('sales.show.seller_fallback'));
 const sellerEmail = computed(() => createdBy.value?.email || page.props.auth?.user?.email || null);
 const sellerPhone = computed(() => createdBy.value?.phone_number || page.props.auth?.user?.phone_number || null);
 
 const formatCurrency = (value) =>
     `$${Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-const statusLabels = {
-    draft: 'Brouillon',
-    pending: 'En attente',
-    paid: 'Payee',
-    canceled: 'Annulee',
-};
+const statusLabels = computed(() => ({
+    draft: t('sales.status.draft'),
+    pending: t('sales.status.pending'),
+    paid: t('sales.status.paid'),
+    canceled: t('sales.status.canceled'),
+}));
 
 const statusClasses = {
     draft: 'bg-stone-100 text-stone-600 dark:bg-neutral-800 dark:text-neutral-300',
@@ -41,7 +44,7 @@ const customerLabel = (customer) => {
         return customer.company_name;
     }
     const name = [customer?.first_name, customer?.last_name].filter(Boolean).join(' ');
-    return name || 'Client';
+    return name || t('sales.labels.customer');
 };
 
 const canEdit = computed(() => ['draft', 'pending'].includes(props.sale?.status));
@@ -53,9 +56,9 @@ const totalQty = computed(() =>
 
 const productImage = (item) => item?.product?.image_url || item?.product?.image || null;
 const productFallback = (item) => {
-    const label = `${item?.product?.name || item?.description || 'P'}`.trim();
+    const label = `${item?.product?.name || item?.description || t('sales.show.product_initial')}`.trim();
     if (!label) {
-        return 'P';
+        return t('sales.show.product_initial');
     }
     return label.slice(0, 2).toUpperCase();
 };
@@ -64,7 +67,7 @@ const companyInitials = computed(() => {
     const name = companyName.value || '';
     const parts = name.split(' ').filter(Boolean).slice(0, 2);
     if (!parts.length) {
-        return 'CO';
+        return t('sales.show.company_initials_fallback');
     }
     return parts.map((part) => part[0]).join('').toUpperCase();
 });
@@ -97,22 +100,22 @@ const handlePrint = () => {
 
 const fulfillmentLabel = computed(() => {
     if (props.sale?.fulfillment_method === 'delivery') {
-        return 'Livraison';
+        return t('sales.fulfillment.method.delivery');
     }
     if (props.sale?.fulfillment_method === 'pickup') {
-        return 'Retrait';
+        return t('sales.fulfillment.method.pickup');
     }
-    return 'Commande';
+    return t('sales.fulfillment.method.order');
 });
 
-const fulfillmentStatusLabels = {
-    pending: 'Commande recue',
-    preparing: 'Preparation',
-    out_for_delivery: 'En cours de livraison',
-    ready_for_pickup: 'Pret a retirer',
-    completed: 'Livree',
-    confirmed: 'Confirmee',
-};
+const fulfillmentStatusLabels = computed(() => ({
+    pending: t('sales.fulfillment.pending'),
+    preparing: t('sales.fulfillment.preparing'),
+    out_for_delivery: t('sales.fulfillment.out_for_delivery'),
+    ready_for_pickup: t('sales.fulfillment.ready_for_pickup'),
+    completed: t('sales.fulfillment.completed'),
+    confirmed: t('sales.fulfillment.confirmed'),
+}));
 
 const fulfillmentStatusClasses = {
     pending: 'bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-200',
@@ -125,9 +128,9 @@ const fulfillmentStatusClasses = {
 
 const orderStatusLabel = computed(() => {
     if (props.sale?.fulfillment_status) {
-        return fulfillmentStatusLabels[props.sale.fulfillment_status] || props.sale.fulfillment_status;
+        return fulfillmentStatusLabels.value[props.sale.fulfillment_status] || props.sale.fulfillment_status;
     }
-    return statusLabels[props.sale?.status] || props.sale?.status || '';
+    return statusLabels.value[props.sale?.status] || props.sale?.status || '';
 });
 const orderStatusClass = computed(() => {
     if (props.sale?.fulfillment_status) {
@@ -135,7 +138,7 @@ const orderStatusClass = computed(() => {
     }
     return statusClasses[props.sale?.status] || statusClasses.draft;
 });
-const paymentStatusLabel = computed(() => statusLabels[props.sale?.status] || props.sale?.status || '');
+const paymentStatusLabel = computed(() => statusLabels.value[props.sale?.status] || props.sale?.status || '');
 
 const pickupCode = computed(() => props.sale?.pickup_code || null);
 const pickupQrUrl = computed(() => {
@@ -159,7 +162,7 @@ const canConfirmPickup = computed(() =>
 
 <template>
     <AuthenticatedLayout>
-        <Head title="Vente" />
+        <Head :title="$t('sales.show.meta_title')" />
 
         <div class="space-y-4">
             <div class="print-card rounded-sm border border-stone-200 bg-stone-50 p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
@@ -181,10 +184,10 @@ const canConfirmPickup = computed(() =>
                                 {{ companyName }}
                             </p>
                             <h1 class="text-xl font-semibold text-stone-800 dark:text-neutral-100">
-                                Facture {{ sale.number || `Sale #${sale.id}` }}
+                                {{ $t('sales.show.invoice_number', { number: sale.number || $t('sales.table.sale_label', { id: sale.id }) }) }}
                             </h1>
                             <p class="text-sm text-stone-600 dark:text-neutral-400">
-                                {{ sale.customer ? customerLabel(sale.customer) : 'Client anonyme' }}
+                                {{ sale.customer ? customerLabel(sale.customer) : $t('sales.labels.customer_anonymous') }}
                             </p>
                         </div>
                     </div>
@@ -194,21 +197,23 @@ const canConfirmPickup = computed(() =>
                                 class="rounded-full px-2 py-0.5 text-xs font-semibold"
                                 :class="orderStatusClass"
                             >
-                                Commande: {{ orderStatusLabel }}
+                                {{ $t('sales.show.order_label', { status: orderStatusLabel }) }}
                             </span>
                             <span
                                 class="rounded-full px-2 py-0.5 text-xs font-semibold"
                                 :class="statusClasses[sale.status] || statusClasses.draft"
                             >
-                                Paiement: {{ paymentStatusLabel }}
+                                {{ $t('sales.show.payment_label', { status: paymentStatusLabel }) }}
                             </span>
-                            <span>Cree le {{ formatDate(sale.created_at) }}</span>
+                            <span>{{ $t('sales.show.created_on', { date: formatDate(sale.created_at) }) }}</span>
                         </div>
                         <div v-if="sale.paid_at" class="text-right text-xs text-stone-500 dark:text-neutral-400">
-                            Payee le {{ formatDate(sale.paid_at) }}
+                            {{ $t('sales.show.paid_on', { date: formatDate(sale.paid_at) }) }}
                         </div>
                         <div class="text-right">
-                            <div class="text-xs uppercase tracking-wide text-stone-500 dark:text-neutral-400">Vendeur</div>
+                            <div class="text-xs uppercase tracking-wide text-stone-500 dark:text-neutral-400">
+                                {{ $t('sales.show.seller_label') }}
+                            </div>
                             <div class="text-sm font-medium text-stone-800 dark:text-neutral-100">{{ sellerName }}</div>
                             <div v-if="sellerEmail" class="text-xs text-stone-500 dark:text-neutral-400">{{ sellerEmail }}</div>
                             <div v-if="sellerPhone" class="text-xs text-stone-500 dark:text-neutral-400">{{ sellerPhone }}</div>
@@ -223,7 +228,7 @@ const canConfirmPickup = computed(() =>
                     :href="route('sales.edit', sale.id)"
                     class="rounded-sm border border-stone-200 bg-white px-3 py-2 text-xs font-semibold text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
                 >
-                    Modifier
+                    {{ $t('sales.actions.edit') }}
                 </Link>
                 <Link
                     v-if="canConfirmPickup"
@@ -232,38 +237,38 @@ const canConfirmPickup = computed(() =>
                     as="button"
                     class="rounded-sm bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700"
                 >
-                    Confirmer retrait
+                    {{ $t('sales.show.confirm_pickup') }}
                 </Link>
                 <button
                     type="button"
                     class="rounded-sm border border-stone-200 bg-white px-3 py-2 text-xs font-semibold text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
                     @click="handlePrint"
                 >
-                    Imprimer
+                    {{ $t('sales.actions.print') }}
                 </button>
                 <Link
                     :href="route('sales.index')"
                     class="rounded-sm border border-stone-200 bg-white px-3 py-2 text-xs font-semibold text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
                 >
-                    Retour aux ventes
+                    {{ $t('sales.actions.back_to_sales') }}
                 </Link>
             </div>
 
             <div class="grid gap-4 lg:grid-cols-[2fr_1fr]">
                 <div class="print-card rounded-sm border border-stone-200 bg-white shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
                     <div class="border-b border-stone-200 px-4 py-3 text-sm font-semibold text-stone-800 dark:border-neutral-700 dark:text-neutral-100">
-                        Produits
+                        {{ $t('sales.show.products_title') }}
                     </div>
                     <div class="overflow-x-auto">
                         <table class="min-w-full text-sm">
                             <thead class="bg-stone-50 text-xs uppercase text-stone-500 dark:bg-neutral-800 dark:text-neutral-400">
                                 <tr>
-                                    <th class="px-4 py-3 text-left">Produit</th>
-                                    <th class="px-4 py-3 text-left">SKU</th>
-                                    <th class="px-4 py-3 text-left">Unite</th>
-                                    <th class="px-4 py-3 text-right">Quantite</th>
-                                    <th class="px-4 py-3 text-right">Prix</th>
-                                    <th class="px-4 py-3 text-right">Total</th>
+                                    <th class="px-4 py-3 text-left">{{ $t('sales.show.table.product') }}</th>
+                                    <th class="px-4 py-3 text-left">{{ $t('sales.show.table.sku') }}</th>
+                                    <th class="px-4 py-3 text-left">{{ $t('sales.show.table.unit') }}</th>
+                                    <th class="px-4 py-3 text-right">{{ $t('sales.show.table.quantity') }}</th>
+                                    <th class="px-4 py-3 text-right">{{ $t('sales.show.table.price') }}</th>
+                                    <th class="px-4 py-3 text-right">{{ $t('sales.show.table.total') }}</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-stone-200 dark:divide-neutral-800">
@@ -276,7 +281,7 @@ const canConfirmPickup = computed(() =>
                                                 <img
                                                     v-if="productImage(item)"
                                                     :src="productImage(item)"
-                                                    :alt="item.product?.name || 'Produit'"
+                                                    :alt="item.product?.name || $t('sales.show.product_alt')"
                                                     class="h-full w-full object-cover"
                                                 >
                                                 <div v-else class="flex h-full w-full items-center justify-center">
@@ -320,21 +325,25 @@ const canConfirmPickup = computed(() =>
                 <div class="space-y-4">
                     <div class="print-card rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
                         <div class="flex items-center justify-between">
-                            <span class="text-sm text-stone-500 dark:text-neutral-400">Client</span>
+                            <span class="text-sm text-stone-500 dark:text-neutral-400">
+                                {{ $t('sales.form.customer_label') }}
+                            </span>
                             <span class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
-                                {{ sale.customer ? customerLabel(sale.customer) : 'Client anonyme' }}
+                                {{ sale.customer ? customerLabel(sale.customer) : $t('sales.labels.customer_anonymous') }}
                             </span>
                         </div>
                         <div class="mt-3 space-y-1 text-sm text-stone-700 dark:text-neutral-200">
                             <div v-if="sale.customer?.email">{{ sale.customer.email }}</div>
                             <div v-if="sale.customer?.phone">{{ sale.customer.phone }}</div>
-                            <div v-if="!sale.customer">Aucun client attache.</div>
+                            <div v-if="!sale.customer">{{ $t('sales.show.customer_missing') }}</div>
                         </div>
                     </div>
 
                     <div class="print-card rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
                         <div class="flex items-center justify-between">
-                            <span class="text-sm text-stone-500 dark:text-neutral-400">Resume</span>
+                            <span class="text-sm text-stone-500 dark:text-neutral-400">
+                                {{ $t('sales.show.summary_title') }}
+                            </span>
                             <div class="flex flex-wrap items-center gap-2">
                                 <span
                                     class="rounded-full px-2 py-1 text-xs font-semibold"
@@ -346,47 +355,47 @@ const canConfirmPickup = computed(() =>
                                     class="rounded-full px-2 py-1 text-xs font-semibold"
                                     :class="statusClasses[sale.status] || statusClasses.draft"
                                 >
-                                    Paiement: {{ paymentStatusLabel }}
+                                    {{ $t('sales.show.payment_label', { status: paymentStatusLabel }) }}
                                 </span>
                             </div>
                         </div>
                         <div class="mt-3 space-y-2 text-sm text-stone-700 dark:text-neutral-200">
                             <div class="flex items-center justify-between">
-                                <span>Sous-total</span>
+                                <span>{{ $t('sales.summary.subtotal') }}</span>
                                 <span class="font-medium">{{ formatCurrency(sale.subtotal) }}</span>
                             </div>
                             <div class="flex items-center justify-between">
-                                <span>Taxes</span>
+                                <span>{{ $t('sales.summary.taxes') }}</span>
                                 <span class="font-medium">{{ formatCurrency(sale.tax_total) }}</span>
                             </div>
                             <div v-if="Number(sale.discount_total || 0) > 0" class="flex items-center justify-between text-emerald-700">
-                                <span>Remise ({{ sale.discount_rate || 0 }}%)</span>
+                                <span>{{ $t('sales.summary.discount_rate', { rate: sale.discount_rate || 0 }) }}</span>
                                 <span class="font-medium">- {{ formatCurrency(sale.discount_total) }}</span>
                             </div>
                             <div v-if="Number(sale.delivery_fee || 0) > 0" class="flex items-center justify-between">
-                                <span>Livraison</span>
+                                <span>{{ $t('sales.summary.delivery') }}</span>
                                 <span class="font-medium">{{ formatCurrency(sale.delivery_fee) }}</span>
                             </div>
                             <div class="flex items-center justify-between border-t border-stone-200 pt-2 dark:border-neutral-700">
-                                <span class="font-semibold">Total</span>
+                                <span class="font-semibold">{{ $t('sales.summary.total') }}</span>
                                 <span class="font-semibold">{{ formatCurrency(sale.total) }}</span>
                             </div>
                             <div class="grid grid-cols-2 gap-2 pt-2 text-xs text-stone-500 dark:text-neutral-400">
                                 <div class="flex items-center justify-between">
-                                    <span>Lignes</span>
+                                    <span>{{ $t('sales.summary.lines') }}</span>
                                     <span class="font-medium text-stone-700 dark:text-neutral-200">{{ lineCount }}</span>
                                 </div>
                                 <div class="flex items-center justify-between">
-                                    <span>Articles</span>
+                                    <span>{{ $t('sales.summary.items') }}</span>
                                     <span class="font-medium text-stone-700 dark:text-neutral-200">{{ totalQty }}</span>
                                 </div>
                             </div>
                             <div class="flex items-center justify-between text-xs text-stone-500 dark:text-neutral-400">
-                                <span>Cree</span>
+                                <span>{{ $t('sales.summary.created') }}</span>
                                 <span>{{ humanizeDate(sale.created_at) }}</span>
                             </div>
                             <div v-if="sale.paid_at" class="flex items-center justify-between text-xs text-stone-500 dark:text-neutral-400">
-                                <span>Payee</span>
+                                <span>{{ $t('sales.summary.paid') }}</span>
                                 <span>{{ humanizeDate(sale.paid_at) }}</span>
                             </div>
                         </div>
@@ -397,29 +406,31 @@ const canConfirmPickup = computed(() =>
                         class="print-card rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900"
                     >
                         <div class="flex items-center justify-between">
-                            <span class="text-sm text-stone-500 dark:text-neutral-400">Livraison</span>
+                            <span class="text-sm text-stone-500 dark:text-neutral-400">
+                                {{ $t('sales.show.fulfillment_title') }}
+                            </span>
                             <span class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
                                 {{ fulfillmentLabel }}
                             </span>
                         </div>
                         <div class="mt-3 space-y-1 text-sm text-stone-700 dark:text-neutral-200">
                             <div v-if="sale.fulfillment_status" class="text-xs text-stone-500 dark:text-neutral-400">
-                                Statut: {{ fulfillmentStatusLabels[sale.fulfillment_status] || sale.fulfillment_status }}
+                                {{ $t('sales.show.fulfillment_status', { status: fulfillmentStatusLabels[sale.fulfillment_status] || sale.fulfillment_status }) }}
                             </div>
                             <div v-if="sale.fulfillment_method === 'delivery' && sale.delivery_address">
-                                Adresse: {{ sale.delivery_address }}
+                                {{ $t('sales.show.address_label') }} {{ sale.delivery_address }}
                             </div>
                             <div v-if="sale.fulfillment_method === 'delivery' && sale.delivery_notes">
-                                Notes: {{ sale.delivery_notes }}
+                                {{ $t('sales.show.notes_label') }} {{ sale.delivery_notes }}
                             </div>
                             <div v-if="sale.fulfillment_method === 'pickup' && sale.pickup_notes">
-                                Notes: {{ sale.pickup_notes }}
+                                {{ $t('sales.show.notes_label') }} {{ sale.pickup_notes }}
                             </div>
                             <div v-if="sale.scheduled_for">
-                                Horaire souhaite: {{ formatDateTime(sale.scheduled_for) }}
+                                {{ $t('sales.show.requested_time', { date: formatDateTime(sale.scheduled_for) }) }}
                             </div>
                             <div v-if="sale.delivery_confirmed_at">
-                                Confirmee le {{ formatDateTime(sale.delivery_confirmed_at) }}
+                                {{ $t('sales.show.confirmed_on', { date: formatDateTime(sale.delivery_confirmed_at) }) }}
                             </div>
                         </div>
                     </div>
@@ -429,30 +440,34 @@ const canConfirmPickup = computed(() =>
                         class="print-card rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900"
                     >
                         <div class="flex items-center justify-between">
-                            <span class="text-sm text-stone-500 dark:text-neutral-400">Retrait</span>
+                            <span class="text-sm text-stone-500 dark:text-neutral-400">
+                                {{ $t('sales.show.pickup_title') }}
+                            </span>
                             <span class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
-                                {{ fulfillmentStatusLabels[sale.fulfillment_status] || 'Retrait' }}
+                                {{ fulfillmentStatusLabels[sale.fulfillment_status] || $t('sales.fulfillment.method.pickup') }}
                             </span>
                         </div>
                         <div class="mt-3 space-y-2 text-sm text-stone-700 dark:text-neutral-200">
                             <div v-if="pickupCode" class="flex items-center justify-between">
-                                <span class="text-xs uppercase text-stone-500 dark:text-neutral-400">Code</span>
+                                <span class="text-xs uppercase text-stone-500 dark:text-neutral-400">
+                                    {{ $t('sales.show.pickup_code_label') }}
+                                </span>
                                 <span class="font-semibold text-stone-800 dark:text-neutral-100">{{ pickupCode }}</span>
                             </div>
                             <div v-else class="text-xs text-stone-500 dark:text-neutral-400">
-                                Code de retrait en attente.
+                                {{ $t('sales.show.pickup_code_pending') }}
                             </div>
                             <div v-if="sale.pickup_confirmed_at">
-                                Retire le {{ formatDateTime(sale.pickup_confirmed_at) }}
+                                {{ $t('sales.show.pickup_confirmed_on', { date: formatDateTime(sale.pickup_confirmed_at) }) }}
                             </div>
                             <div v-if="pickupConfirmedBy?.name" class="text-xs text-stone-500 dark:text-neutral-400">
-                                Confirme par {{ pickupConfirmedBy.name }}
+                                {{ $t('sales.show.pickup_confirmed_by', { name: pickupConfirmedBy.name }) }}
                             </div>
                         </div>
                         <div v-if="showPickupQr" class="mt-3 flex justify-center">
                             <img
                                 :src="pickupQrUrl"
-                                :alt="`QR ${pickupCode}`"
+                                :alt="$t('sales.show.pickup_qr_alt', { code: pickupCode })"
                                 class="h-40 w-40 rounded-sm border border-stone-200 bg-white object-contain p-2 dark:border-neutral-700"
                             >
                         </div>
@@ -463,7 +478,9 @@ const canConfirmPickup = computed(() =>
                         class="print-card rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900"
                     >
                         <div class="flex items-center justify-between">
-                            <span class="text-sm text-stone-500 dark:text-neutral-400">Photo livraison</span>
+                            <span class="text-sm text-stone-500 dark:text-neutral-400">
+                                {{ $t('sales.show.delivery_proof_title') }}
+                            </span>
                             <span class="text-xs text-stone-500 dark:text-neutral-400">
                                 {{ sale.delivery_confirmed_at ? formatDateTime(sale.delivery_confirmed_at) : '' }}
                             </span>
@@ -471,7 +488,7 @@ const canConfirmPickup = computed(() =>
                         <div class="mt-3">
                             <img
                                 :src="sale.delivery_proof_url"
-                                alt="Photo livraison"
+                                :alt="$t('sales.show.delivery_proof_title')"
                                 class="h-44 w-full rounded-sm border border-stone-200 object-cover dark:border-neutral-700"
                             >
                         </div>
@@ -481,14 +498,20 @@ const canConfirmPickup = computed(() =>
                         v-if="sale.source === 'portal' || sale.customer_notes || sale.substitution_notes"
                         class="print-card rounded-sm border border-stone-200 bg-white p-4 text-sm text-stone-700 shadow-sm dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
                     >
-                        <p class="text-xs uppercase text-stone-500 dark:text-neutral-400">Notes client</p>
+                        <p class="text-xs uppercase text-stone-500 dark:text-neutral-400">
+                            {{ $t('sales.show.customer_notes_title') }}
+                        </p>
                         <div class="mt-2 space-y-2">
                             <p v-if="sale.customer_notes">{{ sale.customer_notes }}</p>
-                            <p v-else class="text-xs text-stone-500 dark:text-neutral-400">Aucune note specifique.</p>
+                            <p v-else class="text-xs text-stone-500 dark:text-neutral-400">
+                                {{ $t('sales.show.customer_notes_empty') }}
+                            </p>
                             <div class="text-xs text-stone-500 dark:text-neutral-400">
-                                Substitutions:
+                                {{ $t('sales.show.substitutions_label') }}
                                 <span class="font-semibold text-stone-700 dark:text-neutral-200">
-                                    {{ sale.substitution_allowed === false ? 'Non autorisees' : 'Autorisees' }}
+                                    {{ sale.substitution_allowed === false
+                                        ? $t('sales.show.substitution_not_allowed')
+                                        : $t('sales.show.substitution_allowed') }}
                                 </span>
                             </div>
                             <p v-if="sale.substitution_notes">{{ sale.substitution_notes }}</p>
@@ -496,7 +519,9 @@ const canConfirmPickup = computed(() =>
                     </div>
 
                     <div v-if="sale.notes" class="print-card rounded-sm border border-stone-200 bg-white p-4 text-sm text-stone-700 shadow-sm dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200">
-                        <p class="text-xs uppercase text-stone-500 dark:text-neutral-400">Notes</p>
+                        <p class="text-xs uppercase text-stone-500 dark:text-neutral-400">
+                            {{ $t('sales.show.notes_title') }}
+                        </p>
                         <p class="mt-2">{{ sale.notes }}</p>
                     </div>
                 </div>

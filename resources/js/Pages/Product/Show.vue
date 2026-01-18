@@ -4,6 +4,7 @@ import { Head, Link, router } from '@inertiajs/vue3';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import Card from '@/Components/UI/Card.vue';
 import { humanizeDate } from '@/utils/date';
+import { useI18n } from 'vue-i18n';
 
 const props = defineProps({
     product: {
@@ -16,6 +17,8 @@ const props = defineProps({
     },
 });
 
+const { t } = useI18n();
+
 const formatCurrency = (value) =>
     `$${Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
@@ -24,12 +27,12 @@ const formatNumber = (value) =>
 
 const trackingLabel = (product) => {
     if (product?.tracking_type === 'lot') {
-        return 'Lot';
+        return t('products.tracking.lot');
     }
     if (product?.tracking_type === 'serial') {
-        return 'Serial';
+        return t('products.tracking.serial');
     }
-    return 'Standard';
+    return t('products.tracking.standard');
 };
 
 const inventoryList = computed(() => Array.isArray(props.product?.inventories) ? props.product.inventories : []);
@@ -60,9 +63,11 @@ const lotItems = computed(() => {
 
 const lotStatus = (lot) => {
     if (!lot?.expires_at) {
-        return 'Active';
+        return t('products.lots.status.active');
     }
-    return new Date(lot.expires_at).getTime() < Date.now() ? 'Expired' : 'Active';
+    return new Date(lot.expires_at).getTime() < Date.now()
+        ? t('products.lots.status.expired')
+        : t('products.lots.status.active');
 };
 
 const alertToneClasses = {
@@ -91,24 +96,24 @@ const alerts = computed(() => {
     }).length;
 
     if (onHand <= 0) {
-        items.push({ label: 'Rupture de stock', tone: 'danger' });
+        items.push({ label: t('products.alerts.out_of_stock'), tone: 'danger' });
     } else if (minStock > 0 && onHand <= minStock) {
-        items.push({ label: 'Stock faible', tone: 'warning' });
+        items.push({ label: t('products.alerts.low_stock'), tone: 'warning' });
     } else {
-        items.push({ label: 'Stock OK', tone: 'success' });
+        items.push({ label: t('products.alerts.in_stock'), tone: 'success' });
     }
 
     if (damaged > 0) {
-        items.push({ label: `Avaries ${formatNumber(damaged)}`, tone: 'danger' });
+        items.push({ label: t('products.alerts.damaged_count', { count: formatNumber(damaged) }), tone: 'danger' });
     }
     if (reserved > 0) {
-        items.push({ label: `Reserve ${formatNumber(reserved)}`, tone: 'info' });
+        items.push({ label: t('products.alerts.reserved_count', { count: formatNumber(reserved) }), tone: 'info' });
     }
     if (expiredCount > 0) {
-        items.push({ label: `Lots expires ${formatNumber(expiredCount)}`, tone: 'danger' });
+        items.push({ label: t('products.alerts.expired_lots_count', { count: formatNumber(expiredCount) }), tone: 'danger' });
     }
     if (expiringCount > 0) {
-        items.push({ label: `Lots bientot expires ${formatNumber(expiringCount)}`, tone: 'warning' });
+        items.push({ label: t('products.alerts.expiring_lots_count', { count: formatNumber(expiringCount) }), tone: 'warning' });
     }
 
     return items;
@@ -131,7 +136,7 @@ const requestSupplierStock = () => {
     if (!canRequestSupplier.value) {
         return;
     }
-    if (!confirm('Demander un reapprovisionnement au fournisseur ?')) {
+    if (!confirm(t('products.actions.request_supplier_confirm'))) {
         return;
     }
     router.post(route('product.supplier-email', props.product.id), {}, {
@@ -141,37 +146,37 @@ const requestSupplierStock = () => {
 
 const kpiCards = computed(() => ([
     {
-        label: 'En stock',
+        label: t('products.show.kpi.in_stock'),
         value: formatNumber(totalOnHand.value),
         tone: 'success',
         icon: 'box',
     },
     {
-        label: 'Valeur stock',
+        label: t('products.show.kpi.stock_value'),
         value: formatCurrency(stockValue.value),
         tone: 'info',
         icon: 'cash',
     },
     {
-        label: 'Reserve',
+        label: t('products.show.kpi.reserved'),
         value: formatNumber(totalReserved.value),
         tone: 'warning',
         icon: 'lock',
     },
     {
-        label: 'Avaries',
+        label: t('products.show.kpi.damaged'),
         value: formatNumber(totalDamaged.value),
         tone: 'danger',
         icon: 'alert',
     },
     {
-        label: 'Lots/serials',
+        label: t('products.show.kpi.lots_serials'),
         value: formatNumber(lotItems.value.length),
         tone: 'info',
         icon: 'layers',
     },
     {
-        label: 'Minimum',
+        label: t('products.show.kpi.minimum'),
         value: formatNumber(props.product?.minimum_stock || 0),
         tone: 'warning',
         icon: 'thermo',
@@ -199,26 +204,30 @@ const galleryImages = computed(() => {
 });
 
 const formatDate = (value) => humanizeDate(value);
+
+const pageTitle = computed(() => props.product.name || t('products.single'));
 </script>
 
 <template>
-    <Head :title="product.name || 'Product'" />
+    <Head :title="pageTitle" />
     <AuthenticatedLayout>
         <div class="space-y-4">
             <div class="flex flex-wrap items-center justify-between gap-3">
                 <div class="flex items-center gap-3">
                     <img
                         :src="product.image_url || product.image"
-                        :alt="product.name || 'Product'"
+                        :alt="product.name || t('products.single')"
                         class="h-16 w-16 rounded-sm border border-stone-200 object-cover dark:border-neutral-700"
                     />
                     <div>
                         <h1 class="text-xl font-semibold text-stone-800 dark:text-neutral-100">
-                            {{ product.name || 'Product' }}
+                            {{ product.name || t('products.single') }}
                         </h1>
                         <p class="text-sm text-stone-500 dark:text-neutral-400">
-                            {{ product.sku || product.number || 'No SKU' }}
-                            <span v-if="product.barcode" class="ml-2">Barcode {{ product.barcode }}</span>
+                            {{ product.sku || product.number || t('products.labels.no_sku') }}
+                            <span v-if="product.barcode" class="ml-2">
+                                {{ $t('products.labels.barcode') }} {{ product.barcode }}
+                            </span>
                         </p>
                     </div>
                 </div>
@@ -226,7 +235,7 @@ const formatDate = (value) => humanizeDate(value);
                     :href="route('product.index')"
                     class="rounded-sm border border-stone-200 bg-white px-3 py-2 text-xs font-semibold text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
                 >
-                    Retour aux produits
+                    {{ $t('products.actions.back_to_list') }}
                 </Link>
             </div>
 
@@ -283,7 +292,7 @@ const formatDate = (value) => humanizeDate(value);
                     </div>
 
                     <Card class="rise-in" :style="{ animationDelay: '120ms' }">
-                        <template #title>Alertes</template>
+                        <template #title>{{ $t('products.show.alerts_title') }}</template>
                         <div class="flex flex-wrap gap-2 text-xs">
                             <span
                                 v-for="alert in alerts"
@@ -301,94 +310,98 @@ const formatDate = (value) => humanizeDate(value);
                                 :disabled="!canRequestSupplier"
                                 @click="requestSupplierStock"
                             >
-                                Demander stock fournisseur
+                                {{ $t('products.actions.request_supplier') }}
                             </button>
                             <span v-if="lowStockActive && !product.supplier_email" class="text-[11px] text-stone-400">
-                                Ajoutez un email fournisseur pour envoyer la demande.
+                                {{ $t('products.show.request_supplier_hint') }}
                             </span>
                         </div>
                     </Card>
 
                     <Card v-if="inventoryList.length" class="rise-in" :style="{ animationDelay: '160ms' }">
-                        <template #title>Warehouses</template>
+                        <template #title>{{ $t('products.show.warehouses_title') }}</template>
                         <div class="space-y-3 text-sm text-stone-600 dark:text-neutral-300">
                             <div v-for="inventory in inventoryList" :key="inventory.id"
                                 class="rounded-sm border border-stone-200 p-3 dark:border-neutral-700">
                                 <div class="flex items-center justify-between">
                                     <div class="font-medium text-stone-700 dark:text-neutral-200">
-                                        {{ inventory.warehouse?.name || 'Warehouse' }}
+                                        {{ inventory.warehouse?.name || $t('products.labels.warehouse') }}
                                     </div>
                                     <span class="text-xs text-stone-500 dark:text-neutral-400">
-                                        Bin {{ inventory.bin_location || '-' }}
+                                        {{ $t('products.labels.bin') }} {{ inventory.bin_location || '-' }}
                                     </span>
                                 </div>
                                 <div class="mt-2 grid grid-cols-2 gap-2 text-xs text-stone-500 dark:text-neutral-400">
-                                    <div>On hand: {{ formatNumber(inventory.on_hand) }}</div>
-                                    <div>Reserved: {{ formatNumber(inventory.reserved) }}</div>
-                                    <div>Damaged: {{ formatNumber(inventory.damaged) }}</div>
-                                    <div>Min: {{ formatNumber(inventory.minimum_stock) }}</div>
+                                    <div>{{ $t('products.labels.on_hand') }}: {{ formatNumber(inventory.on_hand) }}</div>
+                                    <div>{{ $t('products.labels.reserved') }}: {{ formatNumber(inventory.reserved) }}</div>
+                                    <div>{{ $t('products.labels.damaged') }}: {{ formatNumber(inventory.damaged) }}</div>
+                                    <div>{{ $t('products.labels.minimum') }}: {{ formatNumber(inventory.minimum_stock) }}</div>
                                 </div>
                             </div>
                         </div>
                     </Card>
 
                     <Card v-if="lotItems.length" class="rise-in" :style="{ animationDelay: '200ms' }">
-                        <template #title>Lots & Serials</template>
+                        <template #title>{{ $t('products.show.lots_title') }}</template>
                         <div class="space-y-2">
                             <div v-for="lot in lotItems" :key="lot.id"
                                 class="rounded-sm border border-stone-200 p-3 text-sm text-stone-600 dark:border-neutral-700 dark:text-neutral-300">
                                 <div class="flex items-center justify-between gap-2">
                                     <div class="font-medium text-stone-700 dark:text-neutral-200">
-                                        {{ lot.serial_number ? `Serial ${lot.serial_number}` : (lot.lot_number ? `Lot ${lot.lot_number}` : 'Lot') }}
+                                        {{ lot.serial_number
+                                            ? $t('products.lots.serial_label', { number: lot.serial_number })
+                                            : (lot.lot_number
+                                                ? $t('products.lots.lot_label', { number: lot.lot_number })
+                                                : $t('products.lots.lot_fallback')) }}
                                     </div>
                                     <span class="rounded-full px-2 py-1 text-[10px] font-semibold"
-                                        :class="lotStatus(lot) === 'Expired'
+                                        :class="lotStatus(lot) === $t('products.lots.status.expired')
                                             ? 'bg-red-100 text-red-700 dark:bg-red-500/10 dark:text-red-300'
                                             : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300'">
                                         {{ lotStatus(lot) }}
                                     </span>
                                 </div>
                                 <div class="mt-2 grid grid-cols-1 gap-2 text-xs text-stone-500 dark:text-neutral-400">
-                                    <div>Warehouse: {{ lot.warehouse?.name || 'Warehouse' }}</div>
-                                    <div>Quantity: {{ formatNumber(lot.quantity) }}</div>
-                                    <div v-if="lot.received_at">Received {{ formatDate(lot.received_at) }}</div>
-                                    <div v-if="lot.expires_at">Expires {{ formatDate(lot.expires_at) }}</div>
+                                    <div>{{ $t('products.labels.warehouse') }}: {{ lot.warehouse?.name || $t('products.labels.warehouse') }}</div>
+                                    <div>{{ $t('products.labels.quantity') }}: {{ formatNumber(lot.quantity) }}</div>
+                                    <div v-if="lot.received_at">{{ $t('products.labels.received') }} {{ formatDate(lot.received_at) }}</div>
+                                    <div v-if="lot.expires_at">{{ $t('products.labels.expires') }} {{ formatDate(lot.expires_at) }}</div>
                                 </div>
                             </div>
                         </div>
                     </Card>
 
                     <Card v-if="product.description" class="rise-in" :style="{ animationDelay: '240ms' }">
-                        <template #title>Description</template>
+                        <template #title>{{ $t('products.form.description') }}</template>
                         <p class="text-sm text-stone-700 dark:text-neutral-200">{{ product.description }}</p>
                     </Card>
                 </div>
 
                 <div class="space-y-4">
                     <Card class="rise-in" :style="{ animationDelay: '80ms' }">
-                        <template #title>General</template>
+                        <template #title>{{ $t('products.show.general_title') }}</template>
                         <dl class="grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
-                            <dt class="text-stone-500 dark:text-neutral-400">Status</dt>
+                            <dt class="text-stone-500 dark:text-neutral-400">{{ $t('products.labels.status') }}</dt>
                             <dd class="text-end text-stone-800 dark:text-neutral-200">
-                                {{ product.is_active ? 'Active' : 'Archived' }}
+                                {{ product.is_active ? $t('products.status.active') : $t('products.status.archived') }}
                             </dd>
-                            <dt class="text-stone-500 dark:text-neutral-400">Category</dt>
+                            <dt class="text-stone-500 dark:text-neutral-400">{{ $t('products.labels.category') }}</dt>
                             <dd class="text-end text-stone-800 dark:text-neutral-200">
-                                {{ product.category?.name || 'Uncategorized' }}
+                                {{ product.category?.name || $t('products.labels.uncategorized') }}
                             </dd>
-                            <dt class="text-stone-500 dark:text-neutral-400">Tracking</dt>
+                            <dt class="text-stone-500 dark:text-neutral-400">{{ $t('products.labels.tracking') }}</dt>
                             <dd class="text-end text-stone-800 dark:text-neutral-200">
                                 {{ trackingLabel(product) }}
                             </dd>
-                            <dt class="text-stone-500 dark:text-neutral-400">Unit</dt>
+                            <dt class="text-stone-500 dark:text-neutral-400">{{ $t('products.labels.unit') }}</dt>
                             <dd class="text-end text-stone-800 dark:text-neutral-200">
                                 {{ product.unit || '-' }}
                             </dd>
-                            <dt class="text-stone-500 dark:text-neutral-400">Supplier</dt>
+                            <dt class="text-stone-500 dark:text-neutral-400">{{ $t('products.labels.supplier') }}</dt>
                             <dd class="text-end text-stone-800 dark:text-neutral-200">
                                 {{ product.supplier_name || '-' }}
                             </dd>
-                            <dt class="text-stone-500 dark:text-neutral-400">Supplier email</dt>
+                            <dt class="text-stone-500 dark:text-neutral-400">{{ $t('products.labels.supplier_email') }}</dt>
                             <dd class="text-end text-stone-800 dark:text-neutral-200">
                                 <a
                                     v-if="product.supplier_email"
@@ -403,21 +416,21 @@ const formatDate = (value) => humanizeDate(value);
                     </Card>
 
                     <Card class="rise-in" :style="{ animationDelay: '120ms' }">
-                        <template #title>Pricing</template>
+                        <template #title>{{ $t('products.show.pricing_title') }}</template>
                         <dl class="grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
-                            <dt class="text-stone-500 dark:text-neutral-400">Price</dt>
+                            <dt class="text-stone-500 dark:text-neutral-400">{{ $t('products.form.price') }}</dt>
                             <dd class="text-end text-stone-800 dark:text-neutral-200">
                                 {{ formatCurrency(product.price) }}
                             </dd>
-                            <dt class="text-stone-500 dark:text-neutral-400">Cost</dt>
+                            <dt class="text-stone-500 dark:text-neutral-400">{{ $t('products.form.cost_price') }}</dt>
                             <dd class="text-end text-stone-800 dark:text-neutral-200">
                                 {{ formatCurrency(product.cost_price) }}
                             </dd>
-                            <dt class="text-stone-500 dark:text-neutral-400">Margin</dt>
+                            <dt class="text-stone-500 dark:text-neutral-400">{{ $t('products.form.margin') }}</dt>
                             <dd class="text-end text-stone-800 dark:text-neutral-200">
                                 {{ Number(product.margin_percent || 0).toLocaleString(undefined, { maximumFractionDigits: 2 }) }}%
                             </dd>
-                            <dt class="text-stone-500 dark:text-neutral-400">Tax rate</dt>
+                            <dt class="text-stone-500 dark:text-neutral-400">{{ $t('products.form.tax_rate') }}</dt>
                             <dd class="text-end text-stone-800 dark:text-neutral-200">
                                 {{ Number(product.tax_rate || 0).toLocaleString(undefined, { maximumFractionDigits: 2 }) }}%
                             </dd>
@@ -425,21 +438,21 @@ const formatDate = (value) => humanizeDate(value);
                     </Card>
 
                     <Card class="rise-in" :style="{ animationDelay: '160ms' }">
-                        <template #title>Inventory</template>
+                        <template #title>{{ $t('products.show.inventory_title') }}</template>
                         <dl class="grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
-                            <dt class="text-stone-500 dark:text-neutral-400">On hand</dt>
+                            <dt class="text-stone-500 dark:text-neutral-400">{{ $t('products.labels.on_hand') }}</dt>
                             <dd class="text-end text-stone-800 dark:text-neutral-200">
                                 {{ formatNumber(totalOnHand) }}
                             </dd>
-                            <dt class="text-stone-500 dark:text-neutral-400">Reserved</dt>
+                            <dt class="text-stone-500 dark:text-neutral-400">{{ $t('products.labels.reserved') }}</dt>
                             <dd class="text-end text-stone-800 dark:text-neutral-200">
                                 {{ formatNumber(totalReserved) }}
                             </dd>
-                            <dt class="text-stone-500 dark:text-neutral-400">Damaged</dt>
+                            <dt class="text-stone-500 dark:text-neutral-400">{{ $t('products.labels.damaged') }}</dt>
                             <dd class="text-end text-stone-800 dark:text-neutral-200">
                                 {{ formatNumber(totalDamaged) }}
                             </dd>
-                            <dt class="text-stone-500 dark:text-neutral-400">Minimum</dt>
+                            <dt class="text-stone-500 dark:text-neutral-400">{{ $t('products.labels.minimum') }}</dt>
                             <dd class="text-end text-stone-800 dark:text-neutral-200">
                                 {{ formatNumber(product.minimum_stock) }}
                             </dd>
@@ -447,13 +460,13 @@ const formatDate = (value) => humanizeDate(value);
                     </Card>
 
                     <Card v-if="galleryImages.length" class="rise-in" :style="{ animationDelay: '200ms' }">
-                        <template #title>Galerie</template>
+                        <template #title>{{ $t('products.show.gallery_title') }}</template>
                         <div class="grid grid-cols-3 gap-2">
                             <img
                                 v-for="(image, index) in galleryImages"
                                 :key="`${image}-${index}`"
                                 :src="image"
-                                alt="Product image"
+                                :alt="$t('products.labels.product_image_alt')"
                                 class="h-20 w-full rounded-sm border border-stone-200 object-cover dark:border-neutral-700"
                             />
                         </div>
