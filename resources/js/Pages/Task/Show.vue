@@ -60,7 +60,6 @@ const statusLabelFor = (status) => {
     return translated === key ? status : translated;
 };
 const dueLabel = computed(() => humanizeDate(props.task?.due_date) || t('tasks.labels.no_due_date'));
-const assigneeLabel = computed(() => props.task?.assignee?.user?.name || t('tasks.labels.unassigned'));
 const timingStatusLabel = (status) => {
     if (!status) {
         return '';
@@ -169,7 +168,18 @@ const mapLink = computed(() =>
                                 {{ timingStatusLabel(timingStatus) }}
                             </span>
                             <span>{{ $t('tasks.details.due') }}: {{ dueLabel }}</span>
-                            <span>{{ $t('tasks.details.assignee') }}: {{ assigneeLabel }}</span>
+                            <span class="inline-flex items-center gap-1">
+                                {{ $t('tasks.details.assignee') }}:
+                                <span v-if="task?.assignee?.user?.name">
+                                    {{ task.assignee.user.name }}
+                                </span>
+                                <span
+                                    v-else
+                                    class="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase text-amber-700 dark:bg-amber-500/10 dark:text-amber-300"
+                                >
+                                    {{ $t('tasks.labels.unassigned') }}
+                                </span>
+                            </span>
                         </div>
                     </div>
                     <div class="flex items-center gap-2">

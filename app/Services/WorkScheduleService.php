@@ -8,7 +8,10 @@ use App\Models\Work;
 use App\Models\Product;
 use App\Models\User;
 use Illuminate\Support\Carbon;
+use App\Notifications\TaskAssignmentConflictNotification;
+use App\Services\NotificationPreferenceService;
 use App\Services\UsageLimitService;
+use App\Support\NotificationDispatcher;
 
 class WorkScheduleService
 {
@@ -52,7 +55,8 @@ class WorkScheduleService
         array $dateInputs,
         ?int $createdByUserId = null,
         ?array $assigneeIds = null,
-        ?array $materialTemplate = null
+        ?array $materialTemplate = null,
+        ?array &$conflicts = null
     ): int {
         if (!$dateInputs) {
             return 0;
@@ -99,6 +103,9 @@ class WorkScheduleService
 
         $materialTemplate = $materialTemplate ?? $this->buildMaterialTemplate($work);
         $createdCount = 0;
+        $conflictItems = [];
+        $rangeForNewTask = $this->buildTimeRange($startTime, $endTime);
+        $busyMap = $this->buildBusyMap($accountId, $assigneeIds, $dateStrings);
 
         foreach ($dateStrings as $index => $dateString) {
             if (isset($existingDates[$dateString])) {
@@ -106,6 +113,22 @@ class WorkScheduleService
             }
 
             $assigneeId = $assigneeCount ? $assigneeIds[$index % $assigneeCount] : null;
+            $hasConflict = false;
+            if ($assigneeId && $rangeForNewTask && !empty($busyMap[$assigneeId][$dateString])) {
+                foreach ($busyMap[$assigneeId][$dateString] as $range) {
+                    if ($this->rangesOverlap($rangeForNewTask, $range)) {
+                        $hasConflict = true;
+                        break;
+                    }
+                }
+            }
+            if ($hasConflict) {
+                $conflictItems[] = [
+                    'date' => $dateString,
+                    'member_id' => $assigneeId,
+                ];
+                $assigneeId = null;
+            }
 
             $task = Task::create([
                 'account_id' => $accountId,
@@ -128,6 +151,13 @@ class WorkScheduleService
             if ($materialTemplate) {
                 $task->materials()->createMany($materialTemplate);
             }
+        }
+
+        if ($conflicts !== null) {
+            $conflicts = $conflictItems;
+        }
+        if ($conflictItems) {
+            $this->notifyAssignmentConflicts($work, count($conflictItems));
         }
 
         return $createdCount;
@@ -312,5 +342,125 @@ class WorkScheduleService
         }
 
         return $materials;
+    }
+
+    private function buildBusyMap(int $accountId, array $assigneeIds, array $dateStrings): array
+    {
+        if (!$assigneeIds || !$dateStrings) {
+            return [];
+        }
+
+        $minDate = min($dateStrings);
+        $maxDate = max($dateStrings);
+        if (!$minDate || !$maxDate) {
+            return [];
+        }
+
+        $tasks = Task::query()
+            ->forAccount($accountId)
+            ->whereIn('assigned_team_member_id', $assigneeIds)
+            ->whereBetween('due_date', [$minDate, $maxDate])
+            ->get(['assigned_team_member_id', 'due_date', 'start_time', 'end_time']);
+
+        $map = [];
+        foreach ($tasks as $task) {
+            $memberId = (int) $task->assigned_team_member_id;
+            if (!$memberId) {
+                continue;
+            }
+
+            $dateValue = $task->due_date instanceof Carbon
+                ? $task->due_date->toDateString()
+                : (string) $task->due_date;
+            if ($dateValue === '') {
+                continue;
+            }
+
+            $range = $this->buildTimeRange($task->start_time, $task->end_time);
+            if (!$range) {
+                continue;
+            }
+
+            $map[$memberId][$dateValue][] = $range;
+        }
+
+        return $map;
+    }
+
+    private function buildTimeRange(?string $startTime, ?string $endTime): ?array
+    {
+        if (!$startTime) {
+            return [
+                'start' => 0,
+                'end' => 24 * 60,
+                'all_day' => true,
+            ];
+        }
+
+        $start = $this->timeToMinutes($startTime);
+        if ($start === null) {
+            return null;
+        }
+
+        $end = $this->timeToMinutes($endTime) ?? $start;
+        if ($end < $start) {
+            $end = $start;
+        }
+
+        return [
+            'start' => $start,
+            'end' => $end,
+            'all_day' => false,
+        ];
+    }
+
+    private function rangesOverlap(array $left, array $right): bool
+    {
+        return $left['start'] <= $right['end'] && $left['end'] >= $right['start'];
+    }
+
+    private function timeToMinutes(?string $value): ?int
+    {
+        if (!$value) {
+            return null;
+        }
+
+        $value = trim((string) $value);
+        if ($value === '') {
+            return null;
+        }
+
+        foreach (['H:i:s', 'H:i'] as $format) {
+            try {
+                $time = Carbon::createFromFormat($format, $value);
+                return ($time->hour * 60) + $time->minute;
+            } catch (\Throwable $exception) {
+                continue;
+            }
+        }
+
+        return null;
+    }
+
+    private function notifyAssignmentConflicts(Work $work, int $conflictCount): void
+    {
+        if ($conflictCount <= 0) {
+            return;
+        }
+
+        $owner = User::query()->find($work->user_id);
+        if (!$owner) {
+            return;
+        }
+
+        $preferences = app(NotificationPreferenceService::class);
+        if (!$preferences->shouldNotify($owner, NotificationPreferenceService::CATEGORY_SYSTEM)) {
+            return;
+        }
+
+        NotificationDispatcher::send($owner, new TaskAssignmentConflictNotification(
+            $work,
+            $conflictCount
+        ));
     }
 }

@@ -2582,7 +2582,12 @@
                 "search_label": "Search team members",
                 "selected_title": "Selected members",
                 "selected_badge": "Selected",
-                "search_empty": "No matching team members."
+                "search_empty": "No matching team members.",
+                "availability": {
+                    "available": "Available",
+                    "busy": "Unavailable",
+                    "unknown": "Select a date to check availability"
+                }
             },
             "calendar": {
                 "title": "Calendar",
@@ -3051,7 +3056,12 @@
             "status": "Status",
             "due_date": "Due date",
             "assignee": "Assignee",
-            "unassigned": "Unassigned"
+            "unassigned": "Unassigned",
+            "availability": {
+                "available": "Available",
+                "busy": "Unavailable",
+                "unknown": "Select a scheduled time to check availability"
+            }
         },
         "completion": {
             "title": "Complete task",

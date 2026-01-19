@@ -2581,7 +2581,12 @@
         "search_label": "Rechercher un membre",
         "selected_title": "Membres selectionnes",
         "selected_badge": "Selectionne",
-        "search_empty": "Aucun membre correspondant."
+        "search_empty": "Aucun membre correspondant.",
+        "availability": {
+          "available": "Disponible",
+          "busy": "Indisponible",
+          "unknown": "Selectionnez une date pour verifier la disponibilite"
+        }
       },
       "calendar": {
         "title": "Calendrier",
@@ -3050,7 +3055,12 @@
       "status": "Statut",
       "due_date": "Date d'echeance",
       "assignee": "Assigne",
-      "unassigned": "Non assigne"
+      "unassigned": "Non assigne",
+      "availability": {
+        "available": "Disponible",
+        "busy": "Indisponible",
+        "unknown": "Selectionnez un horaire pour verifier la disponibilite"
+      }
     },
     "completion": {
       "title": "Terminer la tache",

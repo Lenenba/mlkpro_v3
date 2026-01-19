@@ -161,6 +161,82 @@ const normalizeDateKey = (value) => {
     return toDateKey(parsed);
 };
 
+const normalizeTimeValue = (value) => {
+    if (!value) {
+        return null;
+    }
+
+    let normalized = String(value).trim();
+    if (!normalized) {
+        return null;
+    }
+
+    if (normalized.includes('T')) {
+        normalized = normalized.split('T')[1] || '';
+    }
+
+    if (normalized.length >= 8) {
+        normalized = normalized.slice(0, 8);
+    }
+
+    if (/^\d{2}:\d{2}$/.test(normalized)) {
+        normalized = `${normalized}:00`;
+    }
+
+    if (!/^\d{2}:\d{2}:\d{2}$/.test(normalized)) {
+        return null;
+    }
+
+    return normalized;
+};
+
+const timeToMinutes = (value) => {
+    const normalized = normalizeTimeValue(value);
+    if (!normalized) {
+        return null;
+    }
+
+    const [hours, minutes] = normalized.split(':').map((part) => Number(part));
+    if (!Number.isFinite(hours) || !Number.isFinite(minutes)) {
+        return null;
+    }
+
+    return (hours * 60) + minutes;
+};
+
+const buildTaskRange = (dueDate, startTime, endTime) => {
+    const dateKey = normalizeDateKey(dueDate);
+    if (!dateKey) {
+        return null;
+    }
+
+    const start = timeToMinutes(startTime);
+    if (start === null) {
+        return null;
+    }
+
+    const end = timeToMinutes(endTime);
+    const endValue = end === null ? start : end;
+
+    return {
+        dateKey,
+        start: start,
+        end: endValue < start ? start : endValue,
+    };
+};
+
+const rangesOverlap = (left, right) => {
+    if (!left || !right) {
+        return false;
+    }
+
+    if (left.dateKey !== right.dateKey) {
+        return false;
+    }
+
+    return left.start <= right.end && left.end >= right.start;
+};
+
 const formatScheduleLabel = (dateKey) => {
     if (!dateKey) {
         return '';
@@ -934,6 +1010,71 @@ const createForm = useForm({
     materials: [],
 });
 
+const availabilityClass = (status) => {
+    if (status === 'available') {
+        return 'text-emerald-600 dark:text-emerald-400';
+    }
+    if (status === 'busy') {
+        return 'text-red-600 dark:text-red-400';
+    }
+    return 'text-stone-500 dark:text-neutral-500';
+};
+
+const resolveAssigneeAvailability = ({
+    assigneeId,
+    dueDate,
+    startTime,
+    endTime,
+    ignoreTaskId = null,
+}) => {
+    if (!Number.isFinite(assigneeId) || assigneeId <= 0 || !teamMemberIdSet.value.has(assigneeId)) {
+        return null;
+    }
+
+    const targetRange = buildTaskRange(dueDate, startTime, endTime);
+    if (!targetRange) {
+        return {
+            status: 'unknown',
+            label: t('tasks.form.availability.unknown'),
+        };
+    }
+
+    const hasConflict = taskList.value.some((task) => {
+        if (!task) {
+            return false;
+        }
+        if (ignoreTaskId && Number(task.id) === Number(ignoreTaskId)) {
+            return false;
+        }
+        if (Number(task.assigned_team_member_id) !== assigneeId) {
+            return false;
+        }
+        const range = buildTaskRange(task.due_date, task.start_time, task.end_time);
+        if (!range) {
+            return false;
+        }
+        return rangesOverlap(targetRange, range);
+    });
+
+    return hasConflict
+        ? { status: 'busy', label: t('tasks.form.availability.busy') }
+        : { status: 'available', label: t('tasks.form.availability.available') };
+};
+
+const createAssigneeAvailability = computed(() => {
+    const assigneeId = Number(createForm.assigned_team_member_id);
+    if (!Number.isFinite(assigneeId)) {
+        return null;
+    }
+
+    return resolveAssigneeAvailability({
+        assigneeId,
+        dueDate: createForm.due_date,
+        startTime: null,
+        endTime: null,
+    });
+});
+
 const normalizeWorkSelection = (form) => {
     if (form.standalone) {
         form.work_id = null;
@@ -1022,6 +1163,7 @@ const submitCreate = () => {
 };
 
 const editingTaskId = ref(null);
+const editingTask = ref(null);
 const editForm = useForm({
     work_id: '',
     standalone: false,
@@ -1035,6 +1177,21 @@ const editForm = useForm({
     customer_id: null,
     product_id: null,
     materials: [],
+});
+
+const editAssigneeAvailability = computed(() => {
+    const assigneeId = Number(editForm.assigned_team_member_id);
+    if (!Number.isFinite(assigneeId)) {
+        return null;
+    }
+
+    return resolveAssigneeAvailability({
+        assigneeId,
+        dueDate: editForm.due_date,
+        startTime: editingTask.value?.start_time ?? null,
+        endTime: editingTask.value?.end_time ?? null,
+        ignoreTaskId: editingTaskId.value,
+    });
 });
 
 watch(
@@ -1064,6 +1221,7 @@ const openEditTask = (task) => {
     }
 
     editingTaskId.value = task.id;
+    editingTask.value = task;
     editForm.clearErrors();
 
     editForm.title = task.title || '';
@@ -1109,6 +1267,8 @@ const submitEdit = () => {
     editForm.put(route('task.update', editingTaskId.value), {
         preserveScroll: true,
         onSuccess: () => {
+            editingTaskId.value = null;
+            editingTask.value = null;
             closeOverlay('#hs-task-edit');
         },
     });
@@ -1229,7 +1389,6 @@ const deleteTask = (task) => {
     router.delete(route('task.destroy', task.id), { preserveScroll: true });
 };
 
-const displayAssignee = (task) => task?.assignee?.user?.name || t('tasks.labels.unassigned');
 const memberInitial = (name) => {
     const label = String(name || '').trim();
     return label ? label[0].toUpperCase() : '?';
@@ -1650,7 +1809,15 @@ const submitProof = () => {
                                         <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
                                         <circle cx="12" cy="7" r="4" />
                                     </svg>
-                                    {{ displayAssignee(task) }}
+                                    <span v-if="task?.assignee?.user?.name">
+                                        {{ task.assignee.user.name }}
+                                    </span>
+                                    <span
+                                        v-else
+                                        class="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase text-amber-700 dark:bg-amber-500/10 dark:text-amber-300"
+                                    >
+                                        {{ $t('tasks.labels.unassigned') }}
+                                    </span>
                                 </span>
                             </div>
                         </div>
@@ -1819,7 +1986,15 @@ const submitProof = () => {
                                                 <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
                                                 <circle cx="12" cy="7" r="4" />
                                             </svg>
-                                            {{ displayAssignee(task) }}
+                                            <span v-if="task?.assignee?.user?.name">
+                                                {{ task.assignee.user.name }}
+                                            </span>
+                                            <span
+                                                v-else
+                                                class="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase text-amber-700 dark:bg-amber-500/10 dark:text-amber-300"
+                                            >
+                                                {{ $t('tasks.labels.unassigned') }}
+                                            </span>
                                         </span>
                                     </div>
                                 </div>
@@ -1947,7 +2122,15 @@ const submitProof = () => {
                                                 <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
                                                 <circle cx="12" cy="7" r="4" />
                                             </svg>
-                                            {{ displayAssignee(task) }}
+                                            <span v-if="task?.assignee?.user?.name">
+                                                {{ task.assignee.user.name }}
+                                            </span>
+                                            <span
+                                                v-else
+                                                class="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase text-amber-700 dark:bg-amber-500/10 dark:text-amber-300"
+                                            >
+                                                {{ $t('tasks.labels.unassigned') }}
+                                            </span>
                                         </span>
                                     </div>
                                 </div>
@@ -2324,9 +2507,20 @@ const submitProof = () => {
                                 </span>
                             </td>
                             <td class="size-px whitespace-nowrap px-4 py-2">
-                                <span class="text-sm text-stone-600 dark:text-neutral-300">
-                                    {{ displayAssignee(task) }}
-                                </span>
+                                <div class="flex items-center gap-2">
+                                    <span
+                                        v-if="task?.assignee?.user?.name"
+                                        class="text-sm text-stone-600 dark:text-neutral-300"
+                                    >
+                                        {{ task.assignee.user.name }}
+                                    </span>
+                                    <span
+                                        v-else
+                                        class="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase text-amber-700 dark:bg-amber-500/10 dark:text-amber-300"
+                                    >
+                                        {{ $t('tasks.labels.unassigned') }}
+                                    </span>
+                                </div>
                             </td>
                             <td class="size-px whitespace-nowrap px-4 py-2">
                                 <span class="text-xs text-stone-500 dark:text-neutral-500">
@@ -2491,7 +2685,15 @@ const submitProof = () => {
                     {{ $t('tasks.details.assignee') }}
                 </div>
                 <div class="mt-1 text-sm text-stone-700 dark:text-neutral-200">
-                    {{ displayAssignee(detailsTask) }}
+                    <span v-if="detailsTask?.assignee?.user?.name">
+                        {{ detailsTask.assignee.user.name }}
+                    </span>
+                    <span
+                        v-else
+                        class="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase text-amber-700 dark:bg-amber-500/10 dark:text-amber-300"
+                    >
+                        {{ $t('tasks.labels.unassigned') }}
+                    </span>
                 </div>
             </div>
 
@@ -2596,6 +2798,13 @@ const submitProof = () => {
                         :placeholder="$t('tasks.form.unassigned')"
                     />
                     <InputError class="mt-1" :message="createForm.errors.assigned_team_member_id" />
+                    <p
+                        v-if="createAssigneeAvailability"
+                        class="mt-1 text-xs"
+                        :class="availabilityClass(createAssigneeAvailability.status)"
+                    >
+                        {{ createAssigneeAvailability.label }}
+                    </p>
                 </div>
             </div>
 
@@ -2719,6 +2928,13 @@ const submitProof = () => {
                         :placeholder="$t('tasks.form.unassigned')"
                     />
                     <InputError class="mt-1" :message="editForm.errors.assigned_team_member_id" />
+                    <p
+                        v-if="editAssigneeAvailability"
+                        class="mt-1 text-xs"
+                        :class="availabilityClass(editAssigneeAvailability.status)"
+                    >
+                        {{ editAssigneeAvailability.label }}
+                    </p>
                 </div>
             </div>
 
