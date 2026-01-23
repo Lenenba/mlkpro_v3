@@ -13,9 +13,13 @@ use App\Models\User;
 use App\Services\UsageLimitService;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class AssistantQuoteService
 {
+    private const MATCH_CONFIDENT_THRESHOLD = 0.84;
+    private const MATCH_MIN_THRESHOLD = 0.68;
+
     public function handle(array $interpretation, User $user, array $context = []): array
     {
         $draft = $context['draft'] ?? [];
@@ -291,6 +295,7 @@ class AssistantQuoteService
                 'price' => $price,
                 'item_type' => $itemType,
                 'unit' => $unit,
+                'product_id' => $item['product_id'] ?? null,
             ];
         }
 
@@ -374,23 +379,48 @@ class AssistantQuoteService
     {
         $questions = [];
         $name = trim((string) ($item['name'] ?? ''));
-        $itemType = strtolower((string) ($item['item_type'] ?? ''));
-        $itemType = $itemType === 'product' ? 'product' : ($itemType === 'service' ? 'service' : $this->defaultItemType($user));
+        $itemTypeRaw = strtolower((string) ($item['item_type'] ?? ''));
+        $itemTypeExplicit = in_array($itemTypeRaw, ['product', 'service'], true);
+        $itemType = $itemTypeRaw === 'product' ? 'product' : ($itemTypeRaw === 'service' ? 'service' : $this->defaultItemType($user));
 
-        $product = Product::byUser($accountId)
-            ->where('item_type', $itemType)
-            ->whereRaw('LOWER(name) = ?', [strtolower($name)])
-            ->first();
+        $match = $this->findProductByName($accountId, $name, $itemType);
+        $product = $match['product'] ?? null;
+        $score = (float) ($match['score'] ?? 0);
+        $alternates = $match['alternates'] ?? [];
+        if (!$product && !$itemTypeExplicit) {
+            $fallbackType = $itemType === 'product' ? 'service' : 'product';
+            $match = $this->findProductByName($accountId, $name, $fallbackType);
+            $product = $match['product'] ?? null;
+            $score = (float) ($match['score'] ?? 0);
+            $alternates = $match['alternates'] ?? [];
+            if ($product) {
+                $itemType = $fallbackType;
+            }
+        }
 
-        if ($product && $item['price'] === null) {
+        $isConfident = $product && $score >= self::MATCH_CONFIDENT_THRESHOLD;
+        $isAmbiguous = $product && !$isConfident;
+
+        if ($isConfident && $item['price'] === null) {
             $item['price'] = (float) $product->price;
         }
 
-        if ($product && ($item['unit'] ?? '') === '' && $product->unit) {
+        if ($isConfident && ($item['unit'] ?? '') === '' && $product->unit) {
             $item['unit'] = $product->unit;
         }
 
-        if (!$product && $item['price'] === null) {
+        if ($isConfident) {
+            $item['product_id'] = $product->id;
+        }
+
+        if ($isAmbiguous) {
+            $candidates = array_values(array_filter(array_unique($alternates)));
+            if ($candidates) {
+                $questions[] = 'Je ne suis pas certain du service. Voulez-vous dire: ' . implode(', ', array_slice($candidates, 0, 3)) . ' ?';
+            } else {
+                $questions[] = 'Je ne suis pas certain du service. Pouvez-vous confirmer le nom exact ?';
+            }
+        } elseif (!$product && $item['price'] === null) {
             $questions[] = 'Quel est le prix pour "' . $name . '" ?';
         }
 
@@ -472,10 +502,17 @@ class AssistantQuoteService
             $itemType = strtolower((string) ($item['item_type'] ?? ''));
             $itemType = $itemType === 'product' ? 'product' : ($itemType === 'service' ? 'service' : $this->defaultItemType($user));
 
-            $product = Product::byUser($accountId)
-                ->where('item_type', $itemType)
-                ->whereRaw('LOWER(name) = ?', [strtolower($name)])
-                ->first();
+            $product = null;
+            if (!empty($item['product_id'])) {
+                $product = Product::byUser($accountId)->whereKey((int) $item['product_id'])->first();
+            }
+            if (!$product) {
+                $match = $this->findProductByName($accountId, $name, $itemType);
+                $product = $match['product'] ?? null;
+            }
+            if ($product) {
+                $itemType = $product->item_type;
+            }
 
             if (!$product) {
                 $category = ProductCategory::resolveForAccount(
@@ -513,6 +550,127 @@ class AssistantQuoteService
         }
 
         return $payload;
+    }
+
+    private function findProductByName(int $accountId, string $name, string $itemType): array
+    {
+        $normalized = $this->normalizeMatchValue($name);
+        if ($normalized === '') {
+            return ['product' => null, 'score' => 0.0, 'alternates' => []];
+        }
+
+        $baseQuery = Product::byUser($accountId)->where('item_type', $itemType);
+
+        $exact = (clone $baseQuery)
+            ->whereRaw('LOWER(name) = ?', [$normalized])
+            ->first();
+        if ($exact) {
+            return ['product' => $exact, 'score' => 1.0, 'alternates' => [$exact->name]];
+        }
+
+        $candidates = $this->loadCandidateProducts($baseQuery, $normalized);
+        if ($candidates->isEmpty()) {
+            return ['product' => null, 'score' => 0.0, 'alternates' => []];
+        }
+
+        $scored = [];
+        foreach ($candidates as $candidate) {
+            $candidateName = $this->normalizeMatchValue((string) $candidate->name);
+            $score = $this->stringSimilarity($normalized, $candidateName);
+            $scored[] = [
+                'product' => $candidate,
+                'score' => $score,
+            ];
+        }
+
+        usort($scored, fn ($a, $b) => $b['score'] <=> $a['score']);
+        $best = $scored[0] ?? null;
+        if (!$best || $best['score'] < self::MATCH_MIN_THRESHOLD) {
+            return ['product' => null, 'score' => $best['score'] ?? 0.0, 'alternates' => []];
+        }
+
+        $alternates = [];
+        foreach (array_slice($scored, 0, 3) as $entry) {
+            $alternates[] = $entry['product']->name;
+        }
+
+        return [
+            'product' => $best['product'],
+            'score' => (float) $best['score'],
+            'alternates' => $alternates,
+        ];
+    }
+
+    private function escapeLikeValue(string $value): string
+    {
+        return str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $value);
+    }
+
+    private function normalizeMatchValue(string $value): string
+    {
+        $value = Str::ascii($value);
+        $value = strtolower($value);
+        $value = preg_replace('/[^a-z0-9]+/i', ' ', $value);
+        $value = trim((string) preg_replace('/\s+/', ' ', (string) $value));
+
+        return $value;
+    }
+
+    private function loadCandidateProducts($baseQuery, string $normalized)
+    {
+        $tokens = array_values(array_filter(explode(' ', $normalized), fn ($token) => strlen($token) >= 3));
+        $seed = $tokens ? $this->longestToken($tokens) : $normalized;
+        $like = '%' . $this->escapeLikeValue($seed) . '%';
+
+        $candidates = (clone $baseQuery)
+            ->whereRaw('LOWER(name) LIKE ?', [$like])
+            ->limit(50)
+            ->get(['id', 'name', 'price', 'unit', 'item_type']);
+
+        if ($candidates->isEmpty() && count($tokens) > 1) {
+            $fallbackLike = '%' . $this->escapeLikeValue($normalized) . '%';
+            $candidates = (clone $baseQuery)
+                ->whereRaw('LOWER(name) LIKE ?', [$fallbackLike])
+                ->limit(50)
+                ->get(['id', 'name', 'price', 'unit', 'item_type']);
+        }
+
+        if ($candidates->isEmpty()) {
+            $candidates = (clone $baseQuery)
+                ->limit(50)
+                ->get(['id', 'name', 'price', 'unit', 'item_type']);
+        }
+
+        return $candidates;
+    }
+
+    private function longestToken(array $tokens): string
+    {
+        usort($tokens, fn ($a, $b) => strlen($b) <=> strlen($a));
+        return (string) ($tokens[0] ?? '');
+    }
+
+    private function stringSimilarity(string $a, string $b): float
+    {
+        if ($a === '' || $b === '') {
+            return 0.0;
+        }
+        if ($a === $b) {
+            return 1.0;
+        }
+
+        $maxLen = max(strlen($a), strlen($b));
+        if ($maxLen === 0) {
+            return 0.0;
+        }
+
+        $distance = levenshtein($a, $b);
+        $score = 1 - ($distance / $maxLen);
+        if (str_contains($a, $b) || str_contains($b, $a)) {
+            $score = max($score, 0.85);
+        }
+
+        return max(0.0, min(1.0, $score));
     }
 
     private function buildJobTitle(Customer $customer, array $itemsPayload): string
