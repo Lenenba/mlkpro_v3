@@ -6,6 +6,7 @@ import InputError from '@/Components/InputError.vue';
 import Checkbox from '@/Components/Checkbox.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import Modal from '@/Components/Modal.vue';
+import FloatingSelect from '@/Components/FloatingSelect.vue';
 
 const props = defineProps({
     admins: {
@@ -27,6 +28,12 @@ const props = defineProps({
 });
 
 const showCreate = ref(false);
+const roleOptions = computed(() =>
+    (props.roles || []).map((role) => ({
+        value: role,
+        label: role,
+    }))
+);
 const createForm = useForm({
     name: '',
     email: '',
@@ -228,13 +235,11 @@ const submitEdit = () => {
                             </div>
                         </div>
                         <div>
-                            <label class="block text-xs text-stone-500 dark:text-neutral-400">
-                                {{ $t('super_admin.admins.form.role') }}
-                            </label>
-                            <select v-model="createForm.role"
-                                class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
-                                <option v-for="role in roles" :key="role" :value="role">{{ role }}</option>
-                            </select>
+                            <FloatingSelect
+                                v-model="createForm.role"
+                                :label="$t('super_admin.admins.form.role')"
+                                :options="roleOptions"
+                            />
                             <InputError class="mt-1" :message="createForm.errors.role" />
                         </div>
                         <div>
@@ -280,13 +285,11 @@ const submitEdit = () => {
                     </div>
                     <form class="mt-4 space-y-3" @submit.prevent="submitEdit">
                         <div>
-                            <label class="block text-xs text-stone-500 dark:text-neutral-400">
-                                {{ $t('super_admin.admins.form.role') }}
-                            </label>
-                            <select v-model="editForm.role"
-                                class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
-                                <option v-for="role in roles" :key="role" :value="role">{{ role }}</option>
-                            </select>
+                            <FloatingSelect
+                                v-model="editForm.role"
+                                :label="$t('super_admin.admins.form.role')"
+                                :options="roleOptions"
+                            />
                             <InputError class="mt-1" :message="editForm.errors.role" />
                         </div>
                         <div>

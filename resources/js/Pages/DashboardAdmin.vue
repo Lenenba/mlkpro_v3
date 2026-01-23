@@ -276,7 +276,7 @@ const hasAgendaAlerts = computed(() => agendaAlertItems.value.length > 0);
                     </div>
                     <div class="rounded-sm border border-stone-200 border-t-4 border-t-amber-600 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-800">
                         <div class="flex items-center justify-between gap-2">
-                            <p class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('status.task.todo') }}</p>
+                            <p class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('dashboard.status.task.todo') }}</p>
                             <KpiTrendBadge :trend="kpiData.tasks_todo.trend" />
                         </div>
                         <p class="mt-1 text-2xl font-semibold text-stone-900 dark:text-neutral-100">{{ stat('tasks_todo') }}</p>
@@ -287,7 +287,7 @@ const hasAgendaAlerts = computed(() => agendaAlertItems.value.length > 0);
                     </div>
                     <div class="rounded-sm border border-stone-200 border-t-4 border-t-blue-600 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-800">
                         <div class="flex items-center justify-between gap-2">
-                            <p class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('status.task.in_progress') }}</p>
+                            <p class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('dashboard.status.task.in_progress') }}</p>
                             <KpiTrendBadge :trend="kpiData.tasks_in_progress.trend" />
                         </div>
                         <p class="mt-1 text-2xl font-semibold text-stone-900 dark:text-neutral-100">{{ stat('tasks_in_progress') }}</p>
@@ -298,7 +298,7 @@ const hasAgendaAlerts = computed(() => agendaAlertItems.value.length > 0);
                     </div>
                     <div class="rounded-sm border border-stone-200 border-t-4 border-t-rose-600 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-800">
                         <div class="flex items-center justify-between gap-2">
-                            <p class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('status.task.done') }}</p>
+                            <p class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('dashboard.status.task.done') }}</p>
                             <KpiTrendBadge :trend="kpiData.tasks_done.trend" />
                         </div>
                         <p class="mt-1 text-2xl font-semibold text-stone-900 dark:text-neutral-100">{{ stat('tasks_done') }}</p>

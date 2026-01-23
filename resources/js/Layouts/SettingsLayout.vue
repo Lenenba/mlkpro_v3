@@ -121,7 +121,7 @@ const navTabs = computed(() => {
                             <span v-else>{{ avatarInitial }}</span>
                         </div>
                         <div>
-                            <p class="settings-hero__title">{{ t('settings') }}</p>
+                            <p class="settings-hero__title">{{ t('settings._label') }}</p>
                             <p class="settings-hero__meta">
                                 <span>{{ userName }}</span>
                                 <span v-if="userEmail" class="settings-hero__dot">&middot;</span>

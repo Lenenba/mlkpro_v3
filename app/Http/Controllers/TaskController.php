@@ -8,28 +8,33 @@ use App\Models\TaskMaterial;
 use App\Models\TeamMember;
 use App\Models\Work;
 use App\Services\InventoryService;
+use App\Services\TaskStatusHistoryService;
+use App\Services\TaskTimingService;
 use App\Services\UsageLimitService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Carbon;
 use Illuminate\Validation\Rule;
 
 class TaskController extends Controller
 {
     public function index(Request $request)
     {
+        $user = Auth::user();
+        $accountId = $user?->accountOwnerId() ?? Auth::id();
+        $isOwner = $user && $user->id === $accountId;
+
         $filters = $request->only([
             'search',
             'status',
             'view',
         ]);
-        $filters['view'] = in_array($filters['view'] ?? null, ['board', 'schedule'], true)
+        $allowedViews = $isOwner ? ['board', 'schedule', 'team'] : ['board', 'schedule'];
+        $filters['view'] = in_array($filters['view'] ?? null, $allowedViews, true)
             ? $filters['view']
             : 'board';
-
-        $user = Auth::user();
-        $accountId = $user?->accountOwnerId() ?? Auth::id();
 
         $this->authorize('viewAny', Task::class);
 
@@ -73,7 +78,7 @@ class TaskController extends Controller
             ->orderByDesc('created_at');
 
         $view = $filters['view'];
-        $useFullList = in_array($view, ['board', 'schedule'], true);
+        $useFullList = in_array($view, ['board', 'schedule', 'team'], true);
 
         if ($useFullList) {
             $items = $tasksQuery->get();
@@ -141,6 +146,7 @@ class TaskController extends Controller
             'canManage' => $canManage,
             'canDelete' => $canDelete,
             'canEditStatus' => $canEditStatus,
+            'canViewTeam' => $isOwner,
         ]);
     }
 
@@ -181,6 +187,7 @@ class TaskController extends Controller
             'work.quote.property',
             'customer.properties',
             'customer.defaultProperty',
+            'statusHistories.user:id,name',
         ]);
 
         if ($task->relationLoaded('media')) {
@@ -328,6 +335,10 @@ class TaskController extends Controller
                 'integer',
                 Rule::exists('products', 'id')->where('user_id', $accountId),
             ],
+            'start_time' => 'nullable|date_format:H:i',
+            'end_time' => 'nullable|date_format:H:i',
+            'completed_at' => 'nullable|date|before_or_equal:now',
+            'completion_reason' => ['nullable', 'string', Rule::in(TaskTimingService::completionReasons())],
         ]);
 
         $work = null;
@@ -337,6 +348,64 @@ class TaskController extends Controller
         }
 
         $status = $validated['status'] ?? 'todo';
+        $timezone = TaskTimingService::resolveTimezoneForAccountId($accountId);
+        $dueDateValue = $validated['due_date'] ?? null;
+        $dueDate = $dueDateValue ? Carbon::parse($dueDateValue, $timezone)->startOfDay() : null;
+        $startTime = $work?->start_time;
+        $endTime = $work?->end_time;
+        if (!$work) {
+            $startTime = $this->normalizeTime($validated['start_time'] ?? null);
+            $endTime = $this->normalizeTime($validated['end_time'] ?? null);
+        }
+
+        if ($status === 'in_progress' && $dueDate && TaskTimingService::isDueDateInFuture($dueDate, Carbon::now($timezone))) {
+            $message = 'This task cannot be marked in progress before its scheduled date.';
+            if ($this->shouldReturnJson($request)) {
+                return response()->json([
+                    'message' => $message,
+                    'errors' => [
+                        'status' => [$message],
+                    ],
+                ], 422);
+            }
+
+            return redirect()->back()->withErrors([
+                'status' => $message,
+            ]);
+        }
+
+        $completedAt = TaskTimingService::normalizeCompletedAt($validated['completed_at'] ?? null, $timezone);
+        if ($status === 'done' && !$completedAt) {
+            $completedAt = now();
+        }
+
+        if ($status === 'done' && TaskTimingService::shouldRequireCompletionReason($dueDate, $completedAt)
+            && empty($validated['completion_reason'])) {
+            $message = 'A completion reason is required when the actual date differs from the planned date.';
+            if ($this->shouldReturnJson($request)) {
+                return response()->json([
+                    'message' => $message,
+                    'errors' => [
+                        'completion_reason' => [$message],
+                    ],
+                ], 422);
+            }
+
+            return redirect()->back()->withErrors([
+                'completion_reason' => $message,
+            ]);
+        }
+
+        $conflictTask = $this->findScheduleConflict(
+            $accountId,
+            $validated['assigned_team_member_id'] ?? null,
+            $validated['due_date'] ?? null,
+            $startTime,
+            $endTime
+        );
+        if ($conflictTask) {
+            return $this->scheduleConflictResponse($request, $conflictTask);
+        }
 
         $task = Task::create([
             'account_id' => $accountId,
@@ -349,7 +418,14 @@ class TaskController extends Controller
             'description' => $validated['description'] ?? null,
             'status' => $status,
             'due_date' => $validated['due_date'] ?? null,
-            'completed_at' => $status === 'done' ? now() : null,
+            'start_time' => $startTime,
+            'end_time' => $endTime,
+            'completed_at' => $status === 'done' ? $completedAt : null,
+            'completion_reason' => $status === 'done' ? ($validated['completion_reason'] ?? null) : null,
+            'delay_started_at' => $status !== 'done' && $dueDate
+                && $dueDate->lt(Carbon::now($timezone)->startOfDay())
+                ? now()
+                : null,
         ]);
 
         if ($request->has('materials')) {
@@ -359,6 +435,12 @@ class TaskController extends Controller
         if ($status === 'in_progress') {
             $this->applyMaterialStock($task, Auth::user());
         }
+
+        app(TaskStatusHistoryService::class)->record($task, $user, [
+            'from_status' => null,
+            'to_status' => $task->status,
+            'action' => 'created',
+        ]);
 
         if ($this->shouldReturnJson($request)) {
             return response()->json([
@@ -400,6 +482,8 @@ class TaskController extends Controller
 
         $rules = [
             'status' => ['required', 'string', Rule::in(Task::STATUSES)],
+            'completed_at' => 'nullable|date|before_or_equal:now',
+            'completion_reason' => ['nullable', 'string', Rule::in(TaskTimingService::completionReasons())],
         ];
 
         if ($isManager) {
@@ -450,6 +534,8 @@ class TaskController extends Controller
                     'integer',
                     Rule::exists('products', 'id')->where('user_id', $accountId),
                 ],
+                'start_time' => 'nullable|date_format:H:i',
+                'end_time' => 'nullable|date_format:H:i',
             ]);
         }
 
@@ -459,6 +545,8 @@ class TaskController extends Controller
             'status' => $validated['status'],
         ];
 
+        $startTime = $task->start_time;
+        $endTime = $task->end_time;
         if ($isManager) {
             $updates['title'] = $validated['title'];
             $updates['description'] = $validated['description'] ?? null;
@@ -475,9 +563,37 @@ class TaskController extends Controller
             if ($work) {
                 $updates['work_id'] = $work->id;
                 $updates['customer_id'] = $work->customer_id;
+                $startTime = $work->start_time;
+                $endTime = $work->end_time;
             } else {
                 $updates['work_id'] = null;
                 $updates['customer_id'] = $validated['customer_id'] ?? null;
+                if (array_key_exists('start_time', $validated) || array_key_exists('end_time', $validated)) {
+                    $startTime = $this->normalizeTime($validated['start_time'] ?? null);
+                    $endTime = $this->normalizeTime($validated['end_time'] ?? null);
+                }
+            }
+
+            $updates['start_time'] = $startTime;
+            $updates['end_time'] = $endTime;
+        }
+
+        if ($isManager) {
+            $assignedId = $updates['assigned_team_member_id'] ?? $task->assigned_team_member_id;
+            $dueDate = array_key_exists('due_date', $updates)
+                ? $updates['due_date']
+                : ($task->due_date ? $task->due_date->toDateString() : null);
+
+            $conflictTask = $this->findScheduleConflict(
+                $accountId,
+                $assignedId,
+                $dueDate,
+                $startTime,
+                $endTime,
+                $task->id
+            );
+            if ($conflictTask) {
+                return $this->scheduleConflictResponse($request, $conflictTask);
             }
         }
 
@@ -485,11 +601,69 @@ class TaskController extends Controller
         $wasDone = $task->status === 'done';
         $isDone = $updates['status'] === 'done';
 
+        $timezone = TaskTimingService::resolveTimezoneForAccountId($accountId);
+        $dueDateValue = array_key_exists('due_date', $updates)
+            ? $updates['due_date']
+            : ($task->due_date ? $task->due_date->toDateString() : null);
+        $dueDate = $dueDateValue ? Carbon::parse($dueDateValue, $timezone)->startOfDay() : null;
+
+        if ($updates['status'] === 'in_progress' && $dueDate && TaskTimingService::isDueDateInFuture($dueDate, Carbon::now($timezone))) {
+            $message = 'This task cannot be marked in progress before its scheduled date.';
+            if ($this->shouldReturnJson($request)) {
+                return response()->json([
+                    'message' => $message,
+                    'errors' => [
+                        'status' => [$message],
+                    ],
+                ], 422);
+            }
+
+            return redirect()->back()->withErrors([
+                'status' => $message,
+            ]);
+        }
+
+        $completionReason = $validated['completion_reason'] ?? null;
+        $completedAt = TaskTimingService::normalizeCompletedAt($validated['completed_at'] ?? null, $timezone);
+        if ($isDone && !$completedAt) {
+            $completedAt = now();
+        }
+
+        if ($isDone && TaskTimingService::shouldRequireCompletionReason($dueDate, $completedAt)
+            && empty($completionReason)) {
+            $message = 'A completion reason is required when the actual date differs from the planned date.';
+            if ($this->shouldReturnJson($request)) {
+                return response()->json([
+                    'message' => $message,
+                    'errors' => [
+                        'completion_reason' => [$message],
+                    ],
+                ], 422);
+            }
+
+            return redirect()->back()->withErrors([
+                'completion_reason' => $message,
+            ]);
+        }
+
         if ($isDone) {
-            $updates['completed_at'] = $task->completed_at ?? now();
+            $updates['completed_at'] = $completedAt;
+            $updates['completion_reason'] = $completionReason;
+            $updates['delay_started_at'] = null;
         } else {
             $updates['completed_at'] = null;
+            $updates['completion_reason'] = null;
+            if ($dueDate && $dueDate->lt(Carbon::now($timezone)->startOfDay())) {
+                $updates['delay_started_at'] = $task->delay_started_at ?? now();
+            } else {
+                $updates['delay_started_at'] = null;
+            }
         }
+
+        $previousStatus = $task->status;
+        $statusChanged = $previousStatus !== $updates['status'];
+        $completedAtChanged = ($task->completed_at?->toDateTimeString() ?? null) !== ($updates['completed_at']?->toDateTimeString() ?? null);
+        $completionReasonChanged = ($task->completion_reason ?? null) !== ($updates['completion_reason'] ?? null);
 
         $task->update($updates);
 
@@ -504,6 +678,14 @@ class TaskController extends Controller
         if (!$wasDone && $isDone) {
             app(\App\Services\TaskBillingService::class)
                 ->handleTaskCompleted($task, $user);
+        }
+
+        if ($statusChanged || $completedAtChanged || $completionReasonChanged) {
+            app(TaskStatusHistoryService::class)->record($task, $user, [
+                'from_status' => $previousStatus,
+                'to_status' => $task->status,
+                'action' => 'manual',
+            ]);
         }
 
         if ($this->shouldReturnJson($request)) {
@@ -731,5 +913,131 @@ class TaskController extends Controller
                 'note' => 'Task materials update',
             ]);
         }
+    }
+
+    private function scheduleConflictResponse(Request $request, Task $conflictTask)
+    {
+        $conflictLabel = $conflictTask->title ?: 'another task';
+        $message = 'This team member is already assigned to ' . $conflictLabel . ' at this time.';
+
+        if ($this->shouldReturnJson($request)) {
+            return response()->json([
+                'message' => $message,
+                'errors' => [
+                    'assigned_team_member_id' => [$message],
+                ],
+            ], 422);
+        }
+
+        return redirect()->back()->withErrors([
+            'assigned_team_member_id' => $message,
+        ]);
+    }
+
+    private function findScheduleConflict(
+        int $accountId,
+        ?int $assignedTeamMemberId,
+        ?string $dueDate,
+        ?string $startTime,
+        ?string $endTime,
+        ?int $ignoreTaskId = null
+    ): ?Task {
+        if (!$assignedTeamMemberId || !$dueDate || !$startTime) {
+            return null;
+        }
+
+        $date = $this->normalizeDate($dueDate);
+        $start = $this->normalizeTime($startTime);
+        $end = $this->normalizeTime($endTime) ?: $start;
+        if (!$date || !$start) {
+            return null;
+        }
+
+        $existingTasks = Task::query()
+            ->forAccount($accountId)
+            ->where('assigned_team_member_id', $assignedTeamMemberId)
+            ->whereDate('due_date', $date)
+            ->whereNotNull('start_time')
+            ->when($ignoreTaskId, fn($query) => $query->where('id', '!=', $ignoreTaskId))
+            ->get(['id', 'title', 'start_time', 'end_time']);
+
+        $newStart = $this->timeToMinutes($start);
+        $newEnd = $this->timeToMinutes($end);
+        if ($newStart === null || $newEnd === null) {
+            return null;
+        }
+
+        foreach ($existingTasks as $task) {
+            $taskStart = $this->normalizeTime($task->start_time);
+            if (!$taskStart) {
+                continue;
+            }
+            $taskEnd = $this->normalizeTime($task->end_time) ?: $taskStart;
+            $taskStartMin = $this->timeToMinutes($taskStart);
+            $taskEndMin = $this->timeToMinutes($taskEnd);
+
+            if ($taskStartMin === null || $taskEndMin === null) {
+                continue;
+            }
+
+            $overlaps = $newStart <= $taskEndMin && $newEnd >= $taskStartMin;
+            if ($overlaps) {
+                return $task;
+            }
+        }
+
+        return null;
+    }
+
+    private function normalizeDate(?string $value): ?string
+    {
+        if (!$value) {
+            return null;
+        }
+
+        try {
+            return Carbon::parse($value)->toDateString();
+        } catch (\Throwable $exception) {
+            return null;
+        }
+    }
+
+    private function normalizeTime(?string $value): ?string
+    {
+        if (!$value) {
+            return null;
+        }
+
+        $value = trim((string) $value);
+        if ($value === '') {
+            return null;
+        }
+
+        foreach (['H:i:s', 'H:i'] as $format) {
+            try {
+                return Carbon::createFromFormat($format, $value)->format('H:i:s');
+            } catch (\Throwable $exception) {
+                continue;
+            }
+        }
+
+        try {
+            return Carbon::parse($value)->format('H:i:s');
+        } catch (\Throwable $exception) {
+            return null;
+        }
+    }
+
+    private function timeToMinutes(string $time): ?int
+    {
+        $parts = explode(':', $time);
+        if (count($parts) < 2) {
+            return null;
+        }
+
+        $hours = (int) $parts[0];
+        $minutes = (int) $parts[1];
+
+        return ($hours * 60) + $minutes;
     }
 }

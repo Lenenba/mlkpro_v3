@@ -44,6 +44,9 @@ class Product extends Model
         'user_id', // Ajout pour permettre une meilleure gestion multi-utilisateurs
         'item_type',
         'tracking_type',
+        'stripe_product_id',
+        'stripe_price_id',
+        'stripe_price_account_id',
     ];
 
     /**

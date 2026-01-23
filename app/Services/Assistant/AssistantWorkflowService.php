@@ -26,6 +26,8 @@ use App\Notifications\InviteUserNotification;
 use App\Support\NotificationDispatcher;
 use App\Services\InventoryService;
 use App\Services\TaskBillingService;
+use App\Services\TaskStatusHistoryService;
+use App\Services\TaskTimingService;
 use App\Services\TemplateService;
 use App\Services\UsageLimitService;
 use App\Services\WorkBillingService;
@@ -1346,8 +1348,30 @@ class AssistantWorkflowService
         $assigneeId = $this->resolveSingleTeamMemberId($accountId, $assigneeInterpretation);
         $status = $this->normalizeTaskStatus($draft['status'] ?? '') ?: 'todo';
         $dueDate = $this->parseDate($draft['due_date'] ?? null);
+        $timezone = TaskTimingService::resolveTimezoneForAccountId($accountId);
+        $dueDateValue = $dueDate ? Carbon::parse($dueDate, $timezone)->startOfDay() : null;
 
         app(UsageLimitService::class)->enforceLimit($user, 'tasks');
+
+        if ($status === 'in_progress' && $dueDateValue && TaskTimingService::isDueDateInFuture($dueDateValue, Carbon::now($timezone))) {
+            return [
+                'status' => 'error',
+                'message' => 'Cette tache ne peut pas etre en cours avant sa date planifiee.',
+            ];
+        }
+
+        $completionReason = $draft['completion_reason'] ?? null;
+        $completedAt = null;
+        if ($status === 'done') {
+            $completedAt = TaskTimingService::normalizeCompletedAt($draft['completed_at'] ?? null, $timezone) ?? now();
+            if ($dueDateValue && TaskTimingService::shouldRequireCompletionReason($dueDateValue, $completedAt)
+                && !TaskTimingService::isValidCompletionReason($completionReason)) {
+                return [
+                    'status' => 'error',
+                    'message' => 'Merci de fournir une raison de completion (liste fermee) lorsque la date differe.',
+                ];
+            }
+        }
 
         $task = Task::create([
             'account_id' => $accountId,
@@ -1359,7 +1383,18 @@ class AssistantWorkflowService
             'description' => $draft['description'] ?: null,
             'status' => $status,
             'due_date' => $dueDate,
-            'completed_at' => $status === 'done' ? now() : null,
+            'completed_at' => $status === 'done' ? $completedAt : null,
+            'completion_reason' => $status === 'done' ? $completionReason : null,
+            'delay_started_at' => $status !== 'done' && $dueDateValue
+                && $dueDateValue->lt(Carbon::now($timezone)->startOfDay())
+                ? now()
+                : null,
+        ]);
+
+        app(TaskStatusHistoryService::class)->record($task, $user, [
+            'from_status' => null,
+            'to_status' => $task->status,
+            'action' => 'created',
         ]);
 
         if ($status === 'done') {
@@ -2507,8 +2542,51 @@ class AssistantWorkflowService
         $wasDone = $task->status === 'done';
         $isDone = $normalizedStatus === 'done';
 
+        $timezone = TaskTimingService::resolveTimezoneForAccountId($accountId);
+        $dueDateValue = $task->due_date
+            ? Carbon::parse($task->due_date, $timezone)->startOfDay()
+            : null;
+
+        if ($normalizedStatus === 'in_progress' && $dueDateValue
+            && TaskTimingService::isDueDateInFuture($dueDateValue, Carbon::now($timezone))) {
+            return [
+                'status' => 'error',
+                'message' => 'Cette tache ne peut pas etre en cours avant sa date planifiee.',
+            ];
+        }
+
+        $completionReason = $payload['completion_reason'] ?? null;
+        $completedAt = TaskTimingService::normalizeCompletedAt($payload['completed_at'] ?? null, $timezone);
+        if ($isDone && !$completedAt) {
+            $completedAt = now();
+        }
+
+        if ($isDone && $dueDateValue && TaskTimingService::shouldRequireCompletionReason($dueDateValue, $completedAt)
+            && !TaskTimingService::isValidCompletionReason($completionReason)) {
+            return [
+                'status' => 'error',
+                'message' => 'Merci de fournir une raison de completion (liste fermee) lorsque la date differe.',
+            ];
+        }
+
+        $previousStatus = $task->status;
+        $previousCompletedAt = $task->completed_at?->toDateTimeString();
+        $previousCompletionReason = $task->completion_reason;
+
         $task->status = $normalizedStatus;
-        $task->completed_at = $isDone ? ($task->completed_at ?? now()) : null;
+        if ($isDone) {
+            $task->completed_at = $completedAt;
+            $task->completion_reason = $completionReason;
+            $task->delay_started_at = null;
+        } else {
+            $task->completed_at = null;
+            $task->completion_reason = null;
+            if ($dueDateValue && $dueDateValue->lt(Carbon::now($timezone)->startOfDay())) {
+                $task->delay_started_at = $task->delay_started_at ?? now();
+            } else {
+                $task->delay_started_at = null;
+            }
+        }
         $task->save();
 
         if (!$wasInProgress && $normalizedStatus === 'in_progress') {
@@ -2517,6 +2595,18 @@ class AssistantWorkflowService
 
         if (!$wasDone && $isDone) {
             app(TaskBillingService::class)->handleTaskCompleted($task, $user);
+        }
+
+        $statusChanged = $previousStatus !== $task->status;
+        $completedAtChanged = $previousCompletedAt !== ($task->completed_at?->toDateTimeString() ?? null);
+        $completionReasonChanged = $previousCompletionReason !== $task->completion_reason;
+
+        if ($statusChanged || $completedAtChanged || $completionReasonChanged) {
+            app(TaskStatusHistoryService::class)->record($task, $user, [
+                'from_status' => $previousStatus,
+                'to_status' => $task->status,
+                'action' => 'manual',
+            ]);
         }
 
         return [
@@ -2577,6 +2667,23 @@ class AssistantWorkflowService
             return [
                 'status' => 'error',
                 'message' => 'Membre introuvable.',
+            ];
+        }
+
+        $dueDate = $task->due_date ? $task->due_date->toDateString() : null;
+        $conflictTask = $this->findTaskScheduleConflict(
+            $accountId,
+            $assignee->id,
+            $dueDate,
+            $task->start_time,
+            $task->end_time,
+            $task->id
+        );
+        if ($conflictTask) {
+            $label = $conflictTask->title ?: $conflictTask->id;
+            return [
+                'status' => 'error',
+                'message' => 'Ce membre est deja occupe sur la tache ' . $label . ' a ce moment.',
             ];
         }
 
@@ -3045,7 +3152,7 @@ class AssistantWorkflowService
     {
         $updates = is_array($updates) ? $updates : [];
         $merged = $base;
-        foreach (['title', 'description', 'status', 'due_date'] as $key) {
+        foreach (['title', 'description', 'status', 'due_date', 'completion_reason', 'completed_at'] as $key) {
             $value = $updates[$key] ?? null;
             $value = is_string($value) ? trim($value) : $value;
             if ($value === '' || $value === null) {
@@ -3237,6 +3344,10 @@ class AssistantWorkflowService
 
             if (str_contains($lower, 'description') && ($draft['description'] ?? '') === '') {
                 $draft['description'] = $normalized;
+            }
+
+            if (str_contains($lower, 'raison') && ($draft['completion_reason'] ?? '') === '') {
+                $draft['completion_reason'] = $normalized;
             }
         }
 
@@ -4285,6 +4396,74 @@ class AssistantWorkflowService
         } catch (\Throwable $exception) {
             return null;
         }
+    }
+
+    private function findTaskScheduleConflict(
+        int $accountId,
+        int $assigneeId,
+        ?string $dueDate,
+        ?string $startTime,
+        ?string $endTime,
+        ?int $ignoreTaskId = null
+    ): ?Task {
+        if (!$assigneeId || !$dueDate || !$startTime) {
+            return null;
+        }
+
+        $date = $this->parseDate($dueDate);
+        $start = $this->parseTime($startTime);
+        $end = $this->parseTime($endTime) ?: $start;
+        if (!$date || !$start) {
+            return null;
+        }
+
+        $existingTasks = Task::query()
+            ->forAccount($accountId)
+            ->where('assigned_team_member_id', $assigneeId)
+            ->whereDate('due_date', $date)
+            ->whereNotNull('start_time')
+            ->when($ignoreTaskId, fn($query) => $query->where('id', '!=', $ignoreTaskId))
+            ->get(['id', 'title', 'start_time', 'end_time']);
+
+        $newStart = $this->timeToMinutes($start);
+        $newEnd = $this->timeToMinutes($end);
+        if ($newStart === null || $newEnd === null) {
+            return null;
+        }
+
+        foreach ($existingTasks as $task) {
+            $taskStart = $this->parseTime($task->start_time);
+            if (!$taskStart) {
+                continue;
+            }
+            $taskEnd = $this->parseTime($task->end_time) ?: $taskStart;
+            $taskStartMin = $this->timeToMinutes($taskStart);
+            $taskEndMin = $this->timeToMinutes($taskEnd);
+
+            if ($taskStartMin === null || $taskEndMin === null) {
+                continue;
+            }
+
+            $overlaps = $newStart <= $taskEndMin && $newEnd >= $taskStartMin;
+            if ($overlaps) {
+                return $task;
+            }
+        }
+
+        return null;
+    }
+
+    private function timeToMinutes(string $time): ?int
+    {
+        $parts = explode(':', $time);
+        if (count($parts) < 2) {
+            return null;
+        }
+
+        $hours = (int) $parts[0];
+        $minutes = (int) $parts[1];
+
+        return ($hours * 60) + $minutes;
     }
 
     private function createCustomer(int $accountId, array $draft): Customer

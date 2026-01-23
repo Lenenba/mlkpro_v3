@@ -38,6 +38,7 @@ use App\Services\InventoryService;
 use App\Services\WorkBillingService;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 
 class LaunchSeeder extends Seeder
 {
@@ -196,8 +197,17 @@ class LaunchSeeder extends Seeder
                 'company_country' => 'Canada',
                 'company_province' => 'QC',
                 'company_city' => 'Montreal',
+                'company_timezone' => 'America/Toronto',
                 'company_type' => 'services',
                 'onboarding_completed_at' => $now,
+                'trial_ends_at' => $now->copy()->addMonthNoOverflow(),
+                'company_notification_settings' => [
+                    'task_day' => [
+                        'email' => true,
+                        'sms' => false,
+                        'whatsapp' => false,
+                    ],
+                ],
                 'payment_methods' => ['cash', 'card'],
             ]
         );
@@ -215,8 +225,10 @@ class LaunchSeeder extends Seeder
                 'company_country' => 'Canada',
                 'company_province' => 'ON',
                 'company_city' => 'Toronto',
+                'company_timezone' => 'America/Toronto',
                 'company_type' => 'products',
                 'onboarding_completed_at' => $now,
+                'trial_ends_at' => $now->copy()->addMonthNoOverflow(),
                 'company_fulfillment' => [
                     'delivery_enabled' => true,
                     'pickup_enabled' => true,
@@ -254,6 +266,7 @@ class LaunchSeeder extends Seeder
                 'company_city' => 'Quebec',
                 'company_type' => 'services',
                 'onboarding_completed_at' => $now,
+                'trial_ends_at' => $now->copy()->addMonthNoOverflow(),
                 'payment_methods' => ['cash', 'card'],
                 'company_features' => [
                     'quotes' => true,
@@ -328,6 +341,7 @@ class LaunchSeeder extends Seeder
                 'company_city' => 'Ottawa',
                 'company_type' => 'services',
                 'onboarding_completed_at' => $now,
+                'trial_ends_at' => $now->copy()->addMonthNoOverflow(),
                 'payment_methods' => ['cash', 'card'],
                 'company_features' => [
                     'invoices' => false,
@@ -429,6 +443,7 @@ class LaunchSeeder extends Seeder
                 'company_city' => 'Vancouver',
                 'company_type' => 'services',
                 'onboarding_completed_at' => $now,
+                'trial_ends_at' => $now->copy()->addMonthNoOverflow(),
                 'payment_methods' => ['cash', 'card'],
                 'company_features' => [
                     'requests' => true,
@@ -2232,7 +2247,7 @@ class LaunchSeeder extends Seeder
                 'product_id' => null,
                 'description' => 'Remember to upload before photos on site.',
                 'status' => 'in_progress',
-                'due_date' => $now->copy()->addDay()->toDateString(),
+                'due_date' => $now->toDateString(),
             ]
         );
 
@@ -2249,6 +2264,60 @@ class LaunchSeeder extends Seeder
                 'description' => 'Follow up after payment is complete.',
                 'status' => 'done',
                 'due_date' => $now->copy()->subDay()->toDateString(),
+                'completed_at' => $now->copy()->subDay()->setTime(15, 0),
+                'completion_reason' => null,
+            ]
+        );
+
+        Task::updateOrCreate(
+            [
+                'account_id' => $serviceOwner->id,
+                'title' => 'Early completion test',
+            ],
+            [
+                'created_by_user_id' => $serviceOwner->id,
+                'assigned_team_member_id' => $adminMember->id,
+                'customer_id' => $serviceCustomer->id,
+                'product_id' => $serviceProducts[0]->id,
+                'description' => 'Seeded to test early completion with a reason.',
+                'status' => 'done',
+                'due_date' => $now->copy()->addDays(2)->toDateString(),
+                'completed_at' => $now->copy()->addDay()->setTime(10, 30),
+                'completion_reason' => 'optimized_planning',
+            ]
+        );
+
+        Task::updateOrCreate(
+            [
+                'account_id' => $serviceOwner->id,
+                'title' => 'Overdue task test',
+            ],
+            [
+                'created_by_user_id' => $serviceOwner->id,
+                'assigned_team_member_id' => $memberMember->id,
+                'customer_id' => $serviceCustomer->id,
+                'product_id' => $serviceProducts[1]->id,
+                'description' => 'Seeded overdue task for status testing.',
+                'status' => 'todo',
+                'due_date' => $now->copy()->subDay()->toDateString(),
+            ]
+        );
+
+        Task::updateOrCreate(
+            [
+                'account_id' => $serviceOwner->id,
+                'title' => 'Task notification test',
+            ],
+            [
+                'created_by_user_id' => $serviceOwner->id,
+                'assigned_team_member_id' => $adminMember->id,
+                'customer_id' => $serviceCustomer->id,
+                'product_id' => $serviceProducts[0]->id,
+                'description' => 'Seeded task for same-day notification testing.',
+                'status' => 'todo',
+                'due_date' => $now->toDateString(),
+                'start_time' => '09:30:00',
+                'end_time' => '10:15:00',
             ]
         );
 
@@ -3272,6 +3341,15 @@ class LaunchSeeder extends Seeder
             foreach ($seed['tasks'] as $status => $count) {
                 $taskTotal = $count + $monthExtra;
                 for ($i = 1; $i <= $taskTotal; $i += 1) {
+                    $taskDueDate = $monthLate->copy();
+                    if ($status !== 'todo' && $taskDueDate->gt($now)) {
+                        $taskDueDate = $now->copy();
+                    }
+                    $taskCompletedAt = null;
+                    if ($status === 'done') {
+                        $taskCompletedAt = $taskDueDate->copy()->setTime(16, 0);
+                    }
+
                     $task = Task::updateOrCreate(
                         [
                             'account_id' => $serviceOwner->id,
@@ -3284,8 +3362,8 @@ class LaunchSeeder extends Seeder
                             'product_id' => $inventoryProduct->id,
                             'description' => 'Seeded trend task.',
                             'status' => $status,
-                            'due_date' => $monthLate->toDateString(),
-                            'completed_at' => $status === 'done' ? $monthLate : null,
+                            'due_date' => $taskDueDate->toDateString(),
+                            'completed_at' => $taskCompletedAt,
                         ]
                     );
                     $setTimestamps($task, $monthLate->copy()->addMinutes($i));
@@ -3511,6 +3589,314 @@ class LaunchSeeder extends Seeder
                 );
                 $setTimestamps($clientRatingWorkExtra, $monthBase->copy()->addDays($dayOffset));
             }
+        }
+
+        $ensureTeamMembers = function (User $owner, int $minCount) use ($employeeRoleId, $now) {
+            $existingCount = TeamMember::query()
+                ->where('account_id', $owner->id)
+                ->count();
+
+            $toCreate = max(0, $minCount - $existingCount);
+            if ($toCreate <= 0) {
+                return;
+            }
+
+            $slug = Str::slug($owner->company_name ?: ('company-' . $owner->id));
+            for ($i = 1; $i <= $toCreate; $i += 1) {
+                $email = "member.{$slug}.{$i}@example.com";
+                $memberUser = User::updateOrCreate(
+                    ['email' => $email],
+                    [
+                        'name' => trim(($owner->company_name ?: 'Company') . " Member {$i}"),
+                        'password' => Hash::make('password'),
+                        'role_id' => $employeeRoleId,
+                        'email_verified_at' => $now,
+                    ]
+                );
+
+                TeamMember::updateOrCreate(
+                    [
+                        'account_id' => $owner->id,
+                        'user_id' => $memberUser->id,
+                    ],
+                    [
+                        'role' => 'member',
+                        'permissions' => [
+                            'jobs.view',
+                            'tasks.view',
+                        ],
+                        'is_active' => true,
+                    ]
+                );
+            }
+        };
+
+        $resolveServiceProduct = function (User $owner) {
+            $service = Product::query()
+                ->services()
+                ->where('user_id', $owner->id)
+                ->orderBy('id')
+                ->first();
+
+            if ($service) {
+                return $service;
+            }
+
+            $category = ProductCategory::resolveForAccount($owner->id, $owner->id, 'Services');
+
+            return Product::updateOrCreate(
+                [
+                    'user_id' => $owner->id,
+                    'name' => 'Standard service',
+                ],
+                [
+                    'category_id' => $category->id,
+                    'price' => 120,
+                    'stock' => 0,
+                    'minimum_stock' => 0,
+                    'item_type' => Product::ITEM_TYPE_SERVICE,
+                ]
+            );
+        };
+
+        $ensureQuoteService = function (Quote $quote, Product $serviceProduct) {
+            $hasService = $quote->products()
+                ->where('products.item_type', Product::ITEM_TYPE_SERVICE)
+                ->exists();
+
+            if ($hasService) {
+                return;
+            }
+
+            $lineTotal = (float) $quote->total;
+            if ($lineTotal <= 0) {
+                $lineTotal = (float) $serviceProduct->price;
+                $quote->update([
+                    'subtotal' => $lineTotal,
+                    'total' => $lineTotal,
+                    'initial_deposit' => (float) ($quote->initial_deposit ?? 0),
+                ]);
+            }
+
+            $quote->products()->syncWithoutDetaching([
+                $serviceProduct->id => [
+                    'quantity' => 1,
+                    'price' => $lineTotal,
+                    'total' => $lineTotal,
+                    'description' => $serviceProduct->description,
+                ],
+            ]);
+        };
+
+        $ensureWorkService = function (Work $work, Product $serviceProduct) {
+            $hasService = $work->products()
+                ->where('products.item_type', Product::ITEM_TYPE_SERVICE)
+                ->exists();
+
+            if ($hasService) {
+                return;
+            }
+
+            $lineTotal = (float) $work->total;
+            if ($lineTotal <= 0) {
+                $lineTotal = (float) $serviceProduct->price;
+                $work->update([
+                    'subtotal' => $lineTotal,
+                    'total' => $lineTotal,
+                ]);
+            }
+
+            $work->products()->syncWithoutDetaching([
+                $serviceProduct->id => [
+                    'quantity' => 1,
+                    'price' => $lineTotal,
+                    'total' => $lineTotal,
+                    'description' => $serviceProduct->description,
+                ],
+            ]);
+        };
+
+        $seedInvoiceItems = function (Invoice $invoice, ?Work $work, Product $serviceProduct) {
+            if ($invoice->items()->exists()) {
+                return;
+            }
+
+            $invoiceTotal = (float) $invoice->total;
+            if ($invoiceTotal <= 0) {
+                return;
+            }
+
+            $scheduledDate = null;
+            if ($work?->start_date) {
+                $scheduledDate = $work->start_date instanceof \Carbon\Carbon
+                    ? $work->start_date->toDateString()
+                    : \Carbon\Carbon::parse($work->start_date)->toDateString();
+            }
+
+            $invoice->items()->create([
+                'work_id' => $work?->id,
+                'title' => $serviceProduct->name,
+                'description' => $serviceProduct->description,
+                'scheduled_date' => $scheduledDate,
+                'start_time' => $work?->start_time,
+                'end_time' => $work?->end_time,
+                'quantity' => 1,
+                'unit_price' => $invoiceTotal,
+                'total' => $invoiceTotal,
+                'meta' => [
+                    'source' => 'seed',
+                    'product_id' => $serviceProduct->id,
+                    'item_type' => $serviceProduct->item_type,
+                ],
+            ]);
+        };
+
+        $owners = collect([
+            $serviceOwner,
+            $productOwner,
+            $serviceLiteOwner,
+            $serviceNoInvoiceOwner,
+            $serviceRequestsOwner,
+        ])->filter();
+
+        foreach ($owners as $owner) {
+            $ensureTeamMembers($owner, 8);
+        }
+
+        $calendarMembers = TeamMember::query()
+            ->forAccount($serviceOwner->id)
+            ->active()
+            ->orderBy('id')
+            ->get(['id']);
+
+        if ($calendarMembers->isNotEmpty()) {
+            $calendarStart = $now->copy()->addWeek()->startOfWeek();
+            $calendarSlots = [
+                [
+                    ['09:00:00', '10:30:00'],
+                    ['14:00:00', '15:30:00'],
+                ],
+                [
+                    ['09:00:00', '10:30:00'],
+                    ['11:00:00', '12:30:00'],
+                    ['14:00:00', '15:30:00'],
+                ],
+                [
+                    ['11:00:00', '12:30:00'],
+                    ['14:00:00', '15:30:00'],
+                ],
+                [
+                    ['09:00:00', '10:30:00'],
+                    ['14:00:00', '15:30:00'],
+                ],
+                [
+                    ['09:00:00', '10:30:00'],
+                ],
+            ];
+            $calendarProductId = $serviceProducts->first()?->id;
+            $calendarCustomerId = $serviceCustomer->id ?? null;
+
+            foreach ($calendarMembers as $memberIndex => $member) {
+                foreach ($calendarSlots as $dayOffset => $slots) {
+                    $date = $calendarStart->copy()->addDays($dayOffset);
+                    $dateString = $date->toDateString();
+
+                    foreach ($slots as $slotIndex => $slot) {
+                        if ($dayOffset === 1 && $slotIndex === 1 && $memberIndex % 3 === 0) {
+                            continue;
+                        }
+
+                        [$startTime, $endTime] = $slot;
+                        $title = 'Weekly schedule ' . $date->format('D') . ' #' . ($slotIndex + 1) . ' (M' . $member->id . ')';
+
+                        Task::updateOrCreate(
+                            [
+                                'account_id' => $serviceOwner->id,
+                                'assigned_team_member_id' => $member->id,
+                                'due_date' => $dateString,
+                                'start_time' => $startTime,
+                                'title' => $title,
+                            ],
+                            [
+                                'created_by_user_id' => $serviceOwner->id,
+                                'customer_id' => $calendarCustomerId,
+                                'product_id' => $calendarProductId,
+                                'description' => 'Seeded weekly calendar task.',
+                                'status' => 'todo',
+                                'end_time' => $endTime,
+                                'completed_at' => null,
+                            ]
+                        );
+                    }
+                }
+            }
+
+            $conflictDate = $calendarStart->copy();
+            $conflictDateString = $conflictDate->toDateString();
+            $conflictSlots = [
+                ['09:00:00', '10:30:00'],
+                ['14:00:00', '15:30:00'],
+            ];
+            foreach ($conflictSlots as $slotIndex => $slot) {
+                [$startTime, $endTime] = $slot;
+                Task::updateOrCreate(
+                    [
+                        'account_id' => $serviceOwner->id,
+                        'due_date' => $conflictDateString,
+                        'start_time' => $startTime,
+                        'title' => 'Conflict test ' . $conflictDate->format('D') . ' #' . ($slotIndex + 1),
+                    ],
+                    [
+                        'created_by_user_id' => $serviceOwner->id,
+                        'assigned_team_member_id' => null,
+                        'customer_id' => $calendarCustomerId,
+                        'product_id' => $calendarProductId,
+                        'description' => 'Seeded for schedule conflict testing.',
+                        'status' => 'todo',
+                        'end_time' => $endTime,
+                        'completed_at' => null,
+                    ]
+                );
+            }
+
+            Task::updateOrCreate(
+                [
+                    'account_id' => $serviceOwner->id,
+                    'due_date' => $conflictDateString,
+                    'start_time' => '12:00:00',
+                    'title' => 'Open slot test ' . $conflictDate->format('D'),
+                ],
+                [
+                    'created_by_user_id' => $serviceOwner->id,
+                    'assigned_team_member_id' => null,
+                    'customer_id' => $calendarCustomerId,
+                    'product_id' => $calendarProductId,
+                    'description' => 'Seeded for available slot testing.',
+                    'status' => 'todo',
+                    'end_time' => '13:00:00',
+                    'completed_at' => null,
+                ]
+            );
+        }
+
+        $serviceOwners = $owners->filter(fn($owner) => $owner->company_type === 'services');
+        foreach ($serviceOwners as $owner) {
+            $serviceProduct = $resolveServiceProduct($owner);
+
+            Quote::query()
+                ->where('user_id', $owner->id)
+                ->each(fn($quote) => $ensureQuoteService($quote, $serviceProduct));
+
+            Work::query()
+                ->where('user_id', $owner->id)
+                ->each(fn($work) => $ensureWorkService($work, $serviceProduct));
+
+            Invoice::query()
+                ->where('user_id', $owner->id)
+                ->with('work')
+                ->each(function ($invoice) use ($serviceProduct, $seedInvoiceItems) {
+                    $seedInvoiceItems($invoice, $invoice->work, $serviceProduct);
+                });
         }
     }
 }

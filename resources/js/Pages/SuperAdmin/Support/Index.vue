@@ -5,6 +5,7 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import InputError from '@/Components/InputError.vue';
 import Modal from '@/Components/Modal.vue';
+import FloatingSelect from '@/Components/FloatingSelect.vue';
 
 const props = defineProps({
     tickets: {
@@ -35,6 +36,24 @@ const props = defineProps({
 
 const showFilters = ref(false);
 const showCreate = ref(false);
+const statusOptions = computed(() =>
+    (props.statuses || []).map((status) => ({
+        value: status,
+        label: status,
+    }))
+);
+const priorityOptions = computed(() =>
+    (props.priorities || []).map((priority) => ({
+        value: priority,
+        label: priority,
+    }))
+);
+const tenantOptions = computed(() =>
+    (props.tenants || []).map((tenant) => ({
+        value: String(tenant.id),
+        label: tenant.company_name || tenant.email,
+    }))
+);
 
 const filterForm = useForm({
     search: props.filters?.search ?? '',
@@ -217,36 +236,31 @@ const submitEdit = () => {
 
                     <div v-if="showFilters" class="grid gap-3 md:grid-cols-3">
                         <div>
-                            <label class="block text-xs text-stone-500 dark:text-neutral-400">
-                                {{ $t('super_admin.support.filters.status') }}
-                            </label>
-                            <select v-model="filterForm.status"
-                                class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
-                                <option value="">{{ $t('super_admin.common.all') }}</option>
-                                <option v-for="status in statuses" :key="status" :value="status">{{ status }}</option>
-                            </select>
+                            <FloatingSelect
+                                v-model="filterForm.status"
+                                :label="$t('super_admin.support.filters.status')"
+                                :options="statusOptions"
+                                :placeholder="$t('super_admin.common.all')"
+                                dense
+                            />
                         </div>
                         <div>
-                            <label class="block text-xs text-stone-500 dark:text-neutral-400">
-                                {{ $t('super_admin.support.filters.priority') }}
-                            </label>
-                            <select v-model="filterForm.priority"
-                                class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
-                                <option value="">{{ $t('super_admin.common.all') }}</option>
-                                <option v-for="priority in priorities" :key="priority" :value="priority">{{ priority }}</option>
-                            </select>
+                            <FloatingSelect
+                                v-model="filterForm.priority"
+                                :label="$t('super_admin.support.filters.priority')"
+                                :options="priorityOptions"
+                                :placeholder="$t('super_admin.common.all')"
+                                dense
+                            />
                         </div>
                         <div>
-                            <label class="block text-xs text-stone-500 dark:text-neutral-400">
-                                {{ $t('super_admin.support.filters.tenant') }}
-                            </label>
-                            <select v-model="filterForm.account_id"
-                                class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
-                                <option value="">{{ $t('super_admin.common.all') }}</option>
-                                <option v-for="tenant in tenants" :key="tenant.id" :value="tenant.id">
-                                    {{ tenant.company_name || tenant.email }}
-                                </option>
-                            </select>
+                            <FloatingSelect
+                                v-model="filterForm.account_id"
+                                :label="$t('super_admin.support.filters.tenant')"
+                                :options="tenantOptions"
+                                :placeholder="$t('super_admin.common.all')"
+                                dense
+                            />
                         </div>
                     </div>
                 </form>
@@ -336,16 +350,12 @@ const submitEdit = () => {
                     </div>
                     <form class="mt-4 space-y-3" @submit.prevent="submitTicket">
                         <div>
-                            <label class="block text-xs text-stone-500 dark:text-neutral-400">
-                                {{ $t('super_admin.support.form.tenant') }}
-                            </label>
-                            <select v-model="createForm.account_id"
-                                class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
-                                <option value="">{{ $t('super_admin.support.form.select_tenant') }}</option>
-                                <option v-for="tenant in tenants" :key="tenant.id" :value="tenant.id">
-                                    {{ tenant.company_name || tenant.email }}
-                                </option>
-                            </select>
+                            <FloatingSelect
+                                v-model="createForm.account_id"
+                                :label="$t('super_admin.support.form.tenant')"
+                                :options="tenantOptions"
+                                :placeholder="$t('super_admin.support.form.select_tenant')"
+                            />
                             <InputError class="mt-1" :message="createForm.errors.account_id" />
                         </div>
                         <FloatingInput v-model="createForm.title" :label="$t('super_admin.support.form.title')" />
@@ -360,22 +370,18 @@ const submitEdit = () => {
                         </div>
                         <div class="grid gap-3 md:grid-cols-3">
                             <div>
-                                <label class="block text-xs text-stone-500 dark:text-neutral-400">
-                                    {{ $t('super_admin.support.form.status') }}
-                                </label>
-                                <select v-model="createForm.status"
-                                    class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
-                                    <option v-for="status in statuses" :key="status" :value="status">{{ status }}</option>
-                                </select>
+                                <FloatingSelect
+                                    v-model="createForm.status"
+                                    :label="$t('super_admin.support.form.status')"
+                                    :options="statusOptions"
+                                />
                             </div>
                             <div>
-                                <label class="block text-xs text-stone-500 dark:text-neutral-400">
-                                    {{ $t('super_admin.support.form.priority') }}
-                                </label>
-                                <select v-model="createForm.priority"
-                                    class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
-                                    <option v-for="priority in priorities" :key="priority" :value="priority">{{ priority }}</option>
-                                </select>
+                                <FloatingSelect
+                                    v-model="createForm.priority"
+                                    :label="$t('super_admin.support.form.priority')"
+                                    :options="priorityOptions"
+                                />
                             </div>
                             <div>
                                 <label class="block text-xs text-stone-500 dark:text-neutral-400">
@@ -414,22 +420,18 @@ const submitEdit = () => {
                     <form class="mt-4 space-y-3" @submit.prevent="submitEdit">
                         <div class="grid gap-3 md:grid-cols-3">
                             <div>
-                                <label class="block text-xs text-stone-500 dark:text-neutral-400">
-                                    {{ $t('super_admin.support.form.status') }}
-                                </label>
-                                <select v-model="editForm.status"
-                                    class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
-                                    <option v-for="status in statuses" :key="status" :value="status">{{ status }}</option>
-                                </select>
+                                <FloatingSelect
+                                    v-model="editForm.status"
+                                    :label="$t('super_admin.support.form.status')"
+                                    :options="statusOptions"
+                                />
                             </div>
                             <div>
-                                <label class="block text-xs text-stone-500 dark:text-neutral-400">
-                                    {{ $t('super_admin.support.form.priority') }}
-                                </label>
-                                <select v-model="editForm.priority"
-                                    class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
-                                    <option v-for="priority in priorities" :key="priority" :value="priority">{{ priority }}</option>
-                                </select>
+                                <FloatingSelect
+                                    v-model="editForm.priority"
+                                    :label="$t('super_admin.support.form.priority')"
+                                    :options="priorityOptions"
+                                />
                             </div>
                             <div>
                                 <label class="block text-xs text-stone-500 dark:text-neutral-400">

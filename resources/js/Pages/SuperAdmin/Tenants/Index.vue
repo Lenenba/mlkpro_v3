@@ -1,8 +1,9 @@
 <script setup>
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import FloatingSelect from '@/Components/FloatingSelect.vue';
 
 const props = defineProps({
     filters: {
@@ -25,6 +26,20 @@ const props = defineProps({
 
 const showFilters = ref(false);
 const { t } = useI18n();
+const companyTypeOptions = computed(() => ([
+    { value: 'services', label: t('super_admin.tenants.company_types.services') },
+    { value: 'products', label: t('super_admin.tenants.company_types.products') },
+]));
+const statusOptions = computed(() => ([
+    { value: 'active', label: t('super_admin.tenants.status.active') },
+    { value: 'suspended', label: t('super_admin.tenants.status.suspended') },
+]));
+const planOptions = computed(() =>
+    (props.plans || []).map((plan) => ({
+        value: String(plan.price_id),
+        label: plan.name,
+    }))
+);
 const formatNumber = (value) =>
     Number(value || 0).toLocaleString(undefined, { maximumFractionDigits: 0 });
 
@@ -154,38 +169,28 @@ const statusLabel = (tenant) => {
 
                     <div v-if="showFilters" class="grid gap-3 md:grid-cols-3">
                         <div>
-                            <label class="block text-xs text-stone-500 dark:text-neutral-400">
-                                {{ $t('super_admin.tenants.filters.company_type') }}
-                            </label>
-                            <select v-model="form.company_type"
-                                class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
-                                <option value="">{{ $t('super_admin.common.all') }}</option>
-                                <option value="services">{{ $t('super_admin.tenants.company_types.services') }}</option>
-                                <option value="products">{{ $t('super_admin.tenants.company_types.products') }}</option>
-                            </select>
+                            <FloatingSelect
+                                v-model="form.company_type"
+                                :label="$t('super_admin.tenants.filters.company_type')"
+                                :options="companyTypeOptions"
+                                :placeholder="$t('super_admin.common.all')"
+                            />
                         </div>
                         <div>
-                            <label class="block text-xs text-stone-500 dark:text-neutral-400">
-                                {{ $t('super_admin.tenants.filters.status') }}
-                            </label>
-                            <select v-model="form.status"
-                                class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
-                                <option value="">{{ $t('super_admin.common.all') }}</option>
-                                <option value="active">{{ $t('super_admin.tenants.status.active') }}</option>
-                                <option value="suspended">{{ $t('super_admin.tenants.status.suspended') }}</option>
-                            </select>
+                            <FloatingSelect
+                                v-model="form.status"
+                                :label="$t('super_admin.tenants.filters.status')"
+                                :options="statusOptions"
+                                :placeholder="$t('super_admin.common.all')"
+                            />
                         </div>
                         <div>
-                            <label class="block text-xs text-stone-500 dark:text-neutral-400">
-                                {{ $t('super_admin.tenants.filters.plan') }}
-                            </label>
-                            <select v-model="form.plan"
-                                class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
-                                <option value="">{{ $t('super_admin.common.all') }}</option>
-                                <option v-for="plan in plans" :key="plan.price_id" :value="plan.price_id">
-                                    {{ plan.name }}
-                                </option>
-                            </select>
+                            <FloatingSelect
+                                v-model="form.plan"
+                                :label="$t('super_admin.tenants.filters.plan')"
+                                :options="planOptions"
+                                :placeholder="$t('super_admin.common.all')"
+                            />
                         </div>
                         <div>
                             <label class="block text-xs text-stone-500 dark:text-neutral-400">

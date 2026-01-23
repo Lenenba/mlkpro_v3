@@ -6,6 +6,7 @@ import ProductForm from './ProductForm.vue';
 import Modal from '@/Components/UI/Modal.vue';
 import Checkbox from '@/Components/Checkbox.vue';
 import { useI18n } from 'vue-i18n';
+import FloatingSelect from '@/Components/FloatingSelect.vue';
 
 const props = defineProps({
     filters: Object,
@@ -76,6 +77,67 @@ const canEdit = computed(() => Boolean(props.canEdit));
 
 const showAdvanced = ref(false);
 const isLoading = ref(false);
+const stockStatusOptions = computed(() => ([
+    { value: '', label: t('products.filters.stock.all') },
+    { value: 'in', label: t('products.stock_status.in_stock') },
+    { value: 'low', label: t('products.stock_status.low_stock') },
+    { value: 'out', label: t('products.stock_status.out_of_stock') },
+]));
+const alertOptions = computed(() => ([
+    { value: '', label: t('products.filters.alerts.all') },
+    { value: 'damaged', label: t('products.alerts.damaged') },
+    { value: 'reserved', label: t('products.alerts.reserved') },
+    { value: 'expiring', label: t('products.alerts.expiring') },
+    { value: 'expired', label: t('products.alerts.expired') },
+    { value: 'reorder', label: t('products.alerts.reorder') },
+]));
+const trackingOptions = computed(() => ([
+    { value: '', label: t('products.filters.tracking.all') },
+    { value: 'none', label: t('products.tracking.standard') },
+    { value: 'lot', label: t('products.tracking.lot_tracked') },
+    { value: 'serial', label: t('products.tracking.serial_tracked') },
+]));
+const warehouseOptions = computed(() => ([
+    { value: '', label: t('products.filters.warehouse.all') },
+    ...(props.warehouses || []).map((warehouse) => ({
+        value: String(warehouse.id),
+        label: `${warehouse.name}${warehouse.is_default ? ` (${t('products.filters.warehouse.default')})` : ''}`,
+    })),
+]));
+const productStatusOptions = computed(() => ([
+    { value: '', label: t('products.filters.status.all') },
+    { value: 'active', label: t('products.status.active') },
+    { value: 'archived', label: t('products.status.archived') },
+]));
+const imageOptions = computed(() => ([
+    { value: '', label: t('products.filters.media.all') },
+    { value: '1', label: t('products.filters.media.with_image') },
+    { value: '0', label: t('products.filters.media.without_image') },
+]));
+const barcodeOptions = computed(() => ([
+    { value: '', label: t('products.filters.barcodes.all') },
+    { value: '1', label: t('products.filters.barcodes.with') },
+    { value: '0', label: t('products.filters.barcodes.without') },
+]));
+const categoryOptions = computed(() =>
+    (props.categories || []).map((category) => ({
+        value: String(category.id),
+        label: category.name,
+    }))
+);
+const adjustTypeOptions = computed(() => ([
+    { value: 'in', label: t('products.adjust.types.in') },
+    { value: 'out', label: t('products.adjust.types.out') },
+    { value: 'adjust', label: t('products.adjust.types.adjust') },
+    { value: 'damage', label: t('products.adjust.types.damage') },
+    { value: 'spoilage', label: t('products.adjust.types.spoilage') },
+]));
+const adjustWarehouseOptions = computed(() =>
+    (activeWarehouses.value || []).map((warehouse) => ({
+        value: String(warehouse.id),
+        label: `${warehouse.name}${warehouse.is_default ? ` (${t('products.filters.warehouse.default')})` : ''}`,
+    }))
+);
 
 const filterPayload = () => {
     const payload = {
@@ -628,54 +690,48 @@ const submitImport = () => {
 
             <div class="flex flex-wrap items-center justify-between gap-2">
                 <div class="flex flex-wrap items-center gap-2">
-                    <select v-model="filterForm.stock_status"
-                        class="py-2 ps-3 pe-8 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
-                        <option value="">{{ $t('products.filters.stock.all') }}</option>
-                        <option value="in">{{ $t('products.stock_status.in_stock') }}</option>
-                        <option value="low">{{ $t('products.stock_status.low_stock') }}</option>
-                        <option value="out">{{ $t('products.stock_status.out_of_stock') }}</option>
-                    </select>
+                    <FloatingSelect
+                        v-model="filterForm.stock_status"
+                        :label="$t('products.labels.stock')"
+                        :options="stockStatusOptions"
+                        dense
+                    />
 
-                    <select v-model="filterForm.alert"
-                        class="py-2 ps-3 pe-8 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
-                        <option value="">{{ $t('products.filters.alerts.all') }}</option>
-                        <option value="damaged">{{ $t('products.alerts.damaged') }}</option>
-                        <option value="reserved">{{ $t('products.alerts.reserved') }}</option>
-                        <option value="expiring">{{ $t('products.alerts.expiring') }}</option>
-                        <option value="expired">{{ $t('products.alerts.expired') }}</option>
-                        <option value="reorder">{{ $t('products.alerts.reorder') }}</option>
-                    </select>
+                    <FloatingSelect
+                        v-model="filterForm.alert"
+                        :label="$t('products.filters.alerts.label')"
+                        :options="alertOptions"
+                        dense
+                    />
 
-                    <select v-model="filterForm.tracking_type"
-                        class="py-2 ps-3 pe-8 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
-                        <option value="">{{ $t('products.filters.tracking.all') }}</option>
-                        <option value="none">{{ $t('products.tracking.standard') }}</option>
-                        <option value="lot">{{ $t('products.tracking.lot_tracked') }}</option>
-                        <option value="serial">{{ $t('products.tracking.serial_tracked') }}</option>
-                    </select>
+                    <FloatingSelect
+                        v-model="filterForm.tracking_type"
+                        :label="$t('products.labels.tracking')"
+                        :options="trackingOptions"
+                        dense
+                    />
 
-                    <select v-model="filterForm.warehouse_id"
-                        class="py-2 ps-3 pe-8 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-600 focus:ring-green-600 disabled:opacity-60 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
-                        :disabled="!warehouses.length">
-                        <option value="">{{ $t('products.filters.warehouse.all') }}</option>
-                        <option v-for="warehouse in warehouses" :key="warehouse.id" :value="warehouse.id">
-                            {{ warehouse.name }}{{ warehouse.is_default ? ' (' + $t('products.filters.warehouse.default') + ')' : '' }}
-                        </option>
-                    </select>
+                    <FloatingSelect
+                        v-model="filterForm.warehouse_id"
+                        :label="$t('products.labels.warehouse')"
+                        :options="warehouseOptions"
+                        :disabled="!warehouses.length"
+                        dense
+                    />
 
-                    <select v-model="filterForm.status"
-                        class="py-2 ps-3 pe-8 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
-                        <option value="">{{ $t('products.filters.status.all') }}</option>
-                        <option value="active">{{ $t('products.status.active') }}</option>
-                        <option value="archived">{{ $t('products.status.archived') }}</option>
-                    </select>
+                    <FloatingSelect
+                        v-model="filterForm.status"
+                        :label="$t('products.labels.status')"
+                        :options="productStatusOptions"
+                        dense
+                    />
 
-                    <select v-model="filterForm.has_image"
-                        class="py-2 ps-3 pe-8 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
-                        <option value="">{{ $t('products.filters.media.all') }}</option>
-                        <option value="1">{{ $t('products.filters.media.with_image') }}</option>
-                        <option value="0">{{ $t('products.filters.media.without_image') }}</option>
-                    </select>
+                    <FloatingSelect
+                        v-model="filterForm.has_image"
+                        :label="$t('products.filters.media.label')"
+                        :options="imageOptions"
+                        dense
+                    />
 
                     <button type="button" @click="clearFilters"
                         class="py-2 px-3 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700">
@@ -731,12 +787,12 @@ const submitImport = () => {
                 <input type="text" v-model="filterForm.supplier_name"
                     class="py-2 px-3 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
                     :placeholder="$t('products.filters.supplier_name')">
-                <select v-model="filterForm.has_barcode"
-                    class="py-2 ps-3 pe-8 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
-                    <option value="">{{ $t('products.filters.barcodes.all') }}</option>
-                    <option value="1">{{ $t('products.filters.barcodes.with') }}</option>
-                    <option value="0">{{ $t('products.filters.barcodes.without') }}</option>
-                </select>
+                <FloatingSelect
+                    v-model="filterForm.has_barcode"
+                    :label="$t('products.filters.barcodes.label')"
+                    :options="barcodeOptions"
+                    dense
+                />
                 <input type="date" v-model="filterForm.created_from"
                     class="py-2 px-3 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
                     :placeholder="$t('products.filters.created_from')">
@@ -744,12 +800,13 @@ const submitImport = () => {
                     class="py-2 px-3 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
                     :placeholder="$t('products.filters.created_to')">
                 <div class="md:col-span-2 lg:col-span-6">
-                    <select multiple v-model="filterForm.category_ids"
-                        class="w-full py-2 ps-3 pe-8 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
-                        <option v-for="category in categories" :key="category.id" :value="category.id">
-                            {{ category.name }}
-                        </option>
-                    </select>
+                    <FloatingSelect
+                        v-model="filterForm.category_ids"
+                        :label="$t('products.labels.category')"
+                        :options="categoryOptions"
+                        multiple
+                        class="min-h-[120px]"
+                    />
                 </div>
             </div>
         </div>
@@ -1472,33 +1529,30 @@ const submitImport = () => {
 
             <form @submit.prevent="submitAdjust" class="space-y-3">
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-                    <select v-model="adjustForm.type"
-                        class="py-2 px-3 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
-                        <option value="in">{{ $t('products.adjust.types.in') }}</option>
-                        <option value="out">{{ $t('products.adjust.types.out') }}</option>
-                        <option value="adjust">{{ $t('products.adjust.types.adjust') }}</option>
-                        <option value="damage">{{ $t('products.adjust.types.damage') }}</option>
-                        <option value="spoilage">{{ $t('products.adjust.types.spoilage') }}</option>
-                    </select>
+                    <FloatingSelect
+                        v-model="adjustForm.type"
+                        :label="$t('products.adjust.type_label')"
+                        :options="adjustTypeOptions"
+                        dense
+                    />
                     <input type="number" step="1" v-model="adjustForm.quantity"
                         class="py-2 px-3 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
                         :placeholder="adjustForm.type === 'adjust' ? $t('products.adjust.quantity_change') : $t('products.labels.quantity')">
-                    <select v-model="adjustForm.warehouse_id"
-                        class="py-2 px-3 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-600 focus:ring-green-600 disabled:opacity-60 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
-                        :disabled="!activeWarehouses.length">
-                        <option value="">{{ $t('products.adjust.select_warehouse') }}</option>
-                        <option v-for="warehouse in activeWarehouses" :key="warehouse.id" :value="warehouse.id">
-                            {{ warehouse.name }}{{ warehouse.is_default ? ' (' + $t('products.filters.warehouse.default') + ')' : '' }}
-                        </option>
-                    </select>
+                    <FloatingSelect
+                        v-model="adjustForm.warehouse_id"
+                        :label="$t('products.adjust.warehouse_label')"
+                        :options="adjustWarehouseOptions"
+                        :disabled="!activeWarehouses.length"
+                        dense
+                    />
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-                    <select v-model="adjustForm.reason"
-                        class="py-2 px-3 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
-                        <option v-for="reason in reasonOptions" :key="reason.value" :value="reason.value">
-                            {{ reason.label }}
-                        </option>
-                    </select>
+                    <FloatingSelect
+                        v-model="adjustForm.reason"
+                        :label="$t('products.adjust.reason_label')"
+                        :options="reasonOptions"
+                        dense
+                    />
                     <input type="number" step="0.01" v-model="adjustForm.unit_cost"
                         class="py-2 px-3 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
                         :placeholder="$t('products.adjust.unit_cost_optional')">

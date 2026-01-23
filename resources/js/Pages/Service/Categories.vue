@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
+import FloatingSelect from '@/Components/FloatingSelect.vue';
 import InputError from '@/Components/InputError.vue';
 import { humanizeDate } from '@/utils/date';
 import { useI18n } from 'vue-i18n';
@@ -33,6 +34,16 @@ const props = defineProps({
 const page = usePage();
 const ownerId = computed(() => page.props?.auth?.account?.owner_id ?? null);
 const { t } = useI18n();
+const statusFilterOptions = computed(() => ([
+    { value: 'active', label: t('services.status.active') },
+    { value: 'archived', label: t('services.status.archived') },
+]));
+const creatorOptions = computed(() =>
+    (props.creators || []).map((creator) => ({
+        value: String(creator.id),
+        label: creator.name,
+    }))
+);
 
 const categoryForm = useForm({
     name: '',
@@ -360,19 +371,20 @@ const restoreCategory = (category) => {
                     </div>
 
                     <div v-if="showAdvanced" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2">
-                        <select v-model="filterForm.status"
-                            class="py-2 ps-3 pe-8 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
-                            <option value="">{{ $t('services.categories.filters.status') }}</option>
-                            <option value="active">{{ $t('services.status.active') }}</option>
-                            <option value="archived">{{ $t('services.status.archived') }}</option>
-                        </select>
-                        <select v-model="filterForm.created_by"
-                            class="py-2 ps-3 pe-8 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
-                            <option value="">{{ $t('services.categories.filters.created_by') }}</option>
-                            <option v-for="creator in props.creators" :key="creator.id" :value="creator.id">
-                                {{ creator.name }}
-                            </option>
-                        </select>
+                        <FloatingSelect
+                            v-model="filterForm.status"
+                            :label="$t('services.categories.filters.status')"
+                            :options="statusFilterOptions"
+                            :placeholder="$t('services.categories.filters.status')"
+                            dense
+                        />
+                        <FloatingSelect
+                            v-model="filterForm.created_by"
+                            :label="$t('services.categories.filters.created_by')"
+                            :options="creatorOptions"
+                            :placeholder="$t('services.categories.filters.created_by')"
+                            dense
+                        />
                         <input type="date" v-model="filterForm.created_from"
                             class="py-2 px-3 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
                             :placeholder="$t('services.categories.filters.created_from')">

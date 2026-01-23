@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue';
 import { Link, router, useForm } from '@inertiajs/vue3';
 import { humanizeDate } from '@/utils/date';
 import Checkbox from '@/Components/Checkbox.vue';
+import FloatingSelect from '@/Components/FloatingSelect.vue';
 import { useI18n } from 'vue-i18n';
 
 const props = defineProps({
@@ -40,6 +41,21 @@ const filterForm = useForm({
 
 const showAdvanced = ref(false);
 const isLoading = ref(false);
+const quoteFilterOptions = computed(() => ([
+    { value: '', label: t('customers.filters.quotes') },
+    { value: '1', label: t('customers.filters.with_quotes') },
+    { value: '0', label: t('customers.filters.no_quotes') },
+]));
+const jobFilterOptions = computed(() => ([
+    { value: '', label: t('customers.filters.jobs') },
+    { value: '1', label: t('customers.filters.with_jobs') },
+    { value: '0', label: t('customers.filters.no_jobs') },
+]));
+const statusFilterOptions = computed(() => ([
+    { value: '', label: t('customers.filters.status') },
+    { value: 'active', label: t('customers.status.active') },
+    { value: 'archived', label: t('customers.status.archived') },
+]));
 const isViewSwitching = ref(false);
 const allowedViews = ['table', 'cards'];
 const viewMode = ref('table');
@@ -376,24 +392,24 @@ const getCustomerInitials = (customer) => {
                 <input type="text" v-model="filterForm.country"
                     class="py-2 px-3 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
                     :placeholder="$t('customers.filters.country')">
-                <select v-model="filterForm.has_quotes"
-                    class="py-2 ps-3 pe-8 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
-                    <option value="">{{ $t('customers.filters.quotes') }}</option>
-                    <option value="1">{{ $t('customers.filters.with_quotes') }}</option>
-                    <option value="0">{{ $t('customers.filters.no_quotes') }}</option>
-                </select>
-                <select v-model="filterForm.has_works"
-                    class="py-2 ps-3 pe-8 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
-                    <option value="">{{ $t('customers.filters.jobs') }}</option>
-                    <option value="1">{{ $t('customers.filters.with_jobs') }}</option>
-                    <option value="0">{{ $t('customers.filters.no_jobs') }}</option>
-                </select>
-                <select v-model="filterForm.status"
-                    class="py-2 ps-3 pe-8 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
-                    <option value="">{{ $t('customers.filters.status') }}</option>
-                    <option value="active">{{ $t('customers.status.active') }}</option>
-                    <option value="archived">{{ $t('customers.status.archived') }}</option>
-                </select>
+                <FloatingSelect
+                    v-model="filterForm.has_quotes"
+                    :label="$t('customers.filters.quotes')"
+                    :options="quoteFilterOptions"
+                    dense
+                />
+                <FloatingSelect
+                    v-model="filterForm.has_works"
+                    :label="$t('customers.filters.jobs')"
+                    :options="jobFilterOptions"
+                    dense
+                />
+                <FloatingSelect
+                    v-model="filterForm.status"
+                    :label="$t('customers.filters.status')"
+                    :options="statusFilterOptions"
+                    dense
+                />
                 <input type="date" v-model="filterForm.created_from"
                     class="py-2 px-3 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
                     :placeholder="$t('customers.filters.created_from')">

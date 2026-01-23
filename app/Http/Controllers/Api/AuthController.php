@@ -139,6 +139,7 @@ class AuthController extends Controller
             'email' => $validated['email'],
             'password' => Hash::make($validated['password']),
             'role_id' => $roleId,
+            'trial_ends_at' => now()->addMonthNoOverflow(),
         ]);
 
         event(new Registered($user));

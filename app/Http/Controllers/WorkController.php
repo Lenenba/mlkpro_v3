@@ -17,6 +17,7 @@ use App\Models\User;
 use App\Services\WorkBillingService;
 use App\Services\WorkScheduleService;
 use App\Services\UsageLimitService;
+use App\Services\TaskTimingService;
 use App\Notifications\ActionEmailNotification;
 use App\Support\NotificationDispatcher;
 use Illuminate\Http\Request;
@@ -69,11 +70,19 @@ class WorkController extends Controller
             ? $filters['sort']
             : 'start_date';
         $direction = ($filters['direction'] ?? 'desc') === 'asc' ? 'asc' : 'desc';
+        $today = TaskTimingService::todayForAccountId($accountId);
 
         $works = (clone $baseQuery)
             ->with(['customer', 'invoice'])
             ->withAvg('ratings', 'rating')
             ->withCount('ratings')
+            ->withCount([
+                'tasks as overdue_tasks_count' => function ($query) use ($today) {
+                    $query->whereNotNull('due_date')
+                        ->where('status', '!=', 'done')
+                        ->whereDate('due_date', '<', $today);
+                },
+            ])
             ->orderBy($sort, $direction)
             ->simplePaginate(10)
             ->withQueryString();
@@ -371,16 +380,25 @@ class WorkController extends Controller
             'total' => $work->total,
         ], 'Job created');
 
-        $this->autoScheduleTasksForWork($work, $user);
+        $conflictCount = $this->autoScheduleTasksForWork($work, $user);
+        $warning = $conflictCount > 0
+            ? "{$conflictCount} task(s) were left unassigned because the selected team members were busy."
+            : null;
 
         if ($this->shouldReturnJson($request)) {
             return response()->json([
                 'message' => 'Job created successfully!',
                 'work' => $work->load(['customer', 'products', 'teamMembers']),
+                'warning' => $warning,
             ], 201);
         }
 
-        return redirect()->route('customer.show', $customer)->with('success', 'Job created successfully!');
+        return redirect()
+            ->route('customer.show', $customer)
+            ->with([
+                'success' => 'Job created successfully!',
+                'warning' => $warning,
+            ]);
     }
 
     /**
@@ -640,16 +658,25 @@ class WorkController extends Controller
             'total' => $work->total,
         ], 'Job updated');
 
-        $this->autoScheduleTasksForWork($work, $user);
+        $conflictCount = $this->autoScheduleTasksForWork($work, $user);
+        $warning = $conflictCount > 0
+            ? "{$conflictCount} task(s) were left unassigned because the selected team members were busy."
+            : null;
 
         if ($this->shouldReturnJson($request)) {
             return response()->json([
                 'message' => 'Job updated successfully.',
                 'work' => $work->fresh(['customer', 'products', 'teamMembers']),
+                'warning' => $warning,
             ]);
         }
 
-        return redirect()->back()->with('success', 'Job updated successfully.');
+        return redirect()
+            ->back()
+            ->with([
+                'success' => 'Job updated successfully.',
+                'warning' => $warning,
+            ]);
     }
 
     public function updateStatus(Request $request, Work $work, WorkBillingService $billingService)
@@ -967,31 +994,34 @@ class WorkController extends Controller
         $work->total = $work->quote->total;
     }
 
-    private function autoScheduleTasksForWork(Work $work, ?User $actor): void
+    private function autoScheduleTasksForWork(Work $work, ?User $actor): int
     {
         $customer = $work->relationLoaded('customer')
             ? $work->customer
             : Customer::query()->find($work->customer_id);
 
         if (!$customer) {
-            return;
+            return 0;
         }
 
         if ($work->status !== Work::STATUS_SCHEDULED) {
-            return;
+            return 0;
         }
 
         $scheduleService = app(WorkScheduleService::class);
         $pendingDates = $scheduleService->pendingDateStrings($work);
         if (!$pendingDates) {
-            return;
+            return 0;
         }
 
         if ($actor) {
             app(UsageLimitService::class)->enforceLimit($actor, 'tasks', count($pendingDates));
         }
 
-        $scheduleService->generateTasksForDates($work, $pendingDates, $actor?->id);
+        $conflicts = [];
+        $scheduleService->generateTasksForDates($work, $pendingDates, $actor?->id, null, null, $conflicts);
+
+        return count($conflicts);
     }
 
 }

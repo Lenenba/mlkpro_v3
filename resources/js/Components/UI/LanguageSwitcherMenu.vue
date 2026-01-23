@@ -2,6 +2,17 @@
 import { computed, nextTick, onBeforeUnmount, ref } from 'vue';
 import { router, usePage } from '@inertiajs/vue3';
 
+defineProps({
+    buttonClass: {
+        type: String,
+        default: 'relative inline-flex size-9 items-center justify-center rounded-sm text-stone-600 hover:bg-stone-100 focus:outline-none focus:ring-2 focus:ring-green-500 dark:text-neutral-200 dark:hover:bg-neutral-800',
+    },
+    iconClass: {
+        type: String,
+        default: 'size-6',
+    },
+});
+
 const page = usePage();
 const availableLocales = computed(() => page.props.locales || ['fr', 'en']);
 const currentLocale = computed(() => page.props.locale || availableLocales.value[0] || 'fr');
@@ -100,12 +111,12 @@ onBeforeUnmount(() => {
         <button
             ref="toggleRef"
             type="button"
-            class="flex size-9 items-center justify-center rounded-sm text-stone-600 hover:bg-stone-100 focus:outline-none focus:ring-2 focus:ring-green-500 dark:text-neutral-200 dark:hover:bg-neutral-800"
+            :class="buttonClass"
             :aria-label="$t('account.language')"
             :aria-expanded="isOpen ? 'true' : 'false'"
             @click="toggleMenu"
         >
-            <svg class="size-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+            <svg :class="iconClass" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
                 stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <circle cx="12" cy="12" r="10" />
                 <path d="M2 12h20" />

@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue';
 import { Link, router, useForm } from '@inertiajs/vue3';
 import StarRating from '@/Components/UI/StarRating.vue';
+import FloatingSelect from '@/Components/FloatingSelect.vue';
 import { humanizeDate } from '@/utils/date';
 import { useI18n } from 'vue-i18n';
 
@@ -74,6 +75,14 @@ const statusOptions = computed(() => ([
     { value: 'paid', label: t('invoices.status.paid') },
     { value: 'overdue', label: t('invoices.status.overdue') },
     { value: 'void', label: t('invoices.status.void') },
+]));
+
+const customerOptions = computed(() => ([
+    { value: '', label: t('invoices.filters.customer.all') },
+    ...(props.customers || []).map((customer) => ({
+        value: String(customer.id),
+        label: customer.company_name || `${customer.first_name} ${customer.last_name}`,
+    })),
 ]));
 
 const filterPayload = () => {
@@ -282,19 +291,18 @@ const getStatusMeta = (invoice) => statusMeta.value[invoice?.status] || statusMe
             </div>
 
             <div v-if="showAdvanced" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-2">
-                <select v-model="filterForm.status"
-                    class="py-2 ps-3 pe-8 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
-                    <option v-for="option in statusOptions" :key="option.value" :value="option.value">
-                        {{ option.label }}
-                    </option>
-                </select>
-                <select v-model="filterForm.customer_id"
-                    class="py-2 ps-3 pe-8 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
-                    <option value="">{{ $t('invoices.filters.customer.all') }}</option>
-                    <option v-for="customer in customers" :key="customer.id" :value="customer.id">
-                        {{ customer.company_name || `${customer.first_name} ${customer.last_name}` }}
-                    </option>
-                </select>
+                <FloatingSelect
+                    v-model="filterForm.status"
+                    :label="$t('invoices.table.status')"
+                    :options="statusOptions"
+                    dense
+                />
+                <FloatingSelect
+                    v-model="filterForm.customer_id"
+                    :label="$t('invoices.table.customer')"
+                    :options="customerOptions"
+                    dense
+                />
                 <input type="number" v-model="filterForm.total_min" min="0" step="0.01"
                     class="py-2 px-3 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
                     :placeholder="$t('invoices.filters.total_min')">

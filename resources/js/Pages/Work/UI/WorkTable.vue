@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue';
 import { Link, router, useForm } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
 import StarRating from '@/Components/UI/StarRating.vue';
+import FloatingSelect from '@/Components/FloatingSelect.vue';
 import { humanizeDate } from '@/utils/date';
 
 const props = defineProps({
@@ -49,6 +50,14 @@ const statusOptions = computed(() => ([
     { value: 'closed', label: t('jobs.status.closed') },
     { value: 'cancelled', label: t('jobs.status.cancelled') },
     { value: 'completed', label: t('jobs.status.completed') },
+]));
+
+const customerOptions = computed(() => ([
+    { value: '', label: t('jobs.filters.customer.all') },
+    ...(props.customers || []).map((customer) => ({
+        value: String(customer.id),
+        label: customer.company_name || `${customer.first_name} ${customer.last_name}`,
+    })),
 ]));
 
 const statusLabels = computed(() => ({
@@ -195,19 +204,18 @@ const createInvoice = (work) => {
             </div>
 
             <div v-if="showAdvanced" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-2">
-                <select v-model="filterForm.status"
-                    class="py-2 ps-3 pe-8 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
-                    <option v-for="option in statusOptions" :key="option.value" :value="option.value">
-                        {{ option.label }}
-                    </option>
-                </select>
-                <select v-model="filterForm.customer_id"
-                    class="py-2 ps-3 pe-8 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
-                    <option value="">{{ $t('jobs.filters.customer.all') }}</option>
-                    <option v-for="customer in customers" :key="customer.id" :value="customer.id">
-                        {{ customer.company_name || `${customer.first_name} ${customer.last_name}` }}
-                    </option>
-                </select>
+                <FloatingSelect
+                    v-model="filterForm.status"
+                    :label="$t('jobs.table.status')"
+                    :options="statusOptions"
+                    dense
+                />
+                <FloatingSelect
+                    v-model="filterForm.customer_id"
+                    :label="$t('jobs.table.customer')"
+                    :options="customerOptions"
+                    dense
+                />
                 <input type="date" v-model="filterForm.start_from"
                     class="py-2 px-3 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
                     :placeholder="$t('jobs.filters.start_from')">
@@ -335,6 +343,12 @@ const createInvoice = (work) => {
                                         'bg-lime-100 text-lime-800 dark:bg-lime-500/20 dark:text-lime-200': resolveStatus(work.status) === 'completed',
                                     }">
                                     {{ formatStatus(work.status) }}
+                                </span>
+                                <span
+                                    v-if="work.overdue_tasks_count > 0"
+                                    class="ms-2 py-1 px-2 inline-flex items-center text-[11px] font-semibold rounded-full bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-200"
+                                >
+                                    {{ $t('jobs.badges.overdue', { count: work.overdue_tasks_count }) }}
                                 </span>
                             </td>
                             <td class="size-px whitespace-nowrap px-4 py-2">

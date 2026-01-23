@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Models\Work;
 use App\Notifications\ActionEmailNotification;
 use App\Support\NotificationDispatcher;
+use App\Services\StripeInvoiceService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\URL;
@@ -30,21 +31,22 @@ class PublicInvoiceController extends Controller
             'payments',
         ]);
 
+        $sessionId = $request->query('session_id');
+        if ($sessionId) {
+            $stripeService = app(StripeInvoiceService::class);
+            if ($stripeService->isConfigured()) {
+                $connectAccountId = $stripeService->resolveConnectedAccountId($invoice);
+                $payment = $stripeService->syncFromCheckoutSessionId($sessionId, $connectAccountId);
+                if ($payment && $payment->invoice_id === $invoice->id) {
+                    $invoice->refresh();
+                }
+            }
+        }
+
         $owner = User::find($invoice->user_id);
         $customer = $invoice->customer;
 
-        $canPay = true;
-        $paymentMessage = null;
-        if ($invoice->status === 'void' || $invoice->status === 'draft') {
-            $canPay = false;
-            $paymentMessage = 'This invoice cannot be paid.';
-        } elseif ($invoice->balance_due <= 0) {
-            $canPay = false;
-            $paymentMessage = 'This invoice is already paid.';
-        } elseif ($customer && $customer->auto_validate_invoices) {
-            $canPay = false;
-            $paymentMessage = 'Invoice actions are handled by the company.';
-        }
+        [$canPay, $paymentMessage] = $this->resolvePaymentAvailability($invoice, $customer);
 
         $expiresAt = $this->resolveExpiry($request);
         $paymentUrl = URL::temporarySignedRoute(
@@ -52,6 +54,15 @@ class PublicInvoiceController extends Controller
             $expiresAt,
             ['invoice' => $invoice->id]
         );
+        $stripeService = app(StripeInvoiceService::class);
+        $stripeCheckoutUrl = null;
+        if ($stripeService->isConfigured()) {
+            $stripeCheckoutUrl = URL::temporarySignedRoute(
+                'public.invoices.stripe',
+                $expiresAt,
+                ['invoice' => $invoice->id]
+            );
+        }
 
         return Inertia::render('Public/InvoicePay', [
             'invoice' => [
@@ -80,6 +91,7 @@ class PublicInvoiceController extends Controller
             'allowPayment' => $canPay,
             'paymentMessage' => $paymentMessage,
             'paymentUrl' => $paymentUrl,
+            'stripeCheckoutUrl' => $stripeCheckoutUrl,
         ]);
     }
 
@@ -88,21 +100,10 @@ class PublicInvoiceController extends Controller
         $invoice->load('customer');
         $customer = $invoice->customer;
 
-        if ($invoice->status === 'void' || $invoice->status === 'draft') {
+        [$canPay, $message] = $this->resolvePaymentAvailability($invoice, $customer);
+        if (!$canPay) {
             return redirect()->back()->withErrors([
-                'status' => 'This invoice cannot be paid.',
-            ]);
-        }
-
-        if ($invoice->balance_due <= 0) {
-            return redirect()->back()->withErrors([
-                'status' => 'This invoice is already paid.',
-            ]);
-        }
-
-        if ($customer && $customer->auto_validate_invoices) {
-            return redirect()->back()->withErrors([
-                'status' => 'Invoice actions are handled by the company.',
+                'status' => $message,
             ]);
         }
 
@@ -178,6 +179,46 @@ class PublicInvoiceController extends Controller
         return redirect()->back()->with('success', 'Payment recorded successfully.');
     }
 
+    public function createStripeCheckout(Request $request, Invoice $invoice)
+    {
+        $invoice->load('customer');
+        $customer = $invoice->customer;
+
+        [$canPay, $message] = $this->resolvePaymentAvailability($invoice, $customer);
+        if (!$canPay) {
+            return redirect()->back()->with('error', $message);
+        }
+
+        $stripeService = app(StripeInvoiceService::class);
+        if (!$stripeService->isConfigured()) {
+            return redirect()->back()->with('error', 'Stripe is not configured.');
+        }
+
+        $expiresAt = $this->resolveExpiry($request);
+        $successUrl = URL::temporarySignedRoute(
+            'public.invoices.show',
+            $expiresAt,
+            ['invoice' => $invoice->id, 'stripe' => 'success']
+        );
+        $successUrl .= (str_contains($successUrl, '?') ? '&' : '?') . 'session_id={CHECKOUT_SESSION_ID}';
+        $cancelUrl = URL::temporarySignedRoute(
+            'public.invoices.show',
+            $expiresAt,
+            ['invoice' => $invoice->id, 'stripe' => 'cancel']
+        );
+
+        $session = $stripeService->createCheckoutSession($invoice, $successUrl, $cancelUrl);
+        if (empty($session['url'])) {
+            return redirect()->back()->with('error', 'Unable to start Stripe checkout.');
+        }
+
+        if ($request->header('X-Inertia')) {
+            return Inertia::location($session['url']);
+        }
+
+        return redirect()->away($session['url']);
+    }
+
     private function resolveExpiry(Request $request): Carbon
     {
         $expires = $request->query('expires');
@@ -186,5 +227,22 @@ class PublicInvoiceController extends Controller
         }
 
         return now()->addDays(self::LINK_TTL_DAYS);
+    }
+
+    private function resolvePaymentAvailability(Invoice $invoice, $customer = null): array
+    {
+        if ($invoice->status === 'void' || $invoice->status === 'draft') {
+            return [false, 'This invoice cannot be paid.'];
+        }
+
+        if ($invoice->balance_due <= 0) {
+            return [false, 'This invoice is already paid.'];
+        }
+
+        if ($customer && $customer->auto_validate_invoices) {
+            return [false, 'Invoice actions are handled by the company.'];
+        }
+
+        return [true, null];
     }
 }

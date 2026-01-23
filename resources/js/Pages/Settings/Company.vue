@@ -8,6 +8,7 @@ import SettingsTabs from '@/Components/SettingsTabs.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import InputError from '@/Components/InputError.vue';
 import DropzoneInput from '@/Components/DropzoneInput.vue';
+import FloatingSelect from '@/Components/FloatingSelect.vue';
 
 const props = defineProps({
     company: {
@@ -56,6 +57,52 @@ const countryOptions = computed(() => [
     { id: 'Tunisie', name: t('settings.company.countries.tunisia') },
     { id: '__other__', name: t('settings.company.select.other') },
 ]);
+const timezoneFallback = [
+    'UTC',
+    'America/Toronto',
+    'America/New_York',
+    'America/Chicago',
+    'America/Los_Angeles',
+    'Europe/Paris',
+    'Europe/London',
+    'Europe/Brussels',
+    'Europe/Zurich',
+    'Africa/Casablanca',
+    'Africa/Tunis',
+];
+const TIMEZONE_ALIASES = {
+    'America/Toronto': ['Montreal', 'Quebec', 'Ottawa'],
+};
+const buildTimezoneSearch = (zone) => {
+    const parts = String(zone || '').split('/');
+    const region = (parts[0] || '').replace(/_/g, ' ');
+    const city = parts.slice(1).join(' ').replace(/_/g, ' ');
+    const aliases = TIMEZONE_ALIASES[zone] || [];
+
+    return [zone, region, city, ...aliases]
+        .map((item) => String(item || '').trim())
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+};
+const timezoneOptions = computed(() => {
+    if (typeof Intl !== 'undefined' && typeof Intl.supportedValuesOf === 'function') {
+        return Intl.supportedValuesOf('timeZone').map((zone) => ({
+            id: zone,
+            name: zone,
+            search: buildTimezoneSearch(zone),
+        }));
+    }
+    return timezoneFallback.map((zone) => ({
+        id: zone,
+        name: zone,
+        search: buildTimezoneSearch(zone),
+    }));
+});
+const apiTokenTypeOptions = computed(() => ([
+    { value: 'public', label: t('settings.company.api.fields.type_public') },
+    { value: 'private', label: t('settings.company.api.fields.type_private') },
+]));
 
 const PROVINCES_BY_COUNTRY = {
     Canada: [
@@ -166,6 +213,7 @@ const form = useForm({
     company_province_other: '',
     company_city: '',
     company_city_other: '',
+    company_timezone: props.company.company_timezone || '',
     company_type: props.company.company_type || 'services',
     fulfillment_delivery_enabled: props.company.fulfillment?.delivery_enabled ?? true,
     fulfillment_pickup_enabled: props.company.fulfillment?.pickup_enabled ?? true,
@@ -175,6 +223,9 @@ const form = useForm({
     fulfillment_prep_time_minutes: props.company.fulfillment?.prep_time_minutes ?? 30,
     fulfillment_delivery_notes: props.company.fulfillment?.delivery_notes ?? '',
     fulfillment_pickup_notes: props.company.fulfillment?.pickup_notes ?? '',
+    notification_task_day_email: props.company.company_notification_settings?.task_day?.email ?? true,
+    notification_task_day_sms: props.company.company_notification_settings?.task_day?.sms ?? false,
+    notification_task_day_whatsapp: props.company.company_notification_settings?.task_day?.whatsapp ?? false,
     supplier_enabled: initialEnabledSuppliers,
     supplier_preferred: initialPreferredSuppliers,
     custom_suppliers: initialCustomSuppliers,
@@ -525,6 +576,7 @@ const submit = () => {
                 company_country: normalizeText(country),
                 company_province: normalizeText(province),
                 company_city: normalizeText(city),
+                company_timezone: normalizeText(data.company_timezone),
             };
 
             payload.custom_suppliers = data.custom_suppliers || [];
@@ -542,6 +594,14 @@ const submit = () => {
                 pickup_notes: normalizeText(data.fulfillment_pickup_notes),
             };
 
+            payload.company_notification_settings = {
+                task_day: {
+                    email: Boolean(data.notification_task_day_email),
+                    sms: Boolean(data.notification_task_day_sms),
+                    whatsapp: Boolean(data.notification_task_day_whatsapp),
+                },
+            };
+
             delete payload.fulfillment_delivery_enabled;
             delete payload.fulfillment_pickup_enabled;
             delete payload.fulfillment_delivery_fee;
@@ -550,6 +610,9 @@ const submit = () => {
             delete payload.fulfillment_prep_time_minutes;
             delete payload.fulfillment_delivery_notes;
             delete payload.fulfillment_pickup_notes;
+            delete payload.notification_task_day_email;
+            delete payload.notification_task_day_sms;
+            delete payload.notification_task_day_whatsapp;
 
             if (data.company_logo instanceof File) {
                 payload.company_logo = data.company_logo;
@@ -724,15 +787,11 @@ watch(activeTab, (value) => {
 
                     <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
                         <div>
-                            <label class="block text-xs text-stone-500 dark:text-neutral-400">
-                                {{ $t('settings.company.fields.country_optional') }}
-                            </label>
-                            <select v-model="form.company_country"
-                                class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
-                                <option v-for="option in countryOptions" :key="option.id" :value="option.id">
-                                    {{ option.name }}
-                                </option>
-                            </select>
+                            <FloatingSelect
+                                v-model="form.company_country"
+                                :label="$t('settings.company.fields.country_optional')"
+                                :options="countryOptions"
+                            />
                             <InputError class="mt-1" :message="form.errors.company_country" />
                             <div v-if="form.company_country === '__other__'" class="mt-2">
                                 <FloatingInput v-model="form.company_country_other" :label="$t('settings.company.fields.country_other')" />
@@ -740,15 +799,11 @@ watch(activeTab, (value) => {
                         </div>
 
                         <div>
-                            <label class="block text-xs text-stone-500 dark:text-neutral-400">
-                                {{ $t('settings.company.fields.province_optional') }}
-                            </label>
-                            <select v-model="form.company_province"
-                                class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
-                                <option v-for="option in provinceOptions" :key="option.id" :value="option.id">
-                                    {{ option.name }}
-                                </option>
-                            </select>
+                            <FloatingSelect
+                                v-model="form.company_province"
+                                :label="$t('settings.company.fields.province_optional')"
+                                :options="provinceOptions"
+                            />
                             <InputError class="mt-1" :message="form.errors.company_province" />
                             <div v-if="form.company_province === '__other__'" class="mt-2">
                                 <FloatingInput v-model="form.company_province_other" :label="$t('settings.company.fields.province_other')" />
@@ -756,19 +811,29 @@ watch(activeTab, (value) => {
                         </div>
 
                         <div class="md:col-span-2">
-                            <label class="block text-xs text-stone-500 dark:text-neutral-400">
-                                {{ $t('settings.company.fields.city_optional') }}
-                            </label>
-                            <select v-model="form.company_city"
-                                class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
-                                <option v-for="option in cityOptions" :key="option.id" :value="option.id">
-                                    {{ option.name }}
-                                </option>
-                            </select>
+                            <FloatingSelect
+                                v-model="form.company_city"
+                                :label="$t('settings.company.fields.city_optional')"
+                                :options="cityOptions"
+                            />
                             <InputError class="mt-1" :message="form.errors.company_city" />
                             <div v-if="form.company_city === '__other__'" class="mt-2">
                                 <FloatingInput v-model="form.company_city_other" :label="$t('settings.company.fields.city_other')" />
                             </div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div>
+                            <FloatingSelect
+                                v-model="form.company_timezone"
+                                :label="$t('settings.company.fields.timezone')"
+                                :options="timezoneOptions"
+                                :placeholder="$t('settings.company.fields.timezone_placeholder')"
+                                :filterable="true"
+                                :filter-placeholder="$t('settings.company.fields.timezone_search_placeholder')"
+                            />
+                            <InputError class="mt-1" :message="form.errors.company_timezone" />
                         </div>
                     </div>
 
@@ -787,6 +852,31 @@ watch(activeTab, (value) => {
                             </label>
                         </div>
                         <InputError class="mt-1" :message="form.errors.company_type" />
+                    </div>
+
+                    <div class="rounded-sm border border-stone-200 bg-stone-50 p-4 space-y-3 dark:border-neutral-700 dark:bg-neutral-900">
+                        <div>
+                            <h3 class="text-sm font-semibold text-stone-800 dark:text-neutral-200">
+                                {{ $t('settings.company.notifications.title') }}
+                            </h3>
+                            <p class="text-xs text-stone-500 dark:text-neutral-400">
+                                {{ $t('settings.company.notifications.description') }}
+                            </p>
+                        </div>
+                        <div class="flex flex-wrap gap-4 text-sm text-stone-700 dark:text-neutral-200">
+                            <label class="flex items-center gap-2">
+                                <input type="checkbox" v-model="form.notification_task_day_email" />
+                                <span>{{ $t('settings.company.notifications.email') }}</span>
+                            </label>
+                            <label class="flex items-center gap-2">
+                                <input type="checkbox" v-model="form.notification_task_day_sms" />
+                                <span>{{ $t('settings.company.notifications.sms') }}</span>
+                            </label>
+                            <label class="flex items-center gap-2">
+                                <input type="checkbox" v-model="form.notification_task_day_whatsapp" />
+                                <span>{{ $t('settings.company.notifications.whatsapp') }}</span>
+                            </label>
+                        </div>
                     </div>
 
                     <div v-if="isProductCompany" class="rounded-sm border border-stone-200 bg-stone-50 p-4 space-y-3 dark:border-neutral-700 dark:bg-neutral-900">
@@ -958,14 +1048,11 @@ watch(activeTab, (value) => {
                                 <InputError class="mt-1" :message="apiTokenErrors.name?.[0]" />
                             </div>
                             <div>
-                                <label class="block text-xs text-stone-500 dark:text-neutral-400">
-                                    {{ $t('settings.company.api.fields.type') }}
-                                </label>
-                                <select v-model="apiTokenForm.type"
-                                    class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
-                                    <option value="public">{{ $t('settings.company.api.fields.type_public') }}</option>
-                                    <option value="private">{{ $t('settings.company.api.fields.type_private') }}</option>
-                                </select>
+                                <FloatingSelect
+                                    v-model="apiTokenForm.type"
+                                    :label="$t('settings.company.api.fields.type')"
+                                    :options="apiTokenTypeOptions"
+                                />
                                 <InputError class="mt-1" :message="apiTokenErrors.type?.[0]" />
                             </div>
                             <div>

@@ -7,6 +7,7 @@ use App\Models\Product;
 use App\Models\ProductCategory;
 use App\Models\TeamMember;
 use App\Services\UsageLimitService;
+use App\Services\StripeCatalogService;
 use App\Utils\FileHandler;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Request;
@@ -223,6 +224,12 @@ class ServiceController extends Controller
 
         $service = $request->user()->products()->create($validated);
 
+        try {
+            app(StripeCatalogService::class)->syncProductPrice($service);
+        } catch (\Throwable $exception) {
+            report($exception);
+        }
+
         if ($request->has('materials')) {
             $this->syncServiceMaterials($service, $validated['materials'] ?? []);
         }
@@ -249,6 +256,12 @@ class ServiceController extends Controller
 
         $service = $request->user()->products()->create($validated);
 
+        try {
+            app(StripeCatalogService::class)->syncProductPrice($service);
+        } catch (\Throwable $exception) {
+            report($exception);
+        }
+
         return response()->json([
             'service' => [
                 'id' => $service->id,
@@ -265,6 +278,10 @@ class ServiceController extends Controller
         $this->ensureServiceItem($service);
 
         $validated = $request->validated();
+        $previousPrice = (float) $service->price;
+        $previousName = (string) $service->name;
+        $previousDescription = $service->description;
+        $previousActive = (bool) $service->is_active;
         $validated['item_type'] = Product::ITEM_TYPE_SERVICE;
         $validated['stock'] = 0;
         $validated['minimum_stock'] = 0;
@@ -274,6 +291,22 @@ class ServiceController extends Controller
 
         if ($request->has('materials')) {
             $this->syncServiceMaterials($service, $validated['materials'] ?? []);
+        }
+
+        $priceChanged = array_key_exists('price', $validated) && (float) $service->price !== $previousPrice;
+        $infoChanged = ($validated['name'] ?? $previousName) !== $previousName
+            || ($validated['description'] ?? null) !== $previousDescription
+            || ((bool) ($validated['is_active'] ?? $previousActive)) !== $previousActive;
+        $needsStripeSync = $priceChanged || $infoChanged || empty($service->stripe_product_id);
+        if ($needsStripeSync) {
+            try {
+                app(StripeCatalogService::class)->syncProductPrice(
+                    $service,
+                    $priceChanged || empty($service->stripe_product_id)
+                );
+            } catch (\Throwable $exception) {
+                report($exception);
+            }
         }
 
         if ($this->shouldReturnJson($request)) {

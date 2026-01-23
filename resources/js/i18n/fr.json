@@ -351,7 +351,6 @@
       }
     }
   },
-
   "super_admin": {
     "common": {
       "not_available": "N/A",
@@ -820,6 +819,7 @@
       "add_proof": "Ajouter preuve",
       "view_proofs": "Voir preuves",
       "pay_now": "Payer",
+      "pay_with_stripe": "Payer avec Stripe",
       "submit": "Envoyer",
       "close": "Fermer",
       "request_changes": "Demander changements",
@@ -855,6 +855,7 @@
       "accept_creates_tasks": "L'acceptation va creer des taches pour chaque visite."
     },
     "ratings": {
+      "label": "Note",
       "star": "etoile",
       "stars": "etoiles"
     },
@@ -1771,7 +1772,12 @@
         "all": "Tous les statuts"
       },
       "active_works": "Chantiers actifs",
-      "requests": "Demandes",
+      "requests": {
+        "status": {
+          "new": "Nouveau",
+          "converted": "Converti"
+        }
+      },
       "quotes": "Devis",
       "jobs": "Chantiers",
       "invoices": "Factures",
@@ -1791,12 +1797,6 @@
         "create_job": "Creer chantier",
         "view_invoices": "Voir factures",
         "create_request": "Creer demande"
-      },
-      "requests": {
-        "status": {
-          "new": "Nouveau",
-          "converted": "Converti"
-        }
       }
     }
   },
@@ -1826,6 +1826,7 @@
       "unit": "Unite",
       "category": "Categorie",
       "tracking": "Suivi",
+      "stock": "Stock",
       "available": "Disponible",
       "minimum": "Minimum",
       "minimum_short": "Min",
@@ -1917,21 +1918,22 @@
         "out_for_delivery": "En livraison",
         "ready_for_pickup": "Pret a retirer",
         "completed": "Termine",
-      "confirmed": "Confirme"
+        "confirmed": "Confirme"
+      },
+      "order_label": "Commande {number}",
+      "customer_fallback": "Client",
+      "fulfillment_label": "Execution",
+      "method": "Methode",
+      "scheduled": "Planifie"
     },
-    "order_label": "Commande {number}",
-    "customer_fallback": "Client",
-    "fulfillment_label": "Execution",
-    "method": "Methode",
-    "scheduled": "Planifie"
-  },
     "filters": {
       "search_placeholder": "Rechercher produits, SKU ou code-barres",
       "stock": {
         "all": "Tout stock"
       },
       "alerts": {
-        "all": "Toutes alertes"
+        "all": "Toutes alertes",
+        "label": "Alertes"
       },
       "tracking": {
         "all": "Tout suivi"
@@ -1945,6 +1947,7 @@
       },
       "media": {
         "all": "Tous medias",
+        "label": "Medias",
         "with_image": "Avec image",
         "without_image": "Sans image"
       },
@@ -1955,6 +1958,7 @@
       "supplier_name": "Nom fournisseur",
       "barcodes": {
         "all": "Tous codes-barres",
+        "label": "Codes-barres",
         "with": "Avec code-barres",
         "without": "Sans code-barres"
       },
@@ -2024,6 +2028,9 @@
     "adjust": {
       "title": "Ajuster stock",
       "product": "Produit",
+      "type_label": "Type d'ajustement",
+      "warehouse_label": "Entrepot",
+      "reason_label": "Raison",
       "low_stock_alert": "Alerte stock faible. Minimum {min}.",
       "types": {
         "in": "Entree stock",
@@ -2527,6 +2534,9 @@
     "show_title": "Voir le chantier",
     "proofs_title": "Preuves du chantier",
     "company_fallback": "Entreprise",
+    "badges": {
+      "overdue": "En retard ({count})"
+    },
     "form": {
       "customer_fallback": "Client",
       "job_for": "Job pour : {customer}",
@@ -2566,12 +2576,22 @@
         "title": "EQUIPE",
         "empty": "Aucun membre pour l'instant.",
         "member_fallback": "Membre equipe",
-        "filter_hint": "Selectionner un membre pour filtrer le calendrier."
+        "filter_hint": "Selectionner un membre pour filtrer le calendrier.",
+        "search_label": "Rechercher un membre",
+        "selected_title": "Membres selectionnes",
+        "selected_badge": "Selectionne",
+        "search_empty": "Aucun membre correspondant.",
+        "availability": {
+          "available": "Disponible",
+          "busy": "Indisponible",
+          "unknown": "Selectionnez une date pour verifier la disponibilite"
+        }
       },
       "calendar": {
         "title": "Calendrier",
         "subtitle": "Le calendrier affiche les interventions deja planifiees.",
-        "all_members": "Tous les membres"
+        "all_members": "Tous les membres",
+        "filter_label": "Filtre equipe"
       },
       "recurrence": {
         "title": "RECURRENCE",
@@ -2891,7 +2911,12 @@
     },
     "view": {
       "board": "Tableau",
-      "schedule": "Planning"
+      "schedule": "Planning",
+      "team": "Equipe"
+    },
+    "team": {
+      "title": "Planning equipe",
+      "no_members": "Aucun membre d'equipe pour le moment."
     },
     "filters": {
       "search_placeholder": "Rechercher taches, details ou assignes",
@@ -2917,6 +2942,12 @@
       "todo": "A faire",
       "in_progress": "En cours",
       "done": "Terminee"
+    },
+    "timing": {
+      "early": "Terminee en avance",
+      "late": "En retard",
+      "on_time": "A l heure",
+      "unscheduled": "Non planifiee"
     },
     "schedule": {
       "title": "Planning",
@@ -2989,7 +3020,26 @@
       "open_in_maps": "Ouvrir dans Maps",
       "address_unavailable": "Adresse indisponible pour cette tache.",
       "timeline": "Timeline",
-      "back_to_tasks": "Retour aux taches"
+      "back_to_tasks": "Retour aux taches",
+      "execution": "Execution",
+      "completed_at": "Date reelle",
+      "completion_reason": "Raison de completion",
+      "not_completed": "Pas encore terminee",
+      "no_reason": "Aucune raison indiquee"
+    },
+    "history": {
+      "title": "Historique",
+      "empty": "Aucun historique pour le moment.",
+      "by": "Par {name}",
+      "system": "Mise a jour systeme",
+      "actions": {
+        "created": "Cree",
+        "manual": "Mise a jour manuelle",
+        "auto_started": "Demarree automatiquement",
+        "auto_completed": "Terminee automatiquement",
+        "overdue": "Marquee en retard",
+        "client_notified": "Client notifie"
+      }
     },
     "modal": {
       "add_title": "Ajouter une tache",
@@ -3004,7 +3054,26 @@
       "status": "Statut",
       "due_date": "Date d'echeance",
       "assignee": "Assigne",
-      "unassigned": "Non assigne"
+      "unassigned": "Non assigne",
+      "availability": {
+        "available": "Disponible",
+        "busy": "Indisponible",
+        "unknown": "Selectionnez un horaire pour verifier la disponibilite"
+      }
+    },
+    "completion": {
+      "title": "Terminer la tache",
+      "completed_at": "Date de completion",
+      "reason": "Raison de completion",
+      "confirm": "Confirmer la completion",
+      "reason_required": "La raison est requise si la date differe."
+    },
+    "reasons": {
+      "client_available": "Client disponible",
+      "urgent_request": "Demande urgente",
+      "optimized_planning": "Planning optimise",
+      "team_available": "Equipe disponible",
+      "materials_ready": "Materiaux prets"
     },
     "materials": {
       "title": "Materiaux",
@@ -3126,6 +3195,9 @@
         "province_other": "Province / Etat (autre)",
         "city_optional": "Ville (optionnel)",
         "city_other": "Ville (autre)",
+        "timezone": "Fuseau horaire",
+        "timezone_placeholder": "Selectionner un fuseau horaire",
+        "timezone_search_placeholder": "Rechercher un fuseau horaire",
         "company_type": "Type d'entreprise",
         "type_services": "Entreprise de services",
         "type_products": "Entreprise de produits"
@@ -3155,6 +3227,13 @@
         "pickup_address": "Adresse de retrait",
         "delivery_notes_optional": "Notes livraison (optionnel)",
         "pickup_notes_optional": "Notes retrait (optionnel)"
+      },
+      "notifications": {
+        "title": "Notifications jour de tache",
+        "description": "Choisissez comment informer le client le jour de la tache.",
+        "email": "Email",
+        "sms": "SMS",
+        "whatsapp": "WhatsApp"
       },
       "actions": {
         "save": "Enregistrer"
@@ -3303,7 +3382,11 @@
         "missing_transaction": "Transaction manquante.",
         "paddle_api_missing": "Paddle API non configure. Ajoutez `PADDLE_API_KEY` dans `.env`.",
         "paddle_js_missing": "Paddle.js non configure. Ajoutez `PADDLE_CLIENT_SIDE_TOKEN` (ou `PADDLE_SELLER_ID`) dans `.env`.",
-        "no_plans_configured": "Aucun plan configure. Ajoutez vos PRICE_ID Paddle dans l'environnement."
+        "no_plans_configured": "Aucun plan configure. Ajoutez vos PRICE_ID dans l'environnement.",
+        "provider_not_supported": "Le fournisseur de facturation est defini sur {provider}. Les actions Paddle sont desactivees.",
+        "stripe_not_configured": "Stripe n'est pas configure. Verifiez STRIPE_SECRET, STRIPE_PRICE_* et STRIPE_ENABLED=true.",
+        "stripe_checkout_failed": "Impossible de demarrer le checkout Stripe.",
+        "stripe_portal_failed": "Impossible d'ouvrir le portail client Stripe."
       },
       "plans": {
         "title": "Abonnement plateforme",
@@ -3336,9 +3419,21 @@
         "update_card": "Mettre a jour la carte",
         "summary_active": "Abonnement actif: {plan} (Statut: {status})",
         "summary_none": "Aucun abonnement actif pour le moment."
+      },
+      "connect": {
+        "title": "Stripe Connect",
+        "subtitle": "Connectez votre compte bancaire pour recevoir les paiements client directement.",
+        "status_connected": "Connecté",
+        "status_pending": "Onboarding en cours",
+        "status_not_connected": "Non connecté",
+        "action_connect": "Connecter Stripe",
+        "action_resume": "Reprendre l'onboarding",
+        "fee_note": "Frais plateforme : {fee} %",
+        "success": "Compte Stripe lié.",
+        "error_start": "Impossible de demarrer l'onboarding Stripe Connect."
       }
-    }
-
+    },
+    "_label": "Parametres"
   },
   "welcome": {
     "meta": {
@@ -3387,11 +3482,7 @@
       "title": "Tout pour vendre, planifier et livrer",
       "subtitle": "Devis rapides, suivi des chantiers, équipe alignée.",
       "items": {
-      
-  
-
-  
-  "quotes": {
+        "quotes": {
           "title": "Devis intelligents",
           "desc": "Mixez services et produits, et suivez marges et sources."
         },

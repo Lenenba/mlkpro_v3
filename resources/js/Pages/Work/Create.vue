@@ -2,7 +2,7 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { computed, watch, ref, onMounted, onBeforeUnmount, nextTick } from 'vue';
 import dayjs from 'dayjs';
-import { buildPreviewEvents } from '@/utils/schedule';
+import { buildOccurrenceDates, buildPreviewEvents } from '@/utils/schedule';
 import { Head, useForm, router, usePage } from '@inertiajs/vue3';
 import FloatingNumberMiniInput from '@/Components/FloatingNumberMiniInput.vue';
 import SelectableItem from '@/Components/SelectableItem.vue';
@@ -142,6 +142,61 @@ const form = useForm({
 });
 
 const calendarTeamFilter = ref('');
+const teamSearchQuery = ref('');
+
+const useTeamSearch = computed(() => (props.teamMembers?.length || 0) > 3);
+const normalizedTeamMembers = computed(() =>
+    (props.teamMembers || []).map((member) => ({
+        id: Number(member.id),
+        name: member.user?.name ?? t('jobs.form.team.member_fallback'),
+        email: member.user?.email ?? '',
+        title: member.title ?? '',
+    }))
+);
+const selectedTeamMemberIds = computed(() =>
+    new Set((form.team_member_ids || []).map((id) => Number(id)))
+);
+const selectedTeamMembers = computed(() =>
+    normalizedTeamMembers.value.filter((member) => selectedTeamMemberIds.value.has(member.id))
+);
+const filteredTeamMembers = computed(() => {
+    const members = normalizedTeamMembers.value;
+    if (!useTeamSearch.value) {
+        return members;
+    }
+    const term = teamSearchQuery.value.trim().toLowerCase();
+    if (!term) {
+        return members;
+    }
+    return members.filter((member) =>
+        [member.name, member.email, member.title]
+            .filter(Boolean)
+            .some((value) => value.toLowerCase().includes(term))
+    );
+});
+const calendarTeamOptions = computed(() =>
+    normalizedTeamMembers.value.map((member) => ({
+        id: String(member.id),
+        name: member.name,
+    }))
+);
+
+const toggleTeamMember = (memberId) => {
+    const id = Number(memberId);
+    if (!Number.isFinite(id)) {
+        return;
+    }
+    if (selectedTeamMemberIds.value.has(id)) {
+        form.team_member_ids = (form.team_member_ids || []).filter((value) => Number(value) !== id);
+        return;
+    }
+    form.team_member_ids = [...(form.team_member_ids || []), id];
+};
+
+const removeTeamMember = (memberId) => {
+    const id = Number(memberId);
+    form.team_member_ids = (form.team_member_ids || []).filter((value) => Number(value) !== id);
+};
 
 const isLockedFromQuote = computed(() => Boolean(props.lockedFromQuote));
 
@@ -369,6 +424,167 @@ const previewEvents = computed(() => {
         preview: true,
     });
 });
+
+const buildRange = ({ date, startTime, endTime, start, end, allDay }) => {
+    if (start && end) {
+        const startDate = dayjs(start);
+        const endDate = dayjs(end);
+        if (startDate.isValid() && endDate.isValid()) {
+            if (allDay) {
+                return {
+                    start: startDate.startOf('day'),
+                    end: endDate.endOf('day'),
+                    allDay: true,
+                };
+            }
+            return {
+                start: startDate,
+                end: endDate.isBefore(startDate) ? startDate : endDate,
+                allDay: false,
+            };
+        }
+    }
+
+    if (!date) {
+        return null;
+    }
+
+    const baseDate = dayjs(date);
+    if (!baseDate.isValid()) {
+        return null;
+    }
+
+    if (!startTime) {
+        return {
+            start: baseDate.startOf('day'),
+            end: baseDate.endOf('day'),
+            allDay: true,
+        };
+    }
+
+    const startDate = dayjs(`${baseDate.format('YYYY-MM-DD')}T${String(startTime).slice(0, 8)}`);
+    if (!startDate.isValid()) {
+        return null;
+    }
+
+    const rawEnd = endTime ? dayjs(`${baseDate.format('YYYY-MM-DD')}T${String(endTime).slice(0, 8)}`) : startDate;
+    const endDate = rawEnd.isValid() ? rawEnd : startDate;
+
+    return {
+        start: startDate,
+        end: endDate.isBefore(startDate) ? startDate : endDate,
+        allDay: false,
+    };
+};
+
+const rangesOverlap = (left, right) => {
+    if (!left || !right) {
+        return false;
+    }
+    return !left.end.isBefore(right.start) && !left.start.isAfter(right.end);
+};
+
+const taskRanges = computed(() => (props.tasks || [])
+    .map((task) => {
+        const memberId = Number(task?.assigned_team_member_id);
+        if (!Number.isFinite(memberId)) {
+            return null;
+        }
+
+        const range = buildRange({
+            date: task.due_date,
+            startTime: task.start_time,
+            endTime: task.end_time,
+        });
+
+        if (!range) {
+            return null;
+        }
+
+        return {
+            memberId,
+            range,
+        };
+    })
+    .filter(Boolean)
+);
+
+const recurrenceRanges = computed(() => {
+    if (!form.start_date) {
+        return [];
+    }
+
+    const dates = buildOccurrenceDates({
+        startDate: form.start_date,
+        endDate: form.end_date || null,
+        frequency: form.frequency,
+        repeatsOn: form.repeatsOn,
+        totalVisits: form.totalVisits,
+    });
+
+    if (!dates.length) {
+        return [];
+    }
+
+    return dates
+        .map((date) => buildRange({
+            date: date.format('YYYY-MM-DD'),
+            startTime: form.start_time,
+            endTime: form.end_time,
+        }))
+        .filter(Boolean);
+});
+
+const availabilityByMember = computed(() => {
+    const map = new Map();
+    const selectedMembers = selectedTeamMembers.value;
+    if (!selectedMembers.length) {
+        return map;
+    }
+
+    if (!form.start_date) {
+        selectedMembers.forEach((member) => {
+            map.set(member.id, { status: 'unknown', label: t('jobs.form.team.availability.unknown') });
+        });
+        return map;
+    }
+
+    const ranges = recurrenceRanges.value;
+    if (!ranges.length) {
+        selectedMembers.forEach((member) => {
+            map.set(member.id, { status: 'unknown', label: t('jobs.form.team.availability.unknown') });
+        });
+        return map;
+    }
+
+    selectedMembers.forEach((member) => {
+        const memberTasks = taskRanges.value.filter((entry) => entry.memberId === member.id);
+        const hasConflict = ranges.some((range) =>
+            memberTasks.some((task) => rangesOverlap(range, task.range))
+        );
+
+        map.set(member.id, {
+            status: hasConflict ? 'busy' : 'available',
+            label: hasConflict
+                ? t('jobs.form.team.availability.busy')
+                : t('jobs.form.team.availability.available'),
+        });
+    });
+
+    return map;
+});
+
+const availabilityClass = (status) => {
+    if (status === 'available') {
+        return 'text-emerald-600 dark:text-emerald-400';
+    }
+    if (status === 'busy') {
+        return 'text-red-600 dark:text-red-400';
+    }
+    return 'text-stone-500 dark:text-neutral-500';
+};
+
+const availabilityForMember = (memberId) => availabilityByMember.value.get(memberId);
 
 const filteredEvents = computed(() => {
     const events = [
@@ -784,26 +1000,110 @@ onBeforeUnmount(() => {
                                                                 class="text-sm text-stone-600 dark:text-neutral-400">
                                                                 {{ $t('jobs.form.team.empty') }}
                                                             </div>
-                                                            <div v-else class="space-y-2">
-                                                                <label v-for="member in teamMembers" :key="member.id"
-                                                                    class="flex items-start gap-3">
-                                                                    <Checkbox v-model:checked="form.team_member_ids"
-                                                                        :value="member.id" />
-                                                                    <div class="flex flex-col">
-                                                                        <span
-                                                                            class="text-sm text-stone-800 dark:text-neutral-200">
-                                                                            {{ member.user?.name ?? $t('jobs.form.team.member_fallback') }}
-                                                                        </span>
-                                                                        <span
-                                                                            class="text-xs text-stone-500 dark:text-neutral-500">
-                                                                            {{ member.user?.email ?? '-' }}
-                                                                        </span>
-                                                                        <span v-if="member.title"
-                                                                            class="text-xs text-stone-500 dark:text-neutral-500">
-                                                                            {{ member.title }}
-                                                                        </span>
+                                                            <div v-else class="space-y-3">
+                                                                <template v-if="useTeamSearch">
+                                                                    <FloatingInput
+                                                                        v-model="teamSearchQuery"
+                                                                        :label="$t('jobs.form.team.search_label')"
+                                                                    />
+                                                                    <div v-if="selectedTeamMembers.length"
+                                                                        class="rounded-sm border border-stone-200 bg-stone-50 p-2 dark:border-neutral-700 dark:bg-neutral-800">
+                                                                        <div class="text-[11px] font-semibold text-stone-600 dark:text-neutral-300">
+                                                                            {{ $t('jobs.form.team.selected_title') }}
+                                                                        </div>
+                                                                        <div class="mt-2 flex flex-wrap gap-2">
+                                                                            <span
+                                                                                v-for="member in selectedTeamMembers"
+                                                                                :key="`selected-${member.id}`"
+                                                                                class="inline-flex flex-col items-start gap-1 rounded-full border border-stone-200 bg-white px-2 py-1 text-xs text-stone-700 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
+                                                                            >
+                                                                                <span class="flex items-center gap-2">
+                                                                                    <span>{{ member.name }}</span>
+                                                                                    <button
+                                                                                        type="button"
+                                                                                        class="text-stone-400 hover:text-stone-600 dark:text-neutral-500 dark:hover:text-neutral-300"
+                                                                                        @click="removeTeamMember(member.id)"
+                                                                                    >
+                                                                                        &times;
+                                                                                    </button>
+                                                                                </span>
+                                                                                <span
+                                                                                    v-if="availabilityForMember(member.id)"
+                                                                                    class="text-[10px]"
+                                                                                    :class="availabilityClass(availabilityForMember(member.id).status)"
+                                                                                >
+                                                                                    {{ availabilityForMember(member.id).label }}
+                                                                                </span>
+                                                                            </span>
+                                                                        </div>
                                                                     </div>
-                                                                </label>
+                                                                    <div v-if="filteredTeamMembers.length"
+                                                                        class="max-h-56 space-y-2 overflow-y-auto">
+                                                                        <button
+                                                                            v-for="member in filteredTeamMembers"
+                                                                            :key="`member-${member.id}`"
+                                                                            type="button"
+                                                                            class="flex w-full items-start justify-between gap-3 rounded-sm border border-stone-200 bg-white p-2 text-left text-sm text-stone-700 transition hover:border-green-400 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
+                                                                            @click="toggleTeamMember(member.id)"
+                                                                        >
+                                                                            <div class="flex flex-col">
+                                                                                <span class="text-sm">
+                                                                                    {{ member.name }}
+                                                                                </span>
+                                                                                <span v-if="member.email" class="text-xs text-stone-500 dark:text-neutral-500">
+                                                                                    {{ member.email }}
+                                                                                </span>
+                                                                                <span v-else-if="member.title" class="text-xs text-stone-500 dark:text-neutral-500">
+                                                                                    {{ member.title }}
+                                                                                </span>
+                                                                                <span
+                                                                                    v-if="selectedTeamMemberIds.has(member.id) && availabilityForMember(member.id)"
+                                                                                    class="text-xs"
+                                                                                    :class="availabilityClass(availabilityForMember(member.id).status)"
+                                                                                >
+                                                                                    {{ availabilityForMember(member.id).label }}
+                                                                                </span>
+                                                                            </div>
+                                                                            <span
+                                                                                v-if="selectedTeamMemberIds.has(member.id)"
+                                                                                class="text-[10px] font-semibold uppercase text-emerald-600 dark:text-emerald-300"
+                                                                            >
+                                                                                {{ $t('jobs.form.team.selected_badge') }}
+                                                                            </span>
+                                                                        </button>
+                                                                    </div>
+                                                                    <div v-else class="text-xs text-stone-500 dark:text-neutral-500">
+                                                                        {{ $t('jobs.form.team.search_empty') }}
+                                                                    </div>
+                                                                </template>
+                                                                <template v-else>
+                                                                    <label v-for="member in teamMembers" :key="member.id"
+                                                                        class="flex items-start gap-3">
+                                                                        <Checkbox v-model:checked="form.team_member_ids"
+                                                                            :value="member.id" />
+                                                                        <div class="flex flex-col">
+                                                                            <span
+                                                                                class="text-sm text-stone-800 dark:text-neutral-200">
+                                                                                {{ member.user?.name ?? $t('jobs.form.team.member_fallback') }}
+                                                                            </span>
+                                                                            <span
+                                                                                class="text-xs text-stone-500 dark:text-neutral-500">
+                                                                                {{ member.user?.email ?? '-' }}
+                                                                            </span>
+                                                                            <span v-if="member.title"
+                                                                                class="text-xs text-stone-500 dark:text-neutral-500">
+                                                                                {{ member.title }}
+                                                                            </span>
+                                                                            <span
+                                                                                v-if="selectedTeamMemberIds.has(Number(member.id)) && availabilityForMember(Number(member.id))"
+                                                                                class="text-xs"
+                                                                                :class="availabilityClass(availabilityForMember(Number(member.id)).status)"
+                                                                            >
+                                                                                {{ availabilityForMember(Number(member.id)).label }}
+                                                                            </span>
+                                                                        </div>
+                                                                    </label>
+                                                                </template>
                                                             </div>
                                                             <div v-if="teamMembers?.length"
                                                                 class="text-xs text-stone-500 dark:text-neutral-500">
@@ -828,14 +1128,14 @@ onBeforeUnmount(() => {
                                                         </div>
                                                     </div>
                                                     <div class="flex items-center">
-                                                        <select v-model="calendarTeamFilter"
-                                                            class="h-8 w-full rounded-md border border-stone-200 bg-white/90 px-2 pe-8 text-[11px] text-stone-700 shadow-sm focus:border-emerald-500 focus:ring-emerald-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200 sm:w-auto">
-                                                            <option value="">{{ $t('jobs.form.calendar.all_members') }}</option>
-                                                            <option v-for="member in teamMembers" :key="member.id"
-                                                                :value="member.id">
-                                                                {{ member.user?.name ?? $t('jobs.form.team.member_fallback') }}
-                                                            </option>
-                                                        </select>
+                                                        <FloatingSelect
+                                                            v-model="calendarTeamFilter"
+                                                            :label="$t('jobs.form.calendar.filter_label')"
+                                                            :options="calendarTeamOptions"
+                                                            :placeholder="$t('jobs.form.calendar.all_members')"
+                                                            dense
+                                                            class="w-full sm:w-56"
+                                                        />
                                                     </div>
                                                 </div>
                                                 <div
@@ -1010,26 +1310,110 @@ onBeforeUnmount(() => {
                                                             class="text-sm text-stone-600 dark:text-neutral-400">
                                                             {{ $t('jobs.form.team.empty') }}
                                                         </div>
-                                                        <div v-else class="space-y-2">
-                                                            <label v-for="member in teamMembers" :key="member.id"
-                                                                class="flex items-start gap-3">
-                                                                <Checkbox v-model:checked="form.team_member_ids"
-                                                                    :value="member.id" />
-                                                                <div class="flex flex-col">
-                                                                    <span
-                                                                        class="text-sm text-stone-800 dark:text-neutral-200">
-                                                                        {{ member.user?.name ?? $t('jobs.form.team.member_fallback') }}
-                                                                    </span>
-                                                                    <span
-                                                                        class="text-xs text-stone-500 dark:text-neutral-500">
-                                                                        {{ member.user?.email ?? '-' }}
-                                                                    </span>
-                                                                    <span v-if="member.title"
-                                                                        class="text-xs text-stone-500 dark:text-neutral-500">
-                                                                        {{ member.title }}
-                                                                    </span>
+                                                        <div v-else class="space-y-3">
+                                                            <template v-if="useTeamSearch">
+                                                                <FloatingInput
+                                                                    v-model="teamSearchQuery"
+                                                                    :label="$t('jobs.form.team.search_label')"
+                                                                />
+                                                                <div v-if="selectedTeamMembers.length"
+                                                                    class="rounded-sm border border-stone-200 bg-stone-50 p-2 dark:border-neutral-700 dark:bg-neutral-800">
+                                                                    <div class="text-[11px] font-semibold text-stone-600 dark:text-neutral-300">
+                                                                        {{ $t('jobs.form.team.selected_title') }}
+                                                                    </div>
+                                                                    <div class="mt-2 flex flex-wrap gap-2">
+                                                                        <span
+                                                                            v-for="member in selectedTeamMembers"
+                                                                            :key="`selected-recurring-${member.id}`"
+                                                                            class="inline-flex flex-col items-start gap-1 rounded-full border border-stone-200 bg-white px-2 py-1 text-xs text-stone-700 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
+                                                                        >
+                                                                            <span class="flex items-center gap-2">
+                                                                                <span>{{ member.name }}</span>
+                                                                                <button
+                                                                                    type="button"
+                                                                                    class="text-stone-400 hover:text-stone-600 dark:text-neutral-500 dark:hover:text-neutral-300"
+                                                                                    @click="removeTeamMember(member.id)"
+                                                                                >
+                                                                                    &times;
+                                                                                </button>
+                                                                            </span>
+                                                                            <span
+                                                                                v-if="availabilityForMember(member.id)"
+                                                                                class="text-[10px]"
+                                                                                :class="availabilityClass(availabilityForMember(member.id).status)"
+                                                                            >
+                                                                                {{ availabilityForMember(member.id).label }}
+                                                                            </span>
+                                                                        </span>
+                                                                    </div>
                                                                 </div>
-                                                            </label>
+                                                                <div v-if="filteredTeamMembers.length"
+                                                                    class="max-h-56 space-y-2 overflow-y-auto">
+                                                                    <button
+                                                                        v-for="member in filteredTeamMembers"
+                                                                        :key="`member-recurring-${member.id}`"
+                                                                        type="button"
+                                                                        class="flex w-full items-start justify-between gap-3 rounded-sm border border-stone-200 bg-white p-2 text-left text-sm text-stone-700 transition hover:border-green-400 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
+                                                                        @click="toggleTeamMember(member.id)"
+                                                                    >
+                                                                        <div class="flex flex-col">
+                                                                            <span class="text-sm">
+                                                                                {{ member.name }}
+                                                                            </span>
+                                                                            <span v-if="member.email" class="text-xs text-stone-500 dark:text-neutral-500">
+                                                                                {{ member.email }}
+                                                                            </span>
+                                                                            <span v-else-if="member.title" class="text-xs text-stone-500 dark:text-neutral-500">
+                                                                                {{ member.title }}
+                                                                            </span>
+                                                                            <span
+                                                                                v-if="selectedTeamMemberIds.has(member.id) && availabilityForMember(member.id)"
+                                                                                class="text-xs"
+                                                                                :class="availabilityClass(availabilityForMember(member.id).status)"
+                                                                            >
+                                                                                {{ availabilityForMember(member.id).label }}
+                                                                            </span>
+                                                                        </div>
+                                                                        <span
+                                                                            v-if="selectedTeamMemberIds.has(member.id)"
+                                                                            class="text-[10px] font-semibold uppercase text-emerald-600 dark:text-emerald-300"
+                                                                        >
+                                                                            {{ $t('jobs.form.team.selected_badge') }}
+                                                                        </span>
+                                                                    </button>
+                                                                </div>
+                                                                <div v-else class="text-xs text-stone-500 dark:text-neutral-500">
+                                                                    {{ $t('jobs.form.team.search_empty') }}
+                                                                </div>
+                                                            </template>
+                                                            <template v-else>
+                                                                <label v-for="member in teamMembers" :key="member.id"
+                                                                    class="flex items-start gap-3">
+                                                                    <Checkbox v-model:checked="form.team_member_ids"
+                                                                        :value="member.id" />
+                                                                    <div class="flex flex-col">
+                                                                        <span
+                                                                            class="text-sm text-stone-800 dark:text-neutral-200">
+                                                                            {{ member.user?.name ?? $t('jobs.form.team.member_fallback') }}
+                                                                        </span>
+                                                                        <span
+                                                                            class="text-xs text-stone-500 dark:text-neutral-500">
+                                                                            {{ member.user?.email ?? '-' }}
+                                                                        </span>
+                                                                        <span v-if="member.title"
+                                                                            class="text-xs text-stone-500 dark:text-neutral-500">
+                                                                            {{ member.title }}
+                                                                        </span>
+                                                                        <span
+                                                                            v-if="selectedTeamMemberIds.has(Number(member.id)) && availabilityForMember(Number(member.id))"
+                                                                            class="text-xs"
+                                                                            :class="availabilityClass(availabilityForMember(Number(member.id)).status)"
+                                                                        >
+                                                                            {{ availabilityForMember(Number(member.id)).label }}
+                                                                        </span>
+                                                                    </div>
+                                                                </label>
+                                                            </template>
                                                         </div>
                                                         <div v-if="teamMembers?.length"
                                                             class="text-xs text-stone-500 dark:text-neutral-500">
@@ -1054,14 +1438,14 @@ onBeforeUnmount(() => {
                                                     </div>
                                                 </div>
                                                 <div class="flex items-center">
-                                                    <select v-model="calendarTeamFilter"
-                                                        class="h-8 w-full rounded-md border border-stone-200 bg-white/90 px-2 pe-8 text-[11px] text-stone-700 shadow-sm focus:border-emerald-500 focus:ring-emerald-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200 sm:w-auto">
-                                                        <option value="">{{ $t('jobs.form.calendar.all_members') }}</option>
-                                                        <option v-for="member in teamMembers" :key="member.id"
-                                                            :value="member.id">
-                                                            {{ member.user?.name ?? $t('jobs.form.team.member_fallback') }}
-                                                        </option>
-                                                    </select>
+                                                    <FloatingSelect
+                                                        v-model="calendarTeamFilter"
+                                                        :label="$t('jobs.form.calendar.filter_label')"
+                                                        :options="calendarTeamOptions"
+                                                        :placeholder="$t('jobs.form.calendar.all_members')"
+                                                        dense
+                                                        class="w-full sm:w-56"
+                                                    />
                                                 </div>
                                             </div>
                                             <div

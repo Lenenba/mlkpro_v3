@@ -3,6 +3,9 @@
 namespace App\Http\Controllers\Settings;
 
 use App\Http\Controllers\Controller;
+use App\Services\BillingSubscriptionService;
+use App\Services\StripeConnectService;
+use App\Services\StripeBillingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
@@ -26,15 +29,28 @@ class BillingSettingsController extends Controller
             abort(403);
         }
 
-        $checkoutStatus = $request->query('checkout');
+        $billingService = app(BillingSubscriptionService::class);
+        $providerRequested = $billingService->providerRequested();
+        $providerEffective = $billingService->providerEffective();
+        $isPaddleProvider = $billingService->isPaddle();
+        $providerLabel = $billingService->providerLabel();
+        $providerReady = $billingService->providerReady();
 
-        $paddleApiEnabled = (bool) config('cashier.api_key');
-        $paddleJsEnabled = (bool) (config('cashier.client_side_token') || config('cashier.seller_id'));
+        $checkoutStatus = $request->query('checkout');
+        $connectStatus = $request->query('connect');
+
+        $stripeConnectEnabled = (bool) config('services.stripe.connect_enabled');
+        $stripeConnectReady = $stripeConnectEnabled
+            && (bool) config('services.stripe.enabled')
+            && (bool) config('services.stripe.secret');
+
+        $paddleApiEnabled = $isPaddleProvider && (bool) config('cashier.api_key');
+        $paddleJsEnabled = $isPaddleProvider && (bool) (config('cashier.client_side_token') || config('cashier.seller_id'));
         $paddleError = null;
         $retainKey = config('cashier.retain_key');
         $sellerId = config('cashier.seller_id');
 
-        if ($paddleApiEnabled) {
+        if ($isPaddleProvider && $paddleApiEnabled) {
             try {
                 $user->createAsCustomer();
             } catch (\Throwable $exception) {
@@ -46,7 +62,7 @@ class BillingSettingsController extends Controller
             }
         }
 
-        if ($checkoutStatus === 'success' && $paddleApiEnabled && !$paddleError) {
+        if ($isPaddleProvider && $checkoutStatus === 'success' && $paddleApiEnabled && !$paddleError) {
             try {
                 $this->syncLatestSubscription($user);
             } catch (\Throwable $exception) {
@@ -57,6 +73,32 @@ class BillingSettingsController extends Controller
             }
 
             $user->unsetRelation('subscriptions');
+        }
+
+        if (!$isPaddleProvider && $providerEffective === 'stripe' && $checkoutStatus === 'success') {
+            $sessionId = $request->query('session_id');
+            if ($sessionId) {
+                try {
+                    app(StripeBillingService::class)->syncFromCheckoutSession($sessionId, $user);
+                } catch (\Throwable $exception) {
+                    Log::warning('Unable to sync Stripe subscription after checkout.', [
+                        'user_id' => $user->id,
+                        'exception' => $exception->getMessage(),
+                    ]);
+                }
+            }
+        }
+
+        if ($stripeConnectReady && in_array($connectStatus, ['success', 'refresh'], true)) {
+            try {
+                app(StripeConnectService::class)->refreshAccountStatus($user);
+                $user->refresh();
+            } catch (\Throwable $exception) {
+                Log::warning('Unable to refresh Stripe Connect account.', [
+                    'user_id' => $user->id,
+                    'exception' => $exception->getMessage(),
+                ]);
+            }
         }
 
         $plans = collect(config('billing.plans', []))
@@ -73,24 +115,23 @@ class BillingSettingsController extends Controller
             ->values()
             ->all();
 
-        $subscription = $user->subscription(Subscription::DEFAULT_TYPE);
-        $subscriptionPriceId = $subscription?->items()->value('price_id');
+        $subscriptionSummary = $billingService->subscriptionSummary($user);
 
         return $this->inertiaOrJson('Settings/Billing', [
+            'billing' => [
+                'provider' => $providerRequested,
+                'provider_effective' => $providerEffective,
+                'provider_label' => $providerLabel,
+                'provider_ready' => $providerReady,
+                'is_paddle' => $isPaddleProvider,
+            ],
             'availableMethods' => self::AVAILABLE_METHODS,
             'paymentMethods' => array_values($user->payment_methods ?? []),
             'plans' => $plans,
-            'subscription' => [
-                'active' => $user->subscribed(Subscription::DEFAULT_TYPE),
-                'on_trial' => $user->onTrial(Subscription::DEFAULT_TYPE),
-                'status' => $subscription?->status,
-                'price_id' => $subscriptionPriceId,
-                'ends_at' => $subscription?->ends_at,
-                'trial_ends_at' => $subscription?->trial_ends_at,
-                'paddle_id' => $subscription?->paddle_id,
-            ],
+            'subscription' => $subscriptionSummary,
             'checkoutStatus' => $checkoutStatus,
             'checkoutPlanKey' => $request->query('plan'),
+            'connectStatus' => $connectStatus,
             'paddle' => [
                 'js_enabled' => $paddleJsEnabled,
                 'api_enabled' => $paddleApiEnabled,
@@ -101,7 +142,52 @@ class BillingSettingsController extends Controller
                 'retain_key' => is_numeric($retainKey) ? (int) $retainKey : null,
                 'error' => $paddleError,
             ],
+            'stripeConnect' => [
+                'enabled' => $stripeConnectReady,
+                'account_id' => $user->stripe_connect_account_id,
+                'charges_enabled' => (bool) $user->stripe_connect_charges_enabled,
+                'payouts_enabled' => (bool) $user->stripe_connect_payouts_enabled,
+                'details_submitted' => (bool) $user->stripe_connect_details_submitted,
+                'requirements' => $user->stripe_connect_requirements ?? [],
+                'fee_percent' => (float) config('services.stripe.connect_fee_percent', 1.5),
+            ],
         ]);
+    }
+
+    public function connectStripe(Request $request)
+    {
+        $user = $request->user();
+        if (!$user || !$user->isAccountOwner()) {
+            abort(403);
+        }
+
+        $connectService = app(StripeConnectService::class);
+        if (!$connectService->isEnabled()) {
+            return response()->json([
+                'message' => 'Stripe Connect is not configured.',
+            ], 400);
+        }
+
+        $refreshUrl = route('settings.billing.edit', ['connect' => 'refresh']);
+        $returnUrl = route('settings.billing.edit', ['connect' => 'success']);
+
+        try {
+            $url = $connectService->createOnboardingLink($user, $refreshUrl, $returnUrl);
+        } catch (\Throwable $exception) {
+            Log::warning('Unable to start Stripe Connect onboarding.', [
+                'user_id' => $user->id,
+                'exception' => $exception->getMessage(),
+            ]);
+            $url = null;
+        }
+
+        if (!$url) {
+            return response()->json([
+                'message' => 'Unable to start Stripe Connect onboarding.',
+            ], 422);
+        }
+
+        return response()->json(['url' => $url]);
     }
 
     public function update(Request $request)

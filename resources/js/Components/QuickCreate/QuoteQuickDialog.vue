@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue';
 import { router } from '@inertiajs/vue3';
 import CustomerQuickForm from '@/Components/QuickCreate/CustomerQuickForm.vue';
+import FloatingSelect from '@/Components/FloatingSelect.vue';
 
 const props = defineProps({
     customers: {
@@ -35,6 +36,12 @@ const selectedCustomer = computed(() => {
 });
 
 const propertyOptions = computed(() => selectedCustomer.value?.properties || []);
+const propertySelectOptions = computed(() =>
+    propertyOptions.value.map((property) => ({
+        id: property.id,
+        name: `${property.street1 || 'Location'}${property.city ? `, ${property.city}` : ''}`,
+    }))
+);
 
 watch(selectedCustomer, (customer) => {
     if (!customer) {
@@ -269,17 +276,13 @@ const handleCustomerCreated = (payload) => {
                     </div>
                 </div>
                 <div class="space-y-3">
-                    <label class="text-sm text-stone-600 dark:text-neutral-400">Location</label>
-                    <select
+                    <FloatingSelect
                         v-model="selectedPropertyId"
+                        label="Location"
+                        :options="propertySelectOptions"
+                        placeholder="No location"
                         :disabled="!propertyOptions.length"
-                        class="mt-1 w-full rounded-sm border border-stone-200 bg-stone-100 py-2 px-3 text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 disabled:opacity-60 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200"
-                    >
-                        <option value="">No location</option>
-                        <option v-for="property in propertyOptions" :key="property.id" :value="property.id">
-                            {{ property.street1 || 'Location' }}{{ property.city ? ', ' + property.city : '' }}
-                        </option>
-                    </select>
+                    />
 
                     <div class="rounded-sm border border-stone-200 p-3 text-sm text-stone-600 dark:border-neutral-700 dark:text-neutral-400">
                         <div v-if="selectedCustomer" class="space-y-1">

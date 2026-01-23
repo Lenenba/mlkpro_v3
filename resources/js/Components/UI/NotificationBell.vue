@@ -13,6 +13,10 @@ const props = defineProps({
         type: String,
         default: 'absolute -top-1 -end-1 rounded-full bg-green-600 px-1.5 text-[10px] font-semibold text-white',
     },
+    iconClass: {
+        type: String,
+        default: 'size-6',
+    },
 });
 
 const page = usePage();
@@ -180,7 +184,7 @@ onBeforeUnmount(() => {
 <template>
     <div class="relative">
         <button ref="toggleRef" type="button" :class="buttonClass" @click="toggleMenu" :aria-label="t('notifications_panel.title')" data-testid="demo-notifications-bell">
-            <svg class="size-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+            <svg :class="iconClass" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
                 stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M10 5a2 2 0 1 1 4 0" />
                 <path d="M6 8a6 6 0 0 1 12 0c0 7 3 7 3 7H3s3 0 3-7" />

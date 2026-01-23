@@ -3,11 +3,14 @@ import InputError from '@/Components/InputError.vue';
 import InputLabel from '@/Components/InputLabel.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import TextInput from '@/Components/TextInput.vue';
-import { useForm } from '@inertiajs/vue3';
+import { useForm, usePage } from '@inertiajs/vue3';
 import { ref } from 'vue';
 
 const passwordInput = ref(null);
 const currentPasswordInput = ref(null);
+
+const page = usePage();
+const usernameValue = page.props.auth?.user?.email || page.props.auth?.user?.name || '';
 
 const form = useForm({
     current_password: '',
@@ -47,6 +50,14 @@ const updatePassword = () => {
         </header>
 
         <form @submit.prevent="updatePassword" class="mt-6 space-y-6">
+            <input
+                type="text"
+                class="sr-only"
+                tabindex="-1"
+                autocomplete="username"
+                :value="usernameValue"
+                aria-hidden="true"
+            />
             <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div>
                     <InputLabel for="current_password" value="Current Password" />

@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue';
 import { Link, router, useForm } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
+import FloatingSelect from '@/Components/FloatingSelect.vue';
 import { humanizeDate } from '@/utils/date';
 
 const props = defineProps({
@@ -51,6 +52,13 @@ const filterForm = useForm({
 
 const showAdvanced = ref(false);
 const isLoading = ref(false);
+const customerOptions = computed(() => ([
+    { value: '', label: t('sales.table.filters.all_customers') },
+    ...(props.customers || []).map((customer) => ({
+        value: String(customer.id),
+        label: customer.company_name || `${customer.first_name} ${customer.last_name}`,
+    })),
+]));
 
 const defaultStatusOptions = computed(() => [
     { value: '', label: t('sales.table.filters.all_statuses') },
@@ -372,19 +380,18 @@ const canMarkCanceled = (sale) =>
             </div>
 
             <div v-if="showAdvanced" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-2">
-                <select v-model="filterForm.status"
-                    class="py-2 ps-3 pe-8 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
-                    <option v-for="option in statusOptions" :key="option.value" :value="option.value">
-                        {{ option.label }}
-                    </option>
-                </select>
-                <select v-model="filterForm.customer_id"
-                    class="py-2 ps-3 pe-8 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
-                    <option value="">{{ $t('sales.table.filters.all_customers') }}</option>
-                    <option v-for="customer in customers" :key="customer.id" :value="customer.id">
-                        {{ customer.company_name || `${customer.first_name} ${customer.last_name}` }}
-                    </option>
-                </select>
+                <FloatingSelect
+                    v-model="filterForm.status"
+                    :label="$t('sales.table.headings.status')"
+                    :options="statusOptions"
+                    dense
+                />
+                <FloatingSelect
+                    v-model="filterForm.customer_id"
+                    :label="$t('sales.table.headings.customer')"
+                    :options="customerOptions"
+                    dense
+                />
                 <input type="number" v-model="filterForm.total_min" min="0" step="0.01"
                     class="py-2 px-3 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
                     :placeholder="$t('sales.table.filters.total_min')">
@@ -534,21 +541,16 @@ const canMarkCanceled = (sale) =>
                                         {{ $t('sales.table.payment_label', { status: paymentLabel(sale) }) }}
                                     </div>
                                     <div v-if="canQuickUpdate(sale)" class="mt-2 space-y-1">
-                                        <select
-                                            class="w-full rounded-sm border border-stone-200 bg-white px-2 py-1 text-[11px] text-stone-700 focus:border-green-500 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
-                                            :value="sale.fulfillment_status || ''"
+                                        <FloatingSelect
+                                            :model-value="sale.fulfillment_status || ''"
+                                            :label="$t('sales.table.fulfillment_placeholder')"
+                                            :options="fulfillmentOptionsFor(sale)"
+                                            :placeholder="$t('sales.table.fulfillment_placeholder')"
                                             :disabled="isUpdating(sale) || !canChangeFulfillment(sale)"
-                                            @change="updateFulfillment(sale, $event.target.value)"
-                                        >
-                                            <option value="">{{ $t('sales.table.fulfillment_placeholder') }}</option>
-                                            <option
-                                                v-for="option in fulfillmentOptionsFor(sale)"
-                                                :key="option.value"
-                                                :value="option.value"
-                                            >
-                                                {{ option.label }}
-                                            </option>
-                                        </select>
+                                            dense
+                                            class="text-[11px]"
+                                            @update:modelValue="(value) => updateFulfillment(sale, value)"
+                                        />
                                         <div class="flex flex-wrap items-center gap-1">
                                             <button
                                                 type="button"

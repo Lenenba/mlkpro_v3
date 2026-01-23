@@ -231,21 +231,36 @@ Quand une page, un statut ou une regle change:
 - ajuster la section "Workflow unifie" si necessaire
 - ajouter les nouvelles commandes ou seeders
 
-## 16. Abonnement plateforme (Paddle)
+## 16. Abonnement plateforme (Paddle / Stripe)
 Le compte proprietaire gere l abonnement mensuel dans `Settings > Billing`.
 
-Champs env requis:
+Provider (env):
+- BILLING_PROVIDER=paddle|stripe (par defaut: stripe)
+
+Champs env requis (Paddle):
 - PADDLE_SANDBOX (true/false)
 - PADDLE_CLIENT_SIDE_TOKEN (Paddle.js)
 - PADDLE_API_KEY (ou PADDLE_AUTH_CODE)
 - PADDLE_WEBHOOK_SECRET (prod)
+- PADDLE_PRICE_FREE / PADDLE_PRICE_FREE_AMOUNT
 - PADDLE_PRICE_STARTER / PADDLE_PRICE_STARTER_AMOUNT
 - PADDLE_PRICE_GROWTH / PADDLE_PRICE_GROWTH_AMOUNT
 - PADDLE_PRICE_SCALE / PADDLE_PRICE_SCALE_AMOUNT
 
+Champs env requis (Stripe):
+- STRIPE_KEY
+- STRIPE_SECRET
+- STRIPE_WEBHOOK_SECRET
+- STRIPE_ENABLED (true/false)
+- STRIPE_PRICE_FREE / STRIPE_PRICE_FREE_AMOUNT
+- STRIPE_PRICE_STARTER / STRIPE_PRICE_STARTER_AMOUNT
+- STRIPE_PRICE_GROWTH / STRIPE_PRICE_GROWTH_AMOUNT
+- STRIPE_PRICE_SCALE / STRIPE_PRICE_SCALE_AMOUNT
+
 Notes:
-- Les prix sont des PRICE_ID Paddle Billing (mensuels).
-- Le bouton "Gerer le paiement" redirige vers Paddle (update payment method).
+- BILLING_PROVIDER controle le provider actif (stripe ou paddle).
+- Stripe: checkout Stripe + portail client (payment method). Webhook: `/api/stripe/webhook`.
+- Paddle: le bouton "Gerer le paiement" redirige vers Paddle (update payment method).
 
 ## 17. Scenarios de test (LaunchSeeder)
 Seeder: `Database\\Seeders\\LaunchSeeder`

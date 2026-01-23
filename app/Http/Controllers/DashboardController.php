@@ -18,12 +18,13 @@ use App\Models\SaleItem;
 use App\Models\PlanScan;
 use App\Models\PlatformAnnouncement;
 use App\Models\User;
+use App\Services\BillingSubscriptionService;
+use App\Services\StripeInvoiceService;
 use App\Services\UsageLimitService;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Laravel\Paddle\Cashier;
-use Laravel\Paddle\Subscription;
 
 class DashboardController extends Controller
 {
@@ -56,6 +57,9 @@ class DashboardController extends Controller
                     'taskProofs' => [],
                     'quoteRatingsDue' => [],
                     'workRatingsDue' => [],
+                    'stripe' => [
+                        'enabled' => app(StripeInvoiceService::class)->isConfigured(),
+                    ],
                 ]);
             }
 
@@ -174,6 +178,22 @@ class DashboardController extends Controller
             $customerId = $customer->id;
             $autoValidateTasks = (bool) ($customer->auto_validate_tasks ?? false);
             $autoValidateInvoices = (bool) ($customer->auto_validate_invoices ?? false);
+
+            $sessionId = request()->query('session_id');
+            $invoiceId = request()->query('invoice');
+            if ($sessionId && $invoiceId) {
+                $stripeService = app(StripeInvoiceService::class);
+                if ($stripeService->isConfigured()) {
+                    $invoice = Invoice::query()->find($invoiceId);
+                    $connectAccountId = $invoice ? $stripeService->resolveConnectedAccountId($invoice) : null;
+                    $payment = $stripeService->syncFromCheckoutSessionId($sessionId, $connectAccountId);
+                    if ($payment && (int) $payment->invoice_id === (int) $invoiceId) {
+                        if ($invoice && (int) $invoice->customer_id === (int) $customerId) {
+                            $invoice->refresh();
+                        }
+                    }
+                }
+            }
 
             $pendingQuotesQuery = Quote::query()
                 ->where('customer_id', $customerId)
@@ -460,6 +480,9 @@ class DashboardController extends Controller
                 'invoicesDue' => $invoicesDue,
                 'quoteRatingsDue' => $quoteRatingsDue,
                 'workRatingsDue' => $workRatingsDue,
+                'stripe' => [
+                    'enabled' => app(StripeInvoiceService::class)->isConfigured(),
+                ],
             ]);
         }
 
@@ -1150,8 +1173,18 @@ class DashboardController extends Controller
             ->values()
             ->all();
 
-        $subscription = $accountOwner?->subscription(Subscription::DEFAULT_TYPE);
-        $subscriptionPriceId = $subscription?->items()->value('price_id');
+        $billingService = app(BillingSubscriptionService::class);
+        $subscriptionSummary = $accountOwner
+            ? $billingService->subscriptionSummary($accountOwner)
+            : [
+                'active' => false,
+                'on_trial' => false,
+                'status' => null,
+                'price_id' => null,
+                'ends_at' => null,
+                'trial_ends_at' => null,
+                'provider_id' => null,
+            ];
         $usageLimits = $accountOwner
             ? app(UsageLimitService::class)->buildForUser($accountOwner)
             : ['items' => []];
@@ -1173,13 +1206,7 @@ class DashboardController extends Controller
             'usage_limits' => $usageLimits,
             'billing' => [
                 'plans' => $plans,
-                'subscription' => [
-                    'active' => $accountOwner?->subscribed(Subscription::DEFAULT_TYPE) ?? false,
-                    'on_trial' => $accountOwner?->onTrial(Subscription::DEFAULT_TYPE) ?? false,
-                    'status' => $subscription?->status,
-                    'price_id' => $subscriptionPriceId,
-                    'paddle_id' => $subscription?->paddle_id,
-                ],
+                'subscription' => $subscriptionSummary,
             ],
         ]);
     }

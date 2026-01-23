@@ -23,11 +23,135 @@ const setDocumentLang = (locale) => {
 
 applyAccessibilityPreferences(readAccessibilityPreferences());
 
+const ensurePrelineTabsHaveActive = () => {
+    if (typeof document === 'undefined') {
+        return;
+    }
+
+    document
+        .querySelectorAll('[role="tablist"]:not(select):not(.--prevent-on-load-init)')
+        .forEach((tabList) => {
+            const toggles = Array.from(tabList.querySelectorAll('[data-hs-tab]'));
+            if (!toggles.length) {
+                return;
+            }
+
+            let activeToggle = toggles.find((toggle) => toggle.classList.contains('active'));
+            if (!activeToggle) {
+                activeToggle = toggles.find((toggle) => toggle.getAttribute('aria-selected') === 'true');
+            }
+
+            if (!activeToggle) {
+                activeToggle = toggles[0];
+            }
+
+            if (!activeToggle.classList.contains('active')) {
+                activeToggle.classList.add('active');
+            }
+
+            if (activeToggle.getAttribute('aria-selected') !== 'true') {
+                activeToggle.setAttribute('aria-selected', 'true');
+            }
+
+            const targetId = activeToggle.getAttribute('data-hs-tab');
+            if (targetId) {
+                const target = document.querySelector(targetId);
+                if (target && target.classList.contains('hidden')) {
+                    target.classList.remove('hidden');
+                }
+            }
+        });
+};
+
+const patchPrelineTabs = () => {
+    if (typeof window === 'undefined' || !window.HSTabs || window.HSTabs.__mlkPatched) {
+        return;
+    }
+
+    const safeAutoInit = () => {
+        if (typeof document === 'undefined') {
+            return;
+        }
+
+        if (!Array.isArray(window.$hsTabsCollection)) {
+            window.$hsTabsCollection = [];
+        }
+
+        if (!window.HSTabs.__mlkAccessibilityPatched) {
+            document.addEventListener('keydown', (event) => {
+                if (typeof window.HSTabs?.accessibility === 'function') {
+                    window.HSTabs.accessibility(event);
+                }
+            });
+            window.HSTabs.__mlkAccessibilityPatched = true;
+        }
+
+        window.$hsTabsCollection = window.$hsTabsCollection.filter(
+            (entry) => entry?.element?.el && document.contains(entry.element.el),
+        );
+
+        document
+            .querySelectorAll('[role="tablist"]:not(select):not(.--prevent-on-load-init)')
+            .forEach((tabList) => {
+                const toggles = Array.from(tabList.querySelectorAll('[data-hs-tab]'));
+                if (!toggles.length) {
+                    return;
+                }
+
+                let activeToggle = toggles.find((toggle) => toggle.classList.contains('active'));
+                if (!activeToggle) {
+                    activeToggle = toggles.find((toggle) => toggle.getAttribute('aria-selected') === 'true');
+                }
+                if (!activeToggle) {
+                    activeToggle = toggles[0];
+                }
+
+                if (activeToggle && !activeToggle.classList.contains('active')) {
+                    activeToggle.classList.add('active');
+                }
+                if (activeToggle && activeToggle.getAttribute('aria-selected') !== 'true') {
+                    activeToggle.setAttribute('aria-selected', 'true');
+                }
+
+                if (activeToggle) {
+                    const targetId = activeToggle.getAttribute('data-hs-tab');
+                    if (targetId) {
+                        const target = document.querySelector(targetId);
+                        if (target && target.classList.contains('hidden')) {
+                            target.classList.remove('hidden');
+                        }
+                    }
+                }
+
+                const alreadyInit = window.$hsTabsCollection.find(
+                    (entry) => entry?.element?.el === tabList,
+                );
+                if (!alreadyInit) {
+                    new window.HSTabs(tabList);
+                }
+            });
+    };
+
+    window.HSTabs.autoInit = safeAutoInit;
+
+    window.HSTabs.__mlkPatched = true;
+};
+
+patchPrelineTabs();
+
 // Fonction pour initialiser Preline.js après chaque navigation
 const initializePreline = () => {
     if (window.HSStaticMethods && typeof window.HSStaticMethods.autoInit === 'function') {
         setTimeout(() => {
-            window.HSStaticMethods.autoInit(); // Réinitialisation des composants Preline.js
+            try {
+                ensurePrelineTabsHaveActive();
+                window.HSStaticMethods.autoInit(); // Réinitialisation des composants Preline.js
+            } catch (error) {
+                // Evite de casser l'app si Preline rencontre un element invalide.
+                if (import.meta.env.DEV) {
+                    console.warn('[preline] autoInit failed', error);
+                }
+            }
         }, 100); // Ajoute un léger délai pour s'assurer que le DOM est rendu
     }
 };

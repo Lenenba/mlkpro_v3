@@ -4,6 +4,7 @@ import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
 import GuestLayout from '@/Layouts/GuestLayout.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
+import FloatingSelect from '@/Components/FloatingSelect.vue';
 import InputError from '@/Components/InputError.vue';
 import DropzoneInput from '@/Components/DropzoneInput.vue';
 import Modal from '@/Components/Modal.vue';
@@ -619,17 +620,13 @@ const closeTerms = () => {
 
                     <div v-else-if="step === stepIds.sector" class="space-y-3">
                         <div>
-                            <label class="block text-xs text-stone-500 dark:text-neutral-400">
-                                {{ form.company_type === 'products'
+                            <FloatingSelect
+                                v-model="form.company_sector"
+                                :label="form.company_type === 'products'
                                     ? $t('onboarding.sector.label_products')
-                                    : $t('onboarding.sector.label_services') }}
-                            </label>
-                            <select v-model="form.company_sector"
-                                class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
-                                <option v-for="option in sectorOptions" :key="option.id" :value="option.id">
-                                    {{ option.name }}
-                                </option>
-                            </select>
+                                    : $t('onboarding.sector.label_services')"
+                                :options="sectorOptions"
+                            />
                             <InputError class="mt-1" :message="form.errors.company_sector" />
                             <div v-if="form.company_sector === '__other__'" class="mt-2">
                                 <FloatingInput v-model="form.company_sector_other" :label="$t('onboarding.sector.other_input')" />

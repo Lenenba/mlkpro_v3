@@ -34,6 +34,7 @@ use App\Http\Controllers\Portal\PortalWorkProofController;
 use App\Http\Controllers\Portal\PortalProductOrderController;
 use App\Http\Controllers\Portal\PortalNotificationController;
 use App\Http\Controllers\SaleController;
+use App\Http\Controllers\Billing\StripeWebhookController;
 use App\Http\Controllers\Settings\CompanySettingsController;
 use App\Http\Controllers\Settings\BillingSettingsController;
 use App\Http\Controllers\Settings\ProductCategoryController;
@@ -55,6 +56,8 @@ use App\Http\Middleware\EnsureOnboardingIsComplete;
 use App\Http\Middleware\EnsurePlatformAdmin;
 
 Route::name('api.')->group(function () {
+    Route::post('stripe/webhook', [StripeWebhookController::class, 'handle'])->name('stripe.webhook');
+
     Route::prefix('auth')->group(function () {
         Route::post('login', [AuthController::class, 'login']);
         Route::post('register', [AuthController::class, 'register']);
@@ -129,6 +132,8 @@ Route::name('api.')->group(function () {
 
                 Route::get('billing', [BillingSettingsController::class, 'edit']);
                 Route::put('billing', [BillingSettingsController::class, 'update']);
+                Route::post('billing/checkout', [SubscriptionController::class, 'checkout']);
+                Route::post('billing/connect', [BillingSettingsController::class, 'connectStripe']);
                 Route::post('billing/swap', [SubscriptionController::class, 'swap']);
                 Route::post('billing/portal', [SubscriptionController::class, 'portal']);
                 Route::post('billing/payment-method', [SubscriptionController::class, 'paymentMethodTransaction']);

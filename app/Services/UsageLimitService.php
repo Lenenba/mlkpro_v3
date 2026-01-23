@@ -13,7 +13,7 @@ use App\Models\TeamMember;
 use App\Models\User;
 use App\Models\Work;
 use Illuminate\Validation\ValidationException;
-use Laravel\Paddle\Subscription;
+use App\Services\BillingSubscriptionService;
 
 class UsageLimitService
 {
@@ -142,27 +142,7 @@ class UsageLimitService
 
     private function resolvePlanKey(User $accountOwner, array $planLimits): ?string
     {
-        $subscription = $accountOwner->subscription(Subscription::DEFAULT_TYPE);
-        $priceId = $subscription?->items()->value('price_id');
-
-        if ($priceId) {
-            foreach (config('billing.plans', []) as $key => $plan) {
-                if (!empty($plan['price_id']) && $plan['price_id'] === $priceId) {
-                    return $key;
-                }
-            }
-        }
-
-        if (array_key_exists('free', $planLimits)) {
-            return 'free';
-        }
-
-        $plans = config('billing.plans', []);
-        if (array_key_exists('free', $plans)) {
-            return 'free';
-        }
-
-        return null;
+        return app(BillingSubscriptionService::class)->resolvePlanKey($accountOwner, $planLimits);
     }
 
     private function resolveUsageStats(User $accountOwner): array

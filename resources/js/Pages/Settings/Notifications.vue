@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue';
 import { Head, useForm } from '@inertiajs/vue3';
 import SettingsLayout from '@/Layouts/SettingsLayout.vue';
 import SettingsTabs from '@/Components/SettingsTabs.vue';
+import FloatingSelect from '@/Components/FloatingSelect.vue';
 import {
     applyAccessibilityPreferences,
     readAccessibilityPreferences,
@@ -237,17 +238,14 @@ const submit = () => {
                     </p>
                 </div>
                 <div class="space-y-3 p-4">
-                    <label class="flex flex-col gap-2 rounded-sm border border-stone-200 bg-stone-50 p-3 text-sm text-stone-700 dark:border-neutral-800 dark:bg-neutral-800/70 dark:text-neutral-200">
-                        <span class="font-semibold">Taille du texte</span>
-                        <select
+                    <div class="rounded-sm border border-stone-200 bg-stone-50 p-3 text-sm text-stone-700 dark:border-neutral-800 dark:bg-neutral-800/70 dark:text-neutral-200">
+                        <FloatingSelect
                             v-model="textSize"
-                            class="mt-1 rounded-sm border border-stone-200 bg-white px-3 py-2 text-xs text-stone-700 focus:border-green-500 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
-                        >
-                            <option v-for="option in textSizeOptions" :key="option.value" :value="option.value">
-                                {{ option.label }}
-                            </option>
-                        </select>
-                    </label>
+                            label="Taille du texte"
+                            :options="textSizeOptions"
+                            dense
+                        />
+                    </div>
 
                     <label class="flex items-start gap-3 rounded-sm border border-stone-200 bg-stone-50 p-3 text-sm text-stone-700 dark:border-neutral-800 dark:bg-neutral-800/70 dark:text-neutral-200">
                         <input type="checkbox" v-model="highContrast" class="mt-1" />

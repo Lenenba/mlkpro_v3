@@ -1,6 +1,6 @@
 <script setup>
-import { computed } from 'vue';
-import { Head, useForm, usePage } from '@inertiajs/vue3';
+import { computed, ref } from 'vue';
+import { Head, useForm, usePage, router } from '@inertiajs/vue3';
 import GuestLayout from '@/Layouts/GuestLayout.vue';
 import { humanizeDate } from '@/utils/date';
 
@@ -10,6 +10,7 @@ const props = defineProps({
     allowPayment: Boolean,
     paymentMessage: String,
     paymentUrl: String,
+    stripeCheckoutUrl: String,
 });
 
 const page = usePage();
@@ -22,6 +23,21 @@ const form = useForm({
     reference: '',
     notes: '',
 });
+
+const stripeProcessing = ref(false);
+const startStripeCheckout = () => {
+    if (!props.allowPayment || !props.stripeCheckoutUrl || stripeProcessing.value) {
+        return;
+    }
+
+    stripeProcessing.value = true;
+    router.post(props.stripeCheckoutUrl, {}, {
+        preserveScroll: true,
+        onFinish: () => {
+            stripeProcessing.value = false;
+        },
+    });
+};
 
 const submitPayment = () => {
     if (!props.allowPayment || form.processing) {
@@ -133,6 +149,16 @@ const formatCurrency = (value) =>
                 <div class="mb-3 flex items-center justify-between">
                     <h2 class="text-sm font-semibold text-stone-800">Pay this invoice</h2>
                     <span v-if="!allowPayment" class="text-xs text-stone-500">{{ paymentMessage }}</span>
+                </div>
+                <div v-if="stripeCheckoutUrl" class="mb-4">
+                    <button
+                        type="button"
+                        :disabled="!allowPayment || stripeProcessing"
+                        class="inline-flex w-full items-center justify-center rounded-sm border border-transparent bg-slate-900 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
+                        @click="startStripeCheckout"
+                    >
+                        Pay with Stripe
+                    </button>
                 </div>
                 <form class="space-y-3" @submit.prevent="submitPayment">
                     <input

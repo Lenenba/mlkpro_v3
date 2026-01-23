@@ -4,6 +4,7 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
 import InputError from '@/Components/InputError.vue';
+import FloatingSelect from '@/Components/FloatingSelect.vue';
 
 const props = defineProps({
     sale: {
@@ -37,6 +38,18 @@ const form = useForm({
 });
 
 const localCustomers = ref([...props.customers]);
+const customerOptions = computed(() =>
+    localCustomers.value.map((customer) => ({
+        value: customer.id,
+        label: customer.company_name || `${customer.first_name || ''} ${customer.last_name || ''}`.trim() || customer.email,
+    }))
+);
+const statusOptions = computed(() => ([
+    { value: 'draft', label: t('sales.status.draft') },
+    { value: 'pending', label: t('sales.status.pending') },
+    { value: 'paid', label: t('sales.status.paid') },
+    { value: 'canceled', label: t('sales.status.canceled') },
+]));
 const selectedCustomer = computed(() =>
     localCustomers.value.find((customer) => customer.id === form.customer_id) || null
 );
@@ -235,6 +248,7 @@ const formatCurrency = (value) =>
     `$${Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 const submit = () => {
+    form.fulfillment_status = form.fulfillment_status || null;
     form.put(route('sales.update', props.sale.id), {
         preserveScroll: true,
     });
@@ -357,18 +371,12 @@ const submit = () => {
                     <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
                         <div class="grid grid-cols-1 gap-4">
                             <div>
-                                <label class="text-xs text-stone-500 dark:text-neutral-400">
-                                    {{ $t('sales.form.customer_label') }}
-                                </label>
-                                <select
-                                    v-model.number="form.customer_id"
-                                    class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
-                                >
-                                    <option value="">{{ $t('sales.form.customer_placeholder') }}</option>
-                                    <option v-for="customer in localCustomers" :key="customer.id" :value="customer.id">
-                                        {{ customer.company_name || `${customer.first_name || ''} ${customer.last_name || ''}`.trim() || customer.email }}
-                                    </option>
-                                </select>
+                                <FloatingSelect
+                                    v-model="form.customer_id"
+                                    :label="$t('sales.form.customer_label')"
+                                    :options="customerOptions"
+                                    :placeholder="$t('sales.form.customer_placeholder')"
+                                />
                                 <InputError class="mt-1" :message="form.errors.customer_id" />
                                 <div
                                     v-if="selectedCustomer"
@@ -392,33 +400,20 @@ const submit = () => {
                                 </div>
                             </div>
                             <div>
-                                <label class="text-xs text-stone-500 dark:text-neutral-400">
-                                    {{ $t('sales.form.status_label') }}
-                                </label>
-                                <select
+                                <FloatingSelect
                                     v-model="form.status"
-                                    class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
-                                >
-                                    <option value="draft">{{ $t('sales.status.draft') }}</option>
-                                    <option value="pending">{{ $t('sales.status.pending') }}</option>
-                                    <option value="paid">{{ $t('sales.status.paid') }}</option>
-                                    <option value="canceled">{{ $t('sales.status.canceled') }}</option>
-                                </select>
+                                    :label="$t('sales.form.status_label')"
+                                    :options="statusOptions"
+                                />
                                 <InputError class="mt-1" :message="form.errors.status" />
                             </div>
                             <div v-if="fulfillmentOptions.length">
-                                <label class="text-xs text-stone-500 dark:text-neutral-400">
-                                    {{ $t('sales.edit.fulfillment_status_label', { method: fulfillmentMethodLabel || $t('sales.fulfillment.method.delivery') }) }}
-                                </label>
-                                <select
+                                <FloatingSelect
                                     v-model="form.fulfillment_status"
-                                    class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
-                                >
-                                    <option :value="null">{{ $t('sales.edit.fulfillment_placeholder') }}</option>
-                                    <option v-for="option in fulfillmentOptions" :key="option.value" :value="option.value">
-                                        {{ option.label }}
-                                    </option>
-                                </select>
+                                    :label="$t('sales.edit.fulfillment_status_label', { method: fulfillmentMethodLabel || $t('sales.fulfillment.method.delivery') })"
+                                    :options="fulfillmentOptions"
+                                    :placeholder="$t('sales.edit.fulfillment_placeholder')"
+                                />
                                 <InputError class="mt-1" :message="form.errors.fulfillment_status" />
                             </div>
                             <div>
