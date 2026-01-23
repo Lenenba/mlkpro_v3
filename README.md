@@ -1,105 +1,316 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# MLK Pro - Guide d utilisation (MVP)
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Derniere mise a jour: 2025-12-22
 
-## Project docs
+Ce document est vivant. Mettez le a jour a chaque changement fonctionnel.
 
-- `docs/APP_GUIDE.md` - Application usage (MVP)
-- `docs/TEAM.md` - Team module details
-- `docs/DEMO_GUIDE.md` - Demo activation and guided tour
+## 1. Objectif
+MLK Pro permet a plusieurs entreprises de gerer leurs clients, devis, jobs, taches et factures avec une base scalable et simple.
 
-## Demo Accounts & Guided Tour
+## 2. Demarrage rapide (utilisateur final)
+1. Creez un compte utilisateur.
+2. Lancez l onboarding pour creer l entreprise.
+3. Ajoutez des clients et leurs proprietes.
+4. Ajoutez des produits ou des services selon votre type d entreprise.
+5. Creez un devis, acceptez le, puis convertissez le en job.
+6. Suivez le job, validez, puis generez la facture.
 
-Enable demo mode in `.env`:
+## 3. Roles et acces
+Chaque entreprise a un compte proprietaire (account owner). Les membres d equipe se connectent avec leur propre compte et sont lies a un proprietaire via Team Members.
 
+Roles internes:
+- Proprietaire: acces complet a tous les modules et parametres.
+- Admin (team member): peut gerer les jobs et les taches selon ses permissions.
+- Membre (team member): acces limite (jobs/taches assignes).
+
+Role client (portail):
+- Peut accepter/refuser un devis, valider un job, payer une facture, noter un devis ou un job.
+- Acces limite aux actions de workflow; pas de gestion interne (clients, produits, jobs, etc.).
+
+Permissions actuelles (team):
+- jobs.view, jobs.edit
+- tasks.view, tasks.create, tasks.edit, tasks.delete
+
+Notes:
+- Les permissions sont appliquees via TeamMember et WorkPolicy/TaskPolicy.
+- Le proprietaire voit tout. Les membres voient uniquement leurs jobs assignes.
+
+## 4. Onboarding (creation d entreprise)
+Ecran: `/onboarding`
+
+Champs principaux:
+- Company name (obligatoire)
+- Logo (upload image)
+- Description courte
+- Pays / Province / Ville
+- Type: services ou products
+- Est ce que vous etes le proprietaire ?
+
+Si le createur n est pas le proprietaire:
+- creer un compte proprietaire (nom + email)
+- le createur devient membre admin
+
+Invitations d equipe:
+- ajouter des emails et roles (admin ou member)
+- le systeme genere des mots de passe temporaires
+
+## 5. Clients et proprietes
+Module: Customers
+
+Fonctions:
+- creer un client (nom, email, telephone, societe)
+- ajouter plusieurs proprietes (adresse, ville, pays)
+- definir une propriete par defaut
+
+Bonnes pratiques:
+- toujours definir au moins une propriete physique
+- utiliser la propriete par defaut pour accelerer la creation des devis
+
+## 6. Produits et services
+Module: Products / Services
+
+Regle:
+- si l entreprise est de type "services", les items sont des services
+- si l entreprise est de type "products", les items sont des produits
+
+Champs typiques:
+- nom, description
+- prix
+- stock (surtout pour produits)
+- categorie
+
+## 7. Requests (leads)
+Modele: Request (lead)
+
+Statuts:
+- REQ_NEW
+- REQ_CONVERTED
+
+Champs utiles:
+- client lie (customer_id) ou client externe
+- type de service, urgence
+- coordonnees (pays, ville, lat, lng)
+
+Flux:
+1. Creer une request.
+2. Convertir en devis (Quote).
+3. La request passe a REQ_CONVERTED.
+
+## 8. Quotes (devis)
+Module: Quotes
+
+Statuts:
+- draft, sent, accepted, declined
+
+Etapes:
+1. Choisir un client + propriete.
+2. Ajouter des lignes (produits/services).
+3. Ajouter taxes si besoin.
+4. Definir un acompte (initial_deposit).
+5. Envoyer ou accepter.
+
+Notes:
+- Les lignes sont snapshottees dans quote_products.
+- Un devis accepte peut creer un job automatiquement.
+- Un devis enfant (parent_id) sert aux extras (change order).
+
+## 9. Jobs (works)
+Module: Jobs (Work)
+
+Statuts principaux:
+- to_schedule, scheduled
+- en_route, in_progress
+- tech_complete
+- pending_review, validated, auto_validated, dispute
+- closed, cancelled, completed
+
+Regles:
+- Demarrer un job (in_progress) requiert au moins 3 photos "before".
+- Passer en tech_complete requiert:
+  - toutes les checklist items terminees
+  - au moins 3 photos "after"
+- Un job valide ou auto valide genere une facture.
+
+Checklist:
+- creee automatiquement a partir des lignes de devis (quote_products).
+- chaque item peut etre marque done/pending.
+
+## 10. Tasks (taches)
+Module: Tasks
+
+Statuts:
+- todo, in_progress, done
+
+Fonctions:
+- creer une tache, assigner un membre
+- lier une tache a un client ou un produit
+- filtrer par statut et recherche
+
+## 11. Invoices et paiements
+Module: Invoices
+
+Statuts:
+- draft, sent, partial, paid, overdue, void
+
+Generation:
+- une facture est creee a partir d un job valide.
+- total = somme des devis acceptes lie au job - acompte deja paye.
+
+Paiements:
+- ajouter un paiement met a jour le statut de la facture.
+- si paid, le job passe a closed.
+
+## 12. Workflow unifie (end to end)
+Ce workflow decrit la logique cible et ce qui est deja active cote back end.
+
+Phase 1 - Acquisition (Request)
+- Creer une request (REQ_NEW).
+- Convertir en devis (REQ_CONVERTED).
+
+Phase 2 - Quote
+- Le devis snapshotte les prix dans quote_products.
+- Acceptation: status accepted + creation du job + checklist.
+- Acompte: enregistre dans transactions.
+- Le client peut accepter ou refuser le devis via le portail.
+
+Phase 3 - Job setup
+- Job passe a to_schedule puis scheduled.
+- Assignation des membres d equipe.
+
+Phase 4 - Execution
+- Photos before requises pour in_progress.
+- Checklist et photos after requises pour tech_complete.
+- Extras: creer un devis enfant lie au job (parent_id).
+
+Phase 5 - QA
+- pending_review, validated, auto_validated, dispute.
+- Commande cron: `php artisan workflow:auto-validate`.
+- Le client peut valider un job (ou le marquer en dispute).
+
+Phase 6 - Facturation
+- Facture generee sur validated / auto_validated.
+- Paiement complet => job closed.
+- Le client peut payer la facture depuis le portail.
+
+## 13. Donnees de demo (LaunchSeeder)
+Seeder: `Database\\Seeders\\LaunchSeeder`
+
+Execution:
 ```
-DEMO_ENABLED=true
-DEMO_ALLOW_RESET=true
-DEMO_ACCOUNTS_EMAIL_DOMAIN=example.test
+php artisan db:seed --class=Database\\Seeders\\LaunchSeeder
 ```
 
-Seed demo tenants:
+Comptes demo:
+- owner.services@example.com / password
+- admin.services@example.com / password
+- member.services@example.com / password
+- owner.products@example.com / password
+- client.north@example.com / password
+- client.products@example.com / password
 
+Ce seeder cree:
+- entreprises services + products
+- clients + proprietes
+- produits/services
+- requests + devis + jobs + checklist
+- transactions + facture + paiement partiel
+- taches assignees
+
+## 14. Commandes utiles (dev)
 ```
-php artisan demo:seed service
-php artisan demo:seed product
-php artisan demo:seed guided
+php artisan migrate
+php artisan storage:link
+php artisan db:seed
+php artisan db:seed --class=Database\\Seeders\\LaunchSeeder
+php artisan workflow:auto-validate
 ```
 
-Reset demo data (and tour progress):
+## 15. Maintenance du document
+Quand une page, un statut ou une regle change:
+- mettre a jour ce guide
+- ajuster la section "Workflow unifie" si necessaire
+- ajouter les nouvelles commandes ou seeders
 
-```
-php artisan demo:reset
-php artisan demo:reset --tenant_id=123
-```
+## 16. Abonnement plateforme (Paddle / Stripe)
+Le compte proprietaire gere l abonnement mensuel dans `Settings > Billing`.
 
-Default demo logins (password: `password`):
+Provider (env):
+- BILLING_PROVIDER=paddle|stripe (par defaut: stripe)
 
-- `service-demo@example.test`
-- `product-demo@example.test`
-- `guided-demo@example.test`
+Champs env requis (Paddle):
+- PADDLE_SANDBOX (true/false)
+- PADDLE_CLIENT_SIDE_TOKEN (Paddle.js)
+- PADDLE_API_KEY (ou PADDLE_AUTH_CODE)
+- PADDLE_WEBHOOK_SECRET (prod)
+- PADDLE_PRICE_FREE / PADDLE_PRICE_FREE_AMOUNT
+- PADDLE_PRICE_STARTER / PADDLE_PRICE_STARTER_AMOUNT
+- PADDLE_PRICE_GROWTH / PADDLE_PRICE_GROWTH_AMOUNT
+- PADDLE_PRICE_SCALE / PADDLE_PRICE_SCALE_AMOUNT
 
-For full demo details (how to launch, what is seeded, and guided tour behavior), see `docs/DEMO_GUIDE.md`.
+Champs env requis (Stripe):
+- STRIPE_KEY
+- STRIPE_SECRET
+- STRIPE_WEBHOOK_SECRET
+- STRIPE_ENABLED (true/false)
+- STRIPE_PRICE_FREE / STRIPE_PRICE_FREE_AMOUNT
+- STRIPE_PRICE_STARTER / STRIPE_PRICE_STARTER_AMOUNT
+- STRIPE_PRICE_GROWTH / STRIPE_PRICE_GROWTH_AMOUNT
+- STRIPE_PRICE_SCALE / STRIPE_PRICE_SCALE_AMOUNT
 
-## About Laravel
+Notes:
+- BILLING_PROVIDER controle le provider actif (stripe ou paddle).
+- Stripe: checkout Stripe + portail client (payment method). Webhook: `/api/stripe/webhook`.
+- Paddle: le bouton "Gerer le paiement" redirige vers Paddle (update payment method).
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## 17. Scenarios de test (LaunchSeeder)
+Seeder: `Database\\Seeders\\LaunchSeeder`
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+Preparation:
+1. `php artisan migrate:fresh`
+2. `php artisan db:seed --class=Database\\Seeders\\LaunchSeeder`
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+Comptes:
+- owner.services@example.com / password
+- admin.services@example.com / password
+- member.services@example.com / password
+- owner.products@example.com / password
+- client.north@example.com / password (portail client)
+- client.products@example.com / password (portail client)
 
-## Learning Laravel
+Donnees a tester:
+- Leads:
+  - Lead - Window cleaning (converti)
+  - Lead - Gutter cleaning (nouveau)
+  - Lead - Supply order (nouveau)
+- Quotes:
+  - Window cleaning package (accepted)
+  - Seasonal maintenance quote (sent)
+  - Draft - Exterior prep (draft)
+  - Declined - Fence wash (declined)
+  - Extra - Screen repair (change order)
+  - Starter supply pack (product, sent)
+- Jobs:
+  - Window cleaning package (validated)
+  - Review - Exterior refresh (pending_review)
+  - Scheduled - Seasonal checkup (scheduled)
+  - In progress - Driveway wash (in_progress)
+  - Dispute - Balcony cleanup (dispute)
+  - Cancelled - Patio wash (cancelled)
+  - Closed - Full service (closed)
+- Invoices:
+  - Window cleaning package (partial)
+  - Scheduled - Seasonal checkup (sent)
+  - Dispute - Balcony cleanup (overdue)
+  - Closed - Full service (paid)
+- Tasks:
+  - Prepare follow up call (todo)
+  - Upload before photos (in_progress)
+  - Send thank you note (done)
+- Ratings:
+  - Quote and job rated by client.north@example.com
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
-
-You may also try the [Laravel Bootcamp](https://bootcamp.laravel.com), where you will be guided through building a modern Laravel application from scratch.
-
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
-
-## Laravel Sponsors
-
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
-
-### Premium Partners
-
-- **[Vehikl](https://vehikl.com/)**
-- **[Tighten Co.](https://tighten.co)**
-- **[WebReinvent](https://webreinvent.com/)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel/)**
-- **[Cyber-Duck](https://cyber-duck.co.uk)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Jump24](https://jump24.co.uk)**
-- **[Redberry](https://redberry.international/laravel/)**
-- **[Active Logic](https://activelogic.com)**
-- **[byte5](https://byte5.de)**
-- **[OP.GG](https://op.gg)**
-
-## Contributing
-
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
-
-## Code of Conduct
-
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
-
-## Security Vulnerabilities
-
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
-
-## License
-
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+Tests rapides:
+1. Login owner.services@example.com, verifier dashboard + filtres jobs/quotes/invoices.
+2. Ouvrir Seasonal maintenance quote et tester accept/decline via portail client.
+3. Login client.north@example.com, valider ou mettre en dispute "Review - Exterior refresh".
+4. Login owner.products@example.com, verifier quote "Starter supply pack".
