@@ -83,6 +83,8 @@ Route::middleware('guest')->group(function () {
 Route::middleware('signed')->group(function () {
     Route::get('/pay/invoices/{invoice}', [PublicInvoiceController::class, 'show'])->name('public.invoices.show');
     Route::post('/pay/invoices/{invoice}', [PublicInvoiceController::class, 'storePayment'])->name('public.invoices.pay');
+    Route::post('/pay/invoices/{invoice}/stripe', [PublicInvoiceController::class, 'createStripeCheckout'])
+        ->name('public.invoices.stripe');
     Route::get('/public/quotes/{quote}', [PublicQuoteController::class, 'show'])->name('public.quotes.show');
     Route::post('/public/quotes/{quote}/accept', [PublicQuoteController::class, 'accept'])->name('public.quotes.accept');
     Route::post('/public/quotes/{quote}/decline', [PublicQuoteController::class, 'decline'])->name('public.quotes.decline');
@@ -150,6 +152,9 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
         ->name('settings.categories.restore');
     Route::get('/settings/billing', [BillingSettingsController::class, 'edit'])->name('settings.billing.edit');
     Route::put('/settings/billing', [BillingSettingsController::class, 'update'])->name('settings.billing.update');
+    Route::post('/settings/billing/checkout', [SubscriptionController::class, 'checkout'])->name('settings.billing.checkout');
+    Route::post('/settings/billing/connect', [BillingSettingsController::class, 'connectStripe'])
+        ->name('settings.billing.connect');
     Route::get('/settings/notifications', [NotificationSettingsController::class, 'edit'])
         ->name('settings.notifications.edit');
     Route::put('/settings/notifications', [NotificationSettingsController::class, 'update'])
@@ -342,6 +347,8 @@ Route::middleware(['auth', EnsureClientUser::class])
         Route::post('/works/{work}/dispute', [PortalWorkController::class, 'dispute'])->name('works.dispute');
         Route::post('/tasks/{task}/media', [PortalTaskMediaController::class, 'store'])->name('tasks.media.store');
         Route::post('/invoices/{invoice}/payments', [PortalInvoiceController::class, 'storePayment'])->name('invoices.payments.store');
+        Route::post('/invoices/{invoice}/stripe', [PortalInvoiceController::class, 'createStripeCheckout'])
+            ->name('invoices.stripe');
         Route::post('/quotes/{quote}/ratings', [PortalRatingController::class, 'storeQuote'])->name('quotes.ratings.store');
         Route::post('/works/{work}/ratings', [PortalRatingController::class, 'storeWork'])->name('works.ratings.store');
     });

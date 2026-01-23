@@ -351,7 +351,6 @@
       }
     }
   },
-
   "super_admin": {
     "common": {
       "not_available": "N/A",
@@ -820,6 +819,7 @@
       "add_proof": "Ajouter preuve",
       "view_proofs": "Voir preuves",
       "pay_now": "Payer",
+      "pay_with_stripe": "Payer avec Stripe",
       "submit": "Envoyer",
       "close": "Fermer",
       "request_changes": "Demander changements",
@@ -1772,7 +1772,12 @@
         "all": "Tous les statuts"
       },
       "active_works": "Chantiers actifs",
-      "requests": "Demandes",
+      "requests": {
+        "status": {
+          "new": "Nouveau",
+          "converted": "Converti"
+        }
+      },
       "quotes": "Devis",
       "jobs": "Chantiers",
       "invoices": "Factures",
@@ -1792,12 +1797,6 @@
         "create_job": "Creer chantier",
         "view_invoices": "Voir factures",
         "create_request": "Creer demande"
-      },
-      "requests": {
-        "status": {
-          "new": "Nouveau",
-          "converted": "Converti"
-        }
       }
     }
   },
@@ -1919,14 +1918,14 @@
         "out_for_delivery": "En livraison",
         "ready_for_pickup": "Pret a retirer",
         "completed": "Termine",
-      "confirmed": "Confirme"
+        "confirmed": "Confirme"
+      },
+      "order_label": "Commande {number}",
+      "customer_fallback": "Client",
+      "fulfillment_label": "Execution",
+      "method": "Methode",
+      "scheduled": "Planifie"
     },
-    "order_label": "Commande {number}",
-    "customer_fallback": "Client",
-    "fulfillment_label": "Execution",
-    "method": "Methode",
-    "scheduled": "Planifie"
-  },
     "filters": {
       "search_placeholder": "Rechercher produits, SKU ou code-barres",
       "stock": {
@@ -3383,7 +3382,11 @@
         "missing_transaction": "Transaction manquante.",
         "paddle_api_missing": "Paddle API non configure. Ajoutez `PADDLE_API_KEY` dans `.env`.",
         "paddle_js_missing": "Paddle.js non configure. Ajoutez `PADDLE_CLIENT_SIDE_TOKEN` (ou `PADDLE_SELLER_ID`) dans `.env`.",
-        "no_plans_configured": "Aucun plan configure. Ajoutez vos PRICE_ID Paddle dans l'environnement."
+        "no_plans_configured": "Aucun plan configure. Ajoutez vos PRICE_ID dans l'environnement.",
+        "provider_not_supported": "Le fournisseur de facturation est defini sur {provider}. Les actions Paddle sont desactivees.",
+        "stripe_not_configured": "Stripe n'est pas configure. Verifiez STRIPE_SECRET, STRIPE_PRICE_* et STRIPE_ENABLED=true.",
+        "stripe_checkout_failed": "Impossible de demarrer le checkout Stripe.",
+        "stripe_portal_failed": "Impossible d'ouvrir le portail client Stripe."
       },
       "plans": {
         "title": "Abonnement plateforme",
@@ -3416,9 +3419,21 @@
         "update_card": "Mettre a jour la carte",
         "summary_active": "Abonnement actif: {plan} (Statut: {status})",
         "summary_none": "Aucun abonnement actif pour le moment."
+      },
+      "connect": {
+        "title": "Stripe Connect",
+        "subtitle": "Connectez votre compte bancaire pour recevoir les paiements client directement.",
+        "status_connected": "Connecté",
+        "status_pending": "Onboarding en cours",
+        "status_not_connected": "Non connecté",
+        "action_connect": "Connecter Stripe",
+        "action_resume": "Reprendre l'onboarding",
+        "fee_note": "Frais plateforme : {fee} %",
+        "success": "Compte Stripe lié.",
+        "error_start": "Impossible de demarrer l'onboarding Stripe Connect."
       }
-    }
-
+    },
+    "_label": "Parametres"
   },
   "welcome": {
     "meta": {
@@ -3467,11 +3482,7 @@
       "title": "Tout pour vendre, planifier et livrer",
       "subtitle": "Devis rapides, suivi des chantiers, équipe alignée.",
       "items": {
-      
-  
-
-  
-  "quotes": {
+        "quotes": {
           "title": "Devis intelligents",
           "desc": "Mixez services et produits, et suivez marges et sources."
         },

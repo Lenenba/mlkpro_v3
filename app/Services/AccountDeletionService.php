@@ -169,6 +169,10 @@ class AccountDeletionService
             ->where('billable_type', User::class)
             ->whereIn('billable_id', $userIds)
             ->delete();
+
+        DB::table('stripe_subscriptions')
+            ->whereIn('user_id', $userIds)
+            ->delete();
     }
 
     private function cancelPaddleSubscriptions(User $accountOwner): void

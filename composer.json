@@ -16,6 +16,7 @@
         "laravel/framework": "^11.31",
         "laravel/sanctum": "^4.0",
         "laravel/tinker": "^2.9",
+        "stripe/stripe-php": "^19.2",
         "symfony/http-client": "^8.0",
         "symfony/mailgun-mailer": "^8.0",
         "tightenco/ziggy": "^2.0"

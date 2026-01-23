@@ -11,7 +11,10 @@ use App\Models\User;
 use App\Models\Work;
 use App\Notifications\ActionEmailNotification;
 use App\Support\NotificationDispatcher;
+use App\Services\StripeInvoiceService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\URL;
+use Inertia\Inertia;
 
 class PortalInvoiceController extends Controller
 {
@@ -28,20 +31,17 @@ class PortalInvoiceController extends Controller
     public function storePayment(Request $request, Invoice $invoice)
     {
         $customer = $this->portalCustomer($request);
-        if ($customer->auto_validate_invoices) {
+        [$canPay, $message] = $this->resolvePaymentAvailability($invoice, $customer);
+        if (!$canPay) {
             if ($this->shouldReturnJson($request)) {
                 return response()->json([
-                    'message' => 'Invoice actions are handled by the company.',
+                    'message' => $message,
                 ], 422);
             }
 
             return redirect()->back()->withErrors([
-                'status' => 'Invoice actions are handled by the company.',
+                'status' => $message,
             ]);
-        }
-
-        if ($invoice->customer_id !== $customer->id) {
-            abort(403);
         }
 
         $validated = $request->validate([
@@ -125,5 +125,99 @@ class PortalInvoiceController extends Controller
         }
 
         return redirect()->back()->with('success', 'Payment recorded successfully.');
+    }
+
+    public function createStripeCheckout(Request $request, Invoice $invoice)
+    {
+        $customer = $this->portalCustomer($request);
+        [$canPay, $message] = $this->resolvePaymentAvailability($invoice, $customer);
+        if (!$canPay) {
+            if ($this->shouldReturnJson($request)) {
+                return response()->json([
+                    'message' => $message,
+                ], 422);
+            }
+
+            return redirect()->back()->withErrors([
+                'status' => $message,
+            ]);
+        }
+
+        $validated = $request->validate([
+            'amount' => 'nullable|numeric|min:0.01',
+        ]);
+
+        $amount = null;
+        if (isset($validated['amount'])) {
+            $amount = (float) $validated['amount'];
+            if ($amount > (float) $invoice->balance_due) {
+                if ($this->shouldReturnJson($request)) {
+                    return response()->json([
+                        'message' => 'Amount exceeds the balance due.',
+                    ], 422);
+                }
+
+                return redirect()->back()->withErrors([
+                    'amount' => 'Amount exceeds the balance due.',
+                ]);
+            }
+        }
+
+        $stripeService = app(StripeInvoiceService::class);
+        if (!$stripeService->isConfigured()) {
+            if ($this->shouldReturnJson($request)) {
+                return response()->json([
+                    'message' => 'Stripe is not configured.',
+                ], 422);
+            }
+
+            return redirect()->back()->withErrors([
+                'status' => 'Stripe is not configured.',
+            ]);
+        }
+
+        $successUrl = URL::route('dashboard', ['stripe' => 'success', 'invoice' => $invoice->id]);
+        $successUrl .= (str_contains($successUrl, '?') ? '&' : '?') . 'session_id={CHECKOUT_SESSION_ID}';
+        $cancelUrl = URL::route('dashboard', ['stripe' => 'cancel', 'invoice' => $invoice->id]);
+
+        $session = $stripeService->createCheckoutSession($invoice, $successUrl, $cancelUrl, $amount);
+        if (empty($session['url'])) {
+            if ($this->shouldReturnJson($request)) {
+                return response()->json([
+                    'message' => 'Unable to start Stripe checkout.',
+                ], 422);
+            }
+
+            return redirect()->back()->withErrors([
+                'status' => 'Unable to start Stripe checkout.',
+            ]);
+        }
+
+        if ($request->header('X-Inertia')) {
+            return Inertia::location($session['url']);
+        }
+
+        return redirect()->away($session['url']);
+    }
+
+    private function resolvePaymentAvailability(Invoice $invoice, Customer $customer): array
+    {
+        if ($invoice->customer_id !== $customer->id) {
+            abort(403);
+        }
+
+        if ($customer->auto_validate_invoices) {
+            return [false, 'Invoice actions are handled by the company.'];
+        }
+
+        if ($invoice->status === 'void' || $invoice->status === 'draft') {
+            return [false, 'This invoice cannot be paid.'];
+        }
+
+        if ($invoice->balance_due <= 0) {
+            return [false, 'This invoice is already paid.'];
+        }
+
+        return [true, null];
     }
 }

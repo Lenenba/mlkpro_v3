@@ -4,7 +4,10 @@ import InputError from '@/Components/InputError.vue';
 import InputLabel from '@/Components/InputLabel.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import TextInput from '@/Components/TextInput.vue';
-import { Head, useForm } from '@inertiajs/vue3';
+import { Head, useForm, usePage } from '@inertiajs/vue3';
+
+const page = usePage();
+const usernameValue = page.props.auth?.user?.email || page.props.auth?.user?.name || '';
 
 const form = useForm({
     password: '',
@@ -27,6 +30,14 @@ const submit = () => {
         </div>
 
         <form @submit.prevent="submit">
+            <input
+                type="text"
+                class="sr-only"
+                tabindex="-1"
+                autocomplete="username"
+                :value="usernameValue"
+                aria-hidden="true"
+            />
             <div>
                 <InputLabel for="password" value="Password" />
                 <TextInput

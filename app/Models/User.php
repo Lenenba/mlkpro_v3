@@ -56,6 +56,14 @@ class User extends Authenticatable
         'is_suspended',
         'suspended_at',
         'suspension_reason',
+        'stripe_customer_id',
+        'stripe_connect_account_id',
+        'stripe_connect_charges_enabled',
+        'stripe_connect_payouts_enabled',
+        'stripe_connect_details_submitted',
+        'stripe_connect_requirements',
+        'stripe_connect_onboarded_at',
+        'trial_ends_at',
         'is_demo',
         'demo_type',
         'is_demo_user',
@@ -100,6 +108,11 @@ class User extends Authenticatable
             'suspended_at' => 'datetime',
             'is_demo' => 'boolean',
             'is_demo_user' => 'boolean',
+            'stripe_connect_charges_enabled' => 'boolean',
+            'stripe_connect_payouts_enabled' => 'boolean',
+            'stripe_connect_details_submitted' => 'boolean',
+            'stripe_connect_requirements' => 'array',
+            'stripe_connect_onboarded_at' => 'datetime',
         ];
     }
 

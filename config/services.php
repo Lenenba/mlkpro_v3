@@ -50,6 +50,15 @@ return [
         'sandbox' => env('PADDLE_SANDBOX', false),
     ],
 
+    'stripe' => [
+        'enabled' => env('STRIPE_ENABLED', false),
+        'key' => env('STRIPE_KEY'),
+        'secret' => env('STRIPE_SECRET'),
+        'webhook_secret' => env('STRIPE_WEBHOOK_SECRET'),
+        'connect_enabled' => env('STRIPE_CONNECT_ENABLED', false),
+        'connect_fee_percent' => env('STRIPE_CONNECT_FEE_PERCENT', 1.5),
+    ],
+
     'serpapi' => [
         'key' => env('SERPAPI_API_KEY'),
     ],

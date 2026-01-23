@@ -13,6 +13,7 @@ use App\Models\Warehouse;
 use App\Http\Requests\ProductRequest;
 use App\Services\InventoryService;
 use App\Services\UsageLimitService;
+use App\Services\StripeCatalogService;
 use App\Notifications\SupplierStockRequestNotification;
 use App\Support\NotificationDispatcher;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
@@ -266,6 +267,10 @@ class ProductController extends Controller
         $accountId = $this->ensureProductOwner($user);
         app(UsageLimitService::class)->enforceLimit($user, 'products');
         $validated = $request->validated();
+        $previousPrice = (float) $product->price;
+        $previousName = (string) $product->name;
+        $previousDescription = $product->description;
+        $previousActive = (bool) $product->is_active;
         $validated['item_type'] = Product::ITEM_TYPE_PRODUCT;
         $validated['image'] = FileHandler::handleImageUpload('products', $request, 'image', 'products/product.jpg');
         $imageUrl = $request->input('image_url');
@@ -276,6 +281,12 @@ class ProductController extends Controller
         $extraImages = FileHandler::handleMultipleImageUpload('products', $request, 'images');
 
         $product = $request->user()->products()->create($validated);
+
+        try {
+            app(StripeCatalogService::class)->syncProductPrice($product);
+        } catch (\Throwable $exception) {
+            report($exception);
+        }
 
         $product->images()->updateOrCreate(
             ['is_primary' => true],
@@ -335,6 +346,12 @@ class ProductController extends Controller
         $extraImages = FileHandler::handleMultipleImageUpload('products', $request, 'images');
 
         $product = $request->user()->products()->create($validated);
+
+        try {
+            app(StripeCatalogService::class)->syncProductPrice($product);
+        } catch (\Throwable $exception) {
+            report($exception);
+        }
 
         $product->images()->updateOrCreate(
             ['is_primary' => true],
@@ -1192,6 +1209,22 @@ class ProductController extends Controller
                 'minimum_stock' => (int) $product->minimum_stock,
                 'reorder_point' => (int) $product->minimum_stock,
             ]);
+        }
+
+        $priceChanged = array_key_exists('price', $validated) && (float) $product->price !== $previousPrice;
+        $infoChanged = ($validated['name'] ?? $previousName) !== $previousName
+            || ($validated['description'] ?? null) !== $previousDescription
+            || ((bool) ($validated['is_active'] ?? $previousActive)) !== $previousActive;
+        $needsStripeSync = $priceChanged || $infoChanged || empty($product->stripe_product_id);
+        if ($needsStripeSync) {
+            try {
+                app(StripeCatalogService::class)->syncProductPrice(
+                    $product,
+                    $priceChanged || empty($product->stripe_product_id)
+                );
+            } catch (\Throwable $exception) {
+                report($exception);
+            }
         }
 
         if ($this->shouldReturnJson($request)) {

@@ -200,6 +200,7 @@ class LaunchSeeder extends Seeder
                 'company_timezone' => 'America/Toronto',
                 'company_type' => 'services',
                 'onboarding_completed_at' => $now,
+                'trial_ends_at' => $now->copy()->addMonthNoOverflow(),
                 'company_notification_settings' => [
                     'task_day' => [
                         'email' => true,
@@ -227,6 +228,7 @@ class LaunchSeeder extends Seeder
                 'company_timezone' => 'America/Toronto',
                 'company_type' => 'products',
                 'onboarding_completed_at' => $now,
+                'trial_ends_at' => $now->copy()->addMonthNoOverflow(),
                 'company_fulfillment' => [
                     'delivery_enabled' => true,
                     'pickup_enabled' => true,
@@ -264,6 +266,7 @@ class LaunchSeeder extends Seeder
                 'company_city' => 'Quebec',
                 'company_type' => 'services',
                 'onboarding_completed_at' => $now,
+                'trial_ends_at' => $now->copy()->addMonthNoOverflow(),
                 'payment_methods' => ['cash', 'card'],
                 'company_features' => [
                     'quotes' => true,
@@ -338,6 +341,7 @@ class LaunchSeeder extends Seeder
                 'company_city' => 'Ottawa',
                 'company_type' => 'services',
                 'onboarding_completed_at' => $now,
+                'trial_ends_at' => $now->copy()->addMonthNoOverflow(),
                 'payment_methods' => ['cash', 'card'],
                 'company_features' => [
                     'invoices' => false,
@@ -439,6 +443,7 @@ class LaunchSeeder extends Seeder
                 'company_city' => 'Vancouver',
                 'company_type' => 'services',
                 'onboarding_completed_at' => $now,
+                'trial_ends_at' => $now->copy()->addMonthNoOverflow(),
                 'payment_methods' => ['cash', 'card'],
                 'company_features' => [
                     'requests' => true,

@@ -7,6 +7,10 @@ import SettingsLayout from '@/Layouts/SettingsLayout.vue';
 import SettingsTabs from '@/Components/SettingsTabs.vue';
 
 const props = defineProps({
+    billing: {
+        type: Object,
+        default: () => ({}),
+    },
     availableMethods: {
         type: Array,
         default: () => [],
@@ -35,6 +39,14 @@ const props = defineProps({
         type: Object,
         default: () => ({}),
     },
+    stripeConnect: {
+        type: Object,
+        default: () => ({}),
+    },
+    connectStatus: {
+        type: String,
+        default: null,
+    },
 });
 
 const { t } = useI18n();
@@ -46,11 +58,22 @@ const form = useForm({
 const paddleUiError = ref('');
 const paddleIsLoading = ref(false);
 const paymentMethodIsLoading = ref(false);
+const connectIsLoading = ref(false);
+const connectError = ref('');
+
+const billingProvider = computed(() => (props.billing?.provider_effective || props.billing?.provider || 'paddle').toLowerCase());
+const isPaddleProvider = computed(() => billingProvider.value === 'paddle');
+const isStripeProvider = computed(() => billingProvider.value === 'stripe');
+const providerReady = computed(() => props.billing?.provider_ready ?? true);
+const stripeConnectEnabled = computed(() => Boolean(props.stripeConnect?.enabled));
+const stripeConnectHasAccount = computed(() => Boolean(props.stripeConnect?.account_id));
+const stripeConnectReady = computed(() => Boolean(props.stripeConnect?.charges_enabled && props.stripeConnect?.payouts_enabled));
+const stripeConnectNeedsAction = computed(() => stripeConnectEnabled.value && !stripeConnectReady.value);
 
 const isSubscribed = computed(() => Boolean(props.subscription?.active));
-const hasSubscription = computed(() => Boolean(props.subscription?.paddle_id));
+const hasSubscription = computed(() => Boolean(props.subscription?.provider_id));
 const hasPlans = computed(() => props.plans.some((plan) => Boolean(plan.price_id)));
-const canUsePaddle = computed(() => Boolean(props.paddle?.js_enabled && props.paddle?.api_enabled && !props.paddle?.error));
+const canUsePaddle = computed(() => Boolean(isPaddleProvider.value && props.paddle?.js_enabled && props.paddle?.api_enabled && !props.paddle?.error));
 
 const activePlan = computed(() => {
     if (!props.subscription?.price_id) {
@@ -89,6 +112,16 @@ const subscriptionStatusLabel = computed(() => {
     return statusMap[rawStatus] || rawStatus;
 });
 
+const stripeConnectStatusLabel = computed(() => {
+    if (stripeConnectReady.value) {
+        return t('settings.billing.connect.status_connected');
+    }
+    if (stripeConnectHasAccount.value) {
+        return t('settings.billing.connect.status_pending');
+    }
+    return t('settings.billing.connect.status_not_connected');
+});
+
 const tabPrefix = 'settings-billing';
 const tabs = computed(() => [
     { id: 'plans', label: t('settings.billing.tabs.plans.label'), description: t('settings.billing.tabs.plans.description') },
@@ -116,8 +149,67 @@ const submit = () => {
     form.put(route('settings.billing.update'), { preserveScroll: true });
 };
 
+const resolveStripeError = (error, fallbackKey) => {
+    const response = error?.response;
+    if (response?.data) {
+        if (typeof response.data === 'string') {
+            return response.data;
+        }
+        if (response.data.message) {
+            return response.data.message;
+        }
+    }
+    if (response?.status) {
+        return `${t(fallbackKey)} (HTTP ${response.status})`;
+    }
+    return t(fallbackKey);
+};
+
+const startStripeConnect = async () => {
+    if (!stripeConnectEnabled.value) {
+        connectError.value = t('settings.billing.errors.stripe_not_configured');
+        return;
+    }
+
+    connectError.value = '';
+    connectIsLoading.value = true;
+    try {
+        const response = await axios.post(route('settings.billing.connect'));
+        const url = response?.data?.url;
+        if (!url) {
+            throw new Error(t('settings.billing.connect.error_start'));
+        }
+        window.location.href = url;
+    } catch (error) {
+        connectError.value = resolveStripeError(error, 'settings.billing.connect.error_start');
+    } finally {
+        connectIsLoading.value = false;
+    }
+};
+
 const startPaymentMethodUpdate = async () => {
     paddleUiError.value = '';
+    if (isStripeProvider.value) {
+        if (!providerReady.value) {
+            paddleUiError.value = t('settings.billing.errors.stripe_not_configured');
+            return;
+        }
+
+        paymentMethodIsLoading.value = true;
+        try {
+            const response = await axios.post(route('settings.billing.portal'));
+            const url = response?.data?.url;
+            if (!url) {
+                throw new Error(t('settings.billing.errors.stripe_portal_failed'));
+            }
+            window.location.href = url;
+        } catch (error) {
+            paddleUiError.value = resolveStripeError(error, 'settings.billing.errors.stripe_portal_failed');
+        } finally {
+            paymentMethodIsLoading.value = false;
+        }
+        return;
+    }
 
     if (!canUsePaddle.value) {
         paddleUiError.value = props.paddle?.error || t('settings.billing.errors.paddle_not_configured');
@@ -230,6 +322,30 @@ const ensurePaddleReady = async () => {
     return Boolean(window.Paddle?.Checkout?.open);
 };
 
+const startStripeCheckout = async (plan) => {
+    paddleUiError.value = '';
+    if (!providerReady.value) {
+        paddleUiError.value = t('settings.billing.errors.stripe_not_configured');
+        return;
+    }
+
+    paddleIsLoading.value = true;
+    try {
+        const response = await axios.post(route('settings.billing.checkout'), {
+            price_id: plan.price_id,
+        });
+        const url = response?.data?.url;
+        if (!url) {
+            throw new Error(t('settings.billing.errors.stripe_checkout_failed'));
+        }
+        window.location.href = url;
+    } catch (error) {
+        paddleUiError.value = resolveStripeError(error, 'settings.billing.errors.stripe_checkout_failed');
+    } finally {
+        paddleIsLoading.value = false;
+    }
+};
+
 const openPaddleCheckout = async (plan) => {
     paddleUiError.value = '';
 
@@ -280,6 +396,15 @@ const startCheckout = (plan) => {
         return;
     }
 
+    if (isStripeProvider.value) {
+        if (isSubscribed.value) {
+            router.post(route('settings.billing.swap'), { price_id: plan.price_id }, { preserveScroll: true });
+        } else {
+            startStripeCheckout(plan);
+        }
+        return;
+    }
+
     if (isSubscribed.value) {
         router.post(route('settings.billing.swap'), { price_id: plan.price_id }, { preserveScroll: true });
         return;
@@ -289,7 +414,7 @@ const startCheckout = (plan) => {
 };
 
 onMounted(() => {
-    if (props.paddle?.js_enabled) {
+    if (isPaddleProvider.value && props.paddle?.js_enabled) {
         ensurePaddleReady();
     }
 });
@@ -297,7 +422,7 @@ onMounted(() => {
 watch(
     () => [props.paddle?.sandbox, props.paddle?.client_side_token, props.paddle?.seller_id, props.paddle?.retain_key, props.paddle?.customer_id],
     () => {
-        if (props.paddle?.js_enabled) {
+        if (isPaddleProvider.value && props.paddle?.js_enabled) {
             ensurePaddleReady();
         }
     }
@@ -335,13 +460,13 @@ watch(
                         </div>
                     </div>
 
-                    <div v-if="!paddle?.api_enabled" class="rounded-sm border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
+                    <div v-if="isPaddleProvider && !paddle?.api_enabled" class="rounded-sm border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
                         {{ $t('settings.billing.errors.paddle_api_missing') }}
                     </div>
-                    <div v-else-if="!paddle?.js_enabled" class="rounded-sm border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
+                    <div v-else-if="isPaddleProvider && !paddle?.js_enabled" class="rounded-sm border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
                         {{ $t('settings.billing.errors.paddle_js_missing') }}
                     </div>
-                    <div v-else-if="paddle?.error" class="rounded-sm border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                    <div v-else-if="isPaddleProvider && paddle?.error" class="rounded-sm border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
                         {{ paddle.error }}
                     </div>
                     <div v-if="paddleUiError" class="rounded-sm border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
@@ -452,22 +577,29 @@ watch(
                         </button>
                     </div>
 
-                    <div v-if="!paddle?.api_enabled" class="rounded-sm border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
+                    <div v-if="isPaddleProvider && !paddle?.api_enabled" class="rounded-sm border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
                         {{ $t('settings.billing.errors.paddle_api_missing') }}
                     </div>
-                    <div v-else-if="!paddle?.js_enabled" class="rounded-sm border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
+                    <div v-else-if="isPaddleProvider && !paddle?.js_enabled" class="rounded-sm border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
                         {{ $t('settings.billing.errors.paddle_js_missing') }}
                     </div>
-                    <div v-else-if="paddle?.error" class="rounded-sm border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                    <div v-else-if="isPaddleProvider && paddle?.error" class="rounded-sm border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
                         {{ paddle.error }}
                     </div>
                     <div v-if="paddleUiError" class="rounded-sm border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
                         {{ paddleUiError }}
                     </div>
+                    <div v-if="connectError" class="rounded-sm border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                        {{ connectError }}
+                    </div>
 
                     <div v-if="checkoutStatus === 'payment-method'"
                         class="rounded-sm border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
                         {{ $t('settings.billing.checkout.payment_method') }}
+                    </div>
+                    <div v-if="connectStatus === 'success'"
+                        class="rounded-sm border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+                        {{ $t('settings.billing.connect.success') }}
                     </div>
 
                     <div
@@ -478,6 +610,34 @@ watch(
                         <p v-else>
                             {{ $t('settings.billing.payment.summary_none') }}
                         </p>
+                    </div>
+
+                    <div v-if="stripeConnectEnabled"
+                        class="rounded-sm border border-stone-200 bg-white px-4 py-3 text-sm text-stone-700 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200">
+                        <div class="flex flex-wrap items-start justify-between gap-4">
+                            <div class="space-y-2">
+                                <div>
+                                    <h3 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                                        {{ $t('settings.billing.connect.title') }}
+                                    </h3>
+                                    <p class="text-xs text-stone-500 dark:text-neutral-400">
+                                        {{ $t('settings.billing.connect.subtitle') }}
+                                    </p>
+                                </div>
+                                <div class="text-xs text-stone-500 dark:text-neutral-400">
+                                    {{ $t('settings.billing.connect.fee_note', { fee: stripeConnect?.fee_percent || 0 }) }}
+                                </div>
+                                <div class="text-xs font-semibold text-stone-700 dark:text-neutral-200">
+                                    {{ stripeConnectStatusLabel }}
+                                </div>
+                            </div>
+                            <button v-if="stripeConnectNeedsAction" type="button" @click="startStripeConnect"
+                                :disabled="connectIsLoading"
+                                class="py-2 px-3 text-xs font-semibold rounded-sm border border-stone-200 text-stone-700 hover:bg-stone-50 disabled:opacity-60 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700">
+                                <span v-if="stripeConnectHasAccount">{{ $t('settings.billing.connect.action_resume') }}</span>
+                                <span v-else>{{ $t('settings.billing.connect.action_connect') }}</span>
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>

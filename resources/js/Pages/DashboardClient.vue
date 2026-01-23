@@ -67,6 +67,10 @@ const props = defineProps({
         type: Object,
         default: () => ({ tasks: false, invoices: false }),
     },
+    stripe: {
+        type: Object,
+        default: () => ({ enabled: false }),
+    },
 });
 
 const page = usePage();
@@ -76,6 +80,7 @@ const autoValidation = computed(() => ({
     tasks: Boolean(props.autoValidation?.tasks),
     invoices: Boolean(props.autoValidation?.invoices),
 }));
+const stripeEnabled = computed(() => Boolean(props.stripe?.enabled));
 const kpiSeries = computed(() => props.kpiSeries || {});
 const kpiConfig = {
     quotes_pending: { direction: 'down' },
@@ -218,6 +223,7 @@ const proofTypeOptions = computed(() => ([
 ]));
 
 const paymentAmounts = reactive({});
+const stripeProcessing = reactive({});
 const ratingForms = reactive({
     quotes: {},
     works: {},
@@ -462,6 +468,26 @@ const submitPayment = (invoiceId) => {
         { amount },
         { preserveScroll: true }
     );
+};
+
+const startStripePayment = (invoiceId) => {
+    if (autoValidation.value.invoices || !stripeEnabled.value) {
+        return;
+    }
+    if (!invoiceId || stripeProcessing[invoiceId]) {
+        return;
+    }
+
+    stripeProcessing[invoiceId] = true;
+    const amount = Number(paymentAmounts[invoiceId] || 0);
+    const payload = Number.isFinite(amount) && amount > 0 ? { amount } : {};
+
+    router.post(route('portal.invoices.stripe', invoiceId), payload, {
+        preserveScroll: true,
+        onFinish: () => {
+            stripeProcessing[invoiceId] = false;
+        },
+    });
 };
 
 const submitQuoteRating = (quoteId) => {
@@ -779,6 +805,15 @@ const submitWorkRating = (workId) => {
                                 <button type="submit"
                                     class="py-2 px-3 inline-flex items-center gap-x-2 text-xs font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700">
                                     {{ $t('client_dashboard.actions.pay_now') }}
+                                </button>
+                                <button
+                                    v-if="stripeEnabled"
+                                    type="button"
+                                    :disabled="stripeProcessing[invoice.id]"
+                                    class="py-2 px-3 inline-flex items-center gap-x-2 text-xs font-medium rounded-sm border border-transparent bg-slate-900 text-white hover:bg-slate-800 disabled:opacity-50"
+                                    @click="startStripePayment(invoice.id)"
+                                >
+                                    {{ $t('client_dashboard.actions.pay_with_stripe') }}
                                 </button>
                                 <span class="text-xs text-stone-500 dark:text-neutral-400">
                                     {{ $t('client_dashboard.labels.paid_of', { paid: formatCurrency(invoice.amount_paid), total: formatCurrency(invoice.total) }) }}

@@ -4,7 +4,7 @@ namespace App\Services;
 
 use App\Models\PlatformSetting;
 use App\Models\User;
-use Laravel\Paddle\Subscription;
+use App\Services\BillingSubscriptionService;
 
 class CompanyFeatureService
 {
@@ -47,6 +47,17 @@ class CompanyFeatureService
     {
         $features = $this->resolveEffectiveFeatures($user);
         if (!array_key_exists($feature, $features)) {
+            $owner = $this->resolveOwner($user);
+            if (!$owner) {
+                return false;
+            }
+
+            $planModules = PlatformSetting::getValue('plan_modules', []);
+            $planKey = $this->resolvePlanKey($owner, $planModules);
+            if (!$planKey) {
+                return false;
+            }
+
             return true;
         }
 
@@ -67,26 +78,6 @@ class CompanyFeatureService
 
     private function resolvePlanKey(User $accountOwner, array $planModules): ?string
     {
-        $subscription = $accountOwner->subscription(Subscription::DEFAULT_TYPE);
-        $priceId = $subscription?->items()->value('price_id');
-
-        if ($priceId) {
-            foreach (config('billing.plans', []) as $key => $plan) {
-                if (!empty($plan['price_id']) && $plan['price_id'] === $priceId) {
-                    return $key;
-                }
-            }
-        }
-
-        if (array_key_exists('free', $planModules)) {
-            return 'free';
-        }
-
-        $plans = config('billing.plans', []);
-        if (array_key_exists('free', $plans)) {
-            return 'free';
-        }
-
-        return null;
+        return app(BillingSubscriptionService::class)->resolvePlanKey($accountOwner, $planModules);
     }
 }

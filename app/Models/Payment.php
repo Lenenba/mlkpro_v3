@@ -16,8 +16,10 @@ class Payment extends Model
         'user_id',
         'amount',
         'method',
+        'provider',
         'status',
         'reference',
+        'provider_reference',
         'notes',
         'paid_at',
     ];
