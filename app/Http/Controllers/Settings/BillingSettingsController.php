@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Settings;
 
 use App\Http\Controllers\Controller;
+use App\Services\AssistantCreditService;
 use App\Models\AssistantUsage;
 use App\Models\PlatformSetting;
 use App\Services\BillingSubscriptionService;
@@ -41,6 +42,7 @@ class BillingSettingsController extends Controller
 
         $checkoutStatus = $request->query('checkout');
         $connectStatus = $request->query('connect');
+        $creditStatus = $request->query('credits');
 
         $stripeConnectEnabled = (bool) config('services.stripe.connect_enabled');
         $stripeConnectReady = $stripeConnectEnabled
@@ -92,6 +94,23 @@ class BillingSettingsController extends Controller
             }
         }
 
+        if ($providerEffective === 'stripe' && $creditStatus === 'success') {
+            $sessionId = $request->query('session_id');
+            if ($sessionId && app(StripeBillingService::class)->isConfigured()) {
+                try {
+                    $session = app(StripeBillingService::class)->retrieveCheckoutSession($sessionId);
+                    if (is_array($session)) {
+                        app(AssistantCreditService::class)->grantFromStripeSession($session, (int) config('services.stripe.ai_credit_pack', 0));
+                    }
+                } catch (\Throwable $exception) {
+                    Log::warning('Unable to sync assistant credit checkout session.', [
+                        'user_id' => $user->id,
+                        'exception' => $exception->getMessage(),
+                    ]);
+                }
+            }
+        }
+
         if ($stripeConnectReady && in_array($connectStatus, ['success', 'refresh'], true)) {
             try {
                 app(StripeConnectService::class)->refreshAccountStatus($user);
@@ -124,10 +143,20 @@ class BillingSettingsController extends Controller
         $assistantIncluded = $planKey ? (bool) ($planModules[$planKey]['assistant'] ?? false) : false;
         $assistantEnabled = $user->hasCompanyFeature('assistant');
         $assistantAddonEnabled = $assistantEnabled && !$assistantIncluded;
-        $assistantAddonAvailable = $billingService->isStripe()
+        $assistantCreditPack = (int) config('services.stripe.ai_credit_pack', 0);
+        $assistantCreditEnabled = $billingService->isStripe()
+            && $providerReady
+            && (bool) config('services.stripe.ai_credit_price')
+            && $assistantCreditPack > 0
+            && $stripeBillingService->isConfigured();
+        $assistantUsageEnabled = $billingService->isStripe()
             && $providerReady
             && (bool) config('services.stripe.ai_usage_price')
             && $stripeBillingService->isConfigured();
+        $assistantAddonAvailable = $assistantCreditEnabled || $assistantUsageEnabled;
+        $assistantAddonMode = $assistantIncluded
+            ? 'included'
+            : ($assistantCreditEnabled ? 'credit' : ($assistantUsageEnabled ? 'metered' : 'none'));
 
         $usageStart = now()->startOfMonth();
         $usageEnd = now()->endOfMonth();
@@ -159,12 +188,19 @@ class BillingSettingsController extends Controller
                 'enabled' => $assistantEnabled,
                 'addon_enabled' => $assistantAddonEnabled,
                 'available' => $assistantAddonAvailable,
+                'mode' => $assistantAddonMode,
                 'usage' => $assistantUsage,
                 'unit' => config('services.stripe.ai_usage_unit', 'requests'),
                 'unit_size' => (int) config('services.stripe.ai_usage_unit_size', 1),
+                'credits' => [
+                    'enabled' => $assistantCreditEnabled && !$assistantIncluded,
+                    'balance' => (int) ($user->assistant_credit_balance ?? 0),
+                    'pack_size' => $assistantCreditPack,
+                ],
             ],
             'checkoutStatus' => $checkoutStatus,
             'checkoutPlanKey' => $request->query('plan'),
+            'creditStatus' => $creditStatus,
             'connectStatus' => $connectStatus,
             'paddle' => [
                 'js_enabled' => $paddleJsEnabled,
@@ -215,9 +251,12 @@ class BillingSettingsController extends Controller
             ], 422);
         }
 
-        if (!config('services.stripe.ai_usage_price')) {
+        $creditPack = (int) config('services.stripe.ai_credit_pack', 0);
+        $creditConfigured = (bool) config('services.stripe.ai_credit_price') && $creditPack > 0;
+        $usageConfigured = (bool) config('services.stripe.ai_usage_price');
+        if (!$creditConfigured && !$usageConfigured) {
             return response()->json([
-                'message' => 'Assistant IA non configure (prix usage manquant).',
+                'message' => 'Assistant IA non configure.',
             ], 422);
         }
 
@@ -236,16 +275,21 @@ class BillingSettingsController extends Controller
         }
 
         $features = (array) ($user->company_features ?? []);
+        $useUsageAddon = $usageConfigured && !$creditConfigured;
         if ($validated['enabled']) {
-            $subscription = $stripeBilling->enableAssistantAddon($user);
-            if (!$subscription) {
-                return response()->json([
-                    'message' => 'Impossible d\'activer l\'Assistant IA.',
-                ], 422);
+            if ($useUsageAddon) {
+                $subscription = $stripeBilling->enableAssistantAddon($user);
+                if (!$subscription) {
+                    return response()->json([
+                        'message' => 'Impossible d\'activer l\'Assistant IA.',
+                    ], 422);
+                }
             }
             $features['assistant'] = true;
         } else {
-            $stripeBilling->disableAssistantAddon($user);
+            if ($useUsageAddon) {
+                $stripeBilling->disableAssistantAddon($user);
+            }
             $features['assistant'] = false;
         }
 
@@ -261,6 +305,81 @@ class BillingSettingsController extends Controller
         }
 
         return redirect()->back()->with('success', 'Assistant IA mis a jour.');
+    }
+
+    public function createAssistantCreditCheckout(Request $request)
+    {
+        $user = $request->user();
+        if (!$user || !$user->isAccountOwner()) {
+            abort(403);
+        }
+
+        $validated = $request->validate([
+            'packs' => 'nullable|integer|min:1|max:50',
+        ]);
+
+        $billingService = app(BillingSubscriptionService::class);
+        if (!$billingService->isStripe()) {
+            return response()->json([
+                'message' => 'Assistant IA indisponible pour ce fournisseur.',
+            ], 422);
+        }
+
+        $planModules = PlatformSetting::getValue('plan_modules', []);
+        $planKey = $billingService->resolvePlanKey($user, $planModules);
+        $assistantIncluded = $planKey ? (bool) ($planModules[$planKey]['assistant'] ?? false) : false;
+        if ($assistantIncluded) {
+            return response()->json([
+                'message' => 'Assistant IA deja inclus dans votre plan.',
+            ], 422);
+        }
+
+        if (!$user->hasCompanyFeature('assistant')) {
+            return response()->json([
+                'message' => 'Activez l option IA avant d acheter des credits.',
+            ], 422);
+        }
+
+        if (!config('services.stripe.ai_credit_price')) {
+            return response()->json([
+                'message' => 'Prix de credits IA manquant.',
+            ], 422);
+        }
+
+        $packSize = (int) config('services.stripe.ai_credit_pack', 0);
+        if ($packSize <= 0) {
+            return response()->json([
+                'message' => 'Pack de credits IA non configure.',
+            ], 422);
+        }
+
+        $subscriptionSummary = $billingService->subscriptionSummary($user);
+        if (empty($subscriptionSummary['price_id'])) {
+            return response()->json([
+                'message' => 'Aucun abonnement actif.',
+            ], 422);
+        }
+
+        $stripeBilling = app(StripeBillingService::class);
+        if (!$stripeBilling->isConfigured()) {
+            return response()->json([
+                'message' => 'Stripe n\'est pas configure.',
+            ], 422);
+        }
+
+        $packs = (int) ($validated['packs'] ?? 1);
+        $successUrl = route('settings.billing.edit', ['credits' => 'success']);
+        $successUrl .= (str_contains($successUrl, '?') ? '&' : '?') . 'session_id={CHECKOUT_SESSION_ID}';
+        $cancelUrl = route('settings.billing.edit', ['credits' => 'cancel']);
+
+        $session = $stripeBilling->createAssistantCreditCheckoutSession($user, $packs, $successUrl, $cancelUrl);
+        if (empty($session['url'])) {
+            return response()->json([
+                'message' => 'Impossible de demarrer le checkout credits.',
+            ], 422);
+        }
+
+        return response()->json(['url' => $session['url']]);
     }
 
     public function connectStripe(Request $request)

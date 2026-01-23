@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\AssistantUsage;
 use App\Models\Invoice;
 use App\Models\PlanScan;
 use App\Models\PlatformSetting;
@@ -14,6 +15,7 @@ use App\Models\User;
 use App\Models\Work;
 use Illuminate\Validation\ValidationException;
 use App\Services\BillingSubscriptionService;
+use Illuminate\Support\Carbon;
 
 class UsageLimitService
 {
@@ -27,6 +29,7 @@ class UsageLimitService
         'services' => 'Services',
         'tasks' => 'Tasks',
         'team_members' => 'Team members',
+        'assistant_requests' => 'AI assistant requests',
     ];
 
     public function buildForUser(User $user): array
@@ -148,6 +151,8 @@ class UsageLimitService
     private function resolveUsageStats(User $accountOwner): array
     {
         $accountId = $accountOwner->id;
+        $monthStart = Carbon::now()->startOfMonth();
+        $monthEnd = Carbon::now()->endOfMonth();
 
         return [
             'quotes' => Quote::query()->where('user_id', $accountId)->count(),
@@ -165,6 +170,10 @@ class UsageLimitService
                 ->count(),
             'tasks' => Task::query()->where('account_id', $accountId)->count(),
             'team_members' => TeamMember::query()->where('account_id', $accountId)->active()->count(),
+            'assistant_requests' => (int) AssistantUsage::query()
+                ->where('user_id', $accountId)
+                ->whereBetween('created_at', [$monthStart, $monthEnd])
+                ->sum('request_count'),
         ];
     }
 }

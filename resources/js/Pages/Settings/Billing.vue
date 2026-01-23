@@ -39,6 +39,10 @@ const props = defineProps({
         type: String,
         default: null,
     },
+    creditStatus: {
+        type: String,
+        default: null,
+    },
     paddle: {
         type: Object,
         default: () => ({}),
@@ -66,6 +70,8 @@ const connectIsLoading = ref(false);
 const connectError = ref('');
 const assistantAddonIsLoading = ref(false);
 const assistantAddonError = ref('');
+const assistantCreditIsLoading = ref(false);
+const assistantCreditError = ref('');
 
 const billingProvider = computed(() => (props.billing?.provider_effective || props.billing?.provider || 'paddle').toLowerCase());
 const isPaddleProvider = computed(() => billingProvider.value === 'paddle');
@@ -80,7 +86,18 @@ const assistantIncluded = computed(() => Boolean(assistantAddon.value.included))
 const assistantEnabled = computed(() => Boolean(assistantAddon.value.enabled));
 const assistantAddonEnabled = computed(() => Boolean(assistantAddon.value.addon_enabled));
 const assistantAddonAvailable = computed(() => Boolean(assistantAddon.value.available));
+const assistantAddonMode = computed(() => assistantAddon.value.mode || 'none');
 const assistantUsage = computed(() => assistantAddon.value.usage || {});
+const assistantCredits = computed(() => assistantAddon.value.credits || {});
+const assistantCreditBalance = computed(() => Number(assistantCredits.value.balance || 0));
+const assistantCreditPackSize = computed(() => Number(assistantCredits.value.pack_size || 0));
+const assistantCreditAvailable = computed(() => Boolean(assistantCredits.value.enabled));
+const assistantCreditMode = computed(() => assistantAddonMode.value === 'credit');
+const assistantAddonSubtitle = computed(() =>
+    assistantCreditMode.value
+        ? t('settings.billing.assistant_addon.subtitle_credit')
+        : t('settings.billing.assistant_addon.subtitle')
+);
 
 const isSubscribed = computed(() => Boolean(props.subscription?.active));
 const hasSubscription = computed(() => Boolean(props.subscription?.provider_id));
@@ -376,6 +393,33 @@ const updateAssistantAddon = async (enabled) => {
     }
 };
 
+const startAssistantCreditCheckout = async (packs = 1) => {
+    assistantCreditError.value = '';
+    if (!assistantCreditAvailable.value || !assistantCreditMode.value) {
+        assistantCreditError.value = t('settings.billing.assistant_addon.credit_not_available');
+        return;
+    }
+
+    if (!assistantAddonEnabled.value) {
+        assistantCreditError.value = t('settings.billing.assistant_addon.credit_enable_required');
+        return;
+    }
+
+    assistantCreditIsLoading.value = true;
+    try {
+        const response = await axios.post(route('settings.billing.assistant-credits'), { packs });
+        const url = response?.data?.url;
+        if (!url) {
+            throw new Error(t('settings.billing.assistant_addon.credit_error'));
+        }
+        window.location.href = url;
+    } catch (error) {
+        assistantCreditError.value = resolveStripeError(error, 'settings.billing.assistant_addon.credit_error');
+    } finally {
+        assistantCreditIsLoading.value = false;
+    }
+};
+
 const featureClass = (feature) =>
     feature?.toLowerCase?.().includes('option')
         ? 'plan-card__feature plan-card__feature--optional'
@@ -591,7 +635,7 @@ watch(
                             <div class="space-y-1">
                                 <h3 class="assistant-addon__title">{{ $t('settings.billing.assistant_addon.title') }}</h3>
                                 <p class="assistant-addon__subtitle">
-                                    {{ $t('settings.billing.assistant_addon.subtitle') }}
+                                    {{ assistantAddonSubtitle }}
                                 </p>
                             </div>
                             <div class="assistant-addon__actions">
@@ -625,6 +669,15 @@ watch(
                         <div v-else-if="!assistantAddonAvailable && !assistantIncluded" class="assistant-addon__hint">
                             {{ $t('settings.billing.assistant_addon.not_available') }}
                         </div>
+                        <div v-else-if="creditStatus === 'success'" class="assistant-addon__success">
+                            {{ $t('settings.billing.assistant_addon.credit_success') }}
+                        </div>
+                        <div v-else-if="creditStatus === 'cancel'" class="assistant-addon__hint">
+                            {{ $t('settings.billing.assistant_addon.credit_cancel') }}
+                        </div>
+                        <div v-if="assistantCreditError" class="assistant-addon__error">
+                            {{ assistantCreditError }}
+                        </div>
 
                         <div class="assistant-addon__usage">
                             <div class="assistant-addon__usage-item">
@@ -641,6 +694,25 @@ watch(
                                 <span>{{ $t('settings.billing.assistant_addon.usage_units_label') }}</span>
                                 <strong>{{ assistantUsage.billed_units || 0 }}</strong>
                                 <em>{{ $t('settings.billing.assistant_addon.usage_units') }}</em>
+                            </div>
+                        </div>
+
+                        <div v-if="assistantCreditMode" class="assistant-addon__credits">
+                            <div class="assistant-addon__usage-item">
+                                <span>{{ $t('settings.billing.assistant_addon.credit_balance_label') }}</span>
+                                <strong>{{ assistantCreditBalance }}</strong>
+                                <em>{{ $t('settings.billing.assistant_addon.credit_balance_suffix') }}</em>
+                            </div>
+                            <div class="assistant-addon__credit-actions">
+                                <button type="button"
+                                    :disabled="assistantCreditIsLoading || !assistantCreditAvailable || !assistantAddonEnabled"
+                                    @click="startAssistantCreditCheckout(1)"
+                                    class="assistant-addon__cta">
+                                    {{ $t('settings.billing.assistant_addon.credit_cta') }}
+                                </button>
+                                <span v-if="assistantCreditPackSize" class="assistant-addon__credit-pack">
+                                    {{ $t('settings.billing.assistant_addon.credit_pack', { count: assistantCreditPackSize }) }}
+                                </span>
                             </div>
                         </div>
                     </div>
@@ -1047,6 +1119,12 @@ watch(
     color: #b91c1c;
 }
 
+.assistant-addon__success {
+    margin-top: 10px;
+    font-size: 0.8rem;
+    color: #047857;
+}
+
 .assistant-addon__hint {
     margin-top: 10px;
     font-size: 0.8rem;
@@ -1086,6 +1164,25 @@ watch(
 .assistant-addon__usage-item em {
     font-size: 0.75rem;
     color: rgba(15, 23, 42, 0.6);
+}
+
+.assistant-addon__credits {
+    margin-top: 12px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+}
+
+.assistant-addon__credit-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.assistant-addon__credit-pack {
+    font-size: 0.75rem;
+    color: rgba(15, 23, 42, 0.55);
 }
 
 :global(.dark) .assistant-addon {
@@ -1134,5 +1231,13 @@ watch(
 
 :global(.dark) .assistant-addon__usage-item em {
     color: rgba(226, 232, 240, 0.7);
+}
+
+:global(.dark) .assistant-addon__success {
+    color: #6ee7b7;
+}
+
+:global(.dark) .assistant-addon__credit-pack {
+    color: rgba(226, 232, 240, 0.6);
 }
 </style>

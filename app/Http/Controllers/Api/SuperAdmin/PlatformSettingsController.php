@@ -19,6 +19,7 @@ class PlatformSettingsController extends BaseController
         'services',
         'tasks',
         'team_members',
+        'assistant_requests',
     ];
 
     private array $moduleKeys = [

@@ -85,6 +85,7 @@ class PlatformSettingsController extends BaseSuperAdminController
             'services',
             'tasks',
             'team_members',
+            'assistant_requests',
         ];
         $moduleKeys = [
             'quotes',

@@ -54,6 +54,7 @@ class PlatformBaselineSeeder extends Seeder
             'services',
             'tasks',
             'team_members',
+            'assistant_requests',
         ];
 
         $moduleKeys = [

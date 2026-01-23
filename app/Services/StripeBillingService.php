@@ -461,6 +461,75 @@ class StripeBillingService
         return is_string($price) && trim($price) !== '' ? trim($price) : null;
     }
 
+    public function createAssistantCreditCheckoutSession(User $user, int $packs, string $successUrl, string $cancelUrl): array
+    {
+        $priceId = $this->assistantCreditPriceId();
+        if (!$priceId) {
+            return ['id' => null, 'url' => null];
+        }
+
+        $packs = max(1, $packs);
+        $packSize = $this->assistantCreditPackSize();
+        $client = $this->client();
+        $customerId = $this->resolveCustomerId($user);
+
+        $payload = [
+            'mode' => 'payment',
+            'success_url' => $successUrl,
+            'cancel_url' => $cancelUrl,
+            'client_reference_id' => (string) $user->id,
+            'line_items' => [
+                [
+                    'price' => $priceId,
+                    'quantity' => $packs,
+                ],
+            ],
+            'metadata' => [
+                'purpose' => 'assistant_credits',
+                'user_id' => (string) $user->id,
+                'pack_size' => (string) $packSize,
+                'pack_count' => (string) $packs,
+            ],
+        ];
+
+        if ($customerId) {
+            $payload['customer'] = $customerId;
+        } else {
+            $payload['customer_email'] = $user->email;
+        }
+
+        $session = $client->checkout->sessions->create($payload);
+
+        return [
+            'id' => $session->id ?? null,
+            'url' => $session->url ?? null,
+        ];
+    }
+
+    public function retrieveCheckoutSession(string $sessionId): ?array
+    {
+        if (!$sessionId) {
+            return null;
+        }
+
+        $client = $this->client();
+        $session = $client->checkout->sessions->retrieve($sessionId);
+
+        return $session ? $session->toArray() : null;
+    }
+
+    private function assistantCreditPriceId(): ?string
+    {
+        $price = config('services.stripe.ai_credit_price');
+        return is_string($price) && trim($price) !== '' ? trim($price) : null;
+    }
+
+    private function assistantCreditPackSize(): int
+    {
+        $pack = (int) config('services.stripe.ai_credit_pack', 0);
+        return $pack > 0 ? $pack : 0;
+    }
+
     private function client(): StripeClient
     {
         if ($this->client) {

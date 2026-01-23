@@ -31,6 +31,7 @@ class TenantController extends BaseController
         'services',
         'tasks',
         'team_members',
+        'assistant_requests',
     ];
 
     private array $moduleKeys = [
@@ -233,6 +234,10 @@ class TenantController extends BaseController
             'services' => Product::query()->where('user_id', $tenant->id)->where('item_type', Product::ITEM_TYPE_SERVICE)->count(),
             'tasks' => Task::query()->where('account_id', $tenant->id)->count(),
             'team_members' => TeamMember::query()->where('account_id', $tenant->id)->count(),
+            'assistant_requests' => (int) \App\Models\AssistantUsage::query()
+                ->where('user_id', $tenant->id)
+                ->whereBetween('created_at', [now()->startOfMonth(), now()->endOfMonth()])
+                ->sum('request_count'),
         ];
     }
 
@@ -284,6 +289,7 @@ class TenantController extends BaseController
             'services' => 'Services',
             'tasks' => 'Tasks',
             'team_members' => 'Team members',
+            'assistant_requests' => 'AI assistant requests',
         ];
 
         $planLimits = PlatformSetting::getValue('plan_limits', []);

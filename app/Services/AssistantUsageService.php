@@ -66,6 +66,11 @@ class AssistantUsageService
             return false;
         }
 
+        $creditPack = (int) config('services.stripe.ai_credit_pack', 0);
+        if ($creditPack > 0 && config('services.stripe.ai_credit_price')) {
+            return false;
+        }
+
         if (!config('services.stripe.ai_usage_price')) {
             return false;
         }
