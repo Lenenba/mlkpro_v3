@@ -772,7 +772,8 @@
         "products": "Products",
         "services": "Services",
         "tasks": "Tasks",
-        "team_members": "Team members"
+        "team_members": "Team members",
+        "assistant_requests": "AI assistant (messages)"
       },
       "modules": {
         "quotes": "Quotes",
@@ -3328,7 +3329,8 @@
           "products": "Products",
           "services": "Services",
           "tasks": "Tasks",
-          "team_members": "Team members"
+          "team_members": "Team members",
+          "assistant_requests": "AI assistant (messages)"
         },
         "plan_fallback": "Plan"
       },
@@ -3412,6 +3414,33 @@
         "interval_month": "/month",
         "current_plan": "You are on this plan.",
         "cta_active": "Active plan"
+      },
+      "assistant_addon": {
+        "title": "AI assistant",
+        "subtitle": "Add the AI assistant to your plan and pay based on usage.",
+        "subtitle_credit": "Add the AI assistant to your plan and buy credit packs.",
+        "included_badge": "Included",
+        "optional_badge": "Paid add-on",
+        "cta_enable": "Enable add-on",
+        "cta_disable": "Disable add-on",
+        "cta_included": "Included",
+        "usage_title": "Usage this month",
+        "usage_requests": "requests",
+        "usage_tokens_label": "Tokens",
+        "usage_tokens": "tokens",
+        "usage_units_label": "Units",
+        "usage_units": "billed units",
+        "credit_balance_label": "Credits remaining",
+        "credit_balance_suffix": "credits",
+        "credit_pack": "{count} credit pack",
+        "credit_cta": "Buy credits",
+        "credit_success": "Credits added. Thank you!",
+        "credit_cancel": "Credit purchase canceled.",
+        "credit_not_available": "AI credits are not available.",
+        "credit_enable_required": "Enable the AI option to buy credits.",
+        "credit_error": "Unable to start credit checkout.",
+        "not_available": "AI add-on unavailable. Configure Stripe and the usage or credit price.",
+        "error": "Unable to update AI add-on."
       },
       "payment": {
         "title": "Payment method",

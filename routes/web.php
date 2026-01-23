@@ -155,6 +155,10 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
     Route::post('/settings/billing/checkout', [SubscriptionController::class, 'checkout'])->name('settings.billing.checkout');
     Route::post('/settings/billing/connect', [BillingSettingsController::class, 'connectStripe'])
         ->name('settings.billing.connect');
+    Route::post('/settings/billing/assistant-addon', [BillingSettingsController::class, 'updateAssistantAddon'])
+        ->name('settings.billing.assistant-addon');
+    Route::post('/settings/billing/assistant-credits', [BillingSettingsController::class, 'createAssistantCreditCheckout'])
+        ->name('settings.billing.assistant-credits');
     Route::get('/settings/notifications', [NotificationSettingsController::class, 'edit'])
         ->name('settings.notifications.edit');
     Route::put('/settings/notifications', [NotificationSettingsController::class, 'update'])

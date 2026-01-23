@@ -125,6 +125,7 @@ class InvoiceController extends Controller
             'customer.properties',
             'items',
             'work.products',
+            'work.ratings',
             'work.quote.property',
             'payments',
         ]);
@@ -175,7 +176,7 @@ class InvoiceController extends Controller
             'productItems' => $productItems,
             'subtotal' => $subtotal,
             'totalPaid' => $totalPaid,
-        ]);
+        ])->setOption('isRemoteEnabled', true);
 
         $label = $invoice->number ?: $invoice->id;
         $filename = 'invoice-' . $label . '.pdf';

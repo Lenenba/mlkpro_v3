@@ -772,7 +772,8 @@
         "products": "Produits",
         "services": "Services",
         "tasks": "Taches",
-        "team_members": "Membres equipe"
+        "team_members": "Membres equipe",
+        "assistant_requests": "Assistant IA (messages)"
       },
       "modules": {
         "quotes": "Devis",
@@ -3328,7 +3329,8 @@
           "products": "Produits",
           "services": "Services",
           "tasks": "Taches",
-          "team_members": "Membres d'equipe"
+          "team_members": "Membres d'equipe",
+          "assistant_requests": "Assistant IA (messages)"
         },
         "plan_fallback": "Plan"
       },
@@ -3412,6 +3414,33 @@
         "interval_month": "/mois",
         "current_plan": "Vous etes sur ce plan.",
         "cta_active": "Plan actif"
+      },
+      "assistant_addon": {
+        "title": "Assistant IA",
+        "subtitle": "Ajoutez l Assistant IA a votre forfait et payez a l usage.",
+        "subtitle_credit": "Ajoutez l Assistant IA a votre forfait et achetez des packs de credits.",
+        "included_badge": "Inclus",
+        "optional_badge": "Option payante",
+        "cta_enable": "Activer l option",
+        "cta_disable": "Desactiver l option",
+        "cta_included": "Inclus",
+        "usage_title": "Utilisation ce mois",
+        "usage_requests": "requetes",
+        "usage_tokens_label": "Tokens",
+        "usage_tokens": "tokens",
+        "usage_units_label": "Unites",
+        "usage_units": "unites facturees",
+        "credit_balance_label": "Credits restants",
+        "credit_balance_suffix": "credits",
+        "credit_pack": "Pack de {count} credits",
+        "credit_cta": "Acheter des credits",
+        "credit_success": "Credits ajoutes. Merci !",
+        "credit_cancel": "Achat de credits annule.",
+        "credit_not_available": "Les credits IA ne sont pas disponibles.",
+        "credit_enable_required": "Activez l option IA pour acheter des credits.",
+        "credit_error": "Impossible de demarrer l achat de credits.",
+        "not_available": "Option IA indisponible. Configurez Stripe et le prix d usage ou de credits.",
+        "error": "Impossible de mettre a jour l option IA."
       },
       "payment": {
         "title": "Moyen de paiement",

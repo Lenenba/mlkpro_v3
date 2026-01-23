@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Billing;
 
 use App\Http\Controllers\Controller;
+use App\Services\AssistantCreditService;
 use App\Services\StripeBillingService;
 use App\Services\StripeInvoiceService;
 use Illuminate\Http\Request;
@@ -57,6 +58,12 @@ class StripeWebhookController extends Controller
             'checkout.session.async_payment_succeeded',
         ], true)) {
             $session = is_array($data) ? $data : $data->toArray();
+            $creditPackSize = (int) config('services.stripe.ai_credit_pack', 0);
+            if ($creditPackSize > 0
+                && app(AssistantCreditService::class)->grantFromStripeSession($session, $creditPackSize)) {
+                return response()->json(['received' => true]);
+            }
+
             app(StripeInvoiceService::class)->recordPaymentFromCheckoutSession($session);
         }
 

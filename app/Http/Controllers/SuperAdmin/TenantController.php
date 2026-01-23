@@ -147,6 +147,10 @@ class TenantController extends BaseSuperAdminController
             'services' => Product::query()->where('user_id', $tenant->id)->where('item_type', Product::ITEM_TYPE_SERVICE)->count(),
             'tasks' => Task::query()->where('account_id', $tenant->id)->count(),
             'team_members' => TeamMember::query()->where('account_id', $tenant->id)->count(),
+            'assistant_requests' => (int) \App\Models\AssistantUsage::query()
+                ->where('user_id', $tenant->id)
+                ->whereBetween('created_at', [now()->startOfMonth(), now()->endOfMonth()])
+                ->sum('request_count'),
         ];
 
         $featureFlags = $this->buildFeatureFlags($tenant, $subscription);
@@ -447,6 +451,7 @@ class TenantController extends BaseSuperAdminController
             'services' => 'Services',
             'tasks' => 'Tasks',
             'team_members' => 'Team members',
+            'assistant' => 'AI assistant',
         ];
 
         $current = $tenant->company_features ?? [];
@@ -482,6 +487,7 @@ class TenantController extends BaseSuperAdminController
             'services' => 'Services',
             'tasks' => 'Tasks',
             'team_members' => 'Team members',
+            'assistant_requests' => 'AI assistant requests',
         ];
 
         $planLimits = PlatformSetting::getValue('plan_limits', []);

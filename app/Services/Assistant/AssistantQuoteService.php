@@ -280,7 +280,7 @@ class AssistantQuoteService
             $name = trim((string) ($item['name'] ?? ''));
             $quantity = (int) ($item['quantity'] ?? 1);
             $quantity = $quantity > 0 ? $quantity : 1;
-            $price = $item['price'];
+            $price = $item['price'] ?? null;
             $price = $price === null ? null : (float) $price;
             $itemType = strtolower((string) ($item['item_type'] ?? ''));
             $unit = trim((string) ($item['unit'] ?? ''));

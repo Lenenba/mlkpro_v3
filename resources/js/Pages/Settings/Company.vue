@@ -659,6 +659,7 @@ const limitLabelMap = computed(() => ({
     services: t('settings.company.limits.labels.services'),
     tasks: t('settings.company.limits.labels.tasks'),
     team_members: t('settings.company.limits.labels.team_members'),
+    assistant_requests: t('settings.company.limits.labels.assistant_requests'),
 }));
 
 const displayLimitLabel = (item) => limitLabelMap.value[item.key] || item.label || item.key;

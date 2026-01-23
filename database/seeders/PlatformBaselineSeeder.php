@@ -54,6 +54,7 @@ class PlatformBaselineSeeder extends Seeder
             'services',
             'tasks',
             'team_members',
+            'assistant_requests',
         ];
 
         $moduleKeys = [
@@ -87,8 +88,15 @@ class PlatformBaselineSeeder extends Seeder
         );
 
         $planModules = [];
+        $defaultAssistantPlan = array_key_exists('scale', config('billing.plans', []))
+            ? 'scale'
+            : array_key_last(config('billing.plans', []));
         foreach (config('billing.plans', []) as $planKey => $plan) {
             foreach ($moduleKeys as $moduleKey) {
+                if ($moduleKey === 'assistant') {
+                    $planModules[$planKey][$moduleKey] = $planKey === $defaultAssistantPlan;
+                    continue;
+                }
                 $planModules[$planKey][$moduleKey] = true;
             }
         }

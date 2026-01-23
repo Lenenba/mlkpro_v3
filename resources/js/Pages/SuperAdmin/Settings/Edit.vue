@@ -43,6 +43,7 @@ const limitKeys = computed(() => [
     { key: 'services', label: t('super_admin.settings.limits.services') },
     { key: 'tasks', label: t('super_admin.settings.limits.tasks') },
     { key: 'team_members', label: t('super_admin.settings.limits.team_members') },
+    { key: 'assistant_requests', label: t('super_admin.settings.limits.assistant_requests') },
 ]);
 
 const moduleKeys = computed(() => [

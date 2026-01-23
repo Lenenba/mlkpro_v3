@@ -22,9 +22,13 @@ class AssistantInterpreter
         ]);
 
         $content = $this->client->extractMessage($response);
+        $usage = $this->client->extractUsage($response);
         $decoded = $this->decodeJson($content);
 
-        return $this->normalize($decoded);
+        $normalized = $this->normalize($decoded);
+        $normalized['usage'] = $usage;
+
+        return $normalized;
     }
 
     private function buildSystemPrompt(array $context): string

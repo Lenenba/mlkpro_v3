@@ -45,4 +45,16 @@ class OpenAiClient
     {
         return (string) ($response['choices'][0]['message']['content'] ?? '');
     }
+
+    public function extractUsage(array $response): array
+    {
+        $usage = is_array($response['usage'] ?? null) ? $response['usage'] : [];
+
+        return [
+            'prompt_tokens' => (int) ($usage['prompt_tokens'] ?? 0),
+            'completion_tokens' => (int) ($usage['completion_tokens'] ?? 0),
+            'total_tokens' => (int) ($usage['total_tokens'] ?? 0),
+            'model' => $response['model'] ?? null,
+        ];
+    }
 }
