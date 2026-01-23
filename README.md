@@ -1,316 +1,91 @@
-# MLK Pro - Guide d utilisation (MVP)
+MLK Pro
+=======
 
-Derniere mise a jour: 2025-12-22
+MLK Pro is a multi-company business management platform for services and products.
+It helps teams manage customers, quotes, jobs, tasks, invoices, and client payments.
 
-Ce document est vivant. Mettez le a jour a chaque changement fonctionnel.
+Highlights
+----------
+- Multi-company accounts with roles (owner, admin, employee, client)
+- Quotes, jobs (works), tasks, invoices, payments
+- Client portal with invoice payment (Stripe)
+- Stripe + Paddle billing (choose provider in .env)
+- Stripe Connect for direct payouts to connected businesses
+- AI Assistant to help create quotes/jobs/invoices (optional add-on)
 
-## 1. Objectif
-MLK Pro permet a plusieurs entreprises de gerer leurs clients, devis, jobs, taches et factures avec une base scalable et simple.
+Tech Stack
+----------
+- Laravel (PHP) + MySQL
+- Vite + Vue
+- Stripe / Paddle billing
 
-## 2. Demarrage rapide (utilisateur final)
-1. Creez un compte utilisateur.
-2. Lancez l onboarding pour creer l entreprise.
-3. Ajoutez des clients et leurs proprietes.
-4. Ajoutez des produits ou des services selon votre type d entreprise.
-5. Creez un devis, acceptez le, puis convertissez le en job.
-6. Suivez le job, validez, puis generez la facture.
+Quick Start (Local)
+------------------
+Requirements:
+- PHP 8.2+
+- Composer
+- Node.js 18+
+- MySQL
 
-## 3. Roles et acces
-Chaque entreprise a un compte proprietaire (account owner). Les membres d equipe se connectent avec leur propre compte et sont lies a un proprietaire via Team Members.
+Install:
+1) composer install
+2) npm install
+3) copy .env.example -> .env
+4) php artisan key:generate
+5) update DB_*, APP_URL and mail settings in .env
+6) php artisan migrate --seed
+7) npm run dev
+8) php artisan serve
 
-Roles internes:
-- Proprietaire: acces complet a tous les modules et parametres.
-- Admin (team member): peut gerer les jobs et les taches selon ses permissions.
-- Membre (team member): acces limite (jobs/taches assignes).
+Environment Basics
+------------------
+Billing provider:
+- BILLING_PROVIDER=stripe or paddle
 
-Role client (portail):
-- Peut accepter/refuser un devis, valider un job, payer une facture, noter un devis ou un job.
-- Acces limite aux actions de workflow; pas de gestion interne (clients, produits, jobs, etc.).
+Stripe (plans):
+- STRIPE_ENABLED=true
+- STRIPE_PRICE_STARTER, STRIPE_PRICE_GROWTH, STRIPE_PRICE_SCALE
 
-Permissions actuelles (team):
-- jobs.view, jobs.edit
-- tasks.view, tasks.create, tasks.edit, tasks.delete
+Paddle (plans):
+- PADDLE_SANDBOX=true|false
+- PADDLE_PRICE_STARTER, PADDLE_PRICE_GROWTH, PADDLE_PRICE_SCALE
 
-Notes:
-- Les permissions sont appliquees via TeamMember et WorkPolicy/TaskPolicy.
-- Le proprietaire voit tout. Les membres voient uniquement leurs jobs assignes.
+Stripe Connect:
+- STRIPE_CONNECT_ENABLED=true
+- STRIPE_CONNECT_FEE_PERCENT=1.5
 
-## 4. Onboarding (creation d entreprise)
-Ecran: `/onboarding`
+AI Assistant
+------------
+The assistant can be included in a plan or enabled as an add-on.
 
-Champs principaux:
-- Company name (obligatoire)
-- Logo (upload image)
-- Description courte
-- Pays / Province / Ville
-- Type: services ou products
-- Est ce que vous etes le proprietaire ?
+Two add-on modes:
+1) Usage-based (metered):
+   - STRIPE_AI_USAGE_PRICE=price_xxx
+   - STRIPE_AI_USAGE_UNIT=requests|tokens
+   - STRIPE_AI_USAGE_UNIT_SIZE=1
 
-Si le createur n est pas le proprietaire:
-- creer un compte proprietaire (nom + email)
-- le createur devient membre admin
+2) Credit packs (one-time):
+   - STRIPE_AI_CREDIT_PRICE=price_xxx   (must be a one-time price)
+   - STRIPE_AI_CREDIT_PACK=100          (credits per pack)
 
-Invitations d equipe:
-- ajouter des emails et roles (admin ou member)
-- le systeme genere des mots de passe temporaires
+If STRIPE_AI_CREDIT_PRICE is set, credits mode is used.
+Make sure Stripe webhooks are configured so credits are added after payment.
 
-## 5. Clients et proprietes
-Module: Customers
+Webhooks
+--------
+- Stripe: /api/stripe/webhook
+- Paddle: /{CASHIER_PATH}/webhook (set CASHIER_PATH in .env)
 
-Fonctions:
-- creer un client (nom, email, telephone, societe)
-- ajouter plusieurs proprietes (adresse, ville, pays)
-- definir une propriete par defaut
+Common Commands
+---------------
+- php artisan migrate
+- php artisan db:seed
+- php artisan config:clear
+- npm run dev
+- npm run build
 
-Bonnes pratiques:
-- toujours definir au moins une propriete physique
-- utiliser la propriete par defaut pour accelerer la creation des devis
-
-## 6. Produits et services
-Module: Products / Services
-
-Regle:
-- si l entreprise est de type "services", les items sont des services
-- si l entreprise est de type "products", les items sont des produits
-
-Champs typiques:
-- nom, description
-- prix
-- stock (surtout pour produits)
-- categorie
-
-## 7. Requests (leads)
-Modele: Request (lead)
-
-Statuts:
-- REQ_NEW
-- REQ_CONVERTED
-
-Champs utiles:
-- client lie (customer_id) ou client externe
-- type de service, urgence
-- coordonnees (pays, ville, lat, lng)
-
-Flux:
-1. Creer une request.
-2. Convertir en devis (Quote).
-3. La request passe a REQ_CONVERTED.
-
-## 8. Quotes (devis)
-Module: Quotes
-
-Statuts:
-- draft, sent, accepted, declined
-
-Etapes:
-1. Choisir un client + propriete.
-2. Ajouter des lignes (produits/services).
-3. Ajouter taxes si besoin.
-4. Definir un acompte (initial_deposit).
-5. Envoyer ou accepter.
-
-Notes:
-- Les lignes sont snapshottees dans quote_products.
-- Un devis accepte peut creer un job automatiquement.
-- Un devis enfant (parent_id) sert aux extras (change order).
-
-## 9. Jobs (works)
-Module: Jobs (Work)
-
-Statuts principaux:
-- to_schedule, scheduled
-- en_route, in_progress
-- tech_complete
-- pending_review, validated, auto_validated, dispute
-- closed, cancelled, completed
-
-Regles:
-- Demarrer un job (in_progress) requiert au moins 3 photos "before".
-- Passer en tech_complete requiert:
-  - toutes les checklist items terminees
-  - au moins 3 photos "after"
-- Un job valide ou auto valide genere une facture.
-
-Checklist:
-- creee automatiquement a partir des lignes de devis (quote_products).
-- chaque item peut etre marque done/pending.
-
-## 10. Tasks (taches)
-Module: Tasks
-
-Statuts:
-- todo, in_progress, done
-
-Fonctions:
-- creer une tache, assigner un membre
-- lier une tache a un client ou un produit
-- filtrer par statut et recherche
-
-## 11. Invoices et paiements
-Module: Invoices
-
-Statuts:
-- draft, sent, partial, paid, overdue, void
-
-Generation:
-- une facture est creee a partir d un job valide.
-- total = somme des devis acceptes lie au job - acompte deja paye.
-
-Paiements:
-- ajouter un paiement met a jour le statut de la facture.
-- si paid, le job passe a closed.
-
-## 12. Workflow unifie (end to end)
-Ce workflow decrit la logique cible et ce qui est deja active cote back end.
-
-Phase 1 - Acquisition (Request)
-- Creer une request (REQ_NEW).
-- Convertir en devis (REQ_CONVERTED).
-
-Phase 2 - Quote
-- Le devis snapshotte les prix dans quote_products.
-- Acceptation: status accepted + creation du job + checklist.
-- Acompte: enregistre dans transactions.
-- Le client peut accepter ou refuser le devis via le portail.
-
-Phase 3 - Job setup
-- Job passe a to_schedule puis scheduled.
-- Assignation des membres d equipe.
-
-Phase 4 - Execution
-- Photos before requises pour in_progress.
-- Checklist et photos after requises pour tech_complete.
-- Extras: creer un devis enfant lie au job (parent_id).
-
-Phase 5 - QA
-- pending_review, validated, auto_validated, dispute.
-- Commande cron: `php artisan workflow:auto-validate`.
-- Le client peut valider un job (ou le marquer en dispute).
-
-Phase 6 - Facturation
-- Facture generee sur validated / auto_validated.
-- Paiement complet => job closed.
-- Le client peut payer la facture depuis le portail.
-
-## 13. Donnees de demo (LaunchSeeder)
-Seeder: `Database\\Seeders\\LaunchSeeder`
-
-Execution:
-```
-php artisan db:seed --class=Database\\Seeders\\LaunchSeeder
-```
-
-Comptes demo:
-- owner.services@example.com / password
-- admin.services@example.com / password
-- member.services@example.com / password
-- owner.products@example.com / password
-- client.north@example.com / password
-- client.products@example.com / password
-
-Ce seeder cree:
-- entreprises services + products
-- clients + proprietes
-- produits/services
-- requests + devis + jobs + checklist
-- transactions + facture + paiement partiel
-- taches assignees
-
-## 14. Commandes utiles (dev)
-```
-php artisan migrate
-php artisan storage:link
-php artisan db:seed
-php artisan db:seed --class=Database\\Seeders\\LaunchSeeder
-php artisan workflow:auto-validate
-```
-
-## 15. Maintenance du document
-Quand une page, un statut ou une regle change:
-- mettre a jour ce guide
-- ajuster la section "Workflow unifie" si necessaire
-- ajouter les nouvelles commandes ou seeders
-
-## 16. Abonnement plateforme (Paddle / Stripe)
-Le compte proprietaire gere l abonnement mensuel dans `Settings > Billing`.
-
-Provider (env):
-- BILLING_PROVIDER=paddle|stripe (par defaut: stripe)
-
-Champs env requis (Paddle):
-- PADDLE_SANDBOX (true/false)
-- PADDLE_CLIENT_SIDE_TOKEN (Paddle.js)
-- PADDLE_API_KEY (ou PADDLE_AUTH_CODE)
-- PADDLE_WEBHOOK_SECRET (prod)
-- PADDLE_PRICE_FREE / PADDLE_PRICE_FREE_AMOUNT
-- PADDLE_PRICE_STARTER / PADDLE_PRICE_STARTER_AMOUNT
-- PADDLE_PRICE_GROWTH / PADDLE_PRICE_GROWTH_AMOUNT
-- PADDLE_PRICE_SCALE / PADDLE_PRICE_SCALE_AMOUNT
-
-Champs env requis (Stripe):
-- STRIPE_KEY
-- STRIPE_SECRET
-- STRIPE_WEBHOOK_SECRET
-- STRIPE_ENABLED (true/false)
-- STRIPE_PRICE_FREE / STRIPE_PRICE_FREE_AMOUNT
-- STRIPE_PRICE_STARTER / STRIPE_PRICE_STARTER_AMOUNT
-- STRIPE_PRICE_GROWTH / STRIPE_PRICE_GROWTH_AMOUNT
-- STRIPE_PRICE_SCALE / STRIPE_PRICE_SCALE_AMOUNT
-
-Notes:
-- BILLING_PROVIDER controle le provider actif (stripe ou paddle).
-- Stripe: checkout Stripe + portail client (payment method). Webhook: `/api/stripe/webhook`.
-- Paddle: le bouton "Gerer le paiement" redirige vers Paddle (update payment method).
-
-## 17. Scenarios de test (LaunchSeeder)
-Seeder: `Database\\Seeders\\LaunchSeeder`
-
-Preparation:
-1. `php artisan migrate:fresh`
-2. `php artisan db:seed --class=Database\\Seeders\\LaunchSeeder`
-
-Comptes:
-- owner.services@example.com / password
-- admin.services@example.com / password
-- member.services@example.com / password
-- owner.products@example.com / password
-- client.north@example.com / password (portail client)
-- client.products@example.com / password (portail client)
-
-Donnees a tester:
-- Leads:
-  - Lead - Window cleaning (converti)
-  - Lead - Gutter cleaning (nouveau)
-  - Lead - Supply order (nouveau)
-- Quotes:
-  - Window cleaning package (accepted)
-  - Seasonal maintenance quote (sent)
-  - Draft - Exterior prep (draft)
-  - Declined - Fence wash (declined)
-  - Extra - Screen repair (change order)
-  - Starter supply pack (product, sent)
-- Jobs:
-  - Window cleaning package (validated)
-  - Review - Exterior refresh (pending_review)
-  - Scheduled - Seasonal checkup (scheduled)
-  - In progress - Driveway wash (in_progress)
-  - Dispute - Balcony cleanup (dispute)
-  - Cancelled - Patio wash (cancelled)
-  - Closed - Full service (closed)
-- Invoices:
-  - Window cleaning package (partial)
-  - Scheduled - Seasonal checkup (sent)
-  - Dispute - Balcony cleanup (overdue)
-  - Closed - Full service (paid)
-- Tasks:
-  - Prepare follow up call (todo)
-  - Upload before photos (in_progress)
-  - Send thank you note (done)
-- Ratings:
-  - Quote and job rated by client.north@example.com
-
-Tests rapides:
-1. Login owner.services@example.com, verifier dashboard + filtres jobs/quotes/invoices.
-2. Ouvrir Seasonal maintenance quote et tester accept/decline via portail client.
-3. Login client.north@example.com, valider ou mettre en dispute "Review - Exterior refresh".
-4. Login owner.products@example.com, verifier quote "Starter supply pack".
+Notes
+-----
+- Use .env for all secrets (never commit them).
+- For Stripe credits, use a one-time price (not recurring).
+- For Stripe usage, use a metered price.
