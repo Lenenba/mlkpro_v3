@@ -6,6 +6,7 @@ use App\Services\Assistant\AssistantInterpreter;
 use App\Services\Assistant\AssistantQuoteService;
 use App\Services\Assistant\AssistantWorkflowService;
 use App\Services\Assistant\OpenAiRequestException;
+use App\Services\AssistantUsageService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -18,7 +19,8 @@ class AssistantController extends Controller
         Request $request,
         AssistantInterpreter $interpreter,
         AssistantQuoteService $quoteService,
-        AssistantWorkflowService $workflowService
+        AssistantWorkflowService $workflowService,
+        AssistantUsageService $usageService
     ): JsonResponse
     {
         $user = $request->user();
@@ -119,6 +121,17 @@ class AssistantController extends Controller
                 'status' => 'error',
                 'message' => 'Assistant indisponible. Reessayez plus tard.',
             ], 500);
+        }
+
+        $usagePayload = $interpretation['usage'] ?? null;
+        unset($interpretation['usage']);
+
+        if (is_array($usagePayload) && $user) {
+            $usageService->record(
+                $user,
+                $usagePayload,
+                isset($usagePayload['model']) ? (string) $usagePayload['model'] : null
+            );
         }
 
         $contextIntent = $context['intent'] ?? null;

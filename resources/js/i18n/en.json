@@ -3413,6 +3413,23 @@
         "current_plan": "You are on this plan.",
         "cta_active": "Active plan"
       },
+      "assistant_addon": {
+        "title": "AI assistant",
+        "subtitle": "Add the AI assistant to your plan and pay based on usage.",
+        "included_badge": "Included",
+        "optional_badge": "Paid add-on",
+        "cta_enable": "Enable add-on",
+        "cta_disable": "Disable add-on",
+        "cta_included": "Included",
+        "usage_title": "Usage this month",
+        "usage_requests": "requests",
+        "usage_tokens_label": "Tokens",
+        "usage_tokens": "tokens",
+        "usage_units_label": "Units",
+        "usage_units": "billed units",
+        "not_available": "AI add-on unavailable. Configure Stripe and the usage price.",
+        "error": "Unable to update AI add-on."
+      },
       "payment": {
         "title": "Payment method",
         "subtitle": "Manage the card linked to your subscription.",

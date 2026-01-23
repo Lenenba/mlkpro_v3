@@ -1,57 +1,72 @@
 <!doctype html>
-<html lang="en">
+<html lang="fr">
   <head>
     <meta charset="utf-8">
-    <title>Invoice</title>
+    <title>Facture</title>
     <style>
       body {
         font-family: DejaVu Sans, sans-serif;
         font-size: 12px;
-        color: #1b1a18;
+        color: #1c1917;
         margin: 0;
         padding: 24px;
       }
-      .header-table {
+      .full {
         width: 100%;
         border-collapse: collapse;
-        margin-bottom: 18px;
       }
-      .header-left {
-        vertical-align: top;
+      .panel {
+        border: 1px solid #f5f5f4;
+        background: #f5f5f4;
+        padding: 16px;
+        border-radius: 3px;
       }
-      .header-right {
-        text-align: right;
-        vertical-align: top;
+      .card {
+        border: 1px solid #f5f5f4;
+        background: #ffffff;
+        padding: 12px;
+        border-radius: 3px;
       }
-      .company-table {
-        width: 100%;
-        border-collapse: collapse;
+      .card-strong {
+        border-color: #e7e5e4;
+      }
+      .section {
+        margin-top: 16px;
       }
       .logo {
-        width: 48px;
-        height: 48px;
+        width: 40px;
+        height: 40px;
         object-fit: cover;
-        border: 1px solid #e6e1db;
-        border-radius: 6px;
+        border: 1px solid #e7e5e4;
+        border-radius: 3px;
       }
-      .company-name {
-        font-size: 16px;
-        font-weight: bold;
-        margin-bottom: 2px;
+      .company-label {
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: #78716c;
       }
       .title {
-        font-size: 13px;
+        font-size: 16px;
         font-weight: 600;
-        margin-top: 4px;
+        color: #292524;
+        margin-top: 2px;
       }
-      .meta {
-        color: #6f665c;
-        font-size: 11px;
+      .subtitle {
+        font-size: 12px;
+        color: #57534e;
       }
-      .invoice-number {
-        font-size: 14px;
+      .btn {
+        display: inline-block;
+        padding: 4px 10px;
+        border: 1px solid #e7e5e4;
+        background: #ffffff;
+        color: #44403c;
+        border-radius: 3px;
+        font-size: 10px;
         font-weight: 600;
-        margin-top: 6px;
+        text-align: center;
+        white-space: nowrap;
       }
       .status-badge {
         display: inline-block;
@@ -63,95 +78,69 @@
         letter-spacing: 0.5px;
       }
       .status-draft {
-        background: #f0ebe4;
-        color: #6b6156;
+        background: #f5f5f4;
+        color: #57534e;
       }
       .status-sent {
-        background: #e0edff;
-        color: #2162b4;
+        background: #e0f2fe;
+        color: #0369a1;
       }
       .status-partial {
-        background: #fff1d6;
-        color: #8a5b00;
+        background: #fef3c7;
+        color: #92400e;
       }
       .status-paid {
-        background: #dcf5e8;
-        color: #0a7b50;
+        background: #dcfce7;
+        color: #166534;
       }
       .status-overdue,
       .status-void {
-        background: #ffe1e1;
-        color: #a12b2b;
+        background: #ffe4e6;
+        color: #9f1239;
       }
       .status-default {
-        background: #eef2f6;
-        color: #4a5568;
+        background: #f1f5f9;
+        color: #475569;
       }
-      .section-title {
-        font-size: 11px;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-        color: #6f665c;
-        margin-bottom: 6px;
+      .muted {
+        color: #57534e;
+        font-size: 10px;
       }
-      .card {
-        border: 1px solid #e6e1db;
-        background: #faf8f5;
-        padding: 10px;
-        border-radius: 6px;
-      }
-      .info-grid {
-        width: 100%;
-        border-collapse: collapse;
-        margin-bottom: 18px;
-      }
-      .info-main {
-        width: 65%;
-        vertical-align: top;
-        padding-right: 12px;
-      }
-      .info-side {
-        width: 35%;
-        vertical-align: top;
-      }
-      .inner-grid {
-        width: 100%;
-        border-collapse: collapse;
-      }
-      .info-cell {
-        padding: 8px 6px;
-        vertical-align: top;
+      .label {
+        font-size: 12px;
+        color: #1c1917;
+        margin-bottom: 4px;
       }
       .meta-row {
-        display: table;
         width: 100%;
         margin-top: 4px;
       }
-      .meta-row span {
-        display: table-cell;
-        font-size: 11px;
-        color: #6f665c;
+      .meta-row td {
+        font-size: 10px;
+        color: #57534e;
       }
-      .meta-row span:last-child {
+      .meta-row td:last-child {
         text-align: right;
-        color: #1b1a18;
-        font-weight: 600;
       }
-      .items-table {
-        width: 100%;
-        border-collapse: collapse;
-        margin-top: 8px;
+      .info-cell {
+        vertical-align: top;
+        padding-right: 12px;
       }
       .items-table th,
       .items-table td {
         padding: 8px 6px;
-        border-bottom: 1px solid #e7ded4;
+        border-bottom: 1px solid #e7e5e4;
         text-align: left;
         vertical-align: top;
       }
       .items-table th {
-        background: #f0ebe4;
-        font-weight: bold;
+        font-weight: 600;
+        color: #292524;
+        font-size: 12px;
+      }
+      .items-table td {
+        font-size: 11px;
+        color: #44403c;
       }
       .right {
         text-align: right;
@@ -160,55 +149,54 @@
       .center {
         text-align: center;
       }
-      .item-title {
-        font-weight: 600;
-      }
-      .item-desc {
-        color: #6f665c;
-        margin-top: 2px;
+      .summary-table td {
+        padding: 8px 0;
         font-size: 11px;
       }
-      .empty {
-        text-align: center;
-        color: #6f665c;
-        padding: 16px 0;
+      .summary-table .label {
+        color: #78716c;
       }
-      .totals-table {
-        width: 100%;
-        border-collapse: collapse;
-        margin-top: 16px;
-      }
-      .totals-table .spacer {
-        width: 65%;
-      }
-      .totals-inner {
-        width: 100%;
-        border-collapse: collapse;
-      }
-      .totals-inner td {
-        padding: 4px 0;
-        font-size: 11px;
-      }
-      .totals-inner .label {
-        color: #6f665c;
-      }
-      .totals-inner .value {
+      .summary-table .value {
         text-align: right;
         font-weight: 600;
       }
-      .totals-inner .balance {
-        color: #0a7b50;
+      .summary-table .highlight {
+        color: #16a34a;
       }
-      .payments-table {
-        width: 100%;
-        border-collapse: collapse;
-        margin-top: 8px;
+      .summary-divider td {
+        border-top: 1px solid #e7e5e4;
       }
-      .payments-table th,
-      .payments-table td {
-        padding: 6px;
-        border-bottom: 1px solid #e7ded4;
-        font-size: 11px;
+      .payment-row {
+        border: 1px solid #f5f5f4;
+        background: #f5f5f4;
+        padding: 8px;
+        border-radius: 3px;
+        margin-bottom: 8px;
+      }
+      .input {
+        border: 1px solid #e7e5e4;
+        background: #f5f5f4;
+        color: #78716c;
+        padding: 8px 10px;
+        border-radius: 3px;
+        font-size: 10px;
+        margin-bottom: 8px;
+      }
+      .input.textarea {
+        height: 36px;
+      }
+      .btn-primary {
+        display: inline-block;
+        padding: 6px 10px;
+        background: #16a34a;
+        color: #ffffff;
+        border-radius: 3px;
+        font-size: 10px;
+        font-weight: 600;
+      }
+      .stars {
+        color: #f59e0b;
+        font-size: 10px;
       }
     </style>
   </head>
@@ -216,21 +204,42 @@
     @php
       $companyName = $company?->company_name ?: config('app.name');
       $companyLogo = $company?->company_logo_url;
+      $companyLogoUrl = null;
+      if (!empty($companyLogo)) {
+          $companyLogoUrl = str_starts_with($companyLogo, '/') ? url($companyLogo) : $companyLogo;
+      }
       $customerLabel = $customer?->company_name
         ?: trim(($customer?->first_name ?? '') . ' ' . ($customer?->last_name ?? ''));
-      $customerLabel = $customerLabel ?: 'Customer';
+      $customerLabel = $customerLabel ?: 'Client';
       $contactName = trim(($customer?->first_name ?? '') . ' ' . ($customer?->last_name ?? ''));
-      $contactName = $contactName ?: ($customer?->company_name ?: 'Customer');
-      $companyEmail = $company?->company_email ?? $company?->email;
-      $formatMoney = function ($value) {
-          return '$' . number_format((float) $value, 2);
+      $contactName = $contactName ?: ($customer?->company_name ?: '-');
+      $contactEmail = $customer?->email ?: '-';
+      $contactPhone = $customer?->phone ?: '-';
+      $locale = strtolower((string) config('app.locale', 'fr'));
+      $useComma = str_starts_with($locale, 'fr');
+      $formatMoney = function ($value) use ($useComma) {
+          $decimal = $useComma ? ',' : '.';
+          $thousands = $useComma ? ' ' : ',';
+          return '$' . number_format((float) $value, 2, $decimal, $thousands);
       };
       $formatShortDate = function ($value) {
           if (!$value) {
               return '-';
           }
           try {
-              return \Carbon\Carbon::parse($value)->format('M d, Y');
+              return \Carbon\Carbon::parse($value)->format('d/m/Y');
+          } catch (\Exception $e) {
+              return '-';
+          }
+      };
+      $formatRelativeDate = function ($value) {
+          if (!$value) {
+              return '-';
+          }
+          try {
+              return \Carbon\Carbon::parse($value)
+                  ->locale(config('app.locale', 'fr'))
+                  ->diffForHumans();
           } catch (\Exception $e) {
               return '-';
           }
@@ -247,9 +256,19 @@
           return $startLabel . ' - ' . $endLabel;
       };
       $invoiceNumber = $invoice->number ?? $invoice->id;
-      $issuedAt = $invoice->created_at ? $invoice->created_at->format('M d, Y') : '';
       $status = $invoice->status ?? 'draft';
-      $statusLabel = ucwords(str_replace('_', ' ', $status));
+      $statusLabelMap = [
+          'draft' => 'Brouillon',
+          'sent' => 'Envoye',
+          'partial' => 'Partiel',
+          'paid' => 'Payee',
+          'overdue' => 'En retard',
+          'void' => 'Annulee',
+          'awaiting_acceptance' => 'En attente',
+          'accepted' => 'Acceptee',
+          'rejected' => 'Rejetee',
+      ];
+      $statusLabel = $statusLabelMap[$status] ?? $status;
       $statusClass = 'status-default';
       switch ($status) {
           case 'draft':
@@ -274,215 +293,230 @@
               $statusClass = 'status-void';
               break;
       }
-      $jobTitle = $work?->job_title;
+      $jobTitle = $work?->job_title ?: 'Job';
       $property = $work?->quote?->property;
       if (!$property && $customer && $customer->relationLoaded('properties')) {
           $property = $customer->properties->firstWhere('is_default', true) ?? $customer->properties->first();
       }
       $propertyLines = [];
       if ($property) {
-          $propertyLines = array_filter([
-              $property->street1 ?? null,
-              $property->street2 ?? null,
-              trim(($property->city ?? '') . ' ' . ($property->state ?? '') . ' ' . ($property->zip ?? '')),
-              $property->country ?? null,
-          ]);
+          if (!empty($property->country)) {
+              $propertyLines[] = $property->country;
+          }
+          if (!empty($property->street1)) {
+              $propertyLines[] = $property->street1;
+          }
+          $stateLine = trim(($property->state ?? '') . ' - ' . ($property->zip ?? ''));
+          if ($stateLine !== '') {
+              $propertyLines[] = $stateLine;
+          }
       }
+      $ratingValue = null;
+      $ratingCount = 0;
+      if ($work && $work->relationLoaded('ratings')) {
+          $ratingCount = $work->ratings->count();
+          if ($ratingCount > 0) {
+              $ratingValue = round($work->ratings->avg('rating'), 1);
+          }
+      }
+      $starHtml = '';
+      if ($ratingValue !== null) {
+          $filled = (int) round($ratingValue);
+          for ($i = 1; $i <= 5; $i++) {
+              $starHtml .= $i <= $filled ? '&#9733;' : '&#9734;';
+          }
+      }
+      $invoiceSubtotal = $subtotal;
+      if (!$isTaskBased && $work && $work->subtotal !== null) {
+          $invoiceSubtotal = (float) $work->subtotal;
+      }
+      $totalPaid = (float) $invoice->amount_paid;
     @endphp
 
-    <table class="header-table">
-      <tr>
-        <td class="header-left">
-          <table class="company-table">
-            <tr>
-              @if(!empty($companyLogo))
-                <td style="width:60px; vertical-align: top;">
-                  <img src="{{ $companyLogo }}" alt="Logo" class="logo">
+    <div class="panel">
+      <table class="full">
+        <tr>
+          <td style="width: 70%; vertical-align: top;">
+            <table class="full">
+              <tr>
+                @if(!empty($companyLogoUrl))
+                  <td style="width: 50px; vertical-align: top; padding-right: 10px;">
+                    <img src="{{ $companyLogoUrl }}" alt="Logo" class="logo">
+                  </td>
+                @endif
+                <td>
+                  <div class="company-label">{{ $companyName }}</div>
+                  <div class="title">Facture pour {{ $customerLabel }}</div>
+                  <div class="subtitle">{{ $jobTitle }}</div>
                 </td>
-              @endif
-              <td>
-                <div class="company-name">{{ $companyName }}</div>
-                @if(!empty($companyEmail))
-                  <div class="meta">{{ $companyEmail }}</div>
-                @endif
-                <div class="title">Invoice For {{ $customerLabel }}</div>
-                @if(!empty($jobTitle))
-                  <div class="meta">{{ $jobTitle }}</div>
-                @endif
-              </td>
-            </tr>
-          </table>
-        </td>
-        <td class="header-right">
-          <div class="status-badge {{ $statusClass }}">{{ $statusLabel }}</div>
-          <div class="invoice-number">#{{ $invoiceNumber }}</div>
-          @if($issuedAt)
-            <div class="meta">Issued {{ $issuedAt }}</div>
-          @endif
-          <div class="meta">Balance {{ $formatMoney($invoice->balance_due) }}</div>
-        </td>
-      </tr>
-    </table>
+              </tr>
+            </table>
+          </td>
+          <td style="width: 30%; text-align: right; vertical-align: top;">
+            <span class="status-badge {{ $statusClass }}">{{ $statusLabel }}</span>
+          </td>
+        </tr>
+      </table>
 
-    <table class="info-grid">
-      <tr>
-        <td class="info-main">
-          <table class="inner-grid">
-            <tr>
-              <td class="info-cell">
-                <div class="section-title">Property address</div>
-                @if(!empty($propertyLines))
-                  @foreach($propertyLines as $line)
-                    <div class="meta">{{ $line }}</div>
-                  @endforeach
-                @else
-                  <div class="meta">No property selected.</div>
-                @endif
-              </td>
-              <td class="info-cell">
-                <div class="section-title">Contact details</div>
-                <div class="meta">{{ $contactName }}</div>
-                @if(!empty($customer?->email))
-                  <div class="meta">{{ $customer->email }}</div>
-                @endif
-                @if(!empty($customer?->phone))
-                  <div class="meta">{{ $customer->phone }}</div>
-                @endif
-              </td>
-            </tr>
-          </table>
-        </td>
-        <td class="info-side">
-          <div class="card">
-            <div class="section-title">Invoice details</div>
-            <div class="meta-row">
-              <span>Invoice</span>
-              <span>#{{ $invoiceNumber }}</span>
+      <table class="full" style="margin-top: 12px;">
+        <tr>
+          <td style="width: 65%; vertical-align: top; padding-right: 12px;">
+            <div class="card card-strong" style="margin-bottom: 12px;">{{ $jobTitle }}</div>
+            <table class="full">
+              <tr>
+                <td class="info-cell">
+                  <div class="label">Adresse du bien</div>
+                  @if(!empty($propertyLines))
+                    @foreach($propertyLines as $line)
+                      <div class="muted">{{ $line }}</div>
+                    @endforeach
+                  @else
+                    <div class="muted">Aucune propriete selectionnee.</div>
+                  @endif
+                </td>
+                <td class="info-cell">
+                  <div class="label">Coordonnees</div>
+                  <div class="muted">{{ $contactName }}</div>
+                  <div class="muted">{{ $contactEmail }}</div>
+                  <div class="muted">{{ $contactPhone }}</div>
+                </td>
+              </tr>
+            </table>
+          </td>
+          <td style="width: 35%; vertical-align: top;">
+            <div class="card card-strong">
+              <div class="label">Details de la facture</div>
+              <table class="full">
+                <tr class="meta-row">
+                  <td>Facture:</td>
+                  <td>{{ $invoiceNumber }}</td>
+                </tr>
+                <tr class="meta-row">
+                  <td>Emise:</td>
+                  <td>{{ $formatRelativeDate($invoice->created_at) }}</td>
+                </tr>
+                <tr class="meta-row">
+                  <td>Solde du:</td>
+                  <td>{{ $formatMoney($invoice->balance_due) }}</td>
+                </tr>
+                <tr class="meta-row">
+                  <td>Note du job:</td>
+                  <td>
+                    @if($ratingValue !== null)
+                      <span class="stars">{!! $starHtml !!}</span>
+                      <span class="muted">{{ $ratingValue }} / 5 @if($ratingCount) ({{ $ratingCount }}) @endif</span>
+                    @else
+                      <span class="muted">Aucune note</span>
+                    @endif
+                  </td>
+                </tr>
+              </table>
             </div>
-            <div class="meta-row">
-              <span>Status</span>
-              <span>{{ $statusLabel }}</span>
-            </div>
-            <div class="meta-row">
-              <span>Issued</span>
-              <span>{{ $issuedAt ?: '-' }}</span>
-            </div>
-            <div class="meta-row">
-              <span>Total</span>
-              <span>{{ $formatMoney($invoice->total) }}</span>
-            </div>
-          </div>
-        </td>
-      </tr>
-    </table>
+          </td>
+        </tr>
+      </table>
+    </div>
 
-    <div class="section-title">Line items</div>
-    <table class="items-table">
-      <thead>
-        @if($isTaskBased)
-          <tr>
-            <th>Task</th>
-            <th class="center">Date</th>
-            <th class="center">Time</th>
-            <th class="center">Assignee</th>
-            <th class="right">Total</th>
-          </tr>
-        @else
-          <tr>
-            <th>Product/Services</th>
-            <th class="right">Qty</th>
-            <th class="right">Unit cost</th>
-            <th class="right">Total</th>
-          </tr>
-        @endif
-      </thead>
-      <tbody>
-        @if($isTaskBased)
-          @forelse($taskItems as $item)
-            <tr>
-              <td class="item-title">{{ $item['title'] }}</td>
-              <td class="center">{{ $formatShortDate($item['scheduled_date']) }}</td>
-              <td class="center">{{ $formatTimeRange($item['start_time'], $item['end_time']) }}</td>
-              <td class="center">{{ $item['assignee_name'] ?: '-' }}</td>
-              <td class="right">{{ $formatMoney($item['total']) }}</td>
-            </tr>
-          @empty
-            <tr>
-              <td colspan="5" class="empty">No line items.</td>
-            </tr>
-          @endforelse
-        @else
-          @forelse($productItems as $item)
-            <tr>
-              <td>
-                <div class="item-title">{{ $item['title'] }}</div>
-                @if(!empty($item['description']))
-                  <div class="item-desc">{{ $item['description'] }}</div>
-                @endif
-              </td>
-              <td class="right">{{ $item['quantity'] }}</td>
-              <td class="right">{{ $formatMoney($item['unit_price']) }}</td>
-              <td class="right">{{ $formatMoney($item['total']) }}</td>
-            </tr>
-          @empty
-            <tr>
-              <td colspan="4" class="empty">No line items.</td>
-            </tr>
-          @endforelse
-        @endif
-      </tbody>
-    </table>
-
-    <table class="totals-table">
-      <tr>
-        <td class="spacer"></td>
-        <td>
-          <table class="totals-inner">
-            <tr>
-              <td class="label">Subtotal</td>
-              <td class="value">{{ $formatMoney($subtotal) }}</td>
-            </tr>
-            <tr>
-              <td class="label">Paid</td>
-              <td class="value">{{ $formatMoney($totalPaid) }}</td>
-            </tr>
-            <tr>
-              <td class="label">Total</td>
-              <td class="value">{{ $formatMoney($invoice->total) }}</td>
-            </tr>
-            <tr>
-              <td class="label balance">Balance due</td>
-              <td class="value balance">{{ $formatMoney($invoice->balance_due) }}</td>
-            </tr>
-          </table>
-        </td>
-      </tr>
-    </table>
-
-    <div class="section-title" style="margin-top: 18px;">Payments</div>
-    @if($invoice->payments->isNotEmpty())
-      <table class="payments-table">
+    <div class="card section">
+      <table class="full items-table">
         <thead>
-          <tr>
-            <th>Amount</th>
-            <th>Method</th>
-            <th>Date</th>
-            <th class="right">Status</th>
-          </tr>
+          @if($isTaskBased)
+            <tr>
+              <th style="min-width: 160px;">Taches</th>
+              <th class="center">Date</th>
+              <th class="center">Heure</th>
+              <th class="center">Assigne</th>
+              <th class="right">Total</th>
+            </tr>
+          @else
+            <tr>
+              <th style="min-width: 160px;">Produits/Services</th>
+              <th class="right">Qt.</th>
+              <th class="right">Cout unitaire</th>
+              <th class="right">Total</th>
+            </tr>
+          @endif
         </thead>
         <tbody>
-          @foreach($invoice->payments as $payment)
-            <tr>
-              <td>{{ $formatMoney($payment->amount) }}</td>
-              <td>{{ $payment->method ?: '-' }}</td>
-              <td>{{ $formatShortDate($payment->paid_at) }}</td>
-              <td class="right">{{ $payment->status ?: '-' }}</td>
-            </tr>
-          @endforeach
+          @if($isTaskBased)
+            @forelse($taskItems as $item)
+              <tr>
+                <td>{{ $item['title'] }}</td>
+                <td class="center">{{ $formatShortDate($item['scheduled_date']) }}</td>
+                <td class="center">{{ $formatTimeRange($item['start_time'], $item['end_time']) }}</td>
+                <td class="center">{{ $item['assignee_name'] ?: '-' }}</td>
+                <td class="right">{{ $formatMoney($item['total']) }}</td>
+              </tr>
+            @empty
+              <tr>
+                <td colspan="5" class="muted">Aucun element.</td>
+              </tr>
+            @endforelse
+          @else
+            @forelse($productItems as $item)
+              <tr>
+                <td>{{ $item['title'] }}</td>
+                <td class="right">{{ $item['quantity'] }}</td>
+                <td class="right">{{ $formatMoney($item['unit_price']) }}</td>
+                <td class="right">{{ $formatMoney($item['total']) }}</td>
+              </tr>
+            @empty
+              <tr>
+                <td colspan="4" class="muted">Aucun element.</td>
+              </tr>
+            @endforelse
+          @endif
         </tbody>
       </table>
-    @else
-      <div class="meta">No payments yet.</div>
+    </div>
+
+    <div class="card section">
+      <table class="full">
+        <tr>
+          <td style="width: 60%;"></td>
+          <td style="width: 40%; border-left: 1px solid #e7e5e4; padding-left: 12px;">
+            <table class="full summary-table">
+              <tr>
+                <td class="label">Sous-total:</td>
+                <td class="value highlight">{{ $formatMoney($invoiceSubtotal) }}</td>
+              </tr>
+              <tr class="summary-divider">
+                <td class="label">Payee:</td>
+                <td class="value">{{ $formatMoney($totalPaid) }}</td>
+              </tr>
+              <tr class="summary-divider">
+                <td class="label"><strong>Montant total:</strong></td>
+                <td class="value"><strong>{{ $formatMoney($invoice->total) }}</strong></td>
+              </tr>
+              <tr class="summary-divider">
+                <td class="label">Solde du:</td>
+                <td class="value">{{ $formatMoney($invoice->balance_due) }}</td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
+    </div>
+
+    @if($invoice->payments->isNotEmpty())
+      <div class="card section">
+        <div class="label" style="font-weight: 600;">Paiements</div>
+        @foreach($invoice->payments as $payment)
+          <div class="payment-row">
+            <table class="full">
+              <tr>
+                <td>
+                  <div style="font-size: 11px; color: #44403c;">
+                    {{ $formatMoney($payment->amount) }} - {{ $payment->method ?: '-' }}
+                  </div>
+                  <div class="muted">{{ $formatRelativeDate($payment->paid_at) }}</div>
+                </td>
+                <td class="right muted">{{ $payment->status ?: '-' }}</td>
+              </tr>
+            </table>
+          </div>
+        @endforeach
+      </div>
     @endif
   </body>
 </html>

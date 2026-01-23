@@ -134,6 +134,7 @@ Route::name('api.')->group(function () {
                 Route::put('billing', [BillingSettingsController::class, 'update']);
                 Route::post('billing/checkout', [SubscriptionController::class, 'checkout']);
                 Route::post('billing/connect', [BillingSettingsController::class, 'connectStripe']);
+                Route::post('billing/assistant-addon', [BillingSettingsController::class, 'updateAssistantAddon']);
                 Route::post('billing/swap', [SubscriptionController::class, 'swap']);
                 Route::post('billing/portal', [SubscriptionController::class, 'portal']);
                 Route::post('billing/payment-method', [SubscriptionController::class, 'paymentMethodTransaction']);

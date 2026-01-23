@@ -15,6 +15,9 @@ class StripeSubscription extends Model
         'stripe_id',
         'stripe_customer_id',
         'price_id',
+        'assistant_price_id',
+        'assistant_item_id',
+        'assistant_enabled_at',
         'status',
         'trial_ends_at',
         'ends_at',
@@ -25,6 +28,7 @@ class StripeSubscription extends Model
         'trial_ends_at' => 'datetime',
         'ends_at' => 'datetime',
         'current_period_end' => 'datetime',
+        'assistant_enabled_at' => 'datetime',
     ];
 
     public function user(): BelongsTo

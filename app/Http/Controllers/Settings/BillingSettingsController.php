@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Settings;
 
 use App\Http\Controllers\Controller;
+use App\Models\AssistantUsage;
+use App\Models\PlatformSetting;
 use App\Services\BillingSubscriptionService;
 use App\Services\StripeConnectService;
 use App\Services\StripeBillingService;
@@ -30,6 +32,7 @@ class BillingSettingsController extends Controller
         }
 
         $billingService = app(BillingSubscriptionService::class);
+        $stripeBillingService = app(StripeBillingService::class);
         $providerRequested = $billingService->providerRequested();
         $providerEffective = $billingService->providerEffective();
         $isPaddleProvider = $billingService->isPaddle();
@@ -116,6 +119,28 @@ class BillingSettingsController extends Controller
             ->all();
 
         $subscriptionSummary = $billingService->subscriptionSummary($user);
+        $planModules = PlatformSetting::getValue('plan_modules', []);
+        $planKey = $billingService->resolvePlanKey($user, $planModules);
+        $assistantIncluded = $planKey ? (bool) ($planModules[$planKey]['assistant'] ?? false) : false;
+        $assistantEnabled = $user->hasCompanyFeature('assistant');
+        $assistantAddonEnabled = $assistantEnabled && !$assistantIncluded;
+        $assistantAddonAvailable = $billingService->isStripe()
+            && $providerReady
+            && (bool) config('services.stripe.ai_usage_price')
+            && $stripeBillingService->isConfigured();
+
+        $usageStart = now()->startOfMonth();
+        $usageEnd = now()->endOfMonth();
+        $usageQuery = AssistantUsage::query()
+            ->where('user_id', $user->id)
+            ->whereBetween('created_at', [$usageStart, $usageEnd]);
+        $assistantUsage = [
+            'requests' => (int) $usageQuery->sum('request_count'),
+            'tokens' => (int) $usageQuery->sum('total_tokens'),
+            'billed_units' => (int) $usageQuery->sum('billed_units'),
+            'period_start' => $usageStart,
+            'period_end' => $usageEnd,
+        ];
 
         return $this->inertiaOrJson('Settings/Billing', [
             'billing' => [
@@ -129,6 +154,15 @@ class BillingSettingsController extends Controller
             'paymentMethods' => array_values($user->payment_methods ?? []),
             'plans' => $plans,
             'subscription' => $subscriptionSummary,
+            'assistantAddon' => [
+                'included' => $assistantIncluded,
+                'enabled' => $assistantEnabled,
+                'addon_enabled' => $assistantAddonEnabled,
+                'available' => $assistantAddonAvailable,
+                'usage' => $assistantUsage,
+                'unit' => config('services.stripe.ai_usage_unit', 'requests'),
+                'unit_size' => (int) config('services.stripe.ai_usage_unit_size', 1),
+            ],
             'checkoutStatus' => $checkoutStatus,
             'checkoutPlanKey' => $request->query('plan'),
             'connectStatus' => $connectStatus,
@@ -152,6 +186,81 @@ class BillingSettingsController extends Controller
                 'fee_percent' => (float) config('services.stripe.connect_fee_percent', 1.5),
             ],
         ]);
+    }
+
+    public function updateAssistantAddon(Request $request)
+    {
+        $user = $request->user();
+        if (!$user || !$user->isAccountOwner()) {
+            abort(403);
+        }
+
+        $validated = $request->validate([
+            'enabled' => 'required|boolean',
+        ]);
+
+        $billingService = app(BillingSubscriptionService::class);
+        if (!$billingService->isStripe()) {
+            return response()->json([
+                'message' => 'Assistant IA indisponible pour ce fournisseur.',
+            ], 422);
+        }
+
+        $planModules = PlatformSetting::getValue('plan_modules', []);
+        $planKey = $billingService->resolvePlanKey($user, $planModules);
+        $assistantIncluded = $planKey ? (bool) ($planModules[$planKey]['assistant'] ?? false) : false;
+        if ($assistantIncluded) {
+            return response()->json([
+                'message' => 'Assistant IA deja inclus dans votre plan.',
+            ], 422);
+        }
+
+        if (!config('services.stripe.ai_usage_price')) {
+            return response()->json([
+                'message' => 'Assistant IA non configure (prix usage manquant).',
+            ], 422);
+        }
+
+        $subscriptionSummary = $billingService->subscriptionSummary($user);
+        if (empty($subscriptionSummary['price_id'])) {
+            return response()->json([
+                'message' => 'Aucun abonnement actif.',
+            ], 422);
+        }
+
+        $stripeBilling = app(StripeBillingService::class);
+        if (!$stripeBilling->isConfigured()) {
+            return response()->json([
+                'message' => 'Stripe n\'est pas configure.',
+            ], 422);
+        }
+
+        $features = (array) ($user->company_features ?? []);
+        if ($validated['enabled']) {
+            $subscription = $stripeBilling->enableAssistantAddon($user);
+            if (!$subscription) {
+                return response()->json([
+                    'message' => 'Impossible d\'activer l\'Assistant IA.',
+                ], 422);
+            }
+            $features['assistant'] = true;
+        } else {
+            $stripeBilling->disableAssistantAddon($user);
+            $features['assistant'] = false;
+        }
+
+        $user->update([
+            'company_features' => $features,
+        ]);
+
+        if ($this->shouldReturnJson($request)) {
+            return response()->json([
+                'message' => 'Assistant IA mis a jour.',
+                'enabled' => (bool) $features['assistant'],
+            ]);
+        }
+
+        return redirect()->back()->with('success', 'Assistant IA mis a jour.');
     }
 
     public function connectStripe(Request $request)

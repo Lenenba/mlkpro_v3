@@ -114,6 +114,110 @@ class StripeBillingService
         return $session->url ?? null;
     }
 
+    public function enableAssistantAddon(User $user): ?StripeSubscription
+    {
+        $assistantPriceId = $this->assistantUsagePriceId();
+        if (!$assistantPriceId) {
+            return null;
+        }
+
+        $local = $this->getLocalSubscription($user);
+        if (!$local) {
+            return null;
+        }
+
+        $client = $this->client();
+        $subscription = $client->subscriptions->retrieve($local->stripe_id, [
+            'expand' => ['items.data.price'],
+        ]);
+
+        $assistantItem = $this->findAssistantItem($subscription);
+        if (!$assistantItem) {
+            $subscription = $client->subscriptions->update($subscription->id, [
+                'items' => [
+                    [
+                        'price' => $assistantPriceId,
+                        'quantity' => 1,
+                    ],
+                ],
+                'proration_behavior' => 'create_prorations',
+                'expand' => ['items.data.price'],
+            ]);
+        }
+
+        return $this->upsertSubscription($user, $subscription, $subscription->customer ?? null);
+    }
+
+    public function disableAssistantAddon(User $user): ?StripeSubscription
+    {
+        $local = $this->getLocalSubscription($user);
+        if (!$local) {
+            return null;
+        }
+
+        $client = $this->client();
+        $subscription = $client->subscriptions->retrieve($local->stripe_id, [
+            'expand' => ['items.data.price'],
+        ]);
+
+        $assistantItem = $this->findAssistantItem($subscription);
+        if (!$assistantItem) {
+            return $this->upsertSubscription($user, $subscription, $subscription->customer ?? null);
+        }
+
+        $subscription = $client->subscriptions->update($subscription->id, [
+            'items' => [
+                [
+                    'id' => $assistantItem->id,
+                    'deleted' => true,
+                ],
+            ],
+            'proration_behavior' => 'none',
+            'expand' => ['items.data.price'],
+        ]);
+
+        return $this->upsertSubscription($user, $subscription, $subscription->customer ?? null);
+    }
+
+    public function recordAssistantUsage(User $user, int $quantity, ?int $timestamp = null): ?string
+    {
+        $quantity = max(1, $quantity);
+        $itemId = $this->resolveAssistantItemId($user);
+        if (!$itemId) {
+            return null;
+        }
+
+        $client = $this->client();
+        $record = $client->subscriptionItems->createUsageRecord($itemId, [
+            'quantity' => $quantity,
+            'timestamp' => $timestamp ?? time(),
+            'action' => 'increment',
+        ]);
+
+        return $record->id ?? null;
+    }
+
+    public function resolveAssistantItemId(User $user): ?string
+    {
+        $local = $this->getLocalSubscription($user);
+        if ($local?->assistant_item_id) {
+            return $local->assistant_item_id;
+        }
+
+        if (!$local?->stripe_id) {
+            return null;
+        }
+
+        $client = $this->client();
+        $subscription = $client->subscriptions->retrieve($local->stripe_id, [
+            'expand' => ['items.data.price'],
+        ]);
+
+        $updated = $this->upsertSubscription($user, $subscription, $subscription->customer ?? null);
+
+        return $updated?->assistant_item_id;
+    }
+
     public function syncFromStripeSubscription(array $subscription, ?User $user = null): ?StripeSubscription
     {
         $stripeId = $subscription['id'] ?? null;
@@ -156,6 +260,7 @@ class StripeBillingService
 
         $customerId = $customerId ?: ($subscription->customer ?? null);
         $priceId = $this->extractPriceId($subscription);
+        $assistantAddon = $this->extractAssistantAddon($subscription);
 
         $record = StripeSubscription::updateOrCreate(
             ['stripe_id' => $stripeId],
@@ -163,6 +268,9 @@ class StripeBillingService
                 'user_id' => $user->id,
                 'stripe_customer_id' => $customerId,
                 'price_id' => $priceId,
+                'assistant_price_id' => $assistantAddon['assistant_price_id'],
+                'assistant_item_id' => $assistantAddon['assistant_item_id'],
+                'assistant_enabled_at' => $assistantAddon['assistant_enabled_at'],
                 'status' => $subscription->status ?? null,
                 'trial_ends_at' => $this->timestampToCarbon($subscription->trial_end ?? null),
                 'ends_at' => $this->timestampToCarbon($subscription->ended_at ?? $subscription->canceled_at ?? null),
@@ -186,6 +294,7 @@ class StripeBillingService
 
         $customerId = $subscription['customer'] ?? null;
         $priceId = $this->extractPriceIdFromArray($subscription);
+        $assistantAddon = $this->extractAssistantAddonFromArray($subscription);
 
         $record = StripeSubscription::updateOrCreate(
             ['stripe_id' => $stripeId],
@@ -193,6 +302,9 @@ class StripeBillingService
                 'user_id' => $user->id,
                 'stripe_customer_id' => $customerId,
                 'price_id' => $priceId,
+                'assistant_price_id' => $assistantAddon['assistant_price_id'],
+                'assistant_item_id' => $assistantAddon['assistant_item_id'],
+                'assistant_enabled_at' => $assistantAddon['assistant_enabled_at'],
                 'status' => $subscription['status'] ?? null,
                 'trial_ends_at' => $this->timestampToCarbon($subscription['trial_end'] ?? null),
                 'ends_at' => $this->timestampToCarbon($subscription['ended_at'] ?? $subscription['canceled_at'] ?? null),
@@ -224,16 +336,114 @@ class StripeBillingService
 
     private function extractPriceId($subscription): ?string
     {
+        $assistantPriceId = $this->assistantUsagePriceId();
         $items = $subscription->items->data ?? [];
-        $first = $items[0] ?? null;
-        return $first?->price?->id ?? null;
+        foreach ($items as $item) {
+            $priceId = $item?->price?->id ?? null;
+            if (!$priceId) {
+                continue;
+            }
+            if ($assistantPriceId && $priceId === $assistantPriceId) {
+                continue;
+            }
+            return $priceId;
+        }
+        return null;
     }
 
     private function extractPriceIdFromArray(array $subscription): ?string
     {
+        $assistantPriceId = $this->assistantUsagePriceId();
         $items = $subscription['items']['data'] ?? [];
-        $first = $items[0] ?? null;
-        return $first['price']['id'] ?? null;
+        foreach ($items as $item) {
+            $priceId = $item['price']['id'] ?? null;
+            if (!$priceId) {
+                continue;
+            }
+            if ($assistantPriceId && $priceId === $assistantPriceId) {
+                continue;
+            }
+            return $priceId;
+        }
+        return null;
+    }
+
+    private function extractAssistantAddon($subscription): array
+    {
+        $assistantPriceId = $this->assistantUsagePriceId();
+        if (!$assistantPriceId) {
+            return [
+                'assistant_price_id' => null,
+                'assistant_item_id' => null,
+                'assistant_enabled_at' => null,
+            ];
+        }
+
+        $items = $subscription->items->data ?? [];
+        foreach ($items as $item) {
+            $priceId = $item?->price?->id ?? null;
+            if ($priceId && $priceId === $assistantPriceId) {
+                return [
+                    'assistant_price_id' => $assistantPriceId,
+                    'assistant_item_id' => $item->id ?? null,
+                    'assistant_enabled_at' => $this->timestampToCarbon($item->created ?? null),
+                ];
+            }
+        }
+
+        return [
+            'assistant_price_id' => null,
+            'assistant_item_id' => null,
+            'assistant_enabled_at' => null,
+        ];
+    }
+
+    private function extractAssistantAddonFromArray(array $subscription): array
+    {
+        $assistantPriceId = $this->assistantUsagePriceId();
+        if (!$assistantPriceId) {
+            return [
+                'assistant_price_id' => null,
+                'assistant_item_id' => null,
+                'assistant_enabled_at' => null,
+            ];
+        }
+
+        $items = $subscription['items']['data'] ?? [];
+        foreach ($items as $item) {
+            $priceId = $item['price']['id'] ?? null;
+            if ($priceId && $priceId === $assistantPriceId) {
+                return [
+                    'assistant_price_id' => $assistantPriceId,
+                    'assistant_item_id' => $item['id'] ?? null,
+                    'assistant_enabled_at' => $this->timestampToCarbon($item['created'] ?? null),
+                ];
+            }
+        }
+
+        return [
+            'assistant_price_id' => null,
+            'assistant_item_id' => null,
+            'assistant_enabled_at' => null,
+        ];
+    }
+
+    private function findAssistantItem($subscription): ?object
+    {
+        $assistantPriceId = $this->assistantUsagePriceId();
+        if (!$assistantPriceId) {
+            return null;
+        }
+
+        $items = $subscription->items->data ?? [];
+        foreach ($items as $item) {
+            $priceId = $item?->price?->id ?? null;
+            if ($priceId && $priceId === $assistantPriceId) {
+                return $item;
+            }
+        }
+
+        return null;
     }
 
     private function timestampToCarbon($timestamp): ?Carbon
@@ -243,6 +453,12 @@ class StripeBillingService
         }
 
         return Carbon::createFromTimestamp($timestamp, 'UTC');
+    }
+
+    private function assistantUsagePriceId(): ?string
+    {
+        $price = config('services.stripe.ai_usage_price');
+        return is_string($price) && trim($price) !== '' ? trim($price) : null;
     }
 
     private function client(): StripeClient

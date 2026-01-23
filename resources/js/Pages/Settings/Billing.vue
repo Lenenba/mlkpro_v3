@@ -23,6 +23,10 @@ const props = defineProps({
         type: Array,
         default: () => [],
     },
+    assistantAddon: {
+        type: Object,
+        default: () => ({}),
+    },
     subscription: {
         type: Object,
         default: () => ({}),
@@ -60,6 +64,8 @@ const paddleIsLoading = ref(false);
 const paymentMethodIsLoading = ref(false);
 const connectIsLoading = ref(false);
 const connectError = ref('');
+const assistantAddonIsLoading = ref(false);
+const assistantAddonError = ref('');
 
 const billingProvider = computed(() => (props.billing?.provider_effective || props.billing?.provider || 'paddle').toLowerCase());
 const isPaddleProvider = computed(() => billingProvider.value === 'paddle');
@@ -69,6 +75,12 @@ const stripeConnectEnabled = computed(() => Boolean(props.stripeConnect?.enabled
 const stripeConnectHasAccount = computed(() => Boolean(props.stripeConnect?.account_id));
 const stripeConnectReady = computed(() => Boolean(props.stripeConnect?.charges_enabled && props.stripeConnect?.payouts_enabled));
 const stripeConnectNeedsAction = computed(() => stripeConnectEnabled.value && !stripeConnectReady.value);
+const assistantAddon = computed(() => props.assistantAddon || {});
+const assistantIncluded = computed(() => Boolean(assistantAddon.value.included));
+const assistantEnabled = computed(() => Boolean(assistantAddon.value.enabled));
+const assistantAddonEnabled = computed(() => Boolean(assistantAddon.value.addon_enabled));
+const assistantAddonAvailable = computed(() => Boolean(assistantAddon.value.available));
+const assistantUsage = computed(() => assistantAddon.value.usage || {});
 
 const isSubscribed = computed(() => Boolean(props.subscription?.active));
 const hasSubscription = computed(() => Boolean(props.subscription?.provider_id));
@@ -346,6 +358,29 @@ const startStripeCheckout = async (plan) => {
     }
 };
 
+const updateAssistantAddon = async (enabled) => {
+    assistantAddonError.value = '';
+    if (!assistantAddonAvailable.value) {
+        assistantAddonError.value = t('settings.billing.assistant_addon.not_available');
+        return;
+    }
+
+    assistantAddonIsLoading.value = true;
+    try {
+        await axios.post(route('settings.billing.assistant-addon'), { enabled });
+        router.reload();
+    } catch (error) {
+        assistantAddonError.value = resolveStripeError(error, 'settings.billing.assistant_addon.error');
+    } finally {
+        assistantAddonIsLoading.value = false;
+    }
+};
+
+const featureClass = (feature) =>
+    feature?.toLowerCase?.().includes('option')
+        ? 'plan-card__feature plan-card__feature--optional'
+        : 'plan-card__feature';
+
 const openPaddleCheckout = async (plan) => {
     paddleUiError.value = '';
 
@@ -537,7 +572,7 @@ watch(
                                     {{ $t('settings.billing.plan.current_plan') }}
                                 </p>
                                 <ul class="plan-card__features">
-                                    <li v-for="feature in plan.features" :key="feature" class="plan-card__feature">
+                                    <li v-for="feature in plan.features" :key="feature" :class="featureClass(feature)">
                                         {{ feature }}
                                     </li>
                                 </ul>
@@ -547,6 +582,65 @@ watch(
                                     <span v-if="plan.price_id === subscription?.price_id">{{ $t('settings.billing.plan.cta_active') }}</span>
                                     <span v-else>{{ planActionLabel }}</span>
                                 </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="assistant-addon">
+                        <div class="assistant-addon__header">
+                            <div class="space-y-1">
+                                <h3 class="assistant-addon__title">{{ $t('settings.billing.assistant_addon.title') }}</h3>
+                                <p class="assistant-addon__subtitle">
+                                    {{ $t('settings.billing.assistant_addon.subtitle') }}
+                                </p>
+                            </div>
+                            <div class="assistant-addon__actions">
+                                <span v-if="assistantIncluded"
+                                    class="assistant-addon__badge assistant-addon__badge--included">
+                                    {{ $t('settings.billing.assistant_addon.included_badge') }}
+                                </span>
+                                <span v-else class="assistant-addon__badge">
+                                    {{ $t('settings.billing.assistant_addon.optional_badge') }}
+                                </span>
+                                <button v-if="!assistantIncluded" type="button"
+                                    :disabled="assistantAddonIsLoading || !assistantAddonAvailable || !hasSubscription"
+                                    @click="updateAssistantAddon(!assistantAddonEnabled)"
+                                    class="assistant-addon__cta">
+                                    <span v-if="assistantAddonEnabled">
+                                        {{ $t('settings.billing.assistant_addon.cta_disable') }}
+                                    </span>
+                                    <span v-else>
+                                        {{ $t('settings.billing.assistant_addon.cta_enable') }}
+                                    </span>
+                                </button>
+                                <span v-else class="assistant-addon__cta assistant-addon__cta--included">
+                                    {{ $t('settings.billing.assistant_addon.cta_included') }}
+                                </span>
+                            </div>
+                        </div>
+
+                        <div v-if="assistantAddonError" class="assistant-addon__error">
+                            {{ assistantAddonError }}
+                        </div>
+                        <div v-else-if="!assistantAddonAvailable && !assistantIncluded" class="assistant-addon__hint">
+                            {{ $t('settings.billing.assistant_addon.not_available') }}
+                        </div>
+
+                        <div class="assistant-addon__usage">
+                            <div class="assistant-addon__usage-item">
+                                <span>{{ $t('settings.billing.assistant_addon.usage_title') }}</span>
+                                <strong>{{ assistantUsage.requests || 0 }}</strong>
+                                <em>{{ $t('settings.billing.assistant_addon.usage_requests') }}</em>
+                            </div>
+                            <div class="assistant-addon__usage-item" v-if="assistantUsage.tokens !== undefined">
+                                <span>{{ $t('settings.billing.assistant_addon.usage_tokens_label') }}</span>
+                                <strong>{{ assistantUsage.tokens || 0 }}</strong>
+                                <em>{{ $t('settings.billing.assistant_addon.usage_tokens') }}</em>
+                            </div>
+                            <div class="assistant-addon__usage-item" v-if="assistantUsage.billed_units !== undefined">
+                                <span>{{ $t('settings.billing.assistant_addon.usage_units_label') }}</span>
+                                <strong>{{ assistantUsage.billed_units || 0 }}</strong>
+                                <em>{{ $t('settings.billing.assistant_addon.usage_units') }}</em>
                             </div>
                         </div>
                     </div>
@@ -654,6 +748,8 @@ watch(
     --plan-border-hover: rgba(15, 23, 42, 0.18);
     --plan-text: #0f172a;
     --plan-muted: rgba(15, 23, 42, 0.6);
+    --plan-feature-text: rgba(15, 23, 42, 0.78);
+    --plan-feature-muted: rgba(15, 23, 42, 0.45);
     --plan-accent: rgba(16, 185, 129, 0.85);
     --plan-status: rgba(15, 118, 110, 0.85);
     --plan-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
@@ -690,6 +786,8 @@ watch(
     --plan-border-hover: rgba(255, 255, 255, 0.18);
     --plan-text: #e2e8f0;
     --plan-muted: rgba(226, 232, 240, 0.7);
+    --plan-feature-text: rgba(226, 232, 240, 0.85);
+    --plan-feature-muted: rgba(226, 232, 240, 0.55);
     --plan-accent: rgba(16, 185, 129, 0.8);
     --plan-status: rgba(167, 243, 208, 0.85);
     --plan-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
@@ -812,17 +910,19 @@ watch(
 
 .plan-card__features {
     display: grid;
-    gap: 8px;
+    gap: 10px;
     margin: 0;
     padding: 0;
     list-style: none;
-    color: rgba(226, 232, 240, 0.85);
-    font-size: 0.8rem;
+    color: var(--plan-feature-text);
+    font-size: 0.85rem;
 }
 
 .plan-card__feature {
     position: relative;
     padding-left: 18px;
+    line-height: 1.35;
+    font-weight: 500;
 }
 
 .plan-card__feature::before {
@@ -835,6 +935,11 @@ watch(
     border-radius: 2px;
     background: var(--plan-dot);
     box-shadow: 0 0 0 3px var(--plan-dot-ring);
+}
+
+.plan-card__feature--optional {
+    color: var(--plan-feature-muted);
+    font-weight: 500;
 }
 
 .plan-card__cta {
@@ -861,5 +966,173 @@ watch(
     color: var(--plan-cta-disabled);
     background: var(--plan-cta-disabled-bg);
     border-color: var(--plan-cta-disabled-border);
+}
+
+.assistant-addon {
+    margin-top: 18px;
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    background: #f8fafc;
+    border-radius: 4px;
+    padding: 16px;
+}
+
+.assistant-addon__header {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+}
+
+.assistant-addon__title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #0f172a;
+}
+
+.assistant-addon__subtitle {
+    font-size: 0.85rem;
+    color: rgba(15, 23, 42, 0.6);
+}
+
+.assistant-addon__actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.assistant-addon__badge {
+    border-radius: 999px;
+    padding: 4px 10px;
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    border: 1px solid rgba(15, 23, 42, 0.12);
+    color: rgba(15, 23, 42, 0.8);
+    background: rgba(15, 23, 42, 0.04);
+}
+
+.assistant-addon__badge--included {
+    border-color: rgba(16, 185, 129, 0.5);
+    color: #0f766e;
+    background: rgba(16, 185, 129, 0.16);
+}
+
+.assistant-addon__cta {
+    border-radius: 4px;
+    border: 1px solid rgba(15, 23, 42, 0.16);
+    background: #ffffff;
+    color: #0f172a;
+    padding: 8px 12px;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.assistant-addon__cta:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.assistant-addon__cta--included {
+    border: 1px dashed rgba(16, 185, 129, 0.5);
+    background: transparent;
+    color: #0f766e;
+    padding: 8px 12px;
+    font-size: 0.75rem;
+}
+
+.assistant-addon__error {
+    margin-top: 10px;
+    font-size: 0.8rem;
+    color: #b91c1c;
+}
+
+.assistant-addon__hint {
+    margin-top: 10px;
+    font-size: 0.8rem;
+    color: rgba(15, 23, 42, 0.6);
+}
+
+.assistant-addon__usage {
+    margin-top: 12px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.assistant-addon__usage-item {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 10px 12px;
+    border-radius: 4px;
+    background: #ffffff;
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    min-width: 140px;
+}
+
+.assistant-addon__usage-item span {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: rgba(15, 23, 42, 0.45);
+}
+
+.assistant-addon__usage-item strong {
+    font-size: 1.1rem;
+    color: #0f172a;
+}
+
+.assistant-addon__usage-item em {
+    font-size: 0.75rem;
+    color: rgba(15, 23, 42, 0.6);
+}
+
+:global(.dark) .assistant-addon {
+    border-color: rgba(255, 255, 255, 0.08);
+    background: rgba(15, 23, 42, 0.6);
+}
+
+:global(.dark) .assistant-addon__title {
+    color: #e2e8f0;
+}
+
+:global(.dark) .assistant-addon__subtitle {
+    color: rgba(226, 232, 240, 0.65);
+}
+
+:global(.dark) .assistant-addon__badge {
+    border-color: rgba(255, 255, 255, 0.2);
+    color: rgba(226, 232, 240, 0.85);
+    background: rgba(15, 23, 42, 0.4);
+}
+
+:global(.dark) .assistant-addon__badge--included {
+    border-color: rgba(16, 185, 129, 0.6);
+    color: #d1fae5;
+    background: rgba(16, 185, 129, 0.18);
+}
+
+:global(.dark) .assistant-addon__cta {
+    border-color: rgba(255, 255, 255, 0.14);
+    background: rgba(15, 23, 42, 0.8);
+    color: #f8fafc;
+}
+
+:global(.dark) .assistant-addon__usage-item {
+    background: rgba(15, 23, 42, 0.8);
+    border-color: rgba(255, 255, 255, 0.08);
+}
+
+:global(.dark) .assistant-addon__usage-item span {
+    color: rgba(226, 232, 240, 0.6);
+}
+
+:global(.dark) .assistant-addon__usage-item strong {
+    color: #f8fafc;
+}
+
+:global(.dark) .assistant-addon__usage-item em {
+    color: rgba(226, 232, 240, 0.7);
 }
 </style>

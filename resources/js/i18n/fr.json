@@ -3413,6 +3413,23 @@
         "current_plan": "Vous etes sur ce plan.",
         "cta_active": "Plan actif"
       },
+      "assistant_addon": {
+        "title": "Assistant IA",
+        "subtitle": "Ajoutez l Assistant IA a votre forfait et payez a l usage.",
+        "included_badge": "Inclus",
+        "optional_badge": "Option payante",
+        "cta_enable": "Activer l option",
+        "cta_disable": "Desactiver l option",
+        "cta_included": "Inclus",
+        "usage_title": "Utilisation ce mois",
+        "usage_requests": "requetes",
+        "usage_tokens_label": "Tokens",
+        "usage_tokens": "tokens",
+        "usage_units_label": "Unites",
+        "usage_units": "unites facturees",
+        "not_available": "Option IA indisponible. Configurez Stripe et le prix d usage.",
+        "error": "Impossible de mettre a jour l option IA."
+      },
       "payment": {
         "title": "Moyen de paiement",
         "subtitle": "Gere la carte associee a votre abonnement.",

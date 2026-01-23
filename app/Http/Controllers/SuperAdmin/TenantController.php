@@ -447,6 +447,7 @@ class TenantController extends BaseSuperAdminController
             'services' => 'Services',
             'tasks' => 'Tasks',
             'team_members' => 'Team members',
+            'assistant' => 'AI assistant',
         ];
 
         $current = $tenant->company_features ?? [];

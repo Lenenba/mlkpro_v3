@@ -57,6 +57,9 @@ return [
         'webhook_secret' => env('STRIPE_WEBHOOK_SECRET'),
         'connect_enabled' => env('STRIPE_CONNECT_ENABLED', false),
         'connect_fee_percent' => env('STRIPE_CONNECT_FEE_PERCENT', 1.5),
+        'ai_usage_price' => env('STRIPE_AI_USAGE_PRICE'),
+        'ai_usage_unit' => env('STRIPE_AI_USAGE_UNIT', 'requests'),
+        'ai_usage_unit_size' => env('STRIPE_AI_USAGE_UNIT_SIZE', 1),
     ],
 
     'serpapi' => [
