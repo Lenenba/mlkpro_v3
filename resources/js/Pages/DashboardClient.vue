@@ -661,7 +661,7 @@ const submitWorkRating = (workId) => {
                                         {{ formatDate(work.start_date) }} {{ work.start_time || '' }}
                                     </div>
                                     <div v-if="work.frequency" class="text-xs text-stone-500 dark:text-neutral-400">
-                                        {{ formatStatus(work.frequency, 'client_dashboard.frequency') }}
+                                        {{ formatStatus(String(work.frequency || '').toLowerCase(), 'client_dashboard.frequency') }}
                                     </div>
                                 </div>
                                 <span class="px-2 py-0.5 text-xs font-medium rounded-full"
@@ -781,9 +781,12 @@ const submitWorkRating = (workId) => {
                             class="flex flex-col gap-3 rounded-sm border border-stone-200 p-3 text-sm dark:border-neutral-700">
                             <div class="flex flex-wrap items-center justify-between gap-2">
                                 <div>
-                                    <div class="font-medium text-stone-800 dark:text-neutral-100">
+                                    <Link
+                                        :href="route('portal.invoices.show', invoice.id)"
+                                        class="font-medium text-stone-800 hover:text-green-700 hover:underline dark:text-neutral-100"
+                                    >
                                         {{ invoice.number || $t('client_dashboard.labels.invoice_fallback') }}
-                                    </div>
+                                    </Link>
                                     <div class="text-xs text-stone-500 dark:text-neutral-400">
                                         {{ $t('client_dashboard.labels.issued_on', { date: formatDate(invoice.created_at) }) }}
                                     </div>
@@ -802,20 +805,23 @@ const submitWorkRating = (workId) => {
                                 <input v-model.number="paymentAmounts[invoice.id]" type="number" min="0.01" :max="invoice.balance_due" step="0.01"
                                     class="w-32 py-2 px-3 rounded-sm border border-stone-200 text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
                                     :placeholder="$t('client_dashboard.labels.amount')" />
-                                <button type="submit"
-                                    class="py-2 px-3 inline-flex items-center gap-x-2 text-xs font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700">
-                                    {{ $t('client_dashboard.actions.pay_now') }}
-                                </button>
                                 <button
                                     v-if="stripeEnabled"
                                     type="button"
                                     :disabled="stripeProcessing[invoice.id]"
-                                    class="py-2 px-3 inline-flex items-center gap-x-2 text-xs font-medium rounded-sm border border-transparent bg-slate-900 text-white hover:bg-slate-800 disabled:opacity-50"
+                                    class="py-2 px-3 inline-flex items-center gap-x-2 text-xs font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-800 disabled:opacity-50"
                                     @click="startStripePayment(invoice.id)"
                                 >
                                     {{ $t('client_dashboard.actions.pay_with_stripe') }}
                                 </button>
-                                <span class="text-xs text-stone-500 dark:text-neutral-400">
+                                <button
+                                    v-else
+                                    type="submit"
+                                    class="py-2 px-3 inline-flex items-center gap-x-2 text-xs font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700"
+                                >
+                                    {{ $t('client_dashboard.actions.pay_now') }}
+                                </button>
+                                <span class="text-xs text-greee-500 dark:text-neutral-400">
                                     {{ $t('client_dashboard.labels.paid_of', { paid: formatCurrency(invoice.amount_paid), total: formatCurrency(invoice.total) }) }}
                                 </span>
                             </form>
@@ -1012,7 +1018,7 @@ const submitWorkRating = (workId) => {
                                 </div>
                                 <div v-if="schedulePreviewIsRecurring" class="flex items-center justify-between">
                                     <span>{{ $t('client_dashboard.labels.frequency') }}</span>
-                                    <span>{{ formatStatus(schedulePreviewWork.frequency, 'client_dashboard.frequency') }}</span>
+                                    <span>{{ formatStatus(String(schedulePreviewWork.frequency || '').toLowerCase(), 'client_dashboard.frequency') }}</span>
                                 </div>
                                 <div v-if="schedulePreviewIsRecurring" class="flex items-center justify-between">
                                     <span>{{ $t('client_dashboard.labels.visits') }}</span>

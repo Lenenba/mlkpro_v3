@@ -1,50 +1,26 @@
 <script setup>
 import { computed } from 'vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
-import StarRating from '@/Components/UI/StarRating.vue';
-import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
+import { Head } from '@inertiajs/vue3';
 import { humanizeDate } from '@/utils/date';
 import { useI18n } from 'vue-i18n';
 
 const props = defineProps({
     invoice: Object,
+    company: Object,
 });
 
-const page = usePage();
 const { t } = useI18n();
-const companyName = computed(() => page.props.auth?.account?.company?.name || t('invoices.company_fallback'));
-const companyLogo = computed(() => page.props.auth?.account?.company?.logo_url || null);
+const invoice = computed(() => props.invoice || {});
+const companyName = computed(() => props.company?.name || t('invoices.company_fallback'));
+const companyLogo = computed(() => props.company?.logo_url || null);
 
-const form = useForm({
-    amount: '',
-    method: '',
-    reference: '',
-    paid_at: '',
-    notes: '',
-});
-
-const dispatchDemoEvent = (eventName) => {
-    if (typeof window === 'undefined') {
-        return;
-    }
-    window.dispatchEvent(new CustomEvent(eventName));
-};
-
-const submitPayment = () => {
-    form.post(route('payment.store', props.invoice.id), {
-        preserveScroll: true,
-        onSuccess: () => {
-            form.reset('amount', 'method', 'reference', 'paid_at', 'notes');
-            dispatchDemoEvent('demo:invoice_paid');
-        },
-    });
-};
-
-const customer = computed(() => props.invoice.customer || null);
-const work = computed(() => props.invoice.work || null);
-const invoiceItems = computed(() => props.invoice.items || []);
+const customer = computed(() => invoice.value.customer || null);
+const work = computed(() => invoice.value.work || null);
+const invoiceItems = computed(() => invoice.value.items || []);
 const isTaskBased = computed(() => invoiceItems.value.length > 0);
 const lineItems = computed(() => (isTaskBased.value ? invoiceItems.value : work.value?.products || []));
+const payments = computed(() => invoice.value.payments || []);
 
 const customerName = computed(() => {
     const data = customer.value;
@@ -73,17 +49,6 @@ const fallbackProperty = computed(() => {
 });
 
 const property = computed(() => work.value?.quote?.property || fallbackProperty.value);
-
-const ratingValue = computed(() => {
-    const ratings = work.value?.ratings || [];
-    if (!ratings.length) {
-        return null;
-    }
-    const sum = ratings.reduce((total, rating) => total + Number(rating.rating || 0), 0);
-    return sum / ratings.length;
-});
-
-const ratingCount = computed(() => work.value?.ratings?.length || 0);
 
 const formatDate = (value) => humanizeDate(value) || '-';
 
@@ -124,31 +89,51 @@ const invoiceSubtotal = computed(() => {
         return Number(work.value.subtotal || 0);
     }
 
-    return Number(props.invoice.total || 0);
+    return Number(invoice.value.total || 0);
 });
 
 const lineItemColspan = computed(() => (isTaskBased.value ? 5 : 4));
 
 const statusLabel = computed(() => {
-    const status = props.invoice?.status || 'draft';
+    const status = invoice.value?.status || 'draft';
     const key = `invoices.status.${status}`;
     const translated = t(key);
     return translated === key ? status : translated;
 });
+
+const statusClass = (status) => {
+    switch (status) {
+        case 'draft':
+            return 'bg-stone-100 text-stone-700 dark:bg-neutral-800 dark:text-neutral-200';
+        case 'sent':
+            return 'bg-sky-100 text-sky-700 dark:bg-sky-500/10 dark:text-sky-400';
+        case 'partial':
+            return 'bg-amber-100 text-amber-800 dark:bg-amber-500/10 dark:text-amber-400';
+        case 'paid':
+            return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-400';
+        case 'overdue':
+        case 'void':
+            return 'bg-rose-100 text-rose-800 dark:bg-rose-500/10 dark:text-rose-400';
+        default:
+            return 'bg-stone-100 text-stone-700 dark:bg-neutral-800 dark:text-neutral-200';
+    }
+};
 </script>
 
 <template>
     <Head :title="$t('invoices.show.title', { number: invoice.number || invoice.id })" />
 
     <AuthenticatedLayout>
-        <div class="mx-auto w-full max-w-6xl space-y-5 rise-stagger">
+        <div class="mx-auto w-full max-w-6xl space-y-5">
             <div class="p-5 space-y-3 flex flex-col bg-stone-100 border border-stone-100 rounded-sm shadow-sm dark:bg-neutral-900 dark:border-neutral-800">
                 <div class="flex flex-wrap justify-between items-center gap-3">
                     <div class="flex items-center gap-3">
-                        <img v-if="companyLogo"
+                        <img
+                            v-if="companyLogo"
                             :src="companyLogo"
                             :alt="companyName"
-                            class="h-12 w-12 rounded-sm border border-stone-200 object-cover dark:border-neutral-700" />
+                            class="h-12 w-12 rounded-sm border border-stone-200 object-cover dark:border-neutral-700"
+                        />
                         <div>
                             <p class="text-xs uppercase text-stone-500 dark:text-neutral-400">
                                 {{ companyName }}
@@ -161,32 +146,10 @@ const statusLabel = computed(() => {
                             </p>
                         </div>
                     </div>
-                    <div class="flex items-center gap-2">
-                        <Link
-                            :href="route('pipeline.timeline', { entityType: 'invoice', entityId: invoice.id })"
-                            class="inline-flex items-center gap-x-2 text-xs font-medium rounded-sm border border-stone-200 bg-white px-3 py-1.5 text-stone-700 hover:bg-stone-50 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-800"
-                        >
-                            {{ $t('invoices.show.timeline') }}
-                        </Link>
-                        <a
-                            :href="route('invoice.pdf', invoice.id)"
-                            class="inline-flex items-center gap-x-2 text-xs font-medium rounded-sm border border-stone-200 bg-white px-3 py-1.5 text-stone-700 hover:bg-stone-50 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-800"
-                            target="_blank"
-                            rel="noopener"
-                        >
-                            {{ $t('invoices.show.download_pdf') }}
-                        </a>
-                        <span class="py-1.5 px-3 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-full"
-                            :class="{
-                                'bg-stone-100 text-stone-700 dark:bg-neutral-800 dark:text-neutral-200': invoice.status === 'draft',
-                                'bg-sky-100 text-sky-700 dark:bg-sky-500/10 dark:text-sky-400': invoice.status === 'sent',
-                                'bg-amber-100 text-amber-800 dark:bg-amber-500/10 dark:text-amber-400': invoice.status === 'partial',
-                                'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-400': invoice.status === 'paid',
-                                'bg-rose-100 text-rose-800 dark:bg-rose-500/10 dark:text-rose-400': invoice.status === 'overdue' || invoice.status === 'void',
-                            }">
-                            {{ statusLabel }}
-                        </span>
-                    </div>
+                    <span class="py-1.5 px-3 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-full"
+                        :class="statusClass(invoice.status)">
+                        {{ statusLabel }}
+                    </span>
                 </div>
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     <div class="col-span-2 space-x-2">
@@ -232,13 +195,6 @@ const statusLabel = computed(() => {
                         <div class="text-xs text-stone-600 dark:text-neutral-300 flex justify-between">
                             <span>{{ $t('invoices.show.balance_due') }}:</span>
                             <span>{{ formatCurrency(invoice.balance_due) }}</span>
-                        </div>
-                        <div class="text-xs text-stone-600 dark:text-neutral-300 flex justify-between">
-                            <span>{{ $t('invoices.show.job_rating') }}:</span>
-                            <span class="flex items-center gap-2">
-                                <StarRating :value="ratingValue" show-value :empty-label="$t('invoices.show.no_rating')" />
-                                <span v-if="ratingCount" class="text-xs text-stone-500 dark:text-neutral-400">({{ ratingCount }})</span>
-                            </span>
                         </div>
                     </div>
                 </div>
@@ -336,49 +292,23 @@ const statusLabel = computed(() => {
                 </div>
             </div>
 
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-3">
-                <div class="p-4 bg-white border border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
-                    <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100 mb-3">{{ $t('invoices.show.payments.title') }}</h2>
-                    <div v-if="invoice.payments?.length" class="space-y-2">
-                        <div v-for="payment in invoice.payments" :key="payment.id"
-                            class="flex items-center justify-between p-2 rounded-sm bg-stone-50 dark:bg-neutral-900">
-                            <div>
-                                <p class="text-sm text-stone-700 dark:text-neutral-200">
-                                    {{ formatCurrency(payment.amount) }} - {{ payment.method || $t('invoices.labels.method_fallback') }}
-                                </p>
-                                <p class="text-xs text-stone-500 dark:text-neutral-400">
-                                    {{ formatDate(payment.paid_at) }}
-                                </p>
-                            </div>
-                            <span class="text-xs text-stone-500 dark:text-neutral-400">{{ payment.status }}</span>
+            <div class="p-4 bg-white border border-stone-200 rounded-sm shadow-sm dark:bg-neutral-900 dark:border-neutral-800">
+                <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100 mb-3">{{ $t('invoices.show.payments.title') }}</h2>
+                <div v-if="payments.length" class="space-y-2">
+                    <div v-for="payment in payments" :key="payment.id"
+                        class="flex items-center justify-between p-2 rounded-sm bg-stone-50 dark:bg-neutral-800">
+                        <div>
+                            <p class="text-sm text-stone-700 dark:text-neutral-200">
+                                {{ formatCurrency(payment.amount) }} - {{ payment.method || $t('invoices.labels.method_fallback') }}
+                            </p>
+                            <p class="text-xs text-stone-500 dark:text-neutral-400">
+                                {{ formatDate(payment.paid_at) }}
+                            </p>
                         </div>
+                        <span class="text-xs text-stone-500 dark:text-neutral-400">{{ payment.status }}</span>
                     </div>
-                    <p v-else class="text-sm text-stone-500 dark:text-neutral-400">{{ $t('invoices.show.payments.empty') }}</p>
                 </div>
-
-                <div class="p-4 bg-white border border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
-                    <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100 mb-3">{{ $t('invoices.show.add_payment.title') }}</h2>
-                    <form @submit.prevent="submitPayment" class="space-y-3">
-                        <input v-model="form.amount" type="number" min="0" step="0.01"
-                            class="w-full py-2 px-3 bg-stone-100 border-transparent rounded-sm text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-700 dark:text-neutral-200"
-                            :placeholder="$t('invoices.show.add_payment.amount')">
-                        <input v-model="form.method" type="text"
-                            class="w-full py-2 px-3 bg-stone-100 border-transparent rounded-sm text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-700 dark:text-neutral-200"
-                            :placeholder="$t('invoices.show.add_payment.method')">
-                        <input v-model="form.reference" type="text"
-                            class="w-full py-2 px-3 bg-stone-100 border-transparent rounded-sm text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-700 dark:text-neutral-200"
-                            :placeholder="$t('invoices.show.add_payment.reference')">
-                        <input v-model="form.paid_at" type="date"
-                            class="w-full py-2 px-3 bg-stone-100 border-transparent rounded-sm text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-700 dark:text-neutral-200">
-                        <textarea v-model="form.notes" rows="2"
-                            class="w-full py-2 px-3 bg-stone-100 border-transparent rounded-sm text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-700 dark:text-neutral-200"
-                            :placeholder="$t('invoices.show.add_payment.notes')"></textarea>
-                        <button type="submit" data-testid="demo-invoice-payment-submit"
-                            class="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:pointer-events-none">
-                            {{ $t('invoices.show.add_payment.submit') }}
-                        </button>
-                    </form>
-                </div>
+                <p v-else class="text-sm text-stone-500 dark:text-neutral-400">{{ $t('invoices.show.payments.empty') }}</p>
             </div>
         </div>
     </AuthenticatedLayout>

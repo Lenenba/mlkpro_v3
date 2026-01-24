@@ -28,6 +28,32 @@ class PortalInvoiceController extends Controller
         return $customer;
     }
 
+    public function show(Request $request, Invoice $invoice)
+    {
+        $customer = $this->portalCustomer($request);
+        if ($invoice->customer_id !== $customer->id) {
+            abort(403);
+        }
+
+        $invoice->load([
+            'customer.properties',
+            'items',
+            'work.products',
+            'work.quote.property',
+            'payments',
+        ]);
+
+        $owner = User::find($invoice->user_id);
+
+        return Inertia::render('Portal/InvoiceShow', [
+            'invoice' => $invoice,
+            'company' => [
+                'name' => $owner?->company_name ?: config('app.name'),
+                'logo_url' => $owner?->company_logo_url,
+            ],
+        ]);
+    }
+
     public function storePayment(Request $request, Invoice $invoice)
     {
         $customer = $this->portalCustomer($request);
