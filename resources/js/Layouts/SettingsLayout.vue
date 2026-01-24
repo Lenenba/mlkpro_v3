@@ -115,13 +115,13 @@ const navTabs = computed(() => {
         <div class="settings-shell">
             <header class="settings-hero">
                 <div class="settings-hero__inner" :class="props.contentClass">
-                    <div class="settings-hero__profile">
+                    <div class="settings-hero__card">
                         <div class="settings-avatar">
                             <img v-if="avatarUrl" :src="avatarUrl" :alt="userName" />
                             <span v-else>{{ avatarInitial }}</span>
                         </div>
-                        <div>
-                            <p class="settings-hero__title">{{ t('settings._label') }}</p>
+                        <div class="settings-hero__text">
+                            <h1 class="settings-hero__title">{{ t('settings._label') }}</h1>
                             <p class="settings-hero__meta">
                                 <span>{{ userName }}</span>
                                 <span v-if="userEmail" class="settings-hero__dot">&middot;</span>
@@ -157,54 +157,75 @@ const navTabs = computed(() => {
 }
 
 .settings-hero {
-    --hero-bg: #ffffff;
-    --hero-border: rgba(15, 23, 42, 0.08);
-    --hero-muted: rgba(15, 23, 42, 0.6);
+    --hero-bg: transparent;
+    --hero-border: transparent;
+    --hero-muted: rgba(15, 23, 42, 0.65);
     --hero-text: #0f172a;
-    --hero-accent: rgba(16, 185, 129, 0.16);
+    --hero-card: rgba(255, 255, 255, 0.9);
+    --hero-card-border: rgba(148, 163, 184, 0.3);
+    --hero-accent: rgba(16, 185, 129, 0.2);
     display: block;
-    padding: 16px 0;
-    border-bottom: 1px solid var(--hero-border);
+    padding: 0;
     background: var(--hero-bg);
-    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+    border-bottom: 1px solid var(--hero-border);
     font-family: inherit;
+    position: relative;
+    overflow: visible;
 }
 
 :global(.dark) .settings-hero {
-    --hero-bg: #0b0f14;
-    --hero-border: rgba(255, 255, 255, 0.08);
-    --hero-muted: rgba(226, 232, 240, 0.7);
+    --hero-bg: transparent;
+    --hero-border: transparent;
+    --hero-muted: rgba(226, 232, 240, 0.72);
     --hero-text: #e2e8f0;
-    --hero-accent: rgba(16, 185, 129, 0.2);
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+    --hero-card: rgba(15, 23, 42, 0.82);
+    --hero-card-border: rgba(148, 163, 184, 0.2);
+    --hero-accent: rgba(16, 185, 129, 0.25);
 }
 
 .settings-hero__inner {
     display: flex;
     align-items: center;
-    justify-content: space-between;
     gap: 16px;
     margin: 0 auto;
     padding: 0 12px;
     width: 100%;
 }
 
-.settings-hero__profile {
+.settings-hero__card {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 16px;
+    padding: 14px 18px 14px 24px;
+    border-radius: 3px;
+    background: var(--hero-card);
+    border: 1px solid var(--hero-card-border);
+    position: relative;
+    overflow: hidden;
+    width: 100%;
+}
+
+.settings-hero__card::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 6px;
+    background: linear-gradient(180deg, rgba(16, 185, 129, 0.8), rgba(14, 116, 144, 0.65));
 }
 
 .settings-avatar {
-    width: 46px;
-    height: 46px;
-    border-radius: 8px;
+    width: 56px;
+    height: 56px;
+    border-radius: 3px;
     overflow: hidden;
     display: grid;
     place-items: center;
     background: var(--hero-accent);
     color: var(--hero-text);
     font-weight: 600;
+    box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.5);
 }
 
 .settings-avatar img {
@@ -213,14 +234,15 @@ const navTabs = computed(() => {
     object-fit: cover;
 }
 
-.settings-name {
-    font-weight: 600;
-    color: var(--hero-text);
+.settings-hero__text {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
 }
 
 .settings-hero__title {
-    font-size: 0.95rem;
-    font-weight: 600;
+    font-size: 1.2rem;
+    font-weight: 700;
     color: var(--hero-text);
 }
 
