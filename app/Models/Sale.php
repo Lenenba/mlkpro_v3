@@ -28,12 +28,14 @@ class Sale extends Model
         'created_by_user_id',
         'customer_id',
         'status',
+        'payment_provider',
         'number',
         'subtotal',
         'tax_total',
         'discount_rate',
         'discount_total',
         'total',
+        'deposit_amount',
         'delivery_fee',
         'fulfillment_method',
         'fulfillment_status',
@@ -53,6 +55,8 @@ class Sale extends Model
         'source',
         'notes',
         'paid_at',
+        'stripe_payment_intent_id',
+        'stripe_checkout_session_id',
     ];
 
     protected $casts = [
@@ -61,6 +65,7 @@ class Sale extends Model
         'discount_rate' => 'decimal:2',
         'discount_total' => 'decimal:2',
         'total' => 'decimal:2',
+        'deposit_amount' => 'decimal:2',
         'delivery_fee' => 'decimal:2',
         'paid_at' => 'datetime',
         'scheduled_for' => 'datetime',
@@ -71,6 +76,9 @@ class Sale extends Model
 
     protected $appends = [
         'delivery_proof_url',
+        'amount_paid',
+        'balance_due',
+        'payment_status',
     ];
 
     protected static function boot()
@@ -87,6 +95,11 @@ class Sale extends Model
     public function items(): HasMany
     {
         return $this->hasMany(SaleItem::class);
+    }
+
+    public function payments(): HasMany
+    {
+        return $this->hasMany(Payment::class);
     }
 
     public function customer(): BelongsTo
@@ -124,5 +137,56 @@ class Sale extends Model
         }
 
         return \Illuminate\Support\Facades\Storage::disk('public')->url($this->delivery_proof);
+    }
+
+    public function getAmountPaidAttribute(): float
+    {
+        if (array_key_exists('payments_sum_amount', $this->attributes)) {
+            return (float) $this->attributes['payments_sum_amount'];
+        }
+
+        if ($this->relationLoaded('payments')) {
+            return (float) $this->payments->where('status', 'completed')->sum('amount');
+        }
+
+        return (float) $this->payments()
+            ->where('status', 'completed')
+            ->sum('amount');
+    }
+
+    public function getBalanceDueAttribute(): float
+    {
+        $total = (float) $this->total;
+        $paid = $this->amount_paid;
+
+        return max(0, round($total - $paid, 2));
+    }
+
+    public function getPaymentStatusAttribute(): string
+    {
+        if ($this->status === self::STATUS_PAID) {
+            return self::STATUS_PAID;
+        }
+        if ($this->status === self::STATUS_CANCELED) {
+            return self::STATUS_CANCELED;
+        }
+
+        $total = (float) $this->total;
+        $paid = $this->amount_paid;
+
+        if ($total > 0 && $paid >= $total) {
+            return self::STATUS_PAID;
+        }
+
+        if ($paid > 0) {
+            return 'partial';
+        }
+
+        $deposit = (float) ($this->deposit_amount ?? 0);
+        if ($deposit > 0) {
+            return 'deposit_required';
+        }
+
+        return 'unpaid';
     }
 }

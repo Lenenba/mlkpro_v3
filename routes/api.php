@@ -85,6 +85,7 @@ Route::name('api.')->group(function () {
             Route::get('orders/{sale}/edit', [PortalProductOrderController::class, 'edit']);
             Route::post('orders', [PortalProductOrderController::class, 'store']);
             Route::put('orders/{sale}', [PortalProductOrderController::class, 'update']);
+            Route::post('orders/{sale}/pay', [PortalProductOrderController::class, 'pay']);
             Route::post('orders/{sale}/confirm', [PortalProductOrderController::class, 'confirmReceipt']);
             Route::delete('orders/{sale}', [PortalProductOrderController::class, 'destroy']);
             Route::post('orders/{sale}/reorder', [PortalProductOrderController::class, 'reorder']);

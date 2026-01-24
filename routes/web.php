@@ -5,6 +5,7 @@ use App\Http\Controllers\WorkController;
 use App\Http\Controllers\QuoteController;
 use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\PaymentController;
+use App\Http\Controllers\SalePaymentController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ProductPriceLookupController;
 use App\Http\Controllers\SaleController;
@@ -245,6 +246,7 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
         Route::post('/sales', [SaleController::class, 'store'])->name('sales.store');
         Route::put('/sales/{sale}', [SaleController::class, 'update'])->name('sales.update');
         Route::patch('/sales/{sale}/status', [SaleController::class, 'updateStatus'])->name('sales.status.update');
+        Route::post('/sales/{sale}/stripe', [SaleController::class, 'createStripeCheckout'])->name('sales.stripe');
         Route::post('/sales/{sale}/pickup-confirm', [SaleController::class, 'confirmPickup'])
             ->name('sales.pickup.confirm');
         Route::get('/sales/{sale}', [SaleController::class, 'show'])->name('sales.show');
@@ -316,8 +318,9 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
         Route::post('/work/{work}/invoice', [InvoiceController::class, 'storeFromWork'])->name('invoice.store-from-work');
     });
 
-    // Payment Management
-    Route::post('/invoice/{invoice}/payments', [PaymentController::class, 'store'])->name('payment.store');
+// Payment Management
+Route::post('/invoice/{invoice}/payments', [PaymentController::class, 'store'])->name('payment.store');
+Route::post('/sales/{sale}/payments', [SalePaymentController::class, 'store'])->name('sales.payments.store');
 });
 
 Route::middleware(['auth', 'demo.safe'])->group(function () {
@@ -337,8 +340,11 @@ Route::middleware(['auth', EnsureClientUser::class])
     ->group(function () {
         Route::get('/orders', [PortalProductOrderController::class, 'index'])->name('orders.index');
         Route::post('/orders', [PortalProductOrderController::class, 'store'])->name('orders.store');
+        Route::get('/orders/{sale}', [PortalProductOrderController::class, 'showPage'])->name('orders.show');
         Route::get('/orders/{sale}/edit', [PortalProductOrderController::class, 'edit'])->name('orders.edit');
+        Route::get('/orders/{sale}/pdf', [PortalProductOrderController::class, 'pdf'])->name('orders.pdf');
         Route::put('/orders/{sale}', [PortalProductOrderController::class, 'update'])->name('orders.update');
+        Route::post('/orders/{sale}/pay', [PortalProductOrderController::class, 'pay'])->name('orders.pay');
         Route::post('/orders/{sale}/confirm', [PortalProductOrderController::class, 'confirmReceipt'])->name('orders.confirm');
         Route::delete('/orders/{sale}', [PortalProductOrderController::class, 'destroy'])->name('orders.destroy');
         Route::post('/orders/{sale}/reorder', [PortalProductOrderController::class, 'reorder'])->name('orders.reorder');

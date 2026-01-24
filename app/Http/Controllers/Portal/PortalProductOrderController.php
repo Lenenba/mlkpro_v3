@@ -13,10 +13,15 @@ use App\Notifications\OrderStatusNotification;
 use App\Services\InventoryService;
 use App\Services\NotificationPreferenceService;
 use App\Services\SaleTimelineService;
+use App\Services\StripeSaleService;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
+use Inertia\Inertia;
 
 class PortalProductOrderController extends Controller
 {
@@ -71,6 +76,29 @@ class PortalProductOrderController extends Controller
         }
 
         return [$customer, $owner, $sale];
+    }
+
+    private function syncStripeReturn(Request $request, ?Sale $sale = null): void
+    {
+        $stripeStatus = $request->query('stripe');
+        if ($stripeStatus !== 'success') {
+            return;
+        }
+
+        $sessionId = $request->query('session_id');
+        if (!$sessionId || !app(StripeSaleService::class)->isConfigured()) {
+            return;
+        }
+
+        try {
+            app(StripeSaleService::class)->syncFromCheckoutSessionId($sessionId, $sale);
+        } catch (\Throwable $exception) {
+            Log::warning('Unable to sync Stripe order payment.', [
+                'sale_id' => $sale?->id,
+                'session_id' => $sessionId,
+                'exception' => $exception->getMessage(),
+            ]);
+        }
     }
 
     private function canEditSale(Sale $sale): bool
@@ -306,6 +334,9 @@ class PortalProductOrderController extends Controller
             'products' => $products,
             'categories' => $categories,
             'fulfillment' => $fulfillment,
+            'stripe' => [
+                'enabled' => app(StripeSaleService::class)->isConfigured(),
+            ],
         ]);
     }
 
@@ -343,6 +374,7 @@ class PortalProductOrderController extends Controller
                 'delivery_confirmed_at',
             ])
             ->withCount('items')
+            ->withSum(['payments as payments_sum_amount' => fn($query) => $query->where('status', 'completed')], 'amount')
             ->simplePaginate(12);
 
         $orders->through(fn(Sale $sale) => $this->formatOrderSummary($sale));
@@ -362,10 +394,13 @@ class PortalProductOrderController extends Controller
     public function show(Request $request, Sale $sale)
     {
         [$customer, $owner, $sale] = $this->resolvePortalSale($request, $sale);
+        $this->syncStripeReturn($request, $sale);
+        $sale->refresh();
         $fulfillment = $this->normalizeFulfillment($owner->company_fulfillment, $owner);
         $timeline = app(SaleTimelineService::class)->buildTimeline($sale);
 
         $sale->load(['items.product:id,name,sku,barcode,unit,image,price']);
+        $sale->loadSum(['payments as payments_sum_amount' => fn($query) => $query->where('status', 'completed')], 'amount');
 
         $defaultAddress = $customer->defaultProperty?->street1
             ? collect([
@@ -392,7 +427,93 @@ class PortalProductOrderController extends Controller
             'fulfillment' => $fulfillment,
             'order' => $this->formatOrderDetail($sale),
             'timeline' => $timeline,
+            'stripe' => [
+                'enabled' => app(StripeSaleService::class)->isConfigured(),
+            ],
         ]);
+    }
+
+    public function showPage(Request $request, Sale $sale)
+    {
+        [$customer, $owner, $sale] = $this->resolvePortalSale($request, $sale);
+        $this->syncStripeReturn($request, $sale);
+        $sale->refresh();
+
+        $fulfillment = $this->normalizeFulfillment($owner->company_fulfillment, $owner);
+        $timeline = app(SaleTimelineService::class)->buildTimeline($sale);
+
+        $sale->load([
+            'items.product:id,name,sku,barcode,unit,image,price',
+            'payments' => fn($query) => $query->latest()->limit(10),
+        ]);
+        $sale->loadSum(['payments as payments_sum_amount' => fn($query) => $query->where('status', 'completed')], 'amount');
+
+        return $this->inertiaOrJson('Portal/Products/OrderShow', [
+            'company' => [
+                'id' => $owner->id,
+                'name' => $owner->company_name,
+                'logo_url' => $owner->company_logo_url,
+            ],
+            'customer' => [
+                'id' => $customer->id,
+                'name' => trim(($customer->first_name ?? '') . ' ' . ($customer->last_name ?? '')),
+                'email' => $customer->email,
+                'phone' => $customer->phone,
+            ],
+            'fulfillment' => $fulfillment,
+            'order' => $this->formatOrderDetail($sale),
+            'payments' => $sale->payments?->map(fn($payment) => [
+                'id' => $payment->id,
+                'amount' => (float) $payment->amount,
+                'method' => $payment->method,
+                'status' => $payment->status,
+                'paid_at' => $payment->paid_at?->toIso8601String(),
+            ])->values(),
+            'timeline' => $timeline,
+            'stripe' => [
+                'enabled' => app(StripeSaleService::class)->isConfigured(),
+            ],
+        ]);
+    }
+
+    public function pdf(Request $request, Sale $sale)
+    {
+        [$customer, $owner, $sale] = $this->resolvePortalSale($request, $sale);
+
+        $sale->load([
+            'items.product:id,name,sku,barcode,unit,image,price',
+            'payments',
+        ]);
+
+        $sale->loadSum(['payments as payments_sum_amount' => fn($query) => $query->where('status', 'completed')], 'amount');
+
+        $items = $sale->items->map(function ($item) {
+            return [
+                'title' => $item->description ?: $item->product?->name ?: 'Item',
+                'quantity' => (int) $item->quantity,
+                'unit_price' => (float) ($item->price ?? 0),
+                'total' => (float) ($item->total ?? 0),
+                'unit' => $item->product?->unit,
+                'sku' => $item->product?->sku,
+            ];
+        });
+
+        $totalPaid = (float) ($sale->payments_sum_amount ?? 0);
+        $depositAmount = (float) ($sale->deposit_amount ?? 0);
+
+        $pdf = Pdf::loadView('pdf.order', [
+            'sale' => $sale,
+            'customer' => $customer,
+            'company' => $owner,
+            'items' => $items,
+            'totalPaid' => $totalPaid,
+            'depositAmount' => $depositAmount,
+        ])->setOption('isRemoteEnabled', true);
+
+        $label = $sale->number ?: $sale->id;
+        $filename = 'order-' . $label . '.pdf';
+
+        return $pdf->download($filename);
     }
 
     public function store(Request $request)
@@ -511,6 +632,8 @@ class PortalProductOrderController extends Controller
     public function edit(Request $request, Sale $sale)
     {
         [$customer, $owner, $sale] = $this->resolvePortalSale($request, $sale);
+        $this->syncStripeReturn($request, $sale);
+        $sale->refresh();
         $fulfillment = $this->normalizeFulfillment($owner->company_fulfillment, $owner);
         $timeline = app(SaleTimelineService::class)->buildTimeline($sale);
 
@@ -544,6 +667,8 @@ class PortalProductOrderController extends Controller
                 $customer->defaultProperty->zip,
             ])->filter()->implode(', ')
             : null;
+
+        $sale->loadSum(['payments as payments_sum_amount' => fn($query) => $query->where('status', 'completed')], 'amount');
 
         $categories = ProductCategory::forAccount($owner->id)
             ->active()
@@ -594,6 +719,9 @@ class PortalProductOrderController extends Controller
                 ])->values(),
             ],
             'timeline' => $timeline,
+            'stripe' => [
+                'enabled' => app(StripeSaleService::class)->isConfigured(),
+            ],
         ]);
     }
 
@@ -748,6 +876,87 @@ class PortalProductOrderController extends Controller
             ->with('success', 'Commande mise a jour.');
     }
 
+    public function pay(Request $request, Sale $sale)
+    {
+        [$customer, $owner, $sale] = $this->resolvePortalSale($request, $sale);
+
+        if (in_array($sale->status, [Sale::STATUS_PAID, Sale::STATUS_CANCELED], true)) {
+            throw ValidationException::withMessages([
+                'payment' => 'Commande deja finalisee.',
+            ]);
+        }
+
+        $validated = $request->validate([
+            'type' => ['nullable', Rule::in(['deposit', 'balance'])],
+        ]);
+
+        $paymentType = $validated['type'] ?? 'deposit';
+        $stripeService = app(StripeSaleService::class);
+        if (!$stripeService->isConfigured()) {
+            throw ValidationException::withMessages([
+                'payment' => 'Stripe n est pas configure.',
+            ]);
+        }
+
+        $sale->loadSum(['payments as payments_sum_amount' => fn($query) => $query->where('status', 'completed')], 'amount');
+
+        $depositAmount = (float) ($sale->deposit_amount ?? 0);
+        $amountPaid = $sale->amount_paid;
+        $balanceDue = $sale->balance_due;
+        $amount = 0.0;
+
+        if ($paymentType === 'deposit') {
+            if ($depositAmount <= 0 && $sale->fulfillment_status === Sale::FULFILLMENT_PREPARING) {
+                $depositAmount = round(((float) $sale->total) * 0.2, 2);
+                if ($depositAmount > 0) {
+                    $sale->forceFill(['deposit_amount' => $depositAmount])->save();
+                }
+            }
+            if ($depositAmount <= 0) {
+                throw ValidationException::withMessages([
+                    'payment' => 'Acompte non requis.',
+                ]);
+            }
+            $amount = round(max(0, $depositAmount - $amountPaid), 2);
+            if ($amount <= 0) {
+                throw ValidationException::withMessages([
+                    'payment' => 'Acompte deja regle.',
+                ]);
+            }
+        } else {
+            if ($balanceDue <= 0) {
+                throw ValidationException::withMessages([
+                    'payment' => 'Aucun solde a payer.',
+                ]);
+            }
+            $amount = $balanceDue;
+        }
+
+        $successUrl = URL::route('portal.orders.show', ['sale' => $sale->id, 'stripe' => 'success']);
+        $successUrl .= (str_contains($successUrl, '?') ? '&' : '?') . 'session_id={CHECKOUT_SESSION_ID}';
+        $cancelUrl = URL::route('portal.orders.show', ['sale' => $sale->id, 'stripe' => 'cancel']);
+
+        $session = $stripeService->createCheckoutSession($sale, $successUrl, $cancelUrl, $amount, $paymentType);
+        if (empty($session['url'])) {
+            throw ValidationException::withMessages([
+                'payment' => 'Impossible de demarrer le paiement.',
+            ]);
+        }
+
+        if ($this->shouldReturnJson($request)) {
+            return response()->json([
+                'checkout_url' => $session['url'],
+                'checkout_session_id' => $session['id'],
+            ]);
+        }
+
+        if ($request->header('X-Inertia')) {
+            return Inertia::location($session['url']);
+        }
+
+        return redirect()->away($session['url']);
+    }
+
     public function confirmReceipt(Request $request, Sale $sale)
     {
         [$customer, $owner, $sale] = $this->resolvePortalSale($request, $sale);
@@ -759,7 +968,7 @@ class PortalProductOrderController extends Controller
                 ], 422);
             }
             return redirect()
-                ->route('portal.orders.edit', $sale)
+                ->route('portal.orders.show', $sale)
                 ->with('error', 'Commande annulee.');
         }
 
@@ -770,7 +979,7 @@ class PortalProductOrderController extends Controller
                 ], 422);
             }
             return redirect()
-                ->route('portal.orders.edit', $sale)
+                ->route('portal.orders.show', $sale)
                 ->with('error', 'La commande n est pas encore livree.');
         }
 
@@ -781,7 +990,7 @@ class PortalProductOrderController extends Controller
                 ], 422);
             }
             return redirect()
-                ->route('portal.orders.edit', $sale)
+                ->route('portal.orders.show', $sale)
                 ->with('success', 'Commande deja confirmee.');
         }
 
@@ -814,7 +1023,7 @@ class PortalProductOrderController extends Controller
         }
 
         return redirect()
-            ->route('portal.orders.edit', $sale)
+            ->route('portal.orders.show', $sale)
             ->with('success', 'Merci. Votre commande est confirmee.');
     }
 
@@ -969,6 +1178,10 @@ class PortalProductOrderController extends Controller
             'id' => $sale->id,
             'number' => $sale->number,
             'status' => $sale->status,
+            'payment_status' => $sale->payment_status,
+            'amount_paid' => $sale->amount_paid,
+            'balance_due' => $sale->balance_due,
+            'deposit_amount' => $sale->deposit_amount,
             'total' => $sale->total,
             'created_at' => $sale->created_at?->toIso8601String(),
             'fulfillment_method' => $sale->fulfillment_method,
@@ -990,6 +1203,12 @@ class PortalProductOrderController extends Controller
             'id' => $sale->id,
             'number' => $sale->number,
             'status' => $sale->status,
+            'payment_status' => $sale->payment_status,
+            'amount_paid' => $sale->amount_paid,
+            'balance_due' => $sale->balance_due,
+            'deposit_amount' => $sale->deposit_amount,
+            'created_at' => $sale->created_at?->toIso8601String(),
+            'paid_at' => $sale->paid_at?->toIso8601String(),
             'fulfillment_method' => $sale->fulfillment_method,
             'fulfillment_status' => $sale->fulfillment_status,
             'delivery_address' => $sale->delivery_address,

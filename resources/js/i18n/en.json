@@ -908,7 +908,9 @@
       "reorder": "Reorder",
       "confirm_delivery": "Confirm",
       "edit": "Edit",
-      "view": "View"
+      "view": "View",
+      "view_invoice": "View invoice",
+      "pay_deposit": "Pay deposit"
     },
     "kpi": {
       "orders": "Orders",
@@ -938,6 +940,9 @@
     "status": {
       "draft": "Draft",
       "pending": "Pending",
+      "unpaid": "Unpaid",
+      "deposit_required": "Deposit required",
+      "partial": "Partial",
       "paid": "Paid",
       "canceled": "Canceled"
     },
@@ -1107,6 +1112,15 @@
       "delivery_photo": "Delivery photo",
       "delivery_photo_alt": "Delivery photo"
     },
+    "payment": {
+      "deposit_required": "Deposit required",
+      "amount_paid": "Paid",
+      "balance_due": "Balance due",
+      "pay_deposit": "Pay deposit",
+      "pay_balance": "Pay balance",
+      "processing": "Processing...",
+      "error": "Unable to start payment."
+    },
     "confirm_receipt": {
       "title": "Confirm receipt",
       "subtitle": "Add a photo if needed, then confirm.",
@@ -1208,6 +1222,42 @@
     "order_number": "Order #{id}",
     "order_fallback": "Order"
   },
+  "portal_order": {
+    "title": "Order {number}",
+    "subtitle": "Order details",
+    "actions": {
+      "back_to_dashboard": "Back to dashboard",
+      "download_pdf": "Download invoice"
+    },
+    "sections": {
+      "items": "Items",
+      "summary": "Summary",
+      "payment": "Payment",
+      "fulfillment": "Delivery / pickup",
+      "customer": "Customer",
+      "payments": "Payment history"
+    },
+    "table": {
+      "product": "Product",
+      "sku": "SKU",
+      "unit": "Unit",
+      "quantity": "Qty",
+      "price": "Price",
+      "total": "Total"
+    },
+    "labels": {
+      "order_status": "Order status",
+      "payment_status": "Payment status",
+      "created_on": "Created on {date}",
+      "paid_on": "Paid on {date}",
+      "requested_time": "Requested time: {date}",
+      "delivery_address": "Address",
+      "notes": "Notes"
+    },
+    "empty": {
+      "payments": "No payments recorded."
+    }
+  },
   "work_proofs": {
     "title": "Job proofs",
     "company_fallback": "Company",
@@ -1278,6 +1328,24 @@
       "paid": "Paid",
       "canceled": "Canceled"
     },
+    "payment": {
+      "unpaid": "Unpaid",
+      "deposit_required": "Deposit required",
+      "partial": "Partial",
+      "paid": "Paid"
+    },
+    "payments": {
+      "title": "Payments",
+      "deposit_required": "Deposit required",
+      "paid": "Paid",
+      "balance_due": "Balance due",
+      "amount_label": "Amount",
+      "method_label": "Method",
+      "cash": "Cash",
+      "card": "Card",
+      "record": "Record payment",
+      "recording": "Recording..."
+    },
     "fulfillment": {
       "pending": "Order received",
       "preparing": "Preparing",
@@ -1305,7 +1373,21 @@
     "actions": {
       "back_to_sales": "Back to sales",
       "edit": "Edit",
+      "pay_with_stripe": "Pay with Stripe",
+      "pay_with_stripe_loading": "Redirecting...",
       "print": "Print"
+    },
+    "errors": {
+      "stripe_start": "Unable to start Stripe payment."
+    },
+    "qr": {
+      "title": "QR payment",
+      "subtitle": "Scan the QR code to pay quickly.",
+      "loading": "Preparing payment...",
+      "image_alt": "Payment QR code",
+      "order_label": "Sale {number}",
+      "view_sale": "View sale",
+      "open_link": "Open payment"
     },
     "form": {
       "search_label": "Product search",
@@ -1319,6 +1401,18 @@
       "create_customer": "Create customer",
       "discount_badge": "Discount {rate}%",
       "type_label": "Type",
+      "payment_label": "Payment method",
+      "payment_methods": {
+        "cash": {
+          "label": "Cash",
+          "description": "Immediate in-person payment."
+        },
+        "card": {
+          "label": "Card",
+          "description": "Card payment via Stripe.",
+          "disabled_hint": "Stripe is not configured for card payments."
+        }
+      },
       "status_label": "Status",
       "invoice_title": "Invoice",
       "lines": "{count} lines",
@@ -1357,6 +1451,7 @@
         "sale": "Sale",
         "customer": "Customer",
         "status": "Status",
+        "payment": "Payment",
         "items": "Items",
         "total": "Total",
         "date": "Date"
@@ -3454,9 +3549,13 @@
         "subtitle": "Connect your bank account to receive client payments directly.",
         "status_connected": "Connected",
         "status_pending": "Onboarding in progress",
+        "status_action_required": "Action required",
         "status_not_connected": "Not connected",
         "action_connect": "Connect Stripe",
+        "action_complete": "Complete details",
         "action_resume": "Resume onboarding",
+        "action_required_hint": "{count} item(s) still required on Stripe.",
+        "action_required_hint_generic": "Some details are missing on Stripe.",
         "fee_note": "Platform fee: {fee}%",
         "success": "Stripe account linked.",
         "error_start": "Unable to start Stripe Connect onboarding."
@@ -3534,6 +3633,26 @@
         "multi": {
           "title": "Multi-company",
           "desc": "Run multiple businesses from a single workspace."
+        }
+      }
+    },
+    "new_features": {
+      "kicker": "New",
+      "title": "What's new on the platform",
+      "subtitle": "Fresh additions to speed up sales and payments.",
+      "badge": "New",
+      "items": {
+        "assistant": {
+          "title": "AI Assistant",
+          "desc": "Create quotes, jobs, and invoices in seconds."
+        },
+        "connect": {
+          "title": "Connect payouts",
+          "desc": "Get paid directly to your account with Stripe Connect."
+        },
+        "store": {
+          "title": "Product storefront",
+          "desc": "Let clients order and track products in one place."
         }
       }
     },

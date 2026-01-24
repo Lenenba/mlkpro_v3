@@ -9,12 +9,15 @@ use Illuminate\Support\Facades\Schedule;
 use App\Models\Role;
 use App\Models\User;
 use App\Models\Work;
+use App\Models\Sale;
+use App\Models\ActivityLog;
 use App\Services\Demo\DemoAccountService;
 use App\Services\Demo\DemoResetService;
 use App\Services\Demo\DemoSeedService;
 use App\Services\DailyAgendaService;
 use App\Services\PlatformAdminNotifier;
 use App\Services\WorkBillingService;
+use App\Services\SaleNotificationService;
 
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
@@ -208,6 +211,49 @@ Artisan::command('agenda:process', function (DailyAgendaService $service): int {
     return 0;
 })->purpose('Auto-start tasks/jobs and send alerts');
 
+Artisan::command('orders:deposit-reminders', function (SaleNotificationService $notifier): int {
+    $cutoff = now()->subHours(24);
+
+    $sales = Sale::query()
+        ->where('source', 'portal')
+        ->where('status', '!=', Sale::STATUS_CANCELED)
+        ->where('deposit_amount', '>', 0)
+        ->with(['customer.portalUser'])
+        ->withSum(['payments as payments_sum_amount' => fn($query) => $query->where('status', 'completed')], 'amount')
+        ->get();
+
+    $count = 0;
+    foreach ($sales as $sale) {
+        $depositAmount = (float) ($sale->deposit_amount ?? 0);
+        $amountPaid = (float) $sale->amount_paid;
+        $depositDue = max(0, round($depositAmount - $amountPaid, 2));
+        if ($depositDue <= 0) {
+            continue;
+        }
+
+        $lastReminder = ActivityLog::query()
+            ->where('subject_type', $sale->getMorphClass())
+            ->where('subject_id', $sale->id)
+            ->where('action', 'sale_deposit_reminder_sent')
+            ->latest('created_at')
+            ->first();
+
+        if ($lastReminder && $lastReminder->created_at && $lastReminder->created_at->greaterThan($cutoff)) {
+            continue;
+        }
+
+        $notifier->notifyDepositReminder($sale, $depositDue);
+        ActivityLog::record(null, $sale, 'sale_deposit_reminder_sent', [
+            'deposit_amount' => $depositDue,
+        ]);
+        $count += 1;
+    }
+
+    $this->info("Sent {$count} deposit reminders.");
+
+    return 0;
+})->purpose('Send deposit reminders for unpaid portal orders');
+
 Artisan::command('demo:seed {type=service} {--tenant_id=}', function (
     DemoAccountService $accounts,
     DemoSeedService $seeds
@@ -269,3 +315,4 @@ Schedule::command('platform:notifications-digest --frequency=daily')->dailyAt('0
 Schedule::command('platform:notifications-digest --frequency=weekly')->weeklyOn(1, '08:00');
 Schedule::command('platform:notifications-scan')->dailyAt('07:30');
 Schedule::command('agenda:process')->everyFiveMinutes();
+Schedule::command('orders:deposit-reminders')->everyFourHours();

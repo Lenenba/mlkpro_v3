@@ -12,6 +12,7 @@ class Payment extends Model
 
     protected $fillable = [
         'invoice_id',
+        'sale_id',
         'customer_id',
         'user_id',
         'amount',
@@ -32,6 +33,11 @@ class Payment extends Model
     public function invoice(): BelongsTo
     {
         return $this->belongsTo(Invoice::class);
+    }
+
+    public function sale(): BelongsTo
+    {
+        return $this->belongsTo(Sale::class);
     }
 
     public function customer(): BelongsTo

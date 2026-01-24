@@ -118,6 +118,9 @@ const orderActionLabel = (sale) => {
     if (sale.fulfillment_status === 'completed' && !sale.delivery_confirmed_at) {
         return t('client_orders.actions.confirm_delivery');
     }
+    if (sale.fulfillment_status === 'preparing') {
+        return t('client_orders.actions.view_invoice');
+    }
     if (canEditOrder(sale)) {
         return t('client_orders.actions.edit');
     }
@@ -130,6 +133,16 @@ const canEditOrder = (sale) => {
     }
     const blocked = ['out_for_delivery', 'ready_for_pickup', 'completed', 'confirmed'];
     return !blocked.includes(sale.fulfillment_status);
+};
+
+const orderActionRoute = (sale) => {
+    if (!sale) {
+        return route('dashboard');
+    }
+    if (sale.fulfillment_status === 'preparing' || !canEditOrder(sale)) {
+        return route('portal.orders.show', sale.id);
+    }
+    return route('portal.orders.edit', sale.id);
 };
 </script>
 
@@ -198,7 +211,7 @@ const canEditOrder = (sale) => {
                                 </span>
                                 <Link
                                     v-if="sale.status !== 'canceled'"
-                                    :href="route('portal.orders.edit', sale.id)"
+                                    :href="orderActionRoute(sale)"
                                     class="mt-2 block text-[11px] font-semibold text-green-700 hover:underline dark:text-green-400"
                                 >
                                     {{ orderActionLabel(sale) }}

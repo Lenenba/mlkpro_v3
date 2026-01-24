@@ -1,7 +1,7 @@
 <script setup>
-import { computed } from 'vue';
+import { computed, ref, watch } from 'vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
-import { Head, Link, usePage } from '@inertiajs/vue3';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
 import { humanizeDate } from '@/utils/date';
 
@@ -9,6 +9,10 @@ const props = defineProps({
     sale: {
         type: Object,
         required: true,
+    },
+    stripe: {
+        type: Object,
+        default: () => ({}),
     },
 });
 
@@ -30,6 +34,15 @@ const statusLabels = computed(() => ({
     pending: t('sales.status.pending'),
     paid: t('sales.status.paid'),
     canceled: t('sales.status.canceled'),
+}));
+
+const paymentStatusLabels = computed(() => ({
+    unpaid: t('sales.payment.unpaid'),
+    deposit_required: t('sales.payment.deposit_required'),
+    partial: t('sales.payment.partial'),
+    paid: t('sales.payment.paid'),
+    canceled: t('sales.status.canceled'),
+    pending: t('sales.status.pending'),
 }));
 
 const statusClasses = {
@@ -98,6 +111,23 @@ const handlePrint = () => {
     window.print();
 };
 
+const startStripePayment = () => {
+    if (!canStripePay.value || stripeProcessing.value) {
+        return;
+    }
+    stripeError.value = '';
+    stripeProcessing.value = true;
+    router.post(route('sales.stripe', props.sale.id), {}, {
+        preserveScroll: true,
+        onError: (errors) => {
+            stripeError.value = errors.status || errors.message || t('sales.errors.stripe_start');
+        },
+        onFinish: () => {
+            stripeProcessing.value = false;
+        },
+    });
+};
+
 const fulfillmentLabel = computed(() => {
     if (props.sale?.fulfillment_method === 'delivery') {
         return t('sales.fulfillment.method.delivery');
@@ -138,7 +168,17 @@ const orderStatusClass = computed(() => {
     }
     return statusClasses[props.sale?.status] || statusClasses.draft;
 });
-const paymentStatusLabel = computed(() => statusLabels.value[props.sale?.status] || props.sale?.status || '');
+const paymentStatusKey = computed(() => props.sale?.payment_status || props.sale?.status || '');
+const paymentStatusLabel = computed(() =>
+    paymentStatusLabels.value[paymentStatusKey.value] || paymentStatusKey.value || ''
+);
+const stripeEnabled = computed(() => Boolean(props.stripe?.enabled));
+const stripeProcessing = ref(false);
+const stripeError = ref('');
+const canStripePay = computed(() => stripeEnabled.value && ['draft', 'pending'].includes(props.sale?.status));
+const stripeButtonLabel = computed(() =>
+    stripeProcessing.value ? t('sales.actions.pay_with_stripe_loading') : t('sales.actions.pay_with_stripe')
+);
 
 const pickupCode = computed(() => props.sale?.pickup_code || null);
 const pickupQrUrl = computed(() => {
@@ -158,6 +198,50 @@ const canConfirmPickup = computed(() =>
     && props.sale?.fulfillment_status === 'ready_for_pickup'
     && !props.sale?.pickup_confirmed_at
 );
+
+const showPaymentPanel = computed(() => props.sale?.source === 'portal');
+const amountPaid = computed(() => Number(props.sale?.amount_paid || 0));
+const balanceDue = computed(() => Number(props.sale?.balance_due || 0));
+const depositAmount = computed(() => Number(props.sale?.deposit_amount || 0));
+const depositDue = computed(() => Math.max(0, depositAmount.value - amountPaid.value));
+const canRecordPayment = computed(() => balanceDue.value > 0);
+
+const paymentForm = useForm({
+    amount: '',
+    method: 'cash',
+});
+
+const suggestedAmount = computed(() => {
+    if (!showPaymentPanel.value) {
+        return 0;
+    }
+    if (depositDue.value > 0) {
+        return depositDue.value;
+    }
+    return balanceDue.value;
+});
+
+watch(
+    () => suggestedAmount.value,
+    (value) => {
+        if (!paymentForm.amount) {
+            paymentForm.amount = value ? value.toFixed(2) : '';
+        }
+    },
+    { immediate: true }
+);
+
+const submitPayment = () => {
+    if (!showPaymentPanel.value || !props.sale?.id) {
+        return;
+    }
+    paymentForm.post(route('sales.payments.store', props.sale.id), {
+        preserveScroll: true,
+        onSuccess: () => {
+            paymentForm.reset('amount');
+        },
+    });
+};
 </script>
 
 <template>
@@ -230,6 +314,15 @@ const canConfirmPickup = computed(() =>
                 >
                     {{ $t('sales.actions.edit') }}
                 </Link>
+                <button
+                    v-if="canStripePay"
+                    type="button"
+                    class="rounded-sm bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
+                    :disabled="stripeProcessing"
+                    @click="startStripePayment"
+                >
+                    {{ stripeButtonLabel }}
+                </button>
                 <Link
                     v-if="canConfirmPickup"
                     :href="route('sales.pickup.confirm', sale.id)"
@@ -252,6 +345,9 @@ const canConfirmPickup = computed(() =>
                 >
                     {{ $t('sales.actions.back_to_sales') }}
                 </Link>
+            </div>
+            <div v-if="stripeError" class="no-print text-right text-xs text-red-600 dark:text-red-300">
+                {{ stripeError }}
             </div>
 
             <div class="grid gap-4 lg:grid-cols-[2fr_1fr]">
@@ -399,6 +495,73 @@ const canConfirmPickup = computed(() =>
                                 <span>{{ humanizeDate(sale.paid_at) }}</span>
                             </div>
                         </div>
+                    </div>
+
+                    <div
+                        v-if="showPaymentPanel"
+                        class="print-card rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900"
+                    >
+                        <div class="flex items-center justify-between">
+                            <span class="text-sm text-stone-500 dark:text-neutral-400">
+                                {{ $t('sales.payments.title') }}
+                            </span>
+                            <span class="rounded-full px-2 py-1 text-xs font-semibold bg-stone-100 text-stone-700 dark:bg-neutral-800 dark:text-neutral-200">
+                                {{ paymentStatusLabel }}
+                            </span>
+                        </div>
+                        <div class="mt-3 space-y-2 text-sm text-stone-700 dark:text-neutral-200">
+                            <div v-if="depositAmount > 0" class="flex items-center justify-between">
+                                <span>{{ $t('sales.payments.deposit_required') }}</span>
+                                <span class="font-medium">{{ formatCurrency(depositAmount) }}</span>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <span>{{ $t('sales.payments.paid') }}</span>
+                                <span class="font-medium">{{ formatCurrency(amountPaid) }}</span>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <span>{{ $t('sales.payments.balance_due') }}</span>
+                                <span class="font-medium">{{ formatCurrency(balanceDue) }}</span>
+                            </div>
+                        </div>
+                        <form v-if="canRecordPayment" class="mt-3 space-y-2" @submit.prevent="submitPayment">
+                            <div>
+                                <label class="block text-xs text-stone-500 dark:text-neutral-400">
+                                    {{ $t('sales.payments.amount_label') }}
+                                </label>
+                                <input
+                                    v-model="paymentForm.amount"
+                                    type="number"
+                                    min="0"
+                                    step="0.01"
+                                    class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
+                                />
+                                <div v-if="paymentForm.errors.amount" class="text-xs text-red-600">
+                                    {{ paymentForm.errors.amount }}
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-xs text-stone-500 dark:text-neutral-400">
+                                    {{ $t('sales.payments.method_label') }}
+                                </label>
+                                <select
+                                    v-model="paymentForm.method"
+                                    class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
+                                >
+                                    <option value="cash">{{ $t('sales.payments.cash') }}</option>
+                                    <option value="card">{{ $t('sales.payments.card') }}</option>
+                                </select>
+                            </div>
+                            <div v-if="paymentForm.errors.payment" class="text-xs text-red-600">
+                                {{ paymentForm.errors.payment }}
+                            </div>
+                            <button
+                                type="submit"
+                                class="w-full rounded-sm bg-green-600 px-3 py-2 text-sm font-semibold text-white hover:bg-green-700 disabled:opacity-60"
+                                :disabled="paymentForm.processing"
+                            >
+                                {{ paymentForm.processing ? $t('sales.payments.recording') : $t('sales.payments.record') }}
+                            </button>
+                        </form>
                     </div>
 
                     <div

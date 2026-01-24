@@ -908,7 +908,9 @@
       "reorder": "Recommander",
       "confirm_delivery": "Confirmer",
       "edit": "Modifier",
-      "view": "Voir"
+      "view": "Voir",
+      "view_invoice": "Voir la facture",
+      "pay_deposit": "Payer l acompte"
     },
     "kpi": {
       "orders": "Commandes",
@@ -938,6 +940,9 @@
     "status": {
       "draft": "Brouillon",
       "pending": "En attente",
+      "unpaid": "Non payee",
+      "deposit_required": "Acompte requis",
+      "partial": "Partiel",
       "paid": "Payee",
       "canceled": "Annulee"
     },
@@ -1107,6 +1112,15 @@
       "delivery_photo": "Photo livraison",
       "delivery_photo_alt": "Photo livraison"
     },
+    "payment": {
+      "deposit_required": "Acompte requis",
+      "amount_paid": "Deja paye",
+      "balance_due": "Solde a payer",
+      "pay_deposit": "Payer l acompte",
+      "pay_balance": "Payer le solde",
+      "processing": "Paiement...",
+      "error": "Impossible de demarrer le paiement."
+    },
     "confirm_receipt": {
       "title": "Confirmer la reception",
       "subtitle": "Ajoutez une photo si besoin, puis confirmez.",
@@ -1208,6 +1222,42 @@
     "order_number": "Commande #{id}",
     "order_fallback": "Commande"
   },
+  "portal_order": {
+    "title": "Commande {number}",
+    "subtitle": "Details de la commande",
+    "actions": {
+      "back_to_dashboard": "Retour au tableau de bord",
+      "download_pdf": "Telecharger la facture"
+    },
+    "sections": {
+      "items": "Articles",
+      "summary": "Resume",
+      "payment": "Paiement",
+      "fulfillment": "Livraison / retrait",
+      "customer": "Client",
+      "payments": "Historique des paiements"
+    },
+    "table": {
+      "product": "Produit",
+      "sku": "SKU",
+      "unit": "Unite",
+      "quantity": "Qt.",
+      "price": "Prix",
+      "total": "Total"
+    },
+    "labels": {
+      "order_status": "Statut commande",
+      "payment_status": "Statut paiement",
+      "created_on": "Cree le {date}",
+      "paid_on": "Payee le {date}",
+      "requested_time": "Horaire souhaite: {date}",
+      "delivery_address": "Adresse",
+      "notes": "Notes"
+    },
+    "empty": {
+      "payments": "Aucun paiement enregistre."
+    }
+  },
   "work_proofs": {
     "title": "Preuves chantier",
     "company_fallback": "Entreprise",
@@ -1278,6 +1328,24 @@
       "paid": "Payee",
       "canceled": "Annulee"
     },
+    "payment": {
+      "unpaid": "Non payee",
+      "deposit_required": "Acompte requis",
+      "partial": "Partiel",
+      "paid": "Payee"
+    },
+    "payments": {
+      "title": "Paiements",
+      "deposit_required": "Acompte requis",
+      "paid": "Paye",
+      "balance_due": "Solde a payer",
+      "amount_label": "Montant",
+      "method_label": "Methode",
+      "cash": "Cash",
+      "card": "Carte",
+      "record": "Enregistrer le paiement",
+      "recording": "Enregistrement..."
+    },
     "fulfillment": {
       "pending": "Commande recue",
       "preparing": "Preparation",
@@ -1305,7 +1373,21 @@
     "actions": {
       "back_to_sales": "Retour aux ventes",
       "edit": "Modifier",
+      "pay_with_stripe": "Payer par Stripe",
+      "pay_with_stripe_loading": "Redirection...",
       "print": "Imprimer"
+    },
+    "errors": {
+      "stripe_start": "Impossible de demarrer le paiement Stripe."
+    },
+    "qr": {
+      "title": "Paiement par QR",
+      "subtitle": "Scannez le QR code pour payer rapidement.",
+      "loading": "Preparation du paiement...",
+      "image_alt": "QR code de paiement",
+      "order_label": "Vente {number}",
+      "view_sale": "Voir la vente",
+      "open_link": "Ouvrir le paiement"
     },
     "form": {
       "search_label": "Recherche produit",
@@ -1319,6 +1401,18 @@
       "create_customer": "Creer le client",
       "discount_badge": "Remise {rate}%",
       "type_label": "Type",
+      "payment_label": "Mode de paiement",
+      "payment_methods": {
+        "cash": {
+          "label": "Cash",
+          "description": "Encaissement immediat en personne."
+        },
+        "card": {
+          "label": "Carte",
+          "description": "Paiement par carte via Stripe.",
+          "disabled_hint": "Stripe n est pas configure pour les paiements par carte."
+        }
+      },
       "status_label": "Statut",
       "invoice_title": "Facture",
       "lines": "{count} lignes",
@@ -1357,6 +1451,7 @@
         "sale": "Vente",
         "customer": "Client",
         "status": "Statut",
+        "payment": "Paiement",
         "items": "Articles",
         "total": "Total",
         "date": "Date"
@@ -3454,9 +3549,13 @@
         "subtitle": "Connectez votre compte bancaire pour recevoir les paiements client directement.",
         "status_connected": "Connecté",
         "status_pending": "Onboarding en cours",
+        "status_action_required": "Action requise",
         "status_not_connected": "Non connecté",
         "action_connect": "Connecter Stripe",
+        "action_complete": "Completer les informations",
         "action_resume": "Reprendre l'onboarding",
+        "action_required_hint": "{count} information(s) a completer dans Stripe.",
+        "action_required_hint_generic": "Des informations sont manquantes dans Stripe.",
         "fee_note": "Frais plateforme : {fee} %",
         "success": "Compte Stripe lié.",
         "error_start": "Impossible de demarrer l'onboarding Stripe Connect."
@@ -3534,6 +3633,26 @@
         "multi": {
           "title": "Multi-entreprises",
           "desc": "Gérez plusieurs sociétés depuis un seul compte."
+        }
+      }
+    },
+    "new_features": {
+      "kicker": "Nouveautés",
+      "title": "Les nouvelles fonctionnalités de la plateforme",
+      "subtitle": "Des ajouts pensés pour accélérer vos ventes et vos paiements.",
+      "badge": "Nouveau",
+      "items": {
+        "assistant": {
+          "title": "Assistant IA",
+          "desc": "Créez des devis, chantiers et factures en quelques secondes."
+        },
+        "connect": {
+          "title": "Paiements Connect",
+          "desc": "Encaissez directement sur votre compte avec Stripe Connect."
+        },
+        "store": {
+          "title": "Boutique produits",
+          "desc": "Activez un espace de commande et de suivi pour vos clients."
         }
       }
     },

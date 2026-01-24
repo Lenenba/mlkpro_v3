@@ -80,6 +80,22 @@ const providerReady = computed(() => props.billing?.provider_ready ?? true);
 const stripeConnectEnabled = computed(() => Boolean(props.stripeConnect?.enabled));
 const stripeConnectHasAccount = computed(() => Boolean(props.stripeConnect?.account_id));
 const stripeConnectReady = computed(() => Boolean(props.stripeConnect?.charges_enabled && props.stripeConnect?.payouts_enabled));
+const stripeConnectRequirements = computed(() => props.stripeConnect?.requirements || {});
+const stripeConnectDueFields = computed(() => {
+    const requirements = stripeConnectRequirements.value;
+    const fields = [];
+    ['currently_due', 'past_due'].forEach((key) => {
+        const values = requirements?.[key];
+        if (Array.isArray(values)) {
+            fields.push(...values);
+        }
+    });
+    return [...new Set(fields)];
+});
+const stripeConnectDisabledReason = computed(() => stripeConnectRequirements.value?.disabled_reason || '');
+const stripeConnectActionRequired = computed(() =>
+    stripeConnectHasAccount.value && (stripeConnectDueFields.value.length > 0 || Boolean(stripeConnectDisabledReason.value))
+);
 const stripeConnectNeedsAction = computed(() => stripeConnectEnabled.value && !stripeConnectReady.value);
 const assistantAddon = computed(() => props.assistantAddon || {});
 const assistantIncluded = computed(() => Boolean(assistantAddon.value.included));
@@ -145,10 +161,33 @@ const stripeConnectStatusLabel = computed(() => {
     if (stripeConnectReady.value) {
         return t('settings.billing.connect.status_connected');
     }
+    if (stripeConnectActionRequired.value) {
+        return t('settings.billing.connect.status_action_required');
+    }
     if (stripeConnectHasAccount.value) {
         return t('settings.billing.connect.status_pending');
     }
     return t('settings.billing.connect.status_not_connected');
+});
+
+const stripeConnectActionHint = computed(() => {
+    if (!stripeConnectActionRequired.value) {
+        return '';
+    }
+    const count = stripeConnectDueFields.value.length;
+    return count
+        ? t('settings.billing.connect.action_required_hint', { count })
+        : t('settings.billing.connect.action_required_hint_generic');
+});
+
+const stripeConnectActionLabel = computed(() => {
+    if (stripeConnectActionRequired.value) {
+        return t('settings.billing.connect.action_complete');
+    }
+    if (stripeConnectHasAccount.value) {
+        return t('settings.billing.connect.action_resume');
+    }
+    return t('settings.billing.connect.action_connect');
 });
 
 const tabPrefix = 'settings-billing';
@@ -796,12 +835,14 @@ watch(
                                 <div class="text-xs font-semibold text-stone-700 dark:text-neutral-200">
                                     {{ stripeConnectStatusLabel }}
                                 </div>
+                                <div v-if="stripeConnectActionHint" class="text-xs text-emerald-700 dark:text-emerald-300">
+                                    {{ stripeConnectActionHint }}
+                                </div>
                             </div>
                             <button v-if="stripeConnectNeedsAction" type="button" @click="startStripeConnect"
                                 :disabled="connectIsLoading"
                                 class="py-2 px-3 text-xs font-semibold rounded-sm border border-stone-200 text-stone-700 hover:bg-stone-50 disabled:opacity-60 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700">
-                                <span v-if="stripeConnectHasAccount">{{ $t('settings.billing.connect.action_resume') }}</span>
-                                <span v-else>{{ $t('settings.billing.connect.action_connect') }}</span>
+                                {{ stripeConnectActionLabel }}
                             </button>
                         </div>
                     </div>

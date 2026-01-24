@@ -11,10 +11,14 @@ use App\Models\Warehouse;
 use App\Services\InventoryService;
 use App\Services\SaleNotificationService;
 use App\Services\SaleTimelineService;
+use App\Services\StripeSaleService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
+use Inertia\Inertia;
 
 class SaleController extends Controller
 {
@@ -228,6 +232,7 @@ class SaleController extends Controller
         $orders = (clone $baseQuery)
             ->with('customer:id,first_name,last_name,company_name')
             ->withCount('items')
+            ->withSum(['payments as payments_sum_amount' => fn($query) => $query->where('status', 'completed')], 'amount')
             ->orderBy($sort, $direction)
             ->simplePaginate(12)
             ->withQueryString();
@@ -292,6 +297,9 @@ class SaleController extends Controller
         return $this->inertiaOrJson('Sales/Create', [
             'customers' => $customers,
             'products' => $products,
+            'stripe' => [
+                'enabled' => app(StripeSaleService::class)->isConfigured(),
+            ],
         ]);
     }
 
@@ -363,6 +371,8 @@ class SaleController extends Controller
                 Sale::STATUS_PAID,
                 Sale::STATUS_CANCELED,
             ])],
+            'payment_method' => ['nullable', Rule::in(['cash', 'card'])],
+            'pay_with_stripe' => 'nullable|boolean',
             'fulfillment_status' => ['nullable', Rule::in($this->allowedFulfillmentStatuses())],
             'notes' => 'nullable|string|max:2000',
             'scheduled_for' => 'nullable|date',
@@ -445,6 +455,15 @@ class SaleController extends Controller
             throw ValidationException::withMessages($errors);
         }
 
+        $paymentMethod = $validated['payment_method'] ?? 'cash';
+        $payWithStripe = $paymentMethod === 'card' && $validated['status'] === Sale::STATUS_PAID;
+        $stripeService = $payWithStripe ? app(StripeSaleService::class) : null;
+        if ($payWithStripe && !$stripeService?->isConfigured()) {
+            throw ValidationException::withMessages([
+                'status' => 'Stripe n est pas configure.',
+            ]);
+        }
+
         $subtotal = 0;
         $taxTotal = 0;
         $itemsPayload = [];
@@ -482,16 +501,25 @@ class SaleController extends Controller
         $discountedTaxTotal = round($taxTotal * (1 - ($discountRate / 100)), 2);
         $total = round($discountedSubtotal + $discountedTaxTotal, 2);
 
+        $status = $payWithStripe ? Sale::STATUS_PENDING : $validated['status'];
         $fulfillmentStatus = $validated['fulfillment_status'] ?? null;
-        if ($validated['status'] === Sale::STATUS_PAID && !$this->isFulfillmentComplete($fulfillmentStatus)) {
+        if (!$payWithStripe && $status === Sale::STATUS_PAID && !$this->isFulfillmentComplete($fulfillmentStatus)) {
             $fulfillmentStatus = Sale::FULFILLMENT_COMPLETED;
+        }
+
+        $paymentProvider = null;
+        if ($payWithStripe) {
+            $paymentProvider = 'stripe';
+        } elseif ($status === Sale::STATUS_PAID) {
+            $paymentProvider = $paymentMethod;
         }
 
         $sale = Sale::create([
             'user_id' => $accountId,
             'created_by_user_id' => $user->id,
             'customer_id' => $customerId,
-            'status' => $validated['status'],
+            'status' => $status,
+            'payment_provider' => $paymentProvider,
             'subtotal' => $subtotal,
             'tax_total' => $discountedTaxTotal,
             'discount_rate' => $discountRate,
@@ -500,7 +528,7 @@ class SaleController extends Controller
             'fulfillment_status' => $fulfillmentStatus,
             'notes' => $validated['notes'] ?? null,
             'scheduled_for' => $validated['scheduled_for'] ?? null,
-            'paid_at' => $validated['status'] === Sale::STATUS_PAID ? now() : null,
+            'paid_at' => $status === Sale::STATUS_PAID ? now() : null,
             'source' => 'pos',
         ]);
 
@@ -550,6 +578,34 @@ class SaleController extends Controller
         app(SaleTimelineService::class)->record($user, $sale, 'sale_created', [
             'source' => 'pos',
         ]);
+
+        if ($payWithStripe && $stripeService) {
+            $successUrl = URL::route('sales.show', ['sale' => $sale->id, 'stripe' => 'success']);
+            $successUrl .= (str_contains($successUrl, '?') ? '&' : '?') . 'session_id={CHECKOUT_SESSION_ID}';
+            $cancelUrl = URL::route('sales.show', ['sale' => $sale->id, 'stripe' => 'cancel']);
+
+            $session = $stripeService->createCheckoutSession($sale, $successUrl, $cancelUrl);
+            if (empty($session['url'])) {
+                throw ValidationException::withMessages([
+                    'status' => 'Impossible de demarrer le paiement Stripe.',
+                ]);
+            }
+
+            if ($this->shouldReturnJson($request)) {
+                return response()->json([
+                    'message' => 'Paiement Stripe initialise.',
+                    'sale' => $this->loadSaleForResponse($sale),
+                    'checkout_url' => $session['url'],
+                    'checkout_session_id' => $session['id'] ?? null,
+                ]);
+            }
+
+            if ($request->header('X-Inertia')) {
+                return Inertia::location($session['url']);
+            }
+
+            return redirect()->away($session['url']);
+        }
 
         if ($this->shouldReturnJson($request)) {
             return response()->json([
@@ -955,6 +1011,14 @@ class SaleController extends Controller
             $nextFulfillment = null;
         }
 
+        $amountPaid = (float) $sale->payments()
+            ->where('status', 'completed')
+            ->sum('amount');
+        $paymentComplete = (float) $sale->total > 0 && $amountPaid >= (float) $sale->total;
+        if ($nextStatus !== Sale::STATUS_CANCELED && $paymentComplete && $this->isFulfillmentComplete($nextFulfillment)) {
+            $nextStatus = Sale::STATUS_PAID;
+        }
+
         if ($sale->status === Sale::STATUS_DRAFT && $nextStatus === Sale::STATUS_DRAFT && $nextFulfillment) {
             $nextStatus = Sale::STATUS_PENDING;
         }
@@ -967,7 +1031,7 @@ class SaleController extends Controller
         $updateData = [
             'status' => $nextStatus,
             'fulfillment_status' => $nextFulfillment,
-            'paid_at' => $nextStatus === Sale::STATUS_PAID ? now() : null,
+            'paid_at' => $nextStatus === Sale::STATUS_PAID ? ($sale->paid_at ?? now()) : null,
         ];
 
         if (array_key_exists('scheduled_for', $validated)) {
@@ -976,6 +1040,21 @@ class SaleController extends Controller
         if ($nextFulfillment === Sale::FULFILLMENT_CONFIRMED && !$sale->delivery_confirmed_at) {
             $updateData['delivery_confirmed_at'] = now();
             $updateData['delivery_confirmed_by_user_id'] = $user->id;
+        }
+
+        $depositRequested = false;
+        $depositAmount = 0.0;
+        if (
+            $fulfillmentChanging
+            && $sale->source === 'portal'
+            && $nextFulfillment === Sale::FULFILLMENT_PREPARING
+            && (float) ($sale->deposit_amount ?? 0) <= 0
+        ) {
+            $depositAmount = round(((float) $sale->total) * 0.2, 2);
+            if ($depositAmount > 0) {
+                $updateData['deposit_amount'] = $depositAmount;
+                $depositRequested = true;
+            }
         }
 
         $sale->update($updateData);
@@ -1063,6 +1142,13 @@ class SaleController extends Controller
             $changes['scheduled_for'] = true;
         }
 
+        if ($depositRequested) {
+            $timeline->record($user, $sale, 'sale_deposit_requested', [
+                'deposit_amount' => $depositAmount,
+            ]);
+            app(SaleNotificationService::class)->notifyDepositRequested($sale, $depositAmount);
+        }
+
         if ($changes) {
             $sale->loadMissing('customer');
             app(SaleNotificationService::class)->notifyStatusChange($sale, $changes);
@@ -1078,6 +1164,59 @@ class SaleController extends Controller
         return redirect()
             ->back()
             ->with('success', 'Statut mis a jour.');
+    }
+
+    public function createStripeCheckout(Request $request, Sale $sale)
+    {
+        $user = $request->user();
+        if (!$user) {
+            abort(401);
+        }
+        [$accountOwner, $canManage, $canPos] = $this->resolveSalesAccess($user);
+        $accountId = $accountOwner->id;
+        $canAccessAll = $canManage || $canPos;
+
+        if ($sale->user_id !== $accountId) {
+            abort(404);
+        }
+        if (!$canAccessAll && $sale->created_by_user_id !== $user->id) {
+            abort(404);
+        }
+
+        $respondError = function (string $message) use ($request) {
+            if ($this->shouldReturnJson($request)) {
+                return response()->json(['message' => $message], 422);
+            }
+            return redirect()->back()->withErrors(['status' => $message]);
+        };
+
+        if (in_array($sale->status, [Sale::STATUS_PAID, Sale::STATUS_CANCELED], true)) {
+            return $respondError('Vente deja finalisee.');
+        }
+
+        if ((float) $sale->total <= 0) {
+            return $respondError('Montant invalide pour Stripe.');
+        }
+
+        $stripeService = app(StripeSaleService::class);
+        if (!$stripeService->isConfigured()) {
+            return $respondError('Stripe n est pas configure.');
+        }
+
+        $successUrl = URL::route('sales.show', ['sale' => $sale->id, 'stripe' => 'success']);
+        $successUrl .= (str_contains($successUrl, '?') ? '&' : '?') . 'session_id={CHECKOUT_SESSION_ID}';
+        $cancelUrl = URL::route('sales.show', ['sale' => $sale->id, 'stripe' => 'cancel']);
+
+        $session = $stripeService->createCheckoutSession($sale, $successUrl, $cancelUrl);
+        if (empty($session['url'])) {
+            return $respondError('Impossible de demarrer le paiement Stripe.');
+        }
+
+        if ($request->header('X-Inertia')) {
+            return Inertia::location($session['url']);
+        }
+
+        return redirect()->away($session['url']);
     }
 
     public function confirmPickup(Request $request, Sale $sale)
@@ -1202,15 +1341,36 @@ class SaleController extends Controller
             abort(404);
         }
 
+        $stripeStatus = $request->query('stripe');
+        if ($stripeStatus === 'success') {
+            $sessionId = $request->query('session_id');
+            if ($sessionId && app(StripeSaleService::class)->isConfigured()) {
+                try {
+                    app(StripeSaleService::class)->syncFromCheckoutSessionId($sessionId, $sale);
+                    $sale->refresh();
+                } catch (\Throwable $exception) {
+                    Log::warning('Unable to sync Stripe sale checkout session.', [
+                        'sale_id' => $sale->id,
+                        'session_id' => $sessionId,
+                        'exception' => $exception->getMessage(),
+                    ]);
+                }
+            }
+        }
+
         $sale->load([
             'customer:id,first_name,last_name,company_name,email,phone',
             'items.product:id,name,sku,unit,image',
             'createdBy:id,name,email,phone_number',
             'pickupConfirmedBy:id,name,email,phone_number',
         ]);
+        $sale->loadSum(['payments as payments_sum_amount' => fn($query) => $query->where('status', 'completed')], 'amount');
 
         return $this->inertiaOrJson('Sales/Show', [
             'sale' => $sale,
+            'stripe' => [
+                'enabled' => app(StripeSaleService::class)->isConfigured(),
+            ],
         ]);
     }
 
@@ -1251,6 +1411,7 @@ class SaleController extends Controller
             'pickupConfirmedBy:id,name,email,phone_number',
             'deliveryConfirmedBy:id,name,email,phone_number',
         ]);
+        $sale->loadSum(['payments as payments_sum_amount' => fn($query) => $query->where('status', 'completed')], 'amount');
 
         return $sale;
     }

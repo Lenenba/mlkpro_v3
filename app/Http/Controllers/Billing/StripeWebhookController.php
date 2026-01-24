@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Services\AssistantCreditService;
 use App\Services\StripeBillingService;
 use App\Services\StripeInvoiceService;
+use App\Services\StripeSaleService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Stripe\Exception\SignatureVerificationException;
@@ -65,11 +66,13 @@ class StripeWebhookController extends Controller
             }
 
             app(StripeInvoiceService::class)->recordPaymentFromCheckoutSession($session);
+            app(StripeSaleService::class)->recordPaymentFromCheckoutSession($session);
         }
 
         if ($type === 'payment_intent.succeeded') {
             $intent = is_array($data) ? $data : $data->toArray();
             app(StripeInvoiceService::class)->recordPaymentFromPaymentIntent($intent);
+            app(StripeSaleService::class)->recordPaymentFromPaymentIntent($intent);
         }
 
         return response()->json(['received' => true]);

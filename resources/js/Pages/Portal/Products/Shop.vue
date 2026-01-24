@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref, watch } from 'vue';
-import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
 import Modal from '@/Components/Modal.vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
@@ -27,6 +27,10 @@ const props = defineProps({
         type: Object,
         default: () => ({}),
     },
+    stripe: {
+        type: Object,
+        default: () => ({}),
+    },
     order: {
         type: Object,
         default: () => null,
@@ -49,6 +53,9 @@ const isEditing = computed(() => Boolean(order.value?.id));
 const paymentStatusLabels = computed(() => ({
     draft: t('client_orders.status.draft'),
     pending: t('client_orders.status.pending'),
+    unpaid: t('client_orders.status.unpaid'),
+    deposit_required: t('client_orders.status.deposit_required'),
+    partial: t('client_orders.status.partial'),
     paid: t('client_orders.status.paid'),
     canceled: t('client_orders.status.canceled'),
 }));
@@ -69,8 +76,9 @@ const orderStatusLabel = computed(() => {
     }
     return fulfillmentLabels.value[order.value.fulfillment_status] || order.value.fulfillment_status;
 });
+const paymentStatusKey = computed(() => order.value?.payment_status || order.value?.status || 'pending');
 const paymentStatusLabel = computed(() =>
-    paymentStatusLabels.value[order.value?.status] || order.value?.status || t('client_orders.status.pending')
+    paymentStatusLabels.value[paymentStatusKey.value] || paymentStatusKey.value || t('client_orders.status.pending')
 );
 const canEditOrder = computed(() => {
     if (!isEditing.value) {
@@ -110,6 +118,30 @@ const showPickupQr = computed(() =>
 );
 const canConfirmReceipt = computed(() =>
     order.value?.fulfillment_status === 'completed' && !order.value?.delivery_confirmed_at
+);
+const stripeEnabled = computed(() => Boolean(props.stripe?.enabled));
+const amountPaid = computed(() => Number(order.value?.amount_paid || 0));
+const balanceDue = computed(() => Number(order.value?.balance_due || 0));
+const depositAmount = computed(() => {
+    const saved = Number(order.value?.deposit_amount || 0);
+    if (saved > 0) {
+        return saved;
+    }
+    if (order.value?.fulfillment_status === 'preparing') {
+        return Math.round(Number(order.value?.total || 0) * 0.2 * 100) / 100;
+    }
+    return 0;
+});
+const depositDue = computed(() => Math.max(0, depositAmount.value - amountPaid.value));
+const canPayDeposit = computed(() =>
+    stripeEnabled.value
+    && isEditing.value
+    && depositDue.value > 0
+);
+const canPayBalance = computed(() =>
+    stripeEnabled.value
+    && isEditing.value
+    && balanceDue.value > 0
 );
 const categoryOptions = computed(() => props.categories || []);
 const trackingOptions = computed(() => ([
@@ -506,6 +538,26 @@ const cancelOrder = () => {
         preserveScroll: true,
     });
 };
+
+const paymentProcessing = ref(false);
+const paymentError = ref('');
+
+const startPayment = (type) => {
+    if (!order.value?.id || paymentProcessing.value) {
+        return;
+    }
+    paymentProcessing.value = true;
+    paymentError.value = '';
+    router.post(route('portal.orders.pay', order.value.id), { type }, {
+        preserveScroll: true,
+        onError: (errors) => {
+            paymentError.value = errors.payment || errors.message || t('portal_shop.payment.error');
+        },
+        onFinish: () => {
+            paymentProcessing.value = false;
+        },
+    });
+};
 </script>
 
 <template>
@@ -562,6 +614,43 @@ const cancelOrder = () => {
                         <span class="rounded-full border border-stone-200 bg-stone-50 px-2 py-1 text-xs font-semibold text-stone-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200">
                             {{ $t('portal_shop.status.payment', { status: paymentStatusLabel }) }}
                         </span>
+                    </div>
+                </div>
+                <div v-if="depositAmount > 0" class="mt-3 space-y-2 text-sm text-stone-700 dark:text-neutral-200">
+                    <div class="flex items-center justify-between">
+                        <span>{{ $t('portal_shop.payment.deposit_required') }}</span>
+                        <span class="font-semibold">{{ formatCurrency(depositAmount) }}</span>
+                    </div>
+                    <div class="flex items-center justify-between text-xs text-stone-500 dark:text-neutral-400">
+                        <span>{{ $t('portal_shop.payment.amount_paid') }}</span>
+                        <span>{{ formatCurrency(amountPaid) }}</span>
+                    </div>
+                    <div class="flex items-center justify-between text-xs text-stone-500 dark:text-neutral-400">
+                        <span>{{ $t('portal_shop.payment.balance_due') }}</span>
+                        <span>{{ formatCurrency(balanceDue) }}</span>
+                    </div>
+                    <div v-if="paymentError" class="text-xs text-red-600">
+                        {{ paymentError }}
+                    </div>
+                    <div class="flex flex-wrap gap-2">
+                        <button
+                            v-if="canPayDeposit"
+                            type="button"
+                            class="rounded-sm bg-green-600 px-3 py-2 text-xs font-semibold text-white hover:bg-green-700 disabled:opacity-60"
+                            :disabled="paymentProcessing"
+                            @click="startPayment('deposit')"
+                        >
+                            {{ paymentProcessing ? $t('portal_shop.payment.processing') : $t('portal_shop.payment.pay_deposit') }}
+                        </button>
+                        <button
+                            v-if="canPayBalance"
+                            type="button"
+                            class="rounded-sm bg-stone-800 px-3 py-2 text-xs font-semibold text-white hover:bg-stone-900 disabled:opacity-60"
+                            :disabled="paymentProcessing"
+                            @click="startPayment('balance')"
+                        >
+                            {{ paymentProcessing ? $t('portal_shop.payment.processing') : $t('portal_shop.payment.pay_balance') }}
+                        </button>
                     </div>
                 </div>
                 <div v-if="order?.delivery_proof_url" class="mt-3">
