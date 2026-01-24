@@ -23,6 +23,7 @@ const validationErrors = computed(() => page.props.errors || {});
 const maintenance = computed(() => page.props.platform?.maintenance || { enabled: false, message: '' });
 const impersonator = computed(() => page.props.auth?.impersonator || null);
 const isSuperadmin = computed(() => Boolean(page.props.auth?.account?.is_superadmin));
+const isClient = computed(() => Boolean(page.props.auth?.account?.is_client));
 </script>
 
 <template>
@@ -160,6 +161,6 @@ const isSuperadmin = computed(() => Boolean(page.props.auth?.account?.is_superad
             </div>
         </main>
         <!-- ========== END MAIN CONTENT ========== -->
-        <GlobalAssistant />
+        <GlobalAssistant v-if="!isClient" />
     </DemoTourProvider>
 </template>
