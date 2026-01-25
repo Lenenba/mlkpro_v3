@@ -67,6 +67,9 @@ class SaleTimelineService
             'sale_eta_updated' => !empty($properties['scheduled_for'])
                 ? 'Nouvelle estimation: ' . $properties['scheduled_for']
                 : 'Nouvelle estimation enregistree',
+            'sale_deposit_requested' => !empty($properties['deposit_amount'])
+                ? 'Acompte requis: $' . number_format((float) $properties['deposit_amount'], 2)
+                : 'Acompte requis',
             'sale_status_changed' => 'Statut commande: ' . ($statusLabels[$properties['status_to'] ?? ''] ?? ($properties['status_to'] ?? '')),
             'sale_fulfillment_changed' => 'Statut livraison: ' . ($fulfillmentLabels[$properties['fulfillment_to'] ?? ''] ?? ($properties['fulfillment_to'] ?? '')),
             default => 'Mise a jour commande',

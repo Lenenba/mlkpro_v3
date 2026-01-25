@@ -29,7 +29,7 @@ class OrderStatusNotification extends Notification
         return [
             'title' => $this->title,
             'message' => $this->message,
-            'action_url' => $this->actionUrl ?? route('portal.orders.edit', $this->sale),
+            'action_url' => $this->actionUrl ?? route('portal.orders.show', $this->sale),
             'category' => NotificationPreferenceService::CATEGORY_ORDERS,
             'sale_id' => $this->sale->id,
             'sale_number' => $this->sale->number,

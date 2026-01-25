@@ -20,6 +20,7 @@ use App\Models\PlatformAnnouncement;
 use App\Models\User;
 use App\Services\BillingSubscriptionService;
 use App\Services\StripeInvoiceService;
+use App\Services\StripeSaleService;
 use App\Services\UsageLimitService;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
@@ -31,6 +32,9 @@ class DashboardController extends Controller
     public function index()
     {
         $user = Auth::user();
+        if ($user && $user->isSuperadmin()) {
+            return redirect()->route('superadmin.dashboard');
+        }
         $now = now();
         $today = $now->toDateString();
         if ($user && $user->isClient()) {
@@ -110,12 +114,14 @@ class DashboardController extends Controller
                         'number',
                         'status',
                         'total',
+                        'deposit_amount',
                         'created_at',
                         'fulfillment_method',
                         'fulfillment_status',
                         'scheduled_for',
                         'delivery_confirmed_at',
-                    ]);
+                    ])
+                    ->loadSum(['payments as payments_sum_amount' => fn($query) => $query->where('status', 'completed')], 'amount');
 
                 $inDeliveryOrders = (clone $salesQuery)
                     ->where('status', '!=', Sale::STATUS_CANCELED)
@@ -172,6 +178,9 @@ class DashboardController extends Controller
                     'pendingOrders' => $pendingOrders,
                     'inDeliveryOrders' => $inDeliveryOrders,
                     'deliveryAlerts' => $deliveryAlerts,
+                    'stripe' => [
+                        'enabled' => app(StripeSaleService::class)->isConfigured(),
+                    ],
                 ]);
             }
 

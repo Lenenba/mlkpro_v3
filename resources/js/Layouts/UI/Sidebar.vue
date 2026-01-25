@@ -25,6 +25,7 @@ const featureFlags = computed(() => page.props.auth?.account?.features || {});
 const hasFeature = (key) => isFeatureEnabled(featureFlags.value, key);
 const showPlatformNav = computed(() => isSuperadmin.value || isPlatformAdmin.value);
 const canPlatform = (permission) => isSuperadmin.value || platformPermissions.value.includes(permission);
+const homeRoute = computed(() => (showPlatformNav.value ? 'superadmin.dashboard' : 'dashboard'));
 const canSales = computed(() =>
     isOwner.value || teamPermissions.value.includes('sales.manage') || teamPermissions.value.includes('sales.pos')
 );
@@ -74,7 +75,7 @@ const isCustomerActive = computed(() => {
                 <div class="relative z-10 w-16 flex flex-col h-full max-h-full pb-5">
                     <header class="w-16 py-2.5 flex justify-center shrink-0">
                         <a class="flex-none rounded-sm text-xl inline-block font-semibold focus:outline-none focus:opacity-80"
-                            :href="route('dashboard')" aria-label="Preline">
+                            :href="route(homeRoute)" aria-label="Preline">
                             <ApplicationLogo class="w-[4rem] h-[4rem] p-1" />
                         </a>
                     </header>
@@ -85,8 +86,8 @@ const isCustomerActive = computed(() => {
                         <nav class="mt-2 flex-1 overflow-y-auto">
                             <ul class="text-center space-y-3 pb-2">
                                 <template v-if="showPlatformNav">
-                                    <LinkAncor v-if="isSuperadmin" :label="$t('nav.dashboard')" :href="'dashboard'" tone="dashboard"
-                                        :active="route().current('dashboard')">
+                                    <LinkAncor v-if="isSuperadmin" :label="$t('nav.dashboard')" :href="'superadmin.dashboard'" tone="dashboard"
+                                        :active="route().current('superadmin.dashboard')">
                                         <template #icon>
                                             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
                                                 viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
@@ -99,7 +100,7 @@ const isCustomerActive = computed(() => {
                                             </svg>
                                         </template>
                                     </LinkAncor>
-                                    <LinkAncor v-if="canPlatform('analytics.view')" :label="$t('nav.admin')" :href="'superadmin.dashboard'" tone="admin"
+                                    <LinkAncor v-else-if="canPlatform('analytics.view')" :label="$t('nav.admin')" :href="'superadmin.dashboard'" tone="admin"
                                         :active="route().current('superadmin.dashboard')">
                                         <template #icon>
                                             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"

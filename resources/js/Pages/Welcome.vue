@@ -269,6 +269,32 @@ onBeforeUnmount(() => {
                             <p class="welcome-feature-desc">{{ $t('welcome.features.items.multi.desc') }}</p>
                         </div>
                     </div>
+
+                    <div class="mt-12">
+                        <div class="flex flex-col gap-2 text-center">
+                            <div class="text-xs uppercase tracking-wide text-emerald-200">{{ $t('welcome.new_features.kicker') }}</div>
+                            <h3 class="welcome-title text-2xl font-semibold">{{ $t('welcome.new_features.title') }}</h3>
+                            <p class="text-sm text-emerald-100">{{ $t('welcome.new_features.subtitle') }}</p>
+                        </div>
+
+                        <div class="mt-8 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+                            <div class="welcome-feature-card welcome-feature-card--new">
+                                <div class="welcome-feature-badge">{{ $t('welcome.new_features.badge') }}</div>
+                                <div class="welcome-feature-title">{{ $t('welcome.new_features.items.assistant.title') }}</div>
+                                <p class="welcome-feature-desc">{{ $t('welcome.new_features.items.assistant.desc') }}</p>
+                            </div>
+                            <div class="welcome-feature-card welcome-feature-card--new">
+                                <div class="welcome-feature-badge">{{ $t('welcome.new_features.badge') }}</div>
+                                <div class="welcome-feature-title">{{ $t('welcome.new_features.items.connect.title') }}</div>
+                                <p class="welcome-feature-desc">{{ $t('welcome.new_features.items.connect.desc') }}</p>
+                            </div>
+                            <div class="welcome-feature-card welcome-feature-card--new">
+                                <div class="welcome-feature-badge">{{ $t('welcome.new_features.badge') }}</div>
+                                <div class="welcome-feature-title">{{ $t('welcome.new_features.items.store.title') }}</div>
+                                <p class="welcome-feature-desc">{{ $t('welcome.new_features.items.store.desc') }}</p>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </section>
 
@@ -560,6 +586,26 @@ onBeforeUnmount(() => {
     background: rgba(255, 255, 255, 0.08);
     border: 1px solid rgba(255, 255, 255, 0.16);
     backdrop-filter: blur(8px);
+}
+
+.welcome-feature-card--new {
+    border-color: rgba(16, 185, 129, 0.4);
+    background: rgba(15, 23, 42, 0.35);
+}
+
+.welcome-feature-badge {
+    display: inline-flex;
+    align-items: center;
+    align-self: flex-start;
+    padding: 0.2rem 0.6rem;
+    border-radius: 999px;
+    background: rgba(16, 185, 129, 0.2);
+    color: #a7f3d0;
+    font-size: 0.65rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 0.5rem;
 }
 
 .welcome-feature-title {

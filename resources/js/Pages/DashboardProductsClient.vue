@@ -55,11 +55,29 @@ const statusLabels = computed(() => ({
     canceled: t('client_orders.status.canceled'),
 }));
 
+const paymentStatusLabels = computed(() => ({
+    unpaid: t('client_orders.status.unpaid'),
+    deposit_required: t('client_orders.status.deposit_required'),
+    partial: t('client_orders.status.partial'),
+    paid: t('client_orders.status.paid'),
+    canceled: t('client_orders.status.canceled'),
+    pending: t('client_orders.status.pending'),
+}));
+
 const statusClasses = {
     draft: 'bg-stone-100 text-stone-600 dark:bg-neutral-800 dark:text-neutral-300',
     pending: 'bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-200',
     paid: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-200',
     canceled: 'bg-red-100 text-red-700 dark:bg-red-500/10 dark:text-red-200',
+};
+
+const paymentStatusClasses = {
+    unpaid: 'bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-200',
+    deposit_required: 'bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-200',
+    partial: 'bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-200',
+    paid: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-200',
+    canceled: 'bg-red-100 text-red-700 dark:bg-red-500/10 dark:text-red-200',
+    pending: 'bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-200',
 };
 
 const kpiTone = {
@@ -118,10 +136,23 @@ const orderActionLabel = (sale) => {
     if (sale.fulfillment_status === 'completed' && !sale.delivery_confirmed_at) {
         return t('client_orders.actions.confirm_delivery');
     }
+    if (sale.fulfillment_status === 'preparing') {
+        return t('client_orders.actions.view_invoice');
+    }
     if (canEditOrder(sale)) {
         return t('client_orders.actions.edit');
     }
     return t('client_orders.actions.view');
+};
+
+const paymentLabel = (sale) => {
+    const key = sale?.payment_status || sale?.status || '';
+    return paymentStatusLabels.value[key] || key;
+};
+
+const paymentBadgeClass = (sale) => {
+    const key = sale?.payment_status || sale?.status || '';
+    return paymentStatusClasses[key] || statusClasses.draft;
 };
 
 const canEditOrder = (sale) => {
@@ -130,6 +161,16 @@ const canEditOrder = (sale) => {
     }
     const blocked = ['out_for_delivery', 'ready_for_pickup', 'completed', 'confirmed'];
     return !blocked.includes(sale.fulfillment_status);
+};
+
+const orderActionRoute = (sale) => {
+    if (!sale) {
+        return route('dashboard');
+    }
+    if (sale.fulfillment_status === 'preparing' || !canEditOrder(sale)) {
+        return route('portal.orders.show', sale.id);
+    }
+    return route('portal.orders.edit', sale.id);
 };
 </script>
 
@@ -196,9 +237,15 @@ const canEditOrder = (sale) => {
                                 >
                                     {{ fulfillmentLabel(sale) }}
                                 </span>
+                                <span
+                                    class="mt-1 inline-flex rounded-full px-2 py-1 text-[10px] font-semibold"
+                                    :class="paymentBadgeClass(sale)"
+                                >
+                                    {{ paymentLabel(sale) }}
+                                </span>
                                 <Link
                                     v-if="sale.status !== 'canceled'"
-                                    :href="route('portal.orders.edit', sale.id)"
+                                    :href="orderActionRoute(sale)"
                                     class="mt-2 block text-[11px] font-semibold text-green-700 hover:underline dark:text-green-400"
                                 >
                                     {{ orderActionLabel(sale) }}

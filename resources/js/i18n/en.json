@@ -381,11 +381,55 @@
         "onboarding_conversion_30d": "Onboarding conversion: {percent}",
         "active_companies": "Active companies",
         "active_wau_mau": "WAU {wau} / MAU {mau}",
-        "activation_rates": "Activation J7 {j7} | J30 {j30}"
+        "activation_rates": "Activation J7 {j7} | J30 {j30}",
+        "platform_health": "Platform health",
+        "health_hint": "{failed} failed jobs · {pending} pending"
+      },
+      "actions": {
+        "tenants": "Tenants",
+        "support": "Support",
+        "announcements": "Announcements",
+        "admins": "Admins",
+        "notifications": "Notifications",
+        "settings": "Settings"
+      },
+      "action_center": {
+        "title": "Action center",
+        "support": "Support",
+        "announcements": "Announcements",
+        "notifications": "Notifications",
+        "tenants": "Tenants",
+        "admins": "Admins",
+        "settings": "Settings"
       },
       "acquisition": {
         "title": "Acquisition (last 7 days)",
         "empty": "No acquisition data."
+      },
+      "alerts": {
+        "title": "Platform alerts",
+        "last_24h": "Last 24h",
+        "limits": "Tenants near limits",
+        "limit_list": "Limit alerts",
+        "limit_empty": "No tenants are near their limits.",
+        "stripe_failures": "Stripe failures",
+        "smtp_failures": "SMTP failures",
+        "jobs_backlog": "Jobs backlog",
+        "jobs_backlog_detail": "{pending} pending · oldest {oldest} min",
+        "storage": "Storage usage"
+      },
+      "risk": {
+        "title": "Tenants at risk",
+        "view_all": "View all",
+        "empty": "No tenants flagged.",
+        "last_activity": "Last activity: {date}",
+        "inactive_days": "{count} days inactive",
+        "flags": {
+          "onboarding": "Onboarding blocked",
+          "churn": "Churn risk",
+          "inactive_14": "Inactive 14d",
+          "inactive_30": "Inactive 30d"
+        }
       },
       "usage": {
         "title": "Usage (last 30 days)",
@@ -396,6 +440,14 @@
         "services": "Services",
         "avg_days_to_first": "Avg days to first: Quote {quote}, Invoice {invoice}, Product {product}, Service {service}, Job {job}",
         "service_mix": "Service mix: {services} services / {products} products ({percent}% services)"
+      },
+      "usage_trends": {
+        "title": "Usage by module (7d / 30d)",
+        "module": "Module",
+        "last_7d": "7d",
+        "last_30d": "30d",
+        "trend": "Trend",
+        "empty": "No usage data."
       },
       "revenue": {
         "title": "Revenue & retention",
@@ -429,6 +481,36 @@
         "customer_email_duplicates": "Customer email duplicates",
         "customer_name_duplicates": "Customer name duplicates",
         "product_name_duplicates": "Product name duplicates"
+      },
+      "limits": {
+        "quotes": "Quotes",
+        "requests": "Requests",
+        "plan_scan_quotes": "Plan scan quotes",
+        "invoices": "Invoices",
+        "jobs": "Jobs",
+        "products": "Products",
+        "services": "Services",
+        "tasks": "Tasks",
+        "team_members": "Team members",
+        "assistant_requests": "AI assistant requests"
+      },
+      "trend": {
+        "none": "No trend",
+        "flat": "No change",
+        "up": "Up",
+        "down": "Down",
+        "new": "New"
+      },
+      "audit": {
+        "title": "Impersonation & audit",
+        "impersonate_cta": "Impersonate a tenant",
+        "filters": {
+          "admin": "Admin",
+          "tenant": "Tenant",
+          "action": "Action"
+        },
+        "empty": "No audit logs found.",
+        "action_by": "By {user}"
       },
       "recent_activity": {
         "title": "Recent admin activity",
@@ -908,7 +990,9 @@
       "reorder": "Reorder",
       "confirm_delivery": "Confirm",
       "edit": "Edit",
-      "view": "View"
+      "view": "View",
+      "view_invoice": "View invoice",
+      "pay_deposit": "Pay deposit"
     },
     "kpi": {
       "orders": "Orders",
@@ -938,6 +1022,9 @@
     "status": {
       "draft": "Draft",
       "pending": "Pending",
+      "unpaid": "Unpaid",
+      "deposit_required": "Deposit required",
+      "partial": "Partial",
       "paid": "Paid",
       "canceled": "Canceled"
     },
@@ -1107,6 +1194,15 @@
       "delivery_photo": "Delivery photo",
       "delivery_photo_alt": "Delivery photo"
     },
+    "payment": {
+      "deposit_required": "Deposit required",
+      "amount_paid": "Paid",
+      "balance_due": "Balance due",
+      "pay_deposit": "Pay deposit",
+      "pay_balance": "Pay balance",
+      "processing": "Processing...",
+      "error": "Unable to start payment."
+    },
     "confirm_receipt": {
       "title": "Confirm receipt",
       "subtitle": "Add a photo if needed, then confirm.",
@@ -1208,6 +1304,42 @@
     "order_number": "Order #{id}",
     "order_fallback": "Order"
   },
+  "portal_order": {
+    "title": "Order {number}",
+    "subtitle": "Order details",
+    "actions": {
+      "back_to_dashboard": "Back to dashboard",
+      "download_pdf": "Download invoice"
+    },
+    "sections": {
+      "items": "Items",
+      "summary": "Summary",
+      "payment": "Payment",
+      "fulfillment": "Delivery / pickup",
+      "customer": "Customer",
+      "payments": "Payment history"
+    },
+    "table": {
+      "product": "Product",
+      "sku": "SKU",
+      "unit": "Unit",
+      "quantity": "Qty",
+      "price": "Price",
+      "total": "Total"
+    },
+    "labels": {
+      "order_status": "Order status",
+      "payment_status": "Payment status",
+      "created_on": "Created on {date}",
+      "paid_on": "Paid on {date}",
+      "requested_time": "Requested time: {date}",
+      "delivery_address": "Address",
+      "notes": "Notes"
+    },
+    "empty": {
+      "payments": "No payments recorded."
+    }
+  },
   "work_proofs": {
     "title": "Job proofs",
     "company_fallback": "Company",
@@ -1278,6 +1410,32 @@
       "paid": "Paid",
       "canceled": "Canceled"
     },
+    "payment": {
+      "unpaid": "Unpaid",
+      "deposit_required": "Deposit required",
+      "partial": "Partial",
+      "paid": "Paid"
+    },
+    "payments": {
+      "title": "Payments",
+      "history_title": "Payment history",
+      "deposit_required": "Deposit required",
+      "paid": "Paid",
+      "balance_due": "Balance due",
+      "amount_label": "Amount",
+      "method_label": "Method",
+      "cash": "Cash",
+      "card": "Card",
+      "record": "Record payment",
+      "recording": "Recording...",
+      "empty": "No payments recorded.",
+      "timeline": {
+        "deposit": "Deposit",
+        "balance": "Balance",
+        "payment": "Payment",
+        "deposit_balance": "Deposit + balance"
+      }
+    },
     "fulfillment": {
       "pending": "Order received",
       "preparing": "Preparing",
@@ -1305,7 +1463,23 @@
     "actions": {
       "back_to_sales": "Back to sales",
       "edit": "Edit",
+      "pay_with_stripe": "Pay with Stripe",
+      "pay_with_stripe_loading": "Redirecting...",
+      "receipt": "Download receipt",
       "print": "Print"
+    },
+    "errors": {
+      "stripe_start": "Unable to start Stripe payment.",
+      "stripe_amount_invalid": "Invalid amount for Stripe."
+    },
+    "qr": {
+      "title": "QR payment",
+      "subtitle": "Scan the QR code to pay quickly.",
+      "loading": "Preparing payment...",
+      "image_alt": "Payment QR code",
+      "order_label": "Sale {number}",
+      "view_sale": "View sale",
+      "open_link": "Open payment"
     },
     "form": {
       "search_label": "Product search",
@@ -1319,6 +1493,18 @@
       "create_customer": "Create customer",
       "discount_badge": "Discount {rate}%",
       "type_label": "Type",
+      "payment_label": "Payment method",
+      "payment_methods": {
+        "cash": {
+          "label": "Cash",
+          "description": "Immediate in-person payment."
+        },
+        "card": {
+          "label": "Card",
+          "description": "Card payment via Stripe.",
+          "disabled_hint": "Stripe is not configured for card payments."
+        }
+      },
       "status_label": "Status",
       "invoice_title": "Invoice",
       "lines": "{count} lines",
@@ -1357,13 +1543,14 @@
         "sale": "Sale",
         "customer": "Customer",
         "status": "Status",
+        "payment": "Payment status",
         "items": "Items",
         "total": "Total",
         "date": "Date"
       },
       "sale_label": "Sale #{id}",
       "items_count": "{count} items",
-      "payment_label": "Payment: {status}",
+      "payment_label": "Payment status: {status}",
       "fulfillment_placeholder": "Order status",
       "actions": {
         "view": "View",
@@ -1424,7 +1611,7 @@
       "seller_fallback": "Seller",
       "seller_label": "Seller",
       "order_label": "Order: {status}",
-      "payment_label": "Payment: {status}",
+      "payment_label": "Payment status: {status}",
       "created_on": "Created on {date}",
       "paid_on": "Paid on {date}",
       "products_title": "Products",
@@ -3454,9 +3641,13 @@
         "subtitle": "Connect your bank account to receive client payments directly.",
         "status_connected": "Connected",
         "status_pending": "Onboarding in progress",
+        "status_action_required": "Action required",
         "status_not_connected": "Not connected",
         "action_connect": "Connect Stripe",
+        "action_complete": "Complete details",
         "action_resume": "Resume onboarding",
+        "action_required_hint": "{count} item(s) still required on Stripe.",
+        "action_required_hint_generic": "Some details are missing on Stripe.",
         "fee_note": "Platform fee: {fee}%",
         "success": "Stripe account linked.",
         "error_start": "Unable to start Stripe Connect onboarding."
@@ -3534,6 +3725,26 @@
         "multi": {
           "title": "Multi-company",
           "desc": "Run multiple businesses from a single workspace."
+        }
+      }
+    },
+    "new_features": {
+      "kicker": "New",
+      "title": "What's new on the platform",
+      "subtitle": "Fresh additions to speed up sales and payments.",
+      "badge": "New",
+      "items": {
+        "assistant": {
+          "title": "AI Assistant",
+          "desc": "Create quotes, jobs, and invoices in seconds."
+        },
+        "connect": {
+          "title": "Connect payouts",
+          "desc": "Get paid directly to your account with Stripe Connect."
+        },
+        "store": {
+          "title": "Product storefront",
+          "desc": "Let clients order and track products in one place."
         }
       }
     },

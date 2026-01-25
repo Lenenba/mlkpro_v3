@@ -1,10 +1,12 @@
 <script setup>
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
+import axios from 'axios';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
 import InputError from '@/Components/InputError.vue';
 import Modal from '@/Components/UI/Modal.vue';
+import AppModal from '@/Components/Modal.vue';
 import CustomerQuickForm from '@/Components/QuickCreate/CustomerQuickForm.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
 
@@ -17,6 +19,10 @@ const props = defineProps({
         type: Array,
         default: () => [],
     },
+    stripe: {
+        type: Object,
+        default: () => ({}),
+    },
 });
 
 const { t } = useI18n();
@@ -28,10 +34,55 @@ const form = useForm({
     status: 'pending',
     notes: '',
     items: [],
+    payment_method: 'cash',
+    pay_with_stripe: false,
 });
 
 const page = usePage();
 const lastSaleId = computed(() => page.props.flash?.last_sale_id || null);
+const stripeEnabled = computed(() => Boolean(props.stripe?.enabled));
+const stripeError = ref('');
+const stripeProcessing = ref(false);
+const hasChargeableTotal = computed(() => total.value > 0);
+const shouldUseStripePayment = computed(() =>
+    stripeEnabled.value && hasChargeableTotal.value && form.status === 'paid' && form.payment_method === 'card'
+);
+const canUseCardPayment = computed(() => stripeEnabled.value);
+const submitLabel = computed(() => {
+    if (shouldUseStripePayment.value) {
+        return stripeProcessing.value
+            ? t('sales.actions.pay_with_stripe_loading')
+            : t('sales.actions.pay_with_stripe');
+    }
+    return form.status === 'paid' ? t('sales.create.save_sale') : t('sales.create.save_order');
+});
+const paymentMethodOptions = computed(() => ([
+    {
+        value: 'cash',
+        label: t('sales.form.payment_methods.cash.label'),
+        description: t('sales.form.payment_methods.cash.description'),
+        disabled: false,
+    },
+    {
+        value: 'card',
+        label: t('sales.form.payment_methods.card.label'),
+        description: t('sales.form.payment_methods.card.description'),
+        disabled: !canUseCardPayment.value,
+    },
+].filter((option) => option.value !== 'card' || hasChargeableTotal.value)));
+
+const showQrModal = ref(false);
+const qrCheckoutUrl = ref('');
+const qrSale = ref(null);
+const qrImageUrl = computed(() =>
+    qrCheckoutUrl.value
+        ? `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(qrCheckoutUrl.value)}`
+        : ''
+);
+
+const closeQrModal = () => {
+    showQrModal.value = false;
+};
 
 const statusOptions = computed(() => [
     {
@@ -194,6 +245,7 @@ const discountedTaxTotal = computed(() => taxTotal.value * (1 - discountRate.val
 const total = computed(() =>
     Math.max(0, subtotal.value - discountTotal.value) + discountedTaxTotal.value
 );
+const canStripeCheckout = computed(() => total.value > 0);
 
 const formatCurrency = (value) =>
     `$${Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -220,7 +272,52 @@ const resetForm = () => {
     scanError.value = '';
 };
 
+watch(
+    () => hasChargeableTotal.value,
+    (value) => {
+        if (!value && form.payment_method === 'card') {
+            form.payment_method = 'cash';
+        }
+    }
+);
+
 const submit = () => {
+    stripeError.value = '';
+    form.pay_with_stripe = shouldUseStripePayment.value;
+    if (shouldUseStripePayment.value) {
+        if (!canStripeCheckout.value) {
+            stripeError.value = t('sales.errors.stripe_amount_invalid');
+            return;
+        }
+        stripeProcessing.value = true;
+        const payload = {
+            customer_id: form.customer_id,
+            status: form.status,
+            notes: form.notes,
+            items: form.items,
+            payment_method: form.payment_method,
+            pay_with_stripe: true,
+        };
+
+        axios.post(route('sales.store'), payload, { headers: { Accept: 'application/json' } })
+            .then((response) => {
+                const data = response?.data || {};
+                qrCheckoutUrl.value = data.checkout_url || '';
+                qrSale.value = data.sale || null;
+                showQrModal.value = Boolean(qrCheckoutUrl.value);
+            })
+            .catch((error) => {
+                const message = error?.response?.data?.message
+                    || error?.response?.data?.errors?.status?.[0]
+                    || t('sales.errors.stripe_start');
+                stripeError.value = message;
+            })
+            .finally(() => {
+                stripeProcessing.value = false;
+            });
+        return;
+    }
+
     form.post(route('sales.store'), {
         preserveScroll: true,
         onSuccess: () => resetForm(),
@@ -429,6 +526,53 @@ const submit = () => {
                                 </div>
                                 <InputError class="mt-1" :message="form.errors.status" />
                             </div>
+                            <div v-if="form.status === 'paid'">
+                                <label class="text-xs text-stone-500 dark:text-neutral-400">
+                                    {{ $t('sales.form.payment_label') }}
+                                </label>
+                                <div class="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                                    <button
+                                        v-for="option in paymentMethodOptions"
+                                        :key="option.value"
+                                        type="button"
+                                        class="rounded-sm border px-3 py-2 text-left transition"
+                                        :class="[
+                                            form.payment_method === option.value
+                                                ? 'border-green-500 bg-green-50 text-green-700'
+                                                : 'border-stone-200 text-stone-600 hover:border-stone-300 dark:border-neutral-700 dark:text-neutral-300',
+                                            option.disabled ? 'cursor-not-allowed opacity-60' : ''
+                                        ]"
+                                        :disabled="option.disabled"
+                                        @click="form.payment_method = option.value"
+                                    >
+                                        <div class="flex items-center gap-2 text-sm font-semibold">
+                                            <span
+                                                class="inline-flex h-7 w-7 items-center justify-center rounded-sm border border-stone-200 bg-white text-stone-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
+                                            >
+                                                <svg v-if="option.value === 'cash'" class="size-4" xmlns="http://www.w3.org/2000/svg"
+                                                    viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                                    stroke-linecap="round" stroke-linejoin="round">
+                                                    <rect x="2" y="6" width="20" height="12" rx="2" />
+                                                    <circle cx="12" cy="12" r="3" />
+                                                </svg>
+                                                <svg v-else class="size-4" xmlns="http://www.w3.org/2000/svg"
+                                                    viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                                    stroke-linecap="round" stroke-linejoin="round">
+                                                    <rect x="2" y="5" width="20" height="14" rx="2" />
+                                                    <path d="M2 10h20" />
+                                                </svg>
+                                            </span>
+                                            <span>{{ option.label }}</span>
+                                        </div>
+                                        <p class="mt-1 text-[11px] text-stone-500 dark:text-neutral-400">
+                                            {{ option.description }}
+                                        </p>
+                                    </button>
+                                </div>
+                                <p v-if="!canUseCardPayment" class="mt-2 text-xs text-amber-600 dark:text-amber-300">
+                                    {{ $t('sales.form.payment_methods.card.disabled_hint') }}
+                                </p>
+                            </div>
                         </div>
                     </div>
 
@@ -536,12 +680,16 @@ const submit = () => {
                         </div>
                     </div>
 
+                    <div v-if="stripeError" class="text-xs text-red-600 dark:text-red-300">
+                        {{ stripeError }}
+                    </div>
+
                     <button
                         type="submit"
-                        :disabled="form.processing || !form.items.length"
+                        :disabled="form.processing || stripeProcessing || !form.items.length"
                         class="w-full rounded-sm border border-transparent bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50"
                     >
-                        {{ form.status === 'paid' ? $t('sales.create.save_sale') : $t('sales.create.save_order') }}
+                        {{ submitLabel }}
                     </button>
                 </div>
             </form>
@@ -555,5 +703,58 @@ const submit = () => {
                 @created="handleCustomerCreated"
             />
         </Modal>
+
+        <AppModal :show="showQrModal" maxWidth="md" @close="closeQrModal">
+            <div class="p-6 space-y-4">
+                <div>
+                    <h2 class="text-lg font-semibold text-stone-800 dark:text-neutral-100">
+                        {{ $t('sales.qr.title') }}
+                    </h2>
+                    <p class="text-sm text-stone-600 dark:text-neutral-400">
+                        {{ $t('sales.qr.subtitle') }}
+                    </p>
+                </div>
+
+                <div class="rounded-sm border border-stone-200 bg-white p-4 text-center dark:border-neutral-700 dark:bg-neutral-900">
+                    <img
+                        v-if="qrImageUrl"
+                        :src="qrImageUrl"
+                        :alt="$t('sales.qr.image_alt')"
+                        class="mx-auto h-56 w-56 rounded-sm border border-stone-200 bg-white p-2"
+                    />
+                    <div v-else class="text-sm text-stone-500 dark:text-neutral-400">
+                        {{ $t('sales.qr.loading') }}
+                    </div>
+                </div>
+
+                <div class="space-y-2 text-xs text-stone-600 dark:text-neutral-300">
+                    <div v-if="qrSale?.number">
+                        {{ $t('sales.qr.order_label', { number: qrSale.number }) }}
+                    </div>
+                    <div v-else-if="qrSale?.id">
+                        {{ $t('sales.qr.order_label', { number: `#${qrSale.id}` }) }}
+                    </div>
+                </div>
+
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                    <Link
+                        v-if="qrSale?.id"
+                        :href="route('sales.show', qrSale.id)"
+                        class="rounded-sm border border-stone-200 bg-white px-3 py-2 text-xs font-semibold text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
+                    >
+                        {{ $t('sales.qr.view_sale') }}
+                    </Link>
+                    <a
+                        v-if="qrCheckoutUrl"
+                        :href="qrCheckoutUrl"
+                        target="_blank"
+                        rel="noreferrer"
+                        class="rounded-sm bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700"
+                    >
+                        {{ $t('sales.qr.open_link') }}
+                    </a>
+                </div>
+            </div>
+        </AppModal>
     </AuthenticatedLayout>
 </template>

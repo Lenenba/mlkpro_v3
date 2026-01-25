@@ -4,6 +4,7 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import StarRating from '@/Components/UI/StarRating.vue';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
+import { humanizeDate } from '@/utils/date';
 
 const props = defineProps({
     work: Object,
@@ -46,6 +47,7 @@ const statusLabels = computed(() => ({
 }));
 
 const formatStatus = (status) => statusLabels.value[status] || status || '-';
+const formatDate = (value) => humanizeDate(value) || '-';
 
 const isLocked = computed(() =>
     ['validated', 'auto_validated', 'closed', 'completed'].includes(props.work?.status || '')
@@ -131,8 +133,8 @@ const createInvoice = () => {
                 </div>
                 <div class="p-4 bg-white border border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
                     <h2 class="text-sm text-stone-500 dark:text-neutral-400">{{ $t('jobs.show.cards.dates') }}</h2>
-                    <p class="text-sm text-stone-800 dark:text-neutral-100">{{ $t('jobs.show.cards.start') }}: {{ work.start_date || '-' }}</p>
-                    <p class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('jobs.show.cards.end') }}: {{ work.end_date || '-' }}</p>
+                    <p class="text-sm text-stone-800 dark:text-neutral-100">{{ $t('jobs.show.cards.start') }}: {{ formatDate(work.start_date) }}</p>
+                    <p class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('jobs.show.cards.end') }}: {{ formatDate(work.end_date) }}</p>
                 </div>
                 <div class="p-4 bg-white border border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
                     <h2 class="text-sm text-stone-500 dark:text-neutral-400">{{ $t('jobs.show.cards.totals') }}</h2>

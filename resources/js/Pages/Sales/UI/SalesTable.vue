@@ -78,11 +78,29 @@ const statusLabels = computed(() => ({
     canceled: t('sales.status.canceled'),
 }));
 
+const paymentStatusLabels = computed(() => ({
+    unpaid: t('sales.payment.unpaid'),
+    deposit_required: t('sales.payment.deposit_required'),
+    partial: t('sales.payment.partial'),
+    paid: t('sales.payment.paid'),
+    canceled: t('sales.status.canceled'),
+    pending: t('sales.status.pending'),
+}));
+
 const statusClasses = {
     draft: 'bg-stone-100 text-stone-600 dark:bg-neutral-800 dark:text-neutral-300',
     pending: 'bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-200',
     paid: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-200',
     canceled: 'bg-red-100 text-red-700 dark:bg-red-500/10 dark:text-red-200',
+};
+
+const paymentStatusClasses = {
+    unpaid: 'bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-200',
+    deposit_required: 'bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-200',
+    partial: 'bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-200',
+    paid: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-200',
+    canceled: 'bg-red-100 text-red-700 dark:bg-red-500/10 dark:text-red-200',
+    pending: 'bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-200',
 };
 
 const fulfillmentLabels = computed(() => ({
@@ -224,7 +242,15 @@ const statusBadgeClass = (sale) => {
     return statusClasses[sale.status] || statusClasses.draft;
 };
 
-const paymentLabel = (sale) => statusLabels.value[sale?.status] || sale?.status || '';
+const paymentLabel = (sale) => {
+    const key = sale?.payment_status || sale?.status || '';
+    return paymentStatusLabels.value[key] || key;
+};
+
+const paymentBadgeClass = (sale) => {
+    const key = sale?.payment_status || sale?.status || '';
+    return paymentStatusClasses[key] || statusClasses.draft;
+};
 
 const canQuickUpdate = (sale) =>
     props.enableStatusUpdate
@@ -442,6 +468,11 @@ const canMarkCanceled = (sale) =>
                                     </svg>
                                 </button>
                             </th>
+                            <th scope="col" class="min-w-32">
+                                <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
+                                    {{ $t('sales.table.headings.payment') }}
+                                </div>
+                            </th>
                             <th scope="col" class="min-w-28">
                                 <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
                                     {{ $t('sales.table.headings.items') }}
@@ -478,11 +509,12 @@ const canMarkCanceled = (sale) =>
                     <tbody class="divide-y divide-stone-200 dark:divide-neutral-700">
                         <template v-if="isLoading">
                             <tr v-for="row in 6" :key="`skeleton-${row}`">
-                                <td colspan="7" class="px-4 py-3">
-                                    <div class="grid grid-cols-6 gap-4 animate-pulse">
+                                <td colspan="8" class="px-4 py-3">
+                                    <div class="grid grid-cols-7 gap-4 animate-pulse">
                                         <div class="h-3 w-32 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
                                         <div class="h-3 w-28 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
                                         <div class="h-3 w-24 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                                        <div class="h-3 w-20 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
                                         <div class="h-3 w-16 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
                                         <div class="h-3 w-20 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
                                         <div class="h-3 w-24 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
@@ -492,7 +524,7 @@ const canMarkCanceled = (sale) =>
                         </template>
                         <template v-else>
                             <tr v-if="!sales.data.length">
-                                <td colspan="7" class="px-4 py-8 text-center text-stone-600 dark:text-neutral-300">
+                                <td colspan="8" class="px-4 py-8 text-center text-stone-600 dark:text-neutral-300">
                                     <div class="space-y-2">
                                         <div class="text-sm font-semibold text-stone-700 dark:text-neutral-200">
                                             {{ emptyState.title }}
@@ -571,6 +603,14 @@ const canMarkCanceled = (sale) =>
                                         </div>
                                     </div>
                                 </div>
+                            </td>
+                            <td class="size-px whitespace-nowrap px-4 py-2">
+                                <span
+                                    class="py-1.5 px-2 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-full"
+                                    :class="paymentBadgeClass(sale)"
+                                >
+                                    {{ paymentLabel(sale) }}
+                                </span>
                             </td>
                             <td class="size-px whitespace-nowrap px-4 py-2">
                                 <span class="text-sm text-stone-600 dark:text-neutral-300">
