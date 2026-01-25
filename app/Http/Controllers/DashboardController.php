@@ -32,6 +32,9 @@ class DashboardController extends Controller
     public function index()
     {
         $user = Auth::user();
+        if ($user && $user->isSuperadmin()) {
+            return redirect()->route('superadmin.dashboard');
+        }
         $now = now();
         $today = $now->toDateString();
         if ($user && $user->isClient()) {

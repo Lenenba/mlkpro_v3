@@ -51,6 +51,14 @@ const statusClasses = {
     paid: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-200',
     canceled: 'bg-red-100 text-red-700 dark:bg-red-500/10 dark:text-red-200',
 };
+const paymentStatusClasses = {
+    unpaid: 'bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-200',
+    deposit_required: 'bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-200',
+    partial: 'bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-200',
+    paid: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-200',
+    canceled: 'bg-red-100 text-red-700 dark:bg-red-500/10 dark:text-red-200',
+    pending: 'bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-200',
+};
 
 const customerLabel = (customer) => {
     if (customer?.company_name) {
@@ -172,10 +180,24 @@ const paymentStatusKey = computed(() => props.sale?.payment_status || props.sale
 const paymentStatusLabel = computed(() =>
     paymentStatusLabels.value[paymentStatusKey.value] || paymentStatusKey.value || ''
 );
+const paymentStatusClass = computed(() =>
+    paymentStatusClasses[paymentStatusKey.value] || statusClasses.draft
+);
 const stripeEnabled = computed(() => Boolean(props.stripe?.enabled));
 const stripeProcessing = ref(false);
 const stripeError = ref('');
-const canStripePay = computed(() => stripeEnabled.value && ['draft', 'pending'].includes(props.sale?.status));
+const canStripePay = computed(() => {
+    if (!stripeEnabled.value) {
+        return false;
+    }
+    if (!['draft', 'pending'].includes(props.sale?.status)) {
+        return false;
+    }
+    if (['paid', 'canceled'].includes(props.sale?.payment_status)) {
+        return false;
+    }
+    return Number(props.sale?.balance_due || 0) > 0;
+});
 const stripeButtonLabel = computed(() =>
     stripeProcessing.value ? t('sales.actions.pay_with_stripe_loading') : t('sales.actions.pay_with_stripe')
 );
@@ -205,6 +227,44 @@ const balanceDue = computed(() => Number(props.sale?.balance_due || 0));
 const depositAmount = computed(() => Number(props.sale?.deposit_amount || 0));
 const depositDue = computed(() => Math.max(0, depositAmount.value - amountPaid.value));
 const canRecordPayment = computed(() => balanceDue.value > 0);
+const canDownloadReceipt = computed(() => amountPaid.value > 0);
+
+const paymentMethodLabel = (method) => {
+    if (method === 'cash') {
+        return t('sales.payments.cash');
+    }
+    if (method === 'card') {
+        return t('sales.payments.card');
+    }
+    return method || '-';
+};
+
+const paymentTimeline = computed(() => {
+    const list = Array.isArray(props.sale?.payments) ? props.sale.payments : [];
+    const sorted = [...list]
+        .filter((payment) => !payment.status || payment.status === 'completed')
+        .sort((a, b) => new Date(a.paid_at || 0) - new Date(b.paid_at || 0));
+    let running = 0;
+    return sorted.map((payment) => {
+        const amount = Number(payment.amount || 0);
+        const previous = running;
+        running += amount;
+        let labelKey = 'payment';
+        if (depositAmount.value > 0) {
+            if (previous < depositAmount.value && running <= depositAmount.value) {
+                labelKey = 'deposit';
+            } else if (previous < depositAmount.value && running > depositAmount.value) {
+                labelKey = 'deposit_balance';
+            } else {
+                labelKey = 'balance';
+            }
+        }
+        return {
+            ...payment,
+            timeline_label: t(`sales.payments.timeline.${labelKey}`),
+        };
+    });
+});
 
 const paymentForm = useForm({
     amount: '',
@@ -285,7 +345,7 @@ const submitPayment = () => {
                             </span>
                             <span
                                 class="rounded-full px-2 py-0.5 text-xs font-semibold"
-                                :class="statusClasses[sale.status] || statusClasses.draft"
+                                :class="paymentStatusClass"
                             >
                                 {{ $t('sales.show.payment_label', { status: paymentStatusLabel }) }}
                             </span>
@@ -323,6 +383,13 @@ const submitPayment = () => {
                 >
                     {{ stripeButtonLabel }}
                 </button>
+                <Link
+                    v-if="canDownloadReceipt"
+                    :href="route('sales.receipt', sale.id)"
+                    class="rounded-sm border border-stone-200 bg-white px-3 py-2 text-xs font-semibold text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
+                >
+                    {{ $t('sales.actions.receipt') }}
+                </Link>
                 <Link
                     v-if="canConfirmPickup"
                     :href="route('sales.pickup.confirm', sale.id)"
@@ -447,12 +514,12 @@ const submitPayment = () => {
                                 >
                                     {{ orderStatusLabel }}
                                 </span>
-                                <span
-                                    class="rounded-full px-2 py-1 text-xs font-semibold"
-                                    :class="statusClasses[sale.status] || statusClasses.draft"
-                                >
-                                    {{ $t('sales.show.payment_label', { status: paymentStatusLabel }) }}
-                                </span>
+                            <span
+                                class="rounded-full px-2 py-1 text-xs font-semibold"
+                                :class="paymentStatusClass"
+                            >
+                                {{ $t('sales.show.payment_label', { status: paymentStatusLabel }) }}
+                            </span>
                             </div>
                         </div>
                         <div class="mt-3 space-y-2 text-sm text-stone-700 dark:text-neutral-200">
@@ -562,6 +629,43 @@ const submitPayment = () => {
                                 {{ paymentForm.processing ? $t('sales.payments.recording') : $t('sales.payments.record') }}
                             </button>
                         </form>
+                    </div>
+
+                    <div
+                        class="print-card rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900"
+                    >
+                        <div class="flex items-center justify-between">
+                            <span class="text-sm text-stone-500 dark:text-neutral-400">
+                                {{ $t('sales.payments.history_title') }}
+                            </span>
+                        </div>
+                        <div class="mt-3 space-y-2 text-sm text-stone-700 dark:text-neutral-200">
+                            <div v-if="!paymentTimeline.length" class="text-xs text-stone-500 dark:text-neutral-400">
+                                {{ $t('sales.payments.empty') }}
+                            </div>
+                            <div v-else class="space-y-2">
+                                <div
+                                    v-for="payment in paymentTimeline"
+                                    :key="payment.id"
+                                    class="flex items-center justify-between rounded-sm border border-stone-200 bg-stone-50 px-3 py-2 text-xs text-stone-600 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300"
+                                >
+                                    <div>
+                                        <div class="text-[11px] uppercase tracking-wide text-stone-400 dark:text-neutral-500">
+                                            {{ payment.timeline_label }}
+                                        </div>
+                                        <div class="font-semibold text-stone-800 dark:text-neutral-100">
+                                            {{ formatCurrency(payment.amount) }}
+                                        </div>
+                                        <div class="text-[11px] text-stone-500 dark:text-neutral-400">
+                                            {{ paymentMethodLabel(payment.method) }} · {{ formatDateTime(payment.paid_at) }}
+                                        </div>
+                                    </div>
+                                    <div class="text-[11px] text-stone-500 dark:text-neutral-400">
+                                        {{ payment.status || '-' }}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     <div

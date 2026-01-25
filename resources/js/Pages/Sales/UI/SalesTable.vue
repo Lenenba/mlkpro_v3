@@ -94,6 +94,15 @@ const statusClasses = {
     canceled: 'bg-red-100 text-red-700 dark:bg-red-500/10 dark:text-red-200',
 };
 
+const paymentStatusClasses = {
+    unpaid: 'bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-200',
+    deposit_required: 'bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-200',
+    partial: 'bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-200',
+    paid: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-200',
+    canceled: 'bg-red-100 text-red-700 dark:bg-red-500/10 dark:text-red-200',
+    pending: 'bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-200',
+};
+
 const fulfillmentLabels = computed(() => ({
     pending: t('sales.fulfillment.pending'),
     preparing: t('sales.fulfillment.preparing'),
@@ -236,6 +245,11 @@ const statusBadgeClass = (sale) => {
 const paymentLabel = (sale) => {
     const key = sale?.payment_status || sale?.status || '';
     return paymentStatusLabels.value[key] || key;
+};
+
+const paymentBadgeClass = (sale) => {
+    const key = sale?.payment_status || sale?.status || '';
+    return paymentStatusClasses[key] || statusClasses.draft;
 };
 
 const canQuickUpdate = (sale) =>
@@ -591,7 +605,10 @@ const canMarkCanceled = (sale) =>
                                 </div>
                             </td>
                             <td class="size-px whitespace-nowrap px-4 py-2">
-                                <span class="text-sm text-stone-600 dark:text-neutral-300">
+                                <span
+                                    class="py-1.5 px-2 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-full"
+                                    :class="paymentBadgeClass(sale)"
+                                >
                                     {{ paymentLabel(sale) }}
                                 </span>
                             </td>

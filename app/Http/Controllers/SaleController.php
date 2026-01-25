@@ -12,6 +12,7 @@ use App\Services\InventoryService;
 use App\Services\SaleNotificationService;
 use App\Services\SaleTimelineService;
 use App\Services\StripeSaleService;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\URL;
@@ -500,6 +501,12 @@ class SaleController extends Controller
         $discountedSubtotal = max(0, $subtotal - $discountTotal);
         $discountedTaxTotal = round($taxTotal * (1 - ($discountRate / 100)), 2);
         $total = round($discountedSubtotal + $discountedTaxTotal, 2);
+
+        if ($payWithStripe && $total <= 0) {
+            throw ValidationException::withMessages([
+                'status' => 'Montant invalide pour Stripe.',
+            ]);
+        }
 
         $status = $payWithStripe ? Sale::STATUS_PENDING : $validated['status'];
         $fulfillmentStatus = $validated['fulfillment_status'] ?? null;
@@ -1198,6 +1205,11 @@ class SaleController extends Controller
             return $respondError('Montant invalide pour Stripe.');
         }
 
+        $sale->loadSum(['payments as payments_sum_amount' => fn($query) => $query->where('status', 'completed')], 'amount');
+        if ($sale->balance_due <= 0) {
+            return $respondError('Aucun solde a payer.');
+        }
+
         $stripeService = app(StripeSaleService::class);
         if (!$stripeService->isConfigured()) {
             return $respondError('Stripe n est pas configure.');
@@ -1363,6 +1375,9 @@ class SaleController extends Controller
             'items.product:id,name,sku,unit,image',
             'createdBy:id,name,email,phone_number',
             'pickupConfirmedBy:id,name,email,phone_number',
+            'payments' => fn($query) => $query
+                ->select(['id', 'sale_id', 'amount', 'method', 'status', 'paid_at'])
+                ->orderByDesc('paid_at'),
         ]);
         $sale->loadSum(['payments as payments_sum_amount' => fn($query) => $query->where('status', 'completed')], 'amount');
 
@@ -1372,6 +1387,62 @@ class SaleController extends Controller
                 'enabled' => app(StripeSaleService::class)->isConfigured(),
             ],
         ]);
+    }
+
+    public function receipt(Request $request, Sale $sale)
+    {
+        $user = $request->user();
+        if (!$user) {
+            abort(401);
+        }
+        [$accountOwner, $canManage, $canPos] = $this->resolveSalesAccess($user);
+        $accountId = $accountOwner->id;
+        $canAccessAll = $canManage || $canPos;
+
+        if (!$accountId || $sale->user_id !== $accountId) {
+            abort(404);
+        }
+        if (!$canAccessAll && $sale->created_by_user_id !== $user->id) {
+            abort(404);
+        }
+
+        $sale->load([
+            'customer:id,first_name,last_name,company_name,email,phone',
+            'items.product:id,name,sku,unit,image',
+            'payments' => fn($query) => $query
+                ->select(['id', 'sale_id', 'amount', 'method', 'status', 'paid_at'])
+                ->orderByDesc('paid_at'),
+        ]);
+        $sale->loadSum(['payments as payments_sum_amount' => fn($query) => $query->where('status', 'completed')], 'amount');
+
+        $items = $sale->items->map(function ($item) {
+            return [
+                'title' => $item->description ?: $item->product?->name ?: 'Item',
+                'quantity' => (int) $item->quantity,
+                'unit_price' => (float) ($item->price ?? 0),
+                'total' => (float) ($item->total ?? 0),
+                'unit' => $item->product?->unit,
+                'sku' => $item->product?->sku,
+            ];
+        });
+
+        $totalPaid = (float) ($sale->payments_sum_amount ?? 0);
+        $depositAmount = (float) ($sale->deposit_amount ?? 0);
+
+        $pdf = Pdf::loadView('pdf.sale-receipt', [
+            'sale' => $sale,
+            'customer' => $sale->customer,
+            'company' => $accountOwner,
+            'items' => $items,
+            'payments' => $sale->payments ?? collect(),
+            'totalPaid' => $totalPaid,
+            'depositAmount' => $depositAmount,
+        ])->setOption('isRemoteEnabled', true);
+
+        $label = $sale->number ?: $sale->id;
+        $filename = 'receipt-' . $label . '.pdf';
+
+        return $pdf->download($filename);
     }
 
     private function resolveSalesAccess(User $user): array

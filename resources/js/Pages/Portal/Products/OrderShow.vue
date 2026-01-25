@@ -90,6 +90,15 @@ const statusClasses = {
     canceled: 'bg-red-100 text-red-700 dark:bg-red-500/10 dark:text-red-200',
 };
 
+const paymentStatusClasses = {
+    unpaid: 'bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-200',
+    deposit_required: 'bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-200',
+    partial: 'bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-200',
+    paid: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-200',
+    canceled: 'bg-red-100 text-red-700 dark:bg-red-500/10 dark:text-red-200',
+    pending: 'bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-200',
+};
+
 const fulfillmentClasses = {
     pending: 'bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-200',
     preparing: 'bg-sky-100 text-sky-700 dark:bg-sky-500/10 dark:text-sky-200',
@@ -121,16 +130,7 @@ const paymentStatusLabel = computed(() =>
     paymentStatusLabels.value[paymentStatusKey.value] || paymentStatusKey.value || t('client_orders.status.pending')
 );
 
-const paymentStatusClass = computed(() => {
-    const key = paymentStatusKey.value;
-    if (key === 'paid') {
-        return statusClasses.paid;
-    }
-    if (key === 'canceled') {
-        return statusClasses.canceled;
-    }
-    return statusClasses.pending;
-});
+const paymentStatusClass = computed(() => paymentStatusClasses[paymentStatusKey.value] || statusClasses.pending);
 
 const amountPaid = computed(() => Number(order.value?.amount_paid || 0));
 const balanceDue = computed(() => Number(order.value?.balance_due || 0));
@@ -240,6 +240,33 @@ const paymentMethodLabel = (method) => {
     }
     return method || '-';
 };
+
+const paymentTimeline = computed(() => {
+    const list = Array.isArray(props.payments) ? props.payments : [];
+    const sorted = [...list]
+        .filter((payment) => !payment.status || payment.status === 'completed')
+        .sort((a, b) => new Date(a.paid_at || 0) - new Date(b.paid_at || 0));
+    let running = 0;
+    return sorted.map((payment) => {
+        const amount = Number(payment.amount || 0);
+        const previous = running;
+        running += amount;
+        let labelKey = 'payment';
+        if (depositAmount.value > 0) {
+            if (previous < depositAmount.value && running <= depositAmount.value) {
+                labelKey = 'deposit';
+            } else if (previous < depositAmount.value && running > depositAmount.value) {
+                labelKey = 'deposit_balance';
+            } else {
+                labelKey = 'balance';
+            }
+        }
+        return {
+            ...payment,
+            timeline_label: t(`sales.payments.timeline.${labelKey}`),
+        };
+    });
+});
 </script>
 
 <template>
@@ -550,12 +577,19 @@ const paymentMethodLabel = (method) => {
                             <span class="text-sm text-stone-500 dark:text-neutral-400">{{ t('portal_order.sections.payments') }}</span>
                         </div>
                         <div class="mt-3 space-y-2 text-sm text-stone-700 dark:text-neutral-200">
-                            <div v-if="!payments.length" class="text-xs text-stone-500 dark:text-neutral-400">
+                            <div v-if="!paymentTimeline.length" class="text-xs text-stone-500 dark:text-neutral-400">
                                 {{ t('portal_order.empty.payments') }}
                             </div>
                             <div v-else class="space-y-2">
-                                <div v-for="payment in payments" :key="payment.id" class="flex items-center justify-between rounded-sm border border-stone-200 bg-stone-50 px-3 py-2 text-xs text-stone-600 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300">
+                                <div
+                                    v-for="payment in paymentTimeline"
+                                    :key="payment.id"
+                                    class="flex items-center justify-between rounded-sm border border-stone-200 bg-stone-50 px-3 py-2 text-xs text-stone-600 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300"
+                                >
                                     <div>
+                                        <div class="text-[11px] uppercase tracking-wide text-stone-400 dark:text-neutral-500">
+                                            {{ payment.timeline_label }}
+                                        </div>
                                         <div class="font-semibold text-stone-800 dark:text-neutral-100">
                                             {{ formatCurrency(payment.amount) }} - {{ paymentMethodLabel(payment.method) }}
                                         </div>

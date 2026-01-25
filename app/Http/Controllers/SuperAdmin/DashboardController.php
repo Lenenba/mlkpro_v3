@@ -18,12 +18,16 @@ class DashboardController extends BaseSuperAdminController
     {
         $this->authorizePermission($request, PlatformPermissions::ANALYTICS_VIEW);
 
+        $filters = $request->only(['admin_id', 'tenant_id', 'action']);
         $metrics = $this->dashboardService->getMetrics();
-        $recentAudits = $this->dashboardService->getRecentAudits();
+        $recentAudits = $this->dashboardService->getRecentAudits($filters, 25);
+        $auditOptions = $this->dashboardService->getAuditFilterOptions();
 
         return Inertia::render('SuperAdmin/Dashboard', [
             'metrics' => $metrics,
             'recent_audits' => $recentAudits,
+            'audit_filters' => $filters,
+            'audit_options' => $auditOptions,
         ]);
     }
 }

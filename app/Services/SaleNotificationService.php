@@ -67,7 +67,7 @@ class SaleNotificationService
             $details['ETA'] = $sale->scheduled_for->toDayDateTimeString();
         }
 
-        $actionUrl = route('portal.orders.edit', $sale);
+        $actionUrl = route('portal.orders.show', $sale);
 
         $message = $intro ?? 'Votre commande a ete mise a jour.';
         $preferences = app(NotificationPreferenceService::class);
@@ -76,13 +76,13 @@ class SaleNotificationService
             $portalUser = $customer->relationLoaded('portalUser')
                 ? $customer->portalUser
                 : $customer->portalUser()->first();
-            if ($portalUser && $preferences->shouldNotify(
-                $portalUser,
-                NotificationPreferenceService::CATEGORY_ORDERS,
-                NotificationPreferenceService::CHANNEL_IN_APP
-            )) {
-                $portalUser->notify(new OrderStatusNotification($sale, $title, $message));
-            }
+        if ($portalUser && $preferences->shouldNotify(
+            $portalUser,
+            NotificationPreferenceService::CATEGORY_ORDERS,
+            NotificationPreferenceService::CHANNEL_IN_APP
+        )) {
+            $portalUser->notify(new OrderStatusNotification($sale, $title, $message, $actionUrl));
+        }
         }
 
         if (!$isProductCompany) {
@@ -134,6 +134,7 @@ class SaleNotificationService
         $formatted = '$' . number_format($amount, 2);
         $title = 'Acompte requis';
         $message = "Un acompte de {$formatted} est requis pour commencer la preparation.";
+        $actionUrl = route('portal.orders.show', $sale);
 
         $preferences = app(NotificationPreferenceService::class);
         if ($preferences->shouldNotify(
@@ -141,7 +142,7 @@ class SaleNotificationService
             NotificationPreferenceService::CATEGORY_ORDERS,
             NotificationPreferenceService::CHANNEL_IN_APP
         )) {
-            $portalUser->notify(new OrderStatusNotification($sale, $title, $message));
+            $portalUser->notify(new OrderStatusNotification($sale, $title, $message, $actionUrl));
         }
 
         if ($preferences->shouldNotify(
@@ -159,6 +160,23 @@ class SaleNotificationService
                 ],
             ]);
         }
+
+        if (!empty($customer->email)) {
+            $details = [
+                'Commande' => $sale->number ?: "Sale #{$sale->id}",
+                'Acompte requis' => $formatted,
+                'Total' => '$' . number_format((float) $sale->total, 2),
+            ];
+            NotificationDispatcher::send($customer, new ActionEmailNotification(
+                $title,
+                $message,
+                $details,
+                $actionUrl,
+                'Payer maintenant'
+            ), [
+                'sale_id' => $sale->id,
+            ]);
+        }
     }
 
     public function notifyDepositReminder(Sale $sale, float $amount): void
@@ -172,7 +190,7 @@ class SaleNotificationService
         $formatted = '$' . number_format($amount, 2);
         $title = 'Rappel acompte';
         $message = "Rappel: un acompte de {$formatted} est requis pour commencer la preparation.";
-        $actionUrl = route('portal.orders.edit', $sale);
+        $actionUrl = route('portal.orders.show', $sale);
 
         if ($portalUser) {
             $preferences = app(NotificationPreferenceService::class);

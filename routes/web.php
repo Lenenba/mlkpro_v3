@@ -249,6 +249,7 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
         Route::post('/sales/{sale}/stripe', [SaleController::class, 'createStripeCheckout'])->name('sales.stripe');
         Route::post('/sales/{sale}/pickup-confirm', [SaleController::class, 'confirmPickup'])
             ->name('sales.pickup.confirm');
+        Route::get('/sales/{sale}/receipt', [SaleController::class, 'receipt'])->name('sales.receipt');
         Route::get('/sales/{sale}', [SaleController::class, 'show'])->name('sales.show');
     });
 

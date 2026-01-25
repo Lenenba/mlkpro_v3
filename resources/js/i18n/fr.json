@@ -381,11 +381,55 @@
         "onboarding_conversion_30d": "Conversion onboarding : {percent}",
         "active_companies": "Entreprises actives",
         "active_wau_mau": "WAU {wau} / MAU {mau}",
-        "activation_rates": "Activation J7 {j7} | J30 {j30}"
+        "activation_rates": "Activation J7 {j7} | J30 {j30}",
+        "platform_health": "Sante plateforme",
+        "health_hint": "{failed} jobs echoues · {pending} en attente"
+      },
+      "actions": {
+        "tenants": "Entreprises",
+        "support": "Support",
+        "announcements": "Annonces",
+        "admins": "Admins",
+        "notifications": "Notifications",
+        "settings": "Parametres"
+      },
+      "action_center": {
+        "title": "Centre d'actions",
+        "support": "Support",
+        "announcements": "Annonces",
+        "notifications": "Notifications",
+        "tenants": "Entreprises",
+        "admins": "Admins",
+        "settings": "Parametres"
       },
       "acquisition": {
         "title": "Acquisition (7 derniers jours)",
         "empty": "Aucune donnee d'acquisition."
+      },
+      "alerts": {
+        "title": "Alertes plateforme",
+        "last_24h": "Dernieres 24h",
+        "limits": "Entreprises proches des limites",
+        "limit_list": "Limites a surveiller",
+        "limit_empty": "Aucune entreprise proche des limites.",
+        "stripe_failures": "Echecs Stripe",
+        "smtp_failures": "Echecs SMTP",
+        "jobs_backlog": "Jobs en backlog",
+        "jobs_backlog_detail": "{pending} en attente · plus ancien {oldest} min",
+        "storage": "Stockage"
+      },
+      "risk": {
+        "title": "Entreprises a risque",
+        "view_all": "Voir tout",
+        "empty": "Aucune entreprise signalee.",
+        "last_activity": "Derniere activite : {date}",
+        "inactive_days": "{count} jours d'inactivite",
+        "flags": {
+          "onboarding": "Onboarding bloque",
+          "churn": "Churn probable",
+          "inactive_14": "Inactif 14j",
+          "inactive_30": "Inactif 30j"
+        }
       },
       "usage": {
         "title": "Usage (30 derniers jours)",
@@ -396,6 +440,14 @@
         "services": "Services",
         "avg_days_to_first": "Jours moyens avant premier : Devis {quote}, Facture {invoice}, Produit {product}, Service {service}, Chantier {job}",
         "service_mix": "Mix services : {services} services / {products} produits ({percent}% services)"
+      },
+      "usage_trends": {
+        "title": "Usage par module (7j / 30j)",
+        "module": "Module",
+        "last_7d": "7j",
+        "last_30d": "30j",
+        "trend": "Tendance",
+        "empty": "Aucune donnee d'usage."
       },
       "revenue": {
         "title": "Revenus et retention",
@@ -429,6 +481,36 @@
         "customer_email_duplicates": "Doublons email client",
         "customer_name_duplicates": "Doublons nom client",
         "product_name_duplicates": "Doublons nom produit"
+      },
+      "limits": {
+        "quotes": "Devis",
+        "requests": "Demandes",
+        "plan_scan_quotes": "Devis scan plan",
+        "invoices": "Factures",
+        "jobs": "Chantiers",
+        "products": "Produits",
+        "services": "Services",
+        "tasks": "Taches",
+        "team_members": "Membres equipe",
+        "assistant_requests": "Requetes IA"
+      },
+      "trend": {
+        "none": "Aucune tendance",
+        "flat": "Aucun changement",
+        "up": "En hausse",
+        "down": "En baisse",
+        "new": "Nouveau"
+      },
+      "audit": {
+        "title": "Impersonation & audit",
+        "impersonate_cta": "Impersoner une entreprise",
+        "filters": {
+          "admin": "Admin",
+          "tenant": "Entreprise",
+          "action": "Action"
+        },
+        "empty": "Aucun log trouve.",
+        "action_by": "Par {user}"
       },
       "recent_activity": {
         "title": "Activite admin recente",
@@ -1336,6 +1418,7 @@
     },
     "payments": {
       "title": "Paiements",
+      "history_title": "Historique des paiements",
       "deposit_required": "Acompte requis",
       "paid": "Paye",
       "balance_due": "Solde a payer",
@@ -1344,7 +1427,14 @@
       "cash": "Cash",
       "card": "Carte",
       "record": "Enregistrer le paiement",
-      "recording": "Enregistrement..."
+      "recording": "Enregistrement...",
+      "empty": "Aucun paiement enregistre.",
+      "timeline": {
+        "deposit": "Acompte",
+        "balance": "Solde",
+        "payment": "Paiement",
+        "deposit_balance": "Acompte + solde"
+      }
     },
     "fulfillment": {
       "pending": "Commande recue",
@@ -1375,10 +1465,12 @@
       "edit": "Modifier",
       "pay_with_stripe": "Payer par Stripe",
       "pay_with_stripe_loading": "Redirection...",
+      "receipt": "Telecharger le recu",
       "print": "Imprimer"
     },
     "errors": {
-      "stripe_start": "Impossible de demarrer le paiement Stripe."
+      "stripe_start": "Impossible de demarrer le paiement Stripe.",
+      "stripe_amount_invalid": "Montant invalide pour Stripe."
     },
     "qr": {
       "title": "Paiement par QR",
@@ -1451,14 +1543,14 @@
         "sale": "Vente",
         "customer": "Client",
         "status": "Statut",
-        "payment": "Paiement",
+        "payment": "Statut paiement",
         "items": "Articles",
         "total": "Total",
         "date": "Date"
       },
       "sale_label": "Vente #{id}",
       "items_count": "{count} articles",
-      "payment_label": "Paiement: {status}",
+      "payment_label": "Statut de paiement: {status}",
       "fulfillment_placeholder": "Statut commande",
       "actions": {
         "view": "Voir",
@@ -1519,7 +1611,7 @@
       "seller_fallback": "Vendeur",
       "seller_label": "Vendeur",
       "order_label": "Commande: {status}",
-      "payment_label": "Paiement: {status}",
+      "payment_label": "Statut de paiement: {status}",
       "created_on": "Cree le {date}",
       "paid_on": "Payee le {date}",
       "products_title": "Produits",

@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import axios from 'axios';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
@@ -43,8 +43,9 @@ const lastSaleId = computed(() => page.props.flash?.last_sale_id || null);
 const stripeEnabled = computed(() => Boolean(props.stripe?.enabled));
 const stripeError = ref('');
 const stripeProcessing = ref(false);
+const hasChargeableTotal = computed(() => total.value > 0);
 const shouldUseStripePayment = computed(() =>
-    stripeEnabled.value && form.status === 'paid' && form.payment_method === 'card'
+    stripeEnabled.value && hasChargeableTotal.value && form.status === 'paid' && form.payment_method === 'card'
 );
 const canUseCardPayment = computed(() => stripeEnabled.value);
 const submitLabel = computed(() => {
@@ -68,7 +69,7 @@ const paymentMethodOptions = computed(() => ([
         description: t('sales.form.payment_methods.card.description'),
         disabled: !canUseCardPayment.value,
     },
-]));
+].filter((option) => option.value !== 'card' || hasChargeableTotal.value)));
 
 const showQrModal = ref(false);
 const qrCheckoutUrl = ref('');
@@ -244,6 +245,7 @@ const discountedTaxTotal = computed(() => taxTotal.value * (1 - discountRate.val
 const total = computed(() =>
     Math.max(0, subtotal.value - discountTotal.value) + discountedTaxTotal.value
 );
+const canStripeCheckout = computed(() => total.value > 0);
 
 const formatCurrency = (value) =>
     `$${Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -270,10 +272,23 @@ const resetForm = () => {
     scanError.value = '';
 };
 
+watch(
+    () => hasChargeableTotal.value,
+    (value) => {
+        if (!value && form.payment_method === 'card') {
+            form.payment_method = 'cash';
+        }
+    }
+);
+
 const submit = () => {
     stripeError.value = '';
     form.pay_with_stripe = shouldUseStripePayment.value;
     if (shouldUseStripePayment.value) {
+        if (!canStripeCheckout.value) {
+            stripeError.value = t('sales.errors.stripe_amount_invalid');
+            return;
+        }
         stripeProcessing.value = true;
         const payload = {
             customer_id: form.customer_id,
