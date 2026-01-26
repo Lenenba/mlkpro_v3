@@ -6,16 +6,22 @@
         :id="inputId"
         type="text"
         readonly
-        :value="selectedDate || ''"
+        :value="displayDate || ''"
         @click="togglePicker"
         placeholder=" "
-        class="peer p-4 block w-full border border-stone-300 rounded-sm text-sm text-stone-700 bg-white shadow-sm
-               focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500
-               dark:bg-neutral-800 dark:border-neutral-700 dark:text-white dark:focus:ring-green-500
-               placeholder-transparent
-               focus:pt-6 focus:pb-2
-               [&:not(:placeholder-shown)]:pt-6 [&:not(:placeholder-shown)]:pb-2"
+        :class="inputClasses"
       />
+      <button
+        v-if="showClear"
+        type="button"
+        @click.stop="clearDate"
+        class="absolute inset-y-0 end-0 flex items-center pe-3 text-stone-400 hover:text-stone-600 dark:text-neutral-400 dark:hover:text-neutral-200"
+        aria-label="Clear date"
+      >
+        <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
       <!-- Floating label -->
       <label
         :for="inputId"
@@ -73,13 +79,7 @@
 
         <!-- Days of the Week Header -->
         <div class="grid grid-cols-7 gap-1 p-3 text-center text-xs text-stone-500 dark:text-neutral-400">
-          <div>Mo</div>
-          <div>Tu</div>
-          <div>We</div>
-          <div>Th</div>
-          <div>Fr</div>
-          <div>Sa</div>
-          <div>Su</div>
+          <div v-for="label in weekdayLabels" :key="label">{{ label }}</div>
         </div>
 
         <!-- Calendar Days Grid -->
@@ -139,6 +139,18 @@
   // Container ref for click-outside detection
   const containerRef = ref(null);
   const inputId = `date-picker-${Math.random().toString(36).slice(2, 10)}`;
+  const locale = (() => {
+    if (typeof document !== 'undefined') {
+      const lang = document.documentElement?.lang;
+      if (lang) {
+        return lang;
+      }
+    }
+    if (typeof navigator !== 'undefined' && navigator.language) {
+      return navigator.language;
+    }
+    return 'fr';
+  })();
 
   // Reactive state to toggle the calendar dropdown visibility
   const showPicker = ref(false);
@@ -197,11 +209,39 @@
     }
   });
 
+  const displayDate = computed(() => {
+    if (!selectedDate.value) {
+      return '';
+    }
+    const parsed = parseDateValue(selectedDate.value);
+    if (!parsed) {
+      return selectedDate.value;
+    }
+    return new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(parsed);
+  });
+
   // Array of month names for display
-  const monthNames = [
-    "January", "February", "March", "April", "May", "June",
-    "July", "August", "September", "October", "November", "December"
-  ];
+  const monthNames = computed(() => {
+    const formatter = new Intl.DateTimeFormat(locale, { month: 'long' });
+    return Array.from({ length: 12 }, (_, index) => formatter.format(new Date(2020, index, 1)));
+  });
+
+  const weekdayLabels = computed(() => {
+    const formatter = new Intl.DateTimeFormat(locale, { weekday: 'short' });
+    const monday = new Date(2023, 0, 2);
+    return Array.from({ length: 7 }, (_, index) => formatter.format(new Date(2023, 0, monday.getDate() + index)));
+  });
+
+  const showClear = computed(() => !props.required && Boolean(selectedDate.value));
+  const inputClasses = computed(() => ([
+    'peer p-4 block w-full border border-stone-300 rounded-sm text-sm text-stone-700 bg-white shadow-sm',
+    'focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500',
+    'dark:bg-neutral-800 dark:border-neutral-700 dark:text-white dark:focus:ring-green-500',
+    'placeholder-transparent',
+    'focus:pt-6 focus:pb-2',
+    '[&:not(:placeholder-shown)]:pt-6 [&:not(:placeholder-shown)]:pb-2',
+    showClear.value ? 'pe-10' : '',
+  ]));
 
   // Computed property for the current month (0-indexed)
   const currentMonth = computed(() => currentDate.value.getMonth());
@@ -280,6 +320,11 @@
     // Update currentDate so the calendar reflects the chosen date
     currentDate.value = date;
     // Hide the dropdown after selection
+    showPicker.value = false;
+  };
+
+  const clearDate = () => {
+    selectedDate.value = '';
     showPicker.value = false;
   };
 

@@ -4,6 +4,7 @@ import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
+import DatePicker from '@/Components/DatePicker.vue';
 import InputError from '@/Components/InputError.vue';
 import { humanizeDate } from '@/utils/date';
 import { useI18n } from 'vue-i18n';
@@ -385,12 +386,8 @@ const restoreCategory = (category) => {
                             :placeholder="$t('services.categories.filters.created_by')"
                             dense
                         />
-                        <input type="date" v-model="filterForm.created_from"
-                            class="py-2 px-3 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
-                            :placeholder="$t('services.categories.filters.created_from')">
-                        <input type="date" v-model="filterForm.created_to"
-                            class="py-2 px-3 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
-                            :placeholder="$t('services.categories.filters.created_to')">
+                        <DatePicker v-model="filterForm.created_from" :label="$t('services.categories.filters.created_from')" />
+                        <DatePicker v-model="filterForm.created_to" :label="$t('services.categories.filters.created_to')" />
                     </div>
                 </div>
 

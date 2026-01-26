@@ -406,6 +406,13 @@
         "title": "Acquisition (last 7 days)",
         "empty": "No acquisition data."
       },
+      "site_traffic": {
+        "title": "Website traffic",
+        "last_24h": "Last 24h",
+        "last_7d": "Last 7 days",
+        "last_30d": "Last 30 days",
+        "unique_label": "{count} unique"
+      },
       "alerts": {
         "title": "Platform alerts",
         "last_24h": "Last 24h",
@@ -2644,6 +2651,19 @@
       "conversion_note": "Won leads vs total created.",
       "total_leads": "New leads",
       "total_note": "Created in the last {days} days.",
+      "form": {
+        "title": "Lead form performance",
+        "window": "Last {days} days",
+        "views": "Form views",
+        "unique": "{count} unique visitors",
+        "submits": "Form submissions",
+        "submits_note": "Leads created from the public form.",
+        "conversion": "Form conversion",
+        "conversion_note": "Submissions ÷ views.",
+        "last_view": "Last view",
+        "last_submit": "Last submission",
+        "empty": "No form activity yet."
+      },
       "by_source": "Conversion by source",
       "no_data": "No data yet.",
       "risk_title": "Leads at risk",
@@ -3321,6 +3341,7 @@
         "amount": "Amount",
         "method": "Method (card, transfer)",
         "reference": "Reference",
+        "paid_at": "Payment date",
         "notes": "Notes",
         "submit": "Record payment"
       }

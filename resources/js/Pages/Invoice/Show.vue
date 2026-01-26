@@ -2,6 +2,7 @@
 import { computed } from 'vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import StarRating from '@/Components/UI/StarRating.vue';
+import DatePicker from '@/Components/DatePicker.vue';
 import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
 import { humanizeDate } from '@/utils/date';
 import { useI18n } from 'vue-i18n';
@@ -368,8 +369,7 @@ const statusLabel = computed(() => {
                         <input v-model="form.reference" type="text"
                             class="w-full py-2 px-3 bg-stone-100 border-transparent rounded-sm text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-700 dark:text-neutral-200"
                             :placeholder="$t('invoices.show.add_payment.reference')">
-                        <input v-model="form.paid_at" type="date"
-                            class="w-full py-2 px-3 bg-stone-100 border-transparent rounded-sm text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-700 dark:text-neutral-200">
+                        <DatePicker v-model="form.paid_at" :label="$t('invoices.show.add_payment.paid_at')" />
                         <textarea v-model="form.notes" rows="2"
                             class="w-full py-2 px-3 bg-stone-100 border-transparent rounded-sm text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-700 dark:text-neutral-200"
                             :placeholder="$t('invoices.show.add_payment.notes')"></textarea>

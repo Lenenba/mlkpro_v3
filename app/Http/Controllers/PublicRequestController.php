@@ -7,6 +7,7 @@ use App\Models\Customer;
 use App\Models\Request as LeadRequest;
 use App\Models\User;
 use App\Services\CompanyFeatureService;
+use App\Services\TrackingService;
 use App\Services\UsageLimitService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\URL;
@@ -19,6 +20,8 @@ class PublicRequestController extends Controller
     public function show(Request $request, User $user): Response
     {
         $this->assertLeadIntakeEnabled($user);
+
+        app(TrackingService::class)->record('lead_form_view', $user->id);
 
         return Inertia::render('Public/RequestForm', [
             'company' => [
@@ -97,6 +100,10 @@ class PublicRequestController extends Controller
         ActivityLog::record(null, $lead, 'created', [
             'channel' => 'web_form',
         ], 'Public lead created');
+
+        app(TrackingService::class)->record('lead_form_submit', $user->id, [
+            'lead_id' => $lead->id,
+        ]);
 
         return redirect()->back()->with('success', 'Request submitted successfully.');
     }

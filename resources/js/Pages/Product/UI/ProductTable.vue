@@ -7,6 +7,7 @@ import Modal from '@/Components/UI/Modal.vue';
 import Checkbox from '@/Components/Checkbox.vue';
 import { useI18n } from 'vue-i18n';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
+import DatePicker from '@/Components/DatePicker.vue';
 
 const props = defineProps({
     filters: Object,
@@ -793,12 +794,8 @@ const submitImport = () => {
                     :options="barcodeOptions"
                     dense
                 />
-                <input type="date" v-model="filterForm.created_from"
-                    class="py-2 px-3 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
-                    :placeholder="$t('products.filters.created_from')">
-                <input type="date" v-model="filterForm.created_to"
-                    class="py-2 px-3 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
-                    :placeholder="$t('products.filters.created_to')">
+                <DatePicker v-model="filterForm.created_from" :label="$t('products.filters.created_from')" />
+                <DatePicker v-model="filterForm.created_to" :label="$t('products.filters.created_to')" />
                 <div class="md:col-span-2 lg:col-span-6">
                     <FloatingSelect
                         v-model="filterForm.category_ids"
@@ -1564,12 +1561,8 @@ const submitImport = () => {
                     <input type="text" v-model="adjustForm.lot_number"
                         class="py-2 px-3 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
                         :placeholder="$t('products.adjust.lot_number')">
-                    <input type="date" v-model="adjustForm.expires_at"
-                        class="py-2 px-3 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
-                        :placeholder="$t('products.labels.expires')">
-                    <input type="date" v-model="adjustForm.received_at"
-                        class="py-2 px-3 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
-                        :placeholder="$t('products.labels.received')">
+                    <DatePicker v-model="adjustForm.expires_at" :label="$t('products.labels.expires')" />
+                    <DatePicker v-model="adjustForm.received_at" :label="$t('products.labels.received')" />
                 </div>
                 <div v-else-if="activeProduct.tracking_type === 'serial'" class="grid grid-cols-1 md:grid-cols-3 gap-3">
                     <input type="text" v-model="adjustForm.serial_number"

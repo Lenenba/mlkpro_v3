@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue';
 import { Link, router, useForm } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
+import DatePicker from '@/Components/DatePicker.vue';
 import { humanizeDate } from '@/utils/date';
 
 const props = defineProps({
@@ -424,12 +425,8 @@ const canMarkCanceled = (sale) =>
                 <input type="number" v-model="filterForm.total_max" min="0" step="0.01"
                     class="py-2 px-3 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
                     :placeholder="$t('sales.table.filters.total_max')">
-                <input type="date" v-model="filterForm.created_from"
-                    class="py-2 px-3 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
-                    :placeholder="$t('sales.table.filters.date_from')">
-                <input type="date" v-model="filterForm.created_to"
-                    class="py-2 px-3 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
-                    :placeholder="$t('sales.table.filters.date_to')">
+                <DatePicker v-model="filterForm.created_from" :label="$t('sales.table.filters.date_from')" />
+                <DatePicker v-model="filterForm.created_to" :label="$t('sales.table.filters.date_to')" />
             </div>
         </div>
 

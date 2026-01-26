@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n';
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
+import DatePicker from '@/Components/DatePicker.vue';
 
 const props = defineProps({
     filters: {
@@ -193,18 +194,10 @@ const statusLabel = (tenant) => {
                             />
                         </div>
                         <div>
-                            <label class="block text-xs text-stone-500 dark:text-neutral-400">
-                                {{ $t('super_admin.tenants.filters.created_from') }}
-                            </label>
-                            <input v-model="form.created_from" type="date"
-                                class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200" />
+                            <DatePicker v-model="form.created_from" :label="$t('super_admin.tenants.filters.created_from')" />
                         </div>
                         <div>
-                            <label class="block text-xs text-stone-500 dark:text-neutral-400">
-                                {{ $t('super_admin.tenants.filters.created_to') }}
-                            </label>
-                            <input v-model="form.created_to" type="date"
-                                class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200" />
+                            <DatePicker v-model="form.created_to" :label="$t('super_admin.tenants.filters.created_to')" />
                         </div>
                     </div>
                 </form>

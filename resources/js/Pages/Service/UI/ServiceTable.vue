@@ -4,6 +4,7 @@ import { Link, router, useForm } from '@inertiajs/vue3';
 import Modal from '@/Components/UI/Modal.vue';
 import ServiceForm from '@/Pages/Service/UI/ServiceForm.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
+import DatePicker from '@/Components/DatePicker.vue';
 import { humanizeDate } from '@/utils/date';
 import { useI18n } from 'vue-i18n';
 
@@ -239,12 +240,8 @@ const destroyService = (service) => {
                 <input type="number" step="0.01" v-model="filterForm.price_max"
                     class="py-2 px-3 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
                     :placeholder="$t('services.filters.price_max')">
-                <input type="date" v-model="filterForm.created_from"
-                    class="py-2 px-3 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
-                    :placeholder="$t('services.filters.created_from')">
-                <input type="date" v-model="filterForm.created_to"
-                    class="py-2 px-3 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
-                    :placeholder="$t('services.filters.created_to')">
+                <DatePicker v-model="filterForm.created_from" :label="$t('services.filters.created_from')" />
+                <DatePicker v-model="filterForm.created_to" :label="$t('services.filters.created_to')" />
             </div>
         </div>
 
