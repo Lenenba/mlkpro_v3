@@ -47,12 +47,14 @@ use App\Http\Controllers\Settings\NotificationSettingsController;
 use App\Http\Controllers\Settings\ApiTokenController;
 use App\Http\Controllers\WarehouseController;
 use App\Http\Controllers\SupportTicketController;
+use App\Http\Controllers\SupportTicketMessageController;
 use App\Http\Controllers\SuperAdmin\DashboardController as SuperAdminDashboardController;
 use App\Http\Controllers\SuperAdmin\TenantController as SuperAdminTenantController;
 use App\Http\Controllers\SuperAdmin\AdminController as SuperAdminAdminController;
 use App\Http\Controllers\SuperAdmin\NotificationController as SuperAdminNotificationController;
 use App\Http\Controllers\SuperAdmin\PlatformSettingsController as SuperAdminPlatformSettingsController;
 use App\Http\Controllers\SuperAdmin\SupportTicketController as SuperAdminSupportTicketController;
+use App\Http\Controllers\SuperAdmin\SupportTicketMessageController as SuperAdminSupportTicketMessageController;
 use App\Http\Controllers\SuperAdmin\AnnouncementController as SuperAdminAnnouncementController;
 use App\Http\Controllers\CustomerPropertyController;
 use App\Http\Controllers\Portal\PortalInvoiceController;
@@ -138,8 +140,12 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
         ->name('pipeline.timeline');
     Route::get('/pipeline', [PipelineController::class, 'data'])->name('pipeline.data');
 
-    Route::get('/support', [SupportTicketController::class, 'index'])->name('support.index');
-    Route::post('/support', [SupportTicketController::class, 'store'])->name('support.store');
+    Route::get('/settings/support', [SupportTicketController::class, 'index'])->name('settings.support.index');
+    Route::get('/settings/support/{ticket}', [SupportTicketController::class, 'show'])->name('settings.support.show');
+    Route::post('/settings/support', [SupportTicketController::class, 'store'])->name('settings.support.store');
+    Route::put('/settings/support/{ticket}', [SupportTicketController::class, 'update'])->name('settings.support.update');
+    Route::post('/settings/support/{ticket}/messages', [SupportTicketMessageController::class, 'store'])
+        ->name('settings.support.messages.store');
 
     // Settings (owner only)
     Route::get('/settings/company', [CompanySettingsController::class, 'edit'])->name('settings.company.edit');
@@ -416,8 +422,11 @@ require __DIR__ . '/auth.php';
             Route::delete('/announcements/{announcement}', [SuperAdminAnnouncementController::class, 'destroy'])->name('announcements.destroy');
 
             Route::get('/support', [SuperAdminSupportTicketController::class, 'index'])->name('support.index');
+            Route::get('/support/{ticket}', [SuperAdminSupportTicketController::class, 'show'])->name('support.show');
             Route::post('/support', [SuperAdminSupportTicketController::class, 'store'])->name('support.store');
             Route::put('/support/{ticket}', [SuperAdminSupportTicketController::class, 'update'])->name('support.update');
+            Route::post('/support/{ticket}/messages', [SuperAdminSupportTicketMessageController::class, 'store'])
+                ->name('support.messages.store');
 
             Route::get('/settings', [SuperAdminPlatformSettingsController::class, 'edit'])->name('settings.edit');
             Route::put('/settings', [SuperAdminPlatformSettingsController::class, 'update'])->name('settings.update');

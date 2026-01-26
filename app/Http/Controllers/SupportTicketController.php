@@ -2,17 +2,31 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ActivityLog;
 use App\Models\PlatformSupportTicket;
+use App\Models\PlatformSupportTicketMedia;
+use App\Utils\FileHandler;
+use App\Services\SupportAssignmentService;
+use App\Services\SupportSettingsService;
+use App\Services\SupportTicketNotificationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class SupportTicketController extends Controller
 {
-    private const STATUSES = ['open', 'pending', 'resolved', 'closed'];
+    private const STATUSES = ['open', 'assigned', 'pending', 'resolved', 'closed'];
     private const PRIORITIES = ['low', 'normal', 'high', 'urgent'];
     private const CATEGORIES = ['incident', 'bug', 'feature', 'other'];
+
+    public function __construct(
+        private SupportAssignmentService $assignmentService,
+        private SupportSettingsService $settingsService,
+        private SupportTicketNotificationService $notificationService
+    ) {
+    }
 
     public function index(Request $request): Response
     {
@@ -27,7 +41,11 @@ class SupportTicketController extends Controller
 
         $query = PlatformSupportTicket::query()
             ->where('account_id', $accountId)
-            ->with('creator:id,name,email');
+            ->with([
+                'creator:id,name,email',
+                'assignedTo:id,name,email',
+                'media',
+            ]);
 
         $query->when($filters['search'] ?? null, function ($builder, $search) {
             $builder->where(function ($sub) use ($search) {
@@ -52,6 +70,7 @@ class SupportTicketController extends Controller
 
         $totalCount = (clone $query)->count();
         $openCount = (clone $query)->where('status', 'open')->count();
+        $assignedCount = (clone $query)->where('status', 'assigned')->count();
         $pendingCount = (clone $query)->where('status', 'pending')->count();
         $resolvedCount = (clone $query)->where('status', 'resolved')->count();
         $closedCount = (clone $query)->where('status', 'closed')->count();
@@ -67,10 +86,68 @@ class SupportTicketController extends Controller
             'stats' => [
                 'total' => $totalCount,
                 'open' => $openCount,
+                'assigned' => $assignedCount,
                 'pending' => $pendingCount,
                 'resolved' => $resolvedCount,
                 'closed' => $closedCount,
             ],
+        ]);
+    }
+
+    public function show(Request $request, PlatformSupportTicket $ticket): Response
+    {
+        $user = $request->user();
+        $accountId = $user?->accountOwnerId();
+
+        if (!$user || !$accountId || $ticket->account_id !== $accountId) {
+            abort(403);
+        }
+
+        $ticket->load([
+            'creator:id,name,email',
+            'assignedTo:id,name,email',
+            'media',
+        ]);
+
+        $messages = $ticket->messages()
+            ->where('is_internal', false)
+            ->with('user:id,name,email')
+            ->orderBy('created_at')
+            ->get();
+
+        $mediaIds = $messages->flatMap(fn ($message) => data_get($message, 'meta.media_ids', []))
+            ->filter()
+            ->unique()
+            ->values();
+
+        $mediaLookup = $mediaIds->isEmpty()
+            ? collect()
+            : PlatformSupportTicketMedia::query()
+                ->where('ticket_id', $ticket->id)
+                ->whereIn('id', $mediaIds)
+                ->get()
+                ->keyBy('id');
+
+        $messages->transform(function ($message) use ($mediaLookup) {
+            $ids = collect(data_get($message, 'meta.media_ids', []));
+            $message->setAttribute('media', $ids->map(fn ($id) => $mediaLookup->get($id))->filter()->values());
+            return $message;
+        });
+
+        $activity = ActivityLog::query()
+            ->where('subject_type', $ticket->getMorphClass())
+            ->where('subject_id', $ticket->id)
+            ->with('user:id,name,email')
+            ->latest()
+            ->limit(50)
+            ->get();
+
+        return Inertia::render('Support/Show', [
+            'ticket' => $ticket,
+            'messages' => $messages,
+            'activity' => $activity,
+            'statuses' => self::STATUSES,
+            'priorities' => self::PRIORITIES,
         ]);
     }
 
@@ -88,18 +165,131 @@ class SupportTicketController extends Controller
             'title' => 'required|string|max:255',
             'description' => 'nullable|string|max:2000',
             'priority' => 'required|string|in:' . implode(',', self::PRIORITIES),
+            'attachments' => 'nullable|array|max:4',
+            'attachments.*' => 'file|mimes:pdf,jpg,jpeg,png,webp|max:10000',
         ]);
 
-        PlatformSupportTicket::query()->create([
+        $slaHours = $this->settingsService->slaHours($validated['priority']);
+        $slaDueAt = $slaHours > 0 ? now()->addHours($slaHours) : null;
+        $assignee = $this->settingsService->autoAssignEnabled()
+            ? $this->assignmentService->nextAssignee()
+            : null;
+
+        $status = $assignee ? 'assigned' : 'open';
+
+        $ticket = PlatformSupportTicket::query()->create([
             'account_id' => $accountId,
             'created_by_user_id' => $user->id,
+            'assigned_to_user_id' => $assignee?->id,
+            'assigned_by_user_id' => $assignee ? null : null,
+            'assigned_at' => $assignee ? now() : null,
             'title' => $validated['title'],
             'description' => $validated['description'] ?? null,
-            'status' => 'open',
+            'status' => $status,
             'priority' => $validated['priority'],
+            'sla_due_at' => $slaDueAt,
             'tags' => [$validated['category']],
         ]);
 
+        if ($request->hasFile('attachments')) {
+            foreach ($request->file('attachments', []) as $file) {
+                if (!$file instanceof UploadedFile) {
+                    continue;
+                }
+
+                $mime = $file->getClientMimeType();
+                $path = FileHandler::storeFile('support-media', $file);
+
+                PlatformSupportTicketMedia::query()->create([
+                    'ticket_id' => $ticket->id,
+                    'user_id' => $user->id,
+                    'path' => $path,
+                    'original_name' => $file->getClientOriginalName(),
+                    'mime' => $mime,
+                    'size' => $file->getSize(),
+                ]);
+            }
+        }
+
+        ActivityLog::record($user, $ticket, 'support_ticket.created', [
+            'priority' => $ticket->priority,
+            'status' => $ticket->status,
+        ]);
+
+        if ($assignee) {
+            ActivityLog::record($user, $ticket, 'support_ticket.assigned', [
+                'assigned_to_user_id' => $assignee->id,
+            ]);
+            $this->notificationService->notifyAssignment($ticket->load('creator'), $assignee);
+        }
+
         return redirect()->back()->with('success', 'Support request submitted.');
+    }
+
+    public function update(Request $request, PlatformSupportTicket $ticket): RedirectResponse
+    {
+        $user = $request->user();
+        $accountId = $user?->accountOwnerId();
+
+        if (!$user || !$accountId || $ticket->account_id !== $accountId) {
+            abort(403);
+        }
+
+        $editableStatuses = self::STATUSES;
+        if ($ticket->status !== 'assigned') {
+            $editableStatuses = array_values(array_filter(self::STATUSES, fn ($status) => $status !== 'assigned'));
+        }
+
+        $validated = $request->validate([
+            'title' => 'required|string|max:255',
+            'description' => 'nullable|string|max:2000',
+            'priority' => 'required|string|in:' . implode(',', self::PRIORITIES),
+            'status' => 'required|string|in:' . implode(',', $editableStatuses),
+            'attachments' => 'nullable|array|max:4',
+            'attachments.*' => 'file|mimes:pdf,jpg,jpeg,png,webp|max:10000',
+        ]);
+
+        $originalStatus = $ticket->status;
+
+        $ticket->update([
+            'title' => $validated['title'],
+            'description' => $validated['description'] ?? null,
+            'priority' => $validated['priority'],
+            'status' => $validated['status'],
+        ]);
+
+        if ($request->hasFile('attachments')) {
+            foreach ($request->file('attachments', []) as $file) {
+                if (!$file instanceof UploadedFile) {
+                    continue;
+                }
+
+                $mime = $file->getClientMimeType();
+                $path = FileHandler::storeFile('support-media', $file);
+
+                PlatformSupportTicketMedia::query()->create([
+                    'ticket_id' => $ticket->id,
+                    'user_id' => $user->id,
+                    'path' => $path,
+                    'original_name' => $file->getClientOriginalName(),
+                    'mime' => $mime,
+                    'size' => $file->getSize(),
+                ]);
+            }
+        }
+
+        ActivityLog::record($user, $ticket, 'support_ticket.updated', [
+            'priority' => $ticket->priority,
+            'status' => $ticket->status,
+        ]);
+
+        if ($originalStatus !== $ticket->status) {
+            ActivityLog::record($user, $ticket, 'support_ticket.status_changed', [
+                'from' => $originalStatus,
+                'to' => $ticket->status,
+            ]);
+        }
+
+        return redirect()->back()->with('success', 'Support request updated.');
     }
 }

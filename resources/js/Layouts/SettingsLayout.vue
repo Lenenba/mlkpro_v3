@@ -85,6 +85,13 @@ const navTabs = computed(() => {
                     route: 'settings.notifications.edit',
                     icon: 'bell',
                 },
+                {
+                    id: 'support',
+                    label: t('settings.items.support.label'),
+                    description: t('settings.items.support.description'),
+                    route: 'settings.support.index',
+                    icon: 'support',
+                },
             ],
         },
     ];

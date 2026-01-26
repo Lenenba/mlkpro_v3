@@ -11,7 +11,9 @@ use App\Models\User;
 use App\Models\Work;
 use App\Models\Sale;
 use App\Models\ActivityLog;
+use App\Models\PlatformSupportTicket;
 use App\Models\Request as LeadRequest;
+use App\Notifications\ActionEmailNotification;
 use App\Notifications\LeadFollowUpNotification;
 use App\Support\NotificationDispatcher;
 use App\Services\Demo\DemoAccountService;
@@ -21,6 +23,8 @@ use App\Services\DailyAgendaService;
 use App\Services\PlatformAdminNotifier;
 use App\Services\WorkBillingService;
 use App\Services\SaleNotificationService;
+use App\Services\SupportAssignmentService;
+use App\Services\SupportSettingsService;
 
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
@@ -354,6 +358,159 @@ Artisan::command('leads:follow-up-reminders {--hours=24}', function (): int {
     return 0;
 })->purpose('Send reminders for unassigned or overdue lead follow-ups');
 
+Artisan::command('support:sla-reminders', function (
+    SupportSettingsService $settingsService,
+    SupportAssignmentService $assignmentService
+): int {
+    $reminders = $settingsService->reminderConfig();
+    $dueSoonHours = (int) ($reminders['due_soon_hours'] ?? 2);
+    $cooldownHours = (int) ($reminders['cooldown_hours'] ?? 6);
+    $unassignedHours = (int) ($reminders['unassigned_hours'] ?? 24);
+
+    $now = now();
+    $cooldownCutoff = $now->copy()->subHours(max(1, $cooldownHours));
+    $openStatuses = ['open', 'assigned', 'pending'];
+
+    $dueSoonTickets = PlatformSupportTicket::query()
+        ->whereIn('status', $openStatuses)
+        ->whereNotNull('sla_due_at')
+        ->whereBetween('sla_due_at', [$now, $now->copy()->addHours(max(1, $dueSoonHours))])
+        ->with(['assignedTo', 'account'])
+        ->get();
+
+    $overdueTickets = PlatformSupportTicket::query()
+        ->whereIn('status', $openStatuses)
+        ->whereNotNull('sla_due_at')
+        ->where('sla_due_at', '<=', $now)
+        ->with(['assignedTo', 'account'])
+        ->get();
+
+    $unassignedTickets = PlatformSupportTicket::query()
+        ->where('status', 'open')
+        ->whereNull('assigned_to_user_id')
+        ->where('created_at', '<=', $now->copy()->subHours(max(1, $unassignedHours)))
+        ->with('account')
+        ->get();
+
+    $agents = $assignmentService->agents();
+    $sent = 0;
+
+    foreach ($dueSoonTickets as $ticket) {
+        $lastReminder = ActivityLog::query()
+            ->where('subject_type', $ticket->getMorphClass())
+            ->where('subject_id', $ticket->id)
+            ->where('action', 'support_ticket.sla_due_soon_sent')
+            ->latest('created_at')
+            ->first();
+
+        if ($lastReminder && $lastReminder->created_at && $lastReminder->created_at->greaterThan($cooldownCutoff)) {
+            continue;
+        }
+
+        $recipients = collect([$ticket->assignedTo])->filter()->unique('id');
+        if ($recipients->isEmpty()) {
+            $recipients = $agents;
+        }
+
+        foreach ($recipients as $recipient) {
+            NotificationDispatcher::send($recipient, new ActionEmailNotification(
+                'Support SLA due soon',
+                "Ticket #{$ticket->id} is due soon.",
+                [
+                    ['label' => 'Ticket', 'value' => "#{$ticket->id} - {$ticket->title}"],
+                    ['label' => 'Company', 'value' => $ticket->account?->company_name ?? $ticket->account?->email],
+                    ['label' => 'SLA due', 'value' => optional($ticket->sla_due_at)->toDateTimeString()],
+                ],
+                route('superadmin.support.show', $ticket->id),
+                'View support request'
+            ), [
+                'ticket_id' => $ticket->id,
+            ]);
+            $sent += 1;
+        }
+
+        ActivityLog::record(null, $ticket, 'support_ticket.sla_due_soon_sent', [
+            'sla_due_at' => optional($ticket->sla_due_at)->toDateTimeString(),
+        ]);
+    }
+
+    foreach ($overdueTickets as $ticket) {
+        $lastReminder = ActivityLog::query()
+            ->where('subject_type', $ticket->getMorphClass())
+            ->where('subject_id', $ticket->id)
+            ->where('action', 'support_ticket.sla_overdue_sent')
+            ->latest('created_at')
+            ->first();
+
+        if ($lastReminder && $lastReminder->created_at && $lastReminder->created_at->greaterThan($cooldownCutoff)) {
+            continue;
+        }
+
+        $recipients = collect([$ticket->assignedTo])->filter()->unique('id');
+        if ($recipients->isEmpty()) {
+            $recipients = $agents;
+        }
+
+        foreach ($recipients as $recipient) {
+            NotificationDispatcher::send($recipient, new ActionEmailNotification(
+                'Support SLA overdue',
+                "Ticket #{$ticket->id} is overdue.",
+                [
+                    ['label' => 'Ticket', 'value' => "#{$ticket->id} - {$ticket->title}"],
+                    ['label' => 'Company', 'value' => $ticket->account?->company_name ?? $ticket->account?->email],
+                    ['label' => 'SLA due', 'value' => optional($ticket->sla_due_at)->toDateTimeString()],
+                ],
+                route('superadmin.support.show', $ticket->id),
+                'View support request'
+            ), [
+                'ticket_id' => $ticket->id,
+            ]);
+            $sent += 1;
+        }
+
+        ActivityLog::record(null, $ticket, 'support_ticket.sla_overdue_sent', [
+            'sla_due_at' => optional($ticket->sla_due_at)->toDateTimeString(),
+        ]);
+    }
+
+    foreach ($unassignedTickets as $ticket) {
+        $lastReminder = ActivityLog::query()
+            ->where('subject_type', $ticket->getMorphClass())
+            ->where('subject_id', $ticket->id)
+            ->where('action', 'support_ticket.unassigned_reminder_sent')
+            ->latest('created_at')
+            ->first();
+
+        if ($lastReminder && $lastReminder->created_at && $lastReminder->created_at->greaterThan($cooldownCutoff)) {
+            continue;
+        }
+
+        foreach ($agents as $recipient) {
+            NotificationDispatcher::send($recipient, new ActionEmailNotification(
+                'Support ticket unassigned',
+                "Ticket #{$ticket->id} is waiting for assignment.",
+                [
+                    ['label' => 'Ticket', 'value' => "#{$ticket->id} - {$ticket->title}"],
+                    ['label' => 'Company', 'value' => $ticket->account?->company_name ?? $ticket->account?->email],
+                ],
+                route('superadmin.support.show', $ticket->id),
+                'View support request'
+            ), [
+                'ticket_id' => $ticket->id,
+            ]);
+            $sent += 1;
+        }
+
+        ActivityLog::record(null, $ticket, 'support_ticket.unassigned_reminder_sent', [
+            'hours' => $unassignedHours,
+        ]);
+    }
+
+    $this->info("Sent {$sent} support reminders.");
+
+    return 0;
+})->purpose('Send SLA and assignment reminders for support tickets');
+
 Artisan::command('demo:seed {type=service} {--tenant_id=}', function (
     DemoAccountService $accounts,
     DemoSeedService $seeds
@@ -417,3 +574,4 @@ Schedule::command('platform:notifications-scan')->dailyAt('07:30');
 Schedule::command('agenda:process')->everyFiveMinutes();
 Schedule::command('orders:deposit-reminders')->everyFourHours();
 Schedule::command('leads:follow-up-reminders --hours=24')->hourly();
+Schedule::command('support:sla-reminders')->hourly();

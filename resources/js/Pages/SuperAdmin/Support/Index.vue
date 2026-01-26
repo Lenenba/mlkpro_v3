@@ -6,6 +6,7 @@ import FloatingInput from '@/Components/FloatingInput.vue';
 import InputError from '@/Components/InputError.vue';
 import Modal from '@/Components/Modal.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
+import { useI18n } from 'vue-i18n';
 
 const props = defineProps({
     tickets: {
@@ -24,6 +25,10 @@ const props = defineProps({
         type: Array,
         default: () => [],
     },
+    assignees: {
+        type: Array,
+        default: () => [],
+    },
     tenants: {
         type: Array,
         default: () => [],
@@ -34,6 +39,7 @@ const props = defineProps({
     },
 });
 
+const { t } = useI18n();
 const showFilters = ref(false);
 const showCreate = ref(false);
 const statusOptions = computed(() =>
@@ -54,6 +60,12 @@ const tenantOptions = computed(() =>
         label: tenant.company_name || tenant.email,
     }))
 );
+const assigneeOptions = computed(() =>
+    (props.assignees || []).map((assignee) => ({
+        value: String(assignee.id),
+        label: assignee.name || assignee.email,
+    }))
+);
 
 const filterForm = useForm({
     search: props.filters?.search ?? '',
@@ -70,6 +82,7 @@ const createForm = useForm({
     priority: props.priorities[1] || 'normal',
     sla_due_at: '',
     tags: '',
+    assigned_to_user_id: '',
 });
 
 const editingTicket = ref(null);
@@ -79,6 +92,7 @@ const editForm = useForm({
     priority: '',
     sla_due_at: '',
     tags: '',
+    assigned_to_user_id: '',
 });
 
 const formatNumber = (value) =>
@@ -99,7 +113,7 @@ const openCreate = () => {
 
 const closeCreate = () => {
     showCreate.value = false;
-    createForm.reset('account_id', 'title', 'description', 'sla_due_at', 'tags');
+    createForm.reset('account_id', 'title', 'description', 'sla_due_at', 'tags', 'assigned_to_user_id');
     createForm.clearErrors();
 };
 
@@ -116,10 +130,12 @@ const openEdit = (ticket) => {
     editForm.priority = ticket.priority;
     editForm.sla_due_at = ticket.sla_due_at ? ticket.sla_due_at.substring(0, 16) : '';
     editForm.tags = Array.isArray(ticket.tags) ? ticket.tags.join(', ') : '';
+    editForm.assigned_to_user_id = ticket.assigned_to?.id ? String(ticket.assigned_to.id) : '';
 };
 
 const closeEdit = () => {
     editingTicket.value = null;
+    editForm.reset('status', 'priority', 'sla_due_at', 'tags', 'assigned_to_user_id');
     editForm.clearErrors();
 };
 
@@ -131,6 +147,19 @@ const submitEdit = () => {
         preserveScroll: true,
         onSuccess: () => closeEdit(),
     });
+};
+
+const attachmentLabel = (media) => media.original_name || t('super_admin.support.attachments.file');
+
+const attachmentIcon = (media) => {
+    const mime = media?.mime || '';
+    if (mime.startsWith('image/')) {
+        return 'image';
+    }
+    if (mime === 'application/pdf') {
+        return 'file';
+    }
+    return 'file';
 };
 </script>
 
@@ -156,7 +185,7 @@ const submitEdit = () => {
                 </div>
             </section>
 
-            <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-2 md:gap-3 lg:gap-5">
+            <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-2 md:gap-3 lg:gap-5">
                 <div class="p-4 bg-white border border-t-4 border-t-emerald-600 border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
                     <p class="text-xs text-stone-500 dark:text-neutral-400">
                         {{ $t('super_admin.support.stats.total') }}
@@ -171,6 +200,14 @@ const submitEdit = () => {
                     </p>
                     <p class="mt-1 text-2xl font-semibold text-stone-800 dark:text-neutral-100">
                         {{ formatNumber(stats.open) }}
+                    </p>
+                </div>
+                <div class="p-4 bg-white border border-t-4 border-t-indigo-600 border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
+                    <p class="text-xs text-stone-500 dark:text-neutral-400">
+                        {{ $t('super_admin.support.stats.assigned') }}
+                    </p>
+                    <p class="mt-1 text-2xl font-semibold text-stone-800 dark:text-neutral-100">
+                        {{ formatNumber(stats.assigned) }}
                     </p>
                 </div>
                 <div class="p-4 bg-white border border-t-4 border-t-amber-600 border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
@@ -271,6 +308,7 @@ const submitEdit = () => {
                             <tr>
                                 <th class="px-4 py-3">{{ $t('super_admin.support.table.title') }}</th>
                                 <th class="px-4 py-3">{{ $t('super_admin.support.table.tenant') }}</th>
+                                <th class="px-4 py-3">{{ $t('super_admin.support.table.assigned') }}</th>
                                 <th class="px-4 py-3">{{ $t('super_admin.support.table.status') }}</th>
                                 <th class="px-4 py-3">{{ $t('super_admin.support.table.priority') }}</th>
                                 <th class="px-4 py-3">{{ $t('super_admin.support.table.sla') }}</th>
@@ -280,8 +318,35 @@ const submitEdit = () => {
                         </thead>
                         <tbody class="divide-y divide-stone-200 dark:divide-neutral-700">
                             <tr v-for="ticket in tickets.data" :key="ticket.id">
-                                <td class="px-4 py-3 font-medium text-stone-800 dark:text-neutral-100">{{ ticket.title }}</td>
+                                <td class="px-4 py-3">
+                                    <Link :href="route('superadmin.support.show', ticket.id)"
+                                        class="font-medium text-stone-800 hover:underline dark:text-neutral-100">
+                                        {{ ticket.title }}
+                                    </Link>
+                                    <div v-if="ticket.media?.length" class="mt-2 flex flex-wrap gap-2 text-xs">
+                                        <a v-for="media in ticket.media" :key="media.id" :href="media.url" target="_blank" rel="noopener"
+                                            class="inline-flex max-w-[180px] items-center gap-1 rounded-full border border-stone-200 bg-white px-2 py-1 text-[11px] text-stone-600 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300 dark:hover:bg-neutral-800">
+                                            <svg v-if="attachmentIcon(media) === 'image'" class="size-3.5" xmlns="http://www.w3.org/2000/svg"
+                                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                                stroke-linecap="round" stroke-linejoin="round">
+                                                <rect width="18" height="14" x="3" y="5" rx="2" />
+                                                <circle cx="8" cy="10" r="2" />
+                                                <path d="m21 15-5-5L5 21" />
+                                            </svg>
+                                            <svg v-else class="size-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+                                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                                stroke-linejoin="round">
+                                                <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2Z" />
+                                                <path d="M14 2v6h6" />
+                                            </svg>
+                                            <span class="truncate">{{ attachmentLabel(media) }}</span>
+                                        </a>
+                                    </div>
+                                </td>
                                 <td class="px-4 py-3">{{ ticket.account?.company_name || ticket.account?.email }}</td>
+                                <td class="px-4 py-3">
+                                    {{ ticket.assigned_to?.name || ticket.assigned_to?.email || $t('super_admin.common.not_available') }}
+                                </td>
                                 <td class="px-4 py-3">{{ ticket.status }}</td>
                                 <td class="px-4 py-3">{{ ticket.priority }}</td>
                                 <td class="px-4 py-3">
@@ -304,6 +369,10 @@ const submitEdit = () => {
                                         <div class="hs-dropdown-menu hs-dropdown-open:opacity-100 w-32 transition-[opacity,margin] duration opacity-0 hidden z-10 bg-white rounded-sm shadow-[0_10px_40px_10px_rgba(0,0,0,0.08)] dark:shadow-[0_10px_40px_10px_rgba(0,0,0,0.2)] dark:bg-neutral-900"
                                             role="menu" aria-orientation="vertical">
                                             <div class="p-1">
+                                                <Link :href="route('superadmin.support.show', ticket.id)"
+                                                    class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
+                                                    {{ $t('super_admin.common.view') }}
+                                                </Link>
                                                 <button type="button" @click="openEdit(ticket)"
                                                     class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
                                                     {{ $t('super_admin.common.edit') }}
@@ -314,7 +383,7 @@ const submitEdit = () => {
                                 </td>
                             </tr>
                             <tr v-if="!tickets.data.length">
-                                <td colspan="7" class="px-4 py-6 text-center text-sm text-stone-500 dark:text-neutral-400">
+                                <td colspan="8" class="px-4 py-6 text-center text-sm text-stone-500 dark:text-neutral-400">
                                     {{ $t('super_admin.support.empty') }}
                                 </td>
                             </tr>
@@ -357,6 +426,15 @@ const submitEdit = () => {
                                 :placeholder="$t('super_admin.support.form.select_tenant')"
                             />
                             <InputError class="mt-1" :message="createForm.errors.account_id" />
+                        </div>
+                        <div>
+                            <FloatingSelect
+                                v-model="createForm.assigned_to_user_id"
+                                :label="$t('super_admin.support.form.assigned')"
+                                :options="assigneeOptions"
+                                :placeholder="$t('super_admin.support.form.select_assignee')"
+                            />
+                            <InputError class="mt-1" :message="createForm.errors.assigned_to_user_id" />
                         </div>
                         <FloatingInput v-model="createForm.title" :label="$t('super_admin.support.form.title')" />
                         <InputError class="mt-1" :message="createForm.errors.title" />
@@ -418,6 +496,15 @@ const submitEdit = () => {
                         </button>
                     </div>
                     <form class="mt-4 space-y-3" @submit.prevent="submitEdit">
+                        <div>
+                            <FloatingSelect
+                                v-model="editForm.assigned_to_user_id"
+                                :label="$t('super_admin.support.form.assigned')"
+                                :options="assigneeOptions"
+                                :placeholder="$t('super_admin.support.form.select_assignee')"
+                            />
+                            <InputError class="mt-1" :message="editForm.errors.assigned_to_user_id" />
+                        </div>
                         <div class="grid gap-3 md:grid-cols-3">
                             <div>
                                 <FloatingSelect

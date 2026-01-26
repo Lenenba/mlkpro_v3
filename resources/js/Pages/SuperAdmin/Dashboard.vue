@@ -45,6 +45,20 @@ const formatBytes = (bytes) => {
 const resolveAuditUser = (audit) =>
     audit.user?.name || audit.user?.email || t('super_admin.common.unknown');
 
+const auditActionLabel = (action) => {
+    if (!action) {
+        return t('super_admin.common.not_available');
+    }
+    const supportKey = `super_admin.support.audit.actions["${action}"]`;
+    const supportTranslated = t(supportKey);
+    if (supportTranslated !== supportKey) {
+        return supportTranslated;
+    }
+    const dashboardKey = `super_admin.dashboard.audit.actions["${action}"]`;
+    const dashboardTranslated = t(dashboardKey);
+    return dashboardTranslated === dashboardKey ? action : dashboardTranslated;
+};
+
 const newCompanies30 = computed(() => {
     return (props.metrics.acquisition_series || []).reduce((sum, row) => sum + (row.count || 0), 0);
 });
@@ -727,7 +741,7 @@ const resetAuditFilters = () => {
                             class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
                             <option value="">{{ $t('super_admin.common.all') }}</option>
                             <option v-for="action in audit_options?.actions || []" :key="action" :value="action">
-                                {{ action }}
+                                {{ auditActionLabel(action) }}
                             </option>
                         </select>
                     </div>
@@ -750,7 +764,7 @@ const resetAuditFilters = () => {
                         <li v-for="audit in recent_audits" :key="audit.id" class="flex items-start justify-between gap-3">
                             <div>
                                 <div class="font-semibold text-stone-800 dark:text-neutral-100">
-                                    {{ audit.action }}
+                                    {{ auditActionLabel(audit.action) }}
                                 </div>
                                 <div class="text-xs text-stone-500 dark:text-neutral-400">
                                     {{ $t('super_admin.dashboard.audit.action_by', { user: resolveAuditUser(audit) }) }}

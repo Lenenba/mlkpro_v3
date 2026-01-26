@@ -422,25 +422,6 @@ const isCustomerActive = computed(() => {
                                 <!-- End Item -->
 
                                 <!-- Item -->
-                                <LinkAncor v-if="!isClient && !isSeller" :label="$t('nav.support')" :href="'support.index'" tone="support"
-                                    :active="route().current('support.*')">
-                                    <template #icon>
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
-                                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                                            stroke-linecap="round" stroke-linejoin="round"
-                                            class="lucide lucide-life-buoy">
-                                            <circle cx="12" cy="12" r="10" />
-                                            <circle cx="12" cy="12" r="4" />
-                                            <line x1="4.93" x2="9.17" y1="4.93" y2="9.17" />
-                                            <line x1="14.83" x2="19.07" y1="14.83" y2="19.07" />
-                                            <line x1="14.83" x2="19.07" y1="9.17" y2="4.93" />
-                                            <line x1="14.83" x2="18.36" y1="9.17" y2="5.64" />
-                                        </svg>
-                                    </template>
-                                </LinkAncor>
-                                <!-- End Item -->
-
-                                <!-- Item -->
                                 <LinkAncor v-if="hasFeature('team_members') && page.props.auth.account?.is_owner && !isSeller" :label="$t('nav.team')" :href="'team.index'" tone="team"
                                     :active="route().current('team.*')">
                                     <template #icon>
