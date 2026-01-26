@@ -1,6 +1,5 @@
 <script setup>
-import { computed } from 'vue';
-import { Head, usePage, router } from '@inertiajs/vue3';
+import { Head, router } from '@inertiajs/vue3';
 import GuestLayout from '@/Layouts/GuestLayout.vue';
 import { humanizeDate } from '@/utils/date';
 
@@ -10,10 +9,6 @@ const props = defineProps({
     allow: Object,
     actions: Object,
 });
-
-const page = usePage();
-const flashSuccess = computed(() => page.props.flash?.success);
-const flashError = computed(() => page.props.flash?.error);
 
 const formatDate = (value) => humanizeDate(value) || '-';
 const formatTime = (value) => {
@@ -110,13 +105,6 @@ const rejectSchedule = () => {
                     <div class="text-sm">{{ work?.customer?.email || '-' }}</div>
                     <div class="text-sm">{{ work?.customer?.phone || '-' }}</div>
                 </div>
-            </div>
-
-            <div v-if="flashSuccess" class="rounded-sm border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
-                {{ flashSuccess }}
-            </div>
-            <div v-if="flashError" class="rounded-sm border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">
-                {{ flashError }}
             </div>
 
             <div class="rounded-sm border border-stone-200 p-4">

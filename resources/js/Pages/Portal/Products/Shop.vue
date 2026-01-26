@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref, watch } from 'vue';
-import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
+import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
 import Modal from '@/Components/Modal.vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
@@ -43,9 +43,6 @@ const props = defineProps({
 
 const { t } = useI18n();
 
-const page = usePage();
-const flashSuccess = computed(() => page.props.flash?.success);
-const flashError = computed(() => page.props.flash?.error);
 const cartRestored = ref(false);
 
 const order = computed(() => props.order || null);
@@ -592,12 +589,6 @@ const startPayment = (type) => {
                 </Link>
             </div>
 
-            <div v-if="flashSuccess" class="rounded-sm border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
-                {{ flashSuccess }}
-            </div>
-            <div v-if="flashError" class="rounded-sm border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                {{ flashError }}
-            </div>
             <div v-if="isLocked" class="rounded-sm border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
                 {{ $t('portal_shop.locked_notice') }}
             </div>
