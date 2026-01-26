@@ -7,6 +7,8 @@ use App\Http\Controllers\LocaleController;
 use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\RequestController;
+use App\Http\Controllers\RequestMediaController;
+use App\Http\Controllers\RequestNoteController;
 use App\Http\Controllers\QuoteController;
 use App\Http\Controllers\QuoteEmaillingController;
 use App\Http\Controllers\PlanScanController;
@@ -143,9 +145,16 @@ Route::name('api.')->group(function () {
 
             Route::middleware('company.feature:requests')->group(function () {
                 Route::get('requests', [RequestController::class, 'index']);
+                Route::patch('requests/bulk', [RequestController::class, 'bulkUpdate']);
                 Route::post('requests', [RequestController::class, 'store']);
+                Route::get('requests/{lead}', [RequestController::class, 'show']);
+                Route::put('requests/{lead}', [RequestController::class, 'update']);
                 Route::post('requests/{lead}/convert', [RequestController::class, 'convert'])
                     ->middleware('company.feature:quotes');
+                Route::post('requests/{lead}/notes', [RequestNoteController::class, 'store']);
+                Route::delete('requests/{lead}/notes/{note}', [RequestNoteController::class, 'destroy']);
+                Route::post('requests/{lead}/media', [RequestMediaController::class, 'store']);
+                Route::delete('requests/{lead}/media/{media}', [RequestMediaController::class, 'destroy']);
                 Route::delete('requests/{lead}', [RequestController::class, 'destroy']);
             });
 

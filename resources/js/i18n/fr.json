@@ -1963,6 +1963,11 @@
       "requests": {
         "status": {
           "new": "Nouveau",
+          "contacted": "Contacte",
+          "qualified": "Qualifie",
+          "quote_sent": "Devis envoye",
+          "won": "Gagne",
+          "lost": "Perdu",
           "converted": "Converti"
         }
       },
@@ -2487,7 +2492,9 @@
     "stats": {
       "total": "Total demandes",
       "new": "Nouvelles",
-      "converted": "Converties",
+      "in_progress": "En cours",
+      "won": "Gagnees",
+      "lost": "Perdues",
       "unassigned": "Non assignees"
     },
     "filters": {
@@ -2498,19 +2505,43 @@
     "actions": {
       "clear": "Effacer",
       "new_request": "Nouvelle demande",
+      "view": "Voir",
+      "back": "Retour",
       "view_quote": "Voir devis",
       "convert": "Convertir",
+      "update": "Mettre a jour",
       "timeline": "Historique",
       "delete": "Supprimer",
       "delete_confirm": "Supprimer cette demande ?",
       "cancel": "Annuler",
+      "save": "Enregistrer",
       "create_request": "Creer demande",
       "convert_to_quote": "Convertir en devis"
+    },
+    "view": {
+      "table": "Table",
+      "board": "Kanban"
+    },
+    "board": {
+      "empty": "Aucune demande ici."
+    },
+    "bulk": {
+      "selected": "{count} selectionnees",
+      "status_label": "Statut",
+      "status_placeholder": "Changer statut",
+      "assign_label": "Assigner",
+      "assign_placeholder": "Choisir un membre",
+      "apply_status": "Appliquer statut",
+      "apply_assign": "Assigner",
+      "lost_reason": "Raison de perte",
+      "lost_reason_prompt": "Indiquez la raison de perte."
     },
     "table": {
       "request": "Demande",
       "customer": "Client",
       "status": "Statut",
+      "assignee": "Assigne",
+      "follow_up": "Relance",
       "created": "Cree",
       "actions": "Actions"
     },
@@ -2519,10 +2550,78 @@
       "request": "Demande",
       "unknown_customer": "Client inconnu",
       "unknown_status": "Statut inconnu",
-      "unassigned": "Non assigne"
+      "unassigned": "Non assigne",
+      "no_follow_up": "Aucune relance"
+    },
+    "show": {
+      "details": "Details lead",
+      "channel_fallback": "Canal inconnu",
+      "service": "Service",
+      "service_fallback": "Non renseigne",
+      "urgency": "Urgence",
+      "urgency_fallback": "Non renseignee",
+      "description": "Description",
+      "description_empty": "Aucune description.",
+      "address": "Adresse",
+      "no_address": "Aucune adresse.",
+      "summary": "Resume",
+      "contact": "Contact",
+      "phone": "Telephone",
+      "email": "Email",
+      "email_action": "Email",
+      "call": "Appeler",
+      "whatsapp": "WhatsApp",
+      "customer": "Client",
+      "status_updated": "Statut mis a jour",
+      "source": "Source"
+    },
+    "notes": {
+      "title": "Notes",
+      "empty": "Aucune note pour l'instant.",
+      "add": "Ajouter une note",
+      "save": "Sauver note",
+      "delete": "Supprimer",
+      "delete_confirm": "Supprimer cette note ?",
+      "author_fallback": "Membre equipe"
+    },
+    "media": {
+      "title": "Fichiers",
+      "empty": "Aucun fichier.",
+      "upload": "Ajouter",
+      "delete": "Supprimer",
+      "delete_confirm": "Supprimer ce fichier ?",
+      "invalid_type": "Type non supporte. PDF ou image seulement.",
+      "too_large": "Fichier trop lourd. Max 10MB.",
+      "author_fallback": "Membre equipe",
+      "view": "Voir",
+      "download": "Telecharger",
+      "file": "Fichier"
+    },
+    "tasks": {
+      "title": "Taches de suivi",
+      "empty": "Aucune tache.",
+      "create": "Creer tache",
+      "title_label": "Titre tache",
+      "description": "Notes",
+      "assignee": "Assigne",
+      "due_date": "Date limite",
+      "no_due": "Sans date",
+      "todo": "A faire",
+      "in_progress": "En cours",
+      "done": "Termine"
+    },
+    "activity": {
+      "title": "Activite",
+      "empty": "Aucune activite.",
+      "author_fallback": "Systeme"
     },
     "status": {
       "new": "Nouvelle",
+      "contacted": "Contactee",
+      "qualified": "Qualifiee",
+      "quote_sent": "Devis envoye",
+      "won": "Gagnee",
+      "lost": "Perdue",
       "converted": "Convertie"
     },
     "empty": "Aucune demande trouvee.",
@@ -2534,13 +2633,25 @@
     "convert": {
       "title": "Convertir la demande en devis",
       "default_job_title": "Nouveau devis",
+      "create_customer": "Creer un nouveau client",
       "customer": "Client",
       "select_customer": "Selectionner client",
       "location": "Lieu",
       "no_location": "Aucun lieu",
       "location_fallback": "Lieu",
+      "customer_name": "Nom du client",
+      "contact_name": "Nom du contact",
+      "contact_email": "Email du contact",
+      "contact_phone": "Telephone du contact",
       "job_title": "Titre du chantier",
       "notes_optional": "Notes (optionnel)"
+    },
+    "update": {
+      "title": "Mettre a jour la demande",
+      "status": "Statut",
+      "assignee": "Assigne",
+      "follow_up": "Prochaine relance",
+      "lost_reason": "Raison de perte"
     },
     "quick_form": {
       "new_customer": "Nouveau client",

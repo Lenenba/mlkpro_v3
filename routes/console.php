@@ -11,6 +11,9 @@ use App\Models\User;
 use App\Models\Work;
 use App\Models\Sale;
 use App\Models\ActivityLog;
+use App\Models\Request as LeadRequest;
+use App\Notifications\LeadFollowUpNotification;
+use App\Support\NotificationDispatcher;
 use App\Services\Demo\DemoAccountService;
 use App\Services\Demo\DemoResetService;
 use App\Services\Demo\DemoSeedService;
@@ -254,6 +257,103 @@ Artisan::command('orders:deposit-reminders', function (SaleNotificationService $
     return 0;
 })->purpose('Send deposit reminders for unpaid portal orders');
 
+Artisan::command('leads:follow-up-reminders {--hours=24}', function (): int {
+    $hours = (int) $this->option('hours');
+    if ($hours <= 0) {
+        $hours = 24;
+    }
+
+    $cutoff = now()->subHours($hours);
+    $openStatuses = [
+        LeadRequest::STATUS_NEW,
+        LeadRequest::STATUS_CONTACTED,
+        LeadRequest::STATUS_QUALIFIED,
+        LeadRequest::STATUS_QUOTE_SENT,
+    ];
+
+    $unassignedLeads = LeadRequest::query()
+        ->whereIn('status', $openStatuses)
+        ->whereNull('assigned_team_member_id')
+        ->where('created_at', '<=', $cutoff)
+        ->with(['assignee.user'])
+        ->get();
+
+    $overdueLeads = LeadRequest::query()
+        ->whereIn('status', $openStatuses)
+        ->whereNotNull('next_follow_up_at')
+        ->where('next_follow_up_at', '<=', $cutoff)
+        ->whereNotNull('assigned_team_member_id')
+        ->with(['assignee.user'])
+        ->get();
+
+    $sent = 0;
+
+    foreach ($unassignedLeads as $lead) {
+        $lastReminder = ActivityLog::query()
+            ->where('subject_type', $lead->getMorphClass())
+            ->where('subject_id', $lead->id)
+            ->where('action', 'lead_unassigned_reminder_sent')
+            ->latest('created_at')
+            ->first();
+
+        if ($lastReminder && $lastReminder->created_at && $lastReminder->created_at->greaterThan($cutoff)) {
+            continue;
+        }
+
+        $recipients = collect([
+            User::query()->find($lead->user_id),
+            $lead->assignee?->user,
+        ])->filter()->unique('id');
+
+        foreach ($recipients as $recipient) {
+            NotificationDispatcher::send($recipient, new LeadFollowUpNotification($lead, 'unassigned', $hours), [
+                'lead_id' => $lead->id,
+            ]);
+        }
+
+        ActivityLog::record(null, $lead, 'lead_unassigned_reminder_sent', [
+            'hours' => $hours,
+        ]);
+
+        $sent += 1;
+    }
+
+    foreach ($overdueLeads as $lead) {
+        $lastReminder = ActivityLog::query()
+            ->where('subject_type', $lead->getMorphClass())
+            ->where('subject_id', $lead->id)
+            ->where('action', 'lead_follow_up_reminder_sent')
+            ->latest('created_at')
+            ->first();
+
+        if ($lastReminder && $lastReminder->created_at && $lastReminder->created_at->greaterThan($cutoff)) {
+            continue;
+        }
+
+        $recipients = collect([
+            User::query()->find($lead->user_id),
+            $lead->assignee?->user,
+        ])->filter()->unique('id');
+
+        foreach ($recipients as $recipient) {
+            NotificationDispatcher::send($recipient, new LeadFollowUpNotification($lead, 'follow_up_overdue', $hours), [
+                'lead_id' => $lead->id,
+            ]);
+        }
+
+        ActivityLog::record(null, $lead, 'lead_follow_up_reminder_sent', [
+            'hours' => $hours,
+            'next_follow_up_at' => optional($lead->next_follow_up_at)->toDateTimeString(),
+        ]);
+
+        $sent += 1;
+    }
+
+    $this->info("Sent {$sent} lead reminders.");
+
+    return 0;
+})->purpose('Send reminders for unassigned or overdue lead follow-ups');
+
 Artisan::command('demo:seed {type=service} {--tenant_id=}', function (
     DemoAccountService $accounts,
     DemoSeedService $seeds
@@ -316,3 +416,4 @@ Schedule::command('platform:notifications-digest --frequency=weekly')->weeklyOn(
 Schedule::command('platform:notifications-scan')->dailyAt('07:30');
 Schedule::command('agenda:process')->everyFiveMinutes();
 Schedule::command('orders:deposit-reminders')->everyFourHours();
+Schedule::command('leads:follow-up-reminders --hours=24')->hourly();

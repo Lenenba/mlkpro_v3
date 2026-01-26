@@ -23,6 +23,8 @@ use App\Http\Controllers\QuoteEmaillingController;
 use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\PipelineController;
 use App\Http\Controllers\RequestController;
+use App\Http\Controllers\RequestMediaController;
+use App\Http\Controllers\RequestNoteController;
 use App\Http\Controllers\PlanScanController;
 use App\Http\Controllers\WorkMediaController;
 use App\Http\Controllers\WorkChecklistController;
@@ -172,10 +174,17 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
     // Lead Requests
     Route::middleware('company.feature:requests')->group(function () {
         Route::get('/requests', [RequestController::class, 'index'])->name('request.index');
+        Route::patch('/requests/bulk', [RequestController::class, 'bulkUpdate'])->name('request.bulk');
         Route::post('/requests', [RequestController::class, 'store'])->name('request.store');
+        Route::get('/requests/{lead}', [RequestController::class, 'show'])->name('request.show');
+        Route::put('/requests/{lead}', [RequestController::class, 'update'])->name('request.update');
         Route::post('/requests/{lead}/convert', [RequestController::class, 'convert'])
             ->middleware('company.feature:quotes')
             ->name('request.convert');
+        Route::post('/requests/{lead}/notes', [RequestNoteController::class, 'store'])->name('request.notes.store');
+        Route::delete('/requests/{lead}/notes/{note}', [RequestNoteController::class, 'destroy'])->name('request.notes.destroy');
+        Route::post('/requests/{lead}/media', [RequestMediaController::class, 'store'])->name('request.media.store');
+        Route::delete('/requests/{lead}/media/{media}', [RequestMediaController::class, 'destroy'])->name('request.media.destroy');
         Route::delete('/requests/{lead}', [RequestController::class, 'destroy'])->name('request.destroy');
     });
 

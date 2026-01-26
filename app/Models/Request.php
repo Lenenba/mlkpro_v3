@@ -7,17 +7,33 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Request extends Model
 {
     use HasFactory;
 
     public const STATUS_NEW = 'REQ_NEW';
+    public const STATUS_CONTACTED = 'REQ_CONTACTED';
+    public const STATUS_QUALIFIED = 'REQ_QUALIFIED';
+    public const STATUS_QUOTE_SENT = 'REQ_QUOTE_SENT';
+    public const STATUS_WON = 'REQ_WON';
+    public const STATUS_LOST = 'REQ_LOST';
     public const STATUS_CONVERTED = 'REQ_CONVERTED';
+
+    public const STATUSES = [
+        self::STATUS_NEW,
+        self::STATUS_CONTACTED,
+        self::STATUS_QUALIFIED,
+        self::STATUS_QUOTE_SENT,
+        self::STATUS_WON,
+        self::STATUS_LOST,
+    ];
 
     protected $fillable = [
         'user_id',
         'customer_id',
+        'assigned_team_member_id',
         'external_customer_id',
         'channel',
         'status',
@@ -38,6 +54,9 @@ class Request extends Model
         'lng',
         'is_serviceable',
         'converted_at',
+        'status_updated_at',
+        'next_follow_up_at',
+        'lost_reason',
         'meta',
     ];
 
@@ -46,6 +65,8 @@ class Request extends Model
         'lng' => 'decimal:7',
         'is_serviceable' => 'boolean',
         'converted_at' => 'datetime',
+        'status_updated_at' => 'datetime',
+        'next_follow_up_at' => 'datetime',
         'meta' => 'array',
     ];
 
@@ -59,9 +80,29 @@ class Request extends Model
         return $this->belongsTo(Customer::class);
     }
 
+    public function assignee(): BelongsTo
+    {
+        return $this->belongsTo(TeamMember::class, 'assigned_team_member_id');
+    }
+
     public function quote(): HasOne
     {
         return $this->hasOne(Quote::class);
+    }
+
+    public function notes(): HasMany
+    {
+        return $this->hasMany(LeadNote::class, 'request_id')->latest('created_at');
+    }
+
+    public function media(): HasMany
+    {
+        return $this->hasMany(LeadMedia::class, 'request_id')->latest('created_at');
+    }
+
+    public function tasks(): HasMany
+    {
+        return $this->hasMany(Task::class, 'request_id')->latest('created_at');
     }
 
     public function scopeByUser(Builder $query, int $userId): Builder
@@ -69,4 +110,3 @@ class Request extends Model
         return $query->where('user_id', $userId);
     }
 }
-

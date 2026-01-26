@@ -10,6 +10,7 @@ const props = defineProps({
     stats: Object,
     customers: Array,
     statuses: Array,
+    assignees: Array,
 });
 </script>
 
@@ -18,7 +19,13 @@ const props = defineProps({
     <AuthenticatedLayout>
         <RequestStats :stats="stats" />
         <div class="mt-3">
-            <RequestTable :requests="requests" :filters="filters" :customers="customers" :statuses="statuses" />
+            <RequestTable
+                :requests="requests"
+                :filters="filters"
+                :customers="customers"
+                :statuses="statuses"
+                :assignees="assignees"
+            />
         </div>
     </AuthenticatedLayout>
 </template>

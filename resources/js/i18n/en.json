@@ -1963,6 +1963,11 @@
       "requests": {
         "status": {
           "new": "New",
+          "contacted": "Contacted",
+          "qualified": "Qualified",
+          "quote_sent": "Quote sent",
+          "won": "Won",
+          "lost": "Lost",
           "converted": "Converted"
         }
       },
@@ -2487,7 +2492,9 @@
     "stats": {
       "total": "Total requests",
       "new": "New",
-      "converted": "Converted",
+      "in_progress": "In progress",
+      "won": "Won",
+      "lost": "Lost",
       "unassigned": "Unassigned"
     },
     "filters": {
@@ -2498,19 +2505,43 @@
     "actions": {
       "clear": "Clear",
       "new_request": "New request",
+      "view": "View",
+      "back": "Back",
       "view_quote": "View quote",
       "convert": "Convert",
+      "update": "Update",
       "timeline": "Timeline",
       "delete": "Delete",
       "delete_confirm": "Delete this request?",
       "cancel": "Cancel",
+      "save": "Save",
       "create_request": "Create request",
       "convert_to_quote": "Convert to quote"
+    },
+    "view": {
+      "table": "Table",
+      "board": "Board"
+    },
+    "board": {
+      "empty": "No leads here yet."
+    },
+    "bulk": {
+      "selected": "{count} selected",
+      "status_label": "Status",
+      "status_placeholder": "Change status",
+      "assign_label": "Assign to",
+      "assign_placeholder": "Select assignee",
+      "apply_status": "Apply status",
+      "apply_assign": "Assign",
+      "lost_reason": "Lost reason",
+      "lost_reason_prompt": "Provide a lost reason."
     },
     "table": {
       "request": "Request",
       "customer": "Customer",
       "status": "Status",
+      "assignee": "Assignee",
+      "follow_up": "Follow-up",
       "created": "Created",
       "actions": "Actions"
     },
@@ -2519,10 +2550,78 @@
       "request": "Request",
       "unknown_customer": "Unknown customer",
       "unknown_status": "Unknown status",
-      "unassigned": "Unassigned"
+      "unassigned": "Unassigned",
+      "no_follow_up": "No follow-up"
+    },
+    "show": {
+      "details": "Lead details",
+      "channel_fallback": "Unknown channel",
+      "service": "Service",
+      "service_fallback": "Not specified",
+      "urgency": "Urgency",
+      "urgency_fallback": "Not specified",
+      "description": "Description",
+      "description_empty": "No description yet.",
+      "address": "Address",
+      "no_address": "No address yet.",
+      "summary": "Summary",
+      "contact": "Contact",
+      "phone": "Phone",
+      "email": "Email",
+      "email_action": "Email",
+      "call": "Call",
+      "whatsapp": "WhatsApp",
+      "customer": "Customer",
+      "status_updated": "Status updated",
+      "source": "Source"
+    },
+    "notes": {
+      "title": "Notes",
+      "empty": "No notes yet.",
+      "add": "Add note",
+      "save": "Save note",
+      "delete": "Delete",
+      "delete_confirm": "Delete this note?",
+      "author_fallback": "Team member"
+    },
+    "media": {
+      "title": "Files",
+      "empty": "No files yet.",
+      "upload": "Upload",
+      "delete": "Delete",
+      "delete_confirm": "Delete this file?",
+      "invalid_type": "Unsupported file type. PDF or image only.",
+      "too_large": "File too large. Max 10MB.",
+      "author_fallback": "Team member",
+      "view": "View",
+      "download": "Download",
+      "file": "File"
+    },
+    "tasks": {
+      "title": "Follow-up tasks",
+      "empty": "No tasks yet.",
+      "create": "Create task",
+      "title_label": "Task title",
+      "description": "Notes",
+      "assignee": "Assignee",
+      "due_date": "Due date",
+      "no_due": "No due date",
+      "todo": "To do",
+      "in_progress": "In progress",
+      "done": "Done"
+    },
+    "activity": {
+      "title": "Activity",
+      "empty": "No activity yet.",
+      "author_fallback": "System"
     },
     "status": {
       "new": "New",
+      "contacted": "Contacted",
+      "qualified": "Qualified",
+      "quote_sent": "Quote sent",
+      "won": "Won",
+      "lost": "Lost",
       "converted": "Converted"
     },
     "empty": "No requests found.",
@@ -2534,13 +2633,25 @@
     "convert": {
       "title": "Convert request to quote",
       "default_job_title": "New quote",
+      "create_customer": "Create new customer",
       "customer": "Customer",
       "select_customer": "Select customer",
       "location": "Location",
       "no_location": "No location",
       "location_fallback": "Location",
+      "customer_name": "Customer name",
+      "contact_name": "Contact name",
+      "contact_email": "Contact email",
+      "contact_phone": "Contact phone",
       "job_title": "Job title",
       "notes_optional": "Notes (optional)"
+    },
+    "update": {
+      "title": "Update request",
+      "status": "Status",
+      "assignee": "Assignee",
+      "follow_up": "Next follow-up",
+      "lost_reason": "Lost reason"
     },
     "quick_form": {
       "new_customer": "New customer",

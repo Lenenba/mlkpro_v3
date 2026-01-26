@@ -428,7 +428,10 @@ class QuoteController extends Controller
 
         if ($customer->auto_accept_quotes && $quote->status !== 'declined') {
             $this->autoAcceptQuote($quote);
+            $quote->refresh();
         }
+
+        $quote->syncRequestStatusFromQuote();
 
         if ($this->shouldReturnJson($request)) {
             return response()->json([
@@ -590,6 +593,8 @@ class QuoteController extends Controller
                 );
             }
         });
+
+        $quote->syncRequestStatusFromQuote();
 
         if ($this->shouldReturnJson($request)) {
             return response()->json([
@@ -776,6 +781,8 @@ class QuoteController extends Controller
         ActivityLog::record(Auth::user(), $quote, 'converted', [
             'work_id' => $work->id,
         ], 'Quote converted to job');
+
+        $quote->syncRequestStatusFromQuote();
 
         if ($this->shouldReturnJson()) {
             return response()->json([
@@ -1013,6 +1020,8 @@ class QuoteController extends Controller
                 'total' => $work->total,
             ], 'Job created from auto-accepted quote');
         }
+
+        $quote->syncRequestStatusFromQuote();
 
         return $work;
     }
