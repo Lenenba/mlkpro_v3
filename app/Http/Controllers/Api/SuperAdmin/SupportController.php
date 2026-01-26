@@ -12,7 +12,7 @@ use Symfony\Component\HttpFoundation\Response;
 
 class SupportController extends BaseController
 {
-    private const STATUSES = ['open', 'pending', 'resolved', 'closed'];
+    private const STATUSES = ['open', 'assigned', 'pending', 'resolved', 'closed'];
     private const PRIORITIES = ['low', 'normal', 'high', 'urgent'];
 
     public function index(Request $request)
@@ -24,6 +24,8 @@ class SupportController extends BaseController
         $query = PlatformSupportTicket::query()->with([
             'account:id,company_name,email',
             'creator:id,name,email',
+            'assignedTo:id,name,email',
+            'media',
         ]);
 
         if (!empty($filters['search'])) {
@@ -53,6 +55,7 @@ class SupportController extends BaseController
         $stats = [
             'total' => $totalCount,
             'open' => (clone $query)->where('status', 'open')->count(),
+            'assigned' => (clone $query)->where('status', 'assigned')->count(),
             'pending' => (clone $query)->where('status', 'pending')->count(),
             'resolved' => (clone $query)->where('status', 'resolved')->count(),
             'closed' => (clone $query)->where('status', 'closed')->count(),
@@ -75,8 +78,20 @@ class SupportController extends BaseController
                     'name' => $ticket->creator->name,
                     'email' => $ticket->creator->email,
                 ] : null,
+                'assigned_to' => $ticket->assignedTo ? [
+                    'id' => $ticket->assignedTo->id,
+                    'name' => $ticket->assignedTo->name,
+                    'email' => $ticket->assignedTo->email,
+                ] : null,
                 'sla_due_at' => $ticket->sla_due_at?->toDateString(),
                 'tags' => $ticket->tags ?? [],
+                'media' => $ticket->media->map(fn ($media) => [
+                    'id' => $media->id,
+                    'url' => $media->url,
+                    'original_name' => $media->original_name,
+                    'mime' => $media->mime,
+                    'size' => $media->size,
+                ])->values(),
                 'created_at' => $ticket->created_at,
             ];
         });

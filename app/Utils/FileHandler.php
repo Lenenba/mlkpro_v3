@@ -60,6 +60,25 @@ class FileHandler
     }
 
     /**
+     * Store a file and resize if it is an image.
+     *
+     * @param string $folderName
+     * @param \Illuminate\Http\UploadedFile $file
+     * @return string
+     */
+    public static function storeFile(string $folderName, UploadedFile $file): string
+    {
+        $path = $file->store($folderName, 'public');
+        $mime = $file->getClientMimeType() ?? $file->getMimeType();
+
+        if ($mime && str_starts_with($mime, 'image/')) {
+            self::resizeImageIfNeeded(Storage::disk('public')->path($path));
+        }
+
+        return $path;
+    }
+
+    /**
      * Delete a file if it exists, but do not delete the default image.
      *
      * @param string|null $filePath

@@ -88,6 +88,7 @@ class SuperAdminDashboardService
         $riskTenants = $this->riskTenants($owners, $subscriptionMap, $lastActivityMap);
         $usageTrends = $this->usageTrends();
         $siteTraffic = $this->siteVisitStats();
+        $siteTrafficSeries = $this->siteVisitSeries(now()->subDays(30)->startOfDay(), now()->endOfDay());
 
         return [
             'companies_total' => $totalCompanies,
@@ -120,6 +121,7 @@ class SuperAdminDashboardService
             'alerts' => $this->platformAlerts($limitAlerts, $health),
             'usage_trends' => $usageTrends,
             'site_traffic' => $siteTraffic,
+            'site_traffic_series' => $siteTrafficSeries,
             'at_risk_tenants' => $riskTenants,
             'action_center' => $this->actionCenterStats($limitAlerts, $riskTenants),
         ];
@@ -604,6 +606,33 @@ class SuperAdminDashboardService
         }
 
         return $stats;
+    }
+
+    private function siteVisitSeries(Carbon $start, Carbon $end): array
+    {
+        $rows = TrackingEvent::query()
+            ->selectRaw('DATE(created_at) as date, COUNT(*) as total, COUNT(DISTINCT visitor_hash) as unique_count')
+            ->where('event_type', 'site_visit')
+            ->whereBetween('created_at', [$start, $end])
+            ->groupBy('date')
+            ->orderBy('date')
+            ->get()
+            ->keyBy('date');
+
+        $series = [];
+        $cursor = $start->copy();
+        while ($cursor->lte($end)) {
+            $dateKey = $cursor->format('Y-m-d');
+            $row = $rows->get($dateKey);
+            $series[] = [
+                'date' => $dateKey,
+                'total' => (int) ($row->total ?? 0),
+                'unique' => (int) ($row->unique_count ?? 0),
+            ];
+            $cursor->addDay();
+        }
+
+        return $series;
     }
 
     private function trendDirection(int $current, int $previous): string

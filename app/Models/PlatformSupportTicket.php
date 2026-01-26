@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class PlatformSupportTicket extends Model
 {
@@ -14,17 +15,21 @@ class PlatformSupportTicket extends Model
     protected $fillable = [
         'account_id',
         'created_by_user_id',
+        'assigned_to_user_id',
+        'assigned_by_user_id',
         'title',
         'description',
         'status',
         'priority',
         'sla_due_at',
+        'assigned_at',
         'tags',
     ];
 
     protected $casts = [
         'tags' => 'array',
         'sla_due_at' => 'datetime',
+        'assigned_at' => 'datetime',
     ];
 
     public function account(): BelongsTo
@@ -35,5 +40,25 @@ class PlatformSupportTicket extends Model
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by_user_id');
+    }
+
+    public function assignedTo(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'assigned_to_user_id');
+    }
+
+    public function assignedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'assigned_by_user_id');
+    }
+
+    public function media(): HasMany
+    {
+        return $this->hasMany(PlatformSupportTicketMedia::class, 'ticket_id');
+    }
+
+    public function messages(): HasMany
+    {
+        return $this->hasMany(PlatformSupportTicketMessage::class, 'ticket_id');
     }
 }

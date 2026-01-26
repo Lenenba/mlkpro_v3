@@ -69,6 +69,10 @@ const formSubmits = computed(() => leadForm.value?.submits ?? 0);
 const formConversion = computed(() => leadForm.value?.conversion_rate ?? 0);
 const formLastView = computed(() => leadForm.value?.last_view_at ?? null);
 const formLastSubmit = computed(() => leadForm.value?.last_submit_at ?? null);
+const formTopReferrers = computed(() => leadForm.value?.top_referrers ?? []);
+const formTopSources = computed(() => leadForm.value?.top_utm_sources ?? []);
+const formTopMediums = computed(() => leadForm.value?.top_utm_mediums ?? []);
+const formTopCampaigns = computed(() => leadForm.value?.top_utm_campaigns ?? []);
 
 const formatHours = (value) => {
     if (value === null || value === undefined) {
@@ -177,6 +181,73 @@ const riskClass = (days) => (days >= 14
                 <span v-if="formLastView">{{ $t('requests.analytics.form.last_view') }}: {{ formatDate(formLastView) }}</span>
                 <span v-if="formLastView && formLastSubmit"> · </span>
                 <span v-if="formLastSubmit">{{ $t('requests.analytics.form.last_submit') }}: {{ formatDate(formLastSubmit) }}</span>
+            </div>
+
+            <div class="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
+                <div class="rounded-sm border border-stone-200 bg-stone-50 p-3 text-xs text-stone-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300">
+                    <div class="text-[11px] font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">
+                        {{ $t('requests.analytics.form.referrers_title') }}
+                    </div>
+                    <div v-if="formTopReferrers.length" class="mt-2 space-y-1">
+                        <div v-for="row in formTopReferrers" :key="row.value" class="flex items-center justify-between">
+                            <span class="truncate">{{ row.value }}</span>
+                            <span class="font-semibold text-stone-700 dark:text-neutral-200">{{ row.count }}</span>
+                        </div>
+                    </div>
+                    <div v-else class="mt-2 text-stone-500 dark:text-neutral-400">
+                        {{ $t('requests.analytics.form.no_referrers') }}
+                    </div>
+                </div>
+
+                <div class="rounded-sm border border-stone-200 bg-stone-50 p-3 text-xs text-stone-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300">
+                    <div class="text-[11px] font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">
+                        {{ $t('requests.analytics.form.utm_title') }}
+                    </div>
+                    <div class="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-3">
+                        <div>
+                            <div class="text-[10px] uppercase text-stone-400 dark:text-neutral-500">
+                                {{ $t('requests.analytics.form.utm_sources') }}
+                            </div>
+                            <div v-if="formTopSources.length" class="mt-1 space-y-1">
+                                <div v-for="row in formTopSources" :key="row.value" class="flex items-center justify-between">
+                                    <span class="truncate">{{ row.value }}</span>
+                                    <span class="font-semibold text-stone-700 dark:text-neutral-200">{{ row.count }}</span>
+                                </div>
+                            </div>
+                            <div v-else class="mt-1 text-stone-500 dark:text-neutral-400">
+                                {{ $t('requests.analytics.form.no_utm') }}
+                            </div>
+                        </div>
+                        <div>
+                            <div class="text-[10px] uppercase text-stone-400 dark:text-neutral-500">
+                                {{ $t('requests.analytics.form.utm_mediums') }}
+                            </div>
+                            <div v-if="formTopMediums.length" class="mt-1 space-y-1">
+                                <div v-for="row in formTopMediums" :key="row.value" class="flex items-center justify-between">
+                                    <span class="truncate">{{ row.value }}</span>
+                                    <span class="font-semibold text-stone-700 dark:text-neutral-200">{{ row.count }}</span>
+                                </div>
+                            </div>
+                            <div v-else class="mt-1 text-stone-500 dark:text-neutral-400">
+                                {{ $t('requests.analytics.form.no_utm') }}
+                            </div>
+                        </div>
+                        <div>
+                            <div class="text-[10px] uppercase text-stone-400 dark:text-neutral-500">
+                                {{ $t('requests.analytics.form.utm_campaigns') }}
+                            </div>
+                            <div v-if="formTopCampaigns.length" class="mt-1 space-y-1">
+                                <div v-for="row in formTopCampaigns" :key="row.value" class="flex items-center justify-between">
+                                    <span class="truncate">{{ row.value }}</span>
+                                    <span class="font-semibold text-stone-700 dark:text-neutral-200">{{ row.count }}</span>
+                                </div>
+                            </div>
+                            <div v-else class="mt-1 text-stone-500 dark:text-neutral-400">
+                                {{ $t('requests.analytics.form.no_utm') }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
 

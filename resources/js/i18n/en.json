@@ -411,7 +411,10 @@
         "last_24h": "Last 24h",
         "last_7d": "Last 7 days",
         "last_30d": "Last 30 days",
-        "unique_label": "{count} unique"
+        "unique_label": "{count} unique",
+        "legend_total": "Total",
+        "legend_unique": "Unique",
+        "empty": "No traffic data yet."
       },
       "alerts": {
         "title": "Platform alerts",
@@ -647,7 +650,7 @@
         "no_limits_permission": "You do not have permission to update limits."
       }
     },
-    "support": {
+  "support": {
       "page_title": "Support Tickets",
       "title": "Support tickets",
       "subtitle": "Track SLA, status, and tags for platform support requests.",
@@ -655,11 +658,14 @@
         "new_ticket": "New ticket",
         "create_ticket": "Create ticket",
         "update_ticket": "Update ticket",
-        "save_ticket": "Save ticket"
+        "save_ticket": "Save ticket",
+        "back": "Back to tickets",
+        "send_message": "Send message"
       },
       "stats": {
         "total": "Total tickets",
         "open": "Open",
+        "assigned": "Assigned",
         "pending": "Pending",
         "resolved": "Resolved",
         "closed": "Closed"
@@ -673,12 +679,47 @@
       "table": {
         "title": "Title",
         "tenant": "Tenant",
+        "assigned": "Assigned",
         "status": "Status",
         "priority": "Priority",
         "sla": "SLA",
         "tags": "Tags"
       },
+      "labels": {
+        "internal": "Internal",
+        "tenant": "Tenant",
+        "created_at": "Created",
+        "assigned_to": "Assigned to",
+        "sla_due": "SLA due"
+      },
+      "audit": {
+        "actions": {
+          "support_ticket.created": "Ticket created",
+          "support_ticket.updated": "Ticket updated",
+          "support_ticket.assigned": "Ticket assigned",
+          "support_ticket.status_changed": "Status updated",
+          "support_ticket.message_added": "Message added",
+          "support_ticket.sla_due_soon_sent": "SLA reminder sent",
+          "support_ticket.sla_overdue_sent": "SLA overdue reminder sent",
+          "support_ticket.unassigned_reminder_sent": "Unassigned reminder sent"
+        }
+      },
+      "sections": {
+        "conversation": "Conversation",
+        "history": "History",
+        "update": "Update ticket",
+        "details": "Details",
+        "attachments": "Attachments"
+      },
+      "attachments": {
+        "file": "Attachment"
+      },
       "empty": "No tickets found.",
+      "empty_states": {
+        "conversation": "No messages yet.",
+        "history": "No activity yet.",
+        "attachments": "No attachments yet."
+      },
       "form": {
         "tenant": "Tenant",
         "select_tenant": "Select tenant",
@@ -687,7 +728,31 @@
         "status": "Status",
         "priority": "Priority",
         "sla_due": "SLA due",
-        "tags": "Tags (comma separated)"
+        "tags": "Tags (comma separated)",
+        "assigned": "Assigned to",
+        "select_assignee": "Select assignee",
+        "message": "Write a reply",
+        "internal_message": "Internal note (not visible to client)"
+      },
+      "editor": {
+        "heading_2": "Heading 2",
+        "heading_3": "Heading 3",
+        "bold": "Bold",
+        "italic": "Italic",
+        "underline": "Underline",
+        "unordered_list": "Bulleted list",
+        "ordered_list": "Numbered list",
+        "quote": "Quote",
+        "code_block": "Code block",
+        "horizontal_rule": "Divider",
+        "link": "Link",
+        "image": "Image",
+        "clear": "Clear formatting",
+        "link_prompt": "Enter a link URL",
+        "image_prompt": "Enter an image URL"
+      },
+      "show": {
+        "title": "Support ticket"
       }
     },
     "announcements": {
@@ -1311,6 +1376,128 @@
     "order_number": "Order #{id}",
     "order_fallback": "Order"
   },
+  "support_portal": {
+    "page_title": "Support requests",
+    "title": "Support & incidents",
+    "subtitle": "Report bugs or incidents to the platform team.",
+      "actions": {
+        "new_ticket": "New request",
+        "submit": "Submit request",
+        "close": "Close",
+        "update": "Update",
+        "save": "Save changes",
+        "view": "View",
+        "back": "Back",
+        "send": "Send message"
+      },
+      "stats": {
+        "total": "Total",
+        "open": "Open",
+        "assigned": "Assigned",
+        "pending": "Pending",
+        "resolved": "Resolved",
+        "closed": "Closed"
+      },
+    "filters": {
+      "search_placeholder": "Search requests",
+      "status": "Status",
+      "priority": "Priority",
+      "toggle": "Filters",
+      "clear": "Clear",
+      "apply": "Apply"
+    },
+      "table": {
+        "title": "Title",
+        "category": "Category",
+        "status": "Status",
+        "priority": "Priority",
+        "created": "Created",
+        "empty": "No support requests yet."
+      },
+      "form": {
+        "category": "Category",
+        "title": "Title",
+        "description": "Describe the issue",
+        "priority": "Priority",
+        "status": "Status",
+        "message": "Write a message"
+      },
+      "editor": {
+        "heading_2": "Heading 2",
+        "heading_3": "Heading 3",
+        "bold": "Bold",
+        "italic": "Italic",
+        "underline": "Underline",
+        "unordered_list": "Bulleted list",
+        "ordered_list": "Numbered list",
+        "quote": "Quote",
+        "code_block": "Code block",
+        "horizontal_rule": "Divider",
+        "link": "Link",
+        "image": "Image",
+        "clear": "Clear formatting",
+        "link_prompt": "Enter a link URL",
+        "image_prompt": "Enter an image URL"
+      },
+      "labels": {
+        "ticket": "Support ticket",
+        "assigned_to": "Assigned to",
+        "not_assigned": "Unassigned",
+        "created_at": "Created",
+        "priority": "Priority",
+        "sla_due": "SLA due",
+        "system": "System",
+        "unknown": "Unknown"
+      },
+      "sections": {
+        "conversation": "Conversation",
+        "history": "History",
+        "update": "Update ticket",
+        "details": "Details",
+        "attachments": "Attachments"
+      },
+      "attachments": {
+        "label": "Attachments",
+        "help": "Add screenshots or PDFs (max 4, 10MB each).",
+        "file": "Attachment"
+      },
+      "audit": {
+        "actions": {
+          "support_ticket.created": "Ticket created",
+          "support_ticket.updated": "Ticket updated",
+          "support_ticket.assigned": "Ticket assigned",
+          "support_ticket.status_changed": "Status updated",
+          "support_ticket.message_added": "Message added",
+          "support_ticket.sla_due_soon_sent": "SLA reminder sent",
+          "support_ticket.sla_overdue_sent": "SLA overdue reminder sent",
+          "support_ticket.unassigned_reminder_sent": "Unassigned reminder sent"
+        }
+      },
+      "empty": {
+        "conversation": "No messages yet.",
+        "history": "No activity yet.",
+        "attachments": "No attachments yet."
+      },
+      "categories": {
+        "incident": "Incident",
+        "bug": "Bug",
+        "feature": "Feature request",
+      "other": "Other"
+    },
+    "priorities": {
+      "low": "Low",
+      "normal": "Normal",
+      "high": "High",
+      "urgent": "Urgent"
+    },
+      "statuses": {
+        "open": "Open",
+        "assigned": "Assigned",
+        "pending": "Pending",
+        "resolved": "Resolved",
+        "closed": "Closed"
+      }
+    },
   "portal_order": {
     "title": "Order {number}",
     "subtitle": "Order details",
@@ -2662,7 +2849,14 @@
         "conversion_note": "Submissions ÷ views.",
         "last_view": "Last view",
         "last_submit": "Last submission",
-        "empty": "No form activity yet."
+        "empty": "No form activity yet.",
+        "referrers_title": "Top referrers",
+        "no_referrers": "No referrer data yet.",
+        "utm_title": "Top UTM tags",
+        "utm_sources": "Sources",
+        "utm_mediums": "Mediums",
+        "utm_campaigns": "Campaigns",
+        "no_utm": "No UTM data"
       },
       "by_source": "Conversion by source",
       "no_data": "No data yet.",
@@ -3601,6 +3795,10 @@
         "label": "Notifications",
         "description": "Emails and alerts",
         "badge": "Soon"
+      },
+      "support": {
+        "label": "Support",
+        "description": "Incidents and help"
       }
     },
     "company": {
