@@ -242,6 +242,8 @@ class PublicQuoteController extends Controller
             'total' => $quote->total,
         ], 'Quote accepted by client (public link)');
 
+        $quote->syncRequestStatusFromQuote();
+
         $owner = User::find($quote->user_id);
         if ($owner && $owner->email) {
             $customer = $quote->customer;
@@ -294,6 +296,8 @@ class PublicQuoteController extends Controller
         ActivityLog::record(null, $quote, 'declined', [
             'total' => $quote->total,
         ], 'Quote declined by client (public link)');
+
+        $quote->syncRequestStatusFromQuote();
 
         $owner = User::find($quote->user_id);
         if ($owner && $owner->email) {

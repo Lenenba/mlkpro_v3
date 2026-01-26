@@ -23,30 +23,73 @@ const processingId = ref(null);
 const { t } = useI18n();
 
 const formatDate = (value) => humanizeDate(value);
+const formatAbsoluteDate = (value) => {
+    if (!value) {
+        return '';
+    }
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+        return '';
+    }
+    return date.toLocaleString();
+};
 
 const titleForRequest = (lead) => lead?.title || lead?.service_type || t('requests.labels.request');
 
 const requestSubtitle = (lead) => lead?.service_type || t('requests.labels.request_number', { id: lead?.id || '-' });
 
 const statusLabel = (status) => {
-    if (status === 'REQ_NEW') {
-        return t('requests.status.new');
+    switch (status) {
+        case 'REQ_NEW':
+            return t('requests.status.new');
+        case 'REQ_CONTACTED':
+            return t('requests.status.contacted');
+        case 'REQ_QUALIFIED':
+            return t('requests.status.qualified');
+        case 'REQ_QUOTE_SENT':
+            return t('requests.status.quote_sent');
+        case 'REQ_WON':
+            return t('requests.status.won');
+        case 'REQ_LOST':
+            return t('requests.status.lost');
+        case 'REQ_CONVERTED':
+            return t('requests.status.converted');
+        default:
+            return status || t('requests.labels.unknown_status');
     }
-    if (status === 'REQ_CONVERTED') {
-        return t('requests.status.converted');
-    }
-    return status || t('requests.labels.unknown_status');
 };
 
 const statusPillClass = (status) => {
     switch (status) {
         case 'REQ_NEW':
             return 'bg-amber-100 text-amber-800 dark:bg-amber-500/10 dark:text-amber-400';
+        case 'REQ_CONTACTED':
+            return 'bg-sky-100 text-sky-800 dark:bg-sky-500/10 dark:text-sky-300';
+        case 'REQ_QUALIFIED':
+            return 'bg-indigo-100 text-indigo-800 dark:bg-indigo-500/10 dark:text-indigo-300';
+        case 'REQ_QUOTE_SENT':
         case 'REQ_CONVERTED':
+            return 'bg-blue-100 text-blue-800 dark:bg-blue-500/10 dark:text-blue-300';
+        case 'REQ_WON':
             return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-400';
+        case 'REQ_LOST':
+            return 'bg-rose-100 text-rose-800 dark:bg-rose-500/10 dark:text-rose-300';
         default:
             return 'bg-stone-100 text-stone-800 dark:bg-neutral-700 dark:text-neutral-200';
     }
+};
+
+const isClosedStatus = (status) => ['REQ_WON', 'REQ_LOST'].includes(status);
+const canConvertLead = (lead) => Boolean(lead) && !lead.quote && !isClosedStatus(lead.status);
+const isOverdue = (lead) => {
+    if (!lead?.next_follow_up_at || isClosedStatus(lead?.status)) {
+        return false;
+    }
+    const dueDate = new Date(lead.next_follow_up_at);
+    if (Number.isNaN(dueDate.getTime())) {
+        return false;
+    }
+    return dueDate.getTime() < Date.now();
 };
 
 const convertToQuote = (lead) => {
@@ -127,7 +170,7 @@ const isProcessing = (lead) => processingId.value === lead?.id;
                                 {{ $t('requests.actions.view_quote') }}
                             </Link>
                             <button
-                                v-else-if="lead.status === 'REQ_NEW'"
+                                v-else-if="canConvertLead(lead)"
                                 type="button"
                                 :disabled="isProcessing(lead)"
                                 @click="convertToQuote(lead)"
@@ -158,6 +201,18 @@ const isProcessing = (lead) => processingId.value === lead?.id;
                     <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold"
                         :class="statusPillClass(lead.status)">
                         {{ statusLabel(lead.status) }}
+                    </span>
+                </div>
+                <div class="flex flex-col gap-1 py-2 sm:flex-row sm:items-center sm:justify-between">
+                    <span>{{ $t('requests.table.follow_up') }}</span>
+                    <span v-if="lead.next_follow_up_at"
+                        class="text-sm font-semibold"
+                        :class="isOverdue(lead) ? 'text-rose-600 dark:text-rose-400' : 'text-stone-800 dark:text-neutral-200'"
+                        :title="formatAbsoluteDate(lead.next_follow_up_at)">
+                        {{ formatDate(lead.next_follow_up_at) }}
+                    </span>
+                    <span v-else class="text-xs text-stone-500 dark:text-neutral-400">
+                        {{ $t('requests.labels.no_follow_up') }}
                     </span>
                 </div>
             </div>

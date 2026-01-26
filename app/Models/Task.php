@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use App\Services\TaskTimingService;
+use App\Models\Request as LeadRequest;
 
 class Task extends Model
 {
@@ -28,6 +29,7 @@ class Task extends Model
         'customer_id',
         'product_id',
         'work_id',
+        'request_id',
         'title',
         'description',
         'status',
@@ -90,6 +92,11 @@ class Task extends Model
     public function work(): BelongsTo
     {
         return $this->belongsTo(Work::class);
+    }
+
+    public function request(): BelongsTo
+    {
+        return $this->belongsTo(LeadRequest::class, 'request_id');
     }
 
     public function invoiceItem(): HasOne

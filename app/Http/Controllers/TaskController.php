@@ -7,6 +7,7 @@ use App\Models\Task;
 use App\Models\TaskMaterial;
 use App\Models\TeamMember;
 use App\Models\Work;
+use App\Models\Request as LeadRequest;
 use App\Services\InventoryService;
 use App\Services\TaskStatusHistoryService;
 use App\Services\TaskTimingService;
@@ -298,6 +299,11 @@ class TaskController extends Controller
                 Rule::exists('works', 'id')->where('user_id', $accountId),
             ],
             'standalone' => 'nullable|boolean',
+            'request_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('requests', 'id')->where('user_id', $accountId),
+            ],
             'due_date' => 'nullable|date',
             'assigned_team_member_id' => [
                 'nullable',
@@ -345,6 +351,14 @@ class TaskController extends Controller
         $workId = $validated['work_id'] ?? null;
         if ($workId) {
             $work = Work::query()->where('user_id', $accountId)->find($workId);
+        }
+
+        $lead = null;
+        $requestId = $validated['request_id'] ?? null;
+        if ($requestId) {
+            $lead = LeadRequest::query()
+                ->where('user_id', $accountId)
+                ->find($requestId);
         }
 
         $status = $validated['status'] ?? 'todo';
@@ -411,9 +425,10 @@ class TaskController extends Controller
             'account_id' => $accountId,
             'created_by_user_id' => Auth::id(),
             'assigned_team_member_id' => $validated['assigned_team_member_id'] ?? null,
-            'customer_id' => $work ? $work->customer_id : ($validated['customer_id'] ?? null),
+            'customer_id' => $work ? $work->customer_id : ($validated['customer_id'] ?? $lead?->customer_id),
             'product_id' => $validated['product_id'] ?? null,
             'work_id' => $work?->id,
+            'request_id' => $lead?->id,
             'title' => $validated['title'],
             'description' => $validated['description'] ?? null,
             'status' => $status,
@@ -496,6 +511,11 @@ class TaskController extends Controller
                     'integer',
                     Rule::exists('team_members', 'id')->where('account_id', $accountId),
                 ],
+                'request_id' => [
+                    'nullable',
+                    'integer',
+                    Rule::exists('requests', 'id')->where('user_id', $accountId),
+                ],
                 'customer_id' => [
                     'nullable',
                     'integer',
@@ -553,6 +573,7 @@ class TaskController extends Controller
             $updates['due_date'] = $validated['due_date'] ?? null;
             $updates['assigned_team_member_id'] = $validated['assigned_team_member_id'] ?? null;
             $updates['product_id'] = $validated['product_id'] ?? null;
+            $updates['request_id'] = $validated['request_id'] ?? null;
 
             $work = null;
             $workId = $validated['work_id'] ?? null;

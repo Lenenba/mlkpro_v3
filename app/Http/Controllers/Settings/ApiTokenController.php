@@ -23,8 +23,8 @@ class ApiTokenController extends Controller
         ]);
 
         $abilities = $data['type'] === 'public'
-            ? ['inventory:read', 'exports:read']
-            : ['inventory:read', 'inventory:write', 'exports:read'];
+            ? ['inventory:read', 'exports:read', 'requests:write']
+            : ['inventory:read', 'inventory:write', 'exports:read', 'requests:write'];
 
         $expiresAt = $data['expires_at'] ? Carbon::parse($data['expires_at']) : null;
         if ($expiresAt && $expiresAt->isPast()) {

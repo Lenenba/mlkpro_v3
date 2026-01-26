@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Notifications\Notifiable;
 use App\Traits\GeneratesSequentialNumber;
+use App\Models\Request as LeadRequest;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -158,6 +159,36 @@ class Quote extends Model
     public function isLocked(): bool
     {
         return $this->isAccepted() || $this->isArchived();
+    }
+
+    public function syncRequestStatusFromQuote(): void
+    {
+        $request = $this->request;
+        if (!$request) {
+            return;
+        }
+
+        $statusMap = [
+            'sent' => LeadRequest::STATUS_QUOTE_SENT,
+            'accepted' => LeadRequest::STATUS_WON,
+            'declined' => LeadRequest::STATUS_LOST,
+        ];
+
+        $targetStatus = $statusMap[$this->status] ?? null;
+        if (!$targetStatus || $request->status === $targetStatus) {
+            return;
+        }
+
+        $updates = [
+            'status' => $targetStatus,
+            'status_updated_at' => now(),
+        ];
+
+        if ($targetStatus !== LeadRequest::STATUS_LOST) {
+            $updates['lost_reason'] = null;
+        }
+
+        $request->update($updates);
     }
 
     /**

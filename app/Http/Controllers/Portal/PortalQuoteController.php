@@ -185,6 +185,8 @@ class PortalQuoteController extends Controller
             'total' => $quote->total,
         ], 'Quote accepted by client');
 
+        $quote->syncRequestStatusFromQuote();
+
         $owner = User::find($quote->user_id);
         if ($owner && $owner->email) {
             $customerLabel = $customer->company_name
@@ -280,6 +282,8 @@ class PortalQuoteController extends Controller
         ActivityLog::record($request->user(), $quote, 'declined', [
             'total' => $quote->total,
         ], 'Quote declined by client');
+
+        $quote->syncRequestStatusFromQuote();
 
         $owner = User::find($quote->user_id);
         if ($owner && $owner->email) {

@@ -23,6 +23,8 @@ use App\Http\Controllers\QuoteEmaillingController;
 use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\PipelineController;
 use App\Http\Controllers\RequestController;
+use App\Http\Controllers\RequestMediaController;
+use App\Http\Controllers\RequestNoteController;
 use App\Http\Controllers\PlanScanController;
 use App\Http\Controllers\WorkMediaController;
 use App\Http\Controllers\WorkChecklistController;
@@ -31,6 +33,7 @@ use App\Http\Controllers\LegalController;
 use App\Http\Controllers\LocaleController;
 use App\Http\Controllers\PublicInvoiceController;
 use App\Http\Controllers\PublicQuoteController;
+use App\Http\Controllers\PublicRequestController;
 use App\Http\Controllers\PublicWorkController;
 use App\Http\Controllers\PublicWorkProofController;
 use App\Http\Controllers\PublicTaskMediaController;
@@ -89,6 +92,8 @@ Route::middleware('signed')->group(function () {
     Route::get('/public/quotes/{quote}', [PublicQuoteController::class, 'show'])->name('public.quotes.show');
     Route::post('/public/quotes/{quote}/accept', [PublicQuoteController::class, 'accept'])->name('public.quotes.accept');
     Route::post('/public/quotes/{quote}/decline', [PublicQuoteController::class, 'decline'])->name('public.quotes.decline');
+    Route::get('/public/requests/{user}', [PublicRequestController::class, 'show'])->name('public.requests.form');
+    Route::post('/public/requests/{user}', [PublicRequestController::class, 'store'])->name('public.requests.store');
     Route::get('/public/works/{work}', [PublicWorkController::class, 'show'])->name('public.works.show');
     Route::post('/public/works/{work}/validate', [PublicWorkController::class, 'validateWork'])->name('public.works.validate');
     Route::post('/public/works/{work}/dispute', [PublicWorkController::class, 'dispute'])->name('public.works.dispute');
@@ -172,10 +177,19 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
     // Lead Requests
     Route::middleware('company.feature:requests')->group(function () {
         Route::get('/requests', [RequestController::class, 'index'])->name('request.index');
+        Route::patch('/requests/bulk', [RequestController::class, 'bulkUpdate'])->name('request.bulk');
         Route::post('/requests', [RequestController::class, 'store'])->name('request.store');
+        Route::post('/requests/import', [RequestController::class, 'import'])->name('request.import');
+        Route::get('/requests/{lead}', [RequestController::class, 'show'])->name('request.show');
+        Route::put('/requests/{lead}', [RequestController::class, 'update'])->name('request.update');
+        Route::post('/requests/{lead}/merge', [RequestController::class, 'merge'])->name('request.merge');
         Route::post('/requests/{lead}/convert', [RequestController::class, 'convert'])
             ->middleware('company.feature:quotes')
             ->name('request.convert');
+        Route::post('/requests/{lead}/notes', [RequestNoteController::class, 'store'])->name('request.notes.store');
+        Route::delete('/requests/{lead}/notes/{note}', [RequestNoteController::class, 'destroy'])->name('request.notes.destroy');
+        Route::post('/requests/{lead}/media', [RequestMediaController::class, 'store'])->name('request.media.store');
+        Route::delete('/requests/{lead}/media/{media}', [RequestMediaController::class, 'destroy'])->name('request.media.destroy');
         Route::delete('/requests/{lead}', [RequestController::class, 'destroy'])->name('request.destroy');
     });
 

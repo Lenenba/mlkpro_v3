@@ -230,8 +230,15 @@ const requestStatus = computed(() => {
     if (!pipeline.value?.request) {
         return 'Missing';
     }
-    if (pipeline.value.request.status === 'REQ_CONVERTED') {
+    const status = pipeline.value.request.status;
+    if (status === 'REQ_WON') {
         return 'Done';
+    }
+    if (status === 'REQ_LOST') {
+        return 'Rejected';
+    }
+    if (['REQ_CONTACTED', 'REQ_QUALIFIED', 'REQ_QUOTE_SENT', 'REQ_CONVERTED'].includes(status)) {
+        return 'In progress';
     }
     return 'Created';
 });
@@ -472,8 +479,17 @@ const globalStatusLabel = computed(() => {
     if (!globalStatus.value || globalStatus.value === 'missing') {
         return 'Missing';
     }
-    if (globalStatus.value === 'REQ_CONVERTED') {
+    if (globalStatus.value === 'REQ_WON') {
         return 'Done';
+    }
+    if (globalStatus.value === 'REQ_LOST') {
+        return 'Rejected';
+    }
+    if (globalStatus.value === 'REQ_QUOTE_SENT' || globalStatus.value === 'REQ_CONVERTED') {
+        return 'In progress';
+    }
+    if (globalStatus.value === 'REQ_QUALIFIED' || globalStatus.value === 'REQ_CONTACTED') {
+        return 'In progress';
     }
     if (globalStatus.value === 'REQ_NEW') {
         return 'Created';

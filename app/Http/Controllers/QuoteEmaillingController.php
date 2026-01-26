@@ -84,6 +84,8 @@ class QuoteEmaillingController extends Controller
             ], 'Quote status updated');
         }
 
+        $quote->syncRequestStatusFromQuote();
+
         if ($this->shouldReturnJson()) {
             if (!$emailQueued) {
                 return response()->json([

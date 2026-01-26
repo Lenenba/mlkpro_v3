@@ -2728,7 +2728,7 @@ class AssistantWorkflowService
             ];
         }
 
-        if ($request->status === LeadRequest::STATUS_CONVERTED && $request->quote) {
+        if ($request->quote) {
             return [
                 'status' => 'created',
                 'message' => 'Request deja convertie.',
@@ -2739,6 +2739,13 @@ class AssistantWorkflowService
                 'context' => [
                     'pending_action' => null,
                 ],
+            ];
+        }
+
+        if (in_array($request->status, [LeadRequest::STATUS_WON, LeadRequest::STATUS_LOST], true)) {
+            return [
+                'status' => 'error',
+                'message' => 'La request est deja fermee.',
             ];
         }
 
@@ -2766,7 +2773,9 @@ class AssistantWorkflowService
         ]);
 
         $request->update([
-            'status' => LeadRequest::STATUS_CONVERTED,
+            'customer_id' => $customer->id,
+            'status' => LeadRequest::STATUS_QUALIFIED,
+            'status_updated_at' => now(),
             'converted_at' => now(),
         ]);
 
