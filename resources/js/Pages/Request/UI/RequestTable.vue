@@ -9,6 +9,7 @@ import FloatingTextarea from '@/Components/FloatingTextarea.vue';
 import InputError from '@/Components/InputError.vue';
 import { humanizeDate } from '@/utils/date';
 import { isFeatureEnabled } from '@/utils/features';
+import { buildLeadScore, badgeClass } from '@/utils/leadScore';
 import { useI18n } from 'vue-i18n';
 import RequestBoard from '@/Pages/Request/UI/RequestBoard.vue';
 
@@ -32,6 +33,10 @@ const props = defineProps({
     assignees: {
         type: Array,
         default: () => [],
+    },
+    leadIntake: {
+        type: Object,
+        default: () => ({}),
     },
 });
 
@@ -554,6 +559,181 @@ const openQuickCreate = () => {
         window.HSOverlay.open('#hs-quick-create-request');
     }
 };
+
+const intakeModalId = 'hs-request-intake';
+const importModalId = 'hs-request-import';
+const intakeCopied = ref(false);
+
+const copyText = async (value) => {
+    if (!value) {
+        return;
+    }
+    try {
+        await navigator.clipboard.writeText(value);
+        intakeCopied.value = true;
+        setTimeout(() => {
+            intakeCopied.value = false;
+        }, 2000);
+    } catch (error) {
+        // ignore clipboard errors
+    }
+};
+
+const intakeExample = computed(() => {
+    if (!props.leadIntake?.api_endpoint) {
+        return '';
+    }
+    return `curl -X POST '${props.leadIntake.api_endpoint}' \\\n  -H 'Authorization: Bearer YOUR_TOKEN' \\\n  -H 'Content-Type: application/json' \\\n  -d '{\"contact_name\":\"Jane Doe\",\"contact_email\":\"jane@example.com\",\"service_type\":\"Cleaning\",\"description\":\"Need a quote\"}'`;
+});
+
+const importForm = useForm({
+    file: null,
+    mapping: {},
+});
+const importHeaders = ref([]);
+const importMapping = ref({
+    contact_name: '',
+    contact_email: '',
+    contact_phone: '',
+    title: '',
+    service_type: '',
+    description: '',
+    channel: '',
+    urgency: '',
+    budget: '',
+    external_customer_id: '',
+    street1: '',
+    street2: '',
+    city: '',
+    state: '',
+    postal_code: '',
+    country: '',
+    next_follow_up_at: '',
+    is_serviceable: '',
+});
+
+const importFields = computed(() => ([
+    { key: 'contact_name', label: t('requests.import.fields.contact_name') },
+    { key: 'contact_email', label: t('requests.import.fields.contact_email') },
+    { key: 'contact_phone', label: t('requests.import.fields.contact_phone') },
+    { key: 'title', label: t('requests.import.fields.title') },
+    { key: 'service_type', label: t('requests.import.fields.service_type') },
+    { key: 'description', label: t('requests.import.fields.description') },
+    { key: 'channel', label: t('requests.import.fields.channel') },
+    { key: 'urgency', label: t('requests.import.fields.urgency') },
+    { key: 'budget', label: t('requests.import.fields.budget') },
+    { key: 'external_customer_id', label: t('requests.import.fields.external_customer_id') },
+    { key: 'street1', label: t('requests.import.fields.street1') },
+    { key: 'street2', label: t('requests.import.fields.street2') },
+    { key: 'city', label: t('requests.import.fields.city') },
+    { key: 'state', label: t('requests.import.fields.state') },
+    { key: 'postal_code', label: t('requests.import.fields.postal_code') },
+    { key: 'country', label: t('requests.import.fields.country') },
+    { key: 'next_follow_up_at', label: t('requests.import.fields.next_follow_up_at') },
+    { key: 'is_serviceable', label: t('requests.import.fields.is_serviceable') },
+]));
+
+const headerOptions = computed(() => ([
+    { id: '', name: t('requests.import.skip') },
+    ...importHeaders.value.map((header) => ({ id: header, name: header })),
+]));
+
+const parseCsvLine = (line) => {
+    const result = [];
+    let current = '';
+    let inQuotes = false;
+    for (let i = 0; i < line.length; i += 1) {
+        const char = line[i];
+        if (char === '"') {
+            if (inQuotes && line[i + 1] === '"') {
+                current += '"';
+                i += 1;
+            } else {
+                inQuotes = !inQuotes;
+            }
+        } else if (char === ',' && !inQuotes) {
+            result.push(current);
+            current = '';
+        } else {
+            current += char;
+        }
+    }
+    result.push(current);
+    return result.map((value) => value.trim()).filter((value) => value !== '');
+};
+
+const autoMapHeaders = (headers) => {
+    const normalized = headers.map((header) => header.toLowerCase());
+    const findMatch = (patterns) => {
+        for (const pattern of patterns) {
+            const index = normalized.findIndex((header) => header.includes(pattern));
+            if (index !== -1) {
+                return headers[index];
+            }
+        }
+        return '';
+    };
+
+    importMapping.value = {
+        contact_name: findMatch(['name', 'contact', 'client', 'customer']),
+        contact_email: findMatch(['email', 'e-mail']),
+        contact_phone: findMatch(['phone', 'telephone', 'mobile', 'cell']),
+        title: findMatch(['title', 'subject']),
+        service_type: findMatch(['service', 'job', 'category']),
+        description: findMatch(['description', 'details', 'notes', 'message']),
+        channel: findMatch(['channel', 'source']),
+        urgency: findMatch(['urgency', 'priority']),
+        budget: findMatch(['budget', 'amount', 'estimate', 'price']),
+        external_customer_id: findMatch(['external', 'customer_id', 'external_customer_id']),
+        street1: findMatch(['street', 'address']),
+        street2: findMatch(['street2', 'address2', 'suite']),
+        city: findMatch(['city', 'ville']),
+        state: findMatch(['state', 'province', 'region']),
+        postal_code: findMatch(['postal', 'zip', 'postcode']),
+        country: findMatch(['country', 'pays']),
+        next_follow_up_at: findMatch(['follow_up', 'followup', 'next_follow']),
+        is_serviceable: findMatch(['serviceable', 'is_serviceable']),
+    };
+};
+
+const setImportFile = async (event) => {
+    const file = event.target.files?.[0] || null;
+    importForm.file = file;
+    importHeaders.value = [];
+    if (!file) {
+        return;
+    }
+    const text = await file.text();
+    const firstLine = text.split(/\r?\n/)[0] || '';
+    const headers = parseCsvLine(firstLine);
+    importHeaders.value = headers;
+    autoMapHeaders(headers);
+};
+
+const resetImport = () => {
+    importForm.reset();
+    importHeaders.value = [];
+    autoMapHeaders([]);
+};
+
+const submitImport = () => {
+    if (!importForm.file) {
+        return;
+    }
+    importForm.mapping = { ...importMapping.value };
+    importForm.post(route('request.import'), {
+        forceFormData: true,
+        preserveScroll: true,
+        onSuccess: () => {
+            resetImport();
+            if (window.HSOverlay) {
+                window.HSOverlay.close(`#${importModalId}`);
+            }
+        },
+    });
+};
+
+const scoreInfo = (lead) => buildLeadScore(lead, t);
 </script>
 
 <template>
@@ -652,14 +832,29 @@ const openQuickCreate = () => {
                     </button>
                 </div>
 
-                <button
-                    v-if="canUseRequests"
-                    type="button"
-                    class="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700"
-                    @click="openQuickCreate"
-                >
-                    {{ $t('requests.actions.new_request') }}
-                </button>
+                <template v-if="canUseRequests">
+                    <button
+                        type="button"
+                        class="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
+                        :data-hs-overlay="`#${intakeModalId}`"
+                    >
+                        {{ $t('requests.actions.intake') }}
+                    </button>
+                    <button
+                        type="button"
+                        class="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
+                        :data-hs-overlay="`#${importModalId}`"
+                    >
+                        {{ $t('requests.actions.import_csv') }}
+                    </button>
+                    <button
+                        type="button"
+                        class="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700"
+                        @click="openQuickCreate"
+                    >
+                        {{ $t('requests.actions.new_request') }}
+                    </button>
+                </template>
             </div>
         </div>
 
@@ -786,6 +981,19 @@ const openQuickCreate = () => {
                             </div>
                             <div v-if="lead.description" class="mt-1 text-xs text-stone-500 dark:text-neutral-400 line-clamp-2">
                                 {{ lead.description }}
+                            </div>
+                            <div class="mt-2 flex flex-wrap items-center gap-1.5">
+                                <span class="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium bg-stone-100 text-stone-700 dark:bg-neutral-700 dark:text-neutral-200">
+                                    {{ $t('requests.badges.score') }} {{ scoreInfo(lead).score }}
+                                </span>
+                                <span
+                                    v-for="badge in scoreInfo(lead).badges"
+                                    :key="badge.key + badge.label + lead.id"
+                                    class="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium"
+                                    :class="badgeClass(badge.tone)"
+                                >
+                                    {{ badge.label }}
+                                </span>
                             </div>
                         </td>
                         <td class="px-5 py-3 text-sm text-stone-700 dark:text-neutral-300">
@@ -935,6 +1143,120 @@ const openQuickCreate = () => {
             </Link>
         </div>
     </div>
+
+    <Modal :title="$t('requests.intake.title')" :id="intakeModalId">
+        <div class="space-y-4">
+            <div>
+                <h3 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                    {{ $t('requests.intake.public_form') }}
+                </h3>
+                <p class="text-xs text-stone-500 dark:text-neutral-400">
+                    {{ $t('requests.intake.public_form_hint') }}
+                </p>
+                <div class="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center">
+                    <input
+                        type="text"
+                        readonly
+                        class="flex-1 rounded-sm border border-stone-200 bg-stone-50 px-3 py-2 text-xs text-stone-700 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200"
+                        :value="leadIntake?.public_form_url || ''"
+                    />
+                    <button
+                        type="button"
+                        class="rounded-sm border border-stone-200 bg-white px-3 py-2 text-xs font-semibold text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
+                        @click="copyText(leadIntake?.public_form_url)"
+                    >
+                        {{ $t('requests.intake.copy') }}
+                    </button>
+                </div>
+            </div>
+
+            <div>
+                <h3 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                    {{ $t('requests.intake.webhook') }}
+                </h3>
+                <p class="text-xs text-stone-500 dark:text-neutral-400">
+                    {{ $t('requests.intake.webhook_hint') }}
+                </p>
+                <div class="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center">
+                    <input
+                        type="text"
+                        readonly
+                        class="flex-1 rounded-sm border border-stone-200 bg-stone-50 px-3 py-2 text-xs text-stone-700 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200"
+                        :value="leadIntake?.api_endpoint || ''"
+                    />
+                    <button
+                        type="button"
+                        class="rounded-sm border border-stone-200 bg-white px-3 py-2 text-xs font-semibold text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
+                        @click="copyText(leadIntake?.api_endpoint)"
+                    >
+                        {{ $t('requests.intake.copy') }}
+                    </button>
+                </div>
+                <div v-if="intakeExample" class="mt-3 rounded-sm border border-stone-200 bg-stone-50 p-3 text-[11px] text-stone-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300">
+                    <div class="mb-1 font-semibold text-stone-700 dark:text-neutral-200">{{ $t('requests.intake.example') }}</div>
+                    <pre class="whitespace-pre-wrap">{{ intakeExample }}</pre>
+                </div>
+                <div v-if="intakeCopied" class="mt-2 text-xs text-emerald-600 dark:text-emerald-400">
+                    {{ $t('requests.intake.copied') }}
+                </div>
+            </div>
+        </div>
+    </Modal>
+
+    <Modal :title="$t('requests.import.title')" :id="importModalId">
+        <div class="space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-stone-700 dark:text-neutral-300">
+                    {{ $t('requests.import.csv_file') }}
+                </label>
+                <input
+                    type="file"
+                    accept=".csv,text/csv"
+                    class="mt-2 block w-full text-sm text-stone-700 dark:text-neutral-200"
+                    @change="setImportFile"
+                />
+                <InputError class="mt-1" :message="importForm.errors.file" />
+            </div>
+
+            <div v-if="importHeaders.length">
+                <div class="text-xs text-stone-500 dark:text-neutral-400">
+                    {{ $t('requests.import.mapping_hint') }}
+                </div>
+                <div class="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div v-for="field in importFields" :key="field.key">
+                        <FloatingSelect
+                            v-model="importMapping[field.key]"
+                            :label="field.label"
+                            :options="headerOptions"
+                            dense
+                        />
+                    </div>
+                </div>
+            </div>
+            <div v-else class="text-xs text-stone-500 dark:text-neutral-400">
+                {{ $t('requests.import.missing_headers') }}
+            </div>
+
+            <div class="flex justify-end gap-2">
+                <button
+                    type="button"
+                    class="py-2 px-3 inline-flex items-center text-sm font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200"
+                    :data-hs-overlay="`#${importModalId}`"
+                    @click="resetImport"
+                >
+                    {{ $t('requests.actions.cancel') }}
+                </button>
+                <button
+                    type="button"
+                    class="py-2 px-3 inline-flex items-center text-sm font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50"
+                    :disabled="importForm.processing || !importForm.file"
+                    @click="submitImport"
+                >
+                    {{ $t('requests.import.submit') }}
+                </button>
+            </div>
+        </div>
+    </Modal>
 
     <Modal :title="$t('requests.convert.title')" :id="convertModalId">
         <div class="space-y-4">

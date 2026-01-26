@@ -51,6 +51,7 @@ use App\Http\Controllers\Api\SuperAdmin\PlatformSettingsController as SuperAdmin
 use App\Http\Controllers\Api\SuperAdmin\SupportController as SuperAdminSupportController;
 use App\Http\Controllers\Api\SuperAdmin\TenantController as SuperAdminTenantController;
 use App\Http\Controllers\Api\Integration\InventoryController as IntegrationInventoryController;
+use App\Http\Controllers\Api\Integration\RequestController as IntegrationRequestController;
 use App\Http\Middleware\EnsureClientUser;
 use App\Http\Middleware\EnsureInternalUser;
 use App\Http\Middleware\EnsureNotSuspended;
@@ -149,6 +150,7 @@ Route::name('api.')->group(function () {
                 Route::post('requests', [RequestController::class, 'store']);
                 Route::get('requests/{lead}', [RequestController::class, 'show']);
                 Route::put('requests/{lead}', [RequestController::class, 'update']);
+                Route::post('requests/{lead}/merge', [RequestController::class, 'merge']);
                 Route::post('requests/{lead}/convert', [RequestController::class, 'convert'])
                     ->middleware('company.feature:quotes');
                 Route::post('requests/{lead}/notes', [RequestNoteController::class, 'store']);
@@ -204,6 +206,8 @@ Route::name('api.')->group(function () {
                 Route::get('movements', [IntegrationInventoryController::class, 'movements']);
                 Route::get('alerts', [IntegrationInventoryController::class, 'alerts']);
                 Route::post('products/{product}/adjust', [IntegrationInventoryController::class, 'adjust']);
+                Route::post('requests', [IntegrationRequestController::class, 'store'])
+                    ->name('integrations.requests.store');
             });
 
             Route::middleware('company.feature:services')->group(function () {

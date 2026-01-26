@@ -4,6 +4,7 @@ import draggable from 'vuedraggable';
 import { Link, router } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
 import { humanizeDate } from '@/utils/date';
+import { buildLeadScore, badgeClass } from '@/utils/leadScore';
 
 const props = defineProps({
     requests: {
@@ -187,6 +188,8 @@ const handleBoardChange = (status, event) => {
 };
 
 const canOpenCard = () => !(dragInProgress.value || Date.now() - lastDragAt.value < 200);
+
+const scoreInfo = (lead) => buildLeadScore(lead, t);
 </script>
 
 <template>
@@ -237,6 +240,20 @@ const canOpenCard = () => !(dragInProgress.value || Date.now() - lastDragAt.valu
 
                             <div class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
                                 {{ displayCustomer(element) }}
+                            </div>
+
+                            <div class="mt-2 flex flex-wrap items-center gap-1.5">
+                                <span class="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium bg-stone-100 text-stone-700 dark:bg-neutral-700 dark:text-neutral-200">
+                                    {{ $t('requests.badges.score') }} {{ scoreInfo(element).score }}
+                                </span>
+                                <span
+                                    v-for="badge in scoreInfo(element).badges"
+                                    :key="badge.key + badge.label + element.id"
+                                    class="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium"
+                                    :class="badgeClass(badge.tone)"
+                                >
+                                    {{ badge.label }}
+                                </span>
                             </div>
 
                             <div class="mt-3 flex flex-col gap-2 text-xs text-stone-500 dark:text-neutral-400">

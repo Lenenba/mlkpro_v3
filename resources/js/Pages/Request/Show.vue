@@ -8,6 +8,7 @@ import FloatingTextarea from '@/Components/FloatingTextarea.vue';
 import InputError from '@/Components/InputError.vue';
 import { humanizeDate } from '@/utils/date';
 import { formatBytes } from '@/utils/media';
+import { buildLeadScore, badgeClass } from '@/utils/leadScore';
 import { useI18n } from 'vue-i18n';
 
 const props = defineProps({
@@ -24,6 +25,10 @@ const props = defineProps({
         default: () => [],
     },
     assignees: {
+        type: Array,
+        default: () => [],
+    },
+    duplicates: {
         type: Array,
         default: () => [],
     },
@@ -271,6 +276,83 @@ const assigneeOptions = computed(() =>
 
 const mediaLabel = (media) => media?.original_name || media?.path || t('requests.media.file');
 const isImage = (media) => media?.mime && media.mime.startsWith('image/');
+
+const scoreData = computed(() => buildLeadScore(props.lead, t));
+
+const sourceOptions = computed(() => ([
+    { id: 'manual', name: t('requests.sources.manual') },
+    { id: 'web_form', name: t('requests.sources.web_form') },
+    { id: 'phone', name: t('requests.sources.phone') },
+    { id: 'email', name: t('requests.sources.email') },
+    { id: 'whatsapp', name: t('requests.sources.whatsapp') },
+    { id: 'sms', name: t('requests.sources.sms') },
+    { id: 'qr', name: t('requests.sources.qr') },
+    { id: 'portal', name: t('requests.sources.portal') },
+    { id: 'api', name: t('requests.sources.api') },
+    { id: 'import', name: t('requests.sources.import') },
+    { id: 'referral', name: t('requests.sources.referral') },
+    { id: 'ads', name: t('requests.sources.ads') },
+    { id: 'other', name: t('requests.sources.other') },
+]));
+
+const urgencyOptions = computed(() => ([
+    { id: 'urgent', name: t('requests.urgency.urgent') },
+    { id: 'high', name: t('requests.urgency.high') },
+    { id: 'medium', name: t('requests.urgency.medium') },
+    { id: 'low', name: t('requests.urgency.low') },
+]));
+
+const serviceableOptions = computed(() => ([
+    { id: '', name: t('requests.quality.unknown') },
+    { id: '1', name: t('requests.quality.serviceable') },
+    { id: '0', name: t('requests.quality.not_serviceable') },
+]));
+
+const budgetValue = computed(() => {
+    const meta = props.lead?.meta || {};
+    return meta.budget ?? '';
+});
+
+const qualityForm = useForm({
+    channel: props.lead?.channel || 'manual',
+    urgency: props.lead?.urgency || '',
+    is_serviceable: props.lead?.is_serviceable === null || props.lead?.is_serviceable === undefined
+        ? ''
+        : (props.lead?.is_serviceable ? '1' : '0'),
+    budget: budgetValue.value,
+});
+
+const submitQuality = () => {
+    if (qualityForm.processing) {
+        return;
+    }
+
+    qualityForm.transform((data) => ({
+        channel: data.channel || null,
+        urgency: data.urgency || null,
+        is_serviceable: data.is_serviceable === '' ? null : data.is_serviceable === '1',
+        meta: {
+            ...(props.lead?.meta || {}),
+            budget: data.budget === '' ? null : Number(data.budget),
+        },
+    })).put(route('request.update', props.lead.id), {
+        preserveScroll: true,
+    });
+};
+
+const mergeDuplicate = (duplicate) => {
+    if (!duplicate?.id) {
+        return;
+    }
+    if (!confirm(t('requests.duplicates.merge_confirm'))) {
+        return;
+    }
+    router.post(route('request.merge', props.lead.id), {
+        source_id: duplicate.id,
+    }, {
+        preserveScroll: true,
+    });
+};
 </script>
 
 <template>
@@ -285,6 +367,19 @@ const isImage = (media) => media?.mime && media.mime.startsWith('image/');
                         </h1>
                         <span class="inline-flex items-center rounded-sm px-2 py-0.5 text-xs font-medium" :class="statusClass(lead.status)">
                             {{ statusLabel(lead.status) }}
+                        </span>
+                        <span class="inline-flex items-center rounded-sm px-2 py-0.5 text-xs font-medium bg-stone-100 text-stone-700 dark:bg-neutral-700 dark:text-neutral-200">
+                            {{ $t('requests.badges.score') }}: {{ scoreData.score }}
+                        </span>
+                    </div>
+                    <div class="mt-2 flex flex-wrap gap-2">
+                        <span
+                            v-for="badge in scoreData.badges"
+                            :key="badge.key + badge.label"
+                            class="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium"
+                            :class="badgeClass(badge.tone)"
+                        >
+                            {{ badge.label }}
                         </span>
                     </div>
                     <p class="mt-1 text-sm text-stone-500 dark:text-neutral-400">
@@ -615,6 +710,47 @@ const isImage = (media) => media?.mime && media.mime.startsWith('image/');
 
                     <section class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
                         <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                            {{ $t('requests.quality.title') }}
+                        </h2>
+                        <form class="mt-3 space-y-3" @submit.prevent="submitQuality">
+                            <FloatingSelect
+                                v-model="qualityForm.channel"
+                                :label="$t('requests.quality.source')"
+                                :options="sourceOptions"
+                                :placeholder="$t('requests.quality.source_placeholder')"
+                            />
+                            <FloatingSelect
+                                v-model="qualityForm.urgency"
+                                :label="$t('requests.quality.urgency')"
+                                :options="urgencyOptions"
+                                :placeholder="$t('requests.quality.urgency_placeholder')"
+                            />
+                            <FloatingSelect
+                                v-model="qualityForm.is_serviceable"
+                                :label="$t('requests.quality.serviceable_label')"
+                                :options="serviceableOptions"
+                                :placeholder="$t('requests.quality.serviceable_placeholder')"
+                            />
+                            <FloatingInput
+                                v-model="qualityForm.budget"
+                                type="number"
+                                step="0.01"
+                                :label="$t('requests.quality.budget')"
+                            />
+                            <div class="flex justify-end">
+                                <button
+                                    type="submit"
+                                    class="inline-flex items-center rounded-sm border border-transparent bg-emerald-600 px-3 py-2 text-xs font-medium text-white hover:bg-emerald-700"
+                                    :disabled="qualityForm.processing"
+                                >
+                                    {{ $t('requests.quality.save') }}
+                                </button>
+                            </div>
+                        </form>
+                    </section>
+
+                    <section class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                        <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
                             {{ $t('requests.show.contact') }}
                         </h2>
                         <div class="mt-3 space-y-3 text-sm text-stone-600 dark:text-neutral-300">
@@ -650,6 +786,35 @@ const isImage = (media) => media?.mime && media.mime.startsWith('image/');
                                 >
                                     {{ $t('requests.show.whatsapp') }}
                                 </a>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section v-if="duplicates?.length" class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                        <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                            {{ $t('requests.duplicates.title') }}
+                        </h2>
+                        <div class="mt-3 space-y-2 text-sm text-stone-600 dark:text-neutral-300">
+                            <div
+                                v-for="duplicate in duplicates"
+                                :key="duplicate.id"
+                                class="flex flex-wrap items-center justify-between gap-2 rounded-sm border border-stone-200 bg-stone-50 p-3 dark:border-neutral-700 dark:bg-neutral-800"
+                            >
+                                <div>
+                                    <Link :href="route('request.show', duplicate.id)" class="text-sm font-semibold text-stone-800 hover:text-emerald-600 dark:text-neutral-200">
+                                        {{ duplicate.title || duplicate.service_type || $t('requests.labels.request_number', { id: duplicate.id }) }}
+                                    </Link>
+                                    <div class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
+                                        {{ statusLabel(duplicate.status) }} · {{ formatDate(duplicate.created_at) }}
+                                    </div>
+                                </div>
+                                <button
+                                    type="button"
+                                    class="inline-flex items-center rounded-sm border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-700 hover:bg-emerald-100 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300"
+                                    @click="mergeDuplicate(duplicate)"
+                                >
+                                    {{ $t('requests.duplicates.merge') }}
+                                </button>
                             </div>
                         </div>
                     </section>

@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useForm } from '@inertiajs/vue3';
 import FloatingInput from '@/Components/FloatingInput.vue';
+import FloatingSelect from '@/Components/FloatingSelect.vue';
 import FloatingTextarea from '@/Components/FloatingTextarea.vue';
 import InputError from '@/Components/InputError.vue';
 import CustomerQuickForm from '@/Components/QuickCreate/CustomerQuickForm.vue';
@@ -26,6 +27,35 @@ const emit = defineEmits(['customer-created']);
 
 const { t } = useI18n();
 
+const sourceOptions = computed(() => ([
+    { id: 'manual', name: t('requests.sources.manual') },
+    { id: 'web_form', name: t('requests.sources.web_form') },
+    { id: 'phone', name: t('requests.sources.phone') },
+    { id: 'email', name: t('requests.sources.email') },
+    { id: 'whatsapp', name: t('requests.sources.whatsapp') },
+    { id: 'sms', name: t('requests.sources.sms') },
+    { id: 'qr', name: t('requests.sources.qr') },
+    { id: 'portal', name: t('requests.sources.portal') },
+    { id: 'api', name: t('requests.sources.api') },
+    { id: 'import', name: t('requests.sources.import') },
+    { id: 'referral', name: t('requests.sources.referral') },
+    { id: 'ads', name: t('requests.sources.ads') },
+    { id: 'other', name: t('requests.sources.other') },
+]));
+
+const urgencyOptions = computed(() => ([
+    { id: 'urgent', name: t('requests.urgency.urgent') },
+    { id: 'high', name: t('requests.urgency.high') },
+    { id: 'medium', name: t('requests.urgency.medium') },
+    { id: 'low', name: t('requests.urgency.low') },
+]));
+
+const serviceableOptions = computed(() => ([
+    { id: '', name: t('requests.quality.unknown') },
+    { id: '1', name: t('requests.quality.serviceable') },
+    { id: '0', name: t('requests.quality.not_serviceable') },
+]));
+
 const mode = ref('existing');
 const searchQuery = ref('');
 
@@ -34,6 +64,8 @@ const form = useForm({
     channel: 'manual',
     service_type: '',
     urgency: '',
+    is_serviceable: '',
+    budget: '',
     title: '',
     description: '',
     contact_name: '',
@@ -152,6 +184,8 @@ const applyPrefill = (customerId) => {
     searchQuery.value = '';
     form.reset();
     form.channel = 'manual';
+    form.is_serviceable = '';
+    form.budget = '';
     form.customer_id = customerId ? String(customerId) : '';
 };
 
@@ -196,11 +230,20 @@ const submit = () => {
     }
 
     form.post(route('request.store'), {
+        transform: (data) => ({
+            ...data,
+            is_serviceable: data.is_serviceable === '' ? null : data.is_serviceable === '1',
+            meta: {
+                budget: data.budget === '' ? null : Number(data.budget),
+            },
+        }),
         preserveScroll: true,
         onSuccess: () => {
             closeOverlay();
             form.reset();
             form.channel = 'manual';
+            form.is_serviceable = '';
+            form.budget = '';
         },
     });
 };
@@ -361,8 +404,40 @@ const submit = () => {
                     <InputError class="mt-1" :message="form.errors.service_type" />
                 </div>
                 <div>
-                    <FloatingInput v-model="form.urgency" :label="$t('requests.quick_form.urgency_optional')" />
+                    <FloatingSelect
+                        v-model="form.channel"
+                        :label="$t('requests.quick_form.source')"
+                        :options="sourceOptions"
+                        :placeholder="$t('requests.quick_form.source_placeholder')"
+                    />
+                    <InputError class="mt-1" :message="form.errors.channel" />
+                </div>
+                <div>
+                    <FloatingSelect
+                        v-model="form.urgency"
+                        :label="$t('requests.quick_form.urgency_optional')"
+                        :options="urgencyOptions"
+                        :placeholder="$t('requests.quick_form.urgency_placeholder')"
+                    />
                     <InputError class="mt-1" :message="form.errors.urgency" />
+                </div>
+                <div>
+                    <FloatingSelect
+                        v-model="form.is_serviceable"
+                        :label="$t('requests.quick_form.serviceable_optional')"
+                        :options="serviceableOptions"
+                        :placeholder="$t('requests.quick_form.serviceable_placeholder')"
+                    />
+                    <InputError class="mt-1" :message="form.errors.is_serviceable" />
+                </div>
+                <div>
+                    <FloatingInput
+                        v-model="form.budget"
+                        type="number"
+                        step="0.01"
+                        :label="$t('requests.quick_form.budget_optional')"
+                    />
+                    <InputError class="mt-1" :message="form.errors.budget" />
                 </div>
                 <div>
                     <FloatingInput v-model="form.contact_name" :label="$t('requests.quick_form.contact_name_optional')" />
