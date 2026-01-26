@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 use Laravel\Paddle\Cashier;
 use Laravel\Paddle\Subscription;
+use Stripe\Exception\ApiErrorException;
 
 class BillingSettingsController extends Controller
 {
@@ -401,12 +402,28 @@ class BillingSettingsController extends Controller
 
         try {
             $url = $connectService->createOnboardingLink($user, $refreshUrl, $returnUrl);
+        } catch (ApiErrorException $exception) {
+            $stripeError = $exception->getError();
+            Log::warning('Stripe Connect onboarding failed (Stripe API).', [
+                'user_id' => $user->id,
+                'stripe_request_id' => $exception->getRequestId(),
+                'stripe_error_type' => $stripeError?->type,
+                'stripe_error_code' => $stripeError?->code,
+                'stripe_error_message' => $stripeError?->message,
+            ]);
+
+            return response()->json([
+                'message' => $stripeError?->message ?: 'Unable to start Stripe Connect onboarding.',
+                'request_id' => $exception->getRequestId(),
+            ], 422);
         } catch (\Throwable $exception) {
             Log::warning('Unable to start Stripe Connect onboarding.', [
                 'user_id' => $user->id,
                 'exception' => $exception->getMessage(),
             ]);
-            $url = null;
+            return response()->json([
+                'message' => $exception->getMessage() ?: 'Unable to start Stripe Connect onboarding.',
+            ], 422);
         }
 
         if (!$url) {
