@@ -3,6 +3,7 @@ import { computed } from 'vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
+import FloatingSelect from '@/Components/FloatingSelect.vue';
 import InputError from '@/Components/InputError.vue';
 import Checkbox from '@/Components/Checkbox.vue';
 
@@ -23,6 +24,14 @@ const props = defineProps({
         type: Object,
         default: () => ({ items: [], overrides: {} }),
     },
+    plans: {
+        type: Array,
+        default: () => [],
+    },
+    billing: {
+        type: Object,
+        default: () => ({ provider: 'stripe', ready: false }),
+    },
 });
 
 const page = usePage();
@@ -30,6 +39,23 @@ const isSuperadmin = computed(() => Boolean(page.props.auth?.account?.is_superad
 const platformPermissions = computed(() => page.props.auth?.account?.platform?.permissions || []);
 const canManage = computed(() => isSuperadmin.value || platformPermissions.value.includes('tenants.manage'));
 const canImpersonate = computed(() => isSuperadmin.value || platformPermissions.value.includes('support.impersonate'));
+const billingProvider = computed(() => props.billing?.provider ?? 'stripe');
+const billingReady = computed(() => Boolean(props.billing?.ready));
+const isStripeProvider = computed(() => billingProvider.value === 'stripe');
+const planOptions = computed(() =>
+    (props.plans || [])
+        .filter((plan) => Boolean(plan?.price_id))
+        .map((plan) => ({
+            value: String(plan.price_id),
+            label: plan.name,
+        }))
+);
+const defaultPlanId = computed(() => {
+    if (props.tenant?.subscription?.price_id) {
+        return String(props.tenant.subscription.price_id);
+    }
+    return '';
+});
 
 const suspendForm = useForm({
     reason: '',
@@ -47,6 +73,11 @@ const limitsForm = useForm({
         acc[item.key] = item.override ?? '';
         return acc;
     }, {}) || {},
+});
+
+const planForm = useForm({
+    price_id: defaultPlanId.value,
+    comped: props.tenant?.subscription?.is_comped ?? true,
 });
 
 const suspendTenant = () => {
@@ -84,6 +115,13 @@ const updateLimits = () => {
         return;
     }
     limitsForm.put(route('superadmin.tenants.limits.update', props.tenant.id), { preserveScroll: true });
+};
+
+const updatePlan = () => {
+    if (!canManage.value) {
+        return;
+    }
+    planForm.put(route('superadmin.tenants.plan.update', props.tenant.id), { preserveScroll: true });
 };
 
 const impersonate = () => {
@@ -180,6 +218,9 @@ const impersonate = () => {
                         <div>
                             {{ $t('super_admin.tenants.detail.subscription_status') }}: {{ tenant.subscription.status }}
                         </div>
+                        <div v-if="tenant.subscription.is_comped" class="mt-1 text-xs font-semibold text-emerald-600">
+                            {{ $t('super_admin.tenants.detail.comped_badge') }}
+                        </div>
                     </div>
                 </div>
 
@@ -257,6 +298,45 @@ const impersonate = () => {
                     </div>
                 </div>
             </div>
+
+            <section class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-800">
+                <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                    {{ $t('super_admin.tenants.detail.plan_management') }}
+                </h2>
+                <div v-if="!canManage" class="mt-3 text-sm text-stone-500 dark:text-neutral-400">
+                    {{ $t('super_admin.tenants.detail.no_manage_permission') }}
+                </div>
+                <div v-else-if="!isStripeProvider || !billingReady" class="mt-3 text-sm text-stone-500 dark:text-neutral-400">
+                    {{ $t('super_admin.tenants.detail.plan_unavailable') }}
+                </div>
+                <div v-else-if="!planOptions.length" class="mt-3 text-sm text-stone-500 dark:text-neutral-400">
+                    {{ $t('super_admin.tenants.detail.plan_no_plans') }}
+                </div>
+                <form v-else class="mt-3 space-y-3" @submit.prevent="updatePlan">
+                    <div class="grid gap-3 md:grid-cols-2">
+                        <FloatingSelect
+                            v-model="planForm.price_id"
+                            :label="$t('super_admin.tenants.detail.plan_select')"
+                            :options="planOptions"
+                            required
+                        />
+                        <label class="flex items-center gap-2 text-sm text-stone-700 dark:text-neutral-200">
+                            <Checkbox v-model:checked="planForm.comped" />
+                            <span>{{ $t('super_admin.tenants.detail.plan_comped_label') }}</span>
+                        </label>
+                    </div>
+                    <p class="text-xs text-stone-500 dark:text-neutral-400">
+                        {{ $t('super_admin.tenants.detail.plan_comped_help') }}
+                    </p>
+                    <InputError class="mt-1" :message="planForm.errors.price_id" />
+                    <InputError class="mt-1" :message="planForm.errors.comped" />
+                    <button type="submit"
+                        class="mt-2 py-2 px-3 text-sm font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-60"
+                        :disabled="planForm.processing">
+                        {{ $t('super_admin.tenants.detail.plan_update') }}
+                    </button>
+                </form>
+            </section>
 
             <div class="grid gap-3 lg:grid-cols-2">
                 <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-800">

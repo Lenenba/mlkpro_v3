@@ -218,6 +218,8 @@ const pageTitle = computed(() => props.product.name || t('products.single'));
                         :src="product.image_url || product.image"
                         :alt="product.name || t('products.single')"
                         class="h-16 w-16 rounded-sm border border-stone-200 object-cover dark:border-neutral-700"
+                        loading="lazy"
+                        decoding="async"
                     />
                     <div>
                         <h1 class="text-xl font-semibold text-stone-800 dark:text-neutral-100">
@@ -468,6 +470,8 @@ const pageTitle = computed(() => props.product.name || t('products.single'));
                                 :src="image"
                                 :alt="$t('products.labels.product_image_alt')"
                                 class="h-20 w-full rounded-sm border border-stone-200 object-cover dark:border-neutral-700"
+                                loading="lazy"
+                                decoding="async"
                             />
                         </div>
                     </Card>

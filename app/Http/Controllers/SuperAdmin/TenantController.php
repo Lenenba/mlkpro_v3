@@ -14,12 +14,15 @@ use App\Models\Task;
 use App\Models\TeamMember;
 use App\Models\User;
 use App\Models\Work;
+use App\Services\BillingSubscriptionService;
+use App\Services\StripeBillingService;
 use App\Support\PlatformPermissions;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -68,16 +71,9 @@ class TenantController extends BaseSuperAdminController
         $query->when($filters['created_to'] ?? null, function ($builder, $to) {
             $builder->whereDate('created_at', '<=', $to);
         });
-
-        $query->when($filters['plan'] ?? null, function ($builder, $plan) {
-            $userIds = DB::table('paddle_subscriptions')
-                ->join('paddle_subscription_items', 'paddle_subscription_items.subscription_id', '=', 'paddle_subscriptions.id')
-                ->where('paddle_subscriptions.billable_type', User::class)
-                ->where('paddle_subscription_items.price_id', $plan)
-                ->distinct()
-                ->pluck('paddle_subscriptions.billable_id');
-            $builder->whereIn('id', $userIds);
-        });
+        if (!empty($filters['plan'])) {
+            $this->applyPlanFilter($query, (string) $filters['plan']);
+        }
 
         $recentThreshold = now()->subDays(30);
         $totalCount = (clone $query)->count();
@@ -108,6 +104,7 @@ class TenantController extends BaseSuperAdminController
                     'status' => $subscription?->status ?? 'free',
                     'price_id' => $subscription?->price_id,
                     'plan_name' => $planName,
+                    'is_comped' => (bool) ($subscription?->is_comped ?? false),
                 ] : null,
             ];
         });
@@ -132,6 +129,7 @@ class TenantController extends BaseSuperAdminController
 
         $this->ensureOwner($tenant);
 
+        $billingService = app(BillingSubscriptionService::class);
         $subscription = $this->subscriptionMap(collect([$tenant->id]))[$tenant->id] ?? null;
         $planKey = $this->resolvePlanKey($subscription?->price_id);
         $planName = $planKey ? (config('billing.plans.' . $planKey . '.name') ?? $planKey) : null;
@@ -176,11 +174,17 @@ class TenantController extends BaseSuperAdminController
                     'plan_name' => $planName,
                     'trial_ends_at' => $subscription?->trial_ends_at ?? null,
                     'ends_at' => $subscription?->ends_at ?? null,
+                    'is_comped' => (bool) ($subscription?->is_comped ?? false),
                 ] : null,
             ],
             'stats' => $stats,
             'feature_flags' => $featureFlags,
             'usage_limits' => $usageLimits,
+            'plans' => array_values($this->planMap()),
+            'billing' => [
+                'provider' => $billingService->providerEffective(),
+                'ready' => $billingService->providerReady(),
+            ],
         ]);
     }
 
@@ -296,6 +300,65 @@ class TenantController extends BaseSuperAdminController
         return redirect()->back()->with('success', 'Usage limits updated.');
     }
 
+    public function updatePlan(Request $request, User $tenant): RedirectResponse
+    {
+        $this->authorizePermission($request, PlatformPermissions::TENANTS_MANAGE);
+        $this->ensureOwner($tenant);
+
+        $billingService = app(BillingSubscriptionService::class);
+        if (!$billingService->isStripe()) {
+            return redirect()->back()->with('error', 'Billing provider is not Stripe.');
+        }
+        if (!$billingService->providerReady()) {
+            return redirect()->back()->with('error', 'Stripe is not configured.');
+        }
+
+        $plans = collect(config('billing.plans', []))
+            ->map(fn(array $plan, string $key) => array_merge(['key' => $key], $plan))
+            ->filter(fn(array $plan) => !empty($plan['price_id']))
+            ->values();
+
+        $priceIds = $plans->pluck('price_id')->filter()->values()->all();
+        if (!$priceIds) {
+            return redirect()->back()->withErrors([
+                'price_id' => 'No subscription plans are configured.',
+            ]);
+        }
+
+        $validated = $request->validate([
+            'price_id' => ['required', Rule::in($priceIds)],
+            'comped' => ['sometimes', 'boolean'],
+        ]);
+
+        $plan = $plans->firstWhere('price_id', $validated['price_id']);
+        $planKey = $plan['key'] ?? null;
+        $comped = (bool) ($validated['comped'] ?? false);
+
+        if ($comped && !config('services.stripe.comped_coupon_id')) {
+            return redirect()->back()->withErrors([
+                'comped' => 'Comped coupon is not configured.',
+            ]);
+        }
+
+        try {
+            $updated = app(StripeBillingService::class)
+                ->assignPlan($tenant, $validated['price_id'], $comped, $planKey);
+            if (!$updated) {
+                throw new \RuntimeException('Stripe subscription update failed.');
+            }
+        } catch (\Throwable $exception) {
+            return redirect()->back()->with('error', 'Unable to update plan right now.');
+        }
+
+        $this->logAudit($request, 'tenant.plan_updated', $tenant, [
+            'price_id' => $validated['price_id'],
+            'plan_key' => $planKey,
+            'comped' => $comped,
+        ]);
+
+        return redirect()->back()->with('success', 'Plan updated.');
+    }
+
     public function impersonate(Request $request, User $tenant): RedirectResponse
     {
         $this->authorizePermission($request, PlatformPermissions::SUPPORT_IMPERSONATE);
@@ -391,6 +454,26 @@ class TenantController extends BaseSuperAdminController
             return [];
         }
 
+        $billingService = app(BillingSubscriptionService::class);
+        if ($billingService->isStripe()) {
+            $subscriptions = DB::table('stripe_subscriptions')
+                ->whereIn('user_id', $tenantIds->all())
+                ->orderByDesc('updated_at')
+                ->get([
+                    'id',
+                    'user_id',
+                    'status',
+                    'trial_ends_at',
+                    'ends_at',
+                    'price_id',
+                    'is_comped',
+                ])
+                ->groupBy('user_id')
+                ->map(fn ($items) => $items->first());
+
+            return $subscriptions->all();
+        }
+
         $subscriptions = DB::table('paddle_subscriptions')
             ->where('billable_type', User::class)
             ->whereIn('billable_id', $tenantIds->all())
@@ -422,6 +505,94 @@ class TenantController extends BaseSuperAdminController
         });
 
         return $subscriptions->all();
+    }
+
+    private function applyPlanFilter($query, string $planFilter): void
+    {
+        $planFilter = trim($planFilter);
+        if ($planFilter === '') {
+            return;
+        }
+
+        $plans = config('billing.plans', []);
+        $planKey = array_key_exists($planFilter, $plans) ? $planFilter : null;
+        $priceId = $planKey ? ($plans[$planKey]['price_id'] ?? null) : null;
+
+        if (!$planKey) {
+            foreach ($plans as $key => $plan) {
+                if (!empty($plan['price_id']) && $plan['price_id'] === $planFilter) {
+                    $planKey = $key;
+                    $priceId = $planFilter;
+                    break;
+                }
+            }
+        }
+
+        if (!$priceId && !$planKey) {
+            $priceId = $planFilter;
+        }
+
+        $billingService = app(BillingSubscriptionService::class);
+        if ($billingService->isStripe()) {
+            if ($planKey === 'free') {
+                $query->where(function ($builder) use ($priceId) {
+                    $builder->whereNotIn('id', DB::table('stripe_subscriptions')
+                        ->select('user_id'));
+
+                    if ($priceId) {
+                        $builder->orWhereIn('id', DB::table('stripe_subscriptions')
+                            ->select('user_id')
+                            ->where('price_id', $priceId)
+                            ->distinct());
+                    }
+                });
+
+                return;
+            }
+
+            if (!$priceId) {
+                $query->whereRaw('0 = 1');
+                return;
+            }
+
+            $query->whereIn('id', DB::table('stripe_subscriptions')
+                ->select('user_id')
+                ->where('price_id', $priceId)
+                ->distinct());
+
+            return;
+        }
+
+        if ($planKey === 'free') {
+            $query->where(function ($builder) use ($priceId) {
+                $builder->whereNotIn('id', DB::table('paddle_subscriptions')
+                    ->select('billable_id')
+                    ->where('billable_type', User::class));
+
+                if ($priceId) {
+                    $builder->orWhereIn('id', DB::table('paddle_subscriptions')
+                        ->join('paddle_subscription_items', 'paddle_subscription_items.subscription_id', '=', 'paddle_subscriptions.id')
+                        ->select('paddle_subscriptions.billable_id')
+                        ->where('paddle_subscriptions.billable_type', User::class)
+                        ->where('paddle_subscription_items.price_id', $priceId)
+                        ->distinct());
+                }
+            });
+
+            return;
+        }
+
+        if (!$priceId) {
+            $query->whereRaw('0 = 1');
+            return;
+        }
+
+        $query->whereIn('id', DB::table('paddle_subscriptions')
+            ->join('paddle_subscription_items', 'paddle_subscription_items.subscription_id', '=', 'paddle_subscriptions.id')
+            ->select('paddle_subscriptions.billable_id')
+            ->where('paddle_subscriptions.billable_type', User::class)
+            ->where('paddle_subscription_items.price_id', $priceId)
+            ->distinct());
     }
 
     private function planMap(): array

@@ -283,6 +283,8 @@ const paymentTimeline = computed(() => {
                                 :src="company.logo_url"
                                 :alt="company?.name || t('portal_shop.header.logo_alt')"
                                 class="h-full w-full object-cover"
+                                loading="lazy"
+                                decoding="async"
                             >
                             <div v-else class="flex h-full w-full items-center justify-center text-xs font-semibold text-stone-500 dark:text-neutral-400">
                                 {{ companyInitials }}
@@ -392,6 +394,8 @@ const paymentTimeline = computed(() => {
                                                     :src="productImage(item)"
                                                     :alt="item.product?.name || item.description"
                                                     class="h-full w-full object-cover"
+                                                    loading="lazy"
+                                                    decoding="async"
                                                 >
                                                 <div v-else class="flex h-full w-full items-center justify-center">
                                                     {{ productFallback(item) }}
@@ -545,6 +549,8 @@ const paymentTimeline = computed(() => {
                             :src="order.delivery_proof_url"
                             :alt="t('portal_shop.status.delivery_photo_alt')"
                             class="mt-2 h-40 w-full rounded-sm border border-stone-200 object-cover dark:border-neutral-700"
+                            loading="lazy"
+                            decoding="async"
                         >
                     </div>
 

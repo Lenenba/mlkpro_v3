@@ -62,6 +62,7 @@ return [
         'ai_usage_unit_size' => env('STRIPE_AI_USAGE_UNIT_SIZE', 1),
         'ai_credit_price' => env('STRIPE_AI_CREDIT_PRICE'),
         'ai_credit_pack' => env('STRIPE_AI_CREDIT_PACK', 100),
+        'comped_coupon_id' => env('STRIPE_COMPED_COUPON_ID'),
     ],
 
     'serpapi' => [

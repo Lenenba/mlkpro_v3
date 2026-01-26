@@ -15,6 +15,8 @@ class StripeSubscription extends Model
         'stripe_id',
         'stripe_customer_id',
         'price_id',
+        'is_comped',
+        'comped_coupon_id',
         'assistant_price_id',
         'assistant_item_id',
         'assistant_enabled_at',
@@ -25,6 +27,7 @@ class StripeSubscription extends Model
     ];
 
     protected $casts = [
+        'is_comped' => 'boolean',
         'trial_ends_at' => 'datetime',
         'ends_at' => 'datetime',
         'current_period_end' => 'datetime',

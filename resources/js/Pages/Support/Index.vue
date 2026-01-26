@@ -82,6 +82,7 @@ const selectedTicket = ref(null);
 
 const applyFilters = () => {
     filterForm.get(route('settings.support.index'), {
+        only: ['tickets', 'filters', 'stats'],
         preserveScroll: true,
         preserveState: true,
     });
@@ -89,7 +90,10 @@ const applyFilters = () => {
 
 const resetFilters = () => {
     filterForm.reset();
-    filterForm.get(route('settings.support.index'));
+    filterForm.get(route('settings.support.index'), {
+        only: ['tickets', 'filters', 'stats'],
+        preserveScroll: true,
+    });
 };
 
 const createForm = useForm({

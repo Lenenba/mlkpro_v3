@@ -405,6 +405,7 @@ require __DIR__ . '/auth.php';
             Route::post('/tenants/{tenant}/reset-onboarding', [SuperAdminTenantController::class, 'resetOnboarding'])->name('tenants.reset-onboarding');
             Route::put('/tenants/{tenant}/features', [SuperAdminTenantController::class, 'updateFeatures'])->name('tenants.features.update');
             Route::put('/tenants/{tenant}/limits', [SuperAdminTenantController::class, 'updateLimits'])->name('tenants.limits.update');
+            Route::put('/tenants/{tenant}/plan', [SuperAdminTenantController::class, 'updatePlan'])->name('tenants.plan.update');
             Route::post('/tenants/{tenant}/impersonate', [SuperAdminTenantController::class, 'impersonate'])->name('tenants.impersonate');
             Route::get('/tenants/{tenant}/export', [SuperAdminTenantController::class, 'export'])->name('tenants.export');
 

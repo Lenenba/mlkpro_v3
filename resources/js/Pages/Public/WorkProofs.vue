@@ -151,6 +151,8 @@ const proofType = (type) => {
                         :src="company.logo_url"
                         :alt="company?.name || $t('work_proofs.company_fallback')"
                         class="h-10 w-10 rounded-sm border border-stone-200 object-cover"
+                        loading="lazy"
+                        decoding="async"
                     />
                     <div>
                         <div class="text-xs uppercase tracking-wide text-stone-500">{{ $t('work_proofs.title') }}</div>
@@ -233,7 +235,9 @@ const proofType = (type) => {
                             <img v-if="media.media_type !== 'video'"
                                 :src="media.url"
                                 :alt="media.note || $t('work_proofs.labels.proof')"
-                                class="h-40 w-full rounded-sm border border-stone-200 object-cover" />
+                                class="h-40 w-full rounded-sm border border-stone-200 object-cover"
+                                loading="lazy"
+                                decoding="async" />
                             <video v-else controls class="h-40 w-full rounded-sm border border-stone-200">
                                 <source :src="media.url" />
                             </video>

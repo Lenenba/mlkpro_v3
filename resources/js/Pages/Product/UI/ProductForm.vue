@@ -631,6 +631,8 @@ const buttonLabel = computed(() => (props.product
                                             :src="source.image_url"
                                             :alt="source.title || source.name"
                                             class="h-10 w-10 rounded-sm border border-stone-200 object-cover dark:border-neutral-700"
+                                            loading="lazy"
+                                            decoding="async"
                                         />
                                         <div>
                                             <div class="font-semibold text-stone-700 dark:text-neutral-200">

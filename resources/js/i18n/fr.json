@@ -615,6 +615,14 @@
         "subscription": "Abonnement",
         "plan_label": "Plan",
         "subscription_status": "Statut",
+        "comped_badge": "Compense (remise 100%)",
+        "plan_management": "Gestion du forfait",
+        "plan_select": "Forfait",
+        "plan_comped_label": "Compense (reduction 100%)",
+        "plan_comped_help": "Stripe voit un forfait payant actif, mais aucun montant n'est facture.",
+        "plan_update": "Mettre a jour le forfait",
+        "plan_unavailable": "La mise a jour des forfaits n'est disponible que si Stripe est configure.",
+        "plan_no_plans": "Aucun forfait payant n'est configure.",
         "usage": "Usage",
         "usage_customers": "Clients",
         "usage_quotes": "Devis",
@@ -2316,25 +2324,25 @@
     "filters": {
       "search_placeholder": "Rechercher produits, SKU ou code-barres",
       "stock": {
-        "all": "Tout stock"
+        "all": "Tout le stock"
       },
       "alerts": {
-        "all": "Toutes alertes",
+        "all": "Toutes les alertes",
         "label": "Alertes"
       },
       "tracking": {
-        "all": "Tout suivi"
+        "all": "Tout le suivi"
       },
       "warehouse": {
-        "all": "Tous entrepots",
-        "default": "Defaut"
+        "all": "Tous les entrepôts",
+        "default": "Défaut"
       },
       "status": {
-        "all": "Tous statuts"
+        "all": "Tous les statuts"
       },
       "media": {
-        "all": "Tous medias",
-        "label": "Medias",
+        "all": "Tous les médias",
+        "label": "Médias",
         "with_image": "Avec image",
         "without_image": "Sans image"
       },
@@ -2349,8 +2357,8 @@
         "with": "Avec code-barres",
         "without": "Sans code-barres"
       },
-      "created_from": "Cree a partir de",
-      "created_to": "Cree jusqu'a"
+      "created_from": "Créé à partir de",
+      "created_to": "Créé jusqu'à"
     },
     "actions": {
       "filters": "Filtres",

@@ -218,6 +218,8 @@ const kpiTone = {
                             :src="product.image_url"
                             :alt="product.name"
                             class="h-12 w-12 rounded-sm border border-stone-200 object-cover dark:border-neutral-700"
+                            loading="lazy"
+                            decoding="async"
                         />
                         <div class="flex-1">
                             <p class="text-sm font-semibold text-stone-800 dark:text-neutral-200">{{ product.name }}</p>

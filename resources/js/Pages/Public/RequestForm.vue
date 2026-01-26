@@ -62,7 +62,7 @@ const submit = () => {
         <Head :title="$t('requests.form.title')" />
 
         <div class="flex flex-col items-center gap-2 text-center">
-            <img v-if="company.logo_url" :src="company.logo_url" :alt="company.name" class="h-12 w-12 rounded-sm object-contain" />
+            <img v-if="company.logo_url" :src="company.logo_url" :alt="company.name" class="h-12 w-12 rounded-sm object-contain" loading="lazy" decoding="async" />
             <div class="text-sm text-stone-500 dark:text-neutral-400">{{ company.name }}</div>
             <h1 class="text-2xl font-semibold text-stone-800 dark:text-neutral-100">
                 {{ $t('requests.form.title') }}

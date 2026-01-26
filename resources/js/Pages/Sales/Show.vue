@@ -318,6 +318,8 @@ const submitPayment = () => {
                                 :src="companyLogo"
                                 :alt="companyName"
                                 class="h-full w-full object-cover"
+                                loading="lazy"
+                                decoding="async"
                             >
                             <div v-else class="flex h-full w-full items-center justify-center text-xs font-semibold text-stone-500 dark:text-neutral-400">
                                 {{ companyInitials }}
@@ -446,6 +448,8 @@ const submitPayment = () => {
                                                     :src="productImage(item)"
                                                     :alt="item.product?.name || $t('sales.show.product_alt')"
                                                     class="h-full w-full object-cover"
+                                                    loading="lazy"
+                                                    decoding="async"
                                                 >
                                                 <div v-else class="flex h-full w-full items-center justify-center">
                                                     {{ productFallback(item) }}
@@ -736,6 +740,8 @@ const submitPayment = () => {
                                 :src="pickupQrUrl"
                                 :alt="$t('sales.show.pickup_qr_alt', { code: pickupCode })"
                                 class="h-40 w-40 rounded-sm border border-stone-200 bg-white object-contain p-2 dark:border-neutral-700"
+                                loading="lazy"
+                                decoding="async"
                             >
                         </div>
                     </div>
@@ -757,6 +763,8 @@ const submitPayment = () => {
                                 :src="sale.delivery_proof_url"
                                 :alt="$t('sales.show.delivery_proof_title')"
                                 class="h-44 w-full rounded-sm border border-stone-200 object-cover dark:border-neutral-700"
+                                loading="lazy"
+                                decoding="async"
                             >
                         </div>
                     </div>

@@ -117,6 +117,7 @@ const autoFilter = () => {
     filterTimeout = setTimeout(() => {
         isLoading.value = true;
         router.get(route('invoice.index'), filterPayload(), {
+            only: ['invoices', 'filters', 'stats', 'count'],
             preserveState: true,
             preserveScroll: true,
             replace: true,

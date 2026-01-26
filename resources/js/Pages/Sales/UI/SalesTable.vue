@@ -145,6 +145,12 @@ const filterPayload = () => {
     return payload;
 };
 
+const partialReloadKeys = () => (
+    props.routeName === 'orders.index'
+        ? ['orders', 'filters', 'stats']
+        : ['sales', 'filters', 'stats']
+);
+
 let filterTimeout;
 const autoFilter = () => {
     if (filterTimeout) {
@@ -153,6 +159,7 @@ const autoFilter = () => {
     filterTimeout = setTimeout(() => {
         isLoading.value = true;
         router.get(route(props.routeName), filterPayload(), {
+            only: partialReloadKeys(),
             preserveState: true,
             preserveScroll: true,
             replace: true,
@@ -295,6 +302,7 @@ const isUpdating = (sale) => Boolean(updating.value[sale?.id]);
 const refreshTable = () => {
     isLoading.value = true;
     router.get(route(props.routeName), filterPayload(), {
+        only: partialReloadKeys(),
         preserveState: true,
         preserveScroll: true,
         replace: true,

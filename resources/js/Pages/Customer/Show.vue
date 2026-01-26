@@ -507,6 +507,8 @@ const deleteProperty = (property) => {
                                             :src="product.image"
                                             :alt="product.name || $t('customers.details.top_products.product_fallback')"
                                             class="h-full w-full object-cover"
+                                            loading="lazy"
+                                            decoding="async"
                                         />
                                         <span v-else>{{ (product.name || $t('customers.details.top_products.initial_fallback')).charAt(0).toUpperCase() }}</span>
                                     </div>

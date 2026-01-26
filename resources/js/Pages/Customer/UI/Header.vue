@@ -44,7 +44,9 @@ const openRequestModal = () => {
             <div class="flex items-center gap-x-4">
                 <span class="shrink-0 relative size-14">
                     <img :src="customer.logo_url || customer.logo" :alt="customer.company_name"
-                        class="absolute inset-0 object-cover w-full h-full rounded-sm">
+                        class="absolute inset-0 object-cover w-full h-full rounded-sm"
+                        loading="lazy"
+                        decoding="async">
                     <span
                         class="absolute flex shrink-0 justify-center items-center size-6 overflow-hidden -bottom-1 -end-1 bg-white border border-transparent text-stone-800 dark:bg-neutral-700 dark:border-neutral-900 dark:text-neutral-200 rounded-sm">
                         <svg class="shrink-0 size-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24"

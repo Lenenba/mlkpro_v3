@@ -403,6 +403,8 @@ const submit = () => {
                                     :src="product.image_url || product.image"
                                     :alt="product.name"
                                     class="h-14 w-14 rounded-sm border border-stone-200 object-cover dark:border-neutral-700"
+                                    loading="lazy"
+                                    decoding="async"
                                 />
                                 <div class="flex-1 space-y-1">
                                     <div class="flex items-center justify-between gap-2">
@@ -721,6 +723,8 @@ const submit = () => {
                         :src="qrImageUrl"
                         :alt="$t('sales.qr.image_alt')"
                         class="mx-auto h-56 w-56 rounded-sm border border-stone-200 bg-white p-2"
+                        loading="lazy"
+                        decoding="async"
                     />
                     <div v-else class="text-sm text-stone-500 dark:text-neutral-400">
                         {{ $t('sales.qr.loading') }}

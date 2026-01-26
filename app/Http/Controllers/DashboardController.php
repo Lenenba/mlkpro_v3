@@ -24,6 +24,7 @@ use App\Services\StripeSaleService;
 use App\Services\UsageLimitService;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Laravel\Paddle\Cashier;
 
@@ -35,12 +36,30 @@ class DashboardController extends Controller
         if ($user && $user->isSuperadmin()) {
             return redirect()->route('superadmin.dashboard');
         }
+        $cacheEnabled = empty(request()->query());
+        $cacheTtl = now()->addSeconds(30);
+        $fromCache = function (?string $cacheKey) use ($cacheEnabled) {
+            if (!$cacheEnabled || !$cacheKey) {
+                return null;
+            }
+            return Cache::get($cacheKey);
+        };
+        $respond = function (string $component, array $props, ?string $cacheKey = null) use ($cacheEnabled, $cacheTtl) {
+            if ($cacheEnabled && $cacheKey) {
+                Cache::put($cacheKey, ['component' => $component, 'props' => $props], $cacheTtl);
+            }
+            return $this->inertiaOrJson($component, $props);
+        };
         $now = now();
         $today = $now->toDateString();
         if ($user && $user->isClient()) {
             $customer = $user->customerProfile;
             if (!$customer) {
-                return $this->inertiaOrJson('DashboardClient', [
+                $cacheKey = $cacheEnabled ? "dashboard:client-missing:{$user->id}" : null;
+                if ($cached = $fromCache($cacheKey)) {
+                    return $this->inertiaOrJson($cached['component'], $cached['props']);
+                }
+                return $respond('DashboardClient', [
                     'profileMissing' => true,
                     'stats' => [
                         'quotes_pending' => 0,
@@ -64,11 +83,15 @@ class DashboardController extends Controller
                     'stripe' => [
                         'enabled' => app(StripeInvoiceService::class)->isConfigured(),
                     ],
-                ]);
+                ], $cacheKey);
             }
 
             $accountOwner = User::query()->select(['id', 'company_type', 'company_name'])->find($customer->user_id);
             if ($accountOwner?->company_type === 'products') {
+                $cacheKey = $cacheEnabled ? "dashboard:client-products:{$user->id}" : null;
+                if ($cached = $fromCache($cacheKey)) {
+                    return $this->inertiaOrJson($cached['component'], $cached['props']);
+                }
                 $customerId = $customer->id;
                 $salesQuery = Sale::query()
                     ->where('user_id', $accountOwner->id)
@@ -169,7 +192,7 @@ class DashboardController extends Controller
                         'delivery_confirmed_at',
                     ]);
 
-                return $this->inertiaOrJson('DashboardProductsClient', [
+                $props = [
                     'company' => [
                         'name' => $accountOwner->company_name,
                     ],
@@ -181,12 +204,19 @@ class DashboardController extends Controller
                     'stripe' => [
                         'enabled' => app(StripeSaleService::class)->isConfigured(),
                     ],
-                ]);
+                ];
+
+                return $respond('DashboardProductsClient', $props, $cacheKey);
             }
 
             $customerId = $customer->id;
             $autoValidateTasks = (bool) ($customer->auto_validate_tasks ?? false);
             $autoValidateInvoices = (bool) ($customer->auto_validate_invoices ?? false);
+
+            $cacheKey = $cacheEnabled ? "dashboard:client:{$user->id}" : null;
+            if ($cached = $fromCache($cacheKey)) {
+                return $this->inertiaOrJson($cached['component'], $cached['props']);
+            }
 
             $sessionId = request()->query('session_id');
             $invoiceId = request()->query('invoice');
@@ -472,7 +502,7 @@ class DashboardController extends Controller
                 'ratings_due' => $ratingsDueSeries['values'],
             ];
 
-            return $this->inertiaOrJson('DashboardClient', [
+            $props = [
                 'profileMissing' => false,
                 'stats' => $stats,
                 'autoValidation' => [
@@ -492,7 +522,9 @@ class DashboardController extends Controller
                 'stripe' => [
                     'enabled' => app(StripeInvoiceService::class)->isConfigured(),
                 ],
-            ]);
+            ];
+
+            return $respond('DashboardClient', $props, $cacheKey);
         }
 
         $accountId = $user?->accountOwnerId() ?? Auth::id();
@@ -519,6 +551,10 @@ class DashboardController extends Controller
         }
 
         if ($accountOwner?->company_type === 'products') {
+            $cacheKey = $cacheEnabled ? "dashboard:products:{$accountId}:{$user?->id}" : null;
+            if ($cached = $fromCache($cacheKey)) {
+                return $this->inertiaOrJson($cached['component'], $cached['props']);
+            }
             $restrictSales = $membership
                 && !$membership->hasPermission('sales.manage')
                 && $membership->hasPermission('sales.pos');
@@ -623,24 +659,32 @@ class DashboardController extends Controller
             }
 
             if ($membership) {
-                return $this->inertiaOrJson('DashboardProductsTeam', [
+                $props = [
                     'stats' => $stats,
                     'recentSales' => $recentSales,
                     'stockAlerts' => $stockAlerts,
                     'topProducts' => $topProducts,
-                ]);
+                ];
+
+                return $respond('DashboardProductsTeam', $props, $cacheKey);
             }
 
-            return $this->inertiaOrJson('DashboardProductsOwner', [
+            $props = [
                 'stats' => $stats,
                 'recentSales' => $recentSales,
                 'stockAlerts' => $stockAlerts,
                 'topProducts' => $topProducts,
-            ]);
+            ];
+
+            return $respond('DashboardProductsOwner', $props, $cacheKey);
         }
 
         if ($membership) {
             if ($membership->role === 'admin') {
+                $cacheKey = $cacheEnabled ? "dashboard:admin:{$accountId}:{$user->id}" : null;
+                if ($cached = $fromCache($cacheKey)) {
+                    return $this->inertiaOrJson($cached['component'], $cached['props']);
+                }
                 $tasksQuery = Task::query()->forAccount($accountId);
 
                 $stats = [
@@ -753,7 +797,7 @@ class DashboardController extends Controller
                     'tasks_done' => $tasksDoneSeries['values'],
                 ];
 
-                return $this->inertiaOrJson('DashboardAdmin', [
+                $props = [
                     'stats' => $stats,
                     'tasks' => $tasks,
                     'tasksToday' => $tasksToday,
@@ -762,7 +806,14 @@ class DashboardController extends Controller
                     'announcements' => $internalAnnouncements,
                     'quickAnnouncements' => $quickAnnouncements,
                     'kpiSeries' => $kpiSeries,
-                ]);
+                ];
+
+                return $respond('DashboardAdmin', $props, $cacheKey);
+            }
+
+            $cacheKey = $cacheEnabled ? "dashboard:member:{$accountId}:{$user->id}" : null;
+            if ($cached = $fromCache($cacheKey)) {
+                return $this->inertiaOrJson($cached['component'], $cached['props']);
             }
 
             $tasksQuery = Task::query()
@@ -875,7 +926,7 @@ class DashboardController extends Controller
                 'tasks_done' => $tasksDoneSeries['values'],
             ];
 
-            return $this->inertiaOrJson('DashboardMember', [
+            $props = [
                 'stats' => $stats,
                 'tasks' => $tasks,
                 'tasksToday' => $tasksToday,
@@ -884,7 +935,14 @@ class DashboardController extends Controller
                 'announcements' => $internalAnnouncements,
                 'quickAnnouncements' => $quickAnnouncements,
                 'kpiSeries' => $kpiSeries,
-            ]);
+            ];
+
+            return $respond('DashboardMember', $props, $cacheKey);
+        }
+
+        $cacheKey = $cacheEnabled ? "dashboard:owner:{$accountId}:{$user?->id}" : null;
+        if ($cached = $fromCache($cacheKey)) {
+            return $this->inertiaOrJson($cached['component'], $cached['props']);
         }
 
         $userId = $accountId;
@@ -1198,7 +1256,7 @@ class DashboardController extends Controller
             ? app(UsageLimitService::class)->buildForUser($accountOwner)
             : ['items' => []];
 
-        return $this->inertiaOrJson('Dashboard', [
+        $props = [
             'stats' => $stats,
             'recentQuotes' => $recentQuotes,
             'upcomingJobs' => $upcomingJobs,
@@ -1217,7 +1275,9 @@ class DashboardController extends Controller
                 'plans' => $plans,
                 'subscription' => $subscriptionSummary,
             ],
-        ]);
+        ];
+
+        return $respond('Dashboard', $props, $cacheKey);
     }
 
     public function tasksCalendar()

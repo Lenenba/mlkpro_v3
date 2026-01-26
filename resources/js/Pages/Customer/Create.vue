@@ -313,7 +313,7 @@ const selectAddress = (details) => {
                                         class="relative flex items-center justify-center rounded-sm border border-stone-200 bg-white p-2 transition hover:border-green-500 dark:border-neutral-700 dark:bg-neutral-900"
                                         :class="form.logo_icon === icon ? 'ring-2 ring-green-500 border-green-500' : ''"
                                     >
-                                        <img :src="icon" :alt="$t('customers.form.fields.company_icon_alt')" class="size-10" />
+                                        <img :src="icon" :alt="$t('customers.form.fields.company_icon_alt')" class="size-10" loading="lazy" decoding="async" />
                                         <span
                                             v-if="icon === defaultCompanyIcon"
                                             class="absolute top-1 right-1 rounded-full bg-green-600 px-1.5 py-0.5 text-[10px] font-semibold text-white"

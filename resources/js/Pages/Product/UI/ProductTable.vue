@@ -184,6 +184,7 @@ const autoFilter = () => {
     filterTimeout = setTimeout(() => {
         isLoading.value = true;
         router.get(route('product.index'), filterPayload(), {
+            only: ['products', 'filters', 'stats', 'count', 'topProducts'],
             preserveState: true,
             preserveScroll: true,
             replace: true,
@@ -942,7 +943,9 @@ const submitImport = () => {
                     <td class="size-px whitespace-nowrap px-4 py-2">
                         <div class="w-full flex items-center gap-x-3">
                             <img class="shrink-0 size-10 rounded-sm" :src="product.image_url || product.image"
-                                :alt="$t('products.labels.product_image_alt')">
+                                :alt="$t('products.labels.product_image_alt')"
+                                loading="lazy"
+                                decoding="async">
                             <div class="flex flex-col gap-1">
                                 <Link
                                     :href="route('product.show', product.id)"
@@ -1237,7 +1240,9 @@ const submitImport = () => {
                 <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                     <div class="flex items-center gap-3">
                         <img class="size-12 rounded-sm border border-stone-200 object-cover dark:border-neutral-700"
-                            :src="alertDetailsProduct.image_url || alertDetailsProduct.image" :alt="$t('products.labels.product_image_alt')">
+                            :src="alertDetailsProduct.image_url || alertDetailsProduct.image" :alt="$t('products.labels.product_image_alt')"
+                            loading="lazy"
+                            decoding="async">
                         <div class="space-y-1">
                             <Link :href="route('product.show', alertDetailsProduct.id)"
                                 class="text-sm font-semibold text-stone-800 hover:underline dark:text-neutral-100">

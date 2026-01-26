@@ -174,7 +174,7 @@ const attachmentMeta = (media) => {
                                 <div v-if="message.media?.length" class="mt-3 flex flex-wrap gap-2 text-xs">
                                     <a v-for="media in message.media" :key="media.id" :href="media.url" target="_blank" rel="noopener"
                                         class="inline-flex items-center gap-2 rounded-sm border border-stone-200 bg-white px-2 py-1 text-[11px] text-stone-600 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300 dark:hover:bg-neutral-800">
-                                        <img v-if="isImage(media)" :src="media.url" :alt="attachmentLabel(media)" class="h-10 w-10 rounded-sm object-cover" />
+                                        <img v-if="isImage(media)" :src="media.url" :alt="attachmentLabel(media)" class="h-10 w-10 rounded-sm object-cover" loading="lazy" decoding="async" />
                                         <span v-else class="truncate">{{ attachmentLabel(media) }}</span>
                                     </a>
                                 </div>
@@ -339,7 +339,7 @@ const attachmentMeta = (media) => {
                                 <a v-for="media in ticket.media" :key="media.id" :href="media.url" target="_blank" rel="noopener"
                                     class="group flex items-center gap-3 rounded-sm border border-stone-200 bg-white px-2 py-2 text-xs text-stone-600 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300 dark:hover:bg-neutral-800">
                                     <div class="flex h-12 w-12 items-center justify-center overflow-hidden rounded-sm bg-stone-100 text-stone-500 dark:bg-neutral-800 dark:text-neutral-300">
-                                        <img v-if="isImage(media)" :src="media.url" :alt="attachmentLabel(media)" class="h-full w-full object-cover" />
+                                        <img v-if="isImage(media)" :src="media.url" :alt="attachmentLabel(media)" class="h-full w-full object-cover" loading="lazy" decoding="async" />
                                         <svg v-else class="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
                                                 d="M19.5 14.25v3A2.25 2.25 0 0 1 17.25 19.5h-10.5A2.25 2.25 0 0 1 4.5 17.25v-10.5A2.25 2.25 0 0 1 6.75 4.5h3" />

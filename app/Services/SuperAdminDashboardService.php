@@ -18,6 +18,7 @@ use App\Services\BillingSubscriptionService;
 use App\Services\UsageLimitService;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Laravel\Paddle\Subscription;
@@ -26,6 +27,7 @@ class SuperAdminDashboardService
 {
     public function getMetrics(): array
     {
+        return Cache::remember('superadmin:dashboard:metrics', now()->addMinutes(5), function () {
         $ownerRoleId = Role::query()->where('name', 'owner')->value('id');
         $ownersQuery = $ownerRoleId
             ? User::query()->where('role_id', $ownerRoleId)
@@ -125,10 +127,13 @@ class SuperAdminDashboardService
             'at_risk_tenants' => $riskTenants,
             'action_center' => $this->actionCenterStats($limitAlerts, $riskTenants),
         ];
+        });
     }
 
     public function getRecentAudits(array $filters = [], int $limit = 10): array
     {
+        $cacheKey = 'superadmin:dashboard:audits:' . md5(json_encode($filters) . ':' . $limit);
+        return Cache::remember($cacheKey, now()->addSeconds(30), function () use ($filters, $limit) {
         $query = PlatformAuditLog::query()
             ->with('user:id,name,email')
             ->latest();
@@ -176,10 +181,12 @@ class SuperAdminDashboardService
                 ];
             })
             ->toArray();
+        });
     }
 
     public function getAuditFilterOptions(): array
     {
+        return Cache::remember('superadmin:dashboard:audit_options', now()->addMinutes(10), function () {
         $roleIds = Role::query()
             ->whereIn('name', ['superadmin', 'admin'])
             ->pluck('id')
@@ -225,6 +232,7 @@ class SuperAdminDashboardService
             'tenants' => $tenants,
             'actions' => $actions,
         ];
+        });
     }
 
     private function platformAlerts(array $limitAlerts, array $health): array
