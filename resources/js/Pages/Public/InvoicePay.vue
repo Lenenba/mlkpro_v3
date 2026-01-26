@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref } from 'vue';
-import { Head, useForm, usePage, router } from '@inertiajs/vue3';
+import { Head, useForm, router } from '@inertiajs/vue3';
 import GuestLayout from '@/Layouts/GuestLayout.vue';
 import { humanizeDate } from '@/utils/date';
 
@@ -12,10 +12,6 @@ const props = defineProps({
     paymentUrl: String,
     stripeCheckoutUrl: String,
 });
-
-const page = usePage();
-const flashSuccess = computed(() => page.props.flash?.success);
-const flashError = computed(() => page.props.flash?.error);
 
 const form = useForm({
     amount: props.invoice?.balance_due || '',
@@ -138,13 +134,6 @@ const formatCurrency = (value) =>
                     <div class="text-xs text-stone-500">Balance due</div>
                     <div class="font-semibold">{{ formatCurrency(invoice.balance_due) }}</div>
                 </div>
-            </div>
-
-            <div v-if="flashSuccess" class="rounded-sm border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
-                {{ flashSuccess }}
-            </div>
-            <div v-if="flashError" class="rounded-sm border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">
-                {{ flashError }}
             </div>
 
             <div class="rounded-sm border border-stone-200 p-4">

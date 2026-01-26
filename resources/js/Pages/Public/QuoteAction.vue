@@ -1,6 +1,6 @@
 <script setup>
 import { computed } from 'vue';
-import { Head, useForm, usePage, router } from '@inertiajs/vue3';
+import { Head, useForm, router } from '@inertiajs/vue3';
 import GuestLayout from '@/Layouts/GuestLayout.vue';
 import { humanizeDate } from '@/utils/date';
 
@@ -13,10 +13,6 @@ const props = defineProps({
     acceptUrl: String,
     declineUrl: String,
 });
-
-const page = usePage();
-const flashSuccess = computed(() => page.props.flash?.success);
-const flashError = computed(() => page.props.flash?.error);
 
 const form = useForm({
     deposit_amount: props.quote?.initial_deposit || '',
@@ -149,13 +145,6 @@ const taxes = computed(() => props.quote?.taxes || []);
                 <div v-if="quote?.initial_deposit > 0" class="mt-2 text-xs text-stone-500">
                     Required deposit: {{ formatCurrency(quote.initial_deposit) }}
                 </div>
-            </div>
-
-            <div v-if="flashSuccess" class="rounded-sm border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
-                {{ flashSuccess }}
-            </div>
-            <div v-if="flashError" class="rounded-sm border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">
-                {{ flashError }}
             </div>
 
             <div class="rounded-sm border border-stone-200 p-4">

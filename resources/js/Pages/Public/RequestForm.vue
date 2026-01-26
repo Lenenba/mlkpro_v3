@@ -1,6 +1,6 @@
 <script setup>
 import { computed } from 'vue';
-import { Head, useForm, usePage } from '@inertiajs/vue3';
+import { Head, useForm } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
 import GuestLayout from '@/Layouts/GuestLayout.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
@@ -20,9 +20,6 @@ const props = defineProps({
 });
 
 const { t } = useI18n();
-const page = usePage();
-const successMessage = computed(() => page.props.flash?.success || '');
-
 const form = useForm({
     contact_name: '',
     contact_email: '',
@@ -70,10 +67,6 @@ const submit = () => {
             <p class="text-sm text-stone-500 dark:text-neutral-400">
                 {{ $t('requests.form.subtitle') }}
             </p>
-        </div>
-
-        <div v-if="successMessage" class="mt-4 rounded-sm border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">
-            {{ $t('requests.form.success') }}
         </div>
 
         <form class="mt-6 space-y-4" @submit.prevent="submit">

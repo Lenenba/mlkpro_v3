@@ -1,6 +1,6 @@
 <script setup>
-import { computed, ref } from 'vue';
-import { Head, useForm, usePage } from '@inertiajs/vue3';
+import { ref } from 'vue';
+import { Head, useForm } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
 import GuestLayout from '@/Layouts/GuestLayout.vue';
@@ -19,9 +19,6 @@ const props = defineProps({
     uploadBlockedMessage: String,
 });
 
-const page = usePage();
-const flashSuccess = computed(() => page.props.flash?.success);
-const flashError = computed(() => page.props.flash?.error);
 const { t } = useI18n();
 
 const proofOpen = ref(false);
@@ -189,12 +186,6 @@ const proofType = (type) => {
                 </div>
             </div>
 
-            <div v-if="flashSuccess" class="rounded-sm border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
-                {{ flashSuccess }}
-            </div>
-            <div v-if="flashError" class="rounded-sm border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">
-                {{ flashError }}
-            </div>
             <div v-if="uploadBlockedMessage" class="rounded-sm border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
                 {{ uploadBlockedMessage }}
             </div>
