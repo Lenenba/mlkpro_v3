@@ -119,6 +119,7 @@ const autoFilter = () => {
     filterTimeout = setTimeout(() => {
         isLoading.value = true;
         router.get(route('customer.index'), filterPayload(), {
+            only: ['customers', 'filters', 'stats', 'count', 'topCustomers'],
             preserveState: true,
             preserveScroll: true,
             replace: true,
@@ -546,7 +547,7 @@ const getCustomerInitials = (customer) => {
                                 <Link :href="route('customer.show', customer)">
                                     <div class="w-full flex items-center gap-x-3">
                                         <img class="shrink-0 size-10 rounded-sm" :src="customer.logo_url || customer.logo"
-                                            :alt="$t('customers.labels.logo_alt')">
+                                            :alt="$t('customers.labels.logo_alt')" loading="lazy" decoding="async">
                                         <div class="flex flex-col">
                                             <div class="flex items-center gap-2">
                                                 <span class="text-sm text-stone-600 dark:text-neutral-300">
@@ -704,6 +705,8 @@ const getCustomerInitials = (customer) => {
                                     class="size-11 rounded-sm object-cover"
                                     :src="customer.logo_url || customer.logo"
                                     :alt="$t('customers.labels.logo_alt')"
+                                    loading="lazy"
+                                    decoding="async"
                                 >
                                 <span v-else>{{ getCustomerInitials(customer) }}</span>
                             </div>

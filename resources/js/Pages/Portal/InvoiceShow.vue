@@ -133,6 +133,8 @@ const statusClass = (status) => {
                             :src="companyLogo"
                             :alt="companyName"
                             class="h-12 w-12 rounded-sm border border-stone-200 object-cover dark:border-neutral-700"
+                            loading="lazy"
+                            decoding="async"
                         />
                         <div>
                             <p class="text-xs uppercase text-stone-500 dark:text-neutral-400">

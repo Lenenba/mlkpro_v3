@@ -127,6 +127,7 @@ const autoFilter = () => {
     }
     filterTimeout = setTimeout(() => {
         router.get(route('service.categories'), filterPayload(), {
+            only: ['categories', 'filters', 'stats', 'count'],
             preserveState: true,
             preserveScroll: true,
             replace: true,

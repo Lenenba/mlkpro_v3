@@ -331,6 +331,8 @@ const submit = () => {
                                     :src="product.image_url || product.image"
                                     :alt="product.name"
                                     class="h-14 w-14 rounded-sm border border-stone-200 object-cover dark:border-neutral-700"
+                                    loading="lazy"
+                                    decoding="async"
                                 />
                                 <div class="flex-1 space-y-1">
                                     <div class="flex items-center justify-between gap-2">

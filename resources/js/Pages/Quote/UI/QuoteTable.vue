@@ -108,6 +108,7 @@ const autoFilter = () => {
     filterTimeout = setTimeout(() => {
         isLoading.value = true;
         router.get(route('quote.index'), filterPayload(), {
+            only: ['quotes', 'filters', 'stats', 'count', 'topQuotes'],
             preserveState: true,
             preserveScroll: true,
             replace: true,

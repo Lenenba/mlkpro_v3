@@ -95,6 +95,8 @@ const formatCurrency = (value) =>
                         :src="company.logo_url"
                         :alt="company?.name || 'Company'"
                         class="h-10 w-10 rounded-sm border border-stone-200 object-cover"
+                        loading="lazy"
+                        decoding="async"
                     />
                     <div>
                         <div class="text-xs uppercase tracking-wide text-stone-500">Invoice</div>

@@ -769,7 +769,7 @@ watch(
                             </div>
                             <div class="mt-2 overflow-hidden rounded-sm border border-stone-200 dark:border-neutral-700">
                                 <img v-if="editingAnnouncement?.media_type === 'image'" :src="editingAnnouncement?.media_url"
-                                    alt="" class="h-32 w-full object-cover" />
+                                    alt="" class="h-32 w-full object-cover" loading="lazy" decoding="async" />
                                 <video v-else-if="editingAnnouncement?.media_type === 'video'" controls class="h-32 w-full">
                                     <source :src="editingAnnouncement?.media_url" />
                                 </video>

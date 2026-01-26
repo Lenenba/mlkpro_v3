@@ -554,6 +554,8 @@ const mergeDuplicate = (duplicate) => {
                                         :src="media.url"
                                         class="h-16 w-16 rounded-sm object-cover"
                                         alt=""
+                                        loading="lazy"
+                                        decoding="async"
                                     />
                                     <div class="min-w-0">
                                         <div class="truncate text-sm font-medium text-stone-800 dark:text-neutral-200">

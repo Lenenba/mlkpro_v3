@@ -744,6 +744,7 @@ const autoFilter = () => {
     filterTimeout = setTimeout(() => {
         isLoading.value = true;
         router.get(route('task.index'), filterPayload(), {
+            only: ['tasks', 'filters', 'stats', 'count'],
             preserveState: true,
             preserveScroll: true,
             replace: true,

@@ -99,12 +99,19 @@ const formatNumber = (value) =>
     Number(value || 0).toLocaleString(undefined, { maximumFractionDigits: 0 });
 
 const applyFilters = () => {
-    filterForm.get(route('superadmin.support.index'), { preserveScroll: true, preserveState: true });
+    filterForm.get(route('superadmin.support.index'), {
+        only: ['tickets', 'filters', 'stats'],
+        preserveScroll: true,
+        preserveState: true,
+    });
 };
 
 const resetFilters = () => {
     filterForm.reset();
-    filterForm.get(route('superadmin.support.index'));
+    filterForm.get(route('superadmin.support.index'), {
+        only: ['tickets', 'filters', 'stats'],
+        preserveScroll: true,
+    });
 };
 
 const openCreate = () => {

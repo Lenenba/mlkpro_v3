@@ -96,7 +96,9 @@ const proofType = (type) => {
                         <img v-if="companyLogo"
                             :src="companyLogo"
                             :alt="companyName"
-                            class="h-12 w-12 rounded-sm border border-stone-200 object-cover dark:border-neutral-700" />
+                            class="h-12 w-12 rounded-sm border border-stone-200 object-cover dark:border-neutral-700"
+                            loading="lazy"
+                            decoding="async" />
                         <div>
                             <p class="text-xs uppercase text-stone-500 dark:text-neutral-400">
                                 {{ companyName }}
@@ -196,7 +198,9 @@ const proofType = (type) => {
                             <img v-if="media.media_type !== 'video'"
                                 :src="media.url"
                                 :alt="media.note || $t('jobs.proofs.proof_fallback')"
-                                class="h-40 w-full rounded-sm border border-stone-200 object-cover dark:border-neutral-700" />
+                                class="h-40 w-full rounded-sm border border-stone-200 object-cover dark:border-neutral-700"
+                                loading="lazy"
+                                decoding="async" />
                             <video v-else controls class="h-40 w-full rounded-sm border border-stone-200 dark:border-neutral-700">
                                 <source :src="media.url" />
                             </video>

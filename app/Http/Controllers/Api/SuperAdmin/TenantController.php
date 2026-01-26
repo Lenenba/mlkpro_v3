@@ -14,10 +14,13 @@ use App\Models\Task;
 use App\Models\TeamMember;
 use App\Models\User;
 use App\Models\Work;
+use App\Services\BillingSubscriptionService;
+use App\Services\StripeBillingService;
 use App\Support\PlatformPermissions;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 
 class TenantController extends BaseController
 {
@@ -98,6 +101,7 @@ class TenantController extends BaseController
                     'status' => $subscription?->status ?? 'free',
                     'price_id' => $subscription?->price_id,
                     'plan_name' => $planName,
+                    'is_comped' => (bool) ($subscription?->is_comped ?? false),
                 ] : null,
             ];
         });
@@ -137,6 +141,7 @@ class TenantController extends BaseController
                     'plan_name' => $planName,
                     'trial_ends_at' => $subscription?->trial_ends_at ?? null,
                     'ends_at' => $subscription?->ends_at ?? null,
+                    'is_comped' => (bool) ($subscription?->is_comped ?? false),
                 ] : null,
                 'plan_key' => $planKey,
             ],
@@ -218,6 +223,81 @@ class TenantController extends BaseController
         $this->logAudit($request, 'tenant.limits_updated', ['tenant_id' => $tenant->id, 'limits' => $limits]);
 
         return $this->jsonResponse(['message' => 'Usage limits updated.']);
+    }
+
+    public function updatePlan(Request $request, User $tenant)
+    {
+        $this->authorizePermission($request, PlatformPermissions::TENANTS_MANAGE);
+        $this->ensureOwner($tenant);
+
+        $billingService = app(BillingSubscriptionService::class);
+        if (!$billingService->isStripe()) {
+            return $this->jsonResponse([
+                'message' => 'Billing provider is not Stripe.',
+            ], 422);
+        }
+        if (!$billingService->providerReady()) {
+            return $this->jsonResponse([
+                'message' => 'Stripe is not configured.',
+            ], 422);
+        }
+
+        $plans = collect(config('billing.plans', []))
+            ->map(fn(array $plan, string $key) => array_merge(['key' => $key], $plan))
+            ->filter(fn(array $plan) => !empty($plan['price_id']))
+            ->values();
+
+        $priceIds = $plans->pluck('price_id')->filter()->values()->all();
+        if (!$priceIds) {
+            return $this->jsonResponse([
+                'message' => 'No subscription plans are configured.',
+                'errors' => [
+                    'price_id' => ['No subscription plans are configured.'],
+                ],
+            ], 422);
+        }
+
+        $validated = $request->validate([
+            'price_id' => ['required', Rule::in($priceIds)],
+            'comped' => ['sometimes', 'boolean'],
+        ]);
+
+        $plan = $plans->firstWhere('price_id', $validated['price_id']);
+        $planKey = $plan['key'] ?? null;
+        $comped = (bool) ($validated['comped'] ?? false);
+
+        if ($comped && !config('services.stripe.comped_coupon_id')) {
+            return $this->jsonResponse([
+                'message' => 'Comped coupon is not configured.',
+                'errors' => [
+                    'comped' => ['Comped coupon is not configured.'],
+                ],
+            ], 422);
+        }
+
+        try {
+            $updated = app(StripeBillingService::class)
+                ->assignPlan($tenant, $validated['price_id'], $comped, $planKey);
+            if (!$updated) {
+                throw new \RuntimeException('Stripe subscription update failed.');
+            }
+        } catch (\Throwable $exception) {
+            return $this->jsonResponse([
+                'message' => 'Unable to update plan right now.',
+            ], 500);
+        }
+
+        $this->logAudit($request, 'tenant.plan_updated', [
+            'tenant_id' => $tenant->id,
+            'price_id' => $validated['price_id'],
+            'plan_key' => $planKey,
+            'comped' => $comped,
+        ]);
+
+        return $this->jsonResponse([
+            'message' => 'Plan updated.',
+            'plan_key' => $planKey,
+        ]);
     }
 
     private function buildStats(User $tenant): array
@@ -343,6 +423,18 @@ class TenantController extends BaseController
             return [];
         }
 
+        $billingService = app(BillingSubscriptionService::class);
+        if ($billingService->isStripe()) {
+            $subscriptions = DB::table('stripe_subscriptions')
+                ->whereIn('user_id', $tenantIds->all())
+                ->orderByDesc('updated_at')
+                ->get(['id', 'user_id', 'status', 'trial_ends_at', 'ends_at', 'price_id', 'is_comped'])
+                ->groupBy('user_id')
+                ->map(fn ($items) => $items->first());
+
+            return $subscriptions->all();
+        }
+
         $subscriptions = DB::table('paddle_subscriptions')
             ->where('billable_type', User::class)
             ->whereIn('billable_id', $tenantIds->all())
@@ -433,6 +525,37 @@ class TenantController extends BaseController
 
         if (!$priceId && !$planKey) {
             $priceId = $planFilter;
+        }
+
+        $billingService = app(BillingSubscriptionService::class);
+        if ($billingService->isStripe()) {
+            if ($planKey === 'free') {
+                $query->where(function ($builder) use ($priceId) {
+                    $builder->whereNotIn('id', DB::table('stripe_subscriptions')
+                        ->select('user_id'));
+
+                    if ($priceId) {
+                        $builder->orWhereIn('id', DB::table('stripe_subscriptions')
+                            ->select('user_id')
+                            ->where('price_id', $priceId)
+                            ->distinct());
+                    }
+                });
+
+                return;
+            }
+
+            if (!$priceId) {
+                $query->whereRaw('0 = 1');
+                return;
+            }
+
+            $query->whereIn('id', DB::table('stripe_subscriptions')
+                ->select('user_id')
+                ->where('price_id', $priceId)
+                ->distinct());
+
+            return;
         }
 
         if ($planKey === 'free') {

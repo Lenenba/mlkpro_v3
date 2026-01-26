@@ -98,6 +98,70 @@ class StripeBillingService
         return $this->upsertSubscription($user, $updated, $updated->customer ?? null);
     }
 
+    public function assignPlan(User $user, string $priceId, bool $comped = false, ?string $planKey = null): ?StripeSubscription
+    {
+        $client = $this->client();
+        $customerId = $this->resolveOrCreateCustomerId($user);
+        if (!$customerId) {
+            return null;
+        }
+
+        $couponId = $comped ? $this->compedCouponId() : null;
+        if ($comped && !$couponId) {
+            throw new \RuntimeException('Comped coupon is not configured.');
+        }
+
+        $local = $this->getLocalSubscription($user);
+        if ($local?->stripe_id) {
+            $subscription = $client->subscriptions->retrieve($local->stripe_id, [
+                'expand' => ['items.data.price', 'discount.coupon'],
+            ]);
+            $itemId = $subscription->items->data[0]->id ?? null;
+            if (!$itemId) {
+                return null;
+            }
+
+            $payload = [
+                'items' => [
+                    [
+                        'id' => $itemId,
+                        'price' => $priceId,
+                    ],
+                ],
+                'proration_behavior' => 'none',
+                'expand' => ['items.data.price', 'discount.coupon'],
+            ];
+
+            $payload['discounts'] = $comped ? [['coupon' => $couponId]] : [];
+
+            $updated = $client->subscriptions->update($subscription->id, $payload);
+
+            return $this->upsertSubscription($user, $updated, $updated->customer ?? null);
+        }
+
+        $payload = [
+            'customer' => $customerId,
+            'items' => [
+                [
+                    'price' => $priceId,
+                ],
+            ],
+            'expand' => ['items.data.price', 'discount.coupon'],
+            'metadata' => array_filter([
+                'subscription_type' => 'default',
+                'plan_key' => $planKey,
+            ]),
+        ];
+
+        if ($comped) {
+            $payload['discounts'] = [['coupon' => $couponId]];
+        }
+
+        $subscription = $client->subscriptions->create($payload);
+
+        return $this->upsertSubscription($user, $subscription, $subscription->customer ?? null);
+    }
+
     public function createPortalSession(User $user, string $returnUrl): ?string
     {
         $client = $this->client();
@@ -261,6 +325,7 @@ class StripeBillingService
         $customerId = $customerId ?: ($subscription->customer ?? null);
         $priceId = $this->extractPriceId($subscription);
         $assistantAddon = $this->extractAssistantAddon($subscription);
+        $compedMeta = $this->extractCompedMeta($subscription);
 
         $record = StripeSubscription::updateOrCreate(
             ['stripe_id' => $stripeId],
@@ -268,6 +333,8 @@ class StripeBillingService
                 'user_id' => $user->id,
                 'stripe_customer_id' => $customerId,
                 'price_id' => $priceId,
+                'is_comped' => $compedMeta['is_comped'],
+                'comped_coupon_id' => $compedMeta['comped_coupon_id'],
                 'assistant_price_id' => $assistantAddon['assistant_price_id'],
                 'assistant_item_id' => $assistantAddon['assistant_item_id'],
                 'assistant_enabled_at' => $assistantAddon['assistant_enabled_at'],
@@ -295,6 +362,7 @@ class StripeBillingService
         $customerId = $subscription['customer'] ?? null;
         $priceId = $this->extractPriceIdFromArray($subscription);
         $assistantAddon = $this->extractAssistantAddonFromArray($subscription);
+        $compedMeta = $this->extractCompedMetaFromArray($subscription);
 
         $record = StripeSubscription::updateOrCreate(
             ['stripe_id' => $stripeId],
@@ -302,6 +370,8 @@ class StripeBillingService
                 'user_id' => $user->id,
                 'stripe_customer_id' => $customerId,
                 'price_id' => $priceId,
+                'is_comped' => $compedMeta['is_comped'],
+                'comped_coupon_id' => $compedMeta['comped_coupon_id'],
                 'assistant_price_id' => $assistantAddon['assistant_price_id'],
                 'assistant_item_id' => $assistantAddon['assistant_item_id'],
                 'assistant_enabled_at' => $assistantAddon['assistant_enabled_at'],
@@ -332,6 +402,30 @@ class StripeBillingService
         }
 
         return null;
+    }
+
+    private function resolveOrCreateCustomerId(User $user): ?string
+    {
+        $customerId = $this->resolveCustomerId($user);
+        if ($customerId) {
+            return $customerId;
+        }
+
+        $client = $this->client();
+        $customer = $client->customers->create([
+            'email' => $user->email,
+            'name' => $user->company_name ?: $user->name,
+            'metadata' => [
+                'user_id' => (string) $user->id,
+            ],
+        ]);
+
+        $customerId = $customer->id ?? null;
+        if ($customerId) {
+            $user->forceFill(['stripe_customer_id' => $customerId])->save();
+        }
+
+        return $customerId;
     }
 
     private function extractPriceId($subscription): ?string
@@ -428,6 +522,30 @@ class StripeBillingService
         ];
     }
 
+    private function extractCompedMeta($subscription): array
+    {
+        $discount = $subscription->discount ?? null;
+        $coupon = $discount?->coupon ?? null;
+        $percentOff = $coupon?->percent_off ?? null;
+
+        return [
+            'is_comped' => is_numeric($percentOff) && (float) $percentOff >= 100,
+            'comped_coupon_id' => $coupon?->id ?? null,
+        ];
+    }
+
+    private function extractCompedMetaFromArray(array $subscription): array
+    {
+        $discount = $subscription['discount'] ?? null;
+        $coupon = $discount['coupon'] ?? null;
+        $percentOff = $coupon['percent_off'] ?? null;
+
+        return [
+            'is_comped' => is_numeric($percentOff) && (float) $percentOff >= 100,
+            'comped_coupon_id' => is_array($coupon) ? ($coupon['id'] ?? null) : null,
+        ];
+    }
+
     private function findAssistantItem($subscription): ?object
     {
         $assistantPriceId = $this->assistantUsagePriceId();
@@ -459,6 +577,12 @@ class StripeBillingService
     {
         $price = config('services.stripe.ai_usage_price');
         return is_string($price) && trim($price) !== '' ? trim($price) : null;
+    }
+
+    private function compedCouponId(): ?string
+    {
+        $coupon = config('services.stripe.comped_coupon_id');
+        return is_string($coupon) && trim($coupon) !== '' ? trim($coupon) : null;
     }
 
     public function createAssistantCreditCheckoutSession(User $user, int $packs, string $successUrl, string $cancelUrl): array

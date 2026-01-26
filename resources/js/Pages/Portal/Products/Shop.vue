@@ -573,6 +573,8 @@ const startPayment = (type) => {
                             :src="company.logo_url"
                             :alt="company?.name || $t('portal_shop.header.logo_alt')"
                             class="h-full w-full object-cover"
+                            loading="lazy"
+                            decoding="async"
                         >
                     </div>
                     <div>
@@ -659,6 +661,8 @@ const startPayment = (type) => {
                         :src="order.delivery_proof_url"
                         :alt="$t('portal_shop.status.delivery_photo_alt')"
                         class="mt-2 h-40 w-full rounded-sm border border-stone-200 object-cover dark:border-neutral-700"
+                        loading="lazy"
+                        decoding="async"
                     >
                 </div>
                 <div v-if="canConfirmReceipt" class="mt-4 rounded-sm border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
@@ -804,6 +808,8 @@ const startPayment = (type) => {
                                     :src="pickupQrUrl"
                                     :alt="$t('portal_shop.timeline.pickup_qr_alt', { code: pickupCode })"
                                     class="h-40 w-40 rounded-sm border border-stone-200 bg-white object-contain p-2 dark:border-neutral-700"
+                                    loading="lazy"
+                                    decoding="async"
                                 >
                                 <div class="text-xs font-semibold text-stone-700 dark:text-neutral-200">
                                     {{ $t('portal_shop.timeline.pickup_code', { code: pickupCode }) }}
@@ -877,6 +883,8 @@ const startPayment = (type) => {
                                     :src="product.image_url || product.image"
                                     :alt="product.name"
                                     class="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+                                    loading="lazy"
+                                    decoding="async"
                                 >
                                 <div v-else class="flex h-full w-full items-center justify-center text-stone-400">
                                     <svg class="size-10" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
@@ -1204,6 +1212,8 @@ const startPayment = (type) => {
                             :src="selectedProduct.image_url || selectedProduct.image"
                             :alt="selectedProduct.name"
                             class="h-full w-full object-cover"
+                            loading="lazy"
+                            decoding="async"
                         >
                         <div v-else class="flex h-full w-full items-center justify-center text-stone-400">
                             <svg class="size-12" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"

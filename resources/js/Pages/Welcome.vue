@@ -200,6 +200,8 @@ onBeforeUnmount(() => {
                                     src="/images/landing/hero-dashboard.svg"
                                     :alt="$t('welcome.images.hero_alt')"
                                     class="h-auto w-full rounded-sm"
+                                    loading="lazy"
+                                    decoding="async"
                                 />
                             </div>
                             <div class="mt-4 grid gap-3 sm:grid-cols-2">
@@ -336,6 +338,7 @@ onBeforeUnmount(() => {
                                 :alt="$t('welcome.images.workflow_alt')"
                                 class="h-auto w-full rounded-sm"
                                 loading="lazy"
+                                decoding="async"
                             />
                         </div>
                     </div>
@@ -351,6 +354,7 @@ onBeforeUnmount(() => {
                                 :alt="$t('welcome.images.mobile_alt')"
                                 class="h-auto w-full rounded-sm"
                                 loading="lazy"
+                                decoding="async"
                             />
                         </div>
 
