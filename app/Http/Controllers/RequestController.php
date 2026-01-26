@@ -258,6 +258,10 @@ class RequestController extends Controller
         $formConversion = $formViews > 0 ? round(($formSubmits / $formViews) * 100, 1) : 0;
         $lastFormView = (clone $viewsQuery)->latest('created_at')->first(['created_at']);
         $lastFormSubmit = (clone $submitsQuery)->latest('created_at')->first(['created_at']);
+        $topReferrers = $this->topTrackingValues($accountId, 'lead_form_view', 'referrer_host', $formWindowStart);
+        $topUtmSources = $this->topTrackingValues($accountId, 'lead_form_view', 'utm_source', $formWindowStart);
+        $topUtmMediums = $this->topTrackingValues($accountId, 'lead_form_view', 'utm_medium', $formWindowStart);
+        $topUtmCampaigns = $this->topTrackingValues($accountId, 'lead_form_view', 'utm_campaign', $formWindowStart);
 
         $lastActivitySub = ActivityLog::query()
             ->selectRaw('subject_id, MAX(created_at) as last_activity_at')
@@ -331,10 +335,35 @@ class RequestController extends Controller
                     'conversion_rate' => $formConversion,
                     'last_view_at' => $lastFormView?->created_at?->toJSON(),
                     'last_submit_at' => $lastFormSubmit?->created_at?->toJSON(),
+                    'top_referrers' => $topReferrers,
+                    'top_utm_sources' => $topUtmSources,
+                    'top_utm_mediums' => $topUtmMediums,
+                    'top_utm_campaigns' => $topUtmCampaigns,
                 ],
                 'risk_leads' => $riskLeads,
             ],
         ]);
+    }
+
+    private function topTrackingValues(int $accountId, string $eventType, string $key, Carbon $since, int $limit = 5): array
+    {
+        $path = sprintf('$.%s', $key);
+        $selector = "JSON_UNQUOTE(JSON_EXTRACT(meta, '{$path}'))";
+
+        return TrackingEvent::query()
+            ->selectRaw("{$selector} as value, COUNT(*) as count")
+            ->where('event_type', $eventType)
+            ->where('user_id', $accountId)
+            ->where('created_at', '>=', $since)
+            ->whereRaw("JSON_EXTRACT(meta, '{$path}') IS NOT NULL")
+            ->groupBy('value')
+            ->orderByDesc('count')
+            ->limit($limit)
+            ->get()
+            ->filter(fn ($row) => $row->value !== null && $row->value !== '')
+            ->map(fn ($row) => ['value' => $row->value, 'count' => (int) $row->count])
+            ->values()
+            ->all();
     }
 
     public function show(Request $request, LeadRequest $lead)

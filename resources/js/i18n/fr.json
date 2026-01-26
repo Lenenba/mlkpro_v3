@@ -411,7 +411,10 @@
         "last_24h": "Dernieres 24h",
         "last_7d": "7 derniers jours",
         "last_30d": "30 derniers jours",
-        "unique_label": "{count} uniques"
+        "unique_label": "{count} uniques",
+        "legend_total": "Total",
+        "legend_unique": "Uniques",
+        "empty": "Aucune donnee de trafic."
       },
       "alerts": {
         "title": "Alertes plateforme",
@@ -647,7 +650,7 @@
         "no_limits_permission": "Vous n'avez pas la permission de modifier les limites."
       }
     },
-    "support": {
+  "support": {
       "page_title": "Tickets support",
       "title": "Tickets support",
       "subtitle": "Suivre SLA, statut et tags pour les demandes support.",
@@ -1310,6 +1313,63 @@
     },
     "order_number": "Commande #{id}",
     "order_fallback": "Commande"
+  },
+  "support_portal": {
+    "page_title": "Demandes support",
+    "title": "Support & incidents",
+    "subtitle": "Signalez bugs ou incidents a l'equipe plateforme.",
+    "actions": {
+      "new_ticket": "Nouvelle demande",
+      "submit": "Envoyer la demande",
+      "close": "Fermer"
+    },
+    "stats": {
+      "total": "Total",
+      "open": "Ouvertes",
+      "pending": "En attente",
+      "resolved": "Resolues",
+      "closed": "Cloturees"
+    },
+    "filters": {
+      "search_placeholder": "Rechercher demandes",
+      "status": "Statut",
+      "priority": "Priorite",
+      "toggle": "Filtres",
+      "clear": "Reinitialiser",
+      "apply": "Appliquer"
+    },
+    "table": {
+      "title": "Titre",
+      "category": "Categorie",
+      "status": "Statut",
+      "priority": "Priorite",
+      "created": "Cree",
+      "empty": "Aucune demande pour le moment."
+    },
+    "form": {
+      "category": "Categorie",
+      "title": "Titre",
+      "description": "Decrivez le probleme",
+      "priority": "Priorite"
+    },
+    "categories": {
+      "incident": "Incident",
+      "bug": "Bug",
+      "feature": "Suggestion",
+      "other": "Autre"
+    },
+    "priorities": {
+      "low": "Basse",
+      "normal": "Normale",
+      "high": "Haute",
+      "urgent": "Urgente"
+    },
+    "statuses": {
+      "open": "Ouverte",
+      "pending": "En attente",
+      "resolved": "Resolue",
+      "closed": "Cloturee"
+    }
   },
   "portal_order": {
     "title": "Commande {number}",
@@ -2662,7 +2722,14 @@
         "conversion_note": "Soumissions ÷ vues.",
         "last_view": "Derniere vue",
         "last_submit": "Derniere soumission",
-        "empty": "Aucune activite sur le formulaire."
+        "empty": "Aucune activite sur le formulaire.",
+        "referrers_title": "Top referents",
+        "no_referrers": "Aucune donnee de referent.",
+        "utm_title": "Top UTM",
+        "utm_sources": "Sources",
+        "utm_mediums": "Canaux",
+        "utm_campaigns": "Campagnes",
+        "no_utm": "Aucune donnee UTM"
       },
       "by_source": "Conversion par source",
       "no_data": "Aucune donnee pour l'instant.",

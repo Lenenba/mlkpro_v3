@@ -138,6 +138,35 @@ const limitAlerts = computed(() => props.metrics.alerts?.limit_warnings || { cou
 const riskTenants = computed(() => props.metrics.at_risk_tenants?.tenants || []);
 const usageTrends = computed(() => props.metrics.usage_trends || []);
 const siteTraffic = computed(() => props.metrics.site_traffic || {});
+const siteTrafficSeries = computed(() => props.metrics.site_traffic_series || []);
+
+const buildSparklinePoints = (values, width = 260, height = 80, padding = 6) => {
+    if (!values.length) {
+        return '';
+    }
+
+    const max = Math.max(...values, 0);
+    const min = Math.min(...values, 0);
+    const range = max - min || 1;
+    const usableWidth = width - padding * 2;
+    const usableHeight = height - padding * 2;
+    const lastIndex = values.length - 1;
+
+    return values.map((value, index) => {
+        const x = padding + (lastIndex === 0 ? 0 : (usableWidth * (index / lastIndex)));
+        const normalized = (value - min) / range;
+        const y = height - padding - (usableHeight * normalized);
+        return `${x},${y}`;
+    }).join(' ');
+};
+
+const trafficTotals = computed(() => siteTrafficSeries.value.map((row) => row.total || 0));
+const trafficUniques = computed(() => siteTrafficSeries.value.map((row) => row.unique || 0));
+const trafficTotalPoints = computed(() => buildSparklinePoints(trafficTotals.value));
+const trafficUniquePoints = computed(() => buildSparklinePoints(trafficUniques.value));
+const trafficHasData = computed(() => trafficTotals.value.some((value) => value > 0) || trafficUniques.value.some((value) => value > 0));
+const trafficStart = computed(() => siteTrafficSeries.value[0]?.date || '');
+const trafficEnd = computed(() => siteTrafficSeries.value[siteTrafficSeries.value.length - 1]?.date || '');
 
 const limitLabel = (key) => t(`super_admin.dashboard.limits.${key}`);
 
@@ -503,6 +532,45 @@ const resetAuditFilters = () => {
                         </div>
                         <div class="text-xs text-stone-500 dark:text-neutral-400">
                             {{ $t('super_admin.dashboard.site_traffic.unique_label', { count: formatNumber(siteTraffic.unique_30d) }) }}
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-4">
+                    <div v-if="!trafficHasData" class="text-xs text-stone-500 dark:text-neutral-400">
+                        {{ $t('super_admin.dashboard.site_traffic.empty') }}
+                    </div>
+                    <div v-else>
+                        <svg viewBox="0 0 260 80" class="h-20 w-full">
+                            <polyline
+                                :points="trafficTotalPoints"
+                                fill="none"
+                                stroke="#16a34a"
+                                stroke-width="2"
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                            />
+                            <polyline
+                                :points="trafficUniquePoints"
+                                fill="none"
+                                stroke="#64748b"
+                                stroke-width="2"
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                            />
+                        </svg>
+                        <div class="mt-2 flex items-center justify-between text-[11px] text-stone-500 dark:text-neutral-400">
+                            <span>{{ trafficStart }}</span>
+                            <span>{{ trafficEnd }}</span>
+                        </div>
+                        <div class="mt-2 flex flex-wrap gap-3 text-[11px] text-stone-500 dark:text-neutral-400">
+                            <span class="inline-flex items-center gap-1">
+                                <span class="inline-block h-2 w-2 rounded-full bg-emerald-600"></span>
+                                {{ $t('super_admin.dashboard.site_traffic.legend_total') }}
+                            </span>
+                            <span class="inline-flex items-center gap-1">
+                                <span class="inline-block h-2 w-2 rounded-full bg-slate-500"></span>
+                                {{ $t('super_admin.dashboard.site_traffic.legend_unique') }}
+                            </span>
                         </div>
                     </div>
                 </div>
