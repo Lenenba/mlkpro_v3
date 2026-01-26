@@ -61,6 +61,14 @@ const conversionRate = computed(() => props.analytics?.conversion_rate ?? 0);
 const totalLeads = computed(() => props.analytics?.total ?? 0);
 const riskLeads = computed(() => props.analytics?.risk_leads ?? []);
 const bySource = computed(() => props.analytics?.conversion_by_source ?? []);
+const leadForm = computed(() => props.analytics?.lead_form ?? {});
+const formWindow = computed(() => leadForm.value?.window_days ?? windowDays.value);
+const formViews = computed(() => leadForm.value?.views ?? 0);
+const formUniqueViews = computed(() => leadForm.value?.unique_views ?? 0);
+const formSubmits = computed(() => leadForm.value?.submits ?? 0);
+const formConversion = computed(() => leadForm.value?.conversion_rate ?? 0);
+const formLastView = computed(() => leadForm.value?.last_view_at ?? null);
+const formLastSubmit = computed(() => leadForm.value?.last_submit_at ?? null);
 
 const formatHours = (value) => {
     if (value === null || value === undefined) {
@@ -127,6 +135,48 @@ const riskClass = (days) => (days >= 14
                 <div class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
                     {{ $t('requests.analytics.total_note', { days: windowDays }) }}
                 </div>
+            </div>
+        </div>
+
+        <div class="rounded-sm border border-stone-200 bg-white p-4 dark:border-neutral-700 dark:bg-neutral-900">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+                <h3 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                    {{ $t('requests.analytics.form.title') }}
+                </h3>
+                <span class="text-xs text-stone-500 dark:text-neutral-400">
+                    {{ $t('requests.analytics.form.window', { days: formWindow }) }}
+                </span>
+            </div>
+            <div v-if="formViews === 0 && formSubmits === 0" class="mt-3 text-xs text-stone-500 dark:text-neutral-400">
+                {{ $t('requests.analytics.form.empty') }}
+            </div>
+            <div v-else class="mt-3 grid grid-cols-1 gap-3 md:grid-cols-3">
+                <div class="rounded-sm border border-stone-200 bg-stone-50 p-4 dark:border-neutral-700 dark:bg-neutral-800">
+                    <div class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('requests.analytics.form.views') }}</div>
+                    <div class="mt-2 text-xl font-semibold text-stone-800 dark:text-neutral-100">{{ formViews }}</div>
+                    <div class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
+                        {{ $t('requests.analytics.form.unique', { count: formUniqueViews }) }}
+                    </div>
+                </div>
+                <div class="rounded-sm border border-stone-200 bg-stone-50 p-4 dark:border-neutral-700 dark:bg-neutral-800">
+                    <div class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('requests.analytics.form.submits') }}</div>
+                    <div class="mt-2 text-xl font-semibold text-stone-800 dark:text-neutral-100">{{ formSubmits }}</div>
+                    <div class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
+                        {{ $t('requests.analytics.form.submits_note') }}
+                    </div>
+                </div>
+                <div class="rounded-sm border border-stone-200 bg-stone-50 p-4 dark:border-neutral-700 dark:bg-neutral-800">
+                    <div class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('requests.analytics.form.conversion') }}</div>
+                    <div class="mt-2 text-xl font-semibold text-stone-800 dark:text-neutral-100">{{ formConversion }}%</div>
+                    <div class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
+                        {{ $t('requests.analytics.form.conversion_note') }}
+                    </div>
+                </div>
+            </div>
+            <div v-if="formLastView || formLastSubmit" class="mt-3 text-xs text-stone-500 dark:text-neutral-400">
+                <span v-if="formLastView">{{ $t('requests.analytics.form.last_view') }}: {{ formatDate(formLastView) }}</span>
+                <span v-if="formLastView && formLastSubmit"> · </span>
+                <span v-if="formLastSubmit">{{ $t('requests.analytics.form.last_submit') }}: {{ formatDate(formLastSubmit) }}</span>
             </div>
         </div>
 

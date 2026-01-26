@@ -7,6 +7,7 @@ use App\Models\Customer;
 use App\Models\Quote;
 use App\Models\Request as LeadRequest;
 use App\Models\TeamMember;
+use App\Models\TrackingEvent;
 use App\Services\UsageLimitService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -234,6 +235,30 @@ class RequestController extends Controller
             ->sortByDesc('total')
             ->values();
 
+        $formWindowDays = 30;
+        $formWindowStart = now()->subDays($formWindowDays)->startOfDay();
+        $viewsQuery = TrackingEvent::query()
+            ->where('event_type', 'lead_form_view')
+            ->where('user_id', $accountId);
+        $submitsQuery = TrackingEvent::query()
+            ->where('event_type', 'lead_form_submit')
+            ->where('user_id', $accountId);
+
+        $formViews = (clone $viewsQuery)
+            ->where('created_at', '>=', $formWindowStart)
+            ->count();
+        $formUniqueViews = (clone $viewsQuery)
+            ->where('created_at', '>=', $formWindowStart)
+            ->whereNotNull('visitor_hash')
+            ->distinct('visitor_hash')
+            ->count('visitor_hash');
+        $formSubmits = (clone $submitsQuery)
+            ->where('created_at', '>=', $formWindowStart)
+            ->count();
+        $formConversion = $formViews > 0 ? round(($formSubmits / $formViews) * 100, 1) : 0;
+        $lastFormView = (clone $viewsQuery)->latest('created_at')->first(['created_at']);
+        $lastFormSubmit = (clone $submitsQuery)->latest('created_at')->first(['created_at']);
+
         $lastActivitySub = ActivityLog::query()
             ->selectRaw('subject_id, MAX(created_at) as last_activity_at')
             ->where('subject_type', LeadRequest::class)
@@ -298,6 +323,15 @@ class RequestController extends Controller
                 'avg_first_response_hours' => $avgResponseHours,
                 'conversion_rate' => $conversionRate,
                 'conversion_by_source' => $conversionBySource,
+                'lead_form' => [
+                    'window_days' => $formWindowDays,
+                    'views' => $formViews,
+                    'unique_views' => $formUniqueViews,
+                    'submits' => $formSubmits,
+                    'conversion_rate' => $formConversion,
+                    'last_view_at' => $lastFormView?->created_at?->toJSON(),
+                    'last_submit_at' => $lastFormSubmit?->created_at?->toJSON(),
+                ],
                 'risk_leads' => $riskLeads,
             ],
         ]);

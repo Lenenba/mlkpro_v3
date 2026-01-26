@@ -137,6 +137,7 @@ const actionCenterItems = computed(() => ([
 const limitAlerts = computed(() => props.metrics.alerts?.limit_warnings || { count: 0, tenants: [] });
 const riskTenants = computed(() => props.metrics.at_risk_tenants?.tenants || []);
 const usageTrends = computed(() => props.metrics.usage_trends || []);
+const siteTraffic = computed(() => props.metrics.site_traffic || {});
 
 const limitLabel = (key) => t(`super_admin.dashboard.limits.${key}`);
 
@@ -462,6 +463,47 @@ const resetAuditFilters = () => {
                     </div>
                     <div v-if="recentAcquisition.length === 0" class="text-sm text-stone-500 dark:text-neutral-400">
                         {{ $t('super_admin.dashboard.acquisition.empty') }}
+                    </div>
+                </div>
+            </div>
+
+            <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-800">
+                <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                    {{ $t('super_admin.dashboard.site_traffic.title') }}
+                </h2>
+                <div class="mt-4 grid gap-3 sm:grid-cols-3 text-sm text-stone-700 dark:text-neutral-200">
+                    <div class="rounded-sm border border-stone-200 bg-stone-50 p-3 dark:border-neutral-700 dark:bg-neutral-900">
+                        <div class="text-xs text-stone-500 dark:text-neutral-400">
+                            {{ $t('super_admin.dashboard.site_traffic.last_24h') }}
+                        </div>
+                        <div class="mt-1 text-lg font-semibold text-stone-800 dark:text-neutral-100">
+                            {{ formatNumber(siteTraffic.total_24h) }}
+                        </div>
+                        <div class="text-xs text-stone-500 dark:text-neutral-400">
+                            {{ $t('super_admin.dashboard.site_traffic.unique_label', { count: formatNumber(siteTraffic.unique_24h) }) }}
+                        </div>
+                    </div>
+                    <div class="rounded-sm border border-stone-200 bg-stone-50 p-3 dark:border-neutral-700 dark:bg-neutral-900">
+                        <div class="text-xs text-stone-500 dark:text-neutral-400">
+                            {{ $t('super_admin.dashboard.site_traffic.last_7d') }}
+                        </div>
+                        <div class="mt-1 text-lg font-semibold text-stone-800 dark:text-neutral-100">
+                            {{ formatNumber(siteTraffic.total_7d) }}
+                        </div>
+                        <div class="text-xs text-stone-500 dark:text-neutral-400">
+                            {{ $t('super_admin.dashboard.site_traffic.unique_label', { count: formatNumber(siteTraffic.unique_7d) }) }}
+                        </div>
+                    </div>
+                    <div class="rounded-sm border border-stone-200 bg-stone-50 p-3 dark:border-neutral-700 dark:bg-neutral-900">
+                        <div class="text-xs text-stone-500 dark:text-neutral-400">
+                            {{ $t('super_admin.dashboard.site_traffic.last_30d') }}
+                        </div>
+                        <div class="mt-1 text-lg font-semibold text-stone-800 dark:text-neutral-100">
+                            {{ formatNumber(siteTraffic.total_30d) }}
+                        </div>
+                        <div class="text-xs text-stone-500 dark:text-neutral-400">
+                            {{ $t('super_admin.dashboard.site_traffic.unique_label', { count: formatNumber(siteTraffic.unique_30d) }) }}
+                        </div>
                     </div>
                 </div>
             </div>

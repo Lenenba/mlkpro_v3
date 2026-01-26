@@ -7,6 +7,7 @@ import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
 import FloatingTextarea from '@/Components/FloatingTextarea.vue';
 import InputError from '@/Components/InputError.vue';
+import Modal from '@/Components/UI/Modal.vue';
 import { humanizeDate } from '@/utils/date';
 import { formatBytes } from '@/utils/media';
 import { buildLeadScore, badgeClass } from '@/utils/leadScore';
@@ -100,6 +101,16 @@ const displayCustomer = computed(() =>
     props.lead?.contact_name ||
     t('requests.labels.unknown_customer')
 );
+
+const hasMedia = computed(() => Array.isArray(props.lead?.media) && props.lead.media.length > 0);
+const hasTasks = computed(() => Array.isArray(props.lead?.tasks) && props.lead.tasks.length > 0);
+
+const closeOverlay = (selector) => {
+    if (typeof window === 'undefined' || !window.HSOverlay) {
+        return;
+    }
+    window.HSOverlay.close(selector);
+};
 
 const addressLabel = computed(() => {
     const parts = [
@@ -210,6 +221,7 @@ const submitMedia = () => {
             if (mediaInputRef.value) {
                 mediaInputRef.value.value = '';
             }
+            closeOverlay('#request-media-modal');
         },
     });
 };
@@ -251,6 +263,7 @@ const submitTask = () => {
         preserveScroll: true,
         onSuccess: () => {
             taskForm.reset('title', 'description', 'due_date');
+            closeOverlay('#request-task-modal');
         },
     });
 };
@@ -506,10 +519,18 @@ const mergeDuplicate = (duplicate) => {
                     </section>
 
                     <section class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                        <div class="flex items-center justify-between">
+                        <div class="flex items-center justify-between gap-2">
                             <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
                                 {{ $t('requests.media.title') }}
                             </h2>
+                            <button
+                                v-if="hasMedia"
+                                type="button"
+                                data-hs-overlay="#request-media-modal"
+                                class="inline-flex items-center rounded-sm border border-stone-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
+                            >
+                                {{ $t('requests.media.upload') }}
+                            </button>
                         </div>
 
                         <div v-if="lead.media?.length" class="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -569,7 +590,7 @@ const mergeDuplicate = (duplicate) => {
                             {{ $t('requests.media.empty') }}
                         </p>
 
-                        <form class="mt-4 space-y-2" @submit.prevent="submitMedia">
+                        <form v-if="!hasMedia" class="mt-4 space-y-2" @submit.prevent="submitMedia">
                             <input
                                 ref="mediaInputRef"
                                 type="file"
@@ -590,10 +611,18 @@ const mergeDuplicate = (duplicate) => {
                     </section>
 
                     <section class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                        <div class="flex items-center justify-between">
+                        <div class="flex items-center justify-between gap-2">
                             <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
                                 {{ $t('requests.tasks.title') }}
                             </h2>
+                            <button
+                                v-if="hasTasks"
+                                type="button"
+                                data-hs-overlay="#request-task-modal"
+                                class="inline-flex items-center rounded-sm border border-stone-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
+                            >
+                                {{ $t('requests.tasks.create') }}
+                            </button>
                         </div>
 
                         <div v-if="lead.tasks?.length" class="mt-3 space-y-2">
@@ -624,7 +653,7 @@ const mergeDuplicate = (duplicate) => {
                             {{ $t('requests.tasks.empty') }}
                         </p>
 
-                        <form class="mt-4 space-y-2" @submit.prevent="submitTask">
+                        <form v-if="!hasTasks" class="mt-4 space-y-2" @submit.prevent="submitTask">
                             <div class="grid grid-cols-1 gap-2 md:grid-cols-2">
                                 <FloatingInput v-model="taskForm.title" :label="$t('requests.tasks.title_label')" />
                                 <DatePicker v-model="taskForm.due_date" :label="$t('requests.tasks.due_date')" />
@@ -852,5 +881,53 @@ const mergeDuplicate = (duplicate) => {
                 </div>
             </div>
         </div>
+
+        <Modal v-if="hasMedia" :title="$t('requests.media.upload')" :id="'request-media-modal'">
+            <form class="space-y-2" @submit.prevent="submitMedia">
+                <input
+                    ref="mediaInputRef"
+                    type="file"
+                    class="block w-full text-sm text-stone-700 file:mr-4 file:rounded-sm file:border-0 file:bg-stone-100 file:px-3 file:py-2 file:text-sm file:font-medium file:text-stone-700 hover:file:bg-stone-200 dark:text-neutral-200 dark:file:bg-neutral-700 dark:file:text-neutral-200"
+                    @change="handleMediaFile"
+                />
+                <InputError class="mt-1" :message="mediaForm.errors.file" />
+                <div class="flex justify-end">
+                    <button
+                        type="submit"
+                        class="inline-flex items-center rounded-sm border border-transparent bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700"
+                        :disabled="mediaForm.processing || !mediaForm.file"
+                    >
+                        {{ $t('requests.media.upload') }}
+                    </button>
+                </div>
+            </form>
+        </Modal>
+
+        <Modal v-if="hasTasks" :title="$t('requests.tasks.create')" :id="'request-task-modal'">
+            <form class="space-y-2" @submit.prevent="submitTask">
+                <div class="grid grid-cols-1 gap-2 md:grid-cols-2">
+                    <FloatingInput v-model="taskForm.title" :label="$t('requests.tasks.title_label')" />
+                    <DatePicker v-model="taskForm.due_date" :label="$t('requests.tasks.due_date')" />
+                </div>
+                <FloatingSelect
+                    v-model="taskForm.assigned_team_member_id"
+                    :label="$t('requests.tasks.assignee')"
+                    :options="assigneeOptions"
+                    :placeholder="$t('requests.labels.unassigned')"
+                />
+                <FloatingTextarea v-model="taskForm.description" :label="$t('requests.tasks.description')" />
+                <InputError class="mt-1" :message="taskForm.errors.title" />
+                <InputError class="mt-1" :message="taskForm.errors.assigned_team_member_id" />
+                <div class="flex justify-end">
+                    <button
+                        type="submit"
+                        class="inline-flex items-center rounded-sm border border-transparent bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700"
+                        :disabled="taskForm.processing"
+                    >
+                        {{ $t('requests.tasks.create') }}
+                    </button>
+                </div>
+            </form>
+        </Modal>
     </AuthenticatedLayout>
 </template>

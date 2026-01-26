@@ -11,6 +11,7 @@ use App\Models\PlatformSupportTicket;
 use App\Models\Product;
 use App\Models\Quote;
 use App\Models\Role;
+use App\Models\TrackingEvent;
 use App\Models\User;
 use App\Models\Work;
 use App\Services\BillingSubscriptionService;
@@ -86,6 +87,7 @@ class SuperAdminDashboardService
         $lastActivityMap = $this->lastActivityMap($ownerIds);
         $riskTenants = $this->riskTenants($owners, $subscriptionMap, $lastActivityMap);
         $usageTrends = $this->usageTrends();
+        $siteTraffic = $this->siteVisitStats();
 
         return [
             'companies_total' => $totalCompanies,
@@ -117,6 +119,7 @@ class SuperAdminDashboardService
             'health' => $health,
             'alerts' => $this->platformAlerts($limitAlerts, $health),
             'usage_trends' => $usageTrends,
+            'site_traffic' => $siteTraffic,
             'at_risk_tenants' => $riskTenants,
             'action_center' => $this->actionCenterStats($limitAlerts, $riskTenants),
         ];
@@ -572,6 +575,35 @@ class SuperAdminDashboardService
         }
 
         return $trends;
+    }
+
+    private function siteVisitStats(): array
+    {
+        $baseQuery = TrackingEvent::query()
+            ->where('event_type', 'site_visit');
+
+        $ranges = [
+            '24h' => now()->subHours(24),
+            '7d' => now()->subDays(7)->startOfDay(),
+            '30d' => now()->subDays(30)->startOfDay(),
+        ];
+
+        $stats = [];
+        foreach ($ranges as $key => $since) {
+            $total = (clone $baseQuery)
+                ->where('created_at', '>=', $since)
+                ->count();
+            $unique = (clone $baseQuery)
+                ->where('created_at', '>=', $since)
+                ->whereNotNull('visitor_hash')
+                ->distinct('visitor_hash')
+                ->count('visitor_hash');
+
+            $stats["total_{$key}"] = $total;
+            $stats["unique_{$key}"] = $unique;
+        }
+
+        return $stats;
     }
 
     private function trendDirection(int $current, int $previous): string

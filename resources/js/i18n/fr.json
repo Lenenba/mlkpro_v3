@@ -406,6 +406,13 @@
         "title": "Acquisition (7 derniers jours)",
         "empty": "Aucune donnee d'acquisition."
       },
+      "site_traffic": {
+        "title": "Trafic du site",
+        "last_24h": "Dernieres 24h",
+        "last_7d": "7 derniers jours",
+        "last_30d": "30 derniers jours",
+        "unique_label": "{count} uniques"
+      },
       "alerts": {
         "title": "Alertes plateforme",
         "last_24h": "Dernieres 24h",
@@ -2644,6 +2651,19 @@
       "conversion_note": "Leads gagnes vs total cree.",
       "total_leads": "Nouveaux leads",
       "total_note": "Crees sur les {days} derniers jours.",
+      "form": {
+        "title": "Performance du formulaire",
+        "window": "Derniers {days} jours",
+        "views": "Vues formulaire",
+        "unique": "{count} visiteurs uniques",
+        "submits": "Soumissions",
+        "submits_note": "Leads crees depuis le formulaire public.",
+        "conversion": "Conversion formulaire",
+        "conversion_note": "Soumissions ÷ vues.",
+        "last_view": "Derniere vue",
+        "last_submit": "Derniere soumission",
+        "empty": "Aucune activite sur le formulaire."
+      },
       "by_source": "Conversion par source",
       "no_data": "Aucune donnee pour l'instant.",
       "risk_title": "Leads a risque",

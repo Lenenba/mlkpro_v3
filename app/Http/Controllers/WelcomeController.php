@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use Inertia\Response;
+use App\Services\TrackingService;
 
 class WelcomeController extends Controller
 {
@@ -15,6 +16,8 @@ class WelcomeController extends Controller
         if ($request->user()) {
             return Inertia::location(route('dashboard'));
         }
+
+        app(TrackingService::class)->record('site_visit');
 
         return Inertia::render('Welcome', [
             'canLogin' => Route::has('login'),
