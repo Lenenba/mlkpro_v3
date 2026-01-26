@@ -9,6 +9,7 @@ import FloatingInput from '@/Components/FloatingInput.vue';
 import InputError from '@/Components/InputError.vue';
 import DropzoneInput from '@/Components/DropzoneInput.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
+import DatePicker from '@/Components/DatePicker.vue';
 
 const props = defineProps({
     company: {
@@ -1057,11 +1058,7 @@ watch(activeTab, (value) => {
                                 <InputError class="mt-1" :message="apiTokenErrors.type?.[0]" />
                             </div>
                             <div>
-                                <label class="block text-xs text-stone-500 dark:text-neutral-400">
-                                    {{ $t('settings.company.api.fields.expires') }}
-                                </label>
-                                <input type="date" v-model="apiTokenForm.expires_at"
-                                    class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200" />
+                                <DatePicker v-model="apiTokenForm.expires_at" :label="$t('settings.company.api.fields.expires')" />
                                 <InputError class="mt-1" :message="apiTokenErrors.expires_at?.[0]" />
                             </div>
                         </div>

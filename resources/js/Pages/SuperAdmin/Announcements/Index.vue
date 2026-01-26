@@ -7,6 +7,7 @@ import InputError from '@/Components/InputError.vue';
 import Modal from '@/Components/Modal.vue';
 import { prepareMediaFile, MEDIA_LIMITS } from '@/utils/media';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
+import DatePicker from '@/Components/DatePicker.vue';
 
 const props = defineProps({
     announcements: {
@@ -718,19 +719,11 @@ watch(
 
                     <div class="grid gap-3 md:grid-cols-2">
                         <div>
-                            <label class="block text-xs text-stone-500 dark:text-neutral-400">
-                                {{ $t('super_admin.announcements.form.start_date') }}
-                            </label>
-                            <input v-model="form.starts_at" type="date"
-                                class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200" />
+                            <DatePicker v-model="form.starts_at" :label="$t('super_admin.announcements.form.start_date')" />
                             <InputError class="mt-1" :message="form.errors.starts_at" />
                         </div>
                         <div>
-                            <label class="block text-xs text-stone-500 dark:text-neutral-400">
-                                {{ $t('super_admin.announcements.form.end_date') }}
-                            </label>
-                            <input v-model="form.ends_at" type="date"
-                                class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200" />
+                            <DatePicker v-model="form.ends_at" :label="$t('super_admin.announcements.form.end_date')" />
                             <InputError class="mt-1" :message="form.errors.ends_at" />
                         </div>
                     </div>

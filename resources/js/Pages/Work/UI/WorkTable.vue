@@ -4,6 +4,7 @@ import { Link, router, useForm } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
 import StarRating from '@/Components/UI/StarRating.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
+import DatePicker from '@/Components/DatePicker.vue';
 import { humanizeDate } from '@/utils/date';
 
 const props = defineProps({
@@ -216,12 +217,8 @@ const createInvoice = (work) => {
                     :options="customerOptions"
                     dense
                 />
-                <input type="date" v-model="filterForm.start_from"
-                    class="py-2 px-3 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
-                    :placeholder="$t('jobs.filters.start_from')">
-                <input type="date" v-model="filterForm.start_to"
-                    class="py-2 px-3 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
-                    :placeholder="$t('jobs.filters.start_to')">
+                <DatePicker v-model="filterForm.start_from" :label="$t('jobs.filters.start_from')" />
+                <DatePicker v-model="filterForm.start_to" :label="$t('jobs.filters.start_to')" />
             </div>
         </div>
 

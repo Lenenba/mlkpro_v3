@@ -4,6 +4,7 @@ import { Link, router, useForm } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
 import StarRating from '@/Components/UI/StarRating.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
+import DatePicker from '@/Components/DatePicker.vue';
 import { humanizeDate } from '@/utils/date';
 
 const props = defineProps({
@@ -393,12 +394,8 @@ const startQuote = () => {
                 <input type="number" step="0.01" v-model="filterForm.total_max"
                     class="py-2 px-3 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
                     :placeholder="$t('quotes.filters.total_max')">
-                <input type="date" v-model="filterForm.created_from"
-                    class="py-2 px-3 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
-                    :placeholder="$t('quotes.filters.created_from')">
-                <input type="date" v-model="filterForm.created_to"
-                    class="py-2 px-3 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
-                    :placeholder="$t('quotes.filters.created_to')">
+                <DatePicker v-model="filterForm.created_from" :label="$t('quotes.filters.created_from')" />
+                <DatePicker v-model="filterForm.created_to" :label="$t('quotes.filters.created_to')" />
                 <FloatingSelect
                     v-model="filterForm.has_deposit"
                     :label="$t('quotes.filters.deposit.label')"

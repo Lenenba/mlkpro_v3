@@ -3321,6 +3321,7 @@
         "amount": "Amount",
         "method": "Method (card, transfer)",
         "reference": "Reference",
+        "paid_at": "Payment date",
         "notes": "Notes",
         "submit": "Record payment"
       }

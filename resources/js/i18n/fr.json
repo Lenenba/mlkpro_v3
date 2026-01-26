@@ -3321,6 +3321,7 @@
         "amount": "Montant",
         "method": "Methode (carte, virement)",
         "reference": "Reference",
+        "paid_at": "Date de paiement",
         "notes": "Notes",
         "submit": "Enregistrer le paiement"
       }

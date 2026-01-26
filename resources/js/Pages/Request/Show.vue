@@ -1,7 +1,8 @@
 <script setup>
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import DatePicker from '@/Components/DatePicker.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
 import FloatingTextarea from '@/Components/FloatingTextarea.vue';
@@ -165,23 +166,33 @@ const deleteNote = (note) => {
 const mediaForm = useForm({
     file: null,
 });
+const mediaInputRef = ref(null);
 
 const handleMediaFile = (event) => {
     const file = event.target.files?.[0] || null;
     mediaForm.clearErrors('file');
     if (!file) {
         mediaForm.file = null;
+        if (event.target) {
+            event.target.value = '';
+        }
         return;
     }
     const allowed = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
     if (!allowed.includes(file.type)) {
         mediaForm.setError('file', t('requests.media.invalid_type'));
         mediaForm.file = null;
+        if (event.target) {
+            event.target.value = '';
+        }
         return;
     }
     if (file.size > 10 * 1024 * 1024) {
         mediaForm.setError('file', t('requests.media.too_large'));
         mediaForm.file = null;
+        if (event.target) {
+            event.target.value = '';
+        }
         return;
     }
     mediaForm.file = file;
@@ -196,6 +207,9 @@ const submitMedia = () => {
         forceFormData: true,
         onSuccess: () => {
             mediaForm.reset();
+            if (mediaInputRef.value) {
+                mediaInputRef.value.value = '';
+            }
         },
     });
 };
@@ -557,6 +571,7 @@ const mergeDuplicate = (duplicate) => {
 
                         <form class="mt-4 space-y-2" @submit.prevent="submitMedia">
                             <input
+                                ref="mediaInputRef"
                                 type="file"
                                 class="block w-full text-sm text-stone-700 file:mr-4 file:rounded-sm file:border-0 file:bg-stone-100 file:px-3 file:py-2 file:text-sm file:font-medium file:text-stone-700 hover:file:bg-stone-200 dark:text-neutral-200 dark:file:bg-neutral-700 dark:file:text-neutral-200"
                                 @change="handleMediaFile"
@@ -612,7 +627,7 @@ const mergeDuplicate = (duplicate) => {
                         <form class="mt-4 space-y-2" @submit.prevent="submitTask">
                             <div class="grid grid-cols-1 gap-2 md:grid-cols-2">
                                 <FloatingInput v-model="taskForm.title" :label="$t('requests.tasks.title_label')" />
-                                <FloatingInput v-model="taskForm.due_date" type="date" :label="$t('requests.tasks.due_date')" />
+                                <DatePicker v-model="taskForm.due_date" :label="$t('requests.tasks.due_date')" />
                             </div>
                             <FloatingSelect
                                 v-model="taskForm.assigned_team_member_id"
