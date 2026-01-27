@@ -32,6 +32,7 @@ use App\Http\Controllers\WelcomeController;
 use App\Http\Controllers\LegalController;
 use App\Http\Controllers\LocaleController;
 use App\Http\Controllers\PublicInvoiceController;
+use App\Http\Controllers\PublicPageController;
 use App\Http\Controllers\PublicQuoteController;
 use App\Http\Controllers\PublicRequestController;
 use App\Http\Controllers\PublicWorkController;
@@ -53,6 +54,11 @@ use App\Http\Controllers\SuperAdmin\TenantController as SuperAdminTenantControll
 use App\Http\Controllers\SuperAdmin\AdminController as SuperAdminAdminController;
 use App\Http\Controllers\SuperAdmin\NotificationController as SuperAdminNotificationController;
 use App\Http\Controllers\SuperAdmin\PlatformSettingsController as SuperAdminPlatformSettingsController;
+use App\Http\Controllers\SuperAdmin\AiImageController as SuperAdminAiImageController;
+use App\Http\Controllers\SuperAdmin\WelcomeBuilderController as SuperAdminWelcomeBuilderController;
+use App\Http\Controllers\SuperAdmin\PlatformPageController as SuperAdminPlatformPageController;
+use App\Http\Controllers\SuperAdmin\PlatformSectionController as SuperAdminPlatformSectionController;
+use App\Http\Controllers\SuperAdmin\PlatformAssetController as SuperAdminPlatformAssetController;
 use App\Http\Controllers\SuperAdmin\SupportTicketController as SuperAdminSupportTicketController;
 use App\Http\Controllers\SuperAdmin\SupportTicketMessageController as SuperAdminSupportTicketMessageController;
 use App\Http\Controllers\SuperAdmin\AnnouncementController as SuperAdminAnnouncementController;
@@ -81,6 +87,7 @@ Route::get('/terms', [LegalController::class, 'terms'])->name('terms');
 Route::get('/privacy', [LegalController::class, 'privacy'])->name('privacy');
 Route::get('/refund', [LegalController::class, 'refund'])->name('refund');
 Route::get('/pricing', [LegalController::class, 'pricing'])->name('pricing');
+Route::get('/pages/{slug}', [PublicPageController::class, 'show'])->name('public.pages.show');
 
 Route::middleware('guest')->group(function () {
     Route::get('/demo', [DemoController::class, 'index'])->name('demo.index');
@@ -428,6 +435,30 @@ require __DIR__ . '/auth.php';
             Route::put('/support/{ticket}', [SuperAdminSupportTicketController::class, 'update'])->name('support.update');
             Route::post('/support/{ticket}/messages', [SuperAdminSupportTicketMessageController::class, 'store'])
                 ->name('support.messages.store');
+
+            Route::get('/welcome-builder', [SuperAdminWelcomeBuilderController::class, 'edit'])->name('welcome.edit');
+            Route::put('/welcome-builder', [SuperAdminWelcomeBuilderController::class, 'update'])->name('welcome.update');
+
+            Route::get('/pages', [SuperAdminPlatformPageController::class, 'index'])->name('pages.index');
+            Route::get('/pages/create', [SuperAdminPlatformPageController::class, 'create'])->name('pages.create');
+            Route::post('/pages', [SuperAdminPlatformPageController::class, 'store'])->name('pages.store');
+            Route::get('/pages/{page}/edit', [SuperAdminPlatformPageController::class, 'edit'])->name('pages.edit');
+            Route::put('/pages/{page}', [SuperAdminPlatformPageController::class, 'update'])->name('pages.update');
+            Route::delete('/pages/{page}', [SuperAdminPlatformPageController::class, 'destroy'])->name('pages.destroy');
+
+            Route::get('/sections', [SuperAdminPlatformSectionController::class, 'index'])->name('sections.index');
+            Route::get('/sections/create', [SuperAdminPlatformSectionController::class, 'create'])->name('sections.create');
+            Route::post('/sections', [SuperAdminPlatformSectionController::class, 'store'])->name('sections.store');
+            Route::get('/sections/{section}/edit', [SuperAdminPlatformSectionController::class, 'edit'])->name('sections.edit');
+            Route::put('/sections/{section}', [SuperAdminPlatformSectionController::class, 'update'])->name('sections.update');
+            Route::delete('/sections/{section}', [SuperAdminPlatformSectionController::class, 'destroy'])->name('sections.destroy');
+
+            Route::get('/assets', [SuperAdminPlatformAssetController::class, 'index'])->name('assets.index');
+            Route::post('/assets', [SuperAdminPlatformAssetController::class, 'store'])->name('assets.store');
+            Route::get('/assets/list', [SuperAdminPlatformAssetController::class, 'list'])->name('assets.list');
+            Route::delete('/assets/{asset}', [SuperAdminPlatformAssetController::class, 'destroy'])->name('assets.destroy');
+
+            Route::post('/ai/images', [SuperAdminAiImageController::class, 'generate'])->name('ai.images.generate');
 
             Route::get('/settings', [SuperAdminPlatformSettingsController::class, 'edit'])->name('settings.edit');
             Route::put('/settings', [SuperAdminPlatformSettingsController::class, 'update'])->name('settings.update');

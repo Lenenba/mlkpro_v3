@@ -7,6 +7,10 @@
     "notifications": "Notifications",
     "announcements": "Announcements",
     "settings": "Settings",
+    "welcome_builder": "Welcome Builder",
+    "pages": "Pages",
+    "sections": "Sections",
+    "assets": "Assets",
     "dashboard": "Dashboard",
     "customers": "Customers",
     "products": "Products",
@@ -36,6 +40,12 @@
     "fr": "French",
     "en": "English"
   },
+  "public_pages": {
+    "actions": {
+      "home": "Home",
+      "login": "Sign in"
+    }
+  },
   "notifications_panel": {
     "title": "Notifications",
     "mark_all": "Mark all",
@@ -58,6 +68,11 @@
     },
     "warning": {
       "title": "Warning."
+    },
+    "validation_toast": {
+      "single": "1 form error. Check the highlighted field.",
+      "plural": "{count} form errors. Check the highlighted fields.",
+      "generic": "There are form errors. Please review the highlighted fields."
     }
   },
   "actions": {
@@ -365,6 +380,7 @@
       "filters": "Filters",
       "clear": "Clear",
       "apply_filters": "Apply filters",
+      "apply": "Apply",
       "all": "All",
       "unlimited": "Unlimited",
       "enabled": "Enabled",
@@ -755,9 +771,11 @@
         "horizontal_rule": "Divider",
         "link": "Link",
         "image": "Image",
+        "ai_image": "AI image",
         "clear": "Clear formatting",
         "link_prompt": "Enter a link URL",
-        "image_prompt": "Enter an image URL"
+        "image_prompt": "Enter an image URL",
+        "ai_prompt": "Describe the image to generate"
       },
       "show": {
         "title": "Support ticket"
@@ -948,6 +966,390 @@
         "tasks": "Tasks",
         "team_members": "Team members",
         "assistant": "AI assistant"
+      }
+    },
+    "welcome_builder": {
+      "title": "Welcome Builder",
+      "subtitle": "Edit the public welcome page like a mini CMS.",
+      "meta": {
+        "updated_at": "Last update",
+        "never": "Never"
+      },
+      "actions": {
+        "preview": "Preview",
+        "back_dashboard": "Back to dashboard",
+        "save": "Save welcome page"
+      },
+      "locale": {
+        "label": "Language",
+        "hint": "Changes apply to the selected locale only."
+      },
+      "sections": {
+        "navigation": {
+          "title": "Navigation",
+          "tagline": "Tagline",
+          "menu_hint": "Top-right buttons and links.",
+          "add_menu": "Add menu item"
+        },
+        "hero": {
+          "title": "Hero",
+          "eyebrow": "Eyebrow",
+          "note": "Note",
+          "title_label": "Title",
+          "subtitle": "Subtitle",
+          "primary_label": "Primary CTA label",
+          "primary_href": "Primary CTA href/route",
+          "secondary_label": "Secondary CTA label",
+          "secondary_href": "Secondary CTA href/route",
+          "stat_value": "Stat value",
+          "stat_label": "Stat label",
+          "highlights": "Highlights (one per line)",
+          "preview_title": "Preview title",
+          "preview_desc": "Preview description"
+        },
+        "trust": {
+          "title": "Trust band",
+          "title_label": "Title",
+          "items": "Items (one per line)"
+        },
+        "features": {
+          "title": "Features",
+          "kicker": "Kicker",
+          "title_label": "Title",
+          "subtitle": "Subtitle",
+          "add_item": "Add feature"
+        },
+        "new_features": {
+          "title": "New features",
+          "kicker": "Kicker",
+          "title_label": "Title",
+          "subtitle": "Subtitle",
+          "badge": "Badge",
+          "add_item": "Add new feature"
+        },
+        "workflow": {
+          "title": "Workflow",
+          "kicker": "Kicker",
+          "title_label": "Title",
+          "subtitle": "Subtitle",
+          "add_step": "Add step"
+        },
+        "field": {
+          "title": "Field section",
+          "kicker": "Kicker",
+          "title_label": "Title",
+          "subtitle": "Subtitle",
+          "items": "Bullets (one per line)"
+        },
+        "cta": {
+          "title": "Bottom CTA",
+          "title_label": "Title",
+          "subtitle": "Subtitle",
+          "primary_label": "Primary label",
+          "primary_href": "Primary href/route",
+          "secondary_label": "Secondary label",
+          "secondary_href": "Secondary href/route"
+        },
+        "custom": {
+          "title": "Custom sections",
+          "add": "Add section",
+          "empty": "No custom sections yet.",
+          "section_label": "Section"
+        },
+        "footer": {
+          "title": "Footer",
+          "terms_label": "Terms label",
+          "terms_href": "Terms href/route",
+          "copy": "Copyright"
+        }
+      },
+      "common": {
+        "enabled": "Enabled",
+        "label": "Label",
+        "href": "Href or route name",
+        "style": "Style",
+        "background": "Background",
+        "background_hex": "Background color (#hex)",
+        "move_up": "Up",
+        "move_down": "Down",
+        "remove": "Remove",
+        "preview": "Preview",
+        "remove_image": "Remove image",
+        "image_hint": "Upload replaces the current image.",
+        "image_url": "Image URL",
+        "image_alt": "Image alt text",
+        "key": "Key",
+        "title": "Title",
+        "description": "Description",
+        "kicker": "Kicker",
+        "body": "Body",
+        "primary_label": "Primary label",
+        "primary_href": "Primary href/route",
+        "secondary_label": "Secondary label",
+        "secondary_href": "Secondary href/route"
+      },
+      "styles": {
+        "outline": "Outline",
+        "solid": "Solid",
+        "ghost": "Ghost"
+      }
+    },
+    "pages": {
+      "title": "Pages Builder",
+      "subtitle": "Create, edit, and publish public pages.",
+      "empty": "No pages yet. Create your first one.",
+      "meta": {
+        "updated_at": "Last update",
+        "never": "Never"
+      },
+      "actions": {
+        "back_dashboard": "Back to dashboard",
+        "back_list": "Back to pages",
+        "create": "New page",
+        "edit": "Edit",
+        "delete": "Delete",
+        "view": "View",
+        "save": "Save page",
+        "confirm_delete": "Delete /pages/{slug}?"
+      },
+      "status": {
+        "active": "Active",
+        "draft": "Draft"
+      },
+      "table": {
+        "slug": "Slug",
+        "title": "Title",
+        "status": "Status",
+        "updated": "Updated",
+        "actions": "Actions"
+      },
+      "locale": {
+        "label": "Language",
+        "hint": "Edits apply to the selected locale only."
+      },
+      "sections": {
+        "title": "Sections",
+        "add": "Add section",
+        "section_label": "Section"
+      },
+      "library": {
+        "select": "Library block",
+        "add": "Add from library",
+        "manage": "Manage library",
+        "source": "Source block",
+        "use_source": "Use library content",
+        "copy": "Copy from library",
+        "draft": "Draft"
+      },
+      "layouts": {
+        "split": "Split (text + image)",
+        "stack": "Stack (centered)"
+      },
+      "alignments": {
+        "left": "Left",
+        "center": "Center",
+        "right": "Right"
+      },
+      "densities": {
+        "compact": "Compact",
+        "normal": "Normal",
+        "spacious": "Spacious"
+      },
+      "tones": {
+        "default": "Default",
+        "muted": "Muted",
+        "contrast": "High contrast"
+      },
+      "edit": {
+        "title_create": "Create Page",
+        "title_edit": "Edit Page"
+      },
+      "fields": {
+        "title": "Page title (admin)",
+        "slug": "Slug (URL)",
+        "is_active": "Publicly visible",
+        "page_title": "Public title",
+        "page_subtitle": "Public subtitle",
+        "layout": "Layout",
+        "items": "Bullets (one per line)"
+      },
+      "common": {
+        "enabled": "Enabled",
+        "move_up": "Up",
+        "move_down": "Down",
+        "remove": "Remove",
+        "background": "Background",
+        "background_hex": "Background color (#hex)",
+        "alignment": "Alignment",
+        "density": "Density",
+        "tone": "Tone",
+        "kicker": "Kicker",
+        "title": "Title",
+        "body": "Body",
+        "image_url": "Image URL",
+        "image_alt": "Image alt text",
+        "primary_label": "Primary label",
+        "primary_href": "Primary href/route",
+        "secondary_label": "Secondary label",
+        "secondary_href": "Secondary href/route"
+      },
+      "theme": {
+        "title": "Theme",
+        "subtitle": "Global style settings for this page.",
+        "fields": {
+          "font_heading": "Heading font",
+          "font_body": "Body font",
+          "button_style": "Button style",
+          "radius": "Corner radius",
+          "shadow": "Card shadow",
+          "background_style": "Background style"
+        },
+        "fonts": {
+          "work_sans": "Work Sans",
+          "space_grotesk": "Space Grotesk",
+          "sora": "Sora",
+          "dm_sans": "DM Sans"
+        },
+        "radius": {
+          "sm": "Small",
+          "md": "Medium",
+          "lg": "Large",
+          "xl": "Extra large"
+        },
+        "shadow": {
+          "none": "None",
+          "soft": "Soft",
+          "deep": "Deep"
+        },
+        "buttons": {
+          "solid": "Solid",
+          "outline": "Outline",
+          "soft": "Soft",
+          "ghost": "Ghost"
+        },
+        "background": {
+          "solid": "Solid",
+          "gradient": "Gradient"
+        },
+        "colors": {
+          "primary": "Primary",
+          "primary_soft": "Primary soft",
+          "primary_contrast": "Primary contrast",
+          "background": "Background",
+          "background_alt": "Background (alt)",
+          "surface": "Surface",
+          "text": "Text",
+          "muted": "Muted text",
+          "border": "Border"
+        }
+      },
+      "visibility": {
+        "title": "Visibility",
+        "subtitle": "Limit this section to a specific audience.",
+        "auth_label": "Audience",
+        "auth_any": "Everyone",
+        "auth_only": "Authenticated users",
+        "guest_only": "Guests only",
+        "device_label": "Device",
+        "device_all": "All devices",
+        "device_desktop": "Desktop",
+        "device_mobile": "Mobile",
+        "locales": "Locales",
+        "roles": "Roles (comma separated)",
+        "roles_placeholder": "owner, admin, client",
+        "plans": "Plans (comma separated)",
+        "plans_placeholder": "free, pro, scale",
+        "start_at": "Start date",
+        "end_at": "End date"
+      },
+      "assets": {
+        "title": "Asset library",
+        "subtitle": "Select an asset to insert.",
+        "choose": "Choose from library",
+        "preview": "Preview",
+        "search": "Search",
+        "search_placeholder": "Search assets",
+        "tag": "Tag",
+        "tag_placeholder": "Filter by tag",
+        "loading": "Loading assets...",
+        "empty": "No assets found.",
+        "use": "Use this asset"
+      }
+    },
+    "sections": {
+      "title": "Section library",
+      "subtitle": "Create reusable blocks for your public pages.",
+      "empty": "No sections yet. Create your first block.",
+      "meta": {
+        "updated_at": "Last update",
+        "never": "Never"
+      },
+      "actions": {
+        "back_dashboard": "Back to dashboard",
+        "back_list": "Back to sections",
+        "create": "New section",
+        "edit": "Edit",
+        "delete": "Delete",
+        "save": "Save section",
+        "confirm_delete": "Delete {name}?"
+      },
+      "status": {
+        "active": "Active",
+        "draft": "Draft"
+      },
+      "table": {
+        "name": "Name",
+        "type": "Type",
+        "status": "Status",
+        "updated": "Updated",
+        "actions": "Actions"
+      },
+      "locale": {
+        "label": "Language",
+        "hint": "Edits apply to the selected locale only."
+      },
+      "edit": {
+        "title_create": "Create Section",
+        "title_edit": "Edit Section"
+      },
+      "fields": {
+        "name": "Name",
+        "type": "Type",
+        "is_active": "Active"
+      },
+      "types": {
+        "generic": "Generic",
+        "hero": "Hero",
+        "features": "Features",
+        "faq": "FAQ",
+        "testimonials": "Testimonials",
+        "cta": "Call to action",
+        "gallery": "Gallery"
+      }
+    },
+    "assets": {
+      "title": "Assets",
+      "subtitle": "Manage shared uploads for public pages.",
+      "empty": "No assets yet. Upload your first files.",
+      "actions": {
+        "back_dashboard": "Back to dashboard",
+        "upload": "Upload",
+        "delete": "Delete",
+        "copy": "Copy URL",
+        "confirm_delete": "Delete {name}?"
+      },
+      "fields": {
+        "files": "Files",
+        "tags": "Tags",
+        "tags_placeholder": "marketing, hero, pdf",
+        "alt": "Alt text",
+        "alt_placeholder": "Optional alt text"
+      },
+      "filters": {
+        "search": "Search",
+        "search_placeholder": "Search by name or mime",
+        "tag": "Tag",
+        "tag_placeholder": "Filter by tag"
       }
     }
   },
@@ -1443,9 +1845,11 @@
         "horizontal_rule": "Divider",
         "link": "Link",
         "image": "Image",
+        "ai_image": "AI image",
         "clear": "Clear formatting",
         "link_prompt": "Enter a link URL",
-        "image_prompt": "Enter an image URL"
+        "image_prompt": "Enter an image URL",
+        "ai_prompt": "Describe the image to generate"
       },
       "labels": {
         "ticket": "Support ticket",

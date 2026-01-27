@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use Inertia\Response;
 use App\Services\TrackingService;
+use App\Services\WelcomeContentService;
 
 class WelcomeController extends Controller
 {
@@ -22,6 +23,7 @@ class WelcomeController extends Controller
         return Inertia::render('Welcome', [
             'canLogin' => Route::has('login'),
             'canRegister' => Route::has('onboarding.index'),
+            'welcomeContent' => app(WelcomeContentService::class)->resolveForLocale(app()->getLocale()),
         ]);
     }
 }

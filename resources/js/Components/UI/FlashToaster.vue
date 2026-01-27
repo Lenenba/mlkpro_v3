@@ -23,12 +23,62 @@ const { t } = useI18n();
 const toasts = ref([]);
 const toastCounter = ref(0);
 const timeouts = new Map();
+const lastValidationSignature = ref('');
 
 const flash = computed(() => ({
     success: page.props.flash?.success,
     warning: page.props.flash?.warning,
     error: page.props.flash?.error,
 }));
+
+const isTechnicalMessage = (message) => {
+    if (!message) {
+        return false;
+    }
+    return /(sqlstate|integrity constraint|syntax error|pdoexception|database error)/i.test(message);
+};
+
+const rawValidationMessages = computed(() => {
+    const errors = page.props.errors;
+    if (!errors || typeof errors !== 'object') {
+        return [];
+    }
+
+    return Object.values(errors).flatMap((value) => {
+        if (Array.isArray(value)) {
+            return value.map((entry) => String(entry)).filter(Boolean);
+        }
+        if (value) {
+            return [String(value)];
+        }
+        return [];
+    });
+});
+
+const safeValidationMessages = computed(() =>
+    rawValidationMessages.value.filter((message) => !isTechnicalMessage(message))
+);
+
+const validationCount = computed(() => safeValidationMessages.value.length || rawValidationMessages.value.length);
+const hasValidationErrors = computed(() => rawValidationMessages.value.length > 0);
+const validationSignature = computed(() =>
+    hasValidationErrors.value
+        ? `${validationCount.value}:${rawValidationMessages.value.join('|')}`
+        : ''
+);
+
+const validationToastMessage = computed(() => {
+    if (!hasValidationErrors.value) {
+        return '';
+    }
+    if (safeValidationMessages.value.length === 0) {
+        return t('alerts.validation_toast.generic');
+    }
+    if (validationCount.value === 1) {
+        return t('alerts.validation_toast.single');
+    }
+    return t('alerts.validation_toast.plural', { count: validationCount.value });
+});
 
 const pushToast = (type, message) => {
     const normalized = typeof message === 'string' ? message.trim() : message;
@@ -134,6 +184,22 @@ watch(
         }
     },
     { immediate: true, deep: true }
+);
+
+watch(
+    validationSignature,
+    (signature) => {
+        if (!signature || !hasValidationErrors.value) {
+            lastValidationSignature.value = '';
+            return;
+        }
+        if (signature === lastValidationSignature.value) {
+            return;
+        }
+        pushToast('error', validationToastMessage.value);
+        lastValidationSignature.value = signature;
+    },
+    { immediate: true }
 );
 
 onBeforeUnmount(() => {
