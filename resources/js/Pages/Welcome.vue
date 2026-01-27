@@ -3,7 +3,7 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import ApplicationLogo from '@/Components/ApplicationLogo.vue';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 
-defineProps({
+const props = defineProps({
     canLogin: {
         type: Boolean,
         default: true,
@@ -12,13 +12,67 @@ defineProps({
         type: Boolean,
         default: true,
     },
+    welcomeContent: {
+        type: Object,
+        default: () => ({}),
+    },
 });
 
 const page = usePage();
 const currentLocale = computed(() => page.props.locale || 'fr');
 const availableLocales = computed(() => page.props.locales || ['fr', 'en']);
+const welcomeContent = computed(() => props.welcomeContent || {});
 const langMenuOpen = ref(false);
 const langMenuRef = ref(null);
+
+const isHrefAllowed = (href) => {
+    const key = String(href || '').trim();
+    if (!key) return false;
+    if (key === 'login') return props.canLogin;
+    if (key === 'onboarding.index') return props.canRegister;
+    return true;
+};
+
+const resolveHref = (href) => {
+    const value = String(href || '').trim();
+    if (!value) return '#';
+    if (value.startsWith('http://') || value.startsWith('https://') || value.startsWith('/') || value.startsWith('#')) {
+        return value;
+    }
+    try {
+        return route(value);
+    } catch (error) {
+        return value;
+    }
+};
+
+const isExternalHref = (href) => {
+    const value = String(href || '').trim();
+    return value.startsWith('http://') || value.startsWith('https://');
+};
+
+const navButtonClass = (style) => {
+    if (style === 'solid') {
+        return 'rounded-sm border border-transparent bg-green-600 px-3 py-2 text-sm font-medium text-white hover:bg-green-700';
+    }
+    if (style === 'ghost') {
+        return 'rounded-sm border border-transparent px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-100';
+    }
+    return 'rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm font-medium text-stone-800 hover:bg-stone-50';
+};
+
+const sectionStyle = (color) => {
+    const value = String(color || '').trim();
+    return value ? { background: value } : {};
+};
+
+const navMenuItems = computed(() =>
+    (welcomeContent.value.nav?.menu || []).filter((item) => item && item.enabled !== false && isHrefAllowed(item.href))
+);
+
+const customSections = computed(() =>
+    (welcomeContent.value.custom_sections || []).filter((section) => section && section.enabled !== false)
+);
 
 const setLocale = (locale) => {
     if (locale === currentLocale.value) {
@@ -66,7 +120,7 @@ onBeforeUnmount(() => {
                     <ApplicationLogo class="h-8 w-28 sm:h-10 sm:w-32" />
                     <div class="leading-tight">
                         <div class="text-sm font-semibold">MLK Pro</div>
-                        <div class="text-xs text-stone-500">{{ $t('welcome.nav.tagline') }}</div>
+                        <div class="text-xs text-stone-500">{{ welcomeContent.nav?.tagline || $t('welcome.nav.tagline') }}</div>
                     </div>
                 </Link>
 
@@ -119,99 +173,126 @@ onBeforeUnmount(() => {
                         </div>
                     </div>
 
-                    <div class="flex items-center gap-2">
-                        <Link v-if="canLogin" :href="route('login')"
-                            class="rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm font-medium text-stone-800 hover:bg-stone-50">
-                            {{ $t('welcome.hero.secondary_cta') }}
-                        </Link>
-                        <Link v-if="canRegister" :href="route('onboarding.index')"
-                            class="rounded-sm border border-transparent bg-green-600 px-3 py-2 text-sm font-medium text-white hover:bg-green-700">
-                            {{ $t('welcome.hero.primary_cta') }}
-                        </Link>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <template v-for="item in navMenuItems" :key="item.id || item.label || item.href">
+                            <a
+                                v-if="isExternalHref(resolveHref(item.href))"
+                                :href="resolveHref(item.href)"
+                                class="inline-flex items-center"
+                                :class="navButtonClass(item.style)"
+                                rel="noopener noreferrer"
+                                target="_blank"
+                            >
+                                {{ item.label || item.href }}
+                            </a>
+                            <Link
+                                v-else
+                                :href="resolveHref(item.href)"
+                                class="inline-flex items-center"
+                                :class="navButtonClass(item.style)"
+                            >
+                                {{ item.label || item.href }}
+                            </Link>
+                        </template>
                     </div>
                 </div>
             </div>
         </header>
 
         <main>
-            <section class="welcome-section welcome-hero">
+            <section v-if="welcomeContent.hero?.enabled !== false" class="welcome-section welcome-hero"
+                :style="sectionStyle(welcomeContent.hero?.background_color)">
                 <div class="welcome-container">
                     <div class="grid grid-cols-1 items-center lg:grid-cols-2 welcome-split">
                         <div class="space-y-6">
                             <div class="welcome-kicker welcome-fade-up">
-                                {{ $t('welcome.hero.eyebrow') }}
+                                {{ welcomeContent.hero?.eyebrow || $t('welcome.hero.eyebrow') }}
                             </div>
                             <h1 class="welcome-title text-4xl font-semibold tracking-tight sm:text-5xl welcome-fade-up" style="animation-delay: 0.1s;">
-                                {{ $t('welcome.hero.title') }}
+                                {{ welcomeContent.hero?.title || $t('welcome.hero.title') }}
                             </h1>
-                            <p class="text-base text-stone-600 sm:text-lg welcome-fade-up" style="animation-delay: 0.2s;">
-                                {{ $t('welcome.hero.subtitle') }}
-                            </p>
+                            <div class="welcome-rich text-base text-stone-600 sm:text-lg welcome-fade-up" style="animation-delay: 0.2s;"
+                                v-html="welcomeContent.hero?.subtitle || $t('welcome.hero.subtitle')"></div>
 
                             <div class="flex flex-wrap gap-3 welcome-fade-up" style="animation-delay: 0.3s;">
-                                <Link v-if="canRegister" :href="route('onboarding.index')"
-                                    class="rounded-sm border border-transparent bg-green-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-green-700">
-                                    {{ $t('welcome.hero.primary_cta') }}
-                                </Link>
-                                <Link v-if="canLogin" :href="route('login')"
-                                    class="rounded-sm border border-stone-200 bg-white px-5 py-2.5 text-sm font-semibold text-stone-800 hover:bg-stone-50">
-                                    {{ $t('welcome.hero.secondary_cta') }}
-                                </Link>
+                                <template v-if="welcomeContent.hero?.primary_cta && isHrefAllowed(welcomeContent.hero?.primary_href)">
+                                    <a
+                                        v-if="isExternalHref(resolveHref(welcomeContent.hero?.primary_href))"
+                                        :href="resolveHref(welcomeContent.hero?.primary_href)"
+                                        class="rounded-sm border border-transparent bg-green-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-green-700"
+                                        rel="noopener noreferrer"
+                                        target="_blank"
+                                    >
+                                        {{ welcomeContent.hero?.primary_cta }}
+                                    </a>
+                                    <Link
+                                        v-else
+                                        :href="resolveHref(welcomeContent.hero?.primary_href)"
+                                        class="rounded-sm border border-transparent bg-green-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-green-700"
+                                    >
+                                        {{ welcomeContent.hero?.primary_cta }}
+                                    </Link>
+                                </template>
+                                <template v-if="welcomeContent.hero?.secondary_cta && isHrefAllowed(welcomeContent.hero?.secondary_href)">
+                                    <a
+                                        v-if="isExternalHref(resolveHref(welcomeContent.hero?.secondary_href))"
+                                        :href="resolveHref(welcomeContent.hero?.secondary_href)"
+                                        class="rounded-sm border border-stone-200 bg-white px-5 py-2.5 text-sm font-semibold text-stone-800 hover:bg-stone-50"
+                                        rel="noopener noreferrer"
+                                        target="_blank"
+                                    >
+                                        {{ welcomeContent.hero?.secondary_cta }}
+                                    </a>
+                                    <Link
+                                        v-else
+                                        :href="resolveHref(welcomeContent.hero?.secondary_href)"
+                                        class="rounded-sm border border-stone-200 bg-white px-5 py-2.5 text-sm font-semibold text-stone-800 hover:bg-stone-50"
+                                    >
+                                        {{ welcomeContent.hero?.secondary_cta }}
+                                    </Link>
+                                </template>
                             </div>
 
                             <div class="grid gap-3 text-sm text-stone-700 sm:grid-cols-3 welcome-fade-up" style="animation-delay: 0.4s;">
-                                <div class="rounded-sm border border-stone-200 bg-white/80 px-3 py-3">
-                                    <div class="text-lg font-semibold text-stone-900">8</div>
-                                    <div class="text-xs text-stone-500">{{ $t('welcome.hero.stats.one_label') }}</div>
-                                </div>
-                                <div class="rounded-sm border border-stone-200 bg-white/80 px-3 py-3">
-                                    <div class="text-lg font-semibold text-stone-900">2</div>
-                                    <div class="text-xs text-stone-500">{{ $t('welcome.hero.stats.two_label') }}</div>
-                                </div>
-                                <div class="rounded-sm border border-stone-200 bg-white/80 px-3 py-3">
-                                    <div class="text-lg font-semibold text-stone-900">24/7</div>
-                                    <div class="text-xs text-stone-500">{{ $t('welcome.hero.stats.three_label') }}</div>
+                                <div
+                                    v-for="(stat, statIndex) in (welcomeContent.hero?.stats || [])"
+                                    :key="stat.id || statIndex"
+                                    class="rounded-sm border border-stone-200 bg-white/80 px-3 py-3"
+                                >
+                                    <div class="text-lg font-semibold text-stone-900">{{ stat.value }}</div>
+                                    <div class="text-xs text-stone-500">{{ stat.label }}</div>
                                 </div>
                             </div>
 
                             <div class="grid gap-2 text-sm text-stone-600 welcome-fade-up" style="animation-delay: 0.5s;">
-                                <div class="flex items-start gap-2">
+                                <div v-for="(item, highlightIndex) in (welcomeContent.hero?.highlights || [])" :key="highlightIndex" class="flex items-start gap-2">
                                     <span class="mt-1 size-1.5 rounded-full bg-green-600"></span>
-                                    <span>{{ $t('welcome.hero.highlights.one') }}</span>
-                                </div>
-                                <div class="flex items-start gap-2">
-                                    <span class="mt-1 size-1.5 rounded-full bg-green-600"></span>
-                                    <span>{{ $t('welcome.hero.highlights.two') }}</span>
-                                </div>
-                                <div class="flex items-start gap-2">
-                                    <span class="mt-1 size-1.5 rounded-full bg-green-600"></span>
-                                    <span>{{ $t('welcome.hero.highlights.three') }}</span>
+                                    <span>{{ item }}</span>
                                 </div>
                             </div>
 
-                            <p class="text-xs text-stone-500 welcome-fade-up" style="animation-delay: 0.6s;">
-                                {{ $t('welcome.hero.note') }}
-                            </p>
+                            <div class="welcome-rich text-xs text-stone-500 welcome-fade-up" style="animation-delay: 0.6s;"
+                                v-html="welcomeContent.hero?.note || $t('welcome.hero.note')"></div>
                         </div>
 
                         <div class="relative welcome-fade-in">
                             <div class="rounded-sm border border-stone-200 bg-white p-3 shadow-xl">
                                 <img
-                                    src="/images/landing/hero-dashboard.svg"
-                                    :alt="$t('welcome.images.hero_alt')"
+                                    :src="welcomeContent.hero?.image_url || '/images/landing/hero-dashboard.svg'"
+                                    :alt="welcomeContent.hero?.image_alt || $t('welcome.images.hero_alt')"
                                     class="h-auto w-full rounded-sm"
                                     loading="lazy"
                                     decoding="async"
                                 />
                             </div>
                             <div class="mt-4 grid gap-3 sm:grid-cols-2">
-                                <div class="rounded-sm border border-stone-200 bg-white/90 p-3 text-xs text-stone-600 shadow-sm">
-                                    <div class="text-sm font-semibold text-stone-900">{{ $t('welcome.hero.preview.one') }}</div>
-                                    <div>{{ $t('welcome.hero.preview.one_desc') }}</div>
-                                </div>
-                                <div class="rounded-sm border border-stone-200 bg-white/90 p-3 text-xs text-stone-600 shadow-sm">
-                                    <div class="text-sm font-semibold text-stone-900">{{ $t('welcome.hero.preview.two') }}</div>
-                                    <div>{{ $t('welcome.hero.preview.two_desc') }}</div>
+                                <div
+                                    v-for="(card, cardIndex) in (welcomeContent.hero?.preview_cards || [])"
+                                    :key="card.id || cardIndex"
+                                    class="rounded-sm border border-stone-200 bg-white/90 p-3 text-xs text-stone-600 shadow-sm"
+                                >
+                                    <div class="text-sm font-semibold text-stone-900">{{ card.title }}</div>
+                                    <div>{{ card.desc }}</div>
                                 </div>
                             </div>
                         </div>
@@ -219,123 +300,103 @@ onBeforeUnmount(() => {
                 </div>
             </section>
 
-            <section class="welcome-section welcome-trust">
+            <section v-if="welcomeContent.trust?.enabled !== false" class="welcome-section welcome-trust"
+                :style="sectionStyle(welcomeContent.trust?.background_color)">
                 <div class="welcome-container">
                     <div class="flex flex-col gap-3 text-center">
                         <div class="text-sm font-semibold text-stone-700">
-                            {{ $t('welcome.trust.title') }}
+                            {{ welcomeContent.trust?.title || $t('welcome.trust.title') }}
                         </div>
                         <div class="grid grid-cols-2 gap-3 text-xs text-stone-600 sm:grid-cols-3 lg:grid-cols-6">
-                            <div class="welcome-pill">{{ $t('welcome.trust.items.one') }}</div>
-                            <div class="welcome-pill">{{ $t('welcome.trust.items.two') }}</div>
-                            <div class="welcome-pill">{{ $t('welcome.trust.items.three') }}</div>
-                            <div class="welcome-pill">{{ $t('welcome.trust.items.four') }}</div>
-                            <div class="welcome-pill">{{ $t('welcome.trust.items.five') }}</div>
-                            <div class="welcome-pill">{{ $t('welcome.trust.items.six') }}</div>
+                            <div v-for="(item, trustIndex) in (welcomeContent.trust?.items || [])" :key="trustIndex" class="welcome-pill">
+                                {{ item }}
+                            </div>
                         </div>
                     </div>
                 </div>
             </section>
 
-            <section class="welcome-section welcome-features">
+            <section v-if="welcomeContent.features?.enabled !== false" class="welcome-section welcome-features"
+                :style="sectionStyle(welcomeContent.features?.background_color)">
                 <div class="welcome-container">
                     <div class="flex flex-col gap-2 text-center">
-                        <div class="text-xs uppercase tracking-wide text-emerald-200">{{ $t('welcome.features.kicker') }}</div>
-                        <h2 class="welcome-title text-3xl font-semibold">{{ $t('welcome.features.title') }}</h2>
-                        <p class="text-sm text-emerald-100">{{ $t('welcome.features.subtitle') }}</p>
+                        <div class="text-xs uppercase tracking-wide text-emerald-200">
+                            {{ welcomeContent.features?.kicker || $t('welcome.features.kicker') }}
+                        </div>
+                        <h2 class="welcome-title text-3xl font-semibold">
+                            {{ welcomeContent.features?.title || $t('welcome.features.title') }}
+                        </h2>
+                        <div class="welcome-rich welcome-rich--inverse text-sm text-emerald-100"
+                            v-html="welcomeContent.features?.subtitle || $t('welcome.features.subtitle')"></div>
                     </div>
 
                     <div class="mt-10 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-                        <div class="welcome-feature-card">
-                            <div class="welcome-feature-title">{{ $t('welcome.features.items.quotes.title') }}</div>
-                            <p class="welcome-feature-desc">{{ $t('welcome.features.items.quotes.desc') }}</p>
-                        </div>
-                        <div class="welcome-feature-card">
-                            <div class="welcome-feature-title">{{ $t('welcome.features.items.plans.title') }}</div>
-                            <p class="welcome-feature-desc">{{ $t('welcome.features.items.plans.desc') }}</p>
-                        </div>
-                        <div class="welcome-feature-card">
-                            <div class="welcome-feature-title">{{ $t('welcome.features.items.catalog.title') }}</div>
-                            <p class="welcome-feature-desc">{{ $t('welcome.features.items.catalog.desc') }}</p>
-                        </div>
-                        <div class="welcome-feature-card">
-                            <div class="welcome-feature-title">{{ $t('welcome.features.items.ops.title') }}</div>
-                            <p class="welcome-feature-desc">{{ $t('welcome.features.items.ops.desc') }}</p>
-                        </div>
-                        <div class="welcome-feature-card">
-                            <div class="welcome-feature-title">{{ $t('welcome.features.items.portal.title') }}</div>
-                            <p class="welcome-feature-desc">{{ $t('welcome.features.items.portal.desc') }}</p>
-                        </div>
-                        <div class="welcome-feature-card">
-                            <div class="welcome-feature-title">{{ $t('welcome.features.items.multi.title') }}</div>
-                            <p class="welcome-feature-desc">{{ $t('welcome.features.items.multi.desc') }}</p>
+                        <div
+                            v-for="(item, featureIndex) in (welcomeContent.features?.items || [])"
+                            :key="item.key || featureIndex"
+                            class="welcome-feature-card"
+                        >
+                            <div class="welcome-feature-title">{{ item.title }}</div>
+                            <div class="welcome-feature-desc welcome-rich welcome-rich--inverse" v-html="item.desc"></div>
                         </div>
                     </div>
 
-                    <div class="mt-12">
+                    <div v-if="welcomeContent.features?.new_features?.enabled !== false" class="mt-12"
+                        :style="sectionStyle(welcomeContent.features?.new_features?.background_color)">
                         <div class="flex flex-col gap-2 text-center">
-                            <div class="text-xs uppercase tracking-wide text-emerald-200">{{ $t('welcome.new_features.kicker') }}</div>
-                            <h3 class="welcome-title text-2xl font-semibold">{{ $t('welcome.new_features.title') }}</h3>
-                            <p class="text-sm text-emerald-100">{{ $t('welcome.new_features.subtitle') }}</p>
+                            <div class="text-xs uppercase tracking-wide text-emerald-200">
+                                {{ welcomeContent.features?.new_features?.kicker || $t('welcome.new_features.kicker') }}
+                            </div>
+                            <h3 class="welcome-title text-2xl font-semibold">
+                                {{ welcomeContent.features?.new_features?.title || $t('welcome.new_features.title') }}
+                            </h3>
+                            <div class="welcome-rich welcome-rich--inverse text-sm text-emerald-100"
+                                v-html="welcomeContent.features?.new_features?.subtitle || $t('welcome.new_features.subtitle')"></div>
                         </div>
 
                         <div class="mt-8 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-                            <div class="welcome-feature-card welcome-feature-card--new">
-                                <div class="welcome-feature-badge">{{ $t('welcome.new_features.badge') }}</div>
-                                <div class="welcome-feature-title">{{ $t('welcome.new_features.items.assistant.title') }}</div>
-                                <p class="welcome-feature-desc">{{ $t('welcome.new_features.items.assistant.desc') }}</p>
-                            </div>
-                            <div class="welcome-feature-card welcome-feature-card--new">
-                                <div class="welcome-feature-badge">{{ $t('welcome.new_features.badge') }}</div>
-                                <div class="welcome-feature-title">{{ $t('welcome.new_features.items.connect.title') }}</div>
-                                <p class="welcome-feature-desc">{{ $t('welcome.new_features.items.connect.desc') }}</p>
-                            </div>
-                            <div class="welcome-feature-card welcome-feature-card--new">
-                                <div class="welcome-feature-badge">{{ $t('welcome.new_features.badge') }}</div>
-                                <div class="welcome-feature-title">{{ $t('welcome.new_features.items.store.title') }}</div>
-                                <p class="welcome-feature-desc">{{ $t('welcome.new_features.items.store.desc') }}</p>
+                            <div
+                                v-for="(item, newFeatureIndex) in (welcomeContent.features?.new_features?.items || [])"
+                                :key="item.key || newFeatureIndex"
+                                class="welcome-feature-card welcome-feature-card--new"
+                            >
+                                <div class="welcome-feature-badge">
+                                    {{ welcomeContent.features?.new_features?.badge || $t('welcome.new_features.badge') }}
+                                </div>
+                                <div class="welcome-feature-title">{{ item.title }}</div>
+                                <div class="welcome-feature-desc welcome-rich welcome-rich--inverse" v-html="item.desc"></div>
                             </div>
                         </div>
                     </div>
                 </div>
             </section>
 
-            <section class="welcome-section welcome-workflow">
+            <section v-if="welcomeContent.workflow?.enabled !== false" class="welcome-section welcome-workflow"
+                :style="sectionStyle(welcomeContent.workflow?.background_color)">
                 <div class="welcome-container">
                     <div class="grid grid-cols-1 lg:grid-cols-2 lg:items-center welcome-split">
                         <div>
-                            <div class="text-xs uppercase tracking-wide text-stone-500">{{ $t('welcome.workflow.kicker') }}</div>
-                            <h2 class="welcome-title mt-2 text-3xl font-semibold">{{ $t('welcome.workflow.title') }}</h2>
-                            <p class="mt-3 text-sm text-stone-600">{{ $t('welcome.workflow.subtitle') }}</p>
+                            <div class="text-xs uppercase tracking-wide text-stone-500">
+                                {{ welcomeContent.workflow?.kicker || $t('welcome.workflow.kicker') }}
+                            </div>
+                            <h2 class="welcome-title mt-2 text-3xl font-semibold">
+                                {{ welcomeContent.workflow?.title || $t('welcome.workflow.title') }}
+                            </h2>
+                            <div class="welcome-rich mt-3 text-sm text-stone-600"
+                                v-html="welcomeContent.workflow?.subtitle || $t('welcome.workflow.subtitle')"></div>
 
                             <ol class="mt-6 space-y-3 text-sm text-stone-700">
-                                <li class="welcome-step">
-                                    <div class="welcome-step-title">{{ $t('welcome.workflow.steps.one.title') }}</div>
-                                    <div>{{ $t('welcome.workflow.steps.one.desc') }}</div>
-                                </li>
-                                <li class="welcome-step">
-                                    <div class="welcome-step-title">{{ $t('welcome.workflow.steps.two.title') }}</div>
-                                    <div>{{ $t('welcome.workflow.steps.two.desc') }}</div>
-                                </li>
-                                <li class="welcome-step">
-                                    <div class="welcome-step-title">{{ $t('welcome.workflow.steps.three.title') }}</div>
-                                    <div>{{ $t('welcome.workflow.steps.three.desc') }}</div>
-                                </li>
-                                <li class="welcome-step">
-                                    <div class="welcome-step-title">{{ $t('welcome.workflow.steps.four.title') }}</div>
-                                    <div>{{ $t('welcome.workflow.steps.four.desc') }}</div>
-                                </li>
-                                <li class="welcome-step">
-                                    <div class="welcome-step-title">{{ $t('welcome.workflow.steps.five.title') }}</div>
-                                    <div>{{ $t('welcome.workflow.steps.five.desc') }}</div>
+                                <li v-for="(step, stepIndex) in (welcomeContent.workflow?.steps || [])" :key="step.id || stepIndex" class="welcome-step">
+                                    <div class="welcome-step-title">{{ step.title }}</div>
+                                    <div class="welcome-rich" v-html="step.desc"></div>
                                 </li>
                             </ol>
                         </div>
 
                         <div class="rounded-sm border border-stone-200 bg-white pl-4 p-4 shadow-lg">
                             <img
-                                src="/images/landing/workflow-board.svg"
-                                :alt="$t('welcome.images.workflow_alt')"
+                                :src="welcomeContent.workflow?.image_url || '/images/landing/workflow-board.svg'"
+                                :alt="welcomeContent.workflow?.image_alt || $t('welcome.images.workflow_alt')"
                                 class="h-auto w-full rounded-sm"
                                 loading="lazy"
                                 decoding="async"
@@ -345,13 +406,14 @@ onBeforeUnmount(() => {
                 </div>
             </section>
 
-            <section class="welcome-section welcome-field">
+            <section v-if="welcomeContent.field?.enabled !== false" class="welcome-section welcome-field"
+                :style="sectionStyle(welcomeContent.field?.background_color)">
                 <div class="welcome-container">
                     <div class="grid grid-cols-1 lg:grid-cols-2 lg:items-center welcome-split">
                         <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-lg">
                             <img
-                                src="/images/landing/mobile-field.svg"
-                                :alt="$t('welcome.images.mobile_alt')"
+                                :src="welcomeContent.field?.image_url || '/images/landing/mobile-field.svg'"
+                                :alt="welcomeContent.field?.image_alt || $t('welcome.images.mobile_alt')"
                                 class="h-auto w-full rounded-sm"
                                 loading="lazy"
                                 decoding="async"
@@ -359,37 +421,139 @@ onBeforeUnmount(() => {
                         </div>
 
                         <div>
-                            <div class="text-xs uppercase tracking-wide text-stone-500">{{ $t('welcome.field.kicker') }}</div>
-                            <h2 class="welcome-title mt-2 text-3xl font-semibold">{{ $t('welcome.field.title') }}</h2>
-                            <p class="mt-3 text-sm text-stone-600">{{ $t('welcome.field.subtitle') }}</p>
+                            <div class="text-xs uppercase tracking-wide text-stone-500">
+                                {{ welcomeContent.field?.kicker || $t('welcome.field.kicker') }}
+                            </div>
+                            <h2 class="welcome-title mt-2 text-3xl font-semibold">
+                                {{ welcomeContent.field?.title || $t('welcome.field.title') }}
+                            </h2>
+                            <div class="welcome-rich mt-3 text-sm text-stone-600"
+                                v-html="welcomeContent.field?.subtitle || $t('welcome.field.subtitle')"></div>
 
                             <ul class="mt-6 space-y-3 text-sm text-stone-700">
-                                <li class="welcome-bullet">{{ $t('welcome.field.items.one') }}</li>
-                                <li class="welcome-bullet">{{ $t('welcome.field.items.two') }}</li>
-                                <li class="welcome-bullet">{{ $t('welcome.field.items.three') }}</li>
-                                <li class="welcome-bullet">{{ $t('welcome.field.items.four') }}</li>
+                                <li v-for="(item, fieldIndex) in (welcomeContent.field?.items || [])" :key="fieldIndex" class="welcome-bullet">
+                                    {{ item }}
+                                </li>
                             </ul>
                         </div>
                     </div>
                 </div>
             </section>
 
-            <section class="welcome-section welcome-cta">
+            <section v-if="customSections.length" class="welcome-section welcome-custom">
+                <div class="welcome-container space-y-10">
+                    <article v-for="(section, customIndex) in customSections" :key="section.id || customIndex"
+                        class="welcome-custom-card" :style="sectionStyle(section.background_color)">
+                        <div class="grid grid-cols-1 gap-8 lg:grid-cols-2 lg:items-center">
+                            <div class="space-y-4">
+                                <div v-if="section.kicker" class="welcome-kicker">{{ section.kicker }}</div>
+                                <h2 class="welcome-title text-3xl font-semibold">{{ section.title }}</h2>
+                                <div v-if="section.body" class="welcome-rich text-sm text-stone-600" v-html="section.body"></div>
+
+                                <div class="flex flex-wrap gap-2">
+                                    <template v-if="section.primary_label && isHrefAllowed(section.primary_href)">
+                                        <a
+                                            v-if="isExternalHref(resolveHref(section.primary_href))"
+                                            :href="resolveHref(section.primary_href)"
+                                            class="rounded-sm border border-transparent bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700"
+                                            rel="noopener noreferrer"
+                                            target="_blank"
+                                        >
+                                            {{ section.primary_label }}
+                                        </a>
+                                        <Link
+                                            v-else
+                                            :href="resolveHref(section.primary_href)"
+                                            class="rounded-sm border border-transparent bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700"
+                                        >
+                                            {{ section.primary_label }}
+                                        </Link>
+                                    </template>
+                                    <template v-if="section.secondary_label && isHrefAllowed(section.secondary_href)">
+                                        <a
+                                            v-if="isExternalHref(resolveHref(section.secondary_href))"
+                                            :href="resolveHref(section.secondary_href)"
+                                            class="rounded-sm border border-stone-200 bg-white px-4 py-2 text-sm font-semibold text-stone-800 hover:bg-stone-50"
+                                            rel="noopener noreferrer"
+                                            target="_blank"
+                                        >
+                                            {{ section.secondary_label }}
+                                        </a>
+                                        <Link
+                                            v-else
+                                            :href="resolveHref(section.secondary_href)"
+                                            class="rounded-sm border border-stone-200 bg-white px-4 py-2 text-sm font-semibold text-stone-800 hover:bg-stone-50"
+                                        >
+                                            {{ section.secondary_label }}
+                                        </Link>
+                                    </template>
+                                </div>
+                            </div>
+
+                            <div v-if="section.image_url" class="welcome-custom-media">
+                                <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-lg">
+                                    <img
+                                        :src="section.image_url"
+                                        :alt="section.image_alt || section.title"
+                                        class="h-auto w-full rounded-sm"
+                                        loading="lazy"
+                                        decoding="async"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    </article>
+                </div>
+            </section>
+
+            <section v-if="welcomeContent.cta?.enabled !== false" class="welcome-section welcome-cta"
+                :style="sectionStyle(welcomeContent.cta?.background_color)">
                 <div class="welcome-container">
                     <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                         <div>
-                            <h2 class="welcome-title text-3xl font-semibold text-white">{{ $t('welcome.cta.title') }}</h2>
-                            <p class="mt-2 text-sm text-emerald-50">{{ $t('welcome.cta.subtitle') }}</p>
+                            <h2 class="welcome-title text-3xl font-semibold text-white">
+                                {{ welcomeContent.cta?.title || $t('welcome.cta.title') }}
+                            </h2>
+                            <div class="welcome-rich welcome-rich--inverse mt-2 text-sm text-emerald-50"
+                                v-html="welcomeContent.cta?.subtitle || $t('welcome.cta.subtitle')"></div>
                         </div>
                         <div class="flex flex-wrap gap-2">
-                            <Link v-if="canRegister" :href="route('onboarding.index')"
-                                class="rounded-sm bg-white px-4 py-2 text-sm font-semibold text-stone-900 hover:bg-stone-100">
-                                {{ $t('welcome.cta.primary') }}
-                            </Link>
-                            <Link v-if="canLogin" :href="route('login')"
-                                class="rounded-sm border border-white/40 px-4 py-2 text-sm font-semibold text-white hover:bg-white/10">
-                                {{ $t('welcome.cta.secondary') }}
-                            </Link>
+                            <template v-if="welcomeContent.cta?.primary && isHrefAllowed(welcomeContent.cta?.primary_href)">
+                                <a
+                                    v-if="isExternalHref(resolveHref(welcomeContent.cta?.primary_href))"
+                                    :href="resolveHref(welcomeContent.cta?.primary_href)"
+                                    class="rounded-sm bg-white px-4 py-2 text-sm font-semibold text-stone-900 hover:bg-stone-100"
+                                    rel="noopener noreferrer"
+                                    target="_blank"
+                                >
+                                    {{ welcomeContent.cta?.primary }}
+                                </a>
+                                <Link
+                                    v-else
+                                    :href="resolveHref(welcomeContent.cta?.primary_href)"
+                                    class="rounded-sm bg-white px-4 py-2 text-sm font-semibold text-stone-900 hover:bg-stone-100"
+                                >
+                                    {{ welcomeContent.cta?.primary }}
+                                </Link>
+                            </template>
+                            <template v-if="welcomeContent.cta?.secondary && isHrefAllowed(welcomeContent.cta?.secondary_href)">
+                                <a
+                                    v-if="isExternalHref(resolveHref(welcomeContent.cta?.secondary_href))"
+                                    :href="resolveHref(welcomeContent.cta?.secondary_href)"
+                                    class="rounded-sm border border-white/40 px-4 py-2 text-sm font-semibold text-white hover:bg-white/10"
+                                    rel="noopener noreferrer"
+                                    target="_blank"
+                                >
+                                    {{ welcomeContent.cta?.secondary }}
+                                </a>
+                                <Link
+                                    v-else
+                                    :href="resolveHref(welcomeContent.cta?.secondary_href)"
+                                    class="rounded-sm border border-white/40 px-4 py-2 text-sm font-semibold text-white hover:bg-white/10"
+                                >
+                                    {{ welcomeContent.cta?.secondary }}
+                                </Link>
+                            </template>
                         </div>
                     </div>
                 </div>
@@ -403,8 +567,21 @@ onBeforeUnmount(() => {
                         <Link :href="route('pricing')" class="hover:text-stone-900">
                             {{ $t('legal.links.pricing') }}
                         </Link>
-                        <Link :href="route('terms')" class="hover:text-stone-900">
-                            {{ $t('legal.links.terms') }}
+                        <a
+                            v-if="isExternalHref(resolveHref(welcomeContent.footer?.terms_href || 'terms'))"
+                            :href="resolveHref(welcomeContent.footer?.terms_href || 'terms')"
+                            class="hover:text-stone-900"
+                            rel="noopener noreferrer"
+                            target="_blank"
+                        >
+                            {{ welcomeContent.footer?.terms_label || $t('legal.links.terms') }}
+                        </a>
+                        <Link
+                            v-else
+                            :href="resolveHref(welcomeContent.footer?.terms_href || 'terms')"
+                            class="hover:text-stone-900"
+                        >
+                            {{ welcomeContent.footer?.terms_label || $t('legal.links.terms') }}
                         </Link>
                         <Link :href="route('privacy')" class="hover:text-stone-900">
                             {{ $t('legal.links.privacy') }}
@@ -413,7 +590,7 @@ onBeforeUnmount(() => {
                             {{ $t('legal.links.refund') }}
                         </Link>
                     </div>
-                    <div>{{ $t('welcome.footer.copy') }} {{ new Date().getFullYear() }}</div>
+                    <div>{{ welcomeContent.footer?.copy || $t('welcome.footer.copy') }} {{ new Date().getFullYear() }}</div>
                 </div>
             </div>
         </footer>
@@ -556,6 +733,11 @@ onBeforeUnmount(() => {
     --section-pad: clamp(4rem, 8vw, 8.5rem);
 }
 
+.welcome-custom {
+    background: linear-gradient(180deg, #ffffff 0%, #ecfdf5 100%);
+    --section-pad: clamp(3.5rem, 7vw, 7.5rem);
+}
+
 .welcome-cta {
     background: linear-gradient(120deg, #0f172a 0%, #0f766e 100%);
     --section-pad: clamp(3.5rem, 7vw, 7.5rem);
@@ -634,6 +816,49 @@ onBeforeUnmount(() => {
 .welcome-step-title {
     font-weight: 600;
     color: #0f172a;
+}
+
+.welcome-custom-card {
+    border: 1px solid #e2e8f0;
+    border-radius: 0.125rem;
+    padding: clamp(1.5rem, 4vw, 2.75rem);
+    background: #ffffff;
+    box-shadow: 0 24px 45px -38px rgba(15, 23, 42, 0.35);
+}
+
+.welcome-custom-media {
+    display: flex;
+    justify-content: center;
+}
+
+.welcome-rich :deep(p),
+.welcome-rich :deep(div) {
+    margin: 0.35rem 0;
+}
+
+.welcome-rich :deep(ul),
+.welcome-rich :deep(ol) {
+    margin: 0.4rem 0;
+    padding-left: 1.1rem;
+}
+
+.welcome-rich :deep(li) {
+    margin: 0.2rem 0;
+}
+
+.welcome-rich :deep(a) {
+    text-decoration: underline;
+    font-weight: 600;
+}
+
+.welcome-rich :deep(img) {
+    max-width: 100%;
+    border-radius: 0.75rem;
+    margin: 0.5rem 0;
+}
+
+.welcome-rich--inverse :deep(a) {
+    color: #a7f3d0;
 }
 
 .welcome-bullet {

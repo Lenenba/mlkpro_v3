@@ -7,6 +7,10 @@
     "notifications": "Alertes",
     "announcements": "Annonces",
     "settings": "Paramètres",
+    "welcome_builder": "Welcome Builder",
+    "pages": "Pages",
+    "sections": "Sections",
+    "assets": "Médias",
     "dashboard": "Tableau de bord",
     "customers": "Clients",
     "products": "Produits",
@@ -36,6 +40,12 @@
     "fr": "Francais",
     "en": "Anglais"
   },
+  "public_pages": {
+    "actions": {
+      "home": "Accueil",
+      "login": "Se connecter"
+    }
+  },
   "notifications_panel": {
     "title": "Notifications",
     "mark_all": "Tout marquer",
@@ -58,6 +68,11 @@
     },
     "warning": {
       "title": "Attention"
+    },
+    "validation_toast": {
+      "single": "1 erreur dans le formulaire. Verifiez le champ surligne.",
+      "plural": "{count} erreurs dans le formulaire. Verifiez les champs surlignes.",
+      "generic": "Le formulaire contient des erreurs. Verifiez les champs surlignes."
     }
   },
   "actions": {
@@ -365,6 +380,7 @@
       "filters": "Filtres",
       "clear": "Reinitialiser",
       "apply_filters": "Appliquer les filtres",
+      "apply": "Appliquer",
       "all": "Tous",
       "unlimited": "Illimite",
       "enabled": "Active",
@@ -755,9 +771,11 @@
         "horizontal_rule": "Separateur",
         "link": "Lien",
         "image": "Image",
+        "ai_image": "Image IA",
         "clear": "Effacer le format",
         "link_prompt": "Saisissez l'URL du lien",
-        "image_prompt": "Saisissez l'URL de l'image"
+        "image_prompt": "Saisissez l'URL de l'image",
+        "ai_prompt": "Decrivez l'image a generer"
       },
       "show": {
         "title": "Ticket support"
@@ -948,6 +966,390 @@
         "tasks": "Taches",
         "team_members": "Membres equipe",
         "assistant": "Assistant IA"
+      }
+    },
+    "welcome_builder": {
+      "title": "Welcome Builder",
+      "subtitle": "Editez la page d'accueil publique comme un mini CMS.",
+      "meta": {
+        "updated_at": "Derniere mise a jour",
+        "never": "Jamais"
+      },
+      "actions": {
+        "preview": "Apercu",
+        "back_dashboard": "Retour au dashboard",
+        "save": "Enregistrer la page"
+      },
+      "locale": {
+        "label": "Langue",
+        "hint": "Les changements s'appliquent uniquement a la langue selectionnee."
+      },
+      "sections": {
+        "navigation": {
+          "title": "Navigation",
+          "tagline": "Tagline",
+          "menu_hint": "Boutons et liens en haut a droite.",
+          "add_menu": "Ajouter un item"
+        },
+        "hero": {
+          "title": "Hero",
+          "eyebrow": "Eyebrow",
+          "note": "Note",
+          "title_label": "Titre",
+          "subtitle": "Sous-titre",
+          "primary_label": "Label CTA principal",
+          "primary_href": "Lien/route CTA principal",
+          "secondary_label": "Label CTA secondaire",
+          "secondary_href": "Lien/route CTA secondaire",
+          "stat_value": "Valeur stat",
+          "stat_label": "Label stat",
+          "highlights": "Highlights (une ligne par item)",
+          "preview_title": "Titre preview",
+          "preview_desc": "Description preview"
+        },
+        "trust": {
+          "title": "Bandeau confiance",
+          "title_label": "Titre",
+          "items": "Items (une ligne par item)"
+        },
+        "features": {
+          "title": "Fonctionnalites",
+          "kicker": "Kicker",
+          "title_label": "Titre",
+          "subtitle": "Sous-titre",
+          "add_item": "Ajouter une fonctionnalite"
+        },
+        "new_features": {
+          "title": "Nouveautes",
+          "kicker": "Kicker",
+          "title_label": "Titre",
+          "subtitle": "Sous-titre",
+          "badge": "Badge",
+          "add_item": "Ajouter une nouveaute"
+        },
+        "workflow": {
+          "title": "Workflow",
+          "kicker": "Kicker",
+          "title_label": "Titre",
+          "subtitle": "Sous-titre",
+          "add_step": "Ajouter une etape"
+        },
+        "field": {
+          "title": "Section terrain",
+          "kicker": "Kicker",
+          "title_label": "Titre",
+          "subtitle": "Sous-titre",
+          "items": "Puces (une ligne par item)"
+        },
+        "cta": {
+          "title": "CTA bas de page",
+          "title_label": "Titre",
+          "subtitle": "Sous-titre",
+          "primary_label": "Label principal",
+          "primary_href": "Lien/route principal",
+          "secondary_label": "Label secondaire",
+          "secondary_href": "Lien/route secondaire"
+        },
+        "custom": {
+          "title": "Sections custom",
+          "add": "Ajouter une section",
+          "empty": "Aucune section custom pour le moment.",
+          "section_label": "Section"
+        },
+        "footer": {
+          "title": "Footer",
+          "terms_label": "Label conditions",
+          "terms_href": "Lien/route conditions",
+          "copy": "Copyright"
+        }
+      },
+      "common": {
+        "enabled": "Actif",
+        "label": "Label",
+        "href": "Lien ou nom de route",
+        "style": "Style",
+        "background": "Background",
+        "background_hex": "Couleur de fond (#hex)",
+        "move_up": "Monter",
+        "move_down": "Descendre",
+        "remove": "Supprimer",
+        "preview": "Apercu",
+        "remove_image": "Retirer l'image",
+        "image_hint": "Un upload remplace l'image actuelle.",
+        "image_url": "URL image",
+        "image_alt": "Texte alternatif",
+        "key": "Cle",
+        "title": "Titre",
+        "description": "Description",
+        "kicker": "Kicker",
+        "body": "Corps",
+        "primary_label": "Label principal",
+        "primary_href": "Lien/route principal",
+        "secondary_label": "Label secondaire",
+        "secondary_href": "Lien/route secondaire"
+      },
+      "styles": {
+        "outline": "Contour",
+        "solid": "Plein",
+        "ghost": "Ghost"
+      }
+    },
+    "pages": {
+      "title": "Pages Builder",
+      "subtitle": "Creez, editez et publiez des pages publiques.",
+      "empty": "Aucune page pour le moment. Creez votre premiere page.",
+      "meta": {
+        "updated_at": "Derniere mise a jour",
+        "never": "Jamais"
+      },
+      "actions": {
+        "back_dashboard": "Retour au dashboard",
+        "back_list": "Retour aux pages",
+        "create": "Nouvelle page",
+        "edit": "Editer",
+        "delete": "Supprimer",
+        "view": "Voir",
+        "save": "Enregistrer la page",
+        "confirm_delete": "Supprimer /pages/{slug} ?"
+      },
+      "status": {
+        "active": "Active",
+        "draft": "Brouillon"
+      },
+      "table": {
+        "slug": "Slug",
+        "title": "Titre",
+        "status": "Statut",
+        "updated": "Mise a jour",
+        "actions": "Actions"
+      },
+      "locale": {
+        "label": "Langue",
+        "hint": "Les changements s'appliquent uniquement a la langue selectionnee."
+      },
+      "sections": {
+        "title": "Sections",
+        "add": "Ajouter une section",
+        "section_label": "Section"
+      },
+      "library": {
+        "select": "Bloc de la librairie",
+        "add": "Ajouter depuis la librairie",
+        "manage": "Gerer la librairie",
+        "source": "Bloc source",
+        "use_source": "Utiliser le contenu de la librairie",
+        "copy": "Copier depuis la librairie",
+        "draft": "Brouillon"
+      },
+      "layouts": {
+        "split": "Split (texte + image)",
+        "stack": "Stack (centre)"
+      },
+      "alignments": {
+        "left": "Gauche",
+        "center": "Centre",
+        "right": "Droite"
+      },
+      "densities": {
+        "compact": "Compact",
+        "normal": "Normal",
+        "spacious": "Aere"
+      },
+      "tones": {
+        "default": "Defaut",
+        "muted": "Attenue",
+        "contrast": "Contraste"
+      },
+      "edit": {
+        "title_create": "Creer une page",
+        "title_edit": "Editer la page"
+      },
+      "fields": {
+        "title": "Titre page (admin)",
+        "slug": "Slug (URL)",
+        "is_active": "Visible publiquement",
+        "page_title": "Titre public",
+        "page_subtitle": "Sous-titre public",
+        "layout": "Layout",
+        "items": "Puces (une ligne par item)"
+      },
+      "common": {
+        "enabled": "Actif",
+        "move_up": "Monter",
+        "move_down": "Descendre",
+        "remove": "Supprimer",
+        "background": "Background",
+        "background_hex": "Couleur de fond (#hex)",
+        "alignment": "Alignement",
+        "density": "Densite",
+        "tone": "Ton",
+        "kicker": "Kicker",
+        "title": "Titre",
+        "body": "Corps",
+        "image_url": "URL image",
+        "image_alt": "Texte alternatif",
+        "primary_label": "Label principal",
+        "primary_href": "Lien/route principal",
+        "secondary_label": "Label secondaire",
+        "secondary_href": "Lien/route secondaire"
+      },
+      "theme": {
+        "title": "Theme",
+        "subtitle": "Style global pour cette page.",
+        "fields": {
+          "font_heading": "Police des titres",
+          "font_body": "Police du texte",
+          "button_style": "Style des boutons",
+          "radius": "Arrondi",
+          "shadow": "Ombre des cartes",
+          "background_style": "Style de fond"
+        },
+        "fonts": {
+          "work_sans": "Work Sans",
+          "space_grotesk": "Space Grotesk",
+          "sora": "Sora",
+          "dm_sans": "DM Sans"
+        },
+        "radius": {
+          "sm": "Petit",
+          "md": "Moyen",
+          "lg": "Grand",
+          "xl": "Tres grand"
+        },
+        "shadow": {
+          "none": "Aucune",
+          "soft": "Douce",
+          "deep": "Forte"
+        },
+        "buttons": {
+          "solid": "Plein",
+          "outline": "Contour",
+          "soft": "Doux",
+          "ghost": "Fantome"
+        },
+        "background": {
+          "solid": "Uni",
+          "gradient": "Degrade"
+        },
+        "colors": {
+          "primary": "Couleur principale",
+          "primary_soft": "Principal doux",
+          "primary_contrast": "Contraste principal",
+          "background": "Fond",
+          "background_alt": "Fond (alt)",
+          "surface": "Surface",
+          "text": "Texte",
+          "muted": "Texte attenue",
+          "border": "Bordure"
+        }
+      },
+      "visibility": {
+        "title": "Visibilite",
+        "subtitle": "Limiter cette section a un public precis.",
+        "auth_label": "Audience",
+        "auth_any": "Tout le monde",
+        "auth_only": "Utilisateurs connectes",
+        "guest_only": "Visiteurs uniquement",
+        "device_label": "Appareil",
+        "device_all": "Tous les appareils",
+        "device_desktop": "Desktop",
+        "device_mobile": "Mobile",
+        "locales": "Langues",
+        "roles": "Roles (separes par des virgules)",
+        "roles_placeholder": "owner, admin, client",
+        "plans": "Forfaits (separes par des virgules)",
+        "plans_placeholder": "free, pro, scale",
+        "start_at": "Date de debut",
+        "end_at": "Date de fin"
+      },
+      "assets": {
+        "title": "Bibliotheque de medias",
+        "subtitle": "Selectionnez un fichier a inserer.",
+        "choose": "Choisir dans la bibliotheque",
+        "preview": "Apercu",
+        "search": "Rechercher",
+        "search_placeholder": "Rechercher un media",
+        "tag": "Tag",
+        "tag_placeholder": "Filtrer par tag",
+        "loading": "Chargement des medias...",
+        "empty": "Aucun media trouve.",
+        "use": "Utiliser ce media"
+      }
+    },
+    "sections": {
+      "title": "Librairie de sections",
+      "subtitle": "Creez des blocs reutilisables pour vos pages publiques.",
+      "empty": "Aucune section pour le moment. Creez votre premier bloc.",
+      "meta": {
+        "updated_at": "Derniere mise a jour",
+        "never": "Jamais"
+      },
+      "actions": {
+        "back_dashboard": "Retour au dashboard",
+        "back_list": "Retour aux sections",
+        "create": "Nouvelle section",
+        "edit": "Editer",
+        "delete": "Supprimer",
+        "save": "Enregistrer la section",
+        "confirm_delete": "Supprimer {name} ?"
+      },
+      "status": {
+        "active": "Active",
+        "draft": "Brouillon"
+      },
+      "table": {
+        "name": "Nom",
+        "type": "Type",
+        "status": "Statut",
+        "updated": "Mise a jour",
+        "actions": "Actions"
+      },
+      "locale": {
+        "label": "Langue",
+        "hint": "Les changements s'appliquent uniquement a la langue selectionnee."
+      },
+      "edit": {
+        "title_create": "Creer une section",
+        "title_edit": "Editer la section"
+      },
+      "fields": {
+        "name": "Nom",
+        "type": "Type",
+        "is_active": "Active"
+      },
+      "types": {
+        "generic": "Generique",
+        "hero": "Hero",
+        "features": "Fonctionnalites",
+        "faq": "FAQ",
+        "testimonials": "Temoignages",
+        "cta": "Appel a l'action",
+        "gallery": "Galerie"
+      }
+    },
+    "assets": {
+      "title": "Medias",
+      "subtitle": "Gerez les fichiers partages pour les pages publiques.",
+      "empty": "Aucun media pour le moment. Importez vos fichiers.",
+      "actions": {
+        "back_dashboard": "Retour au dashboard",
+        "upload": "Importer",
+        "delete": "Supprimer",
+        "copy": "Copier l'URL",
+        "confirm_delete": "Supprimer {name} ?"
+      },
+      "fields": {
+        "files": "Fichiers",
+        "tags": "Tags",
+        "tags_placeholder": "marketing, hero, pdf",
+        "alt": "Texte alternatif",
+        "alt_placeholder": "Texte alternatif (optionnel)"
+      },
+      "filters": {
+        "search": "Recherche",
+        "search_placeholder": "Nom ou type MIME",
+        "tag": "Tag",
+        "tag_placeholder": "Filtrer par tag"
       }
     }
   },
@@ -1443,9 +1845,11 @@
         "horizontal_rule": "Separateur",
         "link": "Lien",
         "image": "Image",
+        "ai_image": "Image IA",
         "clear": "Effacer le format",
         "link_prompt": "Saisissez l'URL du lien",
-        "image_prompt": "Saisissez l'URL de l'image"
+        "image_prompt": "Saisissez l'URL de l'image",
+        "ai_prompt": "Decrivez l'image a generer"
       },
       "labels": {
         "ticket": "Ticket support",

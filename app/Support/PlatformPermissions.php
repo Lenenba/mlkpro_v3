@@ -12,6 +12,8 @@ class PlatformPermissions
     public const NOTIFICATIONS_MANAGE = 'notifications.manage';
     public const ANNOUNCEMENTS_MANAGE = 'announcements.manage';
     public const SETTINGS_MANAGE = 'settings.manage';
+    public const WELCOME_MANAGE = 'welcome.manage';
+    public const PAGES_MANAGE = 'pages.manage';
     public const ADMINS_MANAGE = 'admins.manage';
     public const SUPPORT_IMPERSONATE = 'support.impersonate';
     public const SUPPORT_MANAGE = 'support.manage';
@@ -28,6 +30,8 @@ class PlatformPermissions
             self::NOTIFICATIONS_MANAGE,
             self::ANNOUNCEMENTS_MANAGE,
             self::SETTINGS_MANAGE,
+            self::WELCOME_MANAGE,
+            self::PAGES_MANAGE,
             self::ADMINS_MANAGE,
             self::SUPPORT_IMPERSONATE,
             self::SUPPORT_MANAGE,
@@ -46,6 +50,8 @@ class PlatformPermissions
             self::NOTIFICATIONS_MANAGE => 'Notifications manage',
             self::ANNOUNCEMENTS_MANAGE => 'Announcements manage',
             self::SETTINGS_MANAGE => 'Settings manage',
+            self::WELCOME_MANAGE => 'Welcome manage',
+            self::PAGES_MANAGE => 'Pages manage',
             self::ADMINS_MANAGE => 'Admins manage',
             self::SUPPORT_IMPERSONATE => 'Support impersonate',
             self::SUPPORT_MANAGE => 'Support manage',
@@ -78,8 +84,9 @@ class PlatformPermissions
                 self::TENANTS_VIEW,
             ],
             'content' => [
-                self::SETTINGS_MANAGE,
                 self::ANNOUNCEMENTS_MANAGE,
+                self::WELCOME_MANAGE,
+                self::PAGES_MANAGE,
             ],
             default => [
                 self::TENANTS_VIEW,

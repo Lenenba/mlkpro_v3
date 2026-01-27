@@ -187,6 +187,65 @@ const isCustomerActive = computed(() => {
                                         </template>
                                     </LinkAncor>
 
+                                    <LinkAncor v-if="canPlatform('welcome.manage')" :label="$t('nav.welcome_builder')" :href="'superadmin.welcome.edit'" tone="welcome_builder"
+                                        :active="route().current('superadmin.welcome.*')">
+                                        <template #icon>
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                                stroke-linecap="round" stroke-linejoin="round"
+                                                class="lucide lucide-layout-template">
+                                                <rect x="3" y="3" width="18" height="18" rx="2" />
+                                                <path d="M3 9h18" />
+                                                <path d="M9 21V9" />
+                                            </svg>
+                                        </template>
+                                    </LinkAncor>
+
+                                    <LinkAncor v-if="canPlatform('pages.manage')" :label="$t('nav.pages')" :href="'superadmin.pages.index'" tone="pages"
+                                        :active="route().current('superadmin.pages.*')">
+                                        <template #icon>
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                                stroke-linecap="round" stroke-linejoin="round"
+                                                class="lucide lucide-file-text">
+                                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                                <path d="M14 2v6h6" />
+                                                <path d="M16 13H8" />
+                                                <path d="M16 17H8" />
+                                                <path d="M10 9H8" />
+                                            </svg>
+                                        </template>
+                                    </LinkAncor>
+
+                                    <LinkAncor v-if="canPlatform('pages.manage')" :label="$t('nav.sections')" :href="'superadmin.sections.index'" tone="sections"
+                                        :active="route().current('superadmin.sections.*')">
+                                        <template #icon>
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                                stroke-linecap="round" stroke-linejoin="round"
+                                                class="lucide lucide-layout-grid">
+                                                <rect width="7" height="7" x="3" y="3" rx="1" />
+                                                <rect width="7" height="7" x="14" y="3" rx="1" />
+                                                <rect width="7" height="7" x="3" y="14" rx="1" />
+                                                <rect width="7" height="7" x="14" y="14" rx="1" />
+                                            </svg>
+                                        </template>
+                                    </LinkAncor>
+
+                                    <LinkAncor v-if="canPlatform('pages.manage')" :label="$t('nav.assets')" :href="'superadmin.assets.index'" tone="assets"
+                                        :active="route().current('superadmin.assets.*')">
+                                        <template #icon>
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                                stroke-linecap="round" stroke-linejoin="round"
+                                                class="lucide lucide-image">
+                                                <rect width="18" height="14" x="3" y="5" rx="2" />
+                                                <circle cx="8" cy="10" r="2" />
+                                                <path d="m21 15-5-5L5 21" />
+                                            </svg>
+                                        </template>
+                                    </LinkAncor>
+
                                     <LinkAncor v-if="canPlatform('settings.manage')" :label="$t('nav.settings')" :href="'superadmin.settings.edit'" tone="settings"
                                         :active="route().current('superadmin.settings.*')">
                                         <template #icon>

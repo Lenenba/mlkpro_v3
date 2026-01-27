@@ -26,6 +26,22 @@ const props = defineProps({
         type: String,
         default: 'Enter an image URL',
     },
+    aiEnabled: {
+        type: Boolean,
+        default: false,
+    },
+    aiGenerateUrl: {
+        type: String,
+        default: '',
+    },
+    aiPrompt: {
+        type: String,
+        default: 'Describe the image to generate',
+    },
+    aiBusyLabel: {
+        type: String,
+        default: 'Generating...',
+    },
     labels: {
         type: Object,
         default: () => ({}),
@@ -36,6 +52,8 @@ const emit = defineEmits(['update:modelValue']);
 
 const editorRef = ref(null);
 const isFocused = ref(false);
+const isGenerating = ref(false);
+const aiError = ref('');
 
 const updateValue = () => {
     if (!editorRef.value) {
@@ -93,7 +111,59 @@ const insertImage = () => {
 
 const removeFormatting = () => runCommand('removeFormat');
 
-onMounted(() => setContent(props.modelValue));
+const resolveCsrfToken = () =>
+    document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+
+const generateImage = async () => {
+    if (props.disabled || !props.aiEnabled || !props.aiGenerateUrl) {
+        return;
+    }
+    const selectedText = window.getSelection()?.toString()?.trim() || '';
+    const prompt = window.prompt(props.aiPrompt, selectedText);
+    if (!prompt) {
+        return;
+    }
+
+    isGenerating.value = true;
+    aiError.value = '';
+
+    try {
+        const token = resolveCsrfToken();
+        const response = await fetch(props.aiGenerateUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                ...(token ? { 'X-CSRF-TOKEN': token } : {}),
+            },
+            body: JSON.stringify({ prompt }),
+        });
+
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) {
+            throw new Error(payload?.message || 'Image generation failed.');
+        }
+
+        if (!payload?.url) {
+            throw new Error('Image generation failed.');
+        }
+
+        runCommand('insertImage', payload.url);
+    } catch (error) {
+        aiError.value = error?.message || 'Image generation failed.';
+    } finally {
+        isGenerating.value = false;
+    }
+};
+
+onMounted(() => {
+    try {
+        document.execCommand('defaultParagraphSeparator', false, 'p');
+    } catch (error) {
+        // Ignore if the command is not supported.
+    }
+    setContent(props.modelValue);
+});
 
 watch(
     () => props.modelValue,
@@ -135,6 +205,17 @@ watch(
                 <span class="h-4 w-px bg-stone-200 dark:bg-neutral-700"></span>
                 <button type="button" class="editor-btn" :title="labels.link" :aria-label="labels.link" :disabled="disabled" @click="insertLink">Link</button>
                 <button type="button" class="editor-btn" :title="labels.image" :aria-label="labels.image" :disabled="disabled" @click="insertImage">Img</button>
+                <button
+                    v-if="aiEnabled"
+                    type="button"
+                    class="editor-btn"
+                    :title="labels.aiImage || 'AI image'"
+                    :aria-label="labels.aiImage || 'AI image'"
+                    :disabled="disabled || isGenerating"
+                    @click="generateImage"
+                >
+                    {{ isGenerating ? aiBusyLabel : 'AI' }}
+                </button>
                 <button type="button" class="editor-btn" :title="labels.clear" :aria-label="labels.clear" :disabled="disabled" @click="removeFormatting">Clear</button>
             </div>
             <div
@@ -149,6 +230,9 @@ watch(
                 @blur="isFocused = false"
             ></div>
         </div>
+        <p v-if="aiError" class="text-xs font-semibold text-red-600">
+            {{ aiError }}
+        </p>
     </div>
 </template>
 
