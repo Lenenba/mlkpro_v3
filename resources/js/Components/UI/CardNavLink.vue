@@ -93,7 +93,7 @@ const stat = (key, fallback = 0) => props.stats?.[key] ?? fallback;
             </span>
             <span class="flex min-w-0 flex-col leading-tight">
                 <span class="truncate text-[11px] font-semibold uppercase tracking-wide text-stone-600 dark:text-neutral-300">
-                    {{ t('customers.tabs.requests') }}
+                    {{ t('customers.tabs.requests.label') }}
                 </span>
                 <span class="truncate text-xs text-stone-500 dark:text-neutral-400">
                     {{ t('customers.tabs.items', { count: stat('requests', customer?.requests?.length ?? 0) }) }}

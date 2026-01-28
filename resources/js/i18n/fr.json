@@ -536,7 +536,31 @@
           "action": "Action"
         },
         "empty": "Aucun log trouve.",
-        "action_by": "Par {user}"
+        "action_by": "Par {user}",
+        "actions": {
+          "tenant.limits_updated": "Limites entreprise mises a jour",
+          "tenant.features_updated": "Fonctionnalites entreprise mises a jour",
+          "tenant.plan_updated": "Plan entreprise mis a jour",
+          "tenant.suspended": "Entreprise suspendue",
+          "tenant.restored": "Entreprise reactivee",
+          "tenant.onboarding_reset": "Onboarding reinitialise",
+          "tenant.impersonate": "Impersonation entreprise",
+          "tenant.export": "Export des donnees entreprise",
+          "platform_settings.updated": "Parametres plateforme mis a jour",
+          "notifications.updated": "Notifications plateforme mises a jour",
+          "platform_announcement.created": "Annonce plateforme creee",
+          "platform_announcement.updated": "Annonce plateforme mise a jour",
+          "platform_announcement.deleted": "Annonce plateforme supprimee",
+          "platform_page.created": "Page publique creee",
+          "platform_page.updated": "Page publique mise a jour",
+          "platform_page.deleted": "Page publique supprimee",
+          "platform_section.created": "Section publique creee",
+          "platform_section.updated": "Section publique mise a jour",
+          "platform_section.deleted": "Section publique supprimee",
+          "platform_admin.created": "Admin plateforme cree",
+          "platform_admin.updated": "Admin plateforme mis a jour",
+          "welcome_builder.updated": "Welcome page mise a jour"
+        }
       },
       "recent_activity": {
         "title": "Activite admin recente",
@@ -1109,6 +1133,7 @@
         "edit": "Editer",
         "delete": "Supprimer",
         "view": "Voir",
+        "preview": "Previsualiser la page",
         "save": "Enregistrer la page",
         "confirm_delete": "Supprimer /pages/{slug} ?"
       },
@@ -1126,6 +1151,71 @@
       "locale": {
         "label": "Langue",
         "hint": "Les changements s'appliquent uniquement a la langue selectionnee."
+      },
+      "templates": {
+        "title": "Templates",
+        "hint": "Choisissez un template pour pre-remplir la page.",
+        "select": "Choisir un template",
+        "apply": "Appliquer le template",
+        "pricing": {
+          "label": "Page Pricing",
+          "description": "Plans et tarifs pour vos offres.",
+          "page_title": "Tarifs",
+          "page_subtitle": "Choisissez l'offre qui correspond a votre entreprise.",
+          "sections": {
+            "hero": {
+              "kicker": "Plans",
+              "title": "Des offres simples",
+              "body": "Comparez nos plans et choisissez celui qui correspond a votre rythme.",
+              "items": {
+                "one": "Facturation mensuelle claire",
+                "two": "Annulation a tout moment",
+                "three": "Support prioritaire"
+              },
+              "primary_label": "Voir les plans",
+              "secondary_label": "Contacter l'equipe"
+            },
+            "plans": {
+              "kicker": "Ce qui est inclus",
+              "title": "Tout pour lancer vite",
+              "body": "Chaque plan inclut l'essentiel pour demarrer, puis evoluer.",
+              "items": {
+                "one": "Clients, devis, jobs, factures",
+                "two": "Portail client integre",
+                "three": "Rapports simples et clairs"
+              }
+            }
+          }
+        },
+        "about": {
+          "label": "Page About",
+          "description": "Mission, valeurs et equipe.",
+          "page_title": "A propos",
+          "page_subtitle": "Notre mission et la maniere dont nous aidons nos clients.",
+          "sections": {
+            "mission": {
+              "kicker": "Mission",
+              "title": "Simplifier la gestion terrain",
+              "body": "Nous aidons les equipes a gerer clients, devis et jobs sans friction."
+            },
+            "values": {
+              "kicker": "Valeurs",
+              "title": "Ce qui nous guide",
+              "body": "Des principes simples pour livrer mieux, plus vite.",
+              "items": {
+                "one": "Clarte et transparence",
+                "two": "Focus client",
+                "three": "Amelioration continue"
+              }
+            },
+            "team": {
+              "kicker": "Equipe",
+              "title": "Une equipe proche du terrain",
+              "body": "Nous construisons avec et pour les pros de services.",
+              "primary_label": "Nous contacter"
+            }
+          }
+        }
       },
       "sections": {
         "title": "Sections",
@@ -2282,6 +2372,7 @@
       "city": "Ville",
       "country": "Pays",
       "quotes": "Devis",
+      "requests": "Demandes",
       "jobs": "Chantiers",
       "status": "Statut",
       "created_from": "Cree a partir du",
@@ -2567,6 +2658,7 @@
       },
       "active_works": "Chantiers actifs",
       "requests": {
+        "label": "Demandes",
         "status": {
           "new": "Nouveau",
           "contacted": "Contacte",
