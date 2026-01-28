@@ -228,7 +228,7 @@ const defaultPropertyId = computed(() => {
                         aria-labelledby="bar-with-underline-item-2" :class="{ hidden: !isDefault('requests') }">
                         <div class="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                             <div class="text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">
-                                {{ t('customers.tabs.requests') }}
+                                {{ t('customers.tabs.requests.label') }}
                             </div>
                             <div class="flex w-full items-center gap-2 sm:w-auto">
                                 <FloatingSelect
@@ -244,7 +244,7 @@ const defaultPropertyId = computed(() => {
                         <template v-else>
                             <div v-if="!filteredRequests.length && isFiltered('requests')"
                                 class="rounded-sm border border-dashed border-stone-200 bg-white px-4 py-6 text-sm text-stone-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-400">
-                                {{ t('customers.tabs.empty_filtered', { type: t('customers.tabs.requests') }) }}
+                                {{ t('customers.tabs.empty_filtered', { type: t('customers.tabs.requests.label') }) }}
                             </div>
                             <TabEmptyState v-else-if="!filteredRequests.length" :type="'requests'" :customer="customer" />
                             <RequestList

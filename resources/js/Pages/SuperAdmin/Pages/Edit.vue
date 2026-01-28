@@ -51,6 +51,7 @@ const ensureTheme = (theme) => ({ ...themeDefaults, ...(theme || {}) });
 
 const clone = (value) => JSON.parse(JSON.stringify(value ?? {}));
 const currentLocale = ref(props.default_locale || props.locales[0] || 'fr');
+const isCreateMode = computed(() => props.mode === 'create');
 
 const form = useForm({
     slug: props.page.slug || '',
@@ -71,6 +72,97 @@ const localeOptions = computed(() =>
     (props.locales || []).map((locale) => ({ value: locale, label: locale.toUpperCase() }))
 );
 const localeList = computed(() => props.locales || []);
+
+const templates = computed(() => [
+    {
+        id: 'pricing',
+        label: t('super_admin.pages.templates.pricing.label'),
+        description: t('super_admin.pages.templates.pricing.description'),
+        content: {
+            page_title: t('super_admin.pages.templates.pricing.page_title'),
+            page_subtitle: t('super_admin.pages.templates.pricing.page_subtitle'),
+            sections: [
+                {
+                    layout: 'split',
+                    kicker: t('super_admin.pages.templates.pricing.sections.hero.kicker'),
+                    title: t('super_admin.pages.templates.pricing.sections.hero.title'),
+                    body: t('super_admin.pages.templates.pricing.sections.hero.body'),
+                    items: [
+                        t('super_admin.pages.templates.pricing.sections.hero.items.one'),
+                        t('super_admin.pages.templates.pricing.sections.hero.items.two'),
+                        t('super_admin.pages.templates.pricing.sections.hero.items.three'),
+                    ],
+                    primary_label: t('super_admin.pages.templates.pricing.sections.hero.primary_label'),
+                    primary_href: '#pricing',
+                    secondary_label: t('super_admin.pages.templates.pricing.sections.hero.secondary_label'),
+                    secondary_href: '#contact',
+                },
+                {
+                    layout: 'stack',
+                    alignment: 'center',
+                    tone: 'muted',
+                    kicker: t('super_admin.pages.templates.pricing.sections.plans.kicker'),
+                    title: t('super_admin.pages.templates.pricing.sections.plans.title'),
+                    body: t('super_admin.pages.templates.pricing.sections.plans.body'),
+                    items: [
+                        t('super_admin.pages.templates.pricing.sections.plans.items.one'),
+                        t('super_admin.pages.templates.pricing.sections.plans.items.two'),
+                        t('super_admin.pages.templates.pricing.sections.plans.items.three'),
+                    ],
+                },
+            ],
+        },
+    },
+    {
+        id: 'about',
+        label: t('super_admin.pages.templates.about.label'),
+        description: t('super_admin.pages.templates.about.description'),
+        content: {
+            page_title: t('super_admin.pages.templates.about.page_title'),
+            page_subtitle: t('super_admin.pages.templates.about.page_subtitle'),
+            sections: [
+                {
+                    layout: 'split',
+                    kicker: t('super_admin.pages.templates.about.sections.mission.kicker'),
+                    title: t('super_admin.pages.templates.about.sections.mission.title'),
+                    body: t('super_admin.pages.templates.about.sections.mission.body'),
+                },
+                {
+                    layout: 'split',
+                    alignment: 'left',
+                    kicker: t('super_admin.pages.templates.about.sections.values.kicker'),
+                    title: t('super_admin.pages.templates.about.sections.values.title'),
+                    body: t('super_admin.pages.templates.about.sections.values.body'),
+                    items: [
+                        t('super_admin.pages.templates.about.sections.values.items.one'),
+                        t('super_admin.pages.templates.about.sections.values.items.two'),
+                        t('super_admin.pages.templates.about.sections.values.items.three'),
+                    ],
+                },
+                {
+                    layout: 'stack',
+                    alignment: 'center',
+                    tone: 'contrast',
+                    kicker: t('super_admin.pages.templates.about.sections.team.kicker'),
+                    title: t('super_admin.pages.templates.about.sections.team.title'),
+                    body: t('super_admin.pages.templates.about.sections.team.body'),
+                    primary_label: t('super_admin.pages.templates.about.sections.team.primary_label'),
+                    primary_href: '#contact',
+                },
+            ],
+        },
+    },
+]);
+
+const templateOptions = computed(() => [
+    { value: '', label: t('super_admin.pages.templates.select') },
+    ...templates.value.map((template) => ({ value: template.id, label: template.label })),
+]);
+
+const selectedTemplate = ref('');
+const selectedTemplateMeta = computed(() =>
+    templates.value.find((template) => template.id === selectedTemplate.value) || null
+);
 
 const editorLabels = computed(() => ({
     heading2: t('super_admin.support.editor.heading_2'),
@@ -181,6 +273,9 @@ const themeColorFields = computed(() => [
 ]);
 
 const showBackgroundAlt = computed(() => form.theme.background_style === 'gradient');
+const visibleThemeColorFields = computed(() =>
+    themeColorFields.value.filter((field) => !field.optional || showBackgroundAlt.value)
+);
 
 const selectedLibraryId = ref('');
 
@@ -443,6 +538,13 @@ const submit = () => {
     form.put(route('superadmin.pages.update', props.page.id), { preserveScroll: true });
 };
 
+const applyTemplate = () => {
+    const template = templates.value.find((item) => item.id === selectedTemplate.value);
+    if (!template) return;
+    form.content = ensureStructure(template.content);
+    rebuildItemsLines();
+};
+
 syncFormFromProps(currentLocale.value);
 </script>
 
@@ -477,7 +579,7 @@ syncFormFromProps(currentLocale.value);
                         </Link>
                         <a v-if="public_url" :href="public_url" target="_blank" rel="noopener"
                             class="rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800">
-                            {{ $t('super_admin.pages.actions.view') }}
+                            {{ $t('super_admin.pages.actions.preview') }}
                         </a>
                         <button type="button" @click="submit"
                             class="rounded-sm border border-transparent bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700 disabled:opacity-60"
@@ -485,6 +587,26 @@ syncFormFromProps(currentLocale.value);
                             {{ $t('super_admin.pages.actions.save') }}
                         </button>
                     </div>
+                </div>
+            </section>
+
+            <section v-if="isCreateMode"
+                class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                <div class="grid gap-3 md:grid-cols-3 md:items-end">
+                    <FloatingSelect v-model="selectedTemplate" :options="templateOptions"
+                        :label="$t('super_admin.pages.templates.title')" />
+                    <div class="md:col-span-2 space-y-1 text-sm text-stone-600 dark:text-neutral-400">
+                        <div>{{ $t('super_admin.pages.templates.hint') }}</div>
+                        <div v-if="selectedTemplateMeta" class="text-xs text-stone-500 dark:text-neutral-500">
+                            {{ selectedTemplateMeta.description }}
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-3">
+                    <button type="button" @click="applyTemplate" :disabled="!selectedTemplate"
+                        class="rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm font-semibold text-stone-700 hover:bg-stone-50 disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800">
+                        {{ $t('super_admin.pages.templates.apply') }}
+                    </button>
                 </div>
             </section>
 
@@ -530,7 +652,7 @@ syncFormFromProps(currentLocale.value);
                 </div>
 
                 <div class="grid gap-3 md:grid-cols-2">
-                    <div v-for="field in themeColorFields" :key="field.key" v-if="!field.optional || showBackgroundAlt"
+                    <div v-for="field in visibleThemeColorFields" :key="field.key"
                         class="grid gap-2 md:grid-cols-[160px_1fr] md:items-center">
                         <div class="text-xs font-medium uppercase tracking-wide text-stone-500 dark:text-neutral-400">
                             {{ field.label }}

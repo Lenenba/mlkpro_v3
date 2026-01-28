@@ -536,7 +536,31 @@
           "action": "Action"
         },
         "empty": "No audit logs found.",
-        "action_by": "By {user}"
+        "action_by": "By {user}",
+        "actions": {
+          "tenant.limits_updated": "Tenant limits updated",
+          "tenant.features_updated": "Tenant features updated",
+          "tenant.plan_updated": "Tenant plan updated",
+          "tenant.suspended": "Tenant suspended",
+          "tenant.restored": "Tenant restored",
+          "tenant.onboarding_reset": "Onboarding reset",
+          "tenant.impersonate": "Tenant impersonation",
+          "tenant.export": "Tenant data export",
+          "platform_settings.updated": "Platform settings updated",
+          "notifications.updated": "Platform notifications updated",
+          "platform_announcement.created": "Platform announcement created",
+          "platform_announcement.updated": "Platform announcement updated",
+          "platform_announcement.deleted": "Platform announcement deleted",
+          "platform_page.created": "Public page created",
+          "platform_page.updated": "Public page updated",
+          "platform_page.deleted": "Public page deleted",
+          "platform_section.created": "Public section created",
+          "platform_section.updated": "Public section updated",
+          "platform_section.deleted": "Public section deleted",
+          "platform_admin.created": "Platform admin created",
+          "platform_admin.updated": "Platform admin updated",
+          "welcome_builder.updated": "Welcome page updated"
+        }
       },
       "recent_activity": {
         "title": "Recent admin activity",
@@ -1109,6 +1133,7 @@
         "edit": "Edit",
         "delete": "Delete",
         "view": "View",
+        "preview": "Preview page",
         "save": "Save page",
         "confirm_delete": "Delete /pages/{slug}?"
       },
@@ -1126,6 +1151,71 @@
       "locale": {
         "label": "Language",
         "hint": "Edits apply to the selected locale only."
+      },
+      "templates": {
+        "title": "Templates",
+        "hint": "Choose a template to pre-fill the page.",
+        "select": "Choose a template",
+        "apply": "Apply template",
+        "pricing": {
+          "label": "Pricing page",
+          "description": "Plans and pricing for your offers.",
+          "page_title": "Pricing",
+          "page_subtitle": "Pick the plan that fits your business.",
+          "sections": {
+            "hero": {
+              "kicker": "Plans",
+              "title": "Simple, clear options",
+              "body": "Compare plans and choose the pace that fits.",
+              "items": {
+                "one": "Clear monthly billing",
+                "two": "Cancel anytime",
+                "three": "Priority support"
+              },
+              "primary_label": "See plans",
+              "secondary_label": "Contact the team"
+            },
+            "plans": {
+              "kicker": "What's included",
+              "title": "Everything to launch fast",
+              "body": "Each plan includes the essentials to start, then scale.",
+              "items": {
+                "one": "Clients, quotes, jobs, invoices",
+                "two": "Built-in client portal",
+                "three": "Simple, clear reporting"
+              }
+            }
+          }
+        },
+        "about": {
+          "label": "About page",
+          "description": "Mission, values, and team.",
+          "page_title": "About",
+          "page_subtitle": "Our mission and how we help customers.",
+          "sections": {
+            "mission": {
+              "kicker": "Mission",
+              "title": "Simplify field operations",
+              "body": "We help teams manage clients, quotes, and jobs without friction."
+            },
+            "values": {
+              "kicker": "Values",
+              "title": "What guides us",
+              "body": "Simple principles to deliver better, faster.",
+              "items": {
+                "one": "Clarity and transparency",
+                "two": "Customer focus",
+                "three": "Continuous improvement"
+              }
+            },
+            "team": {
+              "kicker": "Team",
+              "title": "A team close to the field",
+              "body": "We build with and for service pros.",
+              "primary_label": "Contact us"
+            }
+          }
+        }
       },
       "sections": {
         "title": "Sections",
@@ -2282,6 +2372,7 @@
       "city": "City",
       "country": "Country",
       "quotes": "Quotes",
+      "requests": "Requests",
       "jobs": "Jobs",
       "status": "Status",
       "created_from": "Created from",
@@ -2567,6 +2658,7 @@
       },
       "active_works": "Active works",
       "requests": {
+        "label": "Requests",
         "status": {
           "new": "New",
           "contacted": "Contacted",

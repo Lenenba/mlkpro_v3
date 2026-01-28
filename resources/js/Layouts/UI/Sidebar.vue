@@ -86,6 +86,7 @@ const isCustomerActive = computed(() => {
                         <nav class="mt-2 flex-1 overflow-y-auto">
                             <ul class="text-center space-y-3 pb-2">
                                 <template v-if="showPlatformNav">
+                                    <LanguageSwitcherMenu :button-class="menuIconButtonClass" :icon-class="'size-6'" />
                                     <LinkAncor v-if="isSuperadmin" :label="$t('nav.dashboard')" :href="'superadmin.dashboard'" tone="dashboard"
                                         :active="route().current('superadmin.dashboard')">
                                         <template #icon>

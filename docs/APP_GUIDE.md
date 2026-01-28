@@ -1,6 +1,6 @@
 # MLK Pro - Guide d utilisation (MVP)
 
-Derniere mise a jour: 2025-12-22
+Derniere mise a jour: 2026-01-27
 
 Ce document est vivant. Mettez le a jour a chaque changement fonctionnel.
 
@@ -26,6 +26,9 @@ Roles internes:
 Role client (portail):
 - Peut accepter/refuser un devis, valider un job, payer une facture, noter un devis ou un job.
 - Acces limite aux actions de workflow; pas de gestion interne (clients, produits, jobs, etc.).
+
+Roles plateforme (admin global):
+- Superadmin / Platform admin: gere le contenu public (Welcome, Pages, Sections, Assets) et les parametres plateforme.
 
 Permissions actuelles (team):
 - jobs.view, jobs.edit
@@ -192,7 +195,75 @@ Phase 6 - Facturation
 - Paiement complet => job closed.
 - Le client peut payer la facture depuis le portail.
 
-## 13. Donnees de demo (LaunchSeeder)
+## 13. Mini CMS (Welcome + Pages + Sections + Assets)
+Le mini CMS sert a gerer le contenu public de la plateforme (welcome page + pages publiques).
+Acces: SuperAdmin (ou Platform admin) avec permission `pages.manage` / `welcome.manage`.
+
+### 13.1 Welcome Builder (page d accueil publique)
+Ecran: `SuperAdmin > Welcome Builder`
+Objectif: editer la landing page (hero, features, workflow, CTA, footer, etc.).
+
+Utilisation simple:
+1. Choisir la langue (FR/EN) en haut.
+2. Remplir les textes par section.
+3. Ajouter les images (hero/workflow/field) si besoin.
+4. Sauvegarder.
+
+Notes:
+- Les modifications ne concernent que la langue selectionnee.
+- Les listes (highlights, trust items, field items) se font 1 ligne = 1 item.
+
+### 13.2 Pages publiques (Pages)
+Ecran: `SuperAdmin > Pages`
+Objectif: creer des pages publiques custom (ex: /pricing, /about, /terms).
+
+Etapes rapides:
+1. Creer une page (slug + title + active).
+2. Choisir la langue (FR/EN).
+3. Ajouter des sections (manuelles ou depuis la bibliotheque).
+4. Configurer le theme (couleurs, fonts, boutons).
+5. Sauvegarder et tester le lien public.
+
+Sections (bloc de contenu):
+- Options de layout: split / stack, alignement, densite, ton.
+- Image: URL + alt (ou Asset Picker).
+- CTA: boutons primaire et secondaire.
+- Visibilite par section: auth/guest, device, locales, roles, plans, dates (start/end).
+
+### 13.3 Bibliotheque de sections (Sections)
+Ecran: `SuperAdmin > Sections`
+Objectif: creer des blocs reutilisables pour gagner du temps.
+
+Usage:
+- Creer une section une seule fois.
+- Dans une page, selectionner la section via "Source" puis:
+  - "Use source" pour lier la section.
+  - "Copy" pour dupliquer et personnaliser dans la page.
+
+### 13.4 Assets (mediatheque)
+Ecran: `SuperAdmin > Assets`
+Objectif: stocker les images, PDFs et videos reutilisables.
+
+Fonctions:
+- Upload de fichiers (images, PDF, video).
+- Tags + texte alternatif (alt).
+- Recherche par nom ou tag.
+- Utilisation via le Asset Picker dans Pages/Sections.
+
+### 13.5 Traductions (contenu public)
+- FR et EN sont supportes.
+- Le selecteur de langue est dans chaque editeur (Welcome/Pages/Sections).
+- Pensez a modifier chaque langue separément.
+
+### 13.6 Rendre l usage simple et user friendly (bonnes pratiques)
+1. Commencer par la version FR, puis adapter EN.
+2. 1 idee par section, titres courts, textes clairs.
+3. Utiliser la bibliotheque de sections pour reutiliser les blocs.
+4. Ne pas toucher aux regles de visibilite si non necessaire (par defaut: visible partout).
+5. Ajouter des tags aux assets pour les retrouver rapidement.
+6. Tester le lien public apres chaque modification importante.
+
+## 14. Donnees de demo (LaunchSeeder)
 Seeder: `Database\\Seeders\\LaunchSeeder`
 
 Execution:
@@ -216,7 +287,7 @@ Ce seeder cree:
 - transactions + facture + paiement partiel
 - taches assignees
 
-## 14. Commandes utiles (dev)
+## 15. Commandes utiles (dev)
 ```
 php artisan migrate
 php artisan storage:link
@@ -225,13 +296,13 @@ php artisan db:seed --class=Database\\Seeders\\LaunchSeeder
 php artisan workflow:auto-validate
 ```
 
-## 15. Maintenance du document
+## 16. Maintenance du document
 Quand une page, un statut ou une regle change:
 - mettre a jour ce guide
 - ajuster la section "Workflow unifie" si necessaire
 - ajouter les nouvelles commandes ou seeders
 
-## 16. Abonnement plateforme (Paddle / Stripe)
+## 17. Abonnement plateforme (Paddle / Stripe)
 Le compte proprietaire gere l abonnement mensuel dans `Settings > Billing`.
 
 Provider (env):
@@ -262,7 +333,7 @@ Notes:
 - Stripe: checkout Stripe + portail client (payment method). Webhook: `/api/stripe/webhook`.
 - Paddle: le bouton "Gerer le paiement" redirige vers Paddle (update payment method).
 
-## 17. Scenarios de test (LaunchSeeder)
+## 18. Scenarios de test (LaunchSeeder)
 Seeder: `Database\\Seeders\\LaunchSeeder`
 
 Preparation:
