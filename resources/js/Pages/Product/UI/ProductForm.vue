@@ -36,12 +36,30 @@ const initialImage = ref(props.product?.image_url || props.product?.image || '')
 
 const { t } = useI18n();
 
+const toDateInput = (value) => {
+    if (!value) {
+        return '';
+    }
+    const text = String(value);
+    if (/^\d{4}-\d{2}-\d{2}/.test(text)) {
+        return text.slice(0, 10);
+    }
+    const date = new Date(text);
+    if (Number.isNaN(date.getTime())) {
+        return '';
+    }
+    return date.toISOString().slice(0, 10);
+};
+
 // Initialize the form
 const form = useForm({
     name: props.product?.name || '',
     category_id: props.product?.category_id || '',
     stock: props.product?.stock || 0,
     price: props.product?.price || 0,
+    promo_discount_percent: props.product?.promo_discount_percent ?? '',
+    promo_start_at: toDateInput(props.product?.promo_start_at),
+    promo_end_at: toDateInput(props.product?.promo_end_at),
     cost_price: props.product?.cost_price || 0,
     margin_percent: props.product?.margin_percent || 0,
     minimum_stock: props.product?.minimum_stock || 0,
@@ -376,6 +394,9 @@ const submit = () => {
         .transform((data) => ({
             ...data,
             image: data.image instanceof File ? data.image : null,
+            promo_discount_percent: data.promo_discount_percent === '' ? null : data.promo_discount_percent,
+            promo_start_at: data.promo_start_at || null,
+            promo_end_at: data.promo_end_at || null,
             image_url: (() => {
                 if (data.image instanceof File) {
                     return null;
@@ -486,6 +507,33 @@ const buttonLabel = computed(() => (props.product
 
                     <div class="grid grid-cols-1 gap-4 gap-y-4">
                         <FloatingNumberInput v-model="form.price" :label="$t('products.form.price')" :step="0.01" :required="true" />
+                        <div class="rounded-sm border border-dashed border-stone-200 bg-stone-50 p-3 text-xs text-stone-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-400">
+                            <div class="text-sm font-semibold text-stone-700 dark:text-neutral-200">
+                                {{ $t('products.form.promo_title') }}
+                            </div>
+                            <p class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
+                                {{ $t('products.form.promo_hint') }}
+                            </p>
+                            <div class="mt-3 grid grid-cols-1 gap-3">
+                                <FloatingNumberInput
+                                    v-model="form.promo_discount_percent"
+                                    :label="$t('products.form.promo_discount')"
+                                    :step="0.01"
+                                />
+                                <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+                                    <FloatingInput
+                                        v-model="form.promo_start_at"
+                                        :label="$t('products.form.promo_start')"
+                                        type="date"
+                                    />
+                                    <FloatingInput
+                                        v-model="form.promo_end_at"
+                                        :label="$t('products.form.promo_end')"
+                                        type="date"
+                                    />
+                                </div>
+                            </div>
+                        </div>
                         <FloatingNumberInput v-model="form.cost_price" :label="$t('products.form.cost_price')" :step="0.01" />
                         <FloatingNumberInput v-model="form.margin_percent" :label="$t('products.form.margin')" :step="0.01" />
                         <FloatingNumberInput v-model="form.stock" :label="$t('products.form.stock')" :required="true" />

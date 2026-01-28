@@ -206,6 +206,7 @@ const initialPreferredSuppliers = props.supplier_preferences?.preferred?.length
 
 const form = useForm({
     company_name: props.company.company_name || '',
+    company_slug: props.company.company_slug || '',
     company_logo: props.company.company_logo || null,
     company_description: props.company.company_description || '',
     company_country: '',
@@ -234,6 +235,14 @@ const form = useForm({
 
 const categoryForm = useForm({
     name: '',
+});
+
+const storeUrl = computed(() => {
+    if (typeof window === 'undefined') {
+        return '';
+    }
+    const slug = String(form.company_slug || '').trim();
+    return slug ? `${window.location.origin}/store/${slug}` : '';
 });
 
 const warehouseForm = ref({
@@ -767,6 +776,16 @@ watch(activeTab, (value) => {
                     <div>
                         <FloatingInput v-model="form.company_name" :label="$t('settings.company.fields.name')" />
                         <InputError class="mt-1" :message="form.errors.company_name" />
+                    </div>
+                    <div>
+                        <FloatingInput v-model="form.company_slug" :label="$t('settings.company.fields.public_slug')" />
+                        <p class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
+                            {{ $t('settings.company.fields.public_slug_hint') }}
+                        </p>
+                        <p v-if="storeUrl" class="mt-1 text-xs text-emerald-700 dark:text-emerald-300">
+                            {{ storeUrl }}
+                        </p>
+                        <InputError class="mt-1" :message="form.errors.company_slug" />
                     </div>
 
                     <div class="space-y-2">

@@ -130,6 +130,7 @@ class PortalProductOrderController extends Controller
         $subtotal = 0;
         $taxTotal = 0;
         $errors = [];
+        $now = now();
 
         foreach ($lines as $index => $line) {
             $product = $products->get($line['product_id'] ?? null);
@@ -149,7 +150,7 @@ class PortalProductOrderController extends Controller
                 continue;
             }
 
-            $price = (float) $product->price;
+            [, $price] = $this->resolvePromoPricing($product, $now);
             $lineTotal = round($price * $quantity, 2);
             $subtotal += $lineTotal;
 
@@ -167,6 +168,24 @@ class PortalProductOrderController extends Controller
         }
 
         return [$itemsPayload, $subtotal, $taxTotal, $errors];
+    }
+
+    private function resolvePromoPricing(Product $product, $now = null): array
+    {
+        $now = $now ?: now();
+        $discount = (float) ($product->promo_discount_percent ?? 0);
+        $promoStart = $product->promo_start_at;
+        $promoEnd = $product->promo_end_at;
+        $promoActive = $discount > 0
+            && (!$promoStart || $promoStart->lessThanOrEqualTo($now))
+            && (!$promoEnd || $promoEnd->greaterThanOrEqualTo($now));
+
+        $basePrice = (float) $product->price;
+        $promoPrice = $promoActive
+            ? round($basePrice * (1 - ($discount / 100)), 2)
+            : $basePrice;
+
+        return [$basePrice, $promoPrice, $promoActive, $discount];
     }
 
     private function applyReservations(Sale $sale, array $itemsPayload, int $accountId, $currentItems = null): void
@@ -293,6 +312,9 @@ class PortalProductOrderController extends Controller
                 'description',
                 'image',
                 'price',
+                'promo_discount_percent',
+                'promo_start_at',
+                'promo_end_at',
                 'sku',
                 'barcode',
                 'unit',
@@ -303,6 +325,14 @@ class PortalProductOrderController extends Controller
                 'tracking_type',
                 'tax_rate',
             ]);
+
+        $now = now();
+        $products->each(function (Product $product) use ($now) {
+            [, $promoPrice, $promoActive, $discount] = $this->resolvePromoPricing($product, $now);
+            $product->setAttribute('promo_active', $promoActive);
+            $product->setAttribute('promo_price', $promoActive ? $promoPrice : null);
+            $product->setAttribute('promo_discount_percent', $promoActive ? $discount : $product->promo_discount_percent);
+        });
 
         $defaultAddress = $customer->defaultProperty?->street1
             ? collect([
@@ -648,6 +678,9 @@ class PortalProductOrderController extends Controller
                 'description',
                 'image',
                 'price',
+                'promo_discount_percent',
+                'promo_start_at',
+                'promo_end_at',
                 'sku',
                 'barcode',
                 'unit',
@@ -658,6 +691,14 @@ class PortalProductOrderController extends Controller
                 'tracking_type',
                 'tax_rate',
             ]);
+
+        $now = now();
+        $products->each(function (Product $product) use ($now) {
+            [, $promoPrice, $promoActive, $discount] = $this->resolvePromoPricing($product, $now);
+            $product->setAttribute('promo_active', $promoActive);
+            $product->setAttribute('promo_price', $promoActive ? $promoPrice : null);
+            $product->setAttribute('promo_discount_percent', $promoActive ? $discount : $product->promo_discount_percent);
+        });
 
         $defaultAddress = $customer->defaultProperty?->street1
             ? collect([

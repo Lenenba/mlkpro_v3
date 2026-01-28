@@ -204,6 +204,15 @@ const resetFilters = () => {
 const formatCurrency = (value) =>
     `$${Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
+const priceMeta = (product) => {
+    const promoActive = Boolean(product?.promo_active) && Number(product?.promo_price ?? 0) > 0;
+    const current = promoActive ? Number(product.promo_price || 0) : Number(product?.price || 0);
+    const original = promoActive ? Number(product?.price || 0) : null;
+    return { current, original, promoActive };
+};
+
+const effectivePrice = (product) => priceMeta(product).current;
+
 const formatDateTime = (value) => {
     if (!value) {
         return '-';
@@ -345,14 +354,14 @@ const confirmForm = useForm({
 });
 
 const subtotal = computed(() =>
-    cart.value.reduce((sum, entry) => sum + Number(entry.product.price || 0) * entry.quantity, 0)
+    cart.value.reduce((sum, entry) => sum + effectivePrice(entry.product) * entry.quantity, 0)
 );
 const cartItemCount = computed(() => cart.value.reduce((sum, entry) => sum + entry.quantity, 0));
 
 const taxTotal = computed(() =>
     cart.value.reduce((sum, entry) => {
         const taxRate = Number(entry.product.tax_rate || 0);
-        const lineTotal = Number(entry.product.price || 0) * entry.quantity;
+        const lineTotal = effectivePrice(entry.product) * entry.quantity;
         return sum + (taxRate > 0 ? (lineTotal * taxRate) / 100 : 0);
     }, 0)
 );
@@ -894,7 +903,10 @@ const startPayment = (type) => {
                                         <p class="text-xs text-stone-500 dark:text-neutral-400">{{ product.sku || $t('portal_shop.product.sku_fallback') }}</p>
                                     </div>
                                     <span class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
-                                        {{ formatCurrency(product.price) }}
+                                        {{ formatCurrency(priceMeta(product).current) }}
+                                        <span v-if="priceMeta(product).original" class="ml-2 text-xs text-stone-400 line-through">
+                                            {{ formatCurrency(priceMeta(product).original) }}
+                                        </span>
                                     </span>
                                 </div>
                                 <p v-if="product.description" class="max-h-10 overflow-hidden text-xs text-stone-500 dark:text-neutral-400">
@@ -985,7 +997,7 @@ const startPayment = (type) => {
                             <div>
                                 <p class="text-sm font-medium text-stone-800 dark:text-neutral-100">{{ entry.product.name }}</p>
                                 <p class="text-xs text-stone-500 dark:text-neutral-400">
-                                    {{ formatCurrency(entry.product.price) }} x {{ entry.quantity }}
+                                    {{ formatCurrency(effectivePrice(entry.product)) }} x {{ entry.quantity }}
                                 </p>
                             </div>
                             <div class="flex items-center gap-2">
@@ -1232,8 +1244,11 @@ const startPayment = (type) => {
                         <div class="flex items-center justify-between">
                             <span class="text-xs uppercase tracking-wide text-stone-500 dark:text-neutral-400">{{ $t('portal_shop.product.price_label') }}</span>
                             <span class="text-lg font-semibold text-stone-800 dark:text-neutral-100">
-                                {{ formatCurrency(selectedProduct.price) }}
+                                {{ formatCurrency(priceMeta(selectedProduct).current) }}
                             </span>
+                        </div>
+                        <div v-if="priceMeta(selectedProduct).original" class="mt-1 text-xs text-stone-400 line-through">
+                            {{ formatCurrency(priceMeta(selectedProduct).original) }}
                         </div>
                         <div class="mt-2 space-y-1 text-xs text-stone-500 dark:text-neutral-400">
                             <div class="flex items-center justify-between">

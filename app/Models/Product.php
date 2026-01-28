@@ -31,6 +31,9 @@ class Product extends Model
         'stock',
         'minimum_stock',
         'price',
+        'promo_discount_percent',
+        'promo_start_at',
+        'promo_end_at',
         'image',
         'sku',
         'barcode',
@@ -63,10 +66,13 @@ class Product extends Model
         'stock' => 'integer',
         'minimum_stock' => 'integer',
         'price' => 'decimal:2',
+        'promo_discount_percent' => 'decimal:2',
         'cost_price' => 'decimal:2',
         'margin_percent' => 'decimal:2',
         'tax_rate' => 'decimal:2',
         'is_active' => 'boolean',
+        'promo_start_at' => 'datetime',
+        'promo_end_at' => 'datetime',
     ];
 
     protected $appends = [
