@@ -27,6 +27,9 @@ class ProductRequest extends FormRequest
         return [
             'name' => 'required|string|max:255',
             'price' => 'required|numeric|min:0',
+            'promo_discount_percent' => 'nullable|numeric|min:0|max:100',
+            'promo_start_at' => 'nullable|date',
+            'promo_end_at' => 'nullable|date|after_or_equal:promo_start_at',
             'cost_price' => 'nullable|numeric|min:0',
             'margin_percent' => 'nullable|numeric|min:0|max:100',
             'description' => 'nullable|string',

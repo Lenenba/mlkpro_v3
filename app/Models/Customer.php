@@ -133,6 +133,16 @@ class Customer extends Model
         return $this->hasMany(Sale::class);
     }
 
+    public function productReviews(): HasMany
+    {
+        return $this->hasMany(ProductReview::class);
+    }
+
+    public function orderReviews(): HasMany
+    {
+        return $this->hasMany(OrderReview::class);
+    }
+
     public function requests(): HasMany
     {
         return $this->hasMany(Request::class)->orderByDesc('created_at');

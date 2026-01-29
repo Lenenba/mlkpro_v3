@@ -11,6 +11,7 @@ import { createI18nInstance } from './i18n';
 import { applyAccessibilityPreferences, readAccessibilityPreferences } from './utils/accessibility';
 
 let i18nInstance = null;
+let sessionReloading = false;
 
 // Initialisation du nom de l'application
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
@@ -19,6 +20,14 @@ const setDocumentLang = (locale) => {
     if (typeof document !== 'undefined' && locale) {
         document.documentElement.lang = locale;
     }
+};
+
+const handleSessionExpired = (status) => {
+    if (status !== 419 || sessionReloading || typeof window === 'undefined') {
+        return;
+    }
+    sessionReloading = true;
+    window.location.reload();
 };
 
 applyAccessibilityPreferences(readAccessibilityPreferences());
@@ -204,5 +213,25 @@ router.on('success', (event) => {
         setDocumentLang(locale);
     }
 });
+
+router.on('error', (event) => {
+    const status = event?.detail?.response?.status;
+    handleSessionExpired(status);
+});
+
+router.on('invalid', (event) => {
+    const status = event?.detail?.response?.status;
+    handleSessionExpired(status);
+});
+
+if (window?.axios?.interceptors?.response) {
+    window.axios.interceptors.response.use(
+        (response) => response,
+        (error) => {
+            handleSessionExpired(error?.response?.status);
+            return Promise.reject(error);
+        },
+    );
+}
 
 

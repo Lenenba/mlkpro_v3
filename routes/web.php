@@ -33,6 +33,7 @@ use App\Http\Controllers\LegalController;
 use App\Http\Controllers\LocaleController;
 use App\Http\Controllers\PublicInvoiceController;
 use App\Http\Controllers\PublicPageController;
+use App\Http\Controllers\PublicStoreController;
 use App\Http\Controllers\PublicQuoteController;
 use App\Http\Controllers\PublicRequestController;
 use App\Http\Controllers\PublicWorkController;
@@ -67,6 +68,7 @@ use App\Http\Controllers\Portal\PortalInvoiceController;
 use App\Http\Controllers\Portal\PortalProductOrderController;
 use App\Http\Controllers\Portal\PortalQuoteController;
 use App\Http\Controllers\Portal\PortalRatingController;
+use App\Http\Controllers\Portal\PortalReviewController;
 use App\Http\Controllers\Portal\PortalTaskMediaController;
 use App\Http\Controllers\Portal\PortalWorkProofController;
 use App\Http\Controllers\Portal\PortalWorkController;
@@ -88,6 +90,16 @@ Route::get('/privacy', [LegalController::class, 'privacy'])->name('privacy');
 Route::get('/refund', [LegalController::class, 'refund'])->name('refund');
 Route::get('/pricing', [LegalController::class, 'pricing'])->name('pricing');
 Route::get('/pages/{slug}', [PublicPageController::class, 'show'])->name('public.pages.show');
+Route::get('/store/{slug}', [PublicStoreController::class, 'show'])->name('public.store.show');
+Route::prefix('/store/{slug}')->group(function () {
+    Route::get('/products/{product}/reviews', [PublicStoreController::class, 'reviews'])
+        ->name('public.store.product.reviews');
+    Route::post('/cart', [PublicStoreController::class, 'addToCart'])->name('public.store.cart.add');
+    Route::patch('/cart/{product}', [PublicStoreController::class, 'updateCartItem'])->name('public.store.cart.update');
+    Route::delete('/cart/{product}', [PublicStoreController::class, 'removeCartItem'])->name('public.store.cart.remove');
+    Route::delete('/cart', [PublicStoreController::class, 'clearCart'])->name('public.store.cart.clear');
+    Route::post('/checkout', [PublicStoreController::class, 'checkout'])->name('public.store.checkout');
+});
 
 Route::middleware('guest')->group(function () {
     Route::get('/demo', [DemoController::class, 'index'])->name('demo.index');
@@ -380,6 +392,9 @@ Route::middleware(['auth', EnsureClientUser::class])
         Route::post('/orders/{sale}/confirm', [PortalProductOrderController::class, 'confirmReceipt'])->name('orders.confirm');
         Route::delete('/orders/{sale}', [PortalProductOrderController::class, 'destroy'])->name('orders.destroy');
         Route::post('/orders/{sale}/reorder', [PortalProductOrderController::class, 'reorder'])->name('orders.reorder');
+        Route::post('/orders/{sale}/reviews', [PortalReviewController::class, 'storeOrder'])->name('orders.reviews.store');
+        Route::post('/orders/{sale}/products/{product}/reviews', [PortalReviewController::class, 'storeProduct'])
+            ->name('orders.products.reviews.store');
         Route::post('/quotes/{quote}/accept', [PortalQuoteController::class, 'accept'])->name('quotes.accept');
         Route::post('/quotes/{quote}/decline', [PortalQuoteController::class, 'decline'])->name('quotes.decline');
         Route::post('/works/{work}/validate', [PortalWorkController::class, 'validateWork'])->name('works.validate');

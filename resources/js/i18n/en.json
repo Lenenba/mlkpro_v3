@@ -698,7 +698,7 @@
         "no_limits_permission": "You do not have permission to update limits."
       }
     },
-  "support": {
+    "support": {
       "page_title": "Support Tickets",
       "title": "Support tickets",
       "subtitle": "Track SLA, status, and tags for platform support requests.",
@@ -1880,24 +1880,24 @@
     "page_title": "Support requests",
     "title": "Support & incidents",
     "subtitle": "Report bugs or incidents to the platform team.",
-      "actions": {
-        "new_ticket": "New request",
-        "submit": "Submit request",
-        "close": "Close",
-        "update": "Update",
-        "save": "Save changes",
-        "view": "View",
-        "back": "Back",
-        "send": "Send message"
-      },
-      "stats": {
-        "total": "Total",
-        "open": "Open",
-        "assigned": "Assigned",
-        "pending": "Pending",
-        "resolved": "Resolved",
-        "closed": "Closed"
-      },
+    "actions": {
+      "new_ticket": "New request",
+      "submit": "Submit request",
+      "close": "Close",
+      "update": "Update",
+      "save": "Save changes",
+      "view": "View",
+      "back": "Back",
+      "send": "Send message"
+    },
+    "stats": {
+      "total": "Total",
+      "open": "Open",
+      "assigned": "Assigned",
+      "pending": "Pending",
+      "resolved": "Resolved",
+      "closed": "Closed"
+    },
     "filters": {
       "search_placeholder": "Search requests",
       "status": "Status",
@@ -1906,84 +1906,84 @@
       "clear": "Clear",
       "apply": "Apply"
     },
-      "table": {
-        "title": "Title",
-        "category": "Category",
-        "status": "Status",
-        "priority": "Priority",
-        "created": "Created",
-        "empty": "No support requests yet."
-      },
-      "form": {
-        "category": "Category",
-        "title": "Title",
-        "description": "Describe the issue",
-        "priority": "Priority",
-        "status": "Status",
-        "message": "Write a message"
-      },
-      "editor": {
-        "heading_2": "Heading 2",
-        "heading_3": "Heading 3",
-        "bold": "Bold",
-        "italic": "Italic",
-        "underline": "Underline",
-        "unordered_list": "Bulleted list",
-        "ordered_list": "Numbered list",
-        "quote": "Quote",
-        "code_block": "Code block",
-        "horizontal_rule": "Divider",
-        "link": "Link",
-        "image": "Image",
-        "ai_image": "AI image",
-        "clear": "Clear formatting",
-        "link_prompt": "Enter a link URL",
-        "image_prompt": "Enter an image URL",
-        "ai_prompt": "Describe the image to generate"
-      },
-      "labels": {
-        "ticket": "Support ticket",
-        "assigned_to": "Assigned to",
-        "not_assigned": "Unassigned",
-        "created_at": "Created",
-        "priority": "Priority",
-        "sla_due": "SLA due",
-        "system": "System",
-        "unknown": "Unknown"
-      },
-      "sections": {
-        "conversation": "Conversation",
-        "history": "History",
-        "update": "Update ticket",
-        "details": "Details",
-        "attachments": "Attachments"
-      },
-      "attachments": {
-        "label": "Attachments",
-        "help": "Add screenshots or PDFs (max 4, 10MB each).",
-        "file": "Attachment"
-      },
-      "audit": {
-        "actions": {
-          "support_ticket.created": "Ticket created",
-          "support_ticket.updated": "Ticket updated",
-          "support_ticket.assigned": "Ticket assigned",
-          "support_ticket.status_changed": "Status updated",
-          "support_ticket.message_added": "Message added",
-          "support_ticket.sla_due_soon_sent": "SLA reminder sent",
-          "support_ticket.sla_overdue_sent": "SLA overdue reminder sent",
-          "support_ticket.unassigned_reminder_sent": "Unassigned reminder sent"
-        }
-      },
-      "empty": {
-        "conversation": "No messages yet.",
-        "history": "No activity yet.",
-        "attachments": "No attachments yet."
-      },
-      "categories": {
-        "incident": "Incident",
-        "bug": "Bug",
-        "feature": "Feature request",
+    "table": {
+      "title": "Title",
+      "category": "Category",
+      "status": "Status",
+      "priority": "Priority",
+      "created": "Created",
+      "empty": "No support requests yet."
+    },
+    "form": {
+      "category": "Category",
+      "title": "Title",
+      "description": "Describe the issue",
+      "priority": "Priority",
+      "status": "Status",
+      "message": "Write a message"
+    },
+    "editor": {
+      "heading_2": "Heading 2",
+      "heading_3": "Heading 3",
+      "bold": "Bold",
+      "italic": "Italic",
+      "underline": "Underline",
+      "unordered_list": "Bulleted list",
+      "ordered_list": "Numbered list",
+      "quote": "Quote",
+      "code_block": "Code block",
+      "horizontal_rule": "Divider",
+      "link": "Link",
+      "image": "Image",
+      "ai_image": "AI image",
+      "clear": "Clear formatting",
+      "link_prompt": "Enter a link URL",
+      "image_prompt": "Enter an image URL",
+      "ai_prompt": "Describe the image to generate"
+    },
+    "labels": {
+      "ticket": "Support ticket",
+      "assigned_to": "Assigned to",
+      "not_assigned": "Unassigned",
+      "created_at": "Created",
+      "priority": "Priority",
+      "sla_due": "SLA due",
+      "system": "System",
+      "unknown": "Unknown"
+    },
+    "sections": {
+      "conversation": "Conversation",
+      "history": "History",
+      "update": "Update ticket",
+      "details": "Details",
+      "attachments": "Attachments"
+    },
+    "attachments": {
+      "label": "Attachments",
+      "help": "Add screenshots or PDFs (max 4, 10MB each).",
+      "file": "Attachment"
+    },
+    "audit": {
+      "actions": {
+        "support_ticket.created": "Ticket created",
+        "support_ticket.updated": "Ticket updated",
+        "support_ticket.assigned": "Ticket assigned",
+        "support_ticket.status_changed": "Status updated",
+        "support_ticket.message_added": "Message added",
+        "support_ticket.sla_due_soon_sent": "SLA reminder sent",
+        "support_ticket.sla_overdue_sent": "SLA overdue reminder sent",
+        "support_ticket.unassigned_reminder_sent": "Unassigned reminder sent"
+      }
+    },
+    "empty": {
+      "conversation": "No messages yet.",
+      "history": "No activity yet.",
+      "attachments": "No attachments yet."
+    },
+    "categories": {
+      "incident": "Incident",
+      "bug": "Bug",
+      "feature": "Feature request",
       "other": "Other"
     },
     "priorities": {
@@ -1992,14 +1992,14 @@
       "high": "High",
       "urgent": "Urgent"
     },
-      "statuses": {
-        "open": "Open",
-        "assigned": "Assigned",
-        "pending": "Pending",
-        "resolved": "Resolved",
-        "closed": "Closed"
-      }
-    },
+    "statuses": {
+      "open": "Open",
+      "assigned": "Assigned",
+      "pending": "Pending",
+      "resolved": "Resolved",
+      "closed": "Closed"
+    }
+  },
   "portal_order": {
     "title": "Order {number}",
     "subtitle": "Order details",
@@ -2013,7 +2013,8 @@
       "payment": "Payment",
       "fulfillment": "Delivery / pickup",
       "customer": "Customer",
-      "payments": "Payment history"
+      "payments": "Payment history",
+      "reviews": "Reviews"
     },
     "table": {
       "product": "Product",
@@ -2031,6 +2032,21 @@
       "requested_time": "Requested time: {date}",
       "delivery_address": "Address",
       "notes": "Notes"
+    },
+    "reviews": {
+      "unavailable": "Reviews are available once the order is paid.",
+      "order_title": "Order review",
+      "order_subtitle": "Rate the overall delivery and service.",
+      "product_title": "Product review",
+      "rating_label": "Rating",
+      "title_label": "Title",
+      "comment_label": "Comment",
+      "submit_order": "Submit order review",
+      "submit_product": "Submit product review",
+      "status": {
+        "approved": "Published",
+        "blocked": "Blocked"
+      }
     },
     "empty": {
       "payments": "No payments recorded."
@@ -2983,7 +2999,12 @@
         "category_create_failed": "Unable to create category.",
         "required_fields": "Please fill all required fields.",
         "save_failed": "Unable to save product. Please try again."
-      }
+      },
+      "promo_title": "Promotion",
+      "promo_hint": "Set a discount and optional start/end dates.",
+      "promo_discount": "Discount (%)",
+      "promo_start": "Promo start",
+      "promo_end": "Promo end"
     },
     "price_lookup": {
       "title": "Price lookup",
@@ -4342,6 +4363,8 @@
       },
       "fields": {
         "name": "Company name",
+        "public_slug": "Public slug (store)",
+        "public_slug_hint": "Used for the public URL: /store/{slug}.",
         "logo_optional": "Logo (optional)",
         "logo_upload": "Upload your logo",
         "description_optional": "Description (optional)",
@@ -4994,5 +5017,134 @@
       }
     },
     "note": "Contact support if you need help with billing."
+  },
+  "public_store": {
+    "title": "{company} store",
+    "subtitle": "Browse available products.",
+    "company_fallback": "Store",
+    "search_placeholder": "Search products",
+    "empty": "No products available yet.",
+    "empty_description": "No description available.",
+    "filters": {
+      "all": "All categories",
+      "category": "Category",
+      "search": "Search",
+      "sort": "Sort"
+    },
+    "stock": {
+      "in": "In stock",
+      "low": "Low stock",
+      "out": "Out of stock"
+    },
+    "actions": {
+      "login": "Log in",
+      "register": "Create account",
+      "portal_hint": "Log in or create a client account to place orders.",
+      "shop_now": "Shop now",
+      "view_catalog": "View catalog",
+      "view_product": "View product",
+      "explore": "Explore",
+      "add_to_cart": "Add to cart",
+      "checkout": "Checkout"
+    },
+    "product": {
+      "details": "Product details",
+      "category": "Category",
+      "stock": "Stock",
+      "sku": "SKU",
+      "category_fallback": "Uncategorized"
+    },
+      "reviews": {
+        "label": "Reviews",
+        "empty": "No reviews yet",
+        "title": "Customer reviews",
+        "loading": "Loading reviews...",
+        "load_error": "Unable to load reviews.",
+        "anonymous": "Customer"
+      },
+    "hero": {
+      "eyebrow": "Public storefront",
+      "headline": "A brighter, faster way to shop {company}.",
+      "subheadline": "Best sellers, promotions, new arrivals, and the full catalog.",
+      "stat_products": "{count} products",
+      "stat_categories": "{count} categories",
+      "stat_new_arrivals": "{count} new arrivals"
+    },
+    "sections": {
+      "spotlight": "Featured pick",
+      "best_sellers": "Best sellers",
+      "promotions": "Promotions",
+      "new_arrivals": "New arrivals",
+      "catalog": "Full catalog",
+      "categories": "Shop by category"
+    },
+    "catalog": {
+      "results": "{count} results"
+    },
+    "badges": {
+      "best_seller": "Best seller",
+      "promo": "Promo",
+      "new": "New",
+      "low_stock": "Limited stock",
+      "hot": "Trending"
+    },
+    "sort": {
+      "featured": "Featured",
+      "newest": "Newest",
+      "price_asc": "Price: low to high",
+      "price_desc": "Price: high to low",
+      "name_asc": "Name A-Z",
+      "stock_desc": "Most stock"
+    },
+    "hints": {
+      "login_to_order": "Checkout creates a client account so you can track orders."
+    },
+    "promotions_hint": "Softer prices, limited quantities. Catch the current offers.",
+    "empty_collection": "Nothing to show yet.",
+    "cart_error": "Unable to update the cart.",
+    "checkout_error": "Unable to place the order.",
+      "cart": {
+        "title": "Your cart",
+        "item_count": "{count} items",
+        "summary": "Summary",
+        "subtotal": "Subtotal",
+        "taxes": "Taxes",
+        "delivery_fee": "Delivery fee",
+        "total": "Total",
+        "clear": "Clear cart",
+        "checkout": "Checkout",
+        "checkout_hint": "Complete your details to place the order.",
+        "name": "Full name",
+        "email": "Email",
+        "phone": "Phone",
+        "delivery_address": "Delivery address",
+        "submit": "Place order",
+        "empty": "Your cart is empty.",
+        "remove": "Remove",
+        "sku_fallback": "SKU pending",
+        "internal_notice": "You are logged in as an internal user. Please use a client account to place orders.",
+        "added": "Added to cart."
+      },
+      "fulfillment": {
+        "title": "Delivery or pickup",
+        "subtitle": "Choose a method",
+        "delivery": "Delivery",
+        "pickup": "Quick pickup",
+        "ready": "Ready soon",
+        "ready_in": "Ready in {minutes} min",
+        "delivery_address": "Delivery address",
+        "delivery_notes": "Instructions (optional)",
+        "delivery_zone": "Zone: {zone}",
+        "scheduled_for": "Preferred time (optional)",
+        "pickup_address": "Pickup: {address}",
+        "pickup_notes": "Pickup notes (optional)",
+        "pickup_time": "Pickup time (optional)"
+      },
+      "notes": {
+        "title": "Notes & substitutions",
+        "customer_notes": "Notes for the store",
+        "substitution_allowed": "Allow substitutions",
+        "substitution_notes": "Substitution preferences"
+      }
   }
 }

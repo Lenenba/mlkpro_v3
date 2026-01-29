@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Settings;
 
 use App\Http\Controllers\Controller;
+use App\Models\User;
 use App\Models\ProductCategory;
 use App\Models\Warehouse;
 use App\Services\CompanyNotificationPreferenceService;
@@ -48,6 +49,7 @@ class CompanySettingsController extends Controller
         return $this->inertiaOrJson('Settings/Company', [
             'company' => [
                 'company_name' => $user->company_name,
+                'company_slug' => $user->company_slug,
                 'company_logo' => $companyLogo,
                 'company_description' => $user->company_description,
                 'company_country' => $user->company_country,
@@ -94,6 +96,7 @@ class CompanySettingsController extends Controller
 
         $validated = $request->validate([
             'company_name' => 'required|string|max:255',
+            'company_slug' => 'nullable|string|max:120',
             'company_logo' => 'nullable|image|max:2048',
             'company_description' => 'nullable|string|max:2000',
             'company_country' => 'nullable|string|max:255',
@@ -166,8 +169,11 @@ class CompanySettingsController extends Controller
                 ->mergeSettings($user, $validated['company_notification_settings'] ?? []);
         }
 
+        $companySlug = $this->resolveCompanySlug($validated, $user);
+
         $user->update([
             'company_name' => $validated['company_name'],
+            'company_slug' => $companySlug,
             'company_logo' => $companyLogoPath,
             'company_description' => $validated['company_description'] ?? null,
             'company_country' => $validated['company_country'] ?? null,
@@ -192,6 +198,43 @@ class CompanySettingsController extends Controller
         }
 
         return redirect()->back()->with('success', 'Company settings updated.');
+    }
+
+    private function resolveCompanySlug(array $validated, User $user): ?string
+    {
+        $input = trim((string) ($validated['company_slug'] ?? ''));
+
+        if ($input !== '') {
+            return $this->uniqueCompanySlug($input, $user->id);
+        }
+
+        if ($user->company_slug) {
+            return $user->company_slug;
+        }
+
+        return $this->uniqueCompanySlug((string) ($validated['company_name'] ?? ''), $user->id);
+    }
+
+    private function uniqueCompanySlug(string $value, int $userId): ?string
+    {
+        $base = Str::slug($value);
+        if ($base === '') {
+            return null;
+        }
+
+        $slug = $base;
+        $counter = 2;
+        while (
+            User::query()
+                ->where('company_slug', $slug)
+                ->where('id', '!=', $userId)
+                ->exists()
+        ) {
+            $slug = "{$base}-{$counter}";
+            $counter += 1;
+        }
+
+        return $slug;
     }
 
     private function resolveSupplierPreferences(?array $preferences, array $suppliers): array

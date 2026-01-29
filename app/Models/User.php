@@ -37,6 +37,7 @@ class User extends Authenticatable
         'profile_picture',
         'phone_number',
         'company_name',
+        'company_slug',
         'company_logo',
         'company_description',
         'company_country',
