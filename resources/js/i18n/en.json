@@ -2809,6 +2809,8 @@
       "no_damaged_stock": "No damaged stock recorded for this product.",
       "recent_damage_movements": "Recent damage movements",
       "no_damage_movements": "No damage movements yet.",
+      "loading_reserved_orders": "Loading reserved orders...",
+      "reserved_orders_error": "Unable to load reserved orders.",
       "no_reserved_orders": "No reserved orders for this product.",
       "no_lots_for_alert": "No lots to show for this alert."
     },
@@ -2831,7 +2833,8 @@
       "customer_fallback": "Customer",
       "fulfillment_label": "Fulfillment",
       "method": "Method",
-      "scheduled": "Scheduled"
+      "scheduled": "Scheduled",
+      "view_order": "View order"
     },
     "filters": {
       "search_placeholder": "Search products, SKU, or barcode",
@@ -2953,6 +2956,12 @@
       "lot_number": "Lot number",
       "serial_number": "Serial number",
       "serial_note": "Serial-tracked items are adjusted one at a time.",
+      "serial_mode_single": "Single",
+      "serial_mode_batch": "Batch",
+      "serial_batch_placeholder": "Paste one serial per line, or separate by commas.",
+      "serial_batch_hint": "Quantity is calculated automatically from the list.",
+      "serial_batch_count": "{count} serials",
+      "serial_batch_duplicates": "{count} duplicate(s) detected in the list.",
       "no_warehouse_hint": "Add a warehouse in settings before adjusting stock.",
       "recent_movements": "Recent movements",
       "no_movements": "No movements yet.",
@@ -4361,6 +4370,34 @@
         "title": "Company profile",
         "description": "Identity, address, and company activity."
       },
+      "store": {
+        "title": "Storefront settings",
+        "description": "Customize your public store header and featured product.",
+        "header_color": "Header color",
+      "featured_product": "Featured product",
+      "featured_placeholder": "Select a featured product",
+      "hero_images": "Hero background images",
+      "hero_images_hint": "Paste one image URL per line. These will rotate behind the featured product.",
+      "hero_copy_fr": "Hero text (FR)",
+      "hero_copy_en": "Hero text (EN)",
+      "hero_copy_placeholder": "Write the hero text block here...",
+      "editor_labels": {
+        "heading2": "Heading",
+        "heading3": "Subheading",
+        "bold": "Bold",
+        "italic": "Italic",
+        "underline": "Underline",
+        "unorderedList": "Bullet list",
+        "orderedList": "Numbered list",
+        "quote": "Quote",
+        "codeBlock": "Code block",
+        "horizontalRule": "Divider",
+        "link": "Insert link",
+        "image": "Insert image",
+        "aiImage": "Generate image",
+        "clear": "Clear formatting"
+      }
+    },
       "fields": {
         "name": "Company name",
         "public_slug": "Public slug (store)",
@@ -5029,7 +5066,18 @@
       "all": "All categories",
       "category": "Category",
       "search": "Search",
-      "sort": "Sort"
+      "sort": "Sort",
+      "price_min": "Min price",
+      "price_max": "Max price",
+      "availability": "Availability",
+      "availability_all": "All stock levels",
+      "availability_in": "In stock",
+      "availability_out": "Out of stock",
+      "availability_low": "Low stock",
+      "promotions": "Promotions",
+      "promo_all": "All products",
+      "promo_only": "Promotions only",
+      "reset": "Reset filters"
     },
     "stock": {
       "in": "In stock",
@@ -5084,11 +5132,13 @@
     "badges": {
       "best_seller": "Best seller",
       "promo": "Promo",
+      "promo_with": "Promo -{percent}%",
       "new": "New",
       "low_stock": "Limited stock",
       "hot": "Trending"
     },
     "sort": {
+      "label": "Sort by",
       "featured": "Featured",
       "newest": "Newest",
       "price_asc": "Price: low to high",
@@ -5100,6 +5150,7 @@
       "login_to_order": "Checkout creates a client account so you can track orders."
     },
     "promotions_hint": "Softer prices, limited quantities. Catch the current offers.",
+    "categories_hint": "Browse top categories picked from the catalog.",
     "empty_collection": "Nothing to show yet.",
     "cart_error": "Unable to update the cart.",
     "checkout_error": "Unable to place the order.",
@@ -5128,6 +5179,7 @@
       "fulfillment": {
         "title": "Delivery or pickup",
         "subtitle": "Choose a method",
+        "unavailable": "Delivery and pickup are not configured yet.",
         "delivery": "Delivery",
         "pickup": "Quick pickup",
         "ready": "Ready soon",
@@ -5139,6 +5191,14 @@
         "pickup_address": "Pickup: {address}",
         "pickup_notes": "Pickup notes (optional)",
         "pickup_time": "Pickup time (optional)"
+      },
+      "related": {
+        "title": "You might also like"
+      },
+      "pagination": {
+        "previous": "Previous",
+        "next": "Next",
+        "page": "Page {current} / {total}"
       },
       "notes": {
         "title": "Notes & substitutions",

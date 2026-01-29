@@ -180,21 +180,34 @@ class PublicStoreController extends Controller
         $settings = is_array($settings) ? $settings : [];
 
         $defaults = [
-            'delivery_enabled' => true,
-            'pickup_enabled' => true,
+            'delivery_enabled' => false,
+            'pickup_enabled' => false,
             'delivery_fee' => 0,
-            'delivery_zone' => $owner->company_city ?: null,
-            'pickup_address' => $owner->company_city ? "Retrait {$owner->company_city}" : null,
-            'prep_time_minutes' => 30,
+            'delivery_zone' => null,
+            'pickup_address' => null,
+            'prep_time_minutes' => null,
             'delivery_notes' => null,
             'pickup_notes' => null,
         ];
 
         $merged = array_merge($defaults, $settings);
 
-        if (!$merged['delivery_enabled'] && !$merged['pickup_enabled']) {
-            $merged['pickup_enabled'] = true;
+        $deliveryEnabled = filter_var($merged['delivery_enabled'], FILTER_VALIDATE_BOOLEAN);
+        $pickupEnabled = filter_var($merged['pickup_enabled'], FILTER_VALIDATE_BOOLEAN);
+
+        $hasDeliveryZone = trim((string) ($merged['delivery_zone'] ?? '')) !== '';
+        $hasPickupAddress = trim((string) ($merged['pickup_address'] ?? '')) !== '';
+        $hasPrepTime = $merged['prep_time_minutes'] !== null && $merged['prep_time_minutes'] !== '';
+
+        if ($deliveryEnabled && !$hasDeliveryZone) {
+            $deliveryEnabled = false;
         }
+        if ($pickupEnabled && (!$hasPickupAddress || !$hasPrepTime)) {
+            $pickupEnabled = false;
+        }
+
+        $merged['delivery_enabled'] = $deliveryEnabled;
+        $merged['pickup_enabled'] = $pickupEnabled;
 
         return $merged;
     }
@@ -376,7 +389,7 @@ class PublicStoreController extends Controller
             ->with('teamMembership')
             ->get(['id', 'role_id', 'notification_settings']);
 
-        $actionUrl = route('sales.edit', $sale);
+        $actionUrl = route('sales.show', $sale);
         $preferences = app(NotificationPreferenceService::class);
         foreach ($users as $user) {
             if (!$preferences->shouldNotify(
@@ -477,7 +490,12 @@ class PublicStoreController extends Controller
             })
             ->values();
 
-        $heroProduct = $bestSellers->first()
+        $storeSettings = is_array($owner->company_store_settings) ? $owner->company_store_settings : [];
+        $featuredProductId = $storeSettings['featured_product_id'] ?? null;
+        $featuredProduct = $featuredProductId ? $productsById->get((int) $featuredProductId) : null;
+
+        $heroProduct = $featuredProduct
+            ?? $bestSellers->first()
             ?? $promotions->first()
             ?? $newArrivals->first()
             ?? $products->first();
@@ -498,6 +516,7 @@ class PublicStoreController extends Controller
                 'slug' => $owner->company_slug,
                 'logo_url' => $owner->company_logo_url,
                 'description' => $owner->company_description,
+                'store_settings' => $storeSettings,
             ],
             'products' => $products,
             'best_sellers' => $bestSellers,
@@ -706,6 +725,11 @@ class PublicStoreController extends Controller
         $parts = preg_split('/\s+/', $name);
         $firstName = $parts ? array_shift($parts) : null;
         $lastName = $parts ? trim(implode(' ', $parts)) : null;
+        if ((!$firstName || $firstName === '') && $email) {
+            $firstName = Str::before($email, '@');
+        }
+        $firstName = $firstName ?: 'Client';
+        $lastName = $lastName ?: 'Client';
 
         [$customer, $portalUser] = $this->resolveCheckoutCustomer($request, $owner, [
             'name' => $name ?: $email,
@@ -719,6 +743,11 @@ class PublicStoreController extends Controller
         $requestedMethod = $validated['fulfillment_method'] ?? null;
         $deliveryEnabled = (bool) ($fulfillment['delivery_enabled'] ?? false);
         $pickupEnabled = (bool) ($fulfillment['pickup_enabled'] ?? false);
+        if (!$deliveryEnabled && !$pickupEnabled) {
+            throw ValidationException::withMessages([
+                'fulfillment_method' => 'Livraison ou retrait non configure.',
+            ]);
+        }
         $fulfillmentMethod = $deliveryEnabled ? 'delivery' : 'pickup';
 
         if ($requestedMethod === 'pickup' && $pickupEnabled) {

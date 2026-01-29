@@ -8,6 +8,7 @@ const props = defineProps({
 });
 
 const sizeClasses = {
+    xs: 'text-xs',
     sm: 'text-sm',
     md: 'text-base',
     lg: 'text-lg',

@@ -6,10 +6,12 @@ import axios from 'axios';
 import SettingsLayout from '@/Layouts/SettingsLayout.vue';
 import SettingsTabs from '@/Components/SettingsTabs.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
+import FloatingTextarea from '@/Components/FloatingTextarea.vue';
 import InputError from '@/Components/InputError.vue';
 import DropzoneInput from '@/Components/DropzoneInput.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
 import DatePicker from '@/Components/DatePicker.vue';
+import RichTextEditor from '@/Components/RichTextEditor.vue';
 
 const props = defineProps({
     company: {
@@ -37,6 +39,10 @@ const props = defineProps({
         default: () => [],
     },
     api_tokens: {
+        type: Array,
+        default: () => [],
+    },
+    store_products: {
         type: Array,
         default: () => [],
     },
@@ -204,6 +210,8 @@ const initialPreferredSuppliers = props.supplier_preferences?.preferred?.length
     ? props.supplier_preferences.preferred
     : initialEnabledSuppliers.slice(0, 2);
 
+const toBool = (value) => value === true || value === 1 || value === '1' || value === 'true';
+
 const form = useForm({
     company_name: props.company.company_name || '',
     company_slug: props.company.company_slug || '',
@@ -217,14 +225,29 @@ const form = useForm({
     company_city_other: '',
     company_timezone: props.company.company_timezone || '',
     company_type: props.company.company_type || 'services',
-    fulfillment_delivery_enabled: props.company.fulfillment?.delivery_enabled ?? true,
-    fulfillment_pickup_enabled: props.company.fulfillment?.pickup_enabled ?? true,
-    fulfillment_delivery_fee: props.company.fulfillment?.delivery_fee ?? '',
+    fulfillment_delivery_enabled: toBool(props.company.fulfillment?.delivery_enabled),
+    fulfillment_pickup_enabled: toBool(props.company.fulfillment?.pickup_enabled),
+    fulfillment_delivery_fee: props.company.fulfillment?.delivery_fee !== null
+        && props.company.fulfillment?.delivery_fee !== undefined
+        ? String(props.company.fulfillment.delivery_fee)
+        : '',
     fulfillment_delivery_zone: props.company.fulfillment?.delivery_zone ?? '',
     fulfillment_pickup_address: props.company.fulfillment?.pickup_address ?? '',
-    fulfillment_prep_time_minutes: props.company.fulfillment?.prep_time_minutes ?? 30,
+    fulfillment_prep_time_minutes: props.company.fulfillment?.prep_time_minutes !== null
+        && props.company.fulfillment?.prep_time_minutes !== undefined
+        ? String(props.company.fulfillment.prep_time_minutes)
+        : '',
     fulfillment_delivery_notes: props.company.fulfillment?.delivery_notes ?? '',
     fulfillment_pickup_notes: props.company.fulfillment?.pickup_notes ?? '',
+    store_header_color: props.company.store_settings?.header_color ?? '',
+    store_featured_product_id: props.company.store_settings?.featured_product_id
+        ? String(props.company.store_settings.featured_product_id)
+        : '',
+    store_hero_images_text: Array.isArray(props.company.store_settings?.hero_images)
+        ? props.company.store_settings.hero_images.filter(Boolean).join('\n')
+        : '',
+    store_hero_copy_fr: props.company.store_settings?.hero_copy?.fr ?? '',
+    store_hero_copy_en: props.company.store_settings?.hero_copy?.en ?? '',
     notification_task_day_email: props.company.company_notification_settings?.task_day?.email ?? true,
     notification_task_day_sms: props.company.company_notification_settings?.task_day?.sms ?? false,
     notification_task_day_whatsapp: props.company.company_notification_settings?.task_day?.whatsapp ?? false,
@@ -244,6 +267,14 @@ const storeUrl = computed(() => {
     const slug = String(form.company_slug || '').trim();
     return slug ? `${window.location.origin}/store/${slug}` : '';
 });
+
+const storeProductOptions = computed(() => ([
+    { value: '', label: t('settings.company.store.featured_placeholder') },
+    ...(props.store_products || []).map((product) => ({
+        value: String(product.id),
+        label: product.sku ? `${product.name} (${product.sku})` : product.name,
+    })),
+]));
 
 const warehouseForm = ref({
     name: '',
@@ -604,6 +635,21 @@ const submit = () => {
                 pickup_notes: normalizeText(data.fulfillment_pickup_notes),
             };
 
+            payload.company_store_settings = {
+                header_color: normalizeText(data.store_header_color),
+                featured_product_id: data.store_featured_product_id !== ''
+                    ? Number(data.store_featured_product_id)
+                    : null,
+                hero_images: (data.store_hero_images_text || '')
+                    .split('\n')
+                    .map((value) => normalizeText(value))
+                    .filter((value) => Boolean(value)),
+                hero_copy: {
+                    fr: normalizeText(data.store_hero_copy_fr),
+                    en: normalizeText(data.store_hero_copy_en),
+                },
+            };
+
             payload.company_notification_settings = {
                 task_day: {
                     email: Boolean(data.notification_task_day_email),
@@ -620,6 +666,11 @@ const submit = () => {
             delete payload.fulfillment_prep_time_minutes;
             delete payload.fulfillment_delivery_notes;
             delete payload.fulfillment_pickup_notes;
+            delete payload.store_header_color;
+            delete payload.store_featured_product_id;
+            delete payload.store_hero_images_text;
+            delete payload.store_hero_copy_fr;
+            delete payload.store_hero_copy_en;
             delete payload.notification_task_day_email;
             delete payload.notification_task_day_sms;
             delete payload.notification_task_day_whatsapp;
@@ -786,6 +837,73 @@ watch(activeTab, (value) => {
                             {{ storeUrl }}
                         </p>
                         <InputError class="mt-1" :message="form.errors.company_slug" />
+                    </div>
+
+                    <div class="rounded-sm border border-stone-200 bg-stone-50 p-4 dark:border-neutral-700 dark:bg-neutral-900">
+                        <div>
+                            <h3 class="text-sm font-semibold text-stone-700 dark:text-neutral-200">
+                                {{ $t('settings.company.store.title') }}
+                            </h3>
+                            <p class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
+                                {{ $t('settings.company.store.description') }}
+                            </p>
+                        </div>
+                        <div class="mt-3 grid gap-3 md:grid-cols-2">
+                            <div>
+                                <label class="block text-xs text-stone-500 dark:text-neutral-400">
+                                    {{ $t('settings.company.store.header_color') }}
+                                </label>
+                                <input
+                                    v-model="form.store_header_color"
+                                    type="color"
+                                    class="mt-1 h-10 w-full rounded-sm border border-stone-200 bg-white p-1 dark:border-neutral-700 dark:bg-neutral-800"
+                                />
+                                <InputError class="mt-1" :message="form.errors['company_store_settings.header_color']" />
+                            </div>
+                            <div>
+                                <FloatingSelect
+                                    v-model="form.store_featured_product_id"
+                                    :label="$t('settings.company.store.featured_product')"
+                                    :options="storeProductOptions"
+                                    option-value="value"
+                                    option-label="label"
+                                />
+                                <InputError class="mt-1" :message="form.errors['company_store_settings.featured_product_id']" />
+                            </div>
+                        </div>
+                        <div class="mt-3">
+                            <FloatingTextarea
+                                v-model="form.store_hero_images_text"
+                                :label="$t('settings.company.store.hero_images')"
+                            />
+                            <p class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
+                                {{ $t('settings.company.store.hero_images_hint') }}
+                            </p>
+                            <InputError
+                                class="mt-1"
+                                :message="form.errors['company_store_settings.hero_images'] || form.errors['company_store_settings.hero_images.0']"
+                            />
+                        </div>
+                        <div class="mt-4 space-y-3">
+                            <div>
+                                <RichTextEditor
+                                    v-model="form.store_hero_copy_fr"
+                                    :label="$t('settings.company.store.hero_copy_fr')"
+                                    :placeholder="$t('settings.company.store.hero_copy_placeholder')"
+                                    :labels="$t('settings.company.store.editor_labels', {}, { returnObjects: true })"
+                                />
+                                <InputError class="mt-1" :message="form.errors['company_store_settings.hero_copy.fr']" />
+                            </div>
+                            <div>
+                                <RichTextEditor
+                                    v-model="form.store_hero_copy_en"
+                                    :label="$t('settings.company.store.hero_copy_en')"
+                                    :placeholder="$t('settings.company.store.hero_copy_placeholder')"
+                                    :labels="$t('settings.company.store.editor_labels', {}, { returnObjects: true })"
+                                />
+                                <InputError class="mt-1" :message="form.errors['company_store_settings.hero_copy.en']" />
+                            </div>
+                        </div>
                     </div>
 
                     <div class="space-y-2">

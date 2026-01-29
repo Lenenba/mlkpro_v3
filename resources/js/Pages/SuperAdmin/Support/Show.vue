@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import DateTimePicker from '@/Components/DateTimePicker.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
 import RichTextEditor from '@/Components/RichTextEditor.vue';
@@ -281,11 +282,10 @@ const attachmentMeta = (media) => {
                                 <FloatingSelect v-model="updateForm.priority" :label="$t('super_admin.support.form.priority')" :options="priorityOptions" />
                             </div>
                             <div>
-                                <label class="block text-xs text-stone-500 dark:text-neutral-400">
-                                    {{ $t('super_admin.support.form.sla_due') }}
-                                </label>
-                                <input v-model="updateForm.sla_due_at" type="datetime-local"
-                                    class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200" />
+                                <DateTimePicker
+                                    v-model="updateForm.sla_due_at"
+                                    :label="$t('super_admin.support.form.sla_due')"
+                                />
                             </div>
                             <FloatingInput v-model="updateForm.tags" :label="$t('super_admin.support.form.tags')" />
                             <InputError class="mt-1" :message="updateForm.errors.assigned_to_user_id" />

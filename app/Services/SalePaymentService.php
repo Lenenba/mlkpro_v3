@@ -141,8 +141,7 @@ class SalePaymentService
 
         $sale->update($update);
 
-        $wasPending = $previousStatus === Sale::STATUS_PENDING
-            && !$this->isFulfillmentComplete($previousFulfillment);
+        $wasPending = $previousStatus === Sale::STATUS_PENDING;
         if ($wasPending) {
             $this->applyReservations($sale, [], $sale->user_id);
         }

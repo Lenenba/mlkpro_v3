@@ -50,21 +50,34 @@ class PortalProductOrderController extends Controller
         $settings = is_array($settings) ? $settings : [];
 
         $defaults = [
-            'delivery_enabled' => true,
-            'pickup_enabled' => true,
+            'delivery_enabled' => false,
+            'pickup_enabled' => false,
             'delivery_fee' => 0,
-            'delivery_zone' => $owner->company_city ?: null,
-            'pickup_address' => $owner->company_city ? "Retrait {$owner->company_city}" : null,
-            'prep_time_minutes' => 30,
+            'delivery_zone' => null,
+            'pickup_address' => null,
+            'prep_time_minutes' => null,
             'delivery_notes' => null,
             'pickup_notes' => null,
         ];
 
         $merged = array_merge($defaults, $settings);
 
-        if (!$merged['delivery_enabled'] && !$merged['pickup_enabled']) {
-            $merged['pickup_enabled'] = true;
+        $deliveryEnabled = filter_var($merged['delivery_enabled'], FILTER_VALIDATE_BOOLEAN);
+        $pickupEnabled = filter_var($merged['pickup_enabled'], FILTER_VALIDATE_BOOLEAN);
+
+        $hasDeliveryZone = trim((string) ($merged['delivery_zone'] ?? '')) !== '';
+        $hasPickupAddress = trim((string) ($merged['pickup_address'] ?? '')) !== '';
+        $hasPrepTime = $merged['prep_time_minutes'] !== null && $merged['prep_time_minutes'] !== '';
+
+        if ($deliveryEnabled && !$hasDeliveryZone) {
+            $deliveryEnabled = false;
         }
+        if ($pickupEnabled && (!$hasPickupAddress || !$hasPrepTime)) {
+            $pickupEnabled = false;
+        }
+
+        $merged['delivery_enabled'] = $deliveryEnabled;
+        $merged['pickup_enabled'] = $pickupEnabled;
 
         return $merged;
     }
@@ -272,7 +285,7 @@ class PortalProductOrderController extends Controller
             ->with('teamMembership')
             ->get(['id', 'role_id', 'notification_settings']);
 
-        $actionUrl = route('sales.edit', $sale);
+        $actionUrl = route('sales.show', $sale);
         $preferences = app(NotificationPreferenceService::class);
         foreach ($users as $user) {
             if (!$preferences->shouldNotify(
@@ -575,6 +588,11 @@ class PortalProductOrderController extends Controller
             'substitution_notes' => 'nullable|string|max:500',
         ]);
 
+        if (empty($fulfillment['delivery_enabled']) && empty($fulfillment['pickup_enabled'])) {
+            throw ValidationException::withMessages([
+                'fulfillment_method' => 'Livraison ou retrait non configure.',
+            ]);
+        }
         if ($validated['fulfillment_method'] === 'delivery' && !$fulfillment['delivery_enabled']) {
             throw ValidationException::withMessages([
                 'fulfillment_method' => 'La livraison n est pas disponible.',
@@ -807,6 +825,11 @@ class PortalProductOrderController extends Controller
             'substitution_notes' => 'nullable|string|max:500',
         ]);
 
+        if (empty($fulfillment['delivery_enabled']) && empty($fulfillment['pickup_enabled'])) {
+            throw ValidationException::withMessages([
+                'fulfillment_method' => 'Livraison ou retrait non configure.',
+            ]);
+        }
         if ($validated['fulfillment_method'] === 'delivery' && !$fulfillment['delivery_enabled']) {
             throw ValidationException::withMessages([
                 'fulfillment_method' => 'La livraison n est pas disponible.',

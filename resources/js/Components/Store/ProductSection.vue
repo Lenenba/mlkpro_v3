@@ -17,9 +17,13 @@ const props = defineProps({
     getBadges: { type: Function, default: null },
     getStockLabel: { type: Function, default: null },
     getStockTone: { type: Function, default: null },
+    getQuantity: { type: Function, default: null },
+    showQuickAdd: { type: Boolean, default: false },
+    loading: { type: Boolean, default: false },
+    skeletonCount: { type: Number, default: 4 },
 });
 
-const emit = defineEmits(['action', 'open', 'add', 'view']);
+const emit = defineEmits(['action', 'open', 'add', 'view', 'increment', 'decrement']);
 </script>
 
 <template>
@@ -32,7 +36,16 @@ const emit = defineEmits(['action', 'open', 'add', 'view']);
                 @action="emit('action')"
             />
 
-            <div v-if="products.length" class="mt-4 flex gap-3 overflow-x-auto pb-2 md:grid md:grid-cols-3 md:overflow-visible lg:grid-cols-4">
+            <div v-if="loading" class="mt-4 flex gap-3 overflow-x-auto pb-2 md:grid md:grid-cols-3 md:overflow-visible lg:grid-cols-4">
+                <ProductCard
+                    v-for="n in skeletonCount"
+                    :key="`${sectionId}-skeleton-${n}`"
+                    :product="{ id: `skeleton-${n}`, name: 'Loading' }"
+                    :variant="cardVariant"
+                    :loading="true"
+                />
+            </div>
+            <div v-else-if="products.length" class="mt-4 flex gap-3 overflow-x-auto pb-2 md:grid md:grid-cols-3 md:overflow-visible lg:grid-cols-4">
                 <ProductCard
                     v-for="product in products"
                     :key="product.id"
@@ -45,9 +58,13 @@ const emit = defineEmits(['action', 'open', 'add', 'view']);
                     :rating-empty-label="ratingEmptyLabel"
                     :cta-label="ctaLabel"
                     :view-label="viewLabel"
+                    :quantity="getQuantity ? getQuantity(product) : 0"
+                    :show-quick-add="showQuickAdd"
                     @open="emit('open', product)"
-                    @add="emit('add', product)"
+                    @add="emit('add', $event)"
                     @view="emit('view', product)"
+                    @increment="emit('increment', $event)"
+                    @decrement="emit('decrement', $event)"
                 />
             </div>
             <p v-else class="mt-4 text-sm text-slate-500">

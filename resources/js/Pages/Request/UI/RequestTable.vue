@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue';
 import { Link, router, useForm, usePage } from '@inertiajs/vue3';
 import Modal from '@/Components/UI/Modal.vue';
 import Checkbox from '@/Components/Checkbox.vue';
+import DateTimePicker from '@/Components/DateTimePicker.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
 import FloatingTextarea from '@/Components/FloatingTextarea.vue';
@@ -1381,9 +1382,8 @@ const scoreInfo = (lead) => buildLeadScore(lead, t);
             </div>
 
             <div>
-                <FloatingInput
+                <DateTimePicker
                     v-model="updateForm.next_follow_up_at"
-                    type="datetime-local"
                     :label="$t('requests.update.follow_up')"
                 />
                 <InputError class="mt-1" :message="updateForm.errors.next_follow_up_at" />

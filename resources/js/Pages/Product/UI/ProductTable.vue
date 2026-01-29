@@ -8,6 +8,7 @@ import Checkbox from '@/Components/Checkbox.vue';
 import { useI18n } from 'vue-i18n';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
 import DatePicker from '@/Components/DatePicker.vue';
+import axios from 'axios';
 
 const props = defineProps({
     filters: Object,
@@ -370,6 +371,8 @@ const fulfillmentStatusLabels = computed(() => ({
 
 const alertDetailsProduct = ref(null);
 const alertDetailsType = ref('');
+const reservedOrdersLoading = ref(false);
+const reservedOrdersError = ref(false);
 const alertDetailsTitle = computed(() => {
     if (!alertDetailsProduct.value) {
         return t('products.alerts.details_title');
@@ -380,12 +383,49 @@ const alertDetailsTitle = computed(() => {
 
 const openAlertDetails = (product, alertType) => {
     alertDetailsProduct.value = product;
+    reservedOrdersError.value = false;
     const badges = getAlertBadges(product);
-    alertDetailsType.value = alertType || badges[0]?.key || '';
+    const resolvedType = alertType || badges[0]?.key || '';
+    alertDetailsType.value = resolvedType;
+    if (resolvedType === 'reserved' && getReservedStock(product) > 0) {
+        loadReservedOrders(product);
+    }
     if (window.HSOverlay) {
         window.HSOverlay.open('#hs-pro-alert-details');
     }
 };
+
+const loadReservedOrders = async (product) => {
+    if (!product?.id) {
+        return;
+    }
+    if (reservedOrdersLoading.value) {
+        return;
+    }
+    if (Array.isArray(product?.reserved_orders) && product.reserved_orders.length) {
+        return;
+    }
+    reservedOrdersLoading.value = true;
+    reservedOrdersError.value = false;
+    try {
+        const { data } = await axios.get(route('product.reserved-orders', product.id));
+        product.reserved_orders = Array.isArray(data?.reserved_orders) ? data.reserved_orders : [];
+    } catch (error) {
+        reservedOrdersError.value = true;
+    } finally {
+        reservedOrdersLoading.value = false;
+    }
+};
+
+watch([alertDetailsProduct, alertDetailsType], ([product, type]) => {
+    if (!product || type !== 'reserved') {
+        return;
+    }
+    if (getReservedStock(product) <= 0) {
+        return;
+    }
+    loadReservedOrders(product);
+});
 
 const getReservedOrders = (product) => (
     Array.isArray(product?.reserved_orders) ? product.reserved_orders : []
@@ -403,7 +443,12 @@ const getDamageMovements = (product) => (
         : []
 );
 
-const formatOrderStatus = (value, labels) => labels[value] || value || '--';
+const formatOrderStatus = (value, labels) => {
+    if (!labels || typeof labels !== 'object') {
+        return value || '--';
+    }
+    return labels[value] || value || '--';
+};
 
 const parseAlertDate = (value) => {
     if (!value) {
@@ -565,6 +610,7 @@ const duplicateProduct = (product) => {
 };
 
 const activeProduct = ref(null);
+const serialBatchMode = ref(false);
 const reasonOptions = computed(() => ([
     { value: 'manual', label: t('products.adjust.reasons.manual') },
     { value: 'purchase', label: t('products.adjust.reasons.purchase') },
@@ -581,9 +627,41 @@ const adjustForm = useForm({
     warehouse_id: props.defaultWarehouseId ?? '',
     lot_number: '',
     serial_number: '',
+    serial_numbers: [],
+    serial_numbers_text: '',
     expires_at: '',
     received_at: '',
     unit_cost: '',
+});
+
+const serialBatchList = computed(() => {
+    const raw = adjustForm.serial_numbers_text || '';
+    return raw
+        .split(/\r?\n|,|;/)
+        .map((value) => value.trim())
+        .filter((value) => value.length > 0);
+});
+
+const serialBatchCount = computed(() => serialBatchList.value.length);
+
+const serialBatchDuplicates = computed(() => {
+    const seen = new Set();
+    const duplicates = [];
+    for (const serial of serialBatchList.value) {
+        if (seen.has(serial)) {
+            duplicates.push(serial);
+        } else {
+            seen.add(serial);
+        }
+    }
+    return duplicates;
+});
+
+watch([serialBatchMode, serialBatchCount, activeProduct], ([isBatch, count, product]) => {
+    if (isBatch && product?.tracking_type === 'serial') {
+        adjustForm.quantity = Math.max(1, count);
+        adjustForm.serial_number = '';
+    }
 });
 
 const openAdjust = (product) => {
@@ -594,9 +672,12 @@ const openAdjust = (product) => {
     adjustForm.warehouse_id = getPrimaryInventory(product)?.warehouse_id ?? props.defaultWarehouseId ?? '';
     adjustForm.lot_number = '';
     adjustForm.serial_number = '';
+    adjustForm.serial_numbers = [];
+    adjustForm.serial_numbers_text = '';
     adjustForm.expires_at = '';
     adjustForm.received_at = '';
     adjustForm.unit_cost = '';
+    serialBatchMode.value = false;
     if (window.HSOverlay) {
         window.HSOverlay.open('#hs-pro-stock-adjust');
     }
@@ -605,6 +686,13 @@ const openAdjust = (product) => {
 const submitAdjust = () => {
     if (!activeProduct.value) {
         return;
+    }
+    if (activeProduct.value.tracking_type === 'serial' && serialBatchMode.value) {
+        adjustForm.serial_numbers = serialBatchList.value;
+        adjustForm.serial_number = '';
+        adjustForm.quantity = Math.max(1, serialBatchList.value.length);
+    } else {
+        adjustForm.serial_numbers = [];
     }
     adjustForm.post(route('product.adjust-stock', activeProduct.value.id), {
         preserveScroll: true,
@@ -1039,7 +1127,17 @@ const submitImport = () => {
                                 </span>
                             </div>
                             <div class="text-xs text-stone-500 dark:text-neutral-500">
-                                {{ $t('products.labels.reserved') }} {{ formatNumber(getReservedStock(product)) }}
+                                <button
+                                    v-if="getReservedStock(product) > 0"
+                                    type="button"
+                                    class="text-green-700 hover:underline dark:text-green-400"
+                                    @click="openAlertDetails(product, 'reserved')"
+                                >
+                                    {{ $t('products.labels.reserved') }} {{ formatNumber(getReservedStock(product)) }}
+                                </button>
+                                <span v-else>
+                                    {{ $t('products.labels.reserved') }} {{ formatNumber(getReservedStock(product)) }}
+                                </span>
                                 - {{ $t('products.labels.damaged') }} {{ formatNumber(getDamagedStock(product)) }}
                             </div>
                             <div class="text-xs text-stone-500 dark:text-neutral-500">
@@ -1402,7 +1500,15 @@ const submitImport = () => {
 
                 <template v-else-if="alertDetailsType === 'reserved'">
                     <div class="space-y-3">
-                        <div v-if="!getReservedOrders(alertDetailsProduct).length"
+                        <div v-if="reservedOrdersLoading"
+                            class="text-sm text-stone-500 dark:text-neutral-400">
+                            {{ $t('products.alerts.loading_reserved_orders') }}
+                        </div>
+                        <div v-else-if="reservedOrdersError"
+                            class="text-sm text-red-600 dark:text-red-400">
+                            {{ $t('products.alerts.reserved_orders_error') }}
+                        </div>
+                        <div v-else-if="!getReservedOrders(alertDetailsProduct).length"
                             class="text-sm text-stone-500 dark:text-neutral-400">
                             {{ $t('products.alerts.no_reserved_orders') }}
                         </div>
@@ -1414,8 +1520,12 @@ const submitImport = () => {
                                         class="text-sm font-semibold text-green-700 hover:underline dark:text-green-400">
                                         {{ $t('products.orders.order_label', { number: order.number || `#${order.id}` }) }}
                                     </Link>
-                                    <div class="text-xs text-stone-500 dark:text-neutral-400">
-                                        {{ $t('products.labels.quantity') }} {{ formatNumber(order.quantity) }}
+                                    <div class="flex items-center gap-3 text-xs text-stone-500 dark:text-neutral-400">
+                                        <span>{{ $t('products.labels.quantity') }} {{ formatNumber(order.quantity) }}</span>
+                                        <Link :href="route('sales.show', order.id)"
+                                            class="font-medium text-green-700 hover:underline dark:text-green-400">
+                                            {{ $t('products.orders.view_order') }}
+                                        </Link>
                                     </div>
                                 </div>
                                 <div class="pt-1 text-xs text-stone-500 dark:text-neutral-400">
@@ -1539,6 +1649,7 @@ const submitImport = () => {
                     />
                     <input type="number" step="1" v-model="adjustForm.quantity"
                         class="py-2 px-3 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
+                        :disabled="serialBatchMode && activeProduct.tracking_type === 'serial'"
                         :placeholder="adjustForm.type === 'adjust' ? $t('products.adjust.quantity_change') : $t('products.labels.quantity')">
                     <FloatingSelect
                         v-model="adjustForm.warehouse_id"
@@ -1569,12 +1680,43 @@ const submitImport = () => {
                     <DatePicker v-model="adjustForm.expires_at" :label="$t('products.labels.expires')" />
                     <DatePicker v-model="adjustForm.received_at" :label="$t('products.labels.received')" />
                 </div>
-                <div v-else-if="activeProduct.tracking_type === 'serial'" class="grid grid-cols-1 md:grid-cols-3 gap-3">
-                    <input type="text" v-model="adjustForm.serial_number"
-                        class="py-2 px-3 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
-                        :placeholder="$t('products.adjust.serial_number')">
-                    <div class="md:col-span-2 text-xs text-stone-500 dark:text-neutral-400 flex items-center">
-                        {{ $t('products.adjust.serial_note') }}
+                <div v-else-if="activeProduct.tracking_type === 'serial'" class="space-y-2">
+                    <div class="flex flex-wrap items-center gap-2 text-xs">
+                        <button type="button" @click="serialBatchMode = false"
+                            :class="serialBatchMode ? 'border-stone-200 text-stone-500' : 'border-green-600 text-green-700'"
+                            class="px-2 py-1 rounded-sm border bg-white dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
+                            {{ $t('products.adjust.serial_mode_single') }}
+                        </button>
+                        <button type="button" @click="serialBatchMode = true"
+                            :class="serialBatchMode ? 'border-green-600 text-green-700' : 'border-stone-200 text-stone-500'"
+                            class="px-2 py-1 rounded-sm border bg-white dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200">
+                            {{ $t('products.adjust.serial_mode_batch') }}
+                        </button>
+                        <span v-if="serialBatchMode" class="text-stone-500 dark:text-neutral-400">
+                            {{ $t('products.adjust.serial_batch_count', { count: serialBatchCount }) }}
+                        </span>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <template v-if="!serialBatchMode">
+                            <input type="text" v-model="adjustForm.serial_number"
+                                class="py-2 px-3 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
+                                :placeholder="$t('products.adjust.serial_number')">
+                            <div class="md:col-span-2 text-xs text-stone-500 dark:text-neutral-400 flex items-center">
+                                {{ $t('products.adjust.serial_note') }}
+                            </div>
+                        </template>
+                        <template v-else>
+                            <textarea v-model="adjustForm.serial_numbers_text" rows="4"
+                                class="py-2 px-3 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
+                                :placeholder="$t('products.adjust.serial_batch_placeholder')"></textarea>
+                            <div class="md:col-span-2 text-xs text-stone-500 dark:text-neutral-400 flex items-center">
+                                {{ $t('products.adjust.serial_batch_hint') }}
+                            </div>
+                        </template>
+                    </div>
+                    <div v-if="serialBatchMode && serialBatchDuplicates.length"
+                        class="text-xs text-amber-600">
+                        {{ $t('products.adjust.serial_batch_duplicates', { count: serialBatchDuplicates.length }) }}
                     </div>
                 </div>
                 <div v-if="!activeWarehouses.length" class="text-xs text-amber-600">

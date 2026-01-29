@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Settings;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Models\Product;
 use App\Models\ProductCategory;
 use App\Models\Warehouse;
 use App\Services\CompanyNotificationPreferenceService;
@@ -13,6 +14,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class CompanySettingsController extends Controller
 {
@@ -58,8 +60,15 @@ class CompanySettingsController extends Controller
                 'company_timezone' => $user->company_timezone,
                 'company_type' => $user->company_type,
                 'fulfillment' => $user->company_fulfillment ?? null,
+                'store_settings' => $user->company_store_settings ?? null,
                 'company_notification_settings' => $notificationSettings,
             ],
+            'store_products' => Product::query()
+                ->products()
+                ->where('user_id', $accountId)
+                ->where('is_active', true)
+                ->orderBy('name')
+                ->get(['id', 'name', 'sku']),
             'categories' => ProductCategory::forAccount($accountId)
                 ->active()
                 ->orderBy('name')
@@ -113,6 +122,14 @@ class CompanySettingsController extends Controller
             'company_fulfillment.prep_time_minutes' => 'nullable|integer|min:0|max:1440',
             'company_fulfillment.delivery_notes' => 'nullable|string|max:500',
             'company_fulfillment.pickup_notes' => 'nullable|string|max:500',
+            'company_store_settings' => 'nullable|array',
+            'company_store_settings.header_color' => 'nullable|string|max:16',
+            'company_store_settings.featured_product_id' => 'nullable|integer',
+            'company_store_settings.hero_images' => 'nullable|array',
+            'company_store_settings.hero_images.*' => 'nullable|string|max:500',
+            'company_store_settings.hero_copy' => 'nullable|array',
+            'company_store_settings.hero_copy.fr' => 'nullable|string|max:5000',
+            'company_store_settings.hero_copy.en' => 'nullable|string|max:5000',
             'company_notification_settings' => 'nullable|array',
             'company_notification_settings.task_day' => 'nullable|array',
             'company_notification_settings.task_day.email' => 'nullable|boolean',
@@ -127,6 +144,79 @@ class CompanySettingsController extends Controller
             'supplier_preferred' => 'nullable|array',
             'supplier_preferred.*' => ['string', Rule::in($supplierKeys)],
         ]);
+
+        $fulfillmentInput = $validated['company_fulfillment'] ?? [];
+        $normalizeText = static function ($value): ?string {
+            $trimmed = trim((string) ($value ?? ''));
+            return $trimmed === '' ? null : $trimmed;
+        };
+
+        $deliveryEnabled = filter_var($fulfillmentInput['delivery_enabled'] ?? false, FILTER_VALIDATE_BOOLEAN);
+        $pickupEnabled = filter_var($fulfillmentInput['pickup_enabled'] ?? false, FILTER_VALIDATE_BOOLEAN);
+        $deliveryZone = $normalizeText($fulfillmentInput['delivery_zone'] ?? null);
+        $pickupAddress = $normalizeText($fulfillmentInput['pickup_address'] ?? null);
+        $prepTime = $fulfillmentInput['prep_time_minutes'] ?? null;
+        $prepTime = ($prepTime === '' || $prepTime === null) ? null : (int) $prepTime;
+
+        $fulfillment = [
+            'delivery_enabled' => $deliveryEnabled,
+            'pickup_enabled' => $pickupEnabled,
+            'delivery_fee' => $fulfillmentInput['delivery_fee'] ?? null,
+            'delivery_zone' => $deliveryZone,
+            'pickup_address' => $pickupAddress,
+            'prep_time_minutes' => $prepTime,
+            'delivery_notes' => $normalizeText($fulfillmentInput['delivery_notes'] ?? null),
+            'pickup_notes' => $normalizeText($fulfillmentInput['pickup_notes'] ?? null),
+        ];
+        $fulfillmentErrors = [];
+        if (!empty($fulfillment['delivery_enabled'])) {
+            if (!$deliveryZone) {
+                $fulfillmentErrors['company_fulfillment.delivery_zone'] = ['Zone de livraison requise.'];
+            }
+        }
+        if (!empty($fulfillment['pickup_enabled'])) {
+            if (!$pickupAddress) {
+                $fulfillmentErrors['company_fulfillment.pickup_address'] = ['Adresse de retrait requise.'];
+            }
+            if ($prepTime === null) {
+                $fulfillmentErrors['company_fulfillment.prep_time_minutes'] = ['Temps de preparation requis.'];
+            }
+        }
+        if ($fulfillmentErrors) {
+            throw ValidationException::withMessages($fulfillmentErrors);
+        }
+
+        $storeSettingsInput = $validated['company_store_settings'] ?? [];
+        $headerColor = $normalizeText($storeSettingsInput['header_color'] ?? null);
+        $featuredProductId = $storeSettingsInput['featured_product_id'] ?? null;
+        $featuredProductId = ($featuredProductId === '' || $featuredProductId === null) ? null : (int) $featuredProductId;
+        $heroImages = $storeSettingsInput['hero_images'] ?? [];
+        $heroImages = array_values(array_filter(array_map($normalizeText, is_array($heroImages) ? $heroImages : [])));
+        $heroCopyInput = $storeSettingsInput['hero_copy'] ?? [];
+        $heroCopyInput = is_array($heroCopyInput) ? $heroCopyInput : [];
+        $heroCopy = [
+            'fr' => $normalizeText($heroCopyInput['fr'] ?? null),
+            'en' => $normalizeText($heroCopyInput['en'] ?? null),
+        ];
+
+        if ($featuredProductId) {
+            $exists = Product::query()
+                ->where('user_id', $user->id)
+                ->where('id', $featuredProductId)
+                ->exists();
+            if (!$exists) {
+                throw ValidationException::withMessages([
+                    'company_store_settings.featured_product_id' => ['Produit vedette invalide.'],
+                ]);
+            }
+        }
+
+        $storeSettings = [
+            'header_color' => $headerColor,
+            'featured_product_id' => $featuredProductId,
+            'hero_images' => $heroImages,
+            'hero_copy' => $heroCopy,
+        ];
 
         $companyLogoPath = $user->company_logo;
         if ($request->hasFile('company_logo')) {
@@ -186,7 +276,8 @@ class CompanySettingsController extends Controller
                 'preferred' => $preferredSuppliers,
                 'custom_suppliers' => $customSuppliers,
             ],
-            'company_fulfillment' => $validated['company_fulfillment'] ?? $user->company_fulfillment,
+            'company_fulfillment' => $fulfillment,
+            'company_store_settings' => $storeSettings,
             'company_notification_settings' => $notificationSettings,
         ]);
 
