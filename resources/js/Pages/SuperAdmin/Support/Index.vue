@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import DateTimePicker from '@/Components/DateTimePicker.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import InputError from '@/Components/InputError.vue';
 import Modal from '@/Components/Modal.vue';
@@ -469,11 +470,10 @@ const attachmentIcon = (media) => {
                                 />
                             </div>
                             <div>
-                                <label class="block text-xs text-stone-500 dark:text-neutral-400">
-                                    {{ $t('super_admin.support.form.sla_due') }}
-                                </label>
-                                <input v-model="createForm.sla_due_at" type="datetime-local"
-                                    class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200" />
+                                <DateTimePicker
+                                    v-model="createForm.sla_due_at"
+                                    :label="$t('super_admin.support.form.sla_due')"
+                                />
                             </div>
                         </div>
                         <FloatingInput v-model="createForm.tags" :label="$t('super_admin.support.form.tags')" />
@@ -528,11 +528,10 @@ const attachmentIcon = (media) => {
                                 />
                             </div>
                             <div>
-                                <label class="block text-xs text-stone-500 dark:text-neutral-400">
-                                    {{ $t('super_admin.support.form.sla_due') }}
-                                </label>
-                                <input v-model="editForm.sla_due_at" type="datetime-local"
-                                    class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200" />
+                                <DateTimePicker
+                                    v-model="editForm.sla_due_at"
+                                    :label="$t('super_admin.support.form.sla_due')"
+                                />
                             </div>
                         </div>
                         <FloatingInput v-model="editForm.tags" :label="$t('super_admin.support.form.tags')" />

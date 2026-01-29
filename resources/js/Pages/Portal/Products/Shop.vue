@@ -4,6 +4,7 @@ import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
 import Modal from '@/Components/Modal.vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import DateTimePicker from '@/Components/DateTimePicker.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
 
 const props = defineProps({
@@ -1113,9 +1114,11 @@ const startPayment = (type) => {
                     </div>
 
                     <div class="mt-3">
-                        <label class="block text-xs text-stone-500 dark:text-neutral-400">{{ $t('portal_shop.fulfillment.scheduled') }}</label>
-                        <input type="datetime-local" v-model="form.scheduled_for" :disabled="isLocked"
-                            class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200" />
+                        <DateTimePicker
+                            v-model="form.scheduled_for"
+                            :label="$t('portal_shop.fulfillment.scheduled')"
+                            :disabled="isLocked"
+                        />
                     </div>
                 </div>
 

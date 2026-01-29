@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import DateTimePicker from '@/Components/DateTimePicker.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
 import Checkbox from '@/Components/Checkbox.vue';
@@ -891,18 +892,16 @@ syncFormFromProps(currentLocale.value);
                             </div>
                             <div class="grid gap-3 md:grid-cols-2">
                                 <div>
-                                    <label class="block text-xs text-stone-500 dark:text-neutral-400">
-                                        {{ $t('super_admin.pages.visibility.start_at') }}
-                                    </label>
-                                    <input v-model="section.visibility.start_at" type="datetime-local"
-                                        class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200" />
+                                    <DateTimePicker
+                                        v-model="section.visibility.start_at"
+                                        :label="$t('super_admin.pages.visibility.start_at')"
+                                    />
                                 </div>
                                 <div>
-                                    <label class="block text-xs text-stone-500 dark:text-neutral-400">
-                                        {{ $t('super_admin.pages.visibility.end_at') }}
-                                    </label>
-                                    <input v-model="section.visibility.end_at" type="datetime-local"
-                                        class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200" />
+                                    <DateTimePicker
+                                        v-model="section.visibility.end_at"
+                                        :label="$t('super_admin.pages.visibility.end_at')"
+                                    />
                                 </div>
                             </div>
                         </div>

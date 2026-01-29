@@ -4,6 +4,7 @@ import axios from 'axios';
 import { computed, ref, watch } from 'vue';
 import { humanizeDate } from '@/utils/date';
 import productCard from '@/Components/UI/ProductCard2.vue';
+import DatePicker from '@/Components/DatePicker.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
 import FloatingNumberInput from '@/Components/FloatingNumberInput.vue';
@@ -521,15 +522,13 @@ const buttonLabel = computed(() => (props.product
                                     :step="0.01"
                                 />
                                 <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
-                                    <FloatingInput
+                                    <DatePicker
                                         v-model="form.promo_start_at"
                                         :label="$t('products.form.promo_start')"
-                                        type="date"
                                     />
-                                    <FloatingInput
+                                    <DatePicker
                                         v-model="form.promo_end_at"
                                         :label="$t('products.form.promo_end')"
-                                        type="date"
                                     />
                                 </div>
                             </div>

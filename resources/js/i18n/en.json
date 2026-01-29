@@ -4361,6 +4361,15 @@
         "title": "Company profile",
         "description": "Identity, address, and company activity."
       },
+      "store": {
+        "title": "Storefront settings",
+        "description": "Customize your public store header and featured product.",
+        "header_color": "Header color",
+      "featured_product": "Featured product",
+      "featured_placeholder": "Select a featured product",
+      "hero_images": "Hero background images",
+      "hero_images_hint": "Paste one image URL per line. These will rotate behind the featured product."
+    },
       "fields": {
         "name": "Company name",
         "public_slug": "Public slug (store)",
@@ -5029,7 +5038,18 @@
       "all": "All categories",
       "category": "Category",
       "search": "Search",
-      "sort": "Sort"
+      "sort": "Sort",
+      "price_min": "Min price",
+      "price_max": "Max price",
+      "availability": "Availability",
+      "availability_all": "All stock levels",
+      "availability_in": "In stock",
+      "availability_out": "Out of stock",
+      "availability_low": "Low stock",
+      "promotions": "Promotions",
+      "promo_all": "All products",
+      "promo_only": "Promotions only",
+      "reset": "Reset filters"
     },
     "stock": {
       "in": "In stock",
@@ -5084,11 +5104,13 @@
     "badges": {
       "best_seller": "Best seller",
       "promo": "Promo",
+      "promo_with": "Promo -{percent}%",
       "new": "New",
       "low_stock": "Limited stock",
       "hot": "Trending"
     },
     "sort": {
+      "label": "Sort by",
       "featured": "Featured",
       "newest": "Newest",
       "price_asc": "Price: low to high",
@@ -5128,6 +5150,7 @@
       "fulfillment": {
         "title": "Delivery or pickup",
         "subtitle": "Choose a method",
+        "unavailable": "Delivery and pickup are not configured yet.",
         "delivery": "Delivery",
         "pickup": "Quick pickup",
         "ready": "Ready soon",
@@ -5139,6 +5162,14 @@
         "pickup_address": "Pickup: {address}",
         "pickup_notes": "Pickup notes (optional)",
         "pickup_time": "Pickup time (optional)"
+      },
+      "related": {
+        "title": "You might also like"
+      },
+      "pagination": {
+        "previous": "Previous",
+        "next": "Next",
+        "page": "Page {current} / {total}"
       },
       "notes": {
         "title": "Notes & substitutions",

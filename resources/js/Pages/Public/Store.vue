@@ -1,11 +1,12 @@
 <script setup>
-import { computed, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { Head, Link, usePage } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
 import axios from 'axios';
 import Modal from '@/Components/Modal.vue';
 import Badge from '@/Components/Store/Badge.vue';
 import CategoryChips from '@/Components/Store/CategoryChips.vue';
+import DateTimePicker from '@/Components/DateTimePicker.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
 import FloatingTextarea from '@/Components/FloatingTextarea.vue';
@@ -51,6 +52,10 @@ const pageTitle = computed(() => t('public_store.title', { company: companyName.
 const searchQuery = ref('');
 const selectedCategory = ref('');
 const sortOption = ref('featured');
+const priceMin = ref('');
+const priceMax = ref('');
+const availabilityFilter = ref('all');
+const promoFilter = ref('all');
 const cartVisible = ref(false);
 const cartBusy = ref(false);
 const cartError = ref('');
@@ -64,6 +69,10 @@ const productReviews = ref([]);
 const reviewsLoading = ref(false);
 const reviewsError = ref('');
 const reviewsCache = ref({});
+const pageLoading = ref(true);
+const pageSize = ref(24);
+const currentPage = ref(1);
+const filtersRestored = ref(false);
 
 const cartData = ref({
     items: props.cart?.items || [],
@@ -155,12 +164,15 @@ watch(cartItemCount, (next, prev) => {
 
 const fulfillmentSettings = computed(() => props.fulfillment || {});
 const fulfillmentMethod = ref(
-    fulfillmentSettings.value?.delivery_enabled ? 'delivery' : 'pickup',
+    fulfillmentSettings.value?.delivery_enabled
+        ? 'delivery'
+        : (fulfillmentSettings.value?.pickup_enabled ? 'pickup' : null),
 );
 checkoutForm.value.fulfillment_method = fulfillmentMethod.value;
 
 const deliveryEnabled = computed(() => Boolean(fulfillmentSettings.value?.delivery_enabled));
 const pickupEnabled = computed(() => Boolean(fulfillmentSettings.value?.pickup_enabled));
+const fulfillmentUnavailable = computed(() => !deliveryEnabled.value && !pickupEnabled.value);
 
 const setFulfillmentMethod = (method) => {
     if (method === 'delivery' && !deliveryEnabled.value) {
@@ -190,6 +202,11 @@ watch(fulfillmentMethod, (next) => {
         checkoutForm.value.delivery_address = '';
         checkoutForm.value.delivery_notes = '';
     }
+    if (!next) {
+        checkoutForm.value.delivery_address = '';
+        checkoutForm.value.delivery_notes = '';
+        checkoutForm.value.pickup_notes = '';
+    }
 });
 
 watch(
@@ -197,11 +214,19 @@ watch(
     (next) => {
         const deliveryAllowed = Boolean(next?.delivery_enabled);
         const pickupAllowed = Boolean(next?.pickup_enabled);
+        if (!deliveryAllowed && !pickupAllowed) {
+            fulfillmentMethod.value = null;
+            checkoutForm.value.fulfillment_method = null;
+            return;
+        }
         if (deliveryAllowed && !pickupAllowed) {
             setFulfillmentMethod('delivery');
         }
         if (pickupAllowed && !deliveryAllowed) {
             setFulfillmentMethod('pickup');
+        }
+        if (deliveryAllowed && pickupAllowed && !fulfillmentMethod.value) {
+            setFulfillmentMethod('delivery');
         }
     },
     { immediate: true },
@@ -257,7 +282,7 @@ const stockTone = (product) => {
 const promoBadge = (product) => {
     const discount = Number(product?.promo_discount_percent || 0);
     if (discount > 0) {
-        return `-${discount}%`;
+        return t('public_store.badges.promo_with', { percent: discount });
     }
     return t('public_store.badges.promo');
 };
@@ -275,7 +300,7 @@ const badgeList = (product) => {
     const badges = [];
 
     if (product?.promo_active) {
-        badges.push({ label: promoBadge(product), tone: 'warning' });
+        badges.push({ label: promoBadge(product), tone: 'promo' });
     } else if (bestSellerIds.value.has(product?.id)) {
         badges.push({ label: t('public_store.badges.best_seller'), tone: 'primary' });
     }
@@ -301,6 +326,10 @@ const heroBadges = computed(() => {
 
 const filteredProducts = computed(() => {
     const keyword = searchQuery.value.trim().toLowerCase();
+    const minPrice = Number(priceMin.value);
+    const maxPrice = Number(priceMax.value);
+    const hasMinPrice = Number.isFinite(minPrice) && priceMin.value !== '';
+    const hasMaxPrice = Number.isFinite(maxPrice) && priceMax.value !== '';
 
     return (props.products || []).filter((product) => {
         const matchesSearch = !keyword
@@ -309,8 +338,23 @@ const filteredProducts = computed(() => {
                 .some((field) => String(field).toLowerCase().includes(keyword));
         const matchesCategory = !selectedCategory.value
             || String(product.category_id || '') === String(selectedCategory.value);
+        const currentPrice = priceMeta(product).current;
+        const matchesMin = !hasMinPrice || currentPrice >= minPrice;
+        const matchesMax = !hasMaxPrice || currentPrice <= maxPrice;
+        const stockValue = Number(product?.stock || 0);
+        const matchesAvailability = availabilityFilter.value === 'all'
+            || (availabilityFilter.value === 'in_stock' && stockValue > 0)
+            || (availabilityFilter.value === 'out_of_stock' && stockValue <= 0)
+            || (availabilityFilter.value === 'low_stock' && stockValue > 0 && stockValue <= 5);
+        const matchesPromo = promoFilter.value === 'all'
+            || (promoFilter.value === 'promo' && Boolean(product?.promo_active));
 
-        return matchesSearch && matchesCategory;
+        return matchesSearch
+            && matchesCategory
+            && matchesMin
+            && matchesMax
+            && matchesAvailability
+            && matchesPromo;
     });
 });
 
@@ -331,6 +375,18 @@ const categoryOptions = computed(() => ([
     })),
 ]));
 
+const availabilityOptions = computed(() => ([
+    { value: 'all', label: t('public_store.filters.availability_all') },
+    { value: 'in_stock', label: t('public_store.filters.availability_in') },
+    { value: 'low_stock', label: t('public_store.filters.availability_low') },
+    { value: 'out_of_stock', label: t('public_store.filters.availability_out') },
+]));
+
+const promoOptions = computed(() => ([
+    { value: 'all', label: t('public_store.filters.promo_all') },
+    { value: 'promo', label: t('public_store.filters.promo_only') },
+]));
+
 const sortedProducts = computed(() => {
     const items = [...filteredProducts.value];
     const sortKey = sortOption.value;
@@ -349,6 +405,38 @@ const sortedProducts = computed(() => {
 
     return items;
 });
+
+const totalPages = computed(() => Math.max(1, Math.ceil(sortedProducts.value.length / pageSize.value)));
+const pagedProducts = computed(() => {
+    const start = (currentPage.value - 1) * pageSize.value;
+    return sortedProducts.value.slice(start, start + pageSize.value);
+});
+
+watch(
+    [searchQuery, selectedCategory, sortOption, priceMin, priceMax, availabilityFilter, promoFilter],
+    () => {
+        currentPage.value = 1;
+    },
+);
+
+watch(
+    [searchQuery, selectedCategory, sortOption, priceMin, priceMax, availabilityFilter, promoFilter],
+    () => {
+        if (!filtersRestored.value) {
+            return;
+        }
+        persistFilters();
+    },
+);
+
+watch(
+    () => sortedProducts.value.length,
+    () => {
+        if (currentPage.value > totalPages.value) {
+            currentPage.value = totalPages.value;
+        }
+    },
+);
 
 const cartQuantity = (productId) => {
     const item = cartItems.value.find((entry) => entry.product_id === productId);
@@ -400,6 +488,127 @@ const closeProductDetails = () => {
 
 const setActiveImage = (image) => {
     activeImage.value = image;
+};
+
+const relatedProducts = computed(() => {
+    if (!selectedProduct.value) {
+        return [];
+    }
+    const base = (props.products || []).filter((product) => product?.id !== selectedProduct.value.id);
+    const categoryMatches = base.filter((product) => product?.category_id && product.category_id === selectedProduct.value.category_id);
+    const items = categoryMatches.length ? categoryMatches : base;
+    return items.slice(0, 4);
+});
+
+const headerColor = computed(() => company.value?.store_settings?.header_color || '');
+const headerIsCustom = computed(() => Boolean(headerColor.value));
+const headerStyle = computed(() => (headerIsCustom.value ? { backgroundColor: headerColor.value } : {}));
+
+const heroBackgroundIndex = ref(0);
+const heroBackgroundInterval = ref(null);
+const heroBackgrounds = computed(() => {
+    const images = company.value?.store_settings?.hero_images;
+    if (!Array.isArray(images)) {
+        return [];
+    }
+    return images.map((image) => String(image || '').trim()).filter(Boolean);
+});
+
+const heroBackgroundStyle = computed(() => {
+    if (!heroBackgrounds.value.length) {
+        return {};
+    }
+    const image = heroBackgrounds.value[heroBackgroundIndex.value] || heroBackgrounds.value[0];
+    return { backgroundImage: `url(${image})` };
+});
+
+const clearHeroCarousel = () => {
+    if (heroBackgroundInterval.value && typeof window !== 'undefined') {
+        window.clearInterval(heroBackgroundInterval.value);
+        heroBackgroundInterval.value = null;
+    }
+};
+
+const startHeroCarousel = () => {
+    clearHeroCarousel();
+    if (typeof window === 'undefined') {
+        return;
+    }
+    if (heroBackgrounds.value.length <= 1) {
+        return;
+    }
+    heroBackgroundInterval.value = window.setInterval(() => {
+        heroBackgroundIndex.value = (heroBackgroundIndex.value + 1) % heroBackgrounds.value.length;
+    }, 6000);
+};
+
+watch(
+    heroBackgrounds,
+    () => {
+        heroBackgroundIndex.value = 0;
+        startHeroCarousel();
+    },
+    { immediate: true },
+);
+
+const resetFilters = () => {
+    priceMin.value = '';
+    priceMax.value = '';
+    availabilityFilter.value = 'all';
+    promoFilter.value = 'all';
+    selectedCategory.value = '';
+    searchQuery.value = '';
+    sortOption.value = 'featured';
+    currentPage.value = 1;
+    if (typeof window !== 'undefined') {
+        window.localStorage.removeItem(`mlk-store-filters:${props.company?.slug || 'default'}`);
+    }
+};
+
+const restoreFilters = () => {
+    if (typeof window === 'undefined') {
+        filtersRestored.value = true;
+        return;
+    }
+    const key = `mlk-store-filters:${props.company?.slug || 'default'}`;
+    const raw = window.localStorage.getItem(key);
+    if (!raw) {
+        filtersRestored.value = true;
+        return;
+    }
+    try {
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === 'object') {
+            searchQuery.value = parsed.searchQuery ?? searchQuery.value;
+            selectedCategory.value = parsed.selectedCategory ?? selectedCategory.value;
+            sortOption.value = parsed.sortOption ?? sortOption.value;
+            priceMin.value = parsed.priceMin ?? priceMin.value;
+            priceMax.value = parsed.priceMax ?? priceMax.value;
+            availabilityFilter.value = parsed.availabilityFilter ?? availabilityFilter.value;
+            promoFilter.value = parsed.promoFilter ?? promoFilter.value;
+        }
+    } catch (error) {
+        window.localStorage.removeItem(key);
+    } finally {
+        filtersRestored.value = true;
+    }
+};
+
+const persistFilters = () => {
+    if (typeof window === 'undefined') {
+        return;
+    }
+    const key = `mlk-store-filters:${props.company?.slug || 'default'}`;
+    const payload = {
+        searchQuery: searchQuery.value,
+        selectedCategory: selectedCategory.value,
+        sortOption: sortOption.value,
+        priceMin: priceMin.value,
+        priceMax: priceMax.value,
+        availabilityFilter: availabilityFilter.value,
+        promoFilter: promoFilter.value,
+    };
+    window.localStorage.setItem(key, JSON.stringify(payload));
 };
 
 const formatReviewDate = (value) => {
@@ -476,7 +685,7 @@ const handleCartError = () => {
     cartError.value = t('public_store.cart_error');
 };
 
-const addToCart = async (product) => {
+const addToCart = async (product, quantity = 1) => {
     if (!product || cartBusy.value || !props.company?.slug) {
         return;
     }
@@ -489,7 +698,7 @@ const addToCart = async (product) => {
     try {
         const response = await axios.post(
             route('public.store.cart.add', { slug: props.company.slug }),
-            { product_id: product.id, quantity: 1 },
+            { product_id: product.id, quantity },
             { headers: { Accept: 'application/json' } },
         );
         updateCartState(response.data);
@@ -501,6 +710,17 @@ const addToCart = async (product) => {
     } finally {
         cartBusy.value = false;
     }
+};
+
+const handleCardAdd = (payload) => {
+    if (!payload) {
+        return;
+    }
+    if (payload.product) {
+        addToCart(payload.product, payload.quantity || 1);
+        return;
+    }
+    addToCart(payload);
 };
 
 const setQuantity = async (product, quantity) => {
@@ -541,6 +761,17 @@ const decrement = (product) => {
     const next = cartQuantity(product.id) - 1;
     setQuantity(product, next);
 };
+
+onMounted(() => {
+    restoreFilters();
+    window.setTimeout(() => {
+        pageLoading.value = false;
+    }, 350);
+});
+
+onBeforeUnmount(() => {
+    clearHeroCarousel();
+});
 
 const incrementItem = (item) => {
     setQuantity({ id: item.product_id, stock: item.stock }, Number(item.quantity || 0) + 1);
@@ -627,11 +858,14 @@ const heroSecondaryAction = () => {
     <div class="min-h-screen bg-slate-50 text-slate-900">
         <FlashToaster />
         <div class="fixed inset-x-0 top-0 z-50">
-            <header class="border-b border-slate-800 bg-slate-900 text-white">
+            <header
+                :style="headerStyle"
+                :class="['border-b text-white', headerIsCustom ? 'border-white/10' : 'border-slate-800 bg-slate-900']"
+            >
                 <div class="mx-auto w-full px-4 sm:px-6 lg:px-10">
-                <div class="flex items-center gap-4 py-3">
+                <div class="flex items-center gap-4 py-2 sm:py-3">
                     <Link :href="route('welcome')" class="flex items-center gap-3">
-                        <div class="h-10 w-10 overflow-hidden rounded-sm border border-slate-700 bg-slate-800">
+                        <div :class="['h-9 w-9 overflow-hidden rounded-sm border sm:h-10 sm:w-10', headerIsCustom ? 'border-white/20 bg-white/10' : 'border-slate-700 bg-slate-800']">
                             <img
                                 v-if="company?.logo_url"
                                 :src="company.logo_url"
@@ -659,7 +893,7 @@ const heroSecondaryAction = () => {
                         />
                     </div>
 
-                    <div class="ml-auto flex items-center gap-4">
+                    <div class="ml-auto flex items-center gap-3 sm:gap-4">
                         <div class="hidden items-center gap-3 text-xs font-semibold text-slate-200 md:flex">
                             <template v-if="isAuthenticated">
                                 <span>{{ authUser?.name || authUser?.email }}</span>
@@ -678,7 +912,10 @@ const heroSecondaryAction = () => {
                         </div>
                         <button
                             type="button"
-                            class="relative inline-flex items-center justify-center rounded-sm border border-slate-700 bg-slate-800 px-2.5 py-2 text-white hover:border-slate-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
+                            :class="[
+                                'relative inline-flex items-center justify-center rounded-sm border px-2.5 py-2 text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400',
+                                headerIsCustom ? 'border-white/20 bg-white/10 hover:border-white/40' : 'border-slate-700 bg-slate-800 hover:border-slate-600',
+                            ]"
                             @click="openCart"
                             aria-label="Open cart"
                         >
@@ -736,8 +973,20 @@ const heroSecondaryAction = () => {
         </div>
 
         <main class="pt-[140px] sm:pt-[132px] lg:pt-[120px]">
-            <section class="py-10 lg:py-14">
-                <div class="mx-auto grid w-full gap-8 px-4 sm:px-6 lg:grid-cols-[1.1fr_0.9fr] lg:px-10">
+            <section class="relative overflow-hidden py-10 lg:py-14">
+                <Transition name="hero-fade" mode="out-in">
+                    <div
+                        v-if="heroBackgrounds.length"
+                        :key="heroBackgroundIndex"
+                        class="absolute inset-0 bg-cover bg-center"
+                        :style="heroBackgroundStyle"
+                    ></div>
+                </Transition>
+                <div
+                    v-if="heroBackgrounds.length"
+                    class="absolute inset-0 bg-gradient-to-r from-white/90 via-white/70 to-white/90"
+                ></div>
+                <div class="relative mx-auto grid w-full gap-8 px-4 sm:px-6 lg:grid-cols-[1.1fr_0.9fr] lg:px-10">
                     <div class="space-y-6">
                         <div class="space-y-3">
                             <span class="text-xs font-semibold uppercase tracking-wide text-slate-400">
@@ -781,6 +1030,7 @@ const heroSecondaryAction = () => {
                         <ProductCard
                             :product="heroProduct"
                             variant="featured"
+                            :loading="pageLoading"
                             :badges="heroBadges"
                             :stock-label="stockLabel(heroProduct)"
                             :stock-tone="stockTone(heroProduct)"
@@ -790,7 +1040,7 @@ const heroSecondaryAction = () => {
                             :view-label="t('public_store.actions.view_product')"
                             :show-view="true"
                             @open="openProductDetails"
-                            @add="addToCart"
+                            @add="handleCardAdd"
                             @view="openProductDetails"
                         />
                     </div>
@@ -804,6 +1054,7 @@ const heroSecondaryAction = () => {
                 :action-label="t('public_store.actions.view_catalog')"
                 :empty-label="t('public_store.empty_collection')"
                 :products="bestSellers"
+                :loading="pageLoading"
                 :description-fallback="t('public_store.empty_description')"
                 :rating-empty-label="t('public_store.reviews.empty')"
                 :cta-label="t('public_store.actions.add_to_cart')"
@@ -811,11 +1062,15 @@ const heroSecondaryAction = () => {
                 :get-badges="badgeList"
                 :get-stock-label="stockLabel"
                 :get-stock-tone="stockTone"
+                :get-quantity="(product) => cartQuantity(product.id)"
+                :show-quick-add="true"
                 card-variant="compact"
                 @action="scrollToCatalog"
                 @open="openProductDetails"
-                @add="addToCart"
+                @add="handleCardAdd"
                 @view="openProductDetails"
+                @increment="increment"
+                @decrement="decrement"
             />
 
             <ProductSection
@@ -825,6 +1080,7 @@ const heroSecondaryAction = () => {
                 :action-label="t('public_store.actions.view_catalog')"
                 :empty-label="t('public_store.empty_collection')"
                 :products="promotions"
+                :loading="pageLoading"
                 :description-fallback="t('public_store.empty_description')"
                 :rating-empty-label="t('public_store.reviews.empty')"
                 :cta-label="t('public_store.actions.add_to_cart')"
@@ -832,11 +1088,15 @@ const heroSecondaryAction = () => {
                 :get-badges="badgeList"
                 :get-stock-label="stockLabel"
                 :get-stock-tone="stockTone"
+                :get-quantity="(product) => cartQuantity(product.id)"
+                :show-quick-add="true"
                 card-variant="compact"
                 @action="scrollToCatalog"
                 @open="openProductDetails"
-                @add="addToCart"
+                @add="handleCardAdd"
                 @view="openProductDetails"
+                @increment="increment"
+                @decrement="decrement"
             />
 
             <ProductSection
@@ -846,6 +1106,7 @@ const heroSecondaryAction = () => {
                 :action-label="t('public_store.actions.view_catalog')"
                 :empty-label="t('public_store.empty_collection')"
                 :products="newArrivals"
+                :loading="pageLoading"
                 :description-fallback="t('public_store.empty_description')"
                 :rating-empty-label="t('public_store.reviews.empty')"
                 :cta-label="t('public_store.actions.add_to_cart')"
@@ -853,11 +1114,15 @@ const heroSecondaryAction = () => {
                 :get-badges="badgeList"
                 :get-stock-label="stockLabel"
                 :get-stock-tone="stockTone"
+                :get-quantity="(product) => cartQuantity(product.id)"
+                :show-quick-add="true"
                 card-variant="compact"
                 @action="scrollToCatalog"
                 @open="openProductDetails"
-                @add="addToCart"
+                @add="handleCardAdd"
                 @view="openProductDetails"
+                @increment="increment"
+                @decrement="decrement"
             />
 
             <section class="py-8" id="catalog">
@@ -881,10 +1146,37 @@ const heroSecondaryAction = () => {
                                 :all-label="t('public_store.filters.all')"
                                 @select="setCategory"
                             />
+                            <div class="flex flex-wrap items-center gap-2">
+                                <span class="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                                    {{ t('public_store.sort.label') }}
+                                </span>
+                                <div class="flex flex-wrap gap-2">
+                                    <button
+                                        v-for="option in sortOptions"
+                                        :key="option.value"
+                                        type="button"
+                                        class="rounded-sm border px-2.5 py-1 text-xs font-semibold transition"
+                                        :class="sortOption === option.value
+                                            ? 'border-emerald-300 bg-emerald-50 text-emerald-700'
+                                            : 'border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-white'"
+                                        @click="sortOption = option.value"
+                                    >
+                                        {{ option.label }}
+                                    </button>
+                                </div>
+                            </div>
 
-                            <div v-if="sortedProducts.length" class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                            <div v-if="pageLoading" class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                                 <ProductCard
-                                    v-for="product in sortedProducts"
+                                    v-for="n in 8"
+                                    :key="`catalog-skeleton-${n}`"
+                                    :product="{ id: `catalog-skeleton-${n}`, name: 'Loading' }"
+                                    :loading="true"
+                                />
+                            </div>
+                            <div v-else-if="sortedProducts.length" class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                                <ProductCard
+                                    v-for="product in pagedProducts"
                                     :key="product.id"
                                     :product="product"
                                     :badges="badgeList(product)"
@@ -894,10 +1186,38 @@ const heroSecondaryAction = () => {
                                     :rating-empty-label="t('public_store.reviews.empty')"
                                     :cta-label="t('public_store.actions.add_to_cart')"
                                     :view-label="t('public_store.actions.view_product')"
+                                    :quantity="cartQuantity(product.id)"
+                                    :show-quick-add="true"
                                     @open="openProductDetails"
-                                    @add="addToCart"
+                                    @add="handleCardAdd"
                                     @view="openProductDetails"
+                                    @increment="increment"
+                                    @decrement="decrement"
                                 />
+                            </div>
+                            <div
+                                v-if="!pageLoading && sortedProducts.length > pageSize"
+                                class="flex flex-wrap items-center justify-between gap-3 rounded-sm border border-slate-200 bg-white px-3 py-2 text-xs text-slate-600"
+                            >
+                                <button
+                                    type="button"
+                                    class="rounded-sm border border-slate-200 px-2.5 py-1 font-semibold text-slate-600 hover:border-slate-300 hover:text-slate-800 disabled:opacity-50"
+                                    :disabled="currentPage <= 1"
+                                    @click="currentPage = Math.max(1, currentPage - 1)"
+                                >
+                                    {{ t('public_store.pagination.previous') }}
+                                </button>
+                                <span class="font-semibold">
+                                    {{ t('public_store.pagination.page', { current: currentPage, total: totalPages }) }}
+                                </span>
+                                <button
+                                    type="button"
+                                    class="rounded-sm border border-slate-200 px-2.5 py-1 font-semibold text-slate-600 hover:border-slate-300 hover:text-slate-800 disabled:opacity-50"
+                                    :disabled="currentPage >= totalPages"
+                                    @click="currentPage = Math.min(totalPages, currentPage + 1)"
+                                >
+                                    {{ t('public_store.pagination.next') }}
+                                </button>
                             </div>
                             <p v-else class="text-sm text-slate-500">
                                 {{ t('public_store.empty') }}
@@ -919,6 +1239,32 @@ const heroSecondaryAction = () => {
                                     option-value="value"
                                     option-label="label"
                                 />
+                                <div class="grid gap-2 sm:grid-cols-2">
+                                    <FloatingInput
+                                        v-model="priceMin"
+                                        type="number"
+                                        :label="t('public_store.filters.price_min')"
+                                    />
+                                    <FloatingInput
+                                        v-model="priceMax"
+                                        type="number"
+                                        :label="t('public_store.filters.price_max')"
+                                    />
+                                </div>
+                                <FloatingSelect
+                                    v-model="availabilityFilter"
+                                    :label="t('public_store.filters.availability')"
+                                    :options="availabilityOptions"
+                                    option-value="value"
+                                    option-label="label"
+                                />
+                                <FloatingSelect
+                                    v-model="promoFilter"
+                                    :label="t('public_store.filters.promotions')"
+                                    :options="promoOptions"
+                                    option-value="value"
+                                    option-label="label"
+                                />
                                 <FloatingSelect
                                     v-model="sortOption"
                                     :label="t('public_store.filters.sort')"
@@ -926,6 +1272,13 @@ const heroSecondaryAction = () => {
                                     option-value="value"
                                     option-label="label"
                                 />
+                                <button
+                                    type="button"
+                                    class="rounded-sm border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-500 hover:border-slate-300 hover:text-slate-700"
+                                    @click="resetFilters"
+                                >
+                                    {{ t('public_store.filters.reset') }}
+                                </button>
                                 <div class="rounded-sm border border-slate-200 bg-slate-50 px-3 py-2 text-[11px] text-slate-500">
                                     {{ t('public_store.catalog.results', { count: sortedProducts.length }) }}
                                 </div>
@@ -1056,101 +1409,104 @@ const heroSecondaryAction = () => {
                                 {{ t('public_store.fulfillment.subtitle') }}
                             </span>
                         </div>
-                        <div v-if="showFulfillmentChoice" class="space-y-2">
-                            <button
-                                v-if="deliveryEnabled"
-                                type="button"
-                                class="flex w-full items-center justify-between rounded-sm border px-3 py-2 text-left text-sm transition"
-                                :class="fulfillmentMethod === 'delivery' ? 'border-emerald-400 bg-emerald-50 text-emerald-700' : 'border-slate-200 text-slate-600 hover:border-slate-300'"
-                                @click="setFulfillmentMethod('delivery')"
-                            >
+                        <div v-if="fulfillmentUnavailable" class="rounded-sm border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
+                            {{ t('public_store.fulfillment.unavailable') }}
+                        </div>
+                        <template v-else>
+                            <div v-if="showFulfillmentChoice" class="space-y-2">
+                                <button
+                                    v-if="deliveryEnabled"
+                                    type="button"
+                                    class="flex w-full items-center justify-between rounded-sm border px-3 py-2 text-left text-sm transition"
+                                    :class="fulfillmentMethod === 'delivery' ? 'border-emerald-400 bg-emerald-50 text-emerald-700' : 'border-slate-200 text-slate-600 hover:border-slate-300'"
+                                    @click="setFulfillmentMethod('delivery')"
+                                >
+                                    <span class="flex items-center gap-2">
+                                        <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                            <rect x="1" y="3" width="15" height="13" rx="2"></rect>
+                                            <path d="M16 8h4l3 4v4h-7"></path>
+                                            <circle cx="5.5" cy="18.5" r="1.5"></circle>
+                                            <circle cx="18.5" cy="18.5" r="1.5"></circle>
+                                        </svg>
+                                        {{ t('public_store.fulfillment.delivery') }}
+                                    </span>
+                                    <span class="text-xs font-semibold">{{ formatCurrency(deliveryFeeAmount) }}</span>
+                                </button>
+                                <button
+                                    v-if="pickupEnabled"
+                                    type="button"
+                                    class="flex w-full items-center justify-between rounded-sm border px-3 py-2 text-left text-sm transition"
+                                    :class="fulfillmentMethod === 'pickup' ? 'border-emerald-400 bg-emerald-50 text-emerald-700' : 'border-slate-200 text-slate-600 hover:border-slate-300'"
+                                    @click="setFulfillmentMethod('pickup')"
+                                >
+                                    <span class="flex items-center gap-2">
+                                        <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M3 7h13v10H3z"></path>
+                                            <path d="M16 10h4l2 3v4h-6"></path>
+                                            <circle cx="7.5" cy="19" r="1.5"></circle>
+                                            <circle cx="18.5" cy="19" r="1.5"></circle>
+                                        </svg>
+                                        {{ t('public_store.fulfillment.pickup') }}
+                                    </span>
+                                    <span class="text-xs font-semibold">
+                                        {{ prepTime ? t('public_store.fulfillment.ready_in', { minutes: prepTime }) : t('public_store.fulfillment.ready') }}
+                                    </span>
+                                </button>
+                            </div>
+                            <div v-else class="flex items-center justify-between rounded-sm border border-slate-200 px-3 py-2 text-sm text-slate-600">
                                 <span class="flex items-center gap-2">
-                                    <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                    <svg v-if="fulfillmentMethod === 'delivery'" class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                                         <rect x="1" y="3" width="15" height="13" rx="2"></rect>
                                         <path d="M16 8h4l3 4v4h-7"></path>
                                         <circle cx="5.5" cy="18.5" r="1.5"></circle>
                                         <circle cx="18.5" cy="18.5" r="1.5"></circle>
                                     </svg>
-                                    {{ t('public_store.fulfillment.delivery') }}
-                                </span>
-                                <span class="text-xs font-semibold">{{ formatCurrency(deliveryFeeAmount) }}</span>
-                            </button>
-                            <button
-                                v-if="pickupEnabled"
-                                type="button"
-                                class="flex w-full items-center justify-between rounded-sm border px-3 py-2 text-left text-sm transition"
-                                :class="fulfillmentMethod === 'pickup' ? 'border-emerald-400 bg-emerald-50 text-emerald-700' : 'border-slate-200 text-slate-600 hover:border-slate-300'"
-                                @click="setFulfillmentMethod('pickup')"
-                            >
-                                <span class="flex items-center gap-2">
-                                    <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                    <svg v-else class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                                         <path d="M3 7h13v10H3z"></path>
                                         <path d="M16 10h4l2 3v4h-6"></path>
                                         <circle cx="7.5" cy="19" r="1.5"></circle>
                                         <circle cx="18.5" cy="19" r="1.5"></circle>
                                     </svg>
-                                    {{ t('public_store.fulfillment.pickup') }}
+                                    {{ fulfillmentMethod === 'delivery' ? t('public_store.fulfillment.delivery') : t('public_store.fulfillment.pickup') }}
                                 </span>
                                 <span class="text-xs font-semibold">
-                                    {{ prepTime ? t('public_store.fulfillment.ready_in', { minutes: prepTime }) : t('public_store.fulfillment.ready') }}
+                                    {{ fulfillmentMethod === 'delivery'
+                                        ? formatCurrency(deliveryFeeAmount)
+                                        : (prepTime ? t('public_store.fulfillment.ready_in', { minutes: prepTime }) : t('public_store.fulfillment.ready')) }}
                                 </span>
-                            </button>
-                        </div>
-                        <div v-else class="flex items-center justify-between rounded-sm border border-slate-200 px-3 py-2 text-sm text-slate-600">
-                            <span class="flex items-center gap-2">
-                                <svg v-if="fulfillmentMethod === 'delivery'" class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                                    <rect x="1" y="3" width="15" height="13" rx="2"></rect>
-                                    <path d="M16 8h4l3 4v4h-7"></path>
-                                    <circle cx="5.5" cy="18.5" r="1.5"></circle>
-                                    <circle cx="18.5" cy="18.5" r="1.5"></circle>
-                                </svg>
-                                <svg v-else class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                                    <path d="M3 7h13v10H3z"></path>
-                                    <path d="M16 10h4l2 3v4h-6"></path>
-                                    <circle cx="7.5" cy="19" r="1.5"></circle>
-                                    <circle cx="18.5" cy="19" r="1.5"></circle>
-                                </svg>
-                                {{ fulfillmentMethod === 'delivery' ? t('public_store.fulfillment.delivery') : t('public_store.fulfillment.pickup') }}
-                            </span>
-                            <span class="text-xs font-semibold">
-                                {{ fulfillmentMethod === 'delivery'
-                                    ? formatCurrency(deliveryFeeAmount)
-                                    : (prepTime ? t('public_store.fulfillment.ready_in', { minutes: prepTime }) : t('public_store.fulfillment.ready')) }}
-                            </span>
-                        </div>
-                        <div v-if="fulfillmentMethod === 'delivery'" class="space-y-3">
-                            <FloatingInput
-                                v-model="checkoutForm.delivery_address"
-                                :label="t('public_store.fulfillment.delivery_address')"
-                            />
-                            <span v-if="checkoutErrors.delivery_address" class="text-xs text-rose-500">{{ checkoutErrors.delivery_address }}</span>
-                            <FloatingTextarea
-                                v-model="checkoutForm.delivery_notes"
-                                :label="t('public_store.fulfillment.delivery_notes')"
-                            />
-                            <div v-if="deliveryZone" class="text-xs text-slate-500">
-                                {{ t('public_store.fulfillment.delivery_zone', { zone: deliveryZone }) }}
                             </div>
-                            <FloatingInput
-                                v-model="checkoutForm.scheduled_for"
-                                type="datetime-local"
-                                :label="t('public_store.fulfillment.scheduled_for')"
-                            />
-                        </div>
-                        <div v-else-if="fulfillmentMethod === 'pickup'" class="space-y-3">
-                            <div v-if="pickupAddress" class="text-xs text-slate-500">
-                                {{ t('public_store.fulfillment.pickup_address', { address: pickupAddress }) }}
+                            <div v-if="fulfillmentMethod === 'delivery'" class="space-y-3">
+                                <FloatingInput
+                                    v-model="checkoutForm.delivery_address"
+                                    :label="t('public_store.fulfillment.delivery_address')"
+                                />
+                                <span v-if="checkoutErrors.delivery_address" class="text-xs text-rose-500">{{ checkoutErrors.delivery_address }}</span>
+                                <FloatingTextarea
+                                    v-model="checkoutForm.delivery_notes"
+                                    :label="t('public_store.fulfillment.delivery_notes')"
+                                />
+                                <div v-if="deliveryZone" class="text-xs text-slate-500">
+                                    {{ t('public_store.fulfillment.delivery_zone', { zone: deliveryZone }) }}
+                                </div>
+                                <DateTimePicker
+                                    v-model="checkoutForm.scheduled_for"
+                                    :label="t('public_store.fulfillment.scheduled_for')"
+                                />
                             </div>
-                            <FloatingTextarea
-                                v-model="checkoutForm.pickup_notes"
-                                :label="t('public_store.fulfillment.pickup_notes')"
-                            />
-                            <FloatingInput
-                                v-model="checkoutForm.scheduled_for"
-                                type="datetime-local"
-                                :label="t('public_store.fulfillment.pickup_time')"
-                            />
-                        </div>
+                            <div v-else-if="fulfillmentMethod === 'pickup'" class="space-y-3">
+                                <div v-if="pickupAddress" class="text-xs text-slate-500">
+                                    {{ t('public_store.fulfillment.pickup_address', { address: pickupAddress }) }}
+                                </div>
+                                <FloatingTextarea
+                                    v-model="checkoutForm.pickup_notes"
+                                    :label="t('public_store.fulfillment.pickup_notes')"
+                                />
+                                <DateTimePicker
+                                    v-model="checkoutForm.scheduled_for"
+                                    :label="t('public_store.fulfillment.pickup_time')"
+                                />
+                            </div>
+                        </template>
                     </div>
 
                     <div class="grid gap-3 sm:grid-cols-2">
@@ -1186,7 +1542,7 @@ const heroSecondaryAction = () => {
                     <button
                         type="button"
                         class="rounded-sm bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-emerald-300"
-                        :disabled="checkoutProcessing || isInternalUser"
+                        :disabled="checkoutProcessing || isInternalUser || fulfillmentUnavailable"
                         @click="submitCheckout"
                     >
                         {{ t('public_store.cart.submit') }}
@@ -1312,6 +1668,30 @@ const heroSecondaryAction = () => {
                             {{ t('public_store.reviews.empty') }}
                         </p>
                     </div>
+                    <div v-if="relatedProducts.length" class="space-y-3">
+                        <h4 class="text-sm font-semibold text-slate-900">{{ t('public_store.related.title') }}</h4>
+                        <div class="grid gap-3 sm:grid-cols-2">
+                            <ProductCard
+                                v-for="product in relatedProducts"
+                                :key="`related-${product.id}`"
+                                :product="product"
+                                variant="compact"
+                                :badges="badgeList(product)"
+                                :stock-label="stockLabel(product)"
+                                :stock-tone="stockTone(product)"
+                                :description-fallback="t('public_store.empty_description')"
+                                :rating-empty-label="t('public_store.reviews.empty')"
+                                :view-label="t('public_store.actions.view_product')"
+                                :quantity="cartQuantity(product.id)"
+                                :show-quick-add="true"
+                                @open="openProductDetails"
+                                @view="openProductDetails"
+                                @add="handleCardAdd"
+                                @increment="increment"
+                                @decrement="decrement"
+                            />
+                        </div>
+                    </div>
                     <div class="flex flex-wrap gap-3">
                         <button
                             v-if="cartQuantity(selectedProduct.id) === 0"
@@ -1341,3 +1721,14 @@ const heroSecondaryAction = () => {
         </div>
     </Modal>
 </template>
+
+<style scoped>
+.hero-fade-enter-active,
+.hero-fade-leave-active {
+    transition: opacity 0.8s ease;
+}
+.hero-fade-enter-from,
+.hero-fade-leave-to {
+    opacity: 0;
+}
+</style>

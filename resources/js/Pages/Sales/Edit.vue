@@ -4,6 +4,7 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
 import InputError from '@/Components/InputError.vue';
+import DateTimePicker from '@/Components/DateTimePicker.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
 
 const props = defineProps({
@@ -419,13 +420,9 @@ const submit = () => {
                                 <InputError class="mt-1" :message="form.errors.fulfillment_status" />
                             </div>
                             <div>
-                                <label class="text-xs text-stone-500 dark:text-neutral-400">
-                                    {{ $t('sales.edit.schedule_label') }}
-                                </label>
-                                <input
+                                <DateTimePicker
                                     v-model="form.scheduled_for"
-                                    type="datetime-local"
-                                    class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
+                                    :label="$t('sales.edit.schedule_label')"
                                 />
                                 <InputError class="mt-1" :message="form.errors.scheduled_for" />
                             </div>

@@ -4361,6 +4361,15 @@
         "title": "Profil entreprise",
         "description": "Identite, adresse et activite de la societe."
       },
+      "store": {
+        "title": "Parametres de la boutique",
+        "description": "Personnalisez l en-tete et le produit vedette.",
+        "header_color": "Couleur de l en-tete",
+      "featured_product": "Produit vedette",
+      "featured_placeholder": "Selectionner un produit",
+      "hero_images": "Images de fond du produit vedette",
+      "hero_images_hint": "Collez une URL d image par ligne. Elles defileront derriere le produit vedette."
+    },
       "fields": {
         "name": "Nom de l'entreprise",
         "public_slug": "Slug public (boutique)",
@@ -5029,7 +5038,18 @@
       "all": "Toutes les categories",
       "category": "Categorie",
       "search": "Recherche",
-      "sort": "Tri"
+      "sort": "Tri",
+      "price_min": "Prix min",
+      "price_max": "Prix max",
+      "availability": "Disponibilite",
+      "availability_all": "Tous les stocks",
+      "availability_in": "En stock",
+      "availability_out": "Rupture",
+      "availability_low": "Stock faible",
+      "promotions": "Promotions",
+      "promo_all": "Tous les produits",
+      "promo_only": "Promos seulement",
+      "reset": "Reinitialiser"
     },
     "stock": {
       "in": "En stock",
@@ -5084,11 +5104,13 @@
     "badges": {
       "best_seller": "Best-seller",
       "promo": "Promo",
+      "promo_with": "Promo -{percent}%",
       "new": "Nouveau",
       "low_stock": "Stock limite",
       "hot": "Populaire"
     },
     "sort": {
+      "label": "Trier par",
       "featured": "Mis en avant",
       "newest": "Nouveautes",
       "price_asc": "Prix croissant",
@@ -5128,6 +5150,7 @@
       "fulfillment": {
         "title": "Livraison ou retrait",
         "subtitle": "Choisissez une option",
+        "unavailable": "La livraison et le retrait ne sont pas encore configures.",
         "delivery": "Livraison",
         "pickup": "Retrait rapide",
         "ready": "Pret bientot",
@@ -5139,6 +5162,14 @@
         "pickup_address": "Retrait : {address}",
         "pickup_notes": "Notes de retrait (optionnel)",
         "pickup_time": "Horaire de retrait (optionnel)"
+      },
+      "related": {
+        "title": "Vous aimerez aussi"
+      },
+      "pagination": {
+        "previous": "Precedent",
+        "next": "Suivant",
+        "page": "Page {current} / {total}"
       },
       "notes": {
         "title": "Notes & substitutions",
