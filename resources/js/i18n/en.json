@@ -2013,7 +2013,8 @@
       "payment": "Payment",
       "fulfillment": "Delivery / pickup",
       "customer": "Customer",
-      "payments": "Payment history"
+      "payments": "Payment history",
+      "reviews": "Reviews"
     },
     "table": {
       "product": "Product",
@@ -2031,6 +2032,21 @@
       "requested_time": "Requested time: {date}",
       "delivery_address": "Address",
       "notes": "Notes"
+    },
+    "reviews": {
+      "unavailable": "Reviews are available once the order is paid.",
+      "order_title": "Order review",
+      "order_subtitle": "Rate the overall delivery and service.",
+      "product_title": "Product review",
+      "rating_label": "Rating",
+      "title_label": "Title",
+      "comment_label": "Comment",
+      "submit_order": "Submit order review",
+      "submit_product": "Submit product review",
+      "status": {
+        "approved": "Published",
+        "blocked": "Blocked"
+      }
     },
     "empty": {
       "payments": "No payments recorded."
@@ -5012,7 +5028,8 @@
     "filters": {
       "all": "All categories",
       "category": "Category",
-      "search": "Search"
+      "search": "Search",
+      "sort": "Sort"
     },
     "stock": {
       "in": "In stock",
@@ -5030,6 +5047,21 @@
       "add_to_cart": "Add to cart",
       "checkout": "Checkout"
     },
+    "product": {
+      "details": "Product details",
+      "category": "Category",
+      "stock": "Stock",
+      "sku": "SKU",
+      "category_fallback": "Uncategorized"
+    },
+      "reviews": {
+        "label": "Reviews",
+        "empty": "No reviews yet",
+        "title": "Customer reviews",
+        "loading": "Loading reviews...",
+        "load_error": "Unable to load reviews.",
+        "anonymous": "Customer"
+      },
     "hero": {
       "eyebrow": "Public storefront",
       "headline": "A brighter, faster way to shop {company}.",
@@ -5046,12 +5078,23 @@
       "catalog": "Full catalog",
       "categories": "Shop by category"
     },
+    "catalog": {
+      "results": "{count} results"
+    },
     "badges": {
       "best_seller": "Best seller",
       "promo": "Promo",
       "new": "New",
       "low_stock": "Limited stock",
       "hot": "Trending"
+    },
+    "sort": {
+      "featured": "Featured",
+      "newest": "Newest",
+      "price_asc": "Price: low to high",
+      "price_desc": "Price: high to low",
+      "name_asc": "Name A-Z",
+      "stock_desc": "Most stock"
     },
     "hints": {
       "login_to_order": "Checkout creates a client account so you can track orders."
@@ -5060,26 +5103,48 @@
     "empty_collection": "Nothing to show yet.",
     "cart_error": "Unable to update the cart.",
     "checkout_error": "Unable to place the order.",
-    "cart": {
-      "title": "Your cart",
-      "item_count": "{count} items",
-      "summary": "Summary",
-      "subtotal": "Subtotal",
-      "taxes": "Taxes",
-      "delivery_fee": "Delivery fee",
-      "total": "Total",
-      "clear": "Clear cart",
-      "checkout": "Checkout",
-      "checkout_hint": "Complete your details to place the order.",
-      "name": "Full name",
-      "email": "Email",
-      "phone": "Phone",
-      "delivery_address": "Delivery address",
-      "submit": "Place order",
-      "empty": "Your cart is empty.",
-      "remove": "Remove",
-      "sku_fallback": "SKU pending",
-      "internal_notice": "You are logged in as an internal user. Please use a client account to place orders."
-    }
+      "cart": {
+        "title": "Your cart",
+        "item_count": "{count} items",
+        "summary": "Summary",
+        "subtotal": "Subtotal",
+        "taxes": "Taxes",
+        "delivery_fee": "Delivery fee",
+        "total": "Total",
+        "clear": "Clear cart",
+        "checkout": "Checkout",
+        "checkout_hint": "Complete your details to place the order.",
+        "name": "Full name",
+        "email": "Email",
+        "phone": "Phone",
+        "delivery_address": "Delivery address",
+        "submit": "Place order",
+        "empty": "Your cart is empty.",
+        "remove": "Remove",
+        "sku_fallback": "SKU pending",
+        "internal_notice": "You are logged in as an internal user. Please use a client account to place orders.",
+        "added": "Added to cart."
+      },
+      "fulfillment": {
+        "title": "Delivery or pickup",
+        "subtitle": "Choose a method",
+        "delivery": "Delivery",
+        "pickup": "Quick pickup",
+        "ready": "Ready soon",
+        "ready_in": "Ready in {minutes} min",
+        "delivery_address": "Delivery address",
+        "delivery_notes": "Instructions (optional)",
+        "delivery_zone": "Zone: {zone}",
+        "scheduled_for": "Preferred time (optional)",
+        "pickup_address": "Pickup: {address}",
+        "pickup_notes": "Pickup notes (optional)",
+        "pickup_time": "Pickup time (optional)"
+      },
+      "notes": {
+        "title": "Notes & substitutions",
+        "customer_notes": "Notes for the store",
+        "substitution_allowed": "Allow substitutions",
+        "substitution_notes": "Substitution preferences"
+      }
   }
 }

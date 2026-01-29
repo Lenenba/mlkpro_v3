@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref } from 'vue';
+import { computed, ref, reactive, watchEffect } from 'vue';
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
@@ -21,6 +21,14 @@ const props = defineProps({
     order: {
         type: Object,
         required: true,
+    },
+    orderReview: {
+        type: Object,
+        default: () => null,
+    },
+    productReviews: {
+        type: Object,
+        default: () => ({}),
     },
     payments: {
         type: Array,
@@ -267,6 +275,75 @@ const paymentTimeline = computed(() => {
         };
     });
 });
+
+const ratingOptions = computed(() =>
+    [1, 2, 3, 4, 5].map((value) => ({
+        value,
+        label: `${value} / 5`,
+    }))
+);
+
+const canReview = computed(() => order.value?.payment_status === 'paid');
+const orderReview = computed(() => props.orderReview || null);
+const productReviews = computed(() => props.productReviews || {});
+
+const orderReviewForm = useForm({
+    rating: orderReview.value?.rating ?? 5,
+    comment: orderReview.value?.comment ?? '',
+});
+
+const productReviewForms = reactive({});
+
+watchEffect(() => {
+    if (orderReview.value) {
+        orderReviewForm.rating = orderReview.value.rating ?? 5;
+        orderReviewForm.comment = orderReview.value.comment ?? '';
+    }
+
+    (order.value?.items || []).forEach((item) => {
+        if (!item.product_id) {
+            return;
+        }
+        if (!productReviewForms[item.product_id]) {
+            const existing = productReviews.value[item.product_id];
+            productReviewForms[item.product_id] = useForm({
+                rating: existing?.rating ?? 5,
+                title: existing?.title ?? '',
+                comment: existing?.comment ?? '',
+            });
+        }
+    });
+});
+
+const reviewStatusLabel = (review) => {
+    if (!review) {
+        return null;
+    }
+    return review.is_approved
+        ? t('portal_order.reviews.status.approved')
+        : t('portal_order.reviews.status.blocked');
+};
+
+const reviewStatusTone = (review) => (review?.is_approved ? 'text-emerald-600' : 'text-amber-600');
+
+const submitOrderReview = () => {
+    if (!order.value?.id || orderReviewForm.processing) {
+        return;
+    }
+    orderReviewForm.post(route('portal.orders.reviews.store', order.value.id), {
+        preserveScroll: true,
+    });
+};
+
+const submitProductReview = (productId) => {
+    const form = productReviewForms[productId];
+    if (!form || !order.value?.id || form.processing) {
+        return;
+    }
+    form.post(route('portal.orders.products.reviews.store', { sale: order.value.id, product: productId }), {
+        preserveScroll: true,
+    });
+};
 </script>
 
 <template>
@@ -429,6 +506,116 @@ const paymentTimeline = computed(() => {
                                 </tr>
                             </tbody>
                         </table>
+                    </div>
+                </div>
+
+                <div class="rounded-sm border border-stone-200 bg-white shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                    <div class="border-b border-stone-200 px-4 py-3 text-sm font-semibold text-stone-800 dark:border-neutral-700 dark:text-neutral-100">
+                        {{ t('portal_order.sections.reviews') }}
+                    </div>
+                    <div class="space-y-6 p-4 text-sm text-stone-700 dark:text-neutral-200">
+                        <div v-if="!canReview" class="text-xs text-stone-500 dark:text-neutral-400">
+                            {{ t('portal_order.reviews.unavailable') }}
+                        </div>
+                        <div v-else class="space-y-6">
+                            <div class="rounded-sm border border-stone-200 p-4 dark:border-neutral-700">
+                                <div class="flex items-start justify-between gap-2">
+                                    <div>
+                                        <div class="text-xs uppercase tracking-wide text-stone-500 dark:text-neutral-400">
+                                            {{ t('portal_order.reviews.order_title') }}
+                                        </div>
+                                        <div class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                                            {{ t('portal_order.reviews.order_subtitle') }}
+                                        </div>
+                                    </div>
+                                    <span v-if="orderReview" class="text-xs font-semibold" :class="reviewStatusTone(orderReview)">
+                                        {{ reviewStatusLabel(orderReview) }}
+                                    </span>
+                                </div>
+                                <div class="mt-3 grid gap-3 sm:grid-cols-[160px_1fr]">
+                                    <label class="text-xs uppercase tracking-wide text-stone-500 dark:text-neutral-400">
+                                        {{ t('portal_order.reviews.rating_label') }}
+                                        <select v-model="orderReviewForm.rating"
+                                            class="mt-1 w-full rounded-sm border border-stone-200 bg-white px-2 py-1 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+                                        >
+                                            <option v-for="option in ratingOptions" :key="option.value" :value="option.value">
+                                                {{ option.label }}
+                                            </option>
+                                        </select>
+                                    </label>
+                                    <label class="text-xs uppercase tracking-wide text-stone-500 dark:text-neutral-400">
+                                        {{ t('portal_order.reviews.comment_label') }}
+                                        <textarea v-model="orderReviewForm.comment" rows="3"
+                                            class="mt-1 w-full rounded-sm border border-stone-200 bg-white px-2 py-1 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+                                        ></textarea>
+                                    </label>
+                                </div>
+                                <button
+                                    type="button"
+                                    class="mt-3 rounded-sm bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
+                                    :disabled="orderReviewForm.processing"
+                                    @click="submitOrderReview"
+                                >
+                                    {{ t('portal_order.reviews.submit_order') }}
+                                </button>
+                            </div>
+
+                            <div class="space-y-4">
+                                <div v-for="item in order.items" :key="`review-${item.id}`"
+                                    class="rounded-sm border border-stone-200 p-4 dark:border-neutral-700"
+                                >
+                                    <div class="flex items-start justify-between gap-2">
+                                        <div>
+                                            <div class="text-xs uppercase tracking-wide text-stone-500 dark:text-neutral-400">
+                                                {{ t('portal_order.reviews.product_title') }}
+                                            </div>
+                                            <div class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                                                {{ item.product?.name || item.description }}
+                                            </div>
+                                        </div>
+                                        <span v-if="productReviews[item.product_id]" class="text-xs font-semibold"
+                                            :class="reviewStatusTone(productReviews[item.product_id])"
+                                        >
+                                            {{ reviewStatusLabel(productReviews[item.product_id]) }}
+                                        </span>
+                                    </div>
+                                    <div v-if="productReviewForms[item.product_id]" class="mt-3 grid gap-3">
+                                        <div class="grid gap-3 sm:grid-cols-[160px_1fr]">
+                                            <label class="text-xs uppercase tracking-wide text-stone-500 dark:text-neutral-400">
+                                                {{ t('portal_order.reviews.rating_label') }}
+                                                <select v-model="productReviewForms[item.product_id].rating"
+                                                    class="mt-1 w-full rounded-sm border border-stone-200 bg-white px-2 py-1 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+                                                >
+                                                    <option v-for="option in ratingOptions" :key="option.value" :value="option.value">
+                                                        {{ option.label }}
+                                                    </option>
+                                                </select>
+                                            </label>
+                                            <label class="text-xs uppercase tracking-wide text-stone-500 dark:text-neutral-400">
+                                                {{ t('portal_order.reviews.title_label') }}
+                                                <input v-model="productReviewForms[item.product_id].title" type="text"
+                                                    class="mt-1 w-full rounded-sm border border-stone-200 bg-white px-2 py-1 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+                                                />
+                                            </label>
+                                        </div>
+                                        <label class="text-xs uppercase tracking-wide text-stone-500 dark:text-neutral-400">
+                                            {{ t('portal_order.reviews.comment_label') }}
+                                            <textarea v-model="productReviewForms[item.product_id].comment" rows="3"
+                                                class="mt-1 w-full rounded-sm border border-stone-200 bg-white px-2 py-1 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+                                            ></textarea>
+                                        </label>
+                                        <button
+                                            type="button"
+                                            class="rounded-sm bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
+                                            :disabled="productReviewForms[item.product_id].processing"
+                                            @click="submitProductReview(item.product_id)"
+                                        >
+                                            {{ t('portal_order.reviews.submit_product') }}
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 

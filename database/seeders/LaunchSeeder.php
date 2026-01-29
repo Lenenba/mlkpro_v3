@@ -6,6 +6,7 @@ use App\Models\ActivityLog;
 use App\Models\Customer;
 use App\Models\Invoice;
 use App\Models\InvoiceItem;
+use App\Models\OrderReview;
 use App\Models\Payment;
 use App\Models\PlatformAdmin;
 use App\Models\PlatformAnnouncement;
@@ -15,6 +16,7 @@ use App\Models\PlatformSupportTicket;
 use App\Models\Product;
 use App\Models\ProductCategory;
 use App\Models\ProductImage;
+use App\Models\ProductReview;
 use App\Models\Property;
 use App\Models\Quote;
 use App\Models\QuoteProduct;
@@ -1216,7 +1218,35 @@ class LaunchSeeder extends Seeder
 
         $productSeedMap = $productSeedData->keyBy('name');
 
-        $productProducts = $productSeedData->map(function ($data) use ($productOwner, $productCategory, $productCategoryMap, $resolveSeededPhotoList) {
+        $productPromoMap = [
+            'Safety gloves' => [
+                'discount' => 12.5,
+                'start' => $now->copy()->subDays(2),
+                'end' => $now->copy()->addDays(6),
+            ],
+            'Cleaning kit' => [
+                'discount' => 18,
+                'start' => $now->copy()->subDays(1),
+                'end' => $now->copy()->addDays(4),
+            ],
+            'Sparkling water 12-pack' => [
+                'discount' => 10,
+                'start' => $now->copy()->subDays(3),
+                'end' => $now->copy()->addDays(2),
+            ],
+            'Whole bean coffee 1kg' => [
+                'discount' => 15,
+                'start' => $now->copy()->subDays(5),
+                'end' => $now->copy()->addDays(7),
+            ],
+            'Portable barcode scanner' => [
+                'discount' => 8,
+                'start' => $now->copy()->subDays(4),
+                'end' => $now->copy()->addDays(3),
+            ],
+        ];
+
+        $productProducts = $productSeedData->map(function ($data) use ($productOwner, $productCategory, $productCategoryMap, $resolveSeededPhotoList, $productPromoMap) {
             $price = (float) $data['price'];
             $cost = (float) $data['cost_price'];
             $margin = $price > 0 ? round((($price - $cost) / $price) * 100, 2) : 0;
@@ -1224,6 +1254,10 @@ class LaunchSeeder extends Seeder
             $seedKey = trim(($data['sku'] ?? '') . ' ' . ($data['name'] ?? '') . ' ' . ($data['category'] ?? 'product'));
             $imageUrls = $resolveSeededPhotoList($seedKey, 4, 900);
             $imageUrl = $imageUrls[0] ?? null;
+            $promo = $productPromoMap[$data['name']] ?? null;
+            $promoDiscount = $promo['discount'] ?? null;
+            $promoStart = $promo['start'] ?? null;
+            $promoEnd = $promo['end'] ?? null;
 
             $product = Product::updateOrCreate(
                 [
@@ -1244,6 +1278,9 @@ class LaunchSeeder extends Seeder
                     'supplier_name' => $data['supplier_name'],
                     'tax_rate' => $data['tax_rate'],
                     'image' => $imageUrl,
+                    'promo_discount_percent' => $promoDiscount,
+                    'promo_start_at' => $promoStart,
+                    'promo_end_at' => $promoEnd,
                     'is_active' => true,
                     'tracking_type' => $data['tracking_type'],
                     'item_type' => Product::ITEM_TYPE_PRODUCT,
@@ -2881,6 +2918,97 @@ class LaunchSeeder extends Seeder
                         ],
                     ],
                 ]);
+            }
+
+            $reviewSamples = [
+                [
+                    'rating' => 5,
+                    'title' => 'Excellent',
+                    'comment' => 'Great quality and fast shipping.',
+                ],
+                [
+                    'rating' => 4,
+                    'title' => 'Very good',
+                    'comment' => 'Good value for the price.',
+                ],
+                [
+                    'rating' => 3,
+                    'title' => 'Solid',
+                    'comment' => 'Works as expected.',
+                ],
+            ];
+
+            $orderReviewSamples = [
+                [
+                    'rating' => 5,
+                    'comment' => 'Delivery was on time.',
+                ],
+                [
+                    'rating' => 4,
+                    'comment' => 'Pickup was quick and easy.',
+                ],
+            ];
+
+            $paidSales = Sale::query()
+                ->with('items')
+                ->where('user_id', $productOwner->id)
+                ->where('status', Sale::STATUS_PAID)
+                ->whereNotNull('customer_id')
+                ->get();
+
+            $blockedOrderSaleId = $paidSales->get(1)?->id;
+            $blockedProductId = $paidSales->get(1)?->items->first()?->product_id;
+            $reviewIndex = 0;
+
+            foreach ($paidSales as $saleIndex => $sale) {
+                $customer = Customer::find($sale->customer_id);
+                if (!$customer) {
+                    continue;
+                }
+
+                $orderSample = $orderReviewSamples[$saleIndex % count($orderReviewSamples)];
+                $isOrderBlocked = $blockedOrderSaleId !== null && $sale->id === $blockedOrderSaleId;
+                $orderReview = OrderReview::updateOrCreate(
+                    [
+                        'sale_id' => $sale->id,
+                        'customer_id' => $customer->id,
+                    ],
+                    [
+                        'rating' => $orderSample['rating'],
+                        'comment' => $orderSample['comment'],
+                        'is_approved' => !$isOrderBlocked,
+                        'blocked_reason' => $isOrderBlocked ? 'blocked_terms' : null,
+                    ]
+                );
+
+                $reviewTimestamp = $sale->paid_at ?? $sale->created_at ?? $now;
+                $setTimestamps($orderReview, $reviewTimestamp);
+
+                foreach ($sale->items as $item) {
+                    if (!$item->product_id) {
+                        continue;
+                    }
+
+                    $sample = $reviewSamples[$reviewIndex % count($reviewSamples)];
+                    $isProductBlocked = $blockedProductId !== null && $item->product_id === $blockedProductId;
+                    $productReview = ProductReview::updateOrCreate(
+                        [
+                            'product_id' => $item->product_id,
+                            'customer_id' => $customer->id,
+                        ],
+                        [
+                            'sale_id' => $sale->id,
+                            'rating' => $sample['rating'],
+                            'title' => $sample['title'],
+                            'comment' => $sample['comment'],
+                            'is_approved' => !$isProductBlocked,
+                            'blocked_reason' => $isProductBlocked ? 'blocked_terms' : null,
+                        ]
+                    );
+
+                    $setTimestamps($productReview, $reviewTimestamp->copy()->addMinutes($reviewIndex + 1));
+                    $reviewIndex++;
+                }
             }
         }
 

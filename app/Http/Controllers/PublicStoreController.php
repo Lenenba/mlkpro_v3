@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Customer;
 use App\Models\Product;
 use App\Models\ProductCategory;
+use App\Models\ProductReview;
 use App\Models\Role;
 use App\Models\Sale;
 use App\Models\SaleItem;
@@ -396,6 +397,9 @@ class PublicStoreController extends Controller
         $now = now();
 
         $products = Product::query()
+            ->with('images')
+            ->withAvg('approvedReviews as rating_avg', 'rating')
+            ->withCount('approvedReviews as rating_count')
             ->where('user_id', $owner->id)
             ->where('item_type', Product::ITEM_TYPE_PRODUCT)
             ->where('is_active', true)
@@ -423,6 +427,13 @@ class PublicStoreController extends Controller
                     'promo_price' => $promoPrice,
                     'promo_active' => $promoActive,
                     'image_url' => $product->image_url,
+                    'rating_avg' => $product->rating_avg !== null ? round((float) $product->rating_avg, 2) : null,
+                    'rating_count' => (int) ($product->rating_count ?? 0),
+                    'images' => $product->images
+                        ->sortBy('sort_order')
+                        ->values()
+                        ->map(fn($image) => $image->url)
+                        ->all(),
                     'stock' => $product->stock_available,
                     'category_id' => $product->category_id,
                     'sku' => $product->sku,
@@ -496,6 +507,51 @@ class PublicStoreController extends Controller
             'categories' => $categories,
             'cart' => $cartPayload['cart'],
             'fulfillment' => $fulfillment,
+        ]);
+    }
+
+    public function reviews(Request $request, string $slug, Product $product)
+    {
+        $owner = $this->resolveOwner($slug);
+
+        if ($product->user_id !== $owner->id || $product->item_type !== Product::ITEM_TYPE_PRODUCT || !$product->is_active) {
+            abort(404);
+        }
+
+        $reviews = $product->approvedReviews()
+            ->with(['customer:id,first_name,last_name,company_name'])
+            ->latest()
+            ->limit(6)
+            ->get()
+            ->map(function (ProductReview $review) {
+                $customer = $review->customer;
+                $name = 'Client';
+
+                if ($customer) {
+                    $company = trim((string) $customer->company_name);
+                    $first = trim((string) $customer->first_name);
+                    $last = trim((string) $customer->last_name);
+
+                    if ($company !== '') {
+                        $name = $company;
+                    } elseif ($first !== '' || $last !== '') {
+                        $lastInitial = $last !== '' ? Str::substr($last, 0, 1) . '.' : '';
+                        $name = trim($first . ' ' . $lastInitial);
+                    }
+                }
+
+                return [
+                    'id' => $review->id,
+                    'rating' => (int) $review->rating,
+                    'title' => $review->title,
+                    'comment' => $review->comment,
+                    'author' => $name,
+                    'created_at' => $review->created_at?->toIso8601String(),
+                ];
+            });
+
+        return response()->json([
+            'reviews' => $reviews,
         ]);
     }
 
@@ -622,6 +678,13 @@ class PublicStoreController extends Controller
             'email' => 'nullable|email|max:255',
             'phone' => 'nullable|string|max:50',
             'delivery_address' => 'nullable|string|max:500',
+            'fulfillment_method' => 'nullable|in:delivery,pickup',
+            'delivery_notes' => 'nullable|string|max:2000',
+            'pickup_notes' => 'nullable|string|max:2000',
+            'scheduled_for' => 'nullable|date',
+            'customer_notes' => 'nullable|string|max:2000',
+            'substitution_allowed' => 'nullable|boolean',
+            'substitution_notes' => 'nullable|string|max:2000',
         ];
 
         if (!$request->user()) {
@@ -653,7 +716,18 @@ class PublicStoreController extends Controller
         ]);
 
         $fulfillment = $this->normalizeFulfillment($owner->company_fulfillment, $owner);
-        $fulfillmentMethod = $fulfillment['pickup_enabled'] ? 'pickup' : 'delivery';
+        $requestedMethod = $validated['fulfillment_method'] ?? null;
+        $deliveryEnabled = (bool) ($fulfillment['delivery_enabled'] ?? false);
+        $pickupEnabled = (bool) ($fulfillment['pickup_enabled'] ?? false);
+        $fulfillmentMethod = $deliveryEnabled ? 'delivery' : 'pickup';
+
+        if ($requestedMethod === 'pickup' && $pickupEnabled) {
+            $fulfillmentMethod = 'pickup';
+        } elseif ($requestedMethod === 'delivery' && $deliveryEnabled) {
+            $fulfillmentMethod = 'delivery';
+        } elseif (!$deliveryEnabled && $pickupEnabled) {
+            $fulfillmentMethod = 'pickup';
+        }
 
         if ($fulfillmentMethod === 'delivery' && empty($validated['delivery_address'])) {
             throw ValidationException::withMessages([
@@ -664,6 +738,11 @@ class PublicStoreController extends Controller
         $deliveryFee = $fulfillmentMethod === 'delivery'
             ? (float) ($fulfillment['delivery_fee'] ?? 0)
             : 0;
+
+        $scheduledFor = null;
+        if (!empty($validated['scheduled_for'])) {
+            $scheduledFor = Carbon::parse($validated['scheduled_for']);
+        }
 
         [$discountRate, $discountTotal, $discountedSubtotal, $discountedTaxTotal] =
             $this->applyCustomerDiscount($customer, (float) $cart['subtotal'], (float) $cart['tax_total']);
@@ -683,6 +762,14 @@ class PublicStoreController extends Controller
             'fulfillment_method' => $fulfillmentMethod,
             'fulfillment_status' => Sale::FULFILLMENT_PENDING,
             'delivery_address' => $fulfillmentMethod === 'delivery' ? ($validated['delivery_address'] ?? null) : null,
+            'delivery_notes' => $validated['delivery_notes'] ?? null,
+            'pickup_notes' => $validated['pickup_notes'] ?? null,
+            'scheduled_for' => $scheduledFor,
+            'customer_notes' => $validated['customer_notes'] ?? null,
+            'substitution_allowed' => array_key_exists('substitution_allowed', $validated)
+                ? filter_var($validated['substitution_allowed'], FILTER_VALIDATE_BOOLEAN)
+                : null,
+            'substitution_notes' => $validated['substitution_notes'] ?? null,
             'source' => 'public_store',
         ]);
 

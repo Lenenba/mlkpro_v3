@@ -1,954 +1,1343 @@
 <script setup>
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { Head, Link, usePage } from '@inertiajs/vue3';
-import axios from 'axios';
 import { useI18n } from 'vue-i18n';
+import axios from 'axios';
+import Modal from '@/Components/Modal.vue';
+import Badge from '@/Components/Store/Badge.vue';
+import CategoryChips from '@/Components/Store/CategoryChips.vue';
+import FloatingInput from '@/Components/FloatingInput.vue';
+import FloatingSelect from '@/Components/FloatingSelect.vue';
+import FloatingTextarea from '@/Components/FloatingTextarea.vue';
+import FlashToaster from '@/Components/UI/FlashToaster.vue';
+import Price from '@/Components/Store/Price.vue';
+import ProductCard from '@/Components/Store/ProductCard.vue';
+import ProductSection from '@/Components/Store/ProductSection.vue';
+import SectionHeader from '@/Components/Store/SectionHeader.vue';
 
 const props = defineProps({
     company: { type: Object, default: () => ({}) },
     products: { type: Array, default: () => [] },
-    categories: { type: Array, default: () => [] },
     best_sellers: { type: Array, default: () => [] },
     promotions: { type: Array, default: () => [] },
     new_arrivals: { type: Array, default: () => [] },
-    hero_product: { type: Object, default: null },
-    cart: { type: Object, default: () => ({}) },
+    hero_product: { type: Object, default: () => null },
+    categories: { type: Array, default: () => [] },
+    cart: {
+        type: Object,
+        default: () => ({
+            items: [],
+            subtotal: 0,
+            tax_total: 0,
+            total: 0,
+            item_count: 0,
+        }),
+    },
     fulfillment: { type: Object, default: () => ({}) },
 });
 
-const { t } = useI18n();
+const { t, locale } = useI18n();
 const page = usePage();
-const search = ref('');
-const selectedCategory = ref('all');
-const cartState = ref(props.cart || {});
-const cartBusy = ref(false);
-const cartError = ref('');
-const checkoutErrors = ref({});
-const checkoutError = ref('');
 
-const checkoutForm = ref({
-    name: page.props.auth?.user?.name || '',
-    email: page.props.auth?.user?.email || '',
-    phone: page.props.auth?.user?.phone_number || '',
-    delivery_address: '',
-});
+const authUser = computed(() => page.props.auth?.user || null);
+const authAccount = computed(() => page.props.auth?.account || {});
+const isAuthenticated = computed(() => Boolean(authUser.value));
+const isInternalUser = computed(() => isAuthenticated.value && !authAccount.value?.is_client);
 
-const companyName = computed(() => props.company?.name || t('public_store.company_fallback'));
+const company = computed(() => props.company || {});
+const companyName = computed(() => company.value?.name || t('public_store.company_fallback'));
 const pageTitle = computed(() => t('public_store.title', { company: companyName.value }));
 
-const isAuthenticated = computed(() => !!page.props.auth?.user);
-const isClient = computed(() => !!page.props.auth?.account?.is_client);
-const canShop = computed(() => isAuthenticated.value && isClient.value);
-const isInternalUser = computed(() => isAuthenticated.value && !isClient.value);
+const searchQuery = ref('');
+const selectedCategory = ref('');
+const sortOption = ref('featured');
+const cartVisible = ref(false);
+const cartBusy = ref(false);
+const cartError = ref('');
+const checkoutError = ref('');
+const checkoutProcessing = ref(false);
+const selectedProduct = ref(null);
+const showProductDetails = ref(false);
+const activeImage = ref('');
+const cartPulse = ref(false);
+const productReviews = ref([]);
+const reviewsLoading = ref(false);
+const reviewsError = ref('');
+const reviewsCache = ref({});
 
-const primaryCtaHref = computed(() => '#cart');
-const primaryCtaLabel = computed(() => t('public_store.actions.checkout'));
-const bestSellerIds = computed(() => new Set((props.best_sellers || []).map((product) => product.id)));
-const promoIds = computed(() => new Set((props.promotions || []).map((product) => product.id)));
-const newArrivalIds = computed(() => new Set((props.new_arrivals || []).map((product) => product.id)));
-
-const heroProduct = computed(() =>
-    props.hero_product
-    || props.best_sellers?.[0]
-    || props.promotions?.[0]
-    || props.new_arrivals?.[0]
-    || props.products?.[0]
-    || null,
-);
-
-const categoryOptions = computed(() => [
-    { id: 'all', name: t('public_store.filters.all') },
-    ...(props.categories || []).map((category) => ({ id: String(category.id), name: category.name })),
-]);
-
-const categoriesWithCounts = computed(() => (props.categories || []).map((category) => {
-    const count = (props.products || []).filter(
-        (product) => String(product.category_id || '') === String(category.id),
-    ).length;
-    return { ...category, count };
-}));
-
-const filteredProducts = computed(() => {
-    const query = String(search.value || '').toLowerCase().trim();
-    return (props.products || []).filter((product) => {
-        const matchesCategory =
-            selectedCategory.value === 'all'
-            || String(product.category_id || '') === String(selectedCategory.value);
-        if (!matchesCategory) return false;
-        if (!query) return true;
-        return (
-            String(product.name || '').toLowerCase().includes(query)
-            || String(product.description || '').toLowerCase().includes(query)
-            || String(product.sku || '').toLowerCase().includes(query)
-        );
-    });
+const cartData = ref({
+    items: props.cart?.items || [],
+    subtotal: props.cart?.subtotal || 0,
+    tax_total: props.cart?.tax_total || 0,
+    total: props.cart?.total || 0,
+    item_count: props.cart?.item_count || 0,
 });
 
-const bestSellersDisplay = computed(() => (props.best_sellers || []).slice(0, 8));
-const promotionsDisplay = computed(() => (props.promotions || []).slice(0, 8));
-const newArrivalsDisplay = computed(() => (props.new_arrivals || []).slice(0, 8));
+const checkoutForm = ref({
+    name: authUser.value?.name || '',
+    email: authUser.value?.email || '',
+    phone: authUser.value?.phone_number || '',
+    delivery_address: '',
+    delivery_notes: '',
+    pickup_notes: '',
+    scheduled_for: '',
+    customer_notes: '',
+    substitution_allowed: true,
+    substitution_notes: '',
+    fulfillment_method: '',
+});
+const checkoutErrors = ref({});
 
-const productStats = computed(() => ({
-    total: (props.products || []).length,
-    categories: (props.categories || []).length,
-    newArrivals: (props.new_arrivals || []).length,
-}));
+const heroProduct = computed(() => props.hero_product || null);
+const bestSellers = computed(() => props.best_sellers || []);
+const promotions = computed(() => props.promotions || []);
+const newArrivals = computed(() => props.new_arrivals || []);
+const categories = computed(() => props.categories || []);
 
-const cartItems = computed(() => cartState.value?.items || []);
-const cartItemCount = computed(() => Number(cartState.value?.item_count || 0));
-const cartSubtotal = computed(() => Number(cartState.value?.subtotal || 0));
-const cartTaxTotal = computed(() => Number(cartState.value?.tax_total || 0));
-const cartTotal = computed(() => Number(cartState.value?.total || 0));
+const productImages = computed(() => {
+    if (!selectedProduct.value) {
+        return [];
+    }
+    const images = Array.isArray(selectedProduct.value.images) ? selectedProduct.value.images : [];
+    const merged = [selectedProduct.value.image_url, ...images].filter(Boolean);
+    return [...new Set(merged)];
+});
 
-const fulfillment = computed(() => props.fulfillment || {});
-const requiresDeliveryAddress = computed(() =>
-    Boolean(fulfillment.value?.delivery_enabled) && !fulfillment.value?.pickup_enabled
+const activeImageSrc = computed(() => {
+    if (!selectedProduct.value) {
+        return '';
+    }
+    const images = productImages.value;
+    if (activeImage.value && images.includes(activeImage.value)) {
+        return activeImage.value;
+    }
+    return images[0] || '';
+});
+
+const productCount = computed(() => props.products?.length || 0);
+const categoryCount = computed(() => categories.value.length);
+const newArrivalCount = computed(() => newArrivals.value.length);
+
+const heroStats = computed(() => ([
+    t('public_store.hero.stat_products', { count: productCount.value }),
+    t('public_store.hero.stat_categories', { count: categoryCount.value }),
+    t('public_store.hero.stat_new_arrivals', { count: newArrivalCount.value }),
+]));
+
+const bestSellerIds = computed(() => new Set(bestSellers.value.map((item) => item?.id).filter(Boolean)));
+const newArrivalIds = computed(() => new Set(newArrivals.value.map((item) => item?.id).filter(Boolean)));
+
+const cartItems = computed(() => cartData.value?.items || []);
+const cartSubtotal = computed(() => Number(cartData.value?.subtotal || 0));
+const cartTaxes = computed(() => Number(cartData.value?.tax_total || 0));
+const cartTotal = computed(() => Number(cartData.value?.total || 0));
+const cartItemCount = computed(() => Number(cartData.value?.item_count || 0));
+
+const triggerCartPulse = () => {
+    cartPulse.value = true;
+    setTimeout(() => {
+        cartPulse.value = false;
+    }, 300);
+};
+
+const emitToast = (message, type = 'success') => {
+    if (!message || typeof window === 'undefined') {
+        return;
+    }
+    window.dispatchEvent(new CustomEvent('mlk-toast', { detail: { type, message } }));
+};
+
+watch(cartItemCount, (next, prev) => {
+    if (next !== prev) {
+        triggerCartPulse();
+    }
+});
+
+const fulfillmentSettings = computed(() => props.fulfillment || {});
+const fulfillmentMethod = ref(
+    fulfillmentSettings.value?.delivery_enabled ? 'delivery' : 'pickup',
 );
-const deliveryFee = computed(() => (requiresDeliveryAddress.value ? Number(fulfillment.value?.delivery_fee || 0) : 0));
+checkoutForm.value.fulfillment_method = fulfillmentMethod.value;
+
+const deliveryEnabled = computed(() => Boolean(fulfillmentSettings.value?.delivery_enabled));
+const pickupEnabled = computed(() => Boolean(fulfillmentSettings.value?.pickup_enabled));
+
+const setFulfillmentMethod = (method) => {
+    if (method === 'delivery' && !deliveryEnabled.value) {
+        return;
+    }
+    if (method === 'pickup' && !pickupEnabled.value) {
+        return;
+    }
+    fulfillmentMethod.value = method;
+    checkoutForm.value.fulfillment_method = method;
+};
+
+const deliveryFee = computed(() => (
+    fulfillmentMethod.value === 'delivery'
+        ? Number(fulfillmentSettings.value?.delivery_fee || 0)
+        : 0
+));
+const deliveryFeeAmount = computed(() => Number(fulfillmentSettings.value?.delivery_fee || 0));
 const checkoutTotal = computed(() => cartTotal.value + deliveryFee.value);
+const showFulfillmentChoice = computed(() => deliveryEnabled.value && pickupEnabled.value);
+const deliveryZone = computed(() => fulfillmentSettings.value?.delivery_zone || '');
+const pickupAddress = computed(() => fulfillmentSettings.value?.pickup_address || '');
+const prepTime = computed(() => Number(fulfillmentSettings.value?.prep_time_minutes || 0));
 
-const needsIdentity = computed(() => !isAuthenticated.value || !isClient.value);
-const canCheckout = computed(() => {
-    if (!cartItems.value.length) {
-        return false;
+watch(fulfillmentMethod, (next) => {
+    if (next === 'pickup') {
+        checkoutForm.value.delivery_address = '';
+        checkoutForm.value.delivery_notes = '';
     }
-    if (isInternalUser.value) {
-        return false;
-    }
-    if (needsIdentity.value) {
-        if (!String(checkoutForm.value.name || '').trim()) {
-            return false;
-        }
-        if (!String(checkoutForm.value.email || '').trim()) {
-            return false;
-        }
-    }
-    if (requiresDeliveryAddress.value && !String(checkoutForm.value.delivery_address || '').trim()) {
-        return false;
-    }
-    return true;
 });
 
-const formatPrice = (value) => {
-    const amount = Number(value || 0);
-    return new Intl.NumberFormat(undefined, {
-        style: 'currency',
-        currency: 'USD',
-        maximumFractionDigits: 2,
-    }).format(amount);
+watch(
+    fulfillmentSettings,
+    (next) => {
+        const deliveryAllowed = Boolean(next?.delivery_enabled);
+        const pickupAllowed = Boolean(next?.pickup_enabled);
+        if (deliveryAllowed && !pickupAllowed) {
+            setFulfillmentMethod('delivery');
+        }
+        if (pickupAllowed && !deliveryAllowed) {
+            setFulfillmentMethod('pickup');
+        }
+    },
+    { immediate: true },
+);
+
+const portalLink = computed(() => {
+    if (!isAuthenticated.value) {
+        return null;
+    }
+    if (authAccount.value?.is_client) {
+        return route('portal.orders.index');
+    }
+    return route('dashboard');
+});
+
+const formatCurrency = (value) => {
+    const numeric = Number(value || 0);
+    return `$${numeric.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 };
 
 const priceMeta = (product) => {
-    const promoActive = !!product?.promo_active && Number(product?.promo_price ?? 0) > 0;
-    return {
-        current: promoActive ? product.promo_price : product?.price,
-        original: promoActive ? product?.price : null,
-        discount: promoActive ? product?.promo_discount_percent : null,
-    };
+    if (!product) {
+        return { current: 0, original: null, promoActive: false };
+    }
+    const promoActive = Boolean(product.promo_active) && Number(product.promo_price || 0) > 0;
+    const current = promoActive ? Number(product.promo_price || 0) : Number(product.price || 0);
+    const original = promoActive ? Number(product.price || 0) : null;
+    return { current, original, promoActive };
 };
 
 const stockLabel = (product) => {
-    const stock = Number(product?.stock ?? 0);
+    const stock = Number(product?.stock || 0);
     if (stock <= 0) {
-        return { label: t('public_store.stock.out'), tone: 'text-rose-600' };
+        return t('public_store.stock.out');
     }
     if (stock <= 5) {
-        return { label: t('public_store.badges.low_stock'), tone: 'text-amber-600' };
+        return t('public_store.stock.low');
     }
-    return { label: t('public_store.stock.in'), tone: 'text-emerald-700' };
+    return t('public_store.stock.in');
 };
 
-const productBadges = (product) => {
+const stockTone = (product) => {
+    const stock = Number(product?.stock || 0);
+    if (stock <= 0) {
+        return 'danger';
+    }
+    if (stock <= 5) {
+        return 'warning';
+    }
+    return 'neutral';
+};
+
+const promoBadge = (product) => {
+    const discount = Number(product?.promo_discount_percent || 0);
+    if (discount > 0) {
+        return `-${discount}%`;
+    }
+    return t('public_store.badges.promo');
+};
+
+const categoryLabel = (product) => {
+    const categoryId = product?.category_id;
+    if (!categoryId) {
+        return t('public_store.product.category_fallback');
+    }
+    const match = categories.value.find((category) => String(category.id) === String(categoryId));
+    return match?.name || t('public_store.product.category_fallback');
+};
+
+const badgeList = (product) => {
     const badges = [];
-    if (bestSellerIds.value.has(product.id)) badges.push({ label: t('public_store.badges.best_seller'), tone: 'bg-amber-100 text-amber-800' });
-    if (promoIds.value.has(product.id)) badges.push({ label: t('public_store.badges.promo'), tone: 'bg-rose-100 text-rose-700' });
-    if (newArrivalIds.value.has(product.id)) badges.push({ label: t('public_store.badges.new'), tone: 'bg-teal-100 text-teal-800' });
+
+    if (product?.promo_active) {
+        badges.push({ label: promoBadge(product), tone: 'warning' });
+    } else if (bestSellerIds.value.has(product?.id)) {
+        badges.push({ label: t('public_store.badges.best_seller'), tone: 'primary' });
+    }
+
+    if (newArrivalIds.value.has(product?.id)) {
+        badges.push({ label: t('public_store.badges.new'), tone: 'neutral' });
+    }
+
+    const stock = Number(product?.stock || 0);
+    if (stock > 0 && stock <= 5) {
+        badges.push({ label: t('public_store.badges.low_stock'), tone: 'warning' });
+    }
+
     return badges;
 };
 
-const cartQuantity = (productId) =>
-    cartItems.value.find((item) => item.product_id === productId)?.quantity || 0;
+const heroBadges = computed(() => {
+    if (!heroProduct.value) {
+        return [];
+    }
+    return [{ label: t('public_store.sections.spotlight'), tone: 'dark' }, ...badgeList(heroProduct.value)];
+});
 
-const applyCartResponse = (response) => {
-    if (response?.data?.cart) {
-        cartState.value = response.data.cart;
+const filteredProducts = computed(() => {
+    const keyword = searchQuery.value.trim().toLowerCase();
+
+    return (props.products || []).filter((product) => {
+        const matchesSearch = !keyword
+            || [product.name, product.description, product.sku]
+                .filter(Boolean)
+                .some((field) => String(field).toLowerCase().includes(keyword));
+        const matchesCategory = !selectedCategory.value
+            || String(product.category_id || '') === String(selectedCategory.value);
+
+        return matchesSearch && matchesCategory;
+    });
+});
+
+const sortOptions = computed(() => ([
+    { value: 'featured', label: t('public_store.sort.featured') },
+    { value: 'newest', label: t('public_store.sort.newest') },
+    { value: 'price_asc', label: t('public_store.sort.price_asc') },
+    { value: 'price_desc', label: t('public_store.sort.price_desc') },
+    { value: 'name_asc', label: t('public_store.sort.name_asc') },
+    { value: 'stock_desc', label: t('public_store.sort.stock_desc') },
+]));
+
+const categoryOptions = computed(() => ([
+    { value: '', label: t('public_store.filters.all') },
+    ...categories.value.map((category) => ({
+        value: String(category.id),
+        label: category.name,
+    })),
+]));
+
+const sortedProducts = computed(() => {
+    const items = [...filteredProducts.value];
+    const sortKey = sortOption.value;
+
+    if (sortKey === 'price_asc') {
+        items.sort((a, b) => priceMeta(a).current - priceMeta(b).current);
+    } else if (sortKey === 'price_desc') {
+        items.sort((a, b) => priceMeta(b).current - priceMeta(a).current);
+    } else if (sortKey === 'name_asc') {
+        items.sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
+    } else if (sortKey === 'newest') {
+        items.sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
+    } else if (sortKey === 'stock_desc') {
+        items.sort((a, b) => Number(b.stock || 0) - Number(a.stock || 0));
+    }
+
+    return items;
+});
+
+const cartQuantity = (productId) => {
+    const item = cartItems.value.find((entry) => entry.product_id === productId);
+    return item ? Number(item.quantity || 0) : 0;
+};
+
+const setCategory = (categoryId) => {
+    selectedCategory.value = categoryId ? String(categoryId) : '';
+};
+
+const setCategoryAndScroll = (categoryId) => {
+    setCategory(categoryId);
+    scrollToCatalog();
+};
+
+const scrollToSection = (id) => {
+    if (typeof document === 'undefined') {
+        return;
+    }
+    const element = document.getElementById(id);
+    if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 };
 
-const handleCartError = (error) => {
-    cartError.value = error?.response?.data?.message || t('public_store.cart_error');
+const scrollToCatalog = () => scrollToSection('catalog');
+
+const openProductDetails = (product) => {
+    if (!product) {
+        return;
+    }
+    selectedProduct.value = product;
+    showProductDetails.value = true;
+    const images = [product.image_url, ...(product.images || [])].filter(Boolean);
+    activeImage.value = images[0] || '';
+    productReviews.value = [];
+    reviewsError.value = '';
+    loadProductReviews(product);
+};
+
+const closeProductDetails = () => {
+    showProductDetails.value = false;
+    selectedProduct.value = null;
+    activeImage.value = '';
+    productReviews.value = [];
+    reviewsError.value = '';
+    reviewsLoading.value = false;
+};
+
+const setActiveImage = (image) => {
+    activeImage.value = image;
+};
+
+const formatReviewDate = (value) => {
+    if (!value) {
+        return '';
+    }
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+        return '';
+    }
+    return new Intl.DateTimeFormat(locale.value || undefined, { dateStyle: 'medium' }).format(date);
+};
+
+const loadProductReviews = async (product) => {
+    reviewsLoading.value = false;
+    if (!product || !props.company?.slug) {
+        productReviews.value = [];
+        return;
+    }
+
+    const reviewTargetId = product.id;
+    const cached = reviewsCache.value[reviewTargetId];
+    if (cached) {
+        productReviews.value = cached;
+        return;
+    }
+
+    if (Number(product.rating_count || 0) <= 0) {
+        productReviews.value = [];
+        return;
+    }
+
+    reviewsLoading.value = true;
+    reviewsError.value = '';
+
+    try {
+        const response = await axios.get(
+            route('public.store.product.reviews', { slug: props.company.slug, product: reviewTargetId }),
+            { headers: { Accept: 'application/json' } },
+        );
+        const reviews = response.data?.reviews || [];
+        reviewsCache.value = { ...reviewsCache.value, [reviewTargetId]: reviews };
+        if (selectedProduct.value?.id === reviewTargetId) {
+            productReviews.value = reviews;
+        }
+    } catch (error) {
+        if (selectedProduct.value?.id === reviewTargetId) {
+            reviewsError.value = t('public_store.reviews.load_error');
+            productReviews.value = [];
+        }
+    } finally {
+        if (selectedProduct.value?.id === reviewTargetId) {
+            reviewsLoading.value = false;
+        }
+    }
+};
+
+const openCart = () => {
+    cartVisible.value = true;
+    checkoutError.value = '';
+};
+
+const closeCart = () => {
+    cartVisible.value = false;
+};
+
+const updateCartState = (payload) => {
+    if (payload?.cart) {
+        cartData.value = payload.cart;
+    }
+};
+
+const handleCartError = () => {
+    cartError.value = t('public_store.cart_error');
 };
 
 const addToCart = async (product) => {
-    if (!product || cartBusy.value) {
+    if (!product || cartBusy.value || !props.company?.slug) {
         return;
     }
-    cartError.value = '';
+    if (Number(product.stock || 0) <= 0) {
+        return;
+    }
+
     cartBusy.value = true;
+    cartError.value = '';
     try {
-        const response = await axios.post(route('public.store.cart.add', { slug: props.company?.slug }), {
-            product_id: product.id,
-            quantity: 1,
-        }, { headers: { Accept: 'application/json' } });
-        applyCartResponse(response);
+        const response = await axios.post(
+            route('public.store.cart.add', { slug: props.company.slug }),
+            { product_id: product.id, quantity: 1 },
+            { headers: { Accept: 'application/json' } },
+        );
+        updateCartState(response.data);
+        triggerCartPulse();
+        emitToast(t('public_store.cart.added'));
+        openCart();
     } catch (error) {
-        handleCartError(error);
+        handleCartError();
     } finally {
         cartBusy.value = false;
     }
 };
 
-const updateCartItem = async (productId, quantity) => {
-    if (!productId || cartBusy.value) {
+const setQuantity = async (product, quantity) => {
+    if (!product || cartBusy.value || !props.company?.slug) {
         return;
     }
-    cartError.value = '';
+
+    const maxStock = Number(product?.stock || 0);
+    let next = Math.max(0, quantity);
+    if (maxStock > 0) {
+        next = Math.min(next, maxStock);
+    }
+
     cartBusy.value = true;
+    cartError.value = '';
+
     try {
         const response = await axios.patch(
-            route('public.store.cart.update', { slug: props.company?.slug, product: productId }),
-            { quantity },
+            route('public.store.cart.update', { slug: props.company.slug, product: product.id }),
+            { quantity: next },
             { headers: { Accept: 'application/json' } },
         );
-        applyCartResponse(response);
+        updateCartState(response.data);
+        triggerCartPulse();
     } catch (error) {
-        handleCartError(error);
+        handleCartError();
     } finally {
         cartBusy.value = false;
     }
 };
 
-const removeCartItem = async (productId) => {
-    if (!productId || cartBusy.value) {
-        return;
-    }
-    cartError.value = '';
-    cartBusy.value = true;
-    try {
-        const response = await axios.delete(
-            route('public.store.cart.remove', { slug: props.company?.slug, product: productId }),
-            { headers: { Accept: 'application/json' } },
-        );
-        applyCartResponse(response);
-    } catch (error) {
-        handleCartError(error);
-    } finally {
-        cartBusy.value = false;
-    }
+const increment = (product) => {
+    const next = cartQuantity(product.id) + 1;
+    setQuantity(product, next);
+};
+
+const decrement = (product) => {
+    const next = cartQuantity(product.id) - 1;
+    setQuantity(product, next);
+};
+
+const incrementItem = (item) => {
+    setQuantity({ id: item.product_id, stock: item.stock }, Number(item.quantity || 0) + 1);
+};
+
+const decrementItem = (item) => {
+    setQuantity({ id: item.product_id, stock: item.stock }, Number(item.quantity || 0) - 1);
+};
+
+const removeItem = (item) => {
+    setQuantity({ id: item.product_id, stock: item.stock }, 0);
 };
 
 const clearCart = async () => {
-    if (cartBusy.value) {
+    if (!props.company?.slug || cartBusy.value) {
         return;
     }
-    cartError.value = '';
     cartBusy.value = true;
+    cartError.value = '';
     try {
         const response = await axios.delete(
-            route('public.store.cart.clear', { slug: props.company?.slug }),
+            route('public.store.cart.clear', { slug: props.company.slug }),
             { headers: { Accept: 'application/json' } },
         );
-        applyCartResponse(response);
+        updateCartState(response.data);
     } catch (error) {
-        handleCartError(error);
+        handleCartError();
     } finally {
         cartBusy.value = false;
     }
 };
 
-const checkout = async () => {
-    if (!canCheckout.value || cartBusy.value) {
+const submitCheckout = async () => {
+    if (!cartItems.value.length || checkoutProcessing.value || !props.company?.slug) {
         return;
     }
-    checkoutError.value = '';
+
+    checkoutProcessing.value = true;
     checkoutErrors.value = {};
-    cartBusy.value = true;
+    checkoutError.value = '';
+
     try {
         const response = await axios.post(
-            route('public.store.checkout', { slug: props.company?.slug }),
+            route('public.store.checkout', { slug: props.company.slug }),
             checkoutForm.value,
             { headers: { Accept: 'application/json' } },
         );
-        if (response?.data?.redirect_url) {
-            window.location.href = response.data.redirect_url;
+
+        const redirectUrl = response.data?.redirect_url;
+        if (redirectUrl) {
+            window.location.href = redirectUrl;
+            return;
         }
+        window.location.reload();
     } catch (error) {
-        const rawErrors = error?.response?.data?.errors || {};
-        const normalizedErrors = Object.fromEntries(
-            Object.entries(rawErrors).map(([key, value]) => [
-                key,
-                Array.isArray(value) ? value[0] : value,
-            ]),
-        );
-        checkoutErrors.value = normalizedErrors;
-        const firstError = Object.values(normalizedErrors)[0];
-        checkoutError.value = firstError || error?.response?.data?.message || t('public_store.checkout_error');
+        if (error?.response?.status === 422) {
+            checkoutErrors.value = error.response.data?.errors || {};
+            checkoutError.value = error.response.data?.message || '';
+            openCart();
+            return;
+        }
+        checkoutError.value = t('public_store.checkout_error');
     } finally {
-        cartBusy.value = false;
+        checkoutProcessing.value = false;
     }
 };
 
-const selectCategory = (id) => {
-    selectedCategory.value = String(id);
+const heroPrimaryAction = () => {
+    scrollToCatalog();
 };
 
-const hashToHue = (value) => {
-    const text = String(value || 'store');
-    let hash = 0;
-    for (let i = 0; i < text.length; i += 1) {
-        hash = (hash << 5) - hash + text.charCodeAt(i);
-        hash |= 0;
+const heroSecondaryAction = () => {
+    if (heroProduct.value) {
+        addToCart(heroProduct.value);
+        return;
     }
-    return Math.abs(hash) % 360;
+    scrollToCatalog();
 };
-
-const themeStyle = computed(() => {
-    const seed = props.company?.slug || companyName.value;
-    const hue = hashToHue(seed);
-    return {
-        '--store-accent': `hsl(${hue}, 55%, 42%)`,
-        '--store-accent-dark': `hsl(${hue}, 60%, 32%)`,
-        '--store-accent-soft': `hsl(${hue}, 70%, 92%)`,
-        '--store-accent-soft-alt': `hsl(${hue}, 30%, 94%)`,
-        '--store-accent-contrast': '#ffffff',
-    };
-});
 </script>
 
 <template>
-    <Head :title="pageTitle">
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-        <link
-            rel="stylesheet"
-            href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap"
-        />
-    </Head>
+    <Head :title="pageTitle" />
 
-    <div class="store-page min-h-screen bg-stone-50 text-slate-900" :style="themeStyle">
-        <div class="relative overflow-hidden bg-white">
-            <div class="hero-blob hero-blob--left" aria-hidden="true"></div>
-            <div class="hero-blob hero-blob--right" aria-hidden="true"></div>
-
-            <header class="relative z-10">
-                <div class="mx-auto flex max-w-6xl flex-wrap items-center gap-4 px-4 py-6">
-                    <div class="flex items-center gap-4">
-                        <div class="flex size-12 items-center justify-center overflow-hidden rounded-2xl border border-white/70 bg-white/80 shadow-sm">
-                            <img v-if="company?.logo_url" :src="company.logo_url" :alt="companyName" class="size-full object-cover" />
-                            <span v-else class="text-sm font-semibold">{{ companyName.slice(0, 2).toUpperCase() }}</span>
-                        </div>
-                        <div>
-                            <p class="text-xs uppercase tracking-[0.2em] store-accent-text">{{ t('public_store.hero.eyebrow') }}</p>
-                            <h1 class="store-heading text-xl font-semibold">{{ companyName }}</h1>
-                            <p v-if="company?.description" class="text-sm text-slate-500">
-                                {{ company.description }}
-                            </p>
-                            <p v-else class="text-sm text-slate-400">{{ t('public_store.subtitle') }}</p>
-                        </div>
-                    </div>
-
-                    <div class="ml-auto flex flex-wrap gap-2">
-                        <template v-if="canShop">
-                            <Link :href="route('portal.orders.index')" class="store-button store-button--primary">
-                                {{ t('public_store.actions.shop_now') }}
-                            </Link>
-                            <a href="#catalog" class="store-button store-button--secondary">
-                                {{ t('public_store.actions.view_catalog') }}
-                            </a>
-                        </template>
-                        <template v-else>
-                            <Link :href="route('login')" class="store-button store-button--secondary">
-                                {{ t('public_store.actions.login') }}
-                            </Link>
-                            <Link :href="route('register')" class="store-button store-button--primary">
-                                {{ t('public_store.actions.register') }}
-                            </Link>
-                        </template>
-                    </div>
-                </div>
-                <div v-if="!canShop" class="mx-auto max-w-6xl px-4 pb-4 text-xs text-slate-500">
-                    {{ t('public_store.actions.portal_hint') }}
-                </div>
-            </header>
-
-            <section class="relative z-10 mx-auto grid max-w-6xl gap-8 px-4 pb-12 pt-4 lg:grid-cols-[1.1fr_0.9fr]">
-                <div class="fade-in-up space-y-6">
-                    <div class="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold uppercase tracking-widest text-slate-500">
-                        {{ t('public_store.sections.spotlight') }}
-                    </div>
-                    <h2 class="store-heading text-3xl font-semibold leading-tight text-slate-900 sm:text-4xl">
-                        {{ t('public_store.hero.headline', { company: companyName }) }}
-                    </h2>
-                    <p class="text-base text-slate-600 sm:text-lg">
-                        {{ t('public_store.hero.subheadline') }}
-                    </p>
-                    <div class="flex flex-wrap gap-3">
-                        <template v-if="canShop">
-                            <a href="#catalog" class="store-button store-button--secondary">
-                                {{ t('public_store.actions.view_catalog') }}
-                            </a>
-                        </template>
-                        <template v-else>
-                            <Link :href="route('register')" class="store-button store-button--secondary">
-                                {{ t('public_store.actions.register') }}
-                            </Link>
-                        </template>
-                        <a :href="primaryCtaHref" class="store-button store-button--primary">
-                            {{ primaryCtaLabel }}
-                        </a>
-                    </div>
-                    <div class="flex flex-wrap gap-6 text-sm text-slate-500">
-                        <div>
-                            <p class="text-xs uppercase tracking-[0.2em] text-slate-400">{{ t('public_store.hero.stat_products', { count: productStats.total }) }}</p>
-                        </div>
-                        <div>
-                            <p class="text-xs uppercase tracking-[0.2em] text-slate-400">{{ t('public_store.hero.stat_categories', { count: productStats.categories }) }}</p>
-                        </div>
-                        <div>
-                            <p class="text-xs uppercase tracking-[0.2em] text-slate-400">{{ t('public_store.hero.stat_new_arrivals', { count: productStats.newArrivals }) }}</p>
-                        </div>
-                    </div>
-                </div>
-
-                <div v-if="heroProduct" class="fade-in-up hero-card">
-                    <div class="rounded-3xl border border-slate-100 bg-white p-6 shadow-xl shadow-slate-900/10">
-                        <div class="flex items-start justify-between">
-                            <div class="space-y-2">
-                                <p class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">{{ t('public_store.sections.spotlight') }}</p>
-                                <h3 class="store-heading text-xl font-semibold text-slate-900">
-                                    {{ heroProduct.name }}
-                                </h3>
-                            </div>
-                            <div class="flex gap-2">
-                                <span v-for="badge in productBadges(heroProduct)" :key="badge.label" :class="badge.tone" class="rounded-full px-2.5 py-1 text-xs font-semibold">
-                                    {{ badge.label }}
-                                </span>
-                            </div>
-                        </div>
-                        <div class="mt-4 flex items-center gap-4">
-                            <div class="relative size-28 overflow-hidden rounded-2xl border border-slate-100 bg-stone-100">
-                                <img v-if="heroProduct.image_url" :src="heroProduct.image_url" :alt="heroProduct.name" class="size-full object-cover" />
-                            </div>
-                            <div class="flex-1 space-y-2">
-                                <p class="text-sm text-slate-500 line-clamp-2">
-                                    {{ heroProduct.description || t('public_store.empty_description') }}
-                                </p>
-                                <div class="flex items-center justify-between">
-                                    <div class="flex flex-col">
-                                        <span class="text-lg font-semibold text-slate-900">{{ formatPrice(priceMeta(heroProduct).current) }}</span>
-                                        <span v-if="priceMeta(heroProduct).original" class="text-xs text-slate-400 line-through">
-                                            {{ formatPrice(priceMeta(heroProduct).original) }}
-                                        </span>
-                                    </div>
-                                    <span :class="stockLabel(heroProduct).tone" class="text-xs font-semibold">
-                                        {{ stockLabel(heroProduct).label }}
-                                    </span>
-                                </div>
-                                <a :href="primaryCtaHref" class="inline-flex items-center gap-2 text-sm font-semibold store-accent-text">
-                                    {{ t('public_store.actions.view_product') }}
-                                    <span aria-hidden="true">-></span>
-                                </a>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </section>
-        </div>
-
-        <main class="mx-auto max-w-6xl space-y-12 px-4 pb-16 pt-10">
-            <section class="fade-in-up space-y-4">
-                <div class="flex flex-wrap items-center justify-between gap-4">
-                    <h3 class="store-heading text-xl font-semibold">{{ t('public_store.sections.categories') }}</h3>
-                    <p class="text-sm text-slate-500">{{ t('public_store.hints.login_to_order') }}</p>
-                </div>
-                <div class="flex flex-wrap gap-3">
-                    <button type="button"
-                        class="store-button store-button--secondary"
-                        :class="{ 'store-button--primary': selectedCategory === 'all' }"
-                        @click="selectCategory('all')">
-                        {{ t('public_store.filters.all') }}
-                    </button>
-                    <button v-for="category in categoriesWithCounts" :key="category.id" type="button"
-                        class="store-button store-button--secondary"
-                        :class="{ 'store-button--primary': String(selectedCategory) === String(category.id) }"
-                        @click="selectCategory(category.id)">
-                        {{ category.name }}
-                        <span class="ml-2 text-xs text-slate-400">({{ category.count }})</span>
-                    </button>
-                </div>
-            </section>
-
-            <section class="fade-in-up space-y-4">
-                <div class="flex items-center justify-between">
-                    <h3 class="store-heading text-xl font-semibold">{{ t('public_store.sections.best_sellers') }}</h3>
-                    <a href="#catalog" class="text-sm font-semibold store-accent-text">{{ t('public_store.actions.explore') }}</a>
-                </div>
-                <div v-if="bestSellersDisplay.length" class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                    <article v-for="(product, index) in bestSellersDisplay" :key="product.id" class="product-card" :style="{ animationDelay: `${index * 80}ms` }">
-                        <div class="flex items-start justify-between">
-                            <span class="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-800">
-                                {{ t('public_store.badges.best_seller') }}
-                            </span>
-                            <span class="text-xs text-slate-400">#{{ index + 1 }}</span>
-                        </div>
-                        <div class="mt-4 flex items-center gap-3">
-                            <div class="size-16 overflow-hidden rounded-2xl border border-slate-100 bg-slate-50">
-                                <img v-if="product.image_url" :src="product.image_url" :alt="product.name" class="size-full object-cover" />
-                            </div>
-                            <div>
-                                <h4 class="text-sm font-semibold text-slate-900">{{ product.name }}</h4>
-                                <div class="text-xs text-slate-500">
-                                    <span class="font-semibold text-slate-900">{{ formatPrice(priceMeta(product).current) }}</span>
-                                    <span v-if="priceMeta(product).original" class="ml-2 text-[11px] text-slate-400 line-through">
-                                        {{ formatPrice(priceMeta(product).original) }}
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-                    </article>
-                </div>
-                <p v-else class="rounded-2xl border border-dashed border-slate-200 bg-white px-4 py-6 text-sm text-slate-500">
-                    {{ t('public_store.empty_collection') }}
-                </p>
-            </section>
-
-            <section class="fade-in-up grid gap-6 lg:grid-cols-[1fr_1.2fr]">
-                <div class="rounded-3xl bg-slate-900 p-6 text-white shadow-xl shadow-slate-900/20">
-                    <h3 class="store-heading text-xl font-semibold">{{ t('public_store.sections.promotions') }}</h3>
-                    <p class="mt-2 text-sm text-slate-200">
-                        {{ t('public_store.promotions_hint') }}
-                    </p>
-                    <div class="mt-6 space-y-3">
-                        <div v-for="product in promotionsDisplay.slice(0, 3)" :key="product.id"
-                            class="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
-                            <div>
-                                <p class="text-sm font-semibold">{{ product.name }}</p>
-                                <p class="text-xs text-slate-300">{{ formatPrice(product.price) }}</p>
-                            </div>
-                            <span class="rounded-full bg-white/10 px-2.5 py-1 text-xs font-semibold">{{ t('public_store.badges.promo') }}</span>
-                        </div>
-                        <p v-if="!promotionsDisplay.length" class="text-sm text-slate-300">
-                            {{ t('public_store.empty_collection') }}
-                        </p>
-                    </div>
-                </div>
-
-                <div class="grid gap-4 sm:grid-cols-2">
-                    <article v-for="(product, index) in promotionsDisplay" :key="product.id"
-                        class="product-card" :style="{ animationDelay: `${index * 80}ms` }">
-                        <div class="flex items-start justify-between">
-                            <span class="rounded-full bg-rose-100 px-2.5 py-1 text-xs font-semibold text-rose-700">
-                                {{ t('public_store.badges.promo') }}
-                            </span>
-                            <span :class="stockLabel(product).tone" class="text-xs font-semibold">{{ stockLabel(product).label }}</span>
-                        </div>
-                        <div class="mt-4 flex items-center gap-3">
-                            <div class="size-16 overflow-hidden rounded-2xl border border-slate-100 bg-slate-50">
-                                <img v-if="product.image_url" :src="product.image_url" :alt="product.name" class="size-full object-cover" />
-                            </div>
-                            <div>
-                                <h4 class="text-sm font-semibold text-slate-900">{{ product.name }}</h4>
-                                <div class="text-xs text-slate-500">
-                                    <span class="font-semibold text-slate-900">{{ formatPrice(priceMeta(product).current) }}</span>
-                                    <span v-if="priceMeta(product).original" class="ml-2 text-[11px] text-slate-400 line-through">
-                                        {{ formatPrice(priceMeta(product).original) }}
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-                    </article>
-                </div>
-            </section>
-
-            <section class="fade-in-up space-y-4">
-                <div class="flex items-center justify-between">
-                    <h3 class="store-heading text-xl font-semibold">{{ t('public_store.sections.new_arrivals') }}</h3>
-                    <a href="#catalog" class="text-sm font-semibold store-accent-text">{{ t('public_store.actions.explore') }}</a>
-                </div>
-                <div v-if="newArrivalsDisplay.length" class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                    <article v-for="(product, index) in newArrivalsDisplay" :key="product.id" class="product-card" :style="{ animationDelay: `${index * 80}ms` }">
-                        <div class="flex items-start justify-between">
-                            <span class="rounded-full bg-teal-100 px-2.5 py-1 text-xs font-semibold text-teal-700">
-                                {{ t('public_store.badges.new') }}
-                            </span>
-                            <span :class="stockLabel(product).tone" class="text-xs font-semibold">{{ stockLabel(product).label }}</span>
-                        </div>
-                        <div class="mt-4 flex items-center gap-3">
-                            <div class="size-16 overflow-hidden rounded-2xl border border-slate-100 bg-slate-50">
-                                <img v-if="product.image_url" :src="product.image_url" :alt="product.name" class="size-full object-cover" />
-                            </div>
-                            <div>
-                                <h4 class="text-sm font-semibold text-slate-900">{{ product.name }}</h4>
-                                <div class="text-xs text-slate-500">
-                                    <span class="font-semibold text-slate-900">{{ formatPrice(priceMeta(product).current) }}</span>
-                                    <span v-if="priceMeta(product).original" class="ml-2 text-[11px] text-slate-400 line-through">
-                                        {{ formatPrice(priceMeta(product).original) }}
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-                    </article>
-                </div>
-                <p v-else class="rounded-2xl border border-dashed border-slate-200 bg-white px-4 py-6 text-sm text-slate-500">
-                    {{ t('public_store.empty_collection') }}
-                </p>
-            </section>
-
-            <section id="catalog" class="fade-in-up space-y-6">
-                <div class="flex flex-wrap items-center justify-between gap-4">
-                    <h3 class="store-heading text-xl font-semibold">{{ t('public_store.sections.catalog') }}</h3>
-                    <div class="text-sm text-slate-500">
-                        {{ filteredProducts.length }} / {{ products.length }}
-                    </div>
-                </div>
-
-                <div class="grid gap-3 md:grid-cols-[1fr_220px]">
-                    <label class="sr-only" for="store-search">{{ t('public_store.filters.search') }}</label>
-                    <input id="store-search" v-model="search"
-                        :placeholder="t('public_store.search_placeholder')"
-                        class="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm focus:border-slate-400 focus:ring-slate-400" />
-                    <label class="sr-only" for="store-category">{{ t('public_store.filters.category') }}</label>
-                    <select id="store-category" v-model="selectedCategory"
-                        class="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm focus:border-slate-400 focus:ring-slate-400">
-                        <option v-for="option in categoryOptions" :key="option.id" :value="option.id">
-                            {{ option.name }}
-                        </option>
-                    </select>
-                </div>
-
-                <section v-if="filteredProducts.length" class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                    <article v-for="(product, index) in filteredProducts" :key="product.id" class="product-card" :style="{ animationDelay: `${index * 40}ms` }">
-                        <div class="flex items-start gap-3">
-                            <div class="size-20 overflow-hidden rounded-2xl border border-slate-100 bg-slate-50">
-                                <img v-if="product.image_url" :src="product.image_url" :alt="product.name" class="size-full object-cover" />
-                            </div>
-                            <div class="flex-1">
-                                <div class="flex flex-wrap gap-2">
-                                    <span v-for="badge in productBadges(product)" :key="badge.label" :class="badge.tone" class="rounded-full px-2.5 py-1 text-xs font-semibold">
-                                        {{ badge.label }}
-                                    </span>
-                                </div>
-                                <h4 class="mt-2 text-sm font-semibold text-slate-900">{{ product.name }}</h4>
-                                <p v-if="product.description" class="text-xs text-slate-500 line-clamp-2">
-                                    {{ product.description }}
-                                </p>
-                                <p v-else class="text-xs text-slate-400">{{ t('public_store.empty_description') }}</p>
-                            </div>
-                        </div>
-                        <div class="mt-4 flex items-center justify-between text-sm">
-                            <div class="flex flex-col">
-                                <span class="font-semibold text-slate-900">{{ formatPrice(priceMeta(product).current) }}</span>
-                                <span v-if="priceMeta(product).original" class="text-[11px] text-slate-400 line-through">
-                                    {{ formatPrice(priceMeta(product).original) }}
-                                </span>
-                            </div>
-                            <span :class="stockLabel(product).tone" class="text-xs font-semibold">
-                                {{ stockLabel(product).label }}
-                            </span>
-                        </div>
-                        <div class="mt-3 flex items-center justify-between gap-2">
-                            <button
-                                v-if="cartQuantity(product.id) === 0"
-                                type="button"
-                                class="store-button store-button--secondary w-full"
-                                :disabled="cartBusy || Number(product.stock || 0) <= 0"
-                                @click="addToCart(product)"
+    <div class="min-h-screen bg-slate-50 text-slate-900">
+        <FlashToaster />
+        <div class="fixed inset-x-0 top-0 z-50">
+            <header class="border-b border-slate-800 bg-slate-900 text-white">
+                <div class="mx-auto w-full px-4 sm:px-6 lg:px-10">
+                <div class="flex items-center gap-4 py-3">
+                    <Link :href="route('welcome')" class="flex items-center gap-3">
+                        <div class="h-10 w-10 overflow-hidden rounded-sm border border-slate-700 bg-slate-800">
+                            <img
+                                v-if="company?.logo_url"
+                                :src="company.logo_url"
+                                :alt="companyName"
+                                class="h-full w-full object-cover"
+                                loading="lazy"
+                                decoding="async"
                             >
-                                {{ t('public_store.actions.add_to_cart') }}
-                            </button>
-                            <div v-else class="flex w-full items-center justify-between gap-2">
-                                <button
-                                    type="button"
-                                    class="store-button store-button--secondary w-10 px-0"
-                                    :disabled="cartBusy"
-                                    @click="updateCartItem(product.id, cartQuantity(product.id) - 1)"
-                                >
-                                    -
-                                </button>
-                                <span class="text-sm font-semibold text-slate-700">
-                                    {{ cartQuantity(product.id) }}
-                                </span>
-                                <button
-                                    type="button"
-                                    class="store-button store-button--primary w-10 px-0"
-                                    :disabled="cartBusy || cartQuantity(product.id) >= Number(product.stock || 0)"
-                                    @click="updateCartItem(product.id, cartQuantity(product.id) + 1)"
-                                >
-                                    +
-                                </button>
+                            <div v-else class="flex h-full w-full items-center justify-center text-sm font-semibold text-slate-200">
+                                {{ companyName.charAt(0) }}
                             </div>
                         </div>
-                    </article>
-                </section>
+                        <div class="hidden flex-col sm:flex">
+                            <span class="text-sm font-semibold text-white">{{ companyName }}</span>
+                            <span class="text-[11px] text-slate-400">/store/{{ company?.slug }}</span>
+                        </div>
+                    </Link>
 
-                <section v-else class="rounded-2xl border border-dashed border-slate-200 bg-white p-6 text-center text-sm text-slate-500">
-                    {{ t('public_store.empty') }}
-                </section>
-            </section>
+                    <div class="hidden flex-1 lg:block">
+                        <FloatingInput
+                            v-model="searchQuery"
+                            type="search"
+                            :label="t('public_store.filters.search')"
+                            :autocomplete="'off'"
+                        />
+                    </div>
 
-            <section id="cart" class="fade-in-up space-y-4">
-                <div class="flex flex-wrap items-center justify-between gap-3">
-                    <h3 class="store-heading text-xl font-semibold">{{ t('public_store.cart.title') }}</h3>
-                    <div class="flex items-center gap-3 text-sm text-slate-500">
-                        <span v-if="cartItemCount">{{ t('public_store.cart.item_count', { count: cartItemCount }) }}</span>
+                    <div class="ml-auto flex items-center gap-4">
+                        <div class="hidden items-center gap-3 text-xs font-semibold text-slate-200 md:flex">
+                            <template v-if="isAuthenticated">
+                                <span>{{ authUser?.name || authUser?.email }}</span>
+                                <Link v-if="portalLink" :href="portalLink" class="text-emerald-300 hover:text-emerald-200">
+                                    {{ authAccount?.is_client ? 'Portal' : 'Dashboard' }}
+                                </Link>
+                            </template>
+                            <template v-else>
+                                <Link :href="route('login')" class="hover:text-white">
+                                    {{ t('public_store.actions.login') }}
+                                </Link>
+                                <Link :href="route('register')" class="text-emerald-300 hover:text-emerald-200">
+                                    {{ t('public_store.actions.register') }}
+                                </Link>
+                            </template>
+                        </div>
                         <button
-                            v-if="cartItems.length"
                             type="button"
-                            class="text-xs font-semibold store-accent-text"
-                            :disabled="cartBusy"
-                            @click="clearCart"
+                            class="relative inline-flex items-center justify-center rounded-sm border border-slate-700 bg-slate-800 px-2.5 py-2 text-white hover:border-slate-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
+                            @click="openCart"
+                            aria-label="Open cart"
                         >
-                            {{ t('public_store.cart.clear') }}
+                            <span class="sr-only">{{ t('public_store.cart.title') }}</span>
+                            <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="9" cy="21" r="1"></circle>
+                                <circle cx="20" cy="21" r="1"></circle>
+                                <path d="M1 1h4l2.7 13.4a2 2 0 0 0 2 1.6h9.5a2 2 0 0 0 2-1.6L23 6H6"></path>
+                            </svg>
+                            <span
+                                class="absolute -right-1 -top-1 rounded-sm bg-emerald-500 px-1.5 py-0.5 text-[10px] font-semibold text-white transition-transform"
+                                :class="cartPulse ? 'scale-110 ring-2 ring-emerald-200' : 'scale-100'"
+                            >
+                                {{ cartItemCount }}
+                            </span>
                         </button>
                     </div>
                 </div>
 
-                <div v-if="isInternalUser" class="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
-                    {{ t('public_store.cart.internal_notice') }}
+                <div class="pb-3 lg:hidden">
+                    <FloatingInput
+                        v-model="searchQuery"
+                        type="search"
+                        :label="t('public_store.filters.search')"
+                        :autocomplete="'off'"
+                    />
                 </div>
-
-                <div v-if="cartError" class="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-                    {{ cartError }}
                 </div>
+            </header>
 
-                <div v-if="cartItems.length" class="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
-                    <div class="space-y-3">
-                        <article v-for="item in cartItems" :key="item.product_id" class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                            <div class="flex items-start justify-between gap-4">
-                                <div class="flex items-start gap-3">
-                                    <div class="size-16 overflow-hidden rounded-2xl border border-slate-100 bg-slate-50">
-                                        <img v-if="item.image_url" :src="item.image_url" :alt="item.name" class="size-full object-cover" />
-                                    </div>
-                                    <div>
-                                        <h4 class="text-sm font-semibold text-slate-900">{{ item.name }}</h4>
-                                        <p class="text-xs text-slate-400">{{ item.sku || t('public_store.cart.sku_fallback') }}</p>
-                                        <div class="mt-1 text-xs text-slate-500">
-                                            <span class="font-semibold text-slate-900">{{ formatPrice(item.price) }}</span>
-                                            <span v-if="item.promo_active" class="ml-2 text-[11px] text-slate-400 line-through">
-                                                {{ formatPrice(item.base_price) }}
-                                            </span>
-                                        </div>
-                                    </div>
-                                </div>
-                                <button
-                                    type="button"
-                                    class="text-xs font-semibold text-slate-400 hover:text-slate-600"
-                                    :disabled="cartBusy"
-                                    @click="removeCartItem(item.product_id)"
-                                >
-                                    {{ t('public_store.cart.remove') }}
-                                </button>
-                            </div>
-                            <div class="mt-3 flex items-center justify-between">
-                                <div class="flex items-center gap-2">
-                                    <button
-                                        type="button"
-                                        class="store-button store-button--secondary w-9 px-0"
-                                        :disabled="cartBusy"
-                                        @click="updateCartItem(item.product_id, item.quantity - 1)"
-                                    >
-                                        -
-                                    </button>
-                                    <span class="text-sm font-semibold text-slate-700">{{ item.quantity }}</span>
-                                    <button
-                                        type="button"
-                                        class="store-button store-button--primary w-9 px-0"
-                                        :disabled="cartBusy || item.quantity >= Number(item.stock || 0)"
-                                        @click="updateCartItem(item.product_id, item.quantity + 1)"
-                                    >
-                                        +
-                                    </button>
-                                </div>
-                                <div class="text-sm font-semibold text-slate-900">
-                                    {{ formatPrice(item.line_total) }}
-                                </div>
-                            </div>
-                        </article>
-                    </div>
+            <nav class="border-b border-slate-200 bg-white">
+                <div class="mx-auto flex w-full flex-col gap-2 px-4 py-2 sm:px-6 lg:flex-row lg:items-center lg:px-10">
+                <CategoryChips
+                    :categories="categories"
+                    :selected="selectedCategory"
+                    :all-label="t('public_store.filters.all')"
+                    @select="setCategoryAndScroll"
+                />
+                <div class="flex flex-wrap gap-2 text-[11px] font-semibold uppercase tracking-wide text-slate-400 lg:ml-auto">
+                    <button type="button" class="hover:text-slate-600" @click="scrollToSection('best-sellers')">
+                        {{ t('public_store.sections.best_sellers') }}
+                    </button>
+                    <button type="button" class="hover:text-slate-600" @click="scrollToSection('promotions')">
+                        {{ t('public_store.sections.promotions') }}
+                    </button>
+                    <button type="button" class="hover:text-slate-600" @click="scrollToSection('new-arrivals')">
+                        {{ t('public_store.sections.new_arrivals') }}
+                    </button>
+                    <button type="button" class="hover:text-slate-600" @click="scrollToCatalog">
+                        {{ t('public_store.sections.catalog') }}
+                    </button>
+                </div>
+                </div>
+            </nav>
+        </div>
 
-                    <div class="space-y-4">
-                        <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                            <h4 class="text-sm font-semibold text-slate-900">{{ t('public_store.cart.summary') }}</h4>
-                            <div class="mt-3 space-y-2 text-sm text-slate-600">
-                                <div class="flex items-center justify-between">
-                                    <span>{{ t('public_store.cart.subtotal') }}</span>
-                                    <span class="font-semibold text-slate-900">{{ formatPrice(cartSubtotal) }}</span>
-                                </div>
-                                <div class="flex items-center justify-between">
-                                    <span>{{ t('public_store.cart.taxes') }}</span>
-                                    <span class="font-semibold text-slate-900">{{ formatPrice(cartTaxTotal) }}</span>
-                                </div>
-                                <div v-if="deliveryFee" class="flex items-center justify-between">
-                                    <span>{{ t('public_store.cart.delivery_fee') }}</span>
-                                    <span class="font-semibold text-slate-900">{{ formatPrice(deliveryFee) }}</span>
-                                </div>
-                                <div class="flex items-center justify-between border-t border-slate-200 pt-2 text-base font-semibold text-slate-900">
-                                    <span>{{ t('public_store.cart.total') }}</span>
-                                    <span>{{ formatPrice(checkoutTotal) }}</span>
-                                </div>
-                            </div>
+        <main class="pt-[140px] sm:pt-[132px] lg:pt-[120px]">
+            <section class="py-10 lg:py-14">
+                <div class="mx-auto grid w-full gap-8 px-4 sm:px-6 lg:grid-cols-[1.1fr_0.9fr] lg:px-10">
+                    <div class="space-y-6">
+                        <div class="space-y-3">
+                            <span class="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                                {{ t('public_store.hero.eyebrow') }}
+                            </span>
+                            <h1 class="text-3xl font-semibold text-slate-900 md:text-4xl">
+                                {{ t('public_store.hero.headline', { company: companyName }) }}
+                            </h1>
+                            <p class="text-base text-slate-600">
+                                {{ t('public_store.hero.subheadline') }}
+                            </p>
                         </div>
-
-                        <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                            <h4 class="text-sm font-semibold text-slate-900">{{ t('public_store.cart.checkout') }}</h4>
-                            <p class="mt-1 text-xs text-slate-500">{{ t('public_store.cart.checkout_hint') }}</p>
-
-                            <div v-if="needsIdentity" class="mt-4 space-y-3">
-                                <div>
-                                    <label class="text-xs font-semibold text-slate-500">{{ t('public_store.cart.name') }}</label>
-                                    <input v-model="checkoutForm.name"
-                                        class="mt-1 w-full rounded-2xl border border-slate-200 px-3 py-2 text-sm"
-                                        type="text" />
-                                    <p v-if="checkoutErrors.name" class="mt-1 text-xs text-rose-600">{{ checkoutErrors.name }}</p>
-                                </div>
-                                <div>
-                                    <label class="text-xs font-semibold text-slate-500">{{ t('public_store.cart.email') }}</label>
-                                    <input v-model="checkoutForm.email"
-                                        class="mt-1 w-full rounded-2xl border border-slate-200 px-3 py-2 text-sm"
-                                        type="email" />
-                                    <p v-if="checkoutErrors.email" class="mt-1 text-xs text-rose-600">{{ checkoutErrors.email }}</p>
-                                </div>
-                                <div>
-                                    <label class="text-xs font-semibold text-slate-500">{{ t('public_store.cart.phone') }}</label>
-                                    <input v-model="checkoutForm.phone"
-                                        class="mt-1 w-full rounded-2xl border border-slate-200 px-3 py-2 text-sm"
-                                        type="tel" />
-                                    <p v-if="checkoutErrors.phone" class="mt-1 text-xs text-rose-600">{{ checkoutErrors.phone }}</p>
-                                </div>
-                            </div>
-
-                            <div v-if="requiresDeliveryAddress" class="mt-4">
-                                <label class="text-xs font-semibold text-slate-500">{{ t('public_store.cart.delivery_address') }}</label>
-                                <textarea v-model="checkoutForm.delivery_address"
-                                    class="mt-1 w-full rounded-2xl border border-slate-200 px-3 py-2 text-sm"
-                                    rows="2"></textarea>
-                                <p v-if="checkoutErrors.delivery_address" class="mt-1 text-xs text-rose-600">{{ checkoutErrors.delivery_address }}</p>
-                            </div>
-
-                            <p v-if="checkoutError" class="mt-3 text-xs text-rose-600">{{ checkoutError }}</p>
-
+                        <div class="flex flex-wrap gap-3">
                             <button
                                 type="button"
-                                class="store-button store-button--primary mt-4 w-full"
-                                :disabled="cartBusy || !canCheckout"
-                                @click="checkout"
+                                class="rounded-sm bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+                                @click="heroPrimaryAction"
                             >
-                                {{ t('public_store.cart.submit') }}
+                                {{ t('public_store.actions.view_catalog') }}
+                            </button>
+                            <button
+                                type="button"
+                                class="rounded-sm border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:border-slate-300 hover:bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+                                @click="heroSecondaryAction"
+                            >
+                                {{ heroProduct ? t('public_store.actions.add_to_cart') : t('public_store.actions.explore') }}
                             </button>
                         </div>
+                        <div class="flex flex-wrap gap-2">
+                            <span
+                                v-for="(stat, index) in heroStats"
+                                :key="index"
+                                class="rounded-sm border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600"
+                            >
+                                {{ stat }}
+                            </span>
+                        </div>
+                    </div>
+
+                    <div v-if="heroProduct" class="space-y-4">
+                        <ProductCard
+                            :product="heroProduct"
+                            variant="featured"
+                            :badges="heroBadges"
+                            :stock-label="stockLabel(heroProduct)"
+                            :stock-tone="stockTone(heroProduct)"
+                            :description-fallback="t('public_store.empty_description')"
+                            :rating-empty-label="t('public_store.reviews.empty')"
+                            :cta-label="t('public_store.actions.add_to_cart')"
+                            :view-label="t('public_store.actions.view_product')"
+                            :show-view="true"
+                            @open="openProductDetails"
+                            @add="addToCart"
+                            @view="openProductDetails"
+                        />
                     </div>
                 </div>
+            </section>
 
-                <p v-else class="rounded-2xl border border-dashed border-slate-200 bg-white px-4 py-6 text-sm text-slate-500">
-                    {{ t('public_store.cart.empty') }}
-                </p>
+            <ProductSection
+                section-id="best-sellers"
+                :title="t('public_store.sections.best_sellers')"
+                :subtitle="t('public_store.subtitle')"
+                :action-label="t('public_store.actions.view_catalog')"
+                :empty-label="t('public_store.empty_collection')"
+                :products="bestSellers"
+                :description-fallback="t('public_store.empty_description')"
+                :rating-empty-label="t('public_store.reviews.empty')"
+                :cta-label="t('public_store.actions.add_to_cart')"
+                :view-label="t('public_store.actions.view_product')"
+                :get-badges="badgeList"
+                :get-stock-label="stockLabel"
+                :get-stock-tone="stockTone"
+                card-variant="compact"
+                @action="scrollToCatalog"
+                @open="openProductDetails"
+                @add="addToCart"
+                @view="openProductDetails"
+            />
+
+            <ProductSection
+                section-id="promotions"
+                :title="t('public_store.sections.promotions')"
+                :subtitle="t('public_store.promotions_hint')"
+                :action-label="t('public_store.actions.view_catalog')"
+                :empty-label="t('public_store.empty_collection')"
+                :products="promotions"
+                :description-fallback="t('public_store.empty_description')"
+                :rating-empty-label="t('public_store.reviews.empty')"
+                :cta-label="t('public_store.actions.add_to_cart')"
+                :view-label="t('public_store.actions.view_product')"
+                :get-badges="badgeList"
+                :get-stock-label="stockLabel"
+                :get-stock-tone="stockTone"
+                card-variant="compact"
+                @action="scrollToCatalog"
+                @open="openProductDetails"
+                @add="addToCart"
+                @view="openProductDetails"
+            />
+
+            <ProductSection
+                section-id="new-arrivals"
+                :title="t('public_store.sections.new_arrivals')"
+                :subtitle="t('public_store.subtitle')"
+                :action-label="t('public_store.actions.view_catalog')"
+                :empty-label="t('public_store.empty_collection')"
+                :products="newArrivals"
+                :description-fallback="t('public_store.empty_description')"
+                :rating-empty-label="t('public_store.reviews.empty')"
+                :cta-label="t('public_store.actions.add_to_cart')"
+                :view-label="t('public_store.actions.view_product')"
+                :get-badges="badgeList"
+                :get-stock-label="stockLabel"
+                :get-stock-tone="stockTone"
+                card-variant="compact"
+                @action="scrollToCatalog"
+                @open="openProductDetails"
+                @add="addToCart"
+                @view="openProductDetails"
+            />
+
+            <section class="py-8" id="catalog">
+                <div class="mx-auto w-full space-y-6 px-4 sm:px-6 lg:px-10">
+                    <SectionHeader
+                        :title="t('public_store.sections.catalog')"
+                        :subtitle="t('public_store.subtitle')"
+                    >
+                        <template #actions>
+                            <span class="rounded-sm border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600">
+                                {{ t('public_store.catalog.results', { count: sortedProducts.length }) }}
+                            </span>
+                        </template>
+                    </SectionHeader>
+
+                    <div class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_280px]">
+                        <div class="order-2 space-y-4 lg:order-1">
+                            <CategoryChips
+                                :categories="categories"
+                                :selected="selectedCategory"
+                                :all-label="t('public_store.filters.all')"
+                                @select="setCategory"
+                            />
+
+                            <div v-if="sortedProducts.length" class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                                <ProductCard
+                                    v-for="product in sortedProducts"
+                                    :key="product.id"
+                                    :product="product"
+                                    :badges="badgeList(product)"
+                                    :stock-label="stockLabel(product)"
+                                    :stock-tone="stockTone(product)"
+                                    :description-fallback="t('public_store.empty_description')"
+                                    :rating-empty-label="t('public_store.reviews.empty')"
+                                    :cta-label="t('public_store.actions.add_to_cart')"
+                                    :view-label="t('public_store.actions.view_product')"
+                                    @open="openProductDetails"
+                                    @add="addToCart"
+                                    @view="openProductDetails"
+                                />
+                            </div>
+                            <p v-else class="text-sm text-slate-500">
+                                {{ t('public_store.empty') }}
+                            </p>
+                        </div>
+
+                        <aside class="order-1 lg:order-2">
+                            <div class="sticky top-6 space-y-3 rounded-sm border border-slate-200 bg-white p-3">
+                                <FloatingInput
+                                    v-model="searchQuery"
+                                    type="search"
+                                    :label="t('public_store.filters.search')"
+                                    :autocomplete="'off'"
+                                />
+                                <FloatingSelect
+                                    v-model="selectedCategory"
+                                    :label="t('public_store.filters.category')"
+                                    :options="categoryOptions"
+                                    option-value="value"
+                                    option-label="label"
+                                />
+                                <FloatingSelect
+                                    v-model="sortOption"
+                                    :label="t('public_store.filters.sort')"
+                                    :options="sortOptions"
+                                    option-value="value"
+                                    option-label="label"
+                                />
+                                <div class="rounded-sm border border-slate-200 bg-slate-50 px-3 py-2 text-[11px] text-slate-500">
+                                    {{ t('public_store.catalog.results', { count: sortedProducts.length }) }}
+                                </div>
+                            </div>
+                        </aside>
+                    </div>
+                </div>
             </section>
         </main>
+
+        <footer class="border-t border-slate-200 bg-white py-6">
+            <div class="mx-auto w-full px-4 text-sm text-slate-500 sm:px-6 lg:px-10">
+                {{ t('public_store.hints.login_to_order') }}
+            </div>
+        </footer>
+
     </div>
+
+    <div v-if="cartVisible" class="fixed inset-0 z-[60] bg-slate-900/50" @click.self="closeCart">
+        <div class="fixed inset-y-0 right-0 flex w-full max-w-md flex-col bg-white shadow-xl">
+            <header class="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+                <div>
+                    <h3 class="text-lg font-semibold text-slate-900">{{ t('public_store.cart.title') }}</h3>
+                    <p class="text-xs text-slate-500">{{ t('public_store.cart.item_count', { count: cartItemCount }) }}</p>
+                </div>
+                <button
+                    type="button"
+                    class="rounded-sm border border-slate-200 px-2 py-1 text-xs font-semibold text-slate-600 hover:border-slate-300"
+                    @click="closeCart"
+                    aria-label="Close cart"
+                >
+                    x
+                </button>
+            </header>
+
+            <div class="flex-1 overflow-y-auto">
+                <div class="space-y-4 px-5 py-4">
+                    <div v-if="cartItems.length" class="space-y-4">
+                        <div v-for="item in cartItems" :key="item.product_id" class="flex gap-3 rounded-sm border border-slate-200 p-3">
+                            <div class="h-16 w-16 flex-shrink-0 overflow-hidden rounded-sm bg-slate-100">
+                                <img
+                                    v-if="item.image_url"
+                                    :src="item.image_url"
+                                    :alt="item.name"
+                                    class="h-full w-full object-cover"
+                                    loading="lazy"
+                                    decoding="async"
+                                >
+                                <div v-else class="flex h-full w-full items-center justify-center text-sm font-semibold text-slate-300">
+                                    {{ item.name.charAt(0) }}
+                                </div>
+                            </div>
+                            <div class="flex-1 space-y-1">
+                                <div class="text-sm font-semibold text-slate-800">{{ item.name }}</div>
+                                <div class="text-xs text-slate-400">{{ item.sku || t('public_store.cart.sku_fallback') }}</div>
+                                <div class="flex items-center gap-2 text-xs text-slate-500">
+                                    <span>{{ formatCurrency(item.price) }}</span>
+                                    <span v-if="item.base_price && item.base_price > item.price" class="line-through">
+                                        {{ formatCurrency(item.base_price) }}
+                                    </span>
+                                </div>
+                                <div class="flex flex-wrap items-center gap-2">
+                                    <div class="inline-flex items-center gap-2 rounded-sm border border-slate-200 px-2 py-1">
+                                        <button type="button" class="text-xs" @click="decrementItem(item)">-</button>
+                                        <span class="text-xs font-semibold">{{ item.quantity }}</span>
+                                        <button type="button" class="text-xs" @click="incrementItem(item)">+</button>
+                                    </div>
+                                    <button type="button" class="text-xs font-semibold text-rose-500" @click="removeItem(item)">
+                                        {{ t('public_store.cart.remove') }}
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="text-sm font-semibold text-slate-700">
+                                {{ formatCurrency(item.line_total) }}
+                            </div>
+                        </div>
+                    </div>
+                    <p v-else class="text-sm text-slate-500">{{ t('public_store.cart.empty') }}</p>
+
+                    <p v-if="cartError" class="rounded-sm border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-600">
+                        {{ cartError }}
+                    </p>
+                    <p v-if="checkoutError" class="rounded-sm border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-600">
+                        {{ checkoutError }}
+                    </p>
+                    <p v-if="isInternalUser" class="rounded-sm border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
+                        {{ t('public_store.cart.internal_notice') }}
+                    </p>
+                </div>
+
+                <div v-if="cartItems.length" class="space-y-4 border-t border-slate-200 px-5 py-4">
+                    <div class="space-y-2 text-sm text-slate-600">
+                        <div class="flex items-center justify-between">
+                            <span>{{ t('public_store.cart.subtotal') }}</span>
+                            <span>{{ formatCurrency(cartSubtotal) }}</span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span>{{ t('public_store.cart.taxes') }}</span>
+                            <span>{{ formatCurrency(cartTaxes) }}</span>
+                        </div>
+                        <div v-if="deliveryFee" class="flex items-center justify-between">
+                            <span>{{ t('public_store.cart.delivery_fee') }}</span>
+                            <span>{{ formatCurrency(deliveryFee) }}</span>
+                        </div>
+                        <div class="flex items-center justify-between text-base font-semibold text-slate-900">
+                            <span>{{ t('public_store.cart.total') }}</span>
+                            <span>{{ formatCurrency(checkoutTotal) }}</span>
+                        </div>
+                    </div>
+                    <button
+                        type="button"
+                        class="text-xs font-semibold text-slate-500 hover:text-slate-700"
+                        @click="clearCart"
+                    >
+                        {{ t('public_store.cart.clear') }}
+                    </button>
+                </div>
+
+                <div v-if="cartItems.length" class="space-y-4 border-t border-slate-200 px-5 py-4">
+                    <div>
+                        <h4 class="text-base font-semibold text-slate-900">{{ t('public_store.cart.checkout') }}</h4>
+                        <p class="text-xs text-slate-500">{{ t('public_store.cart.checkout_hint') }}</p>
+                    </div>
+                    <div class="space-y-4 rounded-sm border border-slate-200 bg-white p-4">
+                        <div class="flex items-center justify-between">
+                            <h5 class="text-sm font-semibold text-slate-900">{{ t('public_store.fulfillment.title') }}</h5>
+                            <span v-if="showFulfillmentChoice" class="text-[11px] font-semibold text-slate-400">
+                                {{ t('public_store.fulfillment.subtitle') }}
+                            </span>
+                        </div>
+                        <div v-if="showFulfillmentChoice" class="space-y-2">
+                            <button
+                                v-if="deliveryEnabled"
+                                type="button"
+                                class="flex w-full items-center justify-between rounded-sm border px-3 py-2 text-left text-sm transition"
+                                :class="fulfillmentMethod === 'delivery' ? 'border-emerald-400 bg-emerald-50 text-emerald-700' : 'border-slate-200 text-slate-600 hover:border-slate-300'"
+                                @click="setFulfillmentMethod('delivery')"
+                            >
+                                <span class="flex items-center gap-2">
+                                    <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                        <rect x="1" y="3" width="15" height="13" rx="2"></rect>
+                                        <path d="M16 8h4l3 4v4h-7"></path>
+                                        <circle cx="5.5" cy="18.5" r="1.5"></circle>
+                                        <circle cx="18.5" cy="18.5" r="1.5"></circle>
+                                    </svg>
+                                    {{ t('public_store.fulfillment.delivery') }}
+                                </span>
+                                <span class="text-xs font-semibold">{{ formatCurrency(deliveryFeeAmount) }}</span>
+                            </button>
+                            <button
+                                v-if="pickupEnabled"
+                                type="button"
+                                class="flex w-full items-center justify-between rounded-sm border px-3 py-2 text-left text-sm transition"
+                                :class="fulfillmentMethod === 'pickup' ? 'border-emerald-400 bg-emerald-50 text-emerald-700' : 'border-slate-200 text-slate-600 hover:border-slate-300'"
+                                @click="setFulfillmentMethod('pickup')"
+                            >
+                                <span class="flex items-center gap-2">
+                                    <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M3 7h13v10H3z"></path>
+                                        <path d="M16 10h4l2 3v4h-6"></path>
+                                        <circle cx="7.5" cy="19" r="1.5"></circle>
+                                        <circle cx="18.5" cy="19" r="1.5"></circle>
+                                    </svg>
+                                    {{ t('public_store.fulfillment.pickup') }}
+                                </span>
+                                <span class="text-xs font-semibold">
+                                    {{ prepTime ? t('public_store.fulfillment.ready_in', { minutes: prepTime }) : t('public_store.fulfillment.ready') }}
+                                </span>
+                            </button>
+                        </div>
+                        <div v-else class="flex items-center justify-between rounded-sm border border-slate-200 px-3 py-2 text-sm text-slate-600">
+                            <span class="flex items-center gap-2">
+                                <svg v-if="fulfillmentMethod === 'delivery'" class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                    <rect x="1" y="3" width="15" height="13" rx="2"></rect>
+                                    <path d="M16 8h4l3 4v4h-7"></path>
+                                    <circle cx="5.5" cy="18.5" r="1.5"></circle>
+                                    <circle cx="18.5" cy="18.5" r="1.5"></circle>
+                                </svg>
+                                <svg v-else class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M3 7h13v10H3z"></path>
+                                    <path d="M16 10h4l2 3v4h-6"></path>
+                                    <circle cx="7.5" cy="19" r="1.5"></circle>
+                                    <circle cx="18.5" cy="19" r="1.5"></circle>
+                                </svg>
+                                {{ fulfillmentMethod === 'delivery' ? t('public_store.fulfillment.delivery') : t('public_store.fulfillment.pickup') }}
+                            </span>
+                            <span class="text-xs font-semibold">
+                                {{ fulfillmentMethod === 'delivery'
+                                    ? formatCurrency(deliveryFeeAmount)
+                                    : (prepTime ? t('public_store.fulfillment.ready_in', { minutes: prepTime }) : t('public_store.fulfillment.ready')) }}
+                            </span>
+                        </div>
+                        <div v-if="fulfillmentMethod === 'delivery'" class="space-y-3">
+                            <FloatingInput
+                                v-model="checkoutForm.delivery_address"
+                                :label="t('public_store.fulfillment.delivery_address')"
+                            />
+                            <span v-if="checkoutErrors.delivery_address" class="text-xs text-rose-500">{{ checkoutErrors.delivery_address }}</span>
+                            <FloatingTextarea
+                                v-model="checkoutForm.delivery_notes"
+                                :label="t('public_store.fulfillment.delivery_notes')"
+                            />
+                            <div v-if="deliveryZone" class="text-xs text-slate-500">
+                                {{ t('public_store.fulfillment.delivery_zone', { zone: deliveryZone }) }}
+                            </div>
+                            <FloatingInput
+                                v-model="checkoutForm.scheduled_for"
+                                type="datetime-local"
+                                :label="t('public_store.fulfillment.scheduled_for')"
+                            />
+                        </div>
+                        <div v-else-if="fulfillmentMethod === 'pickup'" class="space-y-3">
+                            <div v-if="pickupAddress" class="text-xs text-slate-500">
+                                {{ t('public_store.fulfillment.pickup_address', { address: pickupAddress }) }}
+                            </div>
+                            <FloatingTextarea
+                                v-model="checkoutForm.pickup_notes"
+                                :label="t('public_store.fulfillment.pickup_notes')"
+                            />
+                            <FloatingInput
+                                v-model="checkoutForm.scheduled_for"
+                                type="datetime-local"
+                                :label="t('public_store.fulfillment.pickup_time')"
+                            />
+                        </div>
+                    </div>
+
+                    <div class="grid gap-3 sm:grid-cols-2">
+                        <div class="space-y-1">
+                            <FloatingInput v-model="checkoutForm.name" type="text" :label="t('public_store.cart.name')" />
+                            <span v-if="checkoutErrors.name" class="text-xs text-rose-500">{{ checkoutErrors.name }}</span>
+                        </div>
+                        <div class="space-y-1">
+                            <FloatingInput v-model="checkoutForm.email" type="email" :label="t('public_store.cart.email')" />
+                            <span v-if="checkoutErrors.email" class="text-xs text-rose-500">{{ checkoutErrors.email }}</span>
+                        </div>
+                        <div class="space-y-1 sm:col-span-2">
+                            <FloatingInput v-model="checkoutForm.phone" type="text" :label="t('public_store.cart.phone')" />
+                            <span v-if="checkoutErrors.phone" class="text-xs text-rose-500">{{ checkoutErrors.phone }}</span>
+                        </div>
+                    </div>
+
+                    <div class="space-y-3 rounded-sm border border-slate-200 bg-white p-4">
+                        <h5 class="text-sm font-semibold text-slate-900">{{ t('public_store.notes.title') }}</h5>
+                        <FloatingTextarea
+                            v-model="checkoutForm.customer_notes"
+                            :label="t('public_store.notes.customer_notes')"
+                        />
+                        <label class="flex items-center gap-2 text-xs font-semibold text-slate-600">
+                            <input v-model="checkoutForm.substitution_allowed" type="checkbox" class="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500">
+                            {{ t('public_store.notes.substitution_allowed') }}
+                        </label>
+                        <FloatingTextarea
+                            v-model="checkoutForm.substitution_notes"
+                            :label="t('public_store.notes.substitution_notes')"
+                        />
+                    </div>
+                    <button
+                        type="button"
+                        class="rounded-sm bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-emerald-300"
+                        :disabled="checkoutProcessing || isInternalUser"
+                        @click="submitCheckout"
+                    >
+                        {{ t('public_store.cart.submit') }}
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <Modal :show="showProductDetails" @close="closeProductDetails" maxWidth="xl">
+        <div v-if="selectedProduct" class="space-y-4 p-4">
+            <div class="flex items-start justify-between gap-4">
+                <div>
+                    <span class="text-xs font-semibold uppercase tracking-wide text-slate-400">{{ t('public_store.product.details') }}</span>
+                    <div class="text-xl font-semibold text-slate-900">{{ selectedProduct.name }}</div>
+                    <div class="text-xs text-slate-400">{{ selectedProduct.sku || t('public_store.cart.sku_fallback') }}</div>
+                </div>
+                <button
+                    type="button"
+                    class="rounded-sm border border-slate-200 px-2 py-1 text-xs font-semibold text-slate-600"
+                    @click="closeProductDetails"
+                    aria-label="Close dialog"
+                >
+                    x
+                </button>
+            </div>
+            <div class="grid gap-4 md:grid-cols-2">
+                <div class="space-y-3">
+                    <div class="relative overflow-hidden rounded-sm border border-slate-200 bg-slate-100">
+                        <img
+                            v-if="activeImageSrc"
+                            :src="activeImageSrc"
+                            :alt="selectedProduct.name"
+                            class="h-56 w-full object-cover"
+                            loading="lazy"
+                            decoding="async"
+                        >
+                        <div v-else class="flex h-56 w-full items-center justify-center text-3xl font-semibold text-slate-300">
+                            {{ selectedProduct.name.charAt(0) }}
+                        </div>
+                        <div v-if="badgeList(selectedProduct).length" class="absolute left-3 top-3 flex flex-wrap gap-2">
+                            <Badge
+                                v-for="badge in badgeList(selectedProduct)"
+                                :key="badge.label"
+                                :label="badge.label"
+                                :tone="badge.tone"
+                            />
+                        </div>
+                    </div>
+                    <div v-if="productImages.length > 1" class="flex gap-2 overflow-x-auto">
+                        <button
+                            v-for="(image, index) in productImages"
+                            :key="`${image}-${index}`"
+                            type="button"
+                            class="h-12 w-12 overflow-hidden rounded-sm border border-slate-200"
+                            :class="{ 'ring-2 ring-emerald-400': image === activeImageSrc }"
+                            @click="setActiveImage(image)"
+                        >
+                            <img :src="image" :alt="selectedProduct.name" class="h-full w-full object-cover" loading="lazy" decoding="async">
+                        </button>
+                    </div>
+                </div>
+                <div class="space-y-4">
+                    <Price :current="priceMeta(selectedProduct).current" :original="priceMeta(selectedProduct).original" size="lg" />
+                    <div class="grid gap-3 rounded-sm border border-slate-200 bg-white p-4 text-sm text-slate-600">
+                        <div class="flex items-center justify-between">
+                            <span>{{ t('public_store.product.category') }}</span>
+                            <span class="font-semibold text-slate-800">{{ categoryLabel(selectedProduct) }}</span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span>{{ t('public_store.reviews.label') }}</span>
+                            <span class="font-semibold text-slate-800">{{ selectedProduct.rating_count ? `${Number(selectedProduct.rating_avg || 0).toFixed(1)} / 5 (${selectedProduct.rating_count})` : t('public_store.reviews.empty') }}</span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span>{{ t('public_store.product.stock') }}</span>
+                            <span class="font-semibold text-slate-800">{{ stockLabel(selectedProduct) }}</span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span>{{ t('public_store.product.sku') }}</span>
+                            <span class="font-semibold text-slate-800">{{ selectedProduct.sku || t('public_store.cart.sku_fallback') }}</span>
+                        </div>
+                    </div>
+                    <p class="text-sm text-slate-600">
+                        {{ selectedProduct.description || t('public_store.empty_description') }}
+                    </p>
+                    <div class="space-y-3 rounded-sm border border-slate-200 bg-white p-4">
+                        <div class="flex items-center justify-between gap-3">
+                            <h4 class="text-sm font-semibold text-slate-900">{{ t('public_store.reviews.title') }}</h4>
+                            <span class="text-xs font-semibold text-slate-500">
+                                {{ selectedProduct.rating_count ? `${Number(selectedProduct.rating_avg || 0).toFixed(1)} / 5 (${selectedProduct.rating_count})` : t('public_store.reviews.empty') }}
+                            </span>
+                        </div>
+                        <p v-if="reviewsLoading" class="text-xs text-slate-400">
+                            {{ t('public_store.reviews.loading') }}
+                        </p>
+                        <p v-else-if="reviewsError" class="text-xs text-rose-500">
+                            {{ reviewsError }}
+                        </p>
+                        <div v-else-if="productReviews.length" class="space-y-3">
+                            <div
+                                v-for="review in productReviews"
+                                :key="review.id"
+                                class="rounded-sm border border-slate-200 bg-slate-50 px-3 py-2"
+                            >
+                                <div class="flex items-center justify-between gap-2 text-xs text-slate-500">
+                                    <span class="font-semibold text-slate-700">
+                                        {{ review.author || t('public_store.reviews.anonymous') }}
+                                    </span>
+                                    <span class="font-semibold text-slate-700">{{ review.rating }} / 5</span>
+                                </div>
+                                <div v-if="review.title" class="mt-1 text-sm font-semibold text-slate-800">
+                                    {{ review.title }}
+                                </div>
+                                <p v-if="review.comment" class="mt-1 text-xs text-slate-600">
+                                    {{ review.comment }}
+                                </p>
+                                <div v-if="review.created_at" class="mt-1 text-[11px] text-slate-400">
+                                    {{ formatReviewDate(review.created_at) }}
+                                </div>
+                            </div>
+                        </div>
+                        <p v-else class="text-xs text-slate-500">
+                            {{ t('public_store.reviews.empty') }}
+                        </p>
+                    </div>
+                    <div class="flex flex-wrap gap-3">
+                        <button
+                            v-if="cartQuantity(selectedProduct.id) === 0"
+                            type="button"
+                            class="rounded-sm bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
+                            :disabled="selectedProduct.stock <= 0"
+                            @click="addToCart(selectedProduct)"
+                        >
+                            {{ t('public_store.actions.add_to_cart') }}
+                        </button>
+                        <div v-else class="flex items-center gap-2 rounded-sm border border-slate-200 px-3 py-2">
+                            <button type="button" class="text-sm" @click="decrement(selectedProduct)">-</button>
+                            <span class="text-sm font-semibold">{{ cartQuantity(selectedProduct.id) }}</span>
+                            <button type="button" class="text-sm" @click="increment(selectedProduct)">+</button>
+                        </div>
+                        <button
+                            v-if="cartItemCount"
+                            type="button"
+                            class="rounded-sm border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700"
+                            @click="openCart"
+                        >
+                            {{ t('public_store.cart.title') }}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </Modal>
 </template>
-
-<style scoped>
-.store-page {
-    font-family: 'DM Sans', sans-serif;
-}
-
-.store-heading {
-    font-family: 'Space Grotesk', sans-serif;
-}
-
-.store-accent-text {
-    color: var(--store-accent);
-}
-
-.store-button {
-    border-radius: 999px;
-    padding: 0.55rem 1.25rem;
-    font-weight: 600;
-    font-size: 0.875rem;
-    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease, background-color 0.2s ease, color 0.2s ease;
-}
-
-.store-button--primary {
-    background-color: var(--store-accent);
-    color: var(--store-accent-contrast);
-    box-shadow: 0 18px 35px -25px rgba(15, 23, 42, 0.45);
-    border: 1px solid transparent;
-}
-
-.store-button--secondary {
-    background-color: #ffffff;
-    border: 1px solid #e2e8f0;
-    color: #334155;
-}
-
-.store-button--primary:hover,
-.store-button--secondary:hover {
-    transform: translateY(-2px);
-}
-
-.hero-blob {
-    position: absolute;
-    width: 320px;
-    height: 320px;
-    border-radius: 999px;
-    opacity: 0.4;
-    animation: float 12s ease-in-out infinite;
-}
-
-.hero-blob--left {
-    top: -120px;
-    left: -80px;
-    background-color: var(--store-accent-soft);
-}
-
-.hero-blob--right {
-    bottom: -120px;
-    right: -80px;
-    background-color: var(--store-accent-soft-alt);
-    animation-delay: 2s;
-}
-
-.hero-card {
-    animation: fadeUp 0.8s ease both 0.15s;
-}
-
-.fade-in-up {
-    animation: fadeUp 0.7s ease both;
-}
-
-.product-card {
-    border-radius: 24px;
-    border: 1px solid rgba(226, 232, 240, 1);
-    background: white;
-    padding: 16px;
-    box-shadow: 0 20px 40px -30px rgba(15, 23, 42, 0.35);
-    transition: transform 0.3s ease, box-shadow 0.3s ease;
-    animation: fadeUp 0.7s ease both;
-}
-
-.product-card:hover {
-    transform: translateY(-6px);
-    box-shadow: 0 30px 60px -30px rgba(15, 23, 42, 0.45);
-}
-
-@keyframes fadeUp {
-    from {
-        opacity: 0;
-        transform: translateY(18px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-@keyframes float {
-    0%,
-    100% {
-        transform: translateY(0px);
-    }
-    50% {
-        transform: translateY(18px);
-    }
-}
-</style>

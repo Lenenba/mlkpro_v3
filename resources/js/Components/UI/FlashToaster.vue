@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onBeforeUnmount, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { usePage } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
 
@@ -203,8 +203,22 @@ watch(
 );
 
 onBeforeUnmount(() => {
+    if (typeof window !== 'undefined') {
+        window.removeEventListener('mlk-toast', handleExternalToast);
+    }
     timeouts.forEach((timeoutId) => clearTimeout(timeoutId));
     timeouts.clear();
+});
+
+const handleExternalToast = (event) => {
+    const payload = event?.detail || {};
+    pushToast(payload.type || 'success', payload.message || '');
+};
+
+onMounted(() => {
+    if (typeof window !== 'undefined') {
+        window.addEventListener('mlk-toast', handleExternalToast);
+    }
 });
 </script>
 

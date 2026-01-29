@@ -4,8 +4,10 @@ namespace App\Http\Controllers\Portal;
 
 use App\Http\Controllers\Controller;
 use App\Models\Customer;
+use App\Models\OrderReview;
 use App\Models\Product;
 use App\Models\ProductCategory;
+use App\Models\ProductReview;
 use App\Models\Sale;
 use App\Models\TeamMember;
 use App\Models\User;
@@ -441,6 +443,8 @@ class PortalProductOrderController extends Controller
             ])->filter()->implode(', ')
             : null;
 
+        $reviewsPayload = $this->buildReviewPayload($customer, $sale);
+
         return response()->json([
             'company' => [
                 'id' => $owner->id,
@@ -456,6 +460,8 @@ class PortalProductOrderController extends Controller
             ],
             'fulfillment' => $fulfillment,
             'order' => $this->formatOrderDetail($sale),
+            'order_review' => $reviewsPayload['order_review'],
+            'product_reviews' => $reviewsPayload['product_reviews'],
             'timeline' => $timeline,
             'stripe' => [
                 'enabled' => app(StripeSaleService::class)->isConfigured(),
@@ -478,6 +484,8 @@ class PortalProductOrderController extends Controller
         ]);
         $sale->loadSum(['payments as payments_sum_amount' => fn($query) => $query->where('status', 'completed')], 'amount');
 
+        $reviewsPayload = $this->buildReviewPayload($customer, $sale);
+
         return $this->inertiaOrJson('Portal/Products/OrderShow', [
             'company' => [
                 'id' => $owner->id,
@@ -492,6 +500,8 @@ class PortalProductOrderController extends Controller
             ],
             'fulfillment' => $fulfillment,
             'order' => $this->formatOrderDetail($sale),
+            'orderReview' => $reviewsPayload['order_review'],
+            'productReviews' => $reviewsPayload['product_reviews'],
             'payments' => $sale->payments?->map(fn($payment) => [
                 'id' => $payment->id,
                 'amount' => (float) $payment->amount,
@@ -1291,6 +1301,59 @@ class PortalProductOrderController extends Controller
                     ] : null,
                 ];
             })->values(),
+        ];
+    }
+
+    private function buildReviewPayload(Customer $customer, Sale $sale): array
+    {
+        $productIds = $sale->relationLoaded('items')
+            ? $sale->items->pluck('product_id')->filter()->unique()->values()
+            : $sale->items()->pluck('product_id')->filter()->unique();
+
+        $orderReview = OrderReview::query()
+            ->where('sale_id', $sale->id)
+            ->where('customer_id', $customer->id)
+            ->first();
+
+        $productReviews = $productIds->isNotEmpty()
+            ? ProductReview::query()
+                ->where('customer_id', $customer->id)
+                ->whereIn('product_id', $productIds)
+                ->get()
+                ->mapWithKeys(fn(ProductReview $review) => [
+                    $review->product_id => $this->formatProductReview($review),
+                ])
+            : collect();
+
+        return [
+            'order_review' => $orderReview ? $this->formatOrderReview($orderReview) : null,
+            'product_reviews' => $productReviews->toArray(),
+        ];
+    }
+
+    private function formatOrderReview(OrderReview $review): array
+    {
+        return [
+            'id' => $review->id,
+            'rating' => $review->rating,
+            'comment' => $review->comment,
+            'is_approved' => $review->is_approved,
+            'blocked_reason' => $review->blocked_reason,
+            'created_at' => $review->created_at?->toIso8601String(),
+        ];
+    }
+
+    private function formatProductReview(ProductReview $review): array
+    {
+        return [
+            'id' => $review->id,
+            'product_id' => $review->product_id,
+            'rating' => $review->rating,
+            'title' => $review->title,
+            'comment' => $review->comment,
+            'is_approved' => $review->is_approved,
+            'blocked_reason' => $review->blocked_reason,
+            'created_at' => $review->created_at?->toIso8601String(),
         ];
     }
 }

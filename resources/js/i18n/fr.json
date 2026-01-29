@@ -2013,7 +2013,8 @@
       "payment": "Paiement",
       "fulfillment": "Livraison / retrait",
       "customer": "Client",
-      "payments": "Historique des paiements"
+      "payments": "Historique des paiements",
+      "reviews": "Avis"
     },
     "table": {
       "product": "Produit",
@@ -2031,6 +2032,21 @@
       "requested_time": "Horaire souhaite: {date}",
       "delivery_address": "Adresse",
       "notes": "Notes"
+    },
+    "reviews": {
+      "unavailable": "Les avis sont disponibles apres paiement.",
+      "order_title": "Avis sur la commande",
+      "order_subtitle": "Notez la livraison et le service.",
+      "product_title": "Avis sur le produit",
+      "rating_label": "Note",
+      "title_label": "Titre",
+      "comment_label": "Commentaire",
+      "submit_order": "Envoyer l avis commande",
+      "submit_product": "Envoyer l avis produit",
+      "status": {
+        "approved": "Publie",
+        "blocked": "Bloque"
+      }
     },
     "empty": {
       "payments": "Aucun paiement enregistre."
@@ -5012,7 +5028,8 @@
     "filters": {
       "all": "Toutes les categories",
       "category": "Categorie",
-      "search": "Recherche"
+      "search": "Recherche",
+      "sort": "Tri"
     },
     "stock": {
       "in": "En stock",
@@ -5030,6 +5047,21 @@
       "add_to_cart": "Ajouter au panier",
       "checkout": "Passer commande"
     },
+    "product": {
+      "details": "Details du produit",
+      "category": "Categorie",
+      "stock": "Stock",
+      "sku": "SKU",
+      "category_fallback": "Sans categorie"
+    },
+      "reviews": {
+        "label": "Avis",
+        "empty": "Aucun avis",
+        "title": "Avis clients",
+        "loading": "Chargement des avis...",
+        "load_error": "Impossible de charger les avis.",
+        "anonymous": "Client"
+      },
     "hero": {
       "eyebrow": "Vitrine publique",
       "headline": "Une boutique plus rapide pour {company}.",
@@ -5046,12 +5078,23 @@
       "catalog": "Catalogue complet",
       "categories": "Acheter par categorie"
     },
+    "catalog": {
+      "results": "{count} resultats"
+    },
     "badges": {
       "best_seller": "Best-seller",
       "promo": "Promo",
       "new": "Nouveau",
       "low_stock": "Stock limite",
       "hot": "Populaire"
+    },
+    "sort": {
+      "featured": "Mis en avant",
+      "newest": "Nouveautes",
+      "price_asc": "Prix croissant",
+      "price_desc": "Prix decroissant",
+      "name_asc": "Nom A-Z",
+      "stock_desc": "Stock disponible"
     },
     "hints": {
       "login_to_order": "La validation cree un compte client pour suivre vos commandes."
@@ -5060,26 +5103,48 @@
     "empty_collection": "Aucune selection pour le moment.",
     "cart_error": "Impossible de mettre a jour le panier.",
     "checkout_error": "Impossible de passer la commande.",
-    "cart": {
-      "title": "Votre panier",
-      "item_count": "{count} articles",
-      "summary": "Recapitulatif",
-      "subtotal": "Sous-total",
-      "taxes": "Taxes",
-      "delivery_fee": "Frais de livraison",
-      "total": "Total",
-      "clear": "Vider le panier",
-      "checkout": "Validation",
-      "checkout_hint": "Completez vos informations pour passer commande.",
-      "name": "Nom complet",
-      "email": "Email",
-      "phone": "Telephone",
-      "delivery_address": "Adresse de livraison",
-      "submit": "Valider la commande",
-      "empty": "Votre panier est vide.",
-      "remove": "Retirer",
-      "sku_fallback": "SKU en attente",
-      "internal_notice": "Vous etes connecte en tant qu utilisateur interne. Utilisez un compte client pour commander."
-    }
+      "cart": {
+        "title": "Votre panier",
+        "item_count": "{count} articles",
+        "summary": "Recapitulatif",
+        "subtotal": "Sous-total",
+        "taxes": "Taxes",
+        "delivery_fee": "Frais de livraison",
+        "total": "Total",
+        "clear": "Vider le panier",
+        "checkout": "Validation",
+        "checkout_hint": "Completez vos informations pour passer commande.",
+        "name": "Nom complet",
+        "email": "Email",
+        "phone": "Telephone",
+        "delivery_address": "Adresse de livraison",
+        "submit": "Valider la commande",
+        "empty": "Votre panier est vide.",
+        "remove": "Retirer",
+        "sku_fallback": "SKU en attente",
+        "added": "Ajoute au panier.",
+        "internal_notice": "Vous etes connecte en tant qu utilisateur interne. Utilisez un compte client pour commander."
+      },
+      "fulfillment": {
+        "title": "Livraison ou retrait",
+        "subtitle": "Choisissez une option",
+        "delivery": "Livraison",
+        "pickup": "Retrait rapide",
+        "ready": "Pret bientot",
+        "ready_in": "Pret en {minutes} min",
+        "delivery_address": "Adresse de livraison",
+        "delivery_notes": "Instructions (optionnel)",
+        "delivery_zone": "Zone : {zone}",
+        "scheduled_for": "Horaire souhaite (optionnel)",
+        "pickup_address": "Retrait : {address}",
+        "pickup_notes": "Notes de retrait (optionnel)",
+        "pickup_time": "Horaire de retrait (optionnel)"
+      },
+      "notes": {
+        "title": "Notes & substitutions",
+        "customer_notes": "Notes pour l epicerie",
+        "substitution_allowed": "Autoriser les substitutions",
+        "substitution_notes": "Preferences de substitution"
+      }
   }
 }
