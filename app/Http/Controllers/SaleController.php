@@ -828,8 +828,7 @@ class SaleController extends Controller
             $sale->items()->create($payload);
         }
 
-        $wasPending = $previousStatus === Sale::STATUS_PENDING
-            && !$this->isFulfillmentComplete($previousFulfillment);
+        $wasPending = $previousStatus === Sale::STATUS_PENDING;
         $isPending = $sale->status === Sale::STATUS_PENDING
             && !$this->isFulfillmentComplete($sale->fulfillment_status);
 
@@ -1071,8 +1070,7 @@ class SaleController extends Controller
             'quantity' => (int) $item->quantity,
         ])->values()->all();
 
-        $wasPending = $previousStatus === Sale::STATUS_PENDING
-            && !$this->isFulfillmentComplete($previousFulfillment);
+        $wasPending = $previousStatus === Sale::STATUS_PENDING;
         $isPending = $sale->status === Sale::STATUS_PENDING
             && !$this->isFulfillmentComplete($sale->fulfillment_status);
 

@@ -11,6 +11,7 @@ import InputError from '@/Components/InputError.vue';
 import DropzoneInput from '@/Components/DropzoneInput.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
 import DatePicker from '@/Components/DatePicker.vue';
+import RichTextEditor from '@/Components/RichTextEditor.vue';
 
 const props = defineProps({
     company: {
@@ -245,6 +246,8 @@ const form = useForm({
     store_hero_images_text: Array.isArray(props.company.store_settings?.hero_images)
         ? props.company.store_settings.hero_images.filter(Boolean).join('\n')
         : '',
+    store_hero_copy_fr: props.company.store_settings?.hero_copy?.fr ?? '',
+    store_hero_copy_en: props.company.store_settings?.hero_copy?.en ?? '',
     notification_task_day_email: props.company.company_notification_settings?.task_day?.email ?? true,
     notification_task_day_sms: props.company.company_notification_settings?.task_day?.sms ?? false,
     notification_task_day_whatsapp: props.company.company_notification_settings?.task_day?.whatsapp ?? false,
@@ -641,6 +644,10 @@ const submit = () => {
                     .split('\n')
                     .map((value) => normalizeText(value))
                     .filter((value) => Boolean(value)),
+                hero_copy: {
+                    fr: normalizeText(data.store_hero_copy_fr),
+                    en: normalizeText(data.store_hero_copy_en),
+                },
             };
 
             payload.company_notification_settings = {
@@ -662,6 +669,8 @@ const submit = () => {
             delete payload.store_header_color;
             delete payload.store_featured_product_id;
             delete payload.store_hero_images_text;
+            delete payload.store_hero_copy_fr;
+            delete payload.store_hero_copy_en;
             delete payload.notification_task_day_email;
             delete payload.notification_task_day_sms;
             delete payload.notification_task_day_whatsapp;
@@ -874,6 +883,26 @@ watch(activeTab, (value) => {
                                 class="mt-1"
                                 :message="form.errors['company_store_settings.hero_images'] || form.errors['company_store_settings.hero_images.0']"
                             />
+                        </div>
+                        <div class="mt-4 space-y-3">
+                            <div>
+                                <RichTextEditor
+                                    v-model="form.store_hero_copy_fr"
+                                    :label="$t('settings.company.store.hero_copy_fr')"
+                                    :placeholder="$t('settings.company.store.hero_copy_placeholder')"
+                                    :labels="$t('settings.company.store.editor_labels', {}, { returnObjects: true })"
+                                />
+                                <InputError class="mt-1" :message="form.errors['company_store_settings.hero_copy.fr']" />
+                            </div>
+                            <div>
+                                <RichTextEditor
+                                    v-model="form.store_hero_copy_en"
+                                    :label="$t('settings.company.store.hero_copy_en')"
+                                    :placeholder="$t('settings.company.store.hero_copy_placeholder')"
+                                    :labels="$t('settings.company.store.editor_labels', {}, { returnObjects: true })"
+                                />
+                                <InputError class="mt-1" :message="form.errors['company_store_settings.hero_copy.en']" />
+                            </div>
                         </div>
                     </div>
 

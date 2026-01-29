@@ -13,7 +13,7 @@ import FloatingTextarea from '@/Components/FloatingTextarea.vue';
 import FlashToaster from '@/Components/UI/FlashToaster.vue';
 import Price from '@/Components/Store/Price.vue';
 import ProductCard from '@/Components/Store/ProductCard.vue';
-import ProductSection from '@/Components/Store/ProductSection.vue';
+import ProductCarouselSection from '@/Components/Store/ProductCarouselSection.vue';
 import SectionHeader from '@/Components/Store/SectionHeader.vue';
 
 const props = defineProps({
@@ -70,6 +70,8 @@ const reviewsLoading = ref(false);
 const reviewsError = ref('');
 const reviewsCache = ref({});
 const pageLoading = ref(true);
+const headerRef = ref(null);
+const navOffset = ref(88);
 const pageSize = ref(24);
 const currentPage = ref(1);
 const filtersRestored = ref(false);
@@ -102,6 +104,28 @@ const bestSellers = computed(() => props.best_sellers || []);
 const promotions = computed(() => props.promotions || []);
 const newArrivals = computed(() => props.new_arrivals || []);
 const categories = computed(() => props.categories || []);
+const categoryImageMap = computed(() => {
+    const map = new Map();
+    (props.products || []).forEach((product) => {
+        if (!product?.category_id || !product?.image_url) {
+            return;
+        }
+        const key = String(product.category_id);
+        if (!map.has(key)) {
+            map.set(key, product.image_url);
+        }
+    });
+    return map;
+});
+const categorySlides = computed(() => categories.value.map((category) => {
+    const name = String(category?.name || '').trim();
+    return {
+        id: category?.id,
+        name,
+        initial: name ? name.charAt(0).toUpperCase() : '#',
+        image: categoryImageMap.value.get(String(category?.id)) || '',
+    };
+}));
 
 const productImages = computed(() => {
     if (!selectedProduct.value) {
@@ -132,6 +156,14 @@ const heroStats = computed(() => ([
     t('public_store.hero.stat_categories', { count: categoryCount.value }),
     t('public_store.hero.stat_new_arrivals', { count: newArrivalCount.value }),
 ]));
+
+const heroCopyHtml = computed(() => {
+    const raw = company.value?.store_settings?.hero_copy?.[locale.value];
+    if (!raw || !String(raw).trim()) {
+        return '';
+    }
+    return String(raw).replace(/\{company\}/g, companyName.value);
+});
 
 const bestSellerIds = computed(() => new Set(bestSellers.value.map((item) => item?.id).filter(Boolean)));
 const newArrivalIds = computed(() => new Set(newArrivals.value.map((item) => item?.id).filter(Boolean)));
@@ -513,14 +545,53 @@ const heroBackgrounds = computed(() => {
     }
     return images.map((image) => String(image || '').trim()).filter(Boolean);
 });
-
-const heroBackgroundStyle = computed(() => {
-    if (!heroBackgrounds.value.length) {
-        return {};
+const heroSlides = computed(() => {
+    if (heroBackgrounds.value.length) {
+        return heroBackgrounds.value;
     }
-    const image = heroBackgrounds.value[heroBackgroundIndex.value] || heroBackgrounds.value[0];
-    return { backgroundImage: `url(${image})` };
+    const fallback = heroProduct.value?.image_url;
+    return fallback ? [fallback] : [];
 });
+const heroCardImages = computed(() => {
+    const slides = heroSlides.value;
+    if (!slides.length) {
+        return [];
+    }
+    return [0, 1, 2]
+        .map((offset) => slides[(heroBackgroundIndex.value + offset) % slides.length])
+        .filter(Boolean);
+});
+
+const categoryTrackRef = ref(null);
+const relatedTrackRef = ref(null);
+
+const scrollCategoryBy = (direction) => {
+    const track = categoryTrackRef.value;
+    if (!track) {
+        return;
+    }
+    const amount = Math.max(220, track.clientWidth * 0.9);
+    track.scrollBy({ left: direction * amount, behavior: 'smooth' });
+};
+
+const scrollRelatedBy = (direction) => {
+    const track = relatedTrackRef.value;
+    if (!track) {
+        return;
+    }
+    const amount = Math.max(220, track.clientWidth * 0.9);
+    track.scrollBy({ left: direction * amount, behavior: 'smooth' });
+};
+
+const setHeroBackground = (index) => {
+    const total = heroSlides.value.length;
+    if (!total) {
+        return;
+    }
+    const next = Math.max(0, Math.min(total - 1, Number(index)));
+    heroBackgroundIndex.value = next;
+    startHeroCarousel();
+};
 
 const clearHeroCarousel = () => {
     if (heroBackgroundInterval.value && typeof window !== 'undefined') {
@@ -534,16 +605,16 @@ const startHeroCarousel = () => {
     if (typeof window === 'undefined') {
         return;
     }
-    if (heroBackgrounds.value.length <= 1) {
+    if (heroSlides.value.length <= 1) {
         return;
     }
     heroBackgroundInterval.value = window.setInterval(() => {
-        heroBackgroundIndex.value = (heroBackgroundIndex.value + 1) % heroBackgrounds.value.length;
+        heroBackgroundIndex.value = (heroBackgroundIndex.value + 1) % heroSlides.value.length;
     }, 6000);
 };
 
 watch(
-    heroBackgrounds,
+    heroSlides,
     () => {
         heroBackgroundIndex.value = 0;
         startHeroCarousel();
@@ -762,15 +833,24 @@ const decrement = (product) => {
     setQuantity(product, next);
 };
 
+const updateHeaderOffset = () => {
+    if (headerRef.value) {
+        navOffset.value = headerRef.value.offsetHeight || navOffset.value;
+    }
+};
+
 onMounted(() => {
     restoreFilters();
     window.setTimeout(() => {
         pageLoading.value = false;
     }, 350);
+    updateHeaderOffset();
+    window.addEventListener('resize', updateHeaderOffset);
 });
 
 onBeforeUnmount(() => {
     clearHeroCarousel();
+    window.removeEventListener('resize', updateHeaderOffset);
 });
 
 const incrementItem = (item) => {
@@ -859,6 +939,7 @@ const heroSecondaryAction = () => {
         <FlashToaster />
         <div class="fixed inset-x-0 top-0 z-50">
             <header
+                ref="headerRef"
                 :style="headerStyle"
                 :class="['border-b text-white', headerIsCustom ? 'border-white/10' : 'border-slate-800 bg-slate-900']"
             >
@@ -945,50 +1026,44 @@ const heroSecondaryAction = () => {
                 </div>
                 </div>
             </header>
-
-            <nav class="border-b border-slate-200 bg-white">
-                <div class="mx-auto flex w-full flex-col gap-2 px-4 py-2 sm:px-6 lg:flex-row lg:items-center lg:px-10">
-                <CategoryChips
-                    :categories="categories"
-                    :selected="selectedCategory"
-                    :all-label="t('public_store.filters.all')"
-                    @select="setCategoryAndScroll"
-                />
-                <div class="flex flex-wrap gap-2 text-[11px] font-semibold uppercase tracking-wide text-slate-400 lg:ml-auto">
-                    <button type="button" class="hover:text-slate-600" @click="scrollToSection('best-sellers')">
-                        {{ t('public_store.sections.best_sellers') }}
-                    </button>
-                    <button type="button" class="hover:text-slate-600" @click="scrollToSection('promotions')">
-                        {{ t('public_store.sections.promotions') }}
-                    </button>
-                    <button type="button" class="hover:text-slate-600" @click="scrollToSection('new-arrivals')">
-                        {{ t('public_store.sections.new_arrivals') }}
-                    </button>
-                    <button type="button" class="hover:text-slate-600" @click="scrollToCatalog">
-                        {{ t('public_store.sections.catalog') }}
-                    </button>
-                </div>
-                </div>
-            </nav>
         </div>
 
-        <main class="pt-[140px] sm:pt-[132px] lg:pt-[120px]">
-            <section class="relative overflow-hidden py-10 lg:py-14">
-                <Transition name="hero-fade" mode="out-in">
-                    <div
-                        v-if="heroBackgrounds.length"
-                        :key="heroBackgroundIndex"
-                        class="absolute inset-0 bg-cover bg-center"
-                        :style="heroBackgroundStyle"
-                    ></div>
-                </Transition>
-                <div
-                    v-if="heroBackgrounds.length"
-                    class="absolute inset-0 bg-gradient-to-r from-white/90 via-white/70 to-white/90"
-                ></div>
-                <div class="relative mx-auto grid w-full gap-8 px-4 sm:px-6 lg:grid-cols-[1.1fr_0.9fr] lg:px-10">
+        <div :style="{ paddingTop: `${navOffset}px` }">
+            <nav class="sticky z-40 border-b border-slate-200 bg-white" :style="{ top: `${navOffset}px` }">
+                <div class="mx-auto flex w-full flex-col gap-2 px-4 py-2 sm:px-6 lg:flex-row lg:items-center lg:px-10">
+                    <CategoryChips
+                        :categories="categories"
+                        :selected="selectedCategory"
+                        :all-label="t('public_store.filters.all')"
+                        @select="setCategoryAndScroll"
+                    />
+                    <div class="flex flex-wrap gap-2 text-[11px] font-semibold uppercase tracking-wide text-slate-400 lg:ml-auto">
+                        <button type="button" class="hover:text-slate-600" @click="scrollToSection('best-sellers')">
+                            {{ t('public_store.sections.best_sellers') }}
+                        </button>
+                        <button type="button" class="hover:text-slate-600" @click="scrollToSection('promotions')">
+                            {{ t('public_store.sections.promotions') }}
+                        </button>
+                        <button type="button" class="hover:text-slate-600" @click="scrollToSection('new-arrivals')">
+                            {{ t('public_store.sections.new_arrivals') }}
+                        </button>
+                        <button type="button" class="hover:text-slate-600" @click="scrollToCatalog">
+                            {{ t('public_store.sections.catalog') }}
+                        </button>
+                    </div>
+                </div>
+            </nav>
+
+            <main class="pt-6 sm:pt-8">
+            <section class="relative overflow-hidden py-10 lg:py-16">
+                <div class="pointer-events-none absolute inset-0">
+                    <div class="absolute -left-24 top-6 h-56 w-56 rounded-full bg-amber-100/70"></div>
+                    <div class="absolute right-0 bottom-0 h-44 w-44 rounded-full bg-emerald-100/60"></div>
+                </div>
+                <div class="relative mx-auto grid w-full gap-8 px-4 sm:px-6 lg:grid-cols-[1.05fr_0.95fr] lg:px-10">
                     <div class="space-y-6">
-                        <div class="space-y-3">
+                        <div v-if="heroCopyHtml" class="store-hero-copy space-y-2 text-slate-700" v-html="heroCopyHtml"></div>
+                        <div v-else class="space-y-3">
                             <span class="text-xs font-semibold uppercase tracking-wide text-slate-400">
                                 {{ t('public_store.hero.eyebrow') }}
                             </span>
@@ -1024,30 +1099,164 @@ const heroSecondaryAction = () => {
                                 {{ stat }}
                             </span>
                         </div>
+                        <div v-if="heroSlides.length > 1" class="flex items-center gap-2">
+                            <button
+                                v-for="(image, index) in heroSlides"
+                                :key="`hero-dot-${index}`"
+                                type="button"
+                                class="h-2 w-8 rounded-full border border-slate-200 transition"
+                                :class="index === heroBackgroundIndex ? 'bg-emerald-500' : 'bg-slate-200 hover:bg-slate-300'"
+                                @click="setHeroBackground(index)"
+                                aria-label="Change hero background"
+                            ></button>
+                        </div>
                     </div>
 
-                    <div v-if="heroProduct" class="space-y-4">
-                        <ProductCard
-                            :product="heroProduct"
-                            variant="featured"
-                            :loading="pageLoading"
-                            :badges="heroBadges"
-                            :stock-label="stockLabel(heroProduct)"
-                            :stock-tone="stockTone(heroProduct)"
-                            :description-fallback="t('public_store.empty_description')"
-                            :rating-empty-label="t('public_store.reviews.empty')"
-                            :cta-label="t('public_store.actions.add_to_cart')"
-                            :view-label="t('public_store.actions.view_product')"
-                            :show-view="true"
-                            @open="openProductDetails"
-                            @add="handleCardAdd"
-                            @view="openProductDetails"
-                        />
+                    <div class="relative h-[320px] sm:h-[400px] lg:h-[520px]">
+                        <div class="absolute inset-0 rounded-[32px] bg-gradient-to-br from-amber-300 via-amber-200 to-amber-400 shadow-xl"></div>
+                        <div class="absolute inset-0 rounded-[32px] ring-1 ring-amber-200/70"></div>
+                        <div class="absolute -left-8 top-8 h-20 w-20 rounded-full bg-white/70"></div>
+                        <div class="absolute -right-10 bottom-8 h-16 w-16 rounded-full bg-white/50"></div>
+
+                        <div class="absolute left-6 bottom-6 h-[72%] w-[62%] overflow-hidden rounded-[26px] border border-white/60 bg-white shadow-2xl">
+                            <Transition name="hero-fade" mode="out-in">
+                                <img
+                                    v-if="heroCardImages[0]"
+                                    :key="heroCardImages[0]"
+                                    :src="heroCardImages[0]"
+                                    :alt="companyName"
+                                    class="h-full w-full object-cover"
+                                    loading="lazy"
+                                    decoding="async"
+                                >
+                            </Transition>
+                        </div>
+
+                        <div
+                            v-if="heroCardImages[1]"
+                            class="absolute right-6 top-8 h-[48%] w-[30%] overflow-hidden rounded-[22px] border border-white/60 bg-white shadow-xl"
+                        >
+                            <Transition name="hero-fade" mode="out-in">
+                                <img
+                                    :key="heroCardImages[1]"
+                                    :src="heroCardImages[1]"
+                                    :alt="companyName"
+                                    class="h-full w-full object-cover"
+                                    loading="lazy"
+                                    decoding="async"
+                                >
+                            </Transition>
+                        </div>
+
+                        <div
+                            v-if="heroCardImages[2]"
+                            class="absolute right-4 bottom-6 h-[38%] w-[26%] overflow-hidden rounded-[20px] border border-white/60 bg-white shadow-lg"
+                        >
+                            <Transition name="hero-fade" mode="out-in">
+                                <img
+                                    :key="heroCardImages[2]"
+                                    :src="heroCardImages[2]"
+                                    :alt="companyName"
+                                    class="h-full w-full object-cover"
+                                    loading="lazy"
+                                    decoding="async"
+                                >
+                            </Transition>
+                        </div>
+
+                        <div
+                            v-if="heroProduct"
+                            class="absolute left-6 top-6 flex max-w-[70%] items-center gap-2 rounded-full bg-white/90 px-3 py-1 text-xs font-semibold text-slate-700 shadow"
+                        >
+                            <span class="rounded-full bg-slate-900 px-2 py-0.5 text-[10px] font-semibold text-white">
+                                {{ t('public_store.sections.spotlight') }}
+                            </span>
+                            <span class="truncate">{{ heroProduct.name }}</span>
+                        </div>
                     </div>
                 </div>
             </section>
 
-            <ProductSection
+            <section v-if="categorySlides.length" id="categories" class="py-8">
+                <div class="mx-auto w-full px-4 sm:px-6 lg:px-10">
+                    <div class="relative">
+                        <div class="mb-3 flex flex-wrap items-start justify-between gap-3">
+                            <div>
+                                <h2 class="text-lg font-semibold text-slate-900">
+                                    {{ t('public_store.sections.categories') }}
+                                </h2>
+                                <p class="text-sm text-slate-500">
+                                    {{ t('public_store.categories_hint') }}
+                                </p>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <button
+                                    type="button"
+                                    class="inline-flex size-8 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm hover:bg-slate-50"
+                                    @click="scrollCategoryBy(-1)"
+                                >
+                                    <span class="text-2xl" aria-hidden="true">
+                                        <svg class="size-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="m15 18-6-6 6-6" />
+                                        </svg>
+                                    </span>
+                                    <span class="sr-only">Previous</span>
+                                </button>
+                                <button
+                                    type="button"
+                                    class="inline-flex size-8 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm hover:bg-slate-50"
+                                    @click="scrollCategoryBy(1)"
+                                >
+                                    <span class="sr-only">Next</span>
+                                    <span class="text-2xl" aria-hidden="true">
+                                        <svg class="size-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="m9 18 6-6-6-6" />
+                                        </svg>
+                                    </span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div
+                            ref="categoryTrackRef"
+                            class="flex flex-nowrap gap-3 overflow-x-auto scroll-smooth snap-x snap-mandatory pb-2"
+                        >
+                                <div
+                                    v-for="category in categorySlides"
+                                    :key="`category-${category.id}`"
+                                    class="snap-start shrink-0 w-[70%] sm:w-[45%] md:w-[32%] lg:w-[24%] xl:w-[20%]"
+                                >
+                                    <button
+                                        type="button"
+                                        class="group flex w-full flex-col items-center rounded-xl border border-slate-200 bg-white p-2 text-left transition hover:border-slate-300 hover:shadow-sm"
+                                        @click="setCategoryAndScroll(category.id)"
+                                    >
+                                        <div class="relative h-32 w-full overflow-hidden rounded-lg bg-slate-100">
+                                            <img
+                                                v-if="category.image"
+                                                :src="category.image"
+                                                :alt="category.name"
+                                                class="absolute inset-0 h-full w-full object-cover"
+                                                loading="lazy"
+                                                decoding="async"
+                                            >
+                                            <div v-else class="flex h-full w-full items-center justify-center text-2xl font-semibold text-slate-400">
+                                                {{ category.initial }}
+                                            </div>
+                                        </div>
+                                        <div class="pt-2 text-center">
+                                            <span class="block text-sm font-semibold text-slate-700 group-hover:text-slate-900">
+                                                {{ category.name }}
+                                            </span>
+                                        </div>
+                                    </button>
+                                </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <ProductCarouselSection
                 section-id="best-sellers"
                 :title="t('public_store.sections.best_sellers')"
                 :subtitle="t('public_store.subtitle')"
@@ -1073,7 +1282,7 @@ const heroSecondaryAction = () => {
                 @decrement="decrement"
             />
 
-            <ProductSection
+            <ProductCarouselSection
                 section-id="promotions"
                 :title="t('public_store.sections.promotions')"
                 :subtitle="t('public_store.promotions_hint')"
@@ -1099,7 +1308,7 @@ const heroSecondaryAction = () => {
                 @decrement="decrement"
             />
 
-            <ProductSection
+            <ProductCarouselSection
                 section-id="new-arrivals"
                 :title="t('public_store.sections.new_arrivals')"
                 :subtitle="t('public_store.subtitle')"
@@ -1295,6 +1504,7 @@ const heroSecondaryAction = () => {
             </div>
         </footer>
 
+        </div>
     </div>
 
     <div v-if="cartVisible" class="fixed inset-0 z-[60] bg-slate-900/50" @click.self="closeCart">
@@ -1552,7 +1762,7 @@ const heroSecondaryAction = () => {
         </div>
     </div>
 
-    <Modal :show="showProductDetails" @close="closeProductDetails" maxWidth="xl">
+    <Modal :show="showProductDetails" @close="closeProductDetails" maxWidth="4xl">
         <div v-if="selectedProduct" class="space-y-4 p-4">
             <div class="flex items-start justify-between gap-4">
                 <div>
@@ -1668,30 +1878,6 @@ const heroSecondaryAction = () => {
                             {{ t('public_store.reviews.empty') }}
                         </p>
                     </div>
-                    <div v-if="relatedProducts.length" class="space-y-3">
-                        <h4 class="text-sm font-semibold text-slate-900">{{ t('public_store.related.title') }}</h4>
-                        <div class="grid gap-3 sm:grid-cols-2">
-                            <ProductCard
-                                v-for="product in relatedProducts"
-                                :key="`related-${product.id}`"
-                                :product="product"
-                                variant="compact"
-                                :badges="badgeList(product)"
-                                :stock-label="stockLabel(product)"
-                                :stock-tone="stockTone(product)"
-                                :description-fallback="t('public_store.empty_description')"
-                                :rating-empty-label="t('public_store.reviews.empty')"
-                                :view-label="t('public_store.actions.view_product')"
-                                :quantity="cartQuantity(product.id)"
-                                :show-quick-add="true"
-                                @open="openProductDetails"
-                                @view="openProductDetails"
-                                @add="handleCardAdd"
-                                @increment="increment"
-                                @decrement="decrement"
-                            />
-                        </div>
-                    </div>
                     <div class="flex flex-wrap gap-3">
                         <button
                             v-if="cartQuantity(selectedProduct.id) === 0"
@@ -1718,6 +1904,62 @@ const heroSecondaryAction = () => {
                     </div>
                 </div>
             </div>
+
+            <div v-if="relatedProducts.length" class="space-y-3">
+                <div class="flex items-center justify-between gap-3">
+                    <h4 class="text-sm font-semibold text-slate-900">{{ t('public_store.related.title') }}</h4>
+                    <div class="flex items-center gap-2">
+                        <button
+                            type="button"
+                            class="inline-flex size-7 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm hover:bg-slate-50"
+                            @click="scrollRelatedBy(-1)"
+                        >
+                            <span class="sr-only">Previous</span>
+                            <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="m15 18-6-6 6-6" />
+                            </svg>
+                        </button>
+                        <button
+                            type="button"
+                            class="inline-flex size-7 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm hover:bg-slate-50"
+                            @click="scrollRelatedBy(1)"
+                        >
+                            <span class="sr-only">Next</span>
+                            <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="m9 18 6-6-6-6" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                <div
+                    ref="relatedTrackRef"
+                    class="flex flex-nowrap gap-3 overflow-x-auto scroll-smooth snap-x snap-mandatory pb-2"
+                >
+                    <div
+                        v-for="product in relatedProducts"
+                        :key="`related-${product.id}`"
+                        class="snap-start shrink-0 w-[72%] sm:w-[42%] md:w-[32%] lg:w-[24%]"
+                    >
+                        <ProductCard
+                            :product="product"
+                            variant="compact"
+                            :badges="badgeList(product)"
+                            :stock-label="stockLabel(product)"
+                            :stock-tone="stockTone(product)"
+                            :description-fallback="t('public_store.empty_description')"
+                            :rating-empty-label="t('public_store.reviews.empty')"
+                            :view-label="t('public_store.actions.view_product')"
+                            :quantity="cartQuantity(product.id)"
+                            :show-quick-add="true"
+                            @open="openProductDetails"
+                            @view="openProductDetails"
+                            @add="handleCardAdd"
+                            @increment="increment"
+                            @decrement="decrement"
+                        />
+                    </div>
+                </div>
+            </div>
         </div>
     </Modal>
 </template>
@@ -1730,5 +1972,36 @@ const heroSecondaryAction = () => {
 .hero-fade-enter-from,
 .hero-fade-leave-to {
     opacity: 0;
+}
+
+.store-hero-copy :deep(p) {
+    color: #475569;
+    font-size: 1rem;
+    line-height: 1.5;
+}
+
+.store-hero-copy :deep(h1),
+.store-hero-copy :deep(h2) {
+    color: #0f172a;
+    font-weight: 600;
+    font-size: 2rem;
+    line-height: 1.2;
+}
+
+.store-hero-copy :deep(h3) {
+    color: #334155;
+    font-weight: 600;
+    font-size: 1.25rem;
+    line-height: 1.3;
+}
+
+.store-hero-copy :deep(ul),
+.store-hero-copy :deep(ol) {
+    padding-left: 1.25rem;
+    color: #475569;
+}
+
+.store-hero-copy :deep(strong) {
+    color: #0f172a;
 }
 </style>

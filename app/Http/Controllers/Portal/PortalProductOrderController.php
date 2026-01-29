@@ -285,7 +285,7 @@ class PortalProductOrderController extends Controller
             ->with('teamMembership')
             ->get(['id', 'role_id', 'notification_settings']);
 
-        $actionUrl = route('sales.edit', $sale);
+        $actionUrl = route('sales.show', $sale);
         $preferences = app(NotificationPreferenceService::class);
         foreach ($users as $user) {
             if (!$preferences->shouldNotify(

@@ -389,7 +389,7 @@ class PublicStoreController extends Controller
             ->with('teamMembership')
             ->get(['id', 'role_id', 'notification_settings']);
 
-        $actionUrl = route('sales.edit', $sale);
+        $actionUrl = route('sales.show', $sale);
         $preferences = app(NotificationPreferenceService::class);
         foreach ($users as $user) {
             if (!$preferences->shouldNotify(
@@ -725,6 +725,11 @@ class PublicStoreController extends Controller
         $parts = preg_split('/\s+/', $name);
         $firstName = $parts ? array_shift($parts) : null;
         $lastName = $parts ? trim(implode(' ', $parts)) : null;
+        if ((!$firstName || $firstName === '') && $email) {
+            $firstName = Str::before($email, '@');
+        }
+        $firstName = $firstName ?: 'Client';
+        $lastName = $lastName ?: 'Client';
 
         [$customer, $portalUser] = $this->resolveCheckoutCustomer($request, $owner, [
             'name' => $name ?: $email,

@@ -2809,6 +2809,8 @@
       "no_damaged_stock": "Aucun stock avarie pour ce produit.",
       "recent_damage_movements": "Mouvements d'avaries recents",
       "no_damage_movements": "Aucun mouvement d'avaries.",
+      "loading_reserved_orders": "Chargement des commandes reservees...",
+      "reserved_orders_error": "Impossible de charger les commandes reservees.",
       "no_reserved_orders": "Aucune commande reservee pour ce produit.",
       "no_lots_for_alert": "Aucun lot a afficher pour cette alerte."
     },
@@ -2831,7 +2833,8 @@
       "customer_fallback": "Client",
       "fulfillment_label": "Execution",
       "method": "Methode",
-      "scheduled": "Planifie"
+      "scheduled": "Planifie",
+      "view_order": "Voir la commande"
     },
     "filters": {
       "search_placeholder": "Rechercher produits, SKU ou code-barres",
@@ -2953,6 +2956,12 @@
       "lot_number": "Numero de lot",
       "serial_number": "Numero de serie",
       "serial_note": "Les articles en serie sont ajustes un par un.",
+      "serial_mode_single": "Unitaire",
+      "serial_mode_batch": "Lot",
+      "serial_batch_placeholder": "Collez un numero par ligne, ou separez par virgule.",
+      "serial_batch_hint": "La quantite est calculee automatiquement a partir de la liste.",
+      "serial_batch_count": "{count} series",
+      "serial_batch_duplicates": "{count} doublon(s) detecte(s) dans la liste.",
       "no_warehouse_hint": "Ajoutez un entrepot dans les parametres avant d'ajuster le stock.",
       "recent_movements": "Mouvements recents",
       "no_movements": "Aucun mouvement pour l'instant.",
@@ -4368,7 +4377,26 @@
       "featured_product": "Produit vedette",
       "featured_placeholder": "Selectionner un produit",
       "hero_images": "Images de fond du produit vedette",
-      "hero_images_hint": "Collez une URL d image par ligne. Elles defileront derriere le produit vedette."
+      "hero_images_hint": "Collez une URL d image par ligne. Elles defileront derriere le produit vedette.",
+      "hero_copy_fr": "Texte du hero (FR)",
+      "hero_copy_en": "Texte du hero (EN)",
+      "hero_copy_placeholder": "Rédigez ici le texte du hero...",
+      "editor_labels": {
+        "heading2": "Titre",
+        "heading3": "Sous-titre",
+        "bold": "Gras",
+        "italic": "Italique",
+        "underline": "Souligné",
+        "unorderedList": "Liste à puces",
+        "orderedList": "Liste numérotée",
+        "quote": "Citation",
+        "codeBlock": "Bloc de code",
+        "horizontalRule": "Séparateur",
+        "link": "Insérer un lien",
+        "image": "Insérer une image",
+        "aiImage": "Générer une image",
+        "clear": "Effacer le style"
+      }
     },
       "fields": {
         "name": "Nom de l'entreprise",
@@ -5122,6 +5150,7 @@
       "login_to_order": "La validation cree un compte client pour suivre vos commandes."
     },
     "promotions_hint": "Des prix plus doux, des quantites limitees. Profitez des offres actives.",
+    "categories_hint": "Explorez rapidement les categories populaires du catalogue.",
     "empty_collection": "Aucune selection pour le moment.",
     "cart_error": "Impossible de mettre a jour le panier.",
     "checkout_error": "Impossible de passer la commande.",

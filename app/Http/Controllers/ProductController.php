@@ -237,6 +237,30 @@ class ProductController extends Controller
     }
 
     /**
+     * Return reserved orders for a single product.
+     */
+    public function reservedOrders(Request $request, Product $product)
+    {
+        $this->authorize('view', $product);
+        $this->ensureProductItem($product);
+
+        $user = $request->user() ?? Auth::user();
+        if (!$user) {
+            abort(403);
+        }
+        [, $accountId] = $this->resolveProductAccount($user);
+        if ((int) $product->user_id !== (int) $accountId) {
+            abort(403);
+        }
+
+        $reservedOrders = $this->resolveReservedOrders($accountId, collect([$product]));
+
+        return response()->json([
+            'reserved_orders' => $reservedOrders[$product->id] ?? [],
+        ]);
+    }
+
+    /**
      * Show the form for creating a new product.
      */
     public function create()
@@ -267,10 +291,6 @@ class ProductController extends Controller
         $accountId = $this->ensureProductOwner($user);
         app(UsageLimitService::class)->enforceLimit($user, 'products');
         $validated = $request->validated();
-        $previousPrice = (float) $product->price;
-        $previousName = (string) $product->name;
-        $previousDescription = $product->description;
-        $previousActive = (bool) $product->is_active;
         $validated['item_type'] = Product::ITEM_TYPE_PRODUCT;
         $validated['image'] = FileHandler::handleImageUpload('products', $request, 'image', 'products/product.jpg');
         $imageUrl = $request->input('image_url');
@@ -632,6 +652,8 @@ class ProductController extends Controller
             'warehouse_id' => 'nullable|integer',
             'lot_number' => 'nullable|string|max:100',
             'serial_number' => 'nullable|string|max:100',
+            'serial_numbers' => 'nullable|array',
+            'serial_numbers.*' => 'string|max:100',
             'expires_at' => 'nullable|date',
             'received_at' => 'nullable|date',
             'unit_cost' => 'nullable|numeric|min:0',
@@ -658,6 +680,59 @@ class ProductController extends Controller
         }
 
         if ($product->tracking_type === 'serial') {
+            $serialNumbers = array_values(array_filter(
+                array_map('trim', $data['serial_numbers'] ?? []),
+                static fn ($value) => $value !== ''
+            ));
+
+            if (!empty($serialNumbers)) {
+                $uniqueSerials = array_values(array_unique($serialNumbers));
+                if (count($uniqueSerials) !== count($serialNumbers)) {
+                    throw ValidationException::withMessages([
+                        'serial_numbers' => ['Duplicate serial numbers detected.'],
+                    ]);
+                }
+
+                if (abs((int) $data['quantity']) !== count($serialNumbers)) {
+                    throw ValidationException::withMessages([
+                        'quantity' => ['Quantity must match the number of serial numbers provided.'],
+                    ]);
+                }
+
+                $inventoryService = app(InventoryService::class);
+                $movements = [];
+                foreach ($serialNumbers as $serialNumber) {
+                    $movements[] = $inventoryService->adjust($product, 1, $data['type'], [
+                        'actor_id' => Auth::id(),
+                        'warehouse_id' => $data['warehouse_id'] ?? null,
+                        'account_id' => $accountId,
+                        'reason' => $data['reason'] ?? 'manual',
+                        'note' => $data['note'] ?? null,
+                        'serial_number' => $serialNumber,
+                        'received_at' => $data['received_at'] ?? null,
+                        'unit_cost' => $data['unit_cost'] ?? null,
+                    ]);
+                }
+
+                ActivityLog::record(Auth::user(), $product, 'stock_movement', [
+                    'type' => $data['type'],
+                    'quantity' => count($serialNumbers),
+                    'note' => $data['note'] ?? null,
+                    'reason' => $data['reason'] ?? null,
+                    'warehouse_id' => $data['warehouse_id'] ?? null,
+                ], 'Stock movement recorded');
+
+                if ($this->shouldReturnJson($request)) {
+                    return response()->json([
+                        'message' => 'Stock updated successfully.',
+                        'product' => $product->fresh(),
+                        'movements' => $movements,
+                    ]);
+                }
+
+                return redirect()->back()->with('success', 'Stock updated successfully.');
+            }
+
             if (empty($data['serial_number'])) {
                 throw ValidationException::withMessages([
                     'serial_number' => ['Serial number is required for serial-tracked products.'],
@@ -1149,6 +1224,10 @@ class ProductController extends Controller
         $validated = $request->validated();
         $previousStock = (int) $product->stock;
         $previousMinimum = (int) $product->minimum_stock;
+        $previousPrice = (float) $product->price;
+        $previousName = (string) $product->name;
+        $previousDescription = $product->description;
+        $previousActive = (bool) $product->is_active;
         $validated['item_type'] = Product::ITEM_TYPE_PRODUCT;
         $validated['image'] = FileHandler::handleImageUpload('products', $request, 'image', 'products/product.jpg', $product->image);
         $imageUrl = $request->input('image_url');

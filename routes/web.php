@@ -273,6 +273,8 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
         Route::post('/product/{product}/duplicate', [ProductController::class, 'duplicate'])->name('product.duplicate');
         Route::put('/product/{product}/quick-update', [ProductController::class, 'quickUpdate'])->name('product.quick-update');
         Route::post('/product/{product}/adjust-stock', [ProductController::class, 'adjustStock'])->name('product.adjust-stock');
+        Route::get('/product/{product}/reserved-orders', [ProductController::class, 'reservedOrders'])
+            ->name('product.reserved-orders');
         Route::post('/product/{product}/supplier-email', [ProductController::class, 'requestSupplierStock'])
             ->name('product.supplier-email');
         Route::get('/product/export/csv', [ProductController::class, 'export'])->name('product.export');

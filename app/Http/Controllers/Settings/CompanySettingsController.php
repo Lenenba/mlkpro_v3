@@ -127,6 +127,9 @@ class CompanySettingsController extends Controller
             'company_store_settings.featured_product_id' => 'nullable|integer',
             'company_store_settings.hero_images' => 'nullable|array',
             'company_store_settings.hero_images.*' => 'nullable|string|max:500',
+            'company_store_settings.hero_copy' => 'nullable|array',
+            'company_store_settings.hero_copy.fr' => 'nullable|string|max:5000',
+            'company_store_settings.hero_copy.en' => 'nullable|string|max:5000',
             'company_notification_settings' => 'nullable|array',
             'company_notification_settings.task_day' => 'nullable|array',
             'company_notification_settings.task_day.email' => 'nullable|boolean',
@@ -189,6 +192,12 @@ class CompanySettingsController extends Controller
         $featuredProductId = ($featuredProductId === '' || $featuredProductId === null) ? null : (int) $featuredProductId;
         $heroImages = $storeSettingsInput['hero_images'] ?? [];
         $heroImages = array_values(array_filter(array_map($normalizeText, is_array($heroImages) ? $heroImages : [])));
+        $heroCopyInput = $storeSettingsInput['hero_copy'] ?? [];
+        $heroCopyInput = is_array($heroCopyInput) ? $heroCopyInput : [];
+        $heroCopy = [
+            'fr' => $normalizeText($heroCopyInput['fr'] ?? null),
+            'en' => $normalizeText($heroCopyInput['en'] ?? null),
+        ];
 
         if ($featuredProductId) {
             $exists = Product::query()
@@ -206,6 +215,7 @@ class CompanySettingsController extends Controller
             'header_color' => $headerColor,
             'featured_product_id' => $featuredProductId,
             'hero_images' => $heroImages,
+            'hero_copy' => $heroCopy,
         ];
 
         $companyLogoPath = $user->company_logo;
