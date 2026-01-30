@@ -611,6 +611,9 @@ const duplicateProduct = (product) => {
 
 const activeProduct = ref(null);
 const serialBatchMode = ref(false);
+const serialRangeInput = ref('');
+const serialRangeError = ref('');
+const serialRangeLimit = 1000;
 const reasonOptions = computed(() => ([
     { value: 'manual', label: t('products.adjust.reasons.manual') },
     { value: 'purchase', label: t('products.adjust.reasons.purchase') },
@@ -656,6 +659,47 @@ const serialBatchDuplicates = computed(() => {
     }
     return duplicates;
 });
+
+const appendSerialRange = () => {
+    serialRangeError.value = '';
+    const value = (serialRangeInput.value || '').trim();
+    if (!value) {
+        return;
+    }
+
+    const match = value.match(/^(.*?)(\d+)\.\.(\d+)$/);
+    if (!match) {
+        serialRangeError.value = t('products.adjust.serial_range_invalid');
+        return;
+    }
+
+    const prefix = match[1];
+    const startStr = match[2];
+    const endStr = match[3];
+    const startNum = Number.parseInt(startStr, 10);
+    const endNum = Number.parseInt(endStr, 10);
+    if (Number.isNaN(startNum) || Number.isNaN(endNum)) {
+        serialRangeError.value = t('products.adjust.serial_range_invalid');
+        return;
+    }
+
+    const total = Math.abs(endNum - startNum) + 1;
+    if (total > serialRangeLimit) {
+        serialRangeError.value = t('products.adjust.serial_range_too_many', { count: total });
+        return;
+    }
+
+    const padSize = Math.max(startStr.length, endStr.length);
+    const step = startNum <= endNum ? 1 : -1;
+    const serials = [];
+    for (let current = startNum; step > 0 ? current <= endNum : current >= endNum; current += step) {
+        serials.push(`${prefix}${String(current).padStart(padSize, '0')}`);
+    }
+
+    const existing = (adjustForm.serial_numbers_text || '').trim();
+    adjustForm.serial_numbers_text = `${existing}${existing ? '\n' : ''}${serials.join('\n')}`;
+    serialRangeInput.value = '';
+};
 
 watch([serialBatchMode, serialBatchCount, activeProduct], ([isBatch, count, product]) => {
     if (isBatch && product?.tracking_type === 'serial') {
@@ -1714,9 +1758,24 @@ const submitImport = () => {
                             </div>
                         </template>
                     </div>
+                    <div v-if="serialBatchMode" class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <input type="text" v-model="serialRangeInput"
+                            class="py-2 px-3 bg-white border border-stone-200 rounded-sm text-sm text-stone-700 focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
+                            :placeholder="$t('products.adjust.serial_range_placeholder')">
+                        <button type="button" @click="appendSerialRange"
+                            class="py-2 px-3 inline-flex items-center justify-center text-sm font-medium rounded-sm border border-transparent bg-stone-800 text-white hover:bg-stone-900 dark:bg-neutral-700 dark:hover:bg-neutral-600">
+                            {{ $t('products.adjust.serial_range_add') }}
+                        </button>
+                        <div class="text-xs text-stone-500 dark:text-neutral-400 flex items-center">
+                            {{ $t('products.adjust.serial_range_help') }}
+                        </div>
+                    </div>
                     <div v-if="serialBatchMode && serialBatchDuplicates.length"
                         class="text-xs text-amber-600">
                         {{ $t('products.adjust.serial_batch_duplicates', { count: serialBatchDuplicates.length }) }}
+                    </div>
+                    <div v-if="serialBatchMode && serialRangeError" class="text-xs text-red-600">
+                        {{ serialRangeError }}
                     </div>
                 </div>
                 <div v-if="!activeWarehouses.length" class="text-xs text-amber-600">
