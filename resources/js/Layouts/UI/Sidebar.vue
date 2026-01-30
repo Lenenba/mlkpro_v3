@@ -43,7 +43,9 @@ const avatarUrl = computed(() =>
 const showNotifications = computed(() => Boolean(page.props.notifications));
 const unreadCount = computed(() => page.props.notifications?.unread_count || 0);
 const hasUnread = computed(() => unreadCount.value > 0);
-const menuIconButtonClass = 'relative inline-flex size-9 items-center justify-center rounded-sm text-stone-600 hover:bg-stone-100 focus:outline-none focus:ring-2 focus:ring-green-500 dark:text-neutral-200 dark:hover:bg-neutral-800';
+const menuIconBaseClass = 'relative inline-flex size-9 items-center justify-center rounded-sm hover:bg-stone-100 focus:outline-none focus:ring-2 dark:hover:bg-neutral-800';
+const languageButtonClass = `${menuIconBaseClass} text-sky-600 focus:ring-sky-500 dark:text-sky-400`;
+const notificationButtonClass = `${menuIconBaseClass} text-amber-600 focus:ring-amber-500 dark:text-amber-400`;
 const avatarInitial = computed(() => {
     const label = (userName.value || userEmail.value || '?').trim();
     return label.length ? label[0].toUpperCase() : '?';
@@ -86,7 +88,7 @@ const isCustomerActive = computed(() => {
                         <nav class="mt-2 flex-1 overflow-y-auto">
                             <ul class="text-center space-y-3 pb-2">
                                 <template v-if="showPlatformNav">
-                                    <LanguageSwitcherMenu :button-class="menuIconButtonClass" :icon-class="'size-6'" />
+                                    <LanguageSwitcherMenu :button-class="languageButtonClass" :icon-class="'size-6'" />
                                     <LinkAncor v-if="isSuperadmin" :label="$t('nav.dashboard')" :href="'superadmin.dashboard'" tone="dashboard"
                                         :active="route().current('superadmin.dashboard')">
                                         <template #icon>
@@ -268,13 +270,13 @@ const isCustomerActive = computed(() => {
                                     </LinkAncor>
                                 </template>
                                 <template v-else>
-                                <LanguageSwitcherMenu :button-class="menuIconButtonClass" :icon-class="'size-6'" />
+                                <LanguageSwitcherMenu :button-class="languageButtonClass" :icon-class="'size-6'" />
                                 <MenuDropdown v-if="!isClient && !isSeller" active-item="/profile">
                                     <template #toggle-icon>
                                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
                                             viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                                             stroke-linecap="round" stroke-linejoin="round"
-                                            class="lucide lucide-circle-plus text-stone-600 dark:text-neutral-200">
+                                            class="lucide lucide-circle-plus text-emerald-600 dark:text-emerald-400">
                                             <circle cx="12" cy="12" r="10" />
                                             <path d="M8 12h8" />
                                             <path d="M12 8v8" />
@@ -516,7 +518,7 @@ const isCustomerActive = computed(() => {
                                 </template>
                                 <li v-if="showNotifications" class="flex justify-center">
                                     <NotificationBell
-                                        :button-class="menuIconButtonClass"
+                                        :button-class="notificationButtonClass"
                                         :badge-class="'absolute -top-1 -end-1 rounded-full bg-amber-500 px-1.5 text-[10px] font-semibold text-white'"
                                         :icon-class="'size-6'"
                                     />

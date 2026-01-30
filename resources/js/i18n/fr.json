@@ -4354,6 +4354,10 @@
           "label": "Fournisseurs",
           "description": "Plateformes actives"
         },
+        "store": {
+          "label": "Boutique",
+          "description": "Parametres de la boutique"
+        },
         "categories": {
           "label": "Categories",
           "description": "Services et produits"
@@ -4411,12 +4415,6 @@
           "clear": "Effacer le style"
         }
       },
-      "actions": {
-        "remove": "Retirer"
-      },
-      "actions": {
-        "remove": "Retirer"
-      },
       "fields": {
         "name": "Nom de l'entreprise",
         "public_slug": "Slug public (boutique)",
@@ -4471,7 +4469,8 @@
         "whatsapp": "WhatsApp"
       },
       "actions": {
-        "save": "Enregistrer"
+        "save": "Enregistrer",
+        "remove": "Retirer"
       },
       "categories": {
         "title": "Categories de services / produits",

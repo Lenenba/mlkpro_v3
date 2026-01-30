@@ -49,13 +49,11 @@ const tonePalette = {
 };
 
 const toneStyle = computed(() => {
-    if (!props.active) {
-        return {};
-    }
     const tone = tonePalette[props.tone] || tonePalette.default;
     return {
         '--icon-accent': tone.accent,
-        '--icon-glow': tone.glow,
+        '--icon-glow': props.active ? tone.glow : 'rgba(0,0,0,0)',
+        '--icon-ring': props.active ? tone.glow : 'rgba(0,0,0,0)',
     };
 });
 
@@ -174,7 +172,12 @@ onBeforeUnmount(() => {
 
 <style scoped>
 :deep(.nav-icon-wrap svg) {
+    color: var(--icon-accent, currentColor);
     transition: color 200ms ease, transform 200ms ease, filter 200ms ease;
+}
+
+:deep(.nav-icon-active) {
+    box-shadow: 0 0 0 1px var(--icon-ring, transparent);
 }
 
 :deep(.nav-icon-active svg) {
