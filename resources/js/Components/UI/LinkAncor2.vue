@@ -25,6 +25,25 @@ const canSales = computed(() =>
 );
 const isSeller = computed(() => teamRole.value === 'seller');
 
+const quickPalette = {
+    customer: { accent: '#8b5cf6', glow: 'rgba(139,92,246,0.35)', label: '#6d28d9', bg: 'rgba(139,92,246,0.12)' },
+    service: { accent: '#10b981', glow: 'rgba(16,185,129,0.35)', label: '#0f766e', bg: 'rgba(16,185,129,0.12)' },
+    request: { accent: '#06b6d4', glow: 'rgba(6,182,212,0.35)', label: '#0e7490', bg: 'rgba(6,182,212,0.12)' },
+    quote: { accent: '#f59e0b', glow: 'rgba(245,158,11,0.35)', label: '#b45309', bg: 'rgba(245,158,11,0.12)' },
+    product: { accent: '#3b82f6', glow: 'rgba(59,130,246,0.35)', label: '#1d4ed8', bg: 'rgba(59,130,246,0.12)' },
+    default: { accent: '#10b981', glow: 'rgba(16,185,129,0.35)', label: '#0f766e', bg: 'rgba(16,185,129,0.12)' },
+};
+
+const itemStyle = (item) => {
+    const tone = quickPalette[item.tone] || quickPalette.default;
+    return {
+        '--quick-accent': tone.accent,
+        '--quick-glow': tone.glow,
+        '--quick-label': tone.label,
+        '--quick-bg': tone.bg,
+    };
+};
+
 const menuItems = computed(() => {
     locale.value;
     const items = [];
@@ -34,12 +53,14 @@ const menuItems = computed(() => {
             label: t('quick_create.customer'),
             overlay: '#hs-quick-create-customer',
             icon: `<svg xmlns="http://www.w3.org/2000/svg" class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>`,
+            tone: 'customer',
         });
         if (hasFeature('services') && showServices.value && isOwner.value) {
             items.push({
                 label: t('quick_create.service'),
                 overlay: '#hs-quick-create-service',
                 icon: `<svg xmlns="http://www.w3.org/2000/svg" class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a4 4 0 0 0-5.66 5.66l-6.34 6.34a2 2 0 0 0 2.83 2.83l6.34-6.34a4 4 0 0 0 5.66-5.66l-2.12 2.12-2.83-2.83 2.12-2.12z"/></svg>`,
+                tone: 'service',
             });
         }
         if (hasFeature('requests') && showServices.value && isOwner.value) {
@@ -47,6 +68,7 @@ const menuItems = computed(() => {
                 label: t('quick_create.request'),
                 overlay: '#hs-quick-create-request',
                 icon: `<svg xmlns="http://www.w3.org/2000/svg" class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg>`,
+                tone: 'request',
             });
         }
         if (hasFeature('quotes') && showServices.value && isOwner.value) {
@@ -54,6 +76,7 @@ const menuItems = computed(() => {
                 label: t('quick_create.quote'),
                 overlay: '#hs-quick-create-quote',
                 icon: `<svg xmlns="http://www.w3.org/2000/svg" class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2Z"/><path d="M14 2v6h6"/><path d="M8 13h8"/><path d="M8 17h5"/></svg>`,
+                tone: 'quote',
             });
         }
     }
@@ -63,6 +86,7 @@ const menuItems = computed(() => {
             label: t('quick_create.product'),
             overlay: '#hs-quick-create-product',
             icon: `<svg xmlns="http://www.w3.org/2000/svg" class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>`,
+            tone: 'product',
         });
     }
 
@@ -174,7 +198,7 @@ onBeforeUnmount(() => {
                 class="fixed bg-white dark:bg-neutral-900 shadow-lg border border-stone-200 dark:border-neutral-700 rounded-sm z-[90] flex"
                 :style="menuStyle">
                 <ul class="flex">
-                    <li v-for="item in menuItems" :key="item.label"
+                    <li v-for="item in menuItems" :key="item.label" :style="itemStyle(item)"
                         class="p-4 flex flex-col justify-center items-center quick-menu-item transition cursor-pointer">
                         <button type="button" class="flex flex-col items-center w-full" @click="openItem(item)">
                             <span class="mb-2 text-stone-500 dark:text-neutral-400 quick-menu-icon" v-html="item.icon"></span>
@@ -215,18 +239,22 @@ onBeforeUnmount(() => {
     border-radius: 6px;
 }
 
+.quick-menu-icon {
+    color: var(--quick-accent);
+    filter: drop-shadow(0 0 3px var(--quick-glow));
+}
+
+.quick-menu-label {
+    color: var(--quick-label, #0f766e);
+}
+
 .quick-menu-item:hover {
-    background: rgba(16, 185, 129, 0.08);
+    background: var(--quick-bg, rgba(16, 185, 129, 0.08));
 }
 
 .quick-menu-item:hover .quick-menu-icon {
-    color: var(--quick-accent);
-    filter: drop-shadow(0 0 4px var(--quick-glow));
+    filter: drop-shadow(0 0 6px var(--quick-glow));
     transform: translateY(-2px) rotate(-4deg);
-}
-
-.quick-menu-item:hover .quick-menu-label {
-    color: #0f766e;
 }
 
 .quick-menu-icon :deep(svg) {
