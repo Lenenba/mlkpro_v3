@@ -157,13 +157,27 @@ const heroStats = computed(() => ([
     t('public_store.hero.stat_new_arrivals', { count: newArrivalCount.value }),
 ]));
 
-const heroCopyHtml = computed(() => {
-    const raw = company.value?.store_settings?.hero_copy?.[locale.value];
-    if (!raw || !String(raw).trim()) {
+const resolveHeroCopy = (value) => {
+    const trimmed = String(value || '').trim();
+    if (!trimmed) {
         return '';
     }
-    return String(raw).replace(/\{company\}/g, companyName.value);
+    return trimmed.replace(/\{company\}/g, companyName.value);
+};
+
+const heroCopyHtml = computed(() => resolveHeroCopy(company.value?.store_settings?.hero_copy?.[locale.value]));
+const heroCaptions = computed(() => {
+    const captions = company.value?.store_settings?.hero_captions || {};
+    return {
+        fr: Array.isArray(captions.fr) ? captions.fr : [],
+        en: Array.isArray(captions.en) ? captions.en : [],
+    };
 });
+const heroSlideCaption = computed(() => {
+    const list = heroCaptions.value?.[locale.value] || [];
+    return resolveHeroCopy(list[heroBackgroundIndex.value] || '');
+});
+const heroSlideCopyHtml = computed(() => heroSlideCaption.value || heroCopyHtml.value);
 
 const bestSellerIds = computed(() => new Set(bestSellers.value.map((item) => item?.id).filter(Boolean)));
 const newArrivalIds = computed(() => new Set(newArrivals.value.map((item) => item?.id).filter(Boolean)));
@@ -535,33 +549,44 @@ const relatedProducts = computed(() => {
 const headerColor = computed(() => company.value?.store_settings?.header_color || '');
 const headerIsCustom = computed(() => Boolean(headerColor.value));
 const headerStyle = computed(() => (headerIsCustom.value ? { backgroundColor: headerColor.value } : {}));
+const heroAccentStyle = computed(() => (
+    headerIsCustom.value ? { '--hero-accent': headerColor.value } : {}
+));
 
 const heroBackgroundIndex = ref(0);
 const heroBackgroundInterval = ref(null);
-const heroBackgrounds = computed(() => {
-    const images = company.value?.store_settings?.hero_images;
-    if (!Array.isArray(images)) {
-        return [];
+const normalizeHeroImages = (value) => {
+    if (Array.isArray(value)) {
+        return value;
     }
+    if (typeof value === 'string') {
+        const trimmed = value.trim();
+        if (!trimmed) {
+            return [];
+        }
+        if (trimmed.startsWith('[')) {
+            try {
+                const parsed = JSON.parse(trimmed);
+                if (Array.isArray(parsed)) {
+                    return parsed;
+                }
+            } catch {
+                // fallback to newline parsing
+            }
+        }
+        return trimmed.split(/\r?\n|,/);
+    }
+    if (value && typeof value === 'object') {
+        return Object.values(value);
+    }
+    return [];
+};
+
+const heroBackgrounds = computed(() => {
+    const images = normalizeHeroImages(company.value?.store_settings?.hero_images);
     return images.map((image) => String(image || '').trim()).filter(Boolean);
 });
-const heroSlides = computed(() => {
-    if (heroBackgrounds.value.length) {
-        return heroBackgrounds.value;
-    }
-    const fallback = heroProduct.value?.image_url;
-    return fallback ? [fallback] : [];
-});
-const heroCardImages = computed(() => {
-    const slides = heroSlides.value;
-    if (!slides.length) {
-        return [];
-    }
-    return [0, 1, 2]
-        .map((offset) => slides[(heroBackgroundIndex.value + offset) % slides.length])
-        .filter(Boolean);
-});
-
+const heroSlides = computed(() => heroBackgrounds.value);
 const categoryTrackRef = ref(null);
 const relatedTrackRef = ref(null);
 
@@ -591,6 +616,23 @@ const setHeroBackground = (index) => {
     const next = Math.max(0, Math.min(total - 1, Number(index)));
     heroBackgroundIndex.value = next;
     startHeroCarousel();
+};
+
+const nextHeroSlide = () => {
+    const total = heroSlides.value.length;
+    if (!total) {
+        return;
+    }
+    setHeroBackground((heroBackgroundIndex.value + 1) % total);
+};
+
+const prevHeroSlide = () => {
+    const total = heroSlides.value.length;
+    if (!total) {
+        return;
+    }
+    const next = heroBackgroundIndex.value - 1;
+    setHeroBackground(next < 0 ? total - 1 : next);
 };
 
 const clearHeroCarousel = () => {
@@ -919,17 +961,6 @@ const submitCheckout = async () => {
     }
 };
 
-const heroPrimaryAction = () => {
-    scrollToCatalog();
-};
-
-const heroSecondaryAction = () => {
-    if (heroProduct.value) {
-        addToCart(heroProduct.value);
-        return;
-    }
-    scrollToCatalog();
-};
 </script>
 
 <template>
@@ -1054,124 +1085,89 @@ const heroSecondaryAction = () => {
                 </div>
             </nav>
 
-            <main class="pt-6 sm:pt-8">
-            <section class="relative overflow-hidden py-10 lg:py-16">
-                <div class="pointer-events-none absolute inset-0">
-                    <div class="absolute -left-24 top-6 h-56 w-56 rounded-full bg-amber-100/70"></div>
-                    <div class="absolute right-0 bottom-0 h-44 w-44 rounded-full bg-emerald-100/60"></div>
+            <main class="pt-0">
+            <section class="store-hero" :style="heroAccentStyle">
+                <div class="store-hero-bg">
+                    <div class="store-hero-glow store-hero-glow--amber"></div>
+                    <div class="store-hero-glow store-hero-glow--emerald"></div>
                 </div>
-                <div class="relative mx-auto grid w-full gap-8 px-4 sm:px-6 lg:grid-cols-[1.05fr_0.95fr] lg:px-10">
-                    <div class="space-y-6">
-                        <div v-if="heroCopyHtml" class="store-hero-copy space-y-2 text-slate-700" v-html="heroCopyHtml"></div>
-                        <div v-else class="space-y-3">
-                            <span class="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                                {{ t('public_store.hero.eyebrow') }}
-                            </span>
-                            <h1 class="text-3xl font-semibold text-slate-900 md:text-4xl">
-                                {{ t('public_store.hero.headline', { company: companyName }) }}
-                            </h1>
-                            <p class="text-base text-slate-600">
-                                {{ t('public_store.hero.subheadline') }}
-                            </p>
-                        </div>
-                        <div class="flex flex-wrap gap-3">
-                            <button
-                                type="button"
-                                class="rounded-sm bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
-                                @click="heroPrimaryAction"
-                            >
-                                {{ t('public_store.actions.view_catalog') }}
-                            </button>
-                            <button
-                                type="button"
-                                class="rounded-sm border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:border-slate-300 hover:bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
-                                @click="heroSecondaryAction"
-                            >
-                                {{ heroProduct ? t('public_store.actions.add_to_cart') : t('public_store.actions.explore') }}
-                            </button>
-                        </div>
-                        <div class="flex flex-wrap gap-2">
-                            <span
-                                v-for="(stat, index) in heroStats"
-                                :key="index"
-                                class="rounded-sm border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600"
-                            >
-                                {{ stat }}
-                            </span>
-                        </div>
-                        <div v-if="heroSlides.length > 1" class="flex items-center gap-2">
-                            <button
-                                v-for="(image, index) in heroSlides"
-                                :key="`hero-dot-${index}`"
-                                type="button"
-                                class="h-2 w-8 rounded-full border border-slate-200 transition"
-                                :class="index === heroBackgroundIndex ? 'bg-emerald-500' : 'bg-slate-200 hover:bg-slate-300'"
-                                @click="setHeroBackground(index)"
-                                aria-label="Change hero background"
-                            ></button>
-                        </div>
-                    </div>
-
-                    <div class="relative h-[320px] sm:h-[400px] lg:h-[520px]">
-                        <div class="absolute inset-0 rounded-[32px] bg-gradient-to-br from-amber-300 via-amber-200 to-amber-400 shadow-xl"></div>
-                        <div class="absolute inset-0 rounded-[32px] ring-1 ring-amber-200/70"></div>
-                        <div class="absolute -left-8 top-8 h-20 w-20 rounded-full bg-white/70"></div>
-                        <div class="absolute -right-10 bottom-8 h-16 w-16 rounded-full bg-white/50"></div>
-
-                        <div class="absolute left-6 bottom-6 h-[72%] w-[62%] overflow-hidden rounded-[26px] border border-white/60 bg-white shadow-2xl">
+                <div class="store-hero-shell">
+                    <div class="hero-stage">
+                        <div class="hero-stage-main">
                             <Transition name="hero-fade" mode="out-in">
                                 <img
-                                    v-if="heroCardImages[0]"
-                                    :key="heroCardImages[0]"
-                                    :src="heroCardImages[0]"
+                                    v-if="heroSlides.length"
+                                    :key="heroSlides[heroBackgroundIndex]"
+                                    :src="heroSlides[heroBackgroundIndex]"
                                     :alt="companyName"
-                                    class="h-full w-full object-cover"
+                                    class="hero-stage-image"
                                     loading="lazy"
                                     decoding="async"
                                 >
                             </Transition>
+                            <div v-if="!heroSlides.length" class="hero-stage-placeholder">
+                                {{ companyName }}
+                            </div>
                         </div>
 
-                        <div
-                            v-if="heroCardImages[1]"
-                            class="absolute right-6 top-8 h-[48%] w-[30%] overflow-hidden rounded-[22px] border border-white/60 bg-white shadow-xl"
-                        >
-                            <Transition name="hero-fade" mode="out-in">
+                        <div class="hero-overlay">
+                            <div class="store-hero-text">
+                        <div v-if="heroSlideCopyHtml" class="store-hero-copy space-y-2" v-html="heroSlideCopyHtml"></div>
+                                <div v-else class="space-y-3">
+                                    <span class="store-hero-eyebrow">{{ t('public_store.hero.eyebrow') }}</span>
+                                    <h1 class="store-hero-title">
+                                        {{ t('public_store.hero.headline', { company: companyName }) }}
+                                    </h1>
+                                    <p class="store-hero-subtitle">
+                                        {{ t('public_store.hero.subheadline') }}
+                                    </p>
+                                </div>
+
+                                <div v-if="heroBadges.length" class="store-hero-badges">
+                                    <span
+                                        v-for="(badge, index) in heroBadges"
+                                        :key="`hero-badge-${index}`"
+                                        class="store-hero-badge"
+                                    >
+                                        {{ badge.label }}
+                                    </span>
+                                </div>
+
+                                <div class="store-hero-stats">
+                                    <span
+                                        v-for="(stat, index) in heroStats"
+                                        :key="`hero-stat-${index}`"
+                                        class="store-hero-stat"
+                                    >
+                                        {{ stat }}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div v-if="heroProduct" class="hero-product-card hero-product-card--overlay">
+                            <div class="hero-product-header">
+                                <span class="hero-product-label">{{ t('public_store.sections.spotlight') }}</span>
+                                <span class="hero-product-name">{{ heroProduct.name }}</span>
+                            </div>
+                            <div class="hero-product-body">
                                 <img
-                                    :key="heroCardImages[1]"
-                                    :src="heroCardImages[1]"
-                                    :alt="companyName"
-                                    class="h-full w-full object-cover"
+                                    :src="heroProduct.image_url"
+                                    :alt="heroProduct.name"
+                                    class="hero-product-image"
                                     loading="lazy"
                                     decoding="async"
                                 >
-                            </Transition>
-                        </div>
-
-                        <div
-                            v-if="heroCardImages[2]"
-                            class="absolute right-4 bottom-6 h-[38%] w-[26%] overflow-hidden rounded-[20px] border border-white/60 bg-white shadow-lg"
-                        >
-                            <Transition name="hero-fade" mode="out-in">
-                                <img
-                                    :key="heroCardImages[2]"
-                                    :src="heroCardImages[2]"
-                                    :alt="companyName"
-                                    class="h-full w-full object-cover"
-                                    loading="lazy"
-                                    decoding="async"
-                                >
-                            </Transition>
-                        </div>
-
-                        <div
-                            v-if="heroProduct"
-                            class="absolute left-6 top-6 flex max-w-[70%] items-center gap-2 rounded-full bg-white/90 px-3 py-1 text-xs font-semibold text-slate-700 shadow"
-                        >
-                            <span class="rounded-full bg-slate-900 px-2 py-0.5 text-[10px] font-semibold text-white">
-                                {{ t('public_store.sections.spotlight') }}
-                            </span>
-                            <span class="truncate">{{ heroProduct.name }}</span>
+                                <div class="hero-product-meta">
+                                    <div class="hero-product-category">{{ categoryLabel(heroProduct) }}</div>
+                                    <div class="hero-product-price">
+                                        <span>{{ formatCurrency(priceMeta(heroProduct).current) }}</span>
+                                        <span v-if="priceMeta(heroProduct).original" class="hero-product-original">
+                                            {{ formatCurrency(priceMeta(heroProduct).original) }}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1965,6 +1961,247 @@ const heroSecondaryAction = () => {
 </template>
 
 <style scoped>
+.store-hero {
+    position: relative;
+    padding: 0;
+    overflow: hidden;
+    --hero-accent: #16a34a;
+    background: #0b1120;
+}
+
+.store-hero-bg {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+}
+
+.store-hero-glow {
+    position: absolute;
+    border-radius: 999px;
+    filter: blur(120px);
+    opacity: 0.25;
+}
+
+.store-hero-glow--amber {
+    width: 420px;
+    height: 420px;
+    left: -180px;
+    top: -120px;
+    background: radial-gradient(circle, rgba(15, 23, 42, 0.5), rgba(15, 23, 42, 0));
+}
+
+.store-hero-glow--emerald {
+    width: 360px;
+    height: 360px;
+    right: -140px;
+    bottom: -120px;
+    background: radial-gradient(circle, rgba(15, 23, 42, 0.4), rgba(15, 23, 42, 0));
+}
+
+.store-hero-shell {
+    position: relative;
+    display: grid;
+    gap: 1.75rem;
+    width: 100%;
+    padding: 0;
+}
+
+.store-hero-text {
+    display: flex;
+    flex-direction: column;
+    gap: 1.1rem;
+    max-width: 560px;
+    color: #f8fafc;
+}
+
+.store-hero-eyebrow {
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    color: rgba(226, 232, 240, 0.72);
+}
+
+.store-hero-title {
+    font-size: clamp(2rem, 3vw, 3rem);
+    font-weight: 700;
+    color: #ffffff;
+    line-height: 1.1;
+}
+
+.store-hero-subtitle {
+    font-size: 1.05rem;
+    color: #e2e8f0;
+    line-height: 1.6;
+}
+
+.store-hero-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.store-hero-badge {
+    border-radius: 2px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    padding: 0.35rem 0.9rem;
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: #f8fafc;
+    background: rgba(15, 23, 42, 0.55);
+}
+
+.store-hero-stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+}
+
+.store-hero-stat {
+    border-radius: 2px;
+    padding: 0.35rem 0.9rem;
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: #e2e8f0;
+    background: rgba(15, 23, 42, 0.55);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.hero-stage {
+    position: relative;
+    padding: 0;
+    border-radius: 2px;
+    background: #0b1120;
+    box-shadow: 0 22px 48px rgba(15, 23, 42, 0.25);
+    overflow: hidden;
+    width: 100%;
+}
+
+.hero-stage-main {
+    height: clamp(320px, 42vw, 520px);
+    background: #0b1120;
+    width: 100%;
+}
+
+.hero-stage-image {
+    height: 100%;
+    width: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.hero-stage-placeholder {
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    font-weight: 600;
+    color: #cbd5f5;
+}
+
+.hero-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    z-index: 1;
+    padding: clamp(1.5rem, 4vw, 3.5rem);
+    background: linear-gradient(90deg, rgba(15, 23, 42, 0.85) 0%, rgba(15, 23, 42, 0.65) 45%, rgba(15, 23, 42, 0.15) 75%, rgba(15, 23, 42, 0) 100%);
+}
+
+.hero-product-card {
+    border-radius: 2px;
+    border: 1px solid rgba(226, 232, 240, 0.9);
+    background: #ffffff;
+    padding: 1.1rem 1.2rem;
+    box-shadow: 0 18px 40px rgba(15, 23, 42, 0.12);
+    max-width: 520px;
+}
+
+.hero-product-card--overlay {
+    position: absolute;
+    right: clamp(1rem, 3vw, 2rem);
+    bottom: clamp(1rem, 3vw, 2rem);
+    z-index: 2;
+    max-width: min(320px, 90%);
+}
+
+.hero-product-header {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin-bottom: 0.75rem;
+}
+
+.hero-product-label {
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: #ffffff;
+    background: var(--hero-accent);
+    padding: 0.2rem 0.6rem;
+    border-radius: 2px;
+}
+
+.hero-product-name {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #0f172a;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.hero-product-body {
+    display: flex;
+    gap: 0.9rem;
+    align-items: center;
+}
+
+.hero-product-image {
+    width: 72px;
+    height: 72px;
+    border-radius: 2px;
+    object-fit: cover;
+    background: #f1f5f9;
+}
+
+.hero-product-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+}
+
+.hero-product-category {
+    font-size: 0.75rem;
+    color: #64748b;
+}
+
+.hero-product-price {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #0f172a;
+    display: flex;
+    gap: 0.5rem;
+    align-items: baseline;
+}
+
+.hero-product-original {
+    font-size: 0.8rem;
+    color: #94a3b8;
+    text-decoration: line-through;
+}
+
+@media (max-width: 640px) {
+    .hero-overlay {
+        align-items: flex-end;
+        background: linear-gradient(180deg, rgba(15, 23, 42, 0.2) 0%, rgba(15, 23, 42, 0.85) 78%);
+    }
+
+}
+
 .hero-fade-enter-active,
 .hero-fade-leave-active {
     transition: opacity 0.8s ease;
@@ -1975,21 +2212,21 @@ const heroSecondaryAction = () => {
 }
 
 .store-hero-copy :deep(p) {
-    color: #475569;
+    color: #e2e8f0;
     font-size: 1rem;
     line-height: 1.5;
 }
 
 .store-hero-copy :deep(h1),
 .store-hero-copy :deep(h2) {
-    color: #0f172a;
+    color: #ffffff;
     font-weight: 600;
     font-size: 2rem;
     line-height: 1.2;
 }
 
 .store-hero-copy :deep(h3) {
-    color: #334155;
+    color: #e2e8f0;
     font-weight: 600;
     font-size: 1.25rem;
     line-height: 1.3;
@@ -1998,10 +2235,10 @@ const heroSecondaryAction = () => {
 .store-hero-copy :deep(ul),
 .store-hero-copy :deep(ol) {
     padding-left: 1.25rem;
-    color: #475569;
+    color: #e2e8f0;
 }
 
 .store-hero-copy :deep(strong) {
-    color: #0f172a;
+    color: #ffffff;
 }
 </style>

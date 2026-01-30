@@ -52,7 +52,7 @@ const props = defineProps({
     },
 });
 
-const { t } = useI18n();
+const { t, tm } = useI18n();
 
 const countryOptions = computed(() => [
     { id: '', name: t('settings.company.select.country') },
@@ -211,6 +211,32 @@ const initialPreferredSuppliers = props.supplier_preferences?.preferred?.length
     : initialEnabledSuppliers.slice(0, 2);
 
 const toBool = (value) => value === true || value === 1 || value === '1' || value === 'true';
+const normalizeHeroImageList = (value) => {
+    if (Array.isArray(value)) {
+        return value;
+    }
+    if (typeof value === 'string') {
+        const trimmed = value.trim();
+        if (!trimmed) {
+            return [];
+        }
+        if (trimmed.startsWith('[')) {
+            try {
+                const parsed = JSON.parse(trimmed);
+                if (Array.isArray(parsed)) {
+                    return parsed;
+                }
+            } catch {
+                // fallback to newline parsing
+            }
+        }
+        return trimmed.split(/\r?\n|,/);
+    }
+    if (value && typeof value === 'object') {
+        return Object.values(value);
+    }
+    return [];
+};
 
 const form = useForm({
     company_name: props.company.company_name || '',
@@ -243,9 +269,17 @@ const form = useForm({
     store_featured_product_id: props.company.store_settings?.featured_product_id
         ? String(props.company.store_settings.featured_product_id)
         : '',
-    store_hero_images_text: Array.isArray(props.company.store_settings?.hero_images)
-        ? props.company.store_settings.hero_images.filter(Boolean).join('\n')
-        : '',
+    store_hero_images_text: normalizeHeroImageList(props.company.store_settings?.hero_images)
+        .map((value) => String(value || '').trim())
+        .filter(Boolean)
+        .join('\n'),
+    store_hero_images_files: [],
+    store_hero_captions_fr: Array.isArray(props.company.store_settings?.hero_captions?.fr)
+        ? props.company.store_settings.hero_captions.fr
+        : [],
+    store_hero_captions_en: Array.isArray(props.company.store_settings?.hero_captions?.en)
+        ? props.company.store_settings.hero_captions.en
+        : [],
     store_hero_copy_fr: props.company.store_settings?.hero_copy?.fr ?? '',
     store_hero_copy_en: props.company.store_settings?.hero_copy?.en ?? '',
     notification_task_day_email: props.company.company_notification_settings?.task_day?.email ?? true,
@@ -255,6 +289,131 @@ const form = useForm({
     supplier_preferred: initialPreferredSuppliers,
     custom_suppliers: initialCustomSuppliers,
 });
+
+const heroImageUrlList = computed(() => (form.store_hero_images_text || '')
+    .split('\n')
+    .map((value) => String(value || '').trim())
+    .filter((value) => value.length));
+const normalizeHeroImageText = (value) => normalizeHeroImageList(value)
+    .map((item) => String(item || '').trim())
+    .filter(Boolean)
+    .join('\n');
+const normalizeHeroCaptionList = (value) => (Array.isArray(value) ? value : []);
+
+const heroImageFilePreviews = ref([]);
+const heroSlideItems = computed(() => ([
+    ...heroImageUrlList.value.map((image, index) => ({
+        key: `hero-url-${index}-${image}`,
+        preview: image,
+        label: image,
+        type: 'url',
+    })),
+    ...heroImageFilePreviews.value.map((image, index) => ({
+        key: `hero-file-${index}-${image.name}`,
+        preview: image.url,
+        label: image.name,
+        type: 'file',
+    })),
+]));
+
+const removeHeroCaptionAt = (index) => {
+    const nextFr = Array.isArray(form.store_hero_captions_fr) ? form.store_hero_captions_fr.slice() : [];
+    const nextEn = Array.isArray(form.store_hero_captions_en) ? form.store_hero_captions_en.slice() : [];
+    if (index >= 0) {
+        nextFr.splice(index, 1);
+        nextEn.splice(index, 1);
+    }
+    form.store_hero_captions_fr = nextFr;
+    form.store_hero_captions_en = nextEn;
+};
+
+const ensureHeroCaptionLength = () => {
+    const total = heroSlideItems.value.length;
+    const nextFr = Array.isArray(form.store_hero_captions_fr) ? form.store_hero_captions_fr.slice(0, total) : [];
+    const nextEn = Array.isArray(form.store_hero_captions_en) ? form.store_hero_captions_en.slice(0, total) : [];
+    while (nextFr.length < total) {
+        nextFr.push('');
+    }
+    while (nextEn.length < total) {
+        nextEn.push('');
+    }
+    form.store_hero_captions_fr = nextFr;
+    form.store_hero_captions_en = nextEn;
+};
+
+const setHeroImageFiles = (event) => {
+    const incoming = Array.from(event?.target?.files || []);
+    const existing = Array.isArray(form.store_hero_images_files) ? form.store_hero_images_files : [];
+    form.store_hero_images_files = [...existing, ...incoming];
+    if (event?.target) {
+        event.target.value = '';
+    }
+};
+
+const removeHeroImageUrl = (url, index) => {
+    const next = heroImageUrlList.value.slice();
+    const removeIndex = typeof index === 'number' ? index : next.findIndex((image) => image === url);
+    if (removeIndex >= 0) {
+        next.splice(removeIndex, 1);
+        removeHeroCaptionAt(removeIndex);
+    }
+    form.store_hero_images_text = next.join('\n');
+};
+
+const removeHeroImageFile = (index) => {
+    const next = (form.store_hero_images_files || []).slice();
+    const [removed] = next.splice(index, 1);
+    if (removed && removed.__previewUrl) {
+        URL.revokeObjectURL(removed.__previewUrl);
+    }
+    form.store_hero_images_files = next;
+    removeHeroCaptionAt(heroImageUrlList.value.length + index);
+};
+
+watch(() => form.store_hero_images_files, (files, previous) => {
+    const prevList = Array.isArray(previous) ? previous : [];
+    const nextList = Array.isArray(files) ? files : [];
+    prevList
+        .filter((file) => file && !nextList.includes(file))
+        .forEach((file) => {
+            if (file.__previewUrl) {
+                URL.revokeObjectURL(file.__previewUrl);
+                delete file.__previewUrl;
+            }
+        });
+    heroImageFilePreviews.value = nextList.map((file) => {
+        if (!file.__previewUrl) {
+            file.__previewUrl = URL.createObjectURL(file);
+        }
+        return {
+            name: file.name,
+            url: file.__previewUrl,
+        };
+    });
+}, { deep: true });
+
+watch(heroSlideItems, () => {
+    ensureHeroCaptionLength();
+}, { immediate: true });
+
+const editorLabels = computed(() => {
+    const labels = tm('settings.company.store.editor_labels');
+    return labels && typeof labels === 'object' ? labels : {};
+});
+
+watch(
+    () => props.company.store_settings?.hero_images,
+    (next) => {
+        const normalized = normalizeHeroImageText(next);
+        if (normalized !== form.store_hero_images_text) {
+            form.store_hero_images_text = normalized;
+        }
+        form.store_hero_captions_fr = normalizeHeroCaptionList(props.company.store_settings?.hero_captions?.fr);
+        form.store_hero_captions_en = normalizeHeroCaptionList(props.company.store_settings?.hero_captions?.en);
+        form.store_hero_images_files = [];
+    },
+    { immediate: true },
+);
 
 const categoryForm = useForm({
     name: '',
@@ -619,6 +778,8 @@ const submit = () => {
                 company_city: normalizeText(city),
                 company_timezone: normalizeText(data.company_timezone),
             };
+            const normalizeCaptions = (values) =>
+                Array.isArray(values) ? values.map((value) => normalizeText(value)) : [];
 
             payload.custom_suppliers = data.custom_suppliers || [];
 
@@ -648,7 +809,15 @@ const submit = () => {
                     fr: normalizeText(data.store_hero_copy_fr),
                     en: normalizeText(data.store_hero_copy_en),
                 },
+                hero_captions: {
+                    fr: normalizeCaptions(data.store_hero_captions_fr),
+                    en: normalizeCaptions(data.store_hero_captions_en),
+                },
             };
+
+            if (Array.isArray(data.store_hero_images_files) && data.store_hero_images_files.length) {
+                payload.store_hero_images_files = data.store_hero_images_files;
+            }
 
             payload.company_notification_settings = {
                 task_day: {
@@ -671,6 +840,8 @@ const submit = () => {
             delete payload.store_hero_images_text;
             delete payload.store_hero_copy_fr;
             delete payload.store_hero_copy_en;
+            delete payload.store_hero_captions_fr;
+            delete payload.store_hero_captions_en;
             delete payload.notification_task_day_email;
             delete payload.notification_task_day_sms;
             delete payload.notification_task_day_whatsapp;
@@ -883,6 +1054,89 @@ watch(activeTab, (value) => {
                                 class="mt-1"
                                 :message="form.errors['company_store_settings.hero_images'] || form.errors['company_store_settings.hero_images.0']"
                             />
+                            <div class="mt-3 space-y-2">
+                                <label class="block text-xs text-stone-500 dark:text-neutral-400">
+                                    {{ $t('settings.company.store.hero_images_upload') }}
+                                </label>
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    multiple
+                                    class="block w-full text-xs text-stone-600 file:mr-3 file:rounded-sm file:border-0 file:bg-stone-100 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-stone-700 hover:file:bg-stone-200 dark:file:bg-neutral-800 dark:file:text-neutral-200"
+                                    @change="setHeroImageFiles"
+                                />
+                                <p class="text-xs text-stone-500 dark:text-neutral-400">
+                                    {{ $t('settings.company.store.hero_images_upload_hint') }}
+                                </p>
+                            </div>
+                            <div v-if="heroImageUrlList.length || heroImageFilePreviews.length" class="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                                <div v-for="(image, index) in heroImageUrlList" :key="`hero-url-${image}-${index}`"
+                                    class="group relative overflow-hidden rounded-sm border border-stone-200 bg-white shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                                    <img :src="image" :alt="image" class="h-32 w-full object-cover" />
+                                    <button
+                                        type="button"
+                                        class="absolute right-2 top-2 rounded-full bg-white/90 px-2 py-1 text-[10px] font-semibold text-stone-700 shadow group-hover:bg-white"
+                                        @click="removeHeroImageUrl(image, index)"
+                                    >
+                                        {{ $t('settings.company.actions.remove') }}
+                                    </button>
+                                </div>
+                                <div v-for="(image, index) in heroImageFilePreviews" :key="`hero-file-${index}`"
+                                    class="group relative overflow-hidden rounded-sm border border-dashed border-emerald-300 bg-emerald-50/30 shadow-sm dark:border-emerald-500/40 dark:bg-emerald-950/20">
+                                    <img :src="image.url" :alt="image.name" class="h-32 w-full object-cover" />
+                                    <div class="absolute left-2 top-2 rounded-full bg-emerald-600 px-2 py-1 text-[10px] font-semibold text-white">
+                                        {{ $t('settings.company.store.hero_images_new') }}
+                                    </div>
+                                    <button
+                                        type="button"
+                                        class="absolute right-2 top-2 rounded-full bg-white/90 px-2 py-1 text-[10px] font-semibold text-stone-700 shadow group-hover:bg-white"
+                                        @click="removeHeroImageFile(index)"
+                                    >
+                                        {{ $t('settings.company.actions.remove') }}
+                                    </button>
+                                </div>
+                            </div>
+                            <div v-if="heroSlideItems.length" class="mt-4 space-y-3">
+                                <div>
+                                    <h4 class="text-xs font-semibold text-stone-600 dark:text-neutral-200">
+                                        {{ $t('settings.company.store.hero_captions_title') }}
+                                    </h4>
+                                    <p class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
+                                        {{ $t('settings.company.store.hero_captions_hint') }}
+                                    </p>
+                                </div>
+                                <div class="grid gap-3">
+                                    <div
+                                        v-for="(slide, index) in heroSlideItems"
+                                        :key="slide.key"
+                                        class="rounded-sm border border-stone-200 bg-white p-3 dark:border-neutral-700 dark:bg-neutral-900"
+                                    >
+                                        <div class="mb-2 flex items-center gap-3">
+                                            <img :src="slide.preview" :alt="slide.label" class="h-12 w-16 rounded-sm object-cover" />
+                                            <div class="min-w-0">
+                                                <p class="truncate text-xs font-semibold text-stone-700 dark:text-neutral-200">
+                                                    {{ slide.label }}
+                                                </p>
+                                                <p class="text-[11px] text-stone-400 dark:text-neutral-400">
+                                                    {{ $t('settings.company.store.hero_captions_slide', { index: index + 1 }) }}
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <div class="grid gap-2 md:grid-cols-2">
+                                            <FloatingTextarea
+                                                v-model="form.store_hero_captions_fr[index]"
+                                                :label="$t('settings.company.store.hero_captions_fr')"
+                                                rows="2"
+                                            />
+                                            <FloatingTextarea
+                                                v-model="form.store_hero_captions_en[index]"
+                                                :label="$t('settings.company.store.hero_captions_en')"
+                                                rows="2"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                         <div class="mt-4 space-y-3">
                             <div>
@@ -890,7 +1144,7 @@ watch(activeTab, (value) => {
                                     v-model="form.store_hero_copy_fr"
                                     :label="$t('settings.company.store.hero_copy_fr')"
                                     :placeholder="$t('settings.company.store.hero_copy_placeholder')"
-                                    :labels="$t('settings.company.store.editor_labels', {}, { returnObjects: true })"
+                                    :labels="editorLabels"
                                 />
                                 <InputError class="mt-1" :message="form.errors['company_store_settings.hero_copy.fr']" />
                             </div>
@@ -899,7 +1153,7 @@ watch(activeTab, (value) => {
                                     v-model="form.store_hero_copy_en"
                                     :label="$t('settings.company.store.hero_copy_en')"
                                     :placeholder="$t('settings.company.store.hero_copy_placeholder')"
-                                    :labels="$t('settings.company.store.editor_labels', {}, { returnObjects: true })"
+                                    :labels="editorLabels"
                                 />
                                 <InputError class="mt-1" :message="form.errors['company_store_settings.hero_copy.en']" />
                             </div>
