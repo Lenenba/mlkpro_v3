@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { resizeImageFile, MEDIA_LIMITS } from '@/utils/media';
 
 // Props
@@ -26,6 +26,23 @@ const input = ref(null); // Référence pour l'élément input de fichier
 const preview = ref(null); // Référence pour l'aperçu de l'image
 const progress = ref(0); // Progression fictive (par exemple pour l'upload)
 const errorMessage = ref('');
+
+const updatePreview = (value) => {
+  if (value instanceof File) {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      preview.value = e.target.result;
+    };
+    reader.readAsDataURL(value);
+    return;
+  }
+  if (typeof value === 'string' && value.trim() !== '') {
+    preview.value = value;
+    return;
+  }
+  preview.value = null;
+  progress.value = 0;
+};
 
 // Fonction pour gérer le changement de fichier
 const handleFileChange = async (event) => {
@@ -87,6 +104,13 @@ onMounted(() => {
     preview.value = props.modelValue; // Affiche l'image existante
   }
 });
+
+watch(
+  () => props.modelValue,
+  (value) => {
+    updatePreview(value);
+  }
+);
 </script>
 
 <template>

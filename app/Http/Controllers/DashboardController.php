@@ -23,6 +23,7 @@ use App\Services\StripeInvoiceService;
 use App\Services\StripeSaleService;
 use App\Services\UsageLimitService;
 use Illuminate\Support\Carbon;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -669,11 +670,14 @@ class DashboardController extends Controller
                 return $respond('DashboardProductsTeam', $props, $cacheKey);
             }
 
+            $performance = $this->buildProductPerformance($accountId, $now);
+
             $props = [
                 'stats' => $stats,
                 'recentSales' => $recentSales,
                 'stockAlerts' => $stockAlerts,
                 'topProducts' => $topProducts,
+                'performance' => $performance,
             ];
 
             return $respond('DashboardProductsOwner', $props, $cacheKey);
@@ -1280,6 +1284,74 @@ class DashboardController extends Controller
         return $respond('Dashboard', $props, $cacheKey);
     }
 
+    public function exportProductSellers(Request $request)
+    {
+        $user = Auth::user();
+        if (!$user) {
+            abort(403);
+        }
+
+        $accountId = $user->accountOwnerId() ?? $user->id;
+        $isAccountOwner = $user->id === $accountId;
+        $membership = null;
+        if (!$isAccountOwner) {
+            $membership = TeamMember::query()
+                ->forAccount($accountId)
+                ->active()
+                ->where('user_id', $user->id)
+                ->first();
+        }
+
+        if (!$isAccountOwner && (!$membership || !$membership->hasPermission('sales.manage'))) {
+            abort(403);
+        }
+
+        $period = $request->query('period', 'month');
+        $allowed = ['day', 'week', 'month', 'year'];
+        if (!in_array($period, $allowed, true)) {
+            $period = 'month';
+        }
+
+        $now = now();
+        [$start, $end] = match ($period) {
+            'day' => [$now->copy()->startOfDay(), $now->copy()->endOfDay()],
+            'week' => [$now->copy()->startOfWeek(), $now->copy()->endOfWeek()],
+            'year' => [$now->copy()->startOfYear(), $now->copy()->endOfYear()],
+            default => [$now->copy()->startOfMonth(), $now->copy()->endOfMonth()],
+        };
+
+        $periodData = $this->buildProductPerformancePeriod($accountId, $start, $end, null, null);
+        $rows = $periodData['top_sellers'] ?? [];
+        $range = $periodData['range'] ?? ['start' => '', 'end' => ''];
+        $onlineLabel = 'Online store';
+
+        $filename = 'seller-performance-' . $period . '-' . now()->format('Ymd-His') . '.csv';
+
+        return response()->streamDownload(function () use ($rows, $range, $onlineLabel) {
+            $handle = fopen('php://output', 'w');
+            fputcsv($handle, ['rank', 'seller', 'type', 'orders', 'items', 'revenue', 'period_start', 'period_end']);
+            $rank = 1;
+            foreach ($rows as $row) {
+                $type = $row['type'] ?? 'user';
+                $name = $type === 'online' ? $onlineLabel : ($row['name'] ?? 'Seller');
+                fputcsv($handle, [
+                    $rank,
+                    $name,
+                    $type,
+                    $row['orders'] ?? 0,
+                    $row['items'] ?? 0,
+                    $row['revenue'] ?? 0,
+                    $range['start'] ?? '',
+                    $range['end'] ?? '',
+                ]);
+                $rank += 1;
+            }
+            fclose($handle);
+        }, $filename, [
+            'Content-Type' => 'text/csv',
+        ]);
+    }
+
     public function tasksCalendar()
     {
         $user = Auth::user();
@@ -1503,6 +1575,172 @@ class DashboardController extends Controller
         $value = str_replace(',', '\,', $value);
 
         return $value;
+    }
+
+    private function buildProductPerformance(int $accountId, Carbon $now): array
+    {
+        $periods = [
+            'day' => [$now->copy()->startOfDay(), $now->copy()->endOfDay()],
+            'week' => [$now->copy()->startOfWeek(), $now->copy()->endOfWeek()],
+            'month' => [$now->copy()->startOfMonth(), $now->copy()->endOfMonth()],
+            'year' => [$now->copy()->startOfYear(), $now->copy()->endOfYear()],
+        ];
+
+        $periodData = [];
+
+        foreach ($periods as $key => [$start, $end]) {
+            $periodData[$key] = $this->buildProductPerformancePeriod($accountId, $start, $end);
+        }
+
+        $sellerOfYear = collect($periodData['year']['top_sellers'] ?? [])
+            ->first(fn($seller) => ($seller['type'] ?? null) === 'user')
+            ?? ($periodData['year']['top_sellers'][0] ?? null);
+
+        return [
+            'periods' => $periodData,
+            'seller_of_year' => $sellerOfYear,
+        ];
+    }
+
+    private function buildProductPerformancePeriod(
+        int $accountId,
+        Carbon $start,
+        Carbon $end,
+        ?int $sellerLimit = 8,
+        ?int $productLimit = 6
+    ): array {
+        $salesQuery = Sale::query()
+            ->where('user_id', $accountId)
+            ->where('status', Sale::STATUS_PAID)
+            ->whereBetween('created_at', [$start, $end]);
+
+        $orders = (clone $salesQuery)->count();
+        $revenue = (float) (clone $salesQuery)->sum('total');
+        $avgOrder = $orders > 0 ? round($revenue / $orders, 2) : 0.0;
+        $uniqueCustomers = (clone $salesQuery)
+            ->whereNotNull('customer_id')
+            ->distinct('customer_id')
+            ->count('customer_id');
+
+        $activeSellerIds = Sale::query()
+            ->where('user_id', $accountId)
+            ->where('status', Sale::STATUS_PAID)
+            ->whereBetween('created_at', [$start, $end])
+            ->whereNotNull('created_by_user_id')
+            ->distinct('created_by_user_id')
+            ->pluck('created_by_user_id');
+        $activeSellers = $activeSellerIds->count();
+        $revenuePerSeller = $activeSellers > 0 ? round($revenue / $activeSellers, 2) : 0.0;
+
+        $itemsSold = (int) SaleItem::query()
+            ->join('sales', 'sale_items.sale_id', '=', 'sales.id')
+            ->where('sales.user_id', $accountId)
+            ->where('sales.status', Sale::STATUS_PAID)
+            ->whereBetween('sales.created_at', [$start, $end])
+            ->sum('sale_items.quantity');
+
+        $sellerRowsQuery = Sale::query()
+            ->select(DB::raw('COALESCE(created_by_user_id, 0) as seller_id'), DB::raw('COUNT(*) as orders'), DB::raw('SUM(total) as revenue'))
+            ->where('user_id', $accountId)
+            ->where('status', Sale::STATUS_PAID)
+            ->whereBetween('created_at', [$start, $end])
+            ->groupBy(DB::raw('COALESCE(created_by_user_id, 0)'))
+            ->orderByDesc('revenue');
+
+        if ($sellerLimit) {
+            $sellerRowsQuery->limit($sellerLimit);
+        }
+
+        $sellerRows = $sellerRowsQuery->get();
+
+        $sellerIds = $sellerRows->pluck('seller_id')
+            ->map(fn($id) => (int) $id)
+            ->filter(fn($id) => $id > 0)
+            ->unique()
+            ->values();
+        $sellerMap = $sellerIds->isNotEmpty()
+            ? User::query()
+                ->whereIn('id', $sellerIds)
+                ->get(['id', 'name', 'profile_picture'])
+                ->keyBy('id')
+            : collect();
+
+        $itemsBySeller = SaleItem::query()
+            ->select(DB::raw('COALESCE(sales.created_by_user_id, 0) as seller_id'), DB::raw('SUM(sale_items.quantity) as items'))
+            ->join('sales', 'sale_items.sale_id', '=', 'sales.id')
+            ->where('sales.user_id', $accountId)
+            ->where('sales.status', Sale::STATUS_PAID)
+            ->whereBetween('sales.created_at', [$start, $end])
+            ->groupBy(DB::raw('COALESCE(sales.created_by_user_id, 0)'))
+            ->pluck('items', 'seller_id')
+            ->toArray();
+
+        $topSellers = $sellerRows->map(function ($row) use ($sellerMap, $itemsBySeller) {
+            $sellerId = (int) $row->seller_id;
+            $isOnline = $sellerId === 0;
+            $seller = $isOnline ? null : $sellerMap->get($sellerId);
+            $items = (int) ($itemsBySeller[$sellerId] ?? 0);
+
+            return [
+                'id' => $sellerId,
+                'type' => $isOnline ? 'online' : 'user',
+                'name' => $seller?->name ?? 'Seller',
+                'profile_picture_url' => $seller?->profile_picture_url,
+                'orders' => (int) $row->orders,
+                'revenue' => (float) $row->revenue,
+                'items' => $items,
+            ];
+        })->values();
+
+        $topProductRowsQuery = SaleItem::query()
+            ->select('sale_items.product_id', DB::raw('SUM(sale_items.quantity) as quantity'), DB::raw('SUM(sale_items.total) as revenue'))
+            ->join('sales', 'sale_items.sale_id', '=', 'sales.id')
+            ->where('sales.user_id', $accountId)
+            ->where('sales.status', Sale::STATUS_PAID)
+            ->whereBetween('sales.created_at', [$start, $end])
+            ->groupBy('sale_items.product_id')
+            ->orderByDesc('revenue');
+
+        if ($productLimit) {
+            $topProductRowsQuery->limit($productLimit);
+        }
+
+        $topProductRows = $topProductRowsQuery->get();
+
+        $productMap = $topProductRows->isNotEmpty()
+            ? Product::query()
+                ->whereIn('id', $topProductRows->pluck('product_id'))
+                ->get(['id', 'name', 'image'])
+                ->keyBy('id')
+            : collect();
+
+        $topProducts = $topProductRows->map(function ($row) use ($productMap) {
+            $product = $productMap->get($row->product_id);
+
+            return [
+                'id' => (int) $row->product_id,
+                'name' => $product?->name ?? 'Product',
+                'image_url' => $product?->image_url,
+                'quantity' => (int) $row->quantity,
+                'revenue' => (float) $row->revenue,
+            ];
+        })->values();
+
+        return [
+            'range' => [
+                'start' => $start->toDateString(),
+                'end' => $end->toDateString(),
+            ],
+            'orders' => $orders,
+            'revenue' => $revenue,
+            'avg_order' => $avgOrder,
+            'revenue_per_seller' => $revenuePerSeller,
+            'items_sold' => $itemsSold,
+            'customers' => (int) $uniqueCustomers,
+            'active_sellers' => $activeSellers,
+            'top_sellers' => $topSellers,
+            'top_products' => $topProducts,
+        ];
     }
 
     private function buildMonthlySeries($now, int $months, callable $resolver): array

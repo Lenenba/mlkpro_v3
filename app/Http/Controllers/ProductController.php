@@ -12,14 +12,19 @@ use App\Models\User;
 use App\Models\Warehouse;
 use App\Http\Requests\ProductRequest;
 use App\Services\InventoryService;
+use App\Services\AiImageUsageService;
 use App\Services\UsageLimitService;
 use App\Services\StripeCatalogService;
+use App\Services\Assistant\OpenAiClient;
+use App\Services\Assistant\OpenAiRequestException;
+use App\Services\AssistantCreditService;
 use App\Notifications\SupplierStockRequestNotification;
 use App\Support\NotificationDispatcher;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Support\Collection;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -201,6 +206,19 @@ class ProductController extends Controller
         }
 
         $stats['rotation'] = $rotation;
+        $aiImageUsage = app(AiImageUsageService::class);
+        $aiImagePayload = [
+            'enabled' => (bool) config('services.openai.key'),
+            'generate_url' => route('ai.images.generate'),
+            'daily_limit' => AiImageUsageService::FREE_DAILY_LIMIT,
+            'credit_balance' => $aiImageUsage->creditBalance($user),
+            'store' => [
+                'remaining' => $aiImageUsage->remaining($user, AiImageUsageService::CONTEXT_STORE),
+            ],
+            'product' => [
+                'remaining' => $aiImageUsage->remaining($user, AiImageUsageService::CONTEXT_PRODUCT),
+            ],
+        ];
 
         return $this->inertiaOrJson('Product/Index', [
             'count' => $totalCount,
@@ -214,6 +232,7 @@ class ProductController extends Controller
             'warehouses' => $warehouses,
             'defaultWarehouseId' => $defaultWarehouseId,
             'canEdit' => $canEdit,
+            'ai_image' => $aiImagePayload,
         ]);
     }
 
@@ -271,11 +290,26 @@ class ProductController extends Controller
         }
         $accountId = $this->ensureProductOwner($user);
 
+        $aiImageUsage = app(AiImageUsageService::class);
+        $aiImagePayload = [
+            'enabled' => (bool) config('services.openai.key'),
+            'generate_url' => route('ai.images.generate'),
+            'daily_limit' => AiImageUsageService::FREE_DAILY_LIMIT,
+            'credit_balance' => $aiImageUsage->creditBalance($user),
+            'store' => [
+                'remaining' => $aiImageUsage->remaining($user, AiImageUsageService::CONTEXT_STORE),
+            ],
+            'product' => [
+                'remaining' => $aiImageUsage->remaining($user, AiImageUsageService::CONTEXT_PRODUCT),
+            ],
+        ];
+
         return $this->inertiaOrJson('Product/Create', [
             'categories' => ProductCategory::forAccount($accountId)
                 ->active()
                 ->orderBy('name')
-                ->get(['id', 'name'])
+                ->get(['id', 'name']),
+            'ai_image' => $aiImagePayload,
         ]);
     }
 
@@ -1237,6 +1271,12 @@ class ProductController extends Controller
         unset($validated['image_url']);
         $extraImages = FileHandler::handleMultipleImageUpload('products', $request, 'images');
         $removeImageIds = $request->input('remove_image_ids', []);
+        $primaryImageId = $request->input('primary_image_id');
+        if ($primaryImageId) {
+            $removeImageIds = array_values(array_filter($removeImageIds, static function ($id) use ($primaryImageId) {
+                return (int) $id !== (int) $primaryImageId;
+            }));
+        }
 
         $product->update($validated);
 
@@ -1248,7 +1288,10 @@ class ProductController extends Controller
             }
         }
 
-        if ($request->hasFile('image') || $request->filled('image_url') || $product->images()->where('is_primary', true)->doesntExist()) {
+        $skipPrimaryUpdate = !empty($primaryImageId);
+        if (!$skipPrimaryUpdate
+            && ($request->hasFile('image') || $request->filled('image_url') || $product->images()->where('is_primary', true)->doesntExist())
+        ) {
             $product->images()->updateOrCreate(
                 ['is_primary' => true],
                 ['path' => $product->image, 'is_primary' => true, 'sort_order' => 0]
@@ -1261,6 +1304,20 @@ class ProductController extends Controller
                 'is_primary' => false,
                 'sort_order' => $index + 1,
             ]);
+        }
+
+        if ($primaryImageId) {
+            $primaryImage = $product->images()->whereKey($primaryImageId)->first();
+            if (!$primaryImage) {
+                throw ValidationException::withMessages([
+                    'primary_image_id' => 'Primary image selection is invalid.',
+                ]);
+            }
+
+            $product->image = $primaryImage->path;
+            $product->save();
+            $product->images()->where('id', '!=', $primaryImage->id)->update(['is_primary' => false]);
+            $primaryImage->update(['is_primary' => true, 'sort_order' => 0]);
         }
 
         if (array_key_exists('stock', $validated)) {
@@ -1314,6 +1371,201 @@ class ProductController extends Controller
         }
 
         return redirect()->route('product.index')->with('success', 'Product updated successfully.');
+    }
+
+    /**
+     * Generate an AI image for a specific product.
+     */
+    public function generateAiImage(
+        Request $request,
+        Product $product,
+        OpenAiClient $client,
+        AiImageUsageService $usageService,
+        AssistantCreditService $creditService
+    ): \Illuminate\Http\JsonResponse {
+        try {
+            $this->authorize('update', $product);
+        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+            return response()->json([
+                'message' => 'You are not authorized to edit this product.',
+            ], 403);
+        }
+
+        $this->ensureProductItem($product);
+
+        $user = $request->user() ?? Auth::user();
+        if (!$user) {
+            abort(403);
+        }
+
+        if (!config('services.openai.key')) {
+            return response()->json([
+                'message' => 'OpenAI n\'est pas configure.',
+            ], 422);
+        }
+
+        if (function_exists('set_time_limit')) {
+            @set_time_limit(120);
+        }
+        @ini_set('max_execution_time', '120');
+
+        $owner = $usageService->resolveOwner($user);
+        $context = AiImageUsageService::CONTEXT_PRODUCT;
+        $limit = AiImageUsageService::FREE_DAILY_LIMIT;
+        $usedFree = false;
+        $creditConsumed = false;
+
+        if ($usageService->remaining($owner, $context, $limit) > 0) {
+            $usedFree = true;
+        } else {
+            $creditConsumed = $usageService->consumeCredit($owner, $context, 1);
+            if (!$creditConsumed) {
+                return response()->json([
+                    'message' => 'Limite quotidienne d\'images IA atteinte. Achetez un pack IA pour continuer.',
+                ], 429);
+            }
+        }
+
+        $prompt = $this->buildProductAiPrompt($product);
+
+        try {
+            $timeout = (int) config('services.openai.image_timeout', 120);
+            $response = $client->generateImage($prompt, [
+                'timeout' => $timeout > 0 ? $timeout : 120,
+            ]);
+        } catch (OpenAiRequestException $exception) {
+            if ($creditConsumed) {
+                $creditService->refund($owner, 1, [
+                    'source' => $usageService->sourceForContext($context),
+                    'meta' => ['context' => $context, 'reason' => 'openai_failed'],
+                ]);
+            }
+
+            return response()->json([
+                'message' => $exception->userMessage(),
+            ], 422);
+        } catch (\Throwable $exception) {
+            if ($creditConsumed) {
+                $creditService->refund($owner, 1, [
+                    'source' => $usageService->sourceForContext($context),
+                    'meta' => ['context' => $context, 'reason' => 'runtime_failed'],
+                ]);
+            }
+
+            return response()->json([
+                'message' => 'Generation d\'image indisponible.',
+            ], 500);
+        }
+
+        $b64 = $response['data'][0]['b64_json'] ?? null;
+        if (!is_string($b64) || $b64 === '') {
+            if ($creditConsumed) {
+                $creditService->refund($owner, 1, [
+                    'source' => $usageService->sourceForContext($context),
+                    'meta' => ['context' => $context, 'reason' => 'empty_response'],
+                ]);
+            }
+
+            return response()->json([
+                'message' => 'Aucune image retournee.',
+            ], 422);
+        }
+
+        $binary = base64_decode($b64, true);
+        if ($binary === false) {
+            if ($creditConsumed) {
+                $creditService->refund($owner, 1, [
+                    'source' => $usageService->sourceForContext($context),
+                    'meta' => ['context' => $context, 'reason' => 'invalid_image'],
+                ]);
+            }
+
+            return response()->json([
+                'message' => 'Image invalide.',
+            ], 422);
+        }
+
+        $format = strtolower((string) config('services.openai.image_output_format', 'png'));
+        $format = preg_replace('/[^a-z0-9]/', '', $format) ?: 'png';
+        if (!in_array($format, ['png', 'jpeg', 'jpg', 'webp'], true)) {
+            $format = 'png';
+        }
+
+        $path = sprintf(
+            'company/ai/%d/%s-%s.%s',
+            $owner->id,
+            $context,
+            Str::uuid()->toString(),
+            $format
+        );
+
+        try {
+            Storage::disk('public')->put($path, $binary, ['visibility' => 'public']);
+        } catch (\Throwable $exception) {
+            if ($creditConsumed) {
+                $creditService->refund($owner, 1, [
+                    'source' => $usageService->sourceForContext($context),
+                    'meta' => ['context' => $context, 'reason' => 'storage_failed'],
+                ]);
+            }
+
+            return response()->json([
+                'message' => 'Generation d\'image indisponible.',
+            ], 500);
+        }
+
+        $product->images()->update(['is_primary' => false]);
+        $productImage = $product->images()->create([
+            'path' => $path,
+            'is_primary' => true,
+            'sort_order' => 0,
+        ]);
+        $product->image = $path;
+        $product->save();
+
+        if ($usedFree) {
+            $usageService->recordFree($owner, $context);
+        }
+
+        return response()->json([
+            'product_id' => $product->id,
+            'image_id' => $productImage->id,
+            'url' => Storage::disk('public')->url($path),
+            'mode' => $usedFree ? 'free' : 'credit',
+            'remaining' => $usageService->remaining($owner, $context, $limit),
+            'credit_balance' => $usageService->creditBalance($owner),
+        ]);
+    }
+
+    /**
+     * List products missing images for bulk AI generation.
+     */
+    public function missingAiImages(Request $request): \Illuminate\Http\JsonResponse
+    {
+        $user = $request->user() ?? Auth::user();
+        if (!$user) {
+            abort(403);
+        }
+
+        [, $accountId] = $this->resolveProductAccount($user);
+
+        $products = Product::query()
+            ->products()
+            ->byUser($accountId)
+            ->where(function ($query) {
+                $query->whereNull('image')
+                    ->orWhere('image', '')
+                    ->orWhere('image', 'products/product.jpg');
+            })
+            ->whereDoesntHave('images', function ($query) {
+                $query->where('path', '!=', 'products/product.jpg');
+            })
+            ->orderBy('created_at', 'desc')
+            ->get(['id', 'name']);
+
+        return response()->json([
+            'products' => $products,
+        ]);
     }
 
     /**
@@ -1390,6 +1642,76 @@ class ProductController extends Controller
         $name = $itemType === Product::ITEM_TYPE_PRODUCT ? 'Products' : 'Services';
 
         return ProductCategory::resolveForAccount($accountId, $creatorId, $name);
+    }
+
+    private function buildProductAiPrompt(Product $product): string
+    {
+        $product->loadMissing('category');
+        $details = [];
+
+        $addDetail = function (string $label, $value, int $limit = 420) use (&$details) {
+            $text = trim((string) $value);
+            if ($text === '') {
+                return;
+            }
+            if (strlen($text) > $limit) {
+                $text = rtrim(substr($text, 0, $limit)) . '...';
+            }
+            $details[] = "{$label}: {$text}";
+        };
+
+        $addNumber = function (string $label, $value, string $suffix = '') use (&$details) {
+            if ($value === null || $value === '') {
+                return;
+            }
+            if (!is_numeric($value)) {
+                return;
+            }
+            $numeric = (float) $value;
+            if ($numeric <= 0) {
+                return;
+            }
+            $details[] = "{$label}: {$numeric}{$suffix}";
+        };
+
+        $addDetail('Name', $product->name, 140);
+        $addDetail('Category', $product->category?->name, 140);
+        $addDetail('Description', $product->description, 600);
+        $addDetail('Unit', $product->unit, 80);
+        $addDetail('SKU', $product->sku, 80);
+        $addDetail('Barcode', $product->barcode, 80);
+        $addDetail('Supplier', $product->supplier_name, 120);
+        $addDetail('Supplier email', $product->supplier_email, 120);
+        if ($product->tracking_type && $product->tracking_type !== 'none') {
+            $addDetail('Tracking', $product->tracking_type, 80);
+        }
+        $addNumber('Price', $product->price, ' USD');
+        $addNumber('Promo discount', $product->promo_discount_percent, '%');
+        if ($product->promo_start_at || $product->promo_end_at) {
+            $promoStart = $product->promo_start_at ? (string) $product->promo_start_at : '';
+            $promoEnd = $product->promo_end_at ? (string) $product->promo_end_at : '';
+            $promoRange = trim($promoStart . ($promoEnd ? " to {$promoEnd}" : ''));
+            $addDetail('Promo dates', $promoRange, 120);
+        }
+        $addNumber('Cost price', $product->cost_price, ' USD');
+        $addNumber('Margin', $product->margin_percent, '%');
+        $addNumber('Tax rate', $product->tax_rate, '%');
+        $addNumber('Stock', $product->stock);
+        $addNumber('Minimum stock', $product->minimum_stock);
+        if ($product->is_active === false) {
+            $addDetail('Status', 'inactive', 80);
+        }
+
+        $detailBlock = $details
+            ? "Product details:\n- " . implode("\n- ", $details)
+            : '';
+
+        return implode("\n", array_filter([
+            'Create a high-quality product photo for an ecommerce listing.',
+            'Use the details below. If a detail is not visually relevant (like price or stock), ignore it.',
+            $detailBlock,
+            'Style: clean studio lighting, neutral background, realistic, no text, no watermark.',
+        ]));
     }
 
     private function normalizeSourceDetails($details): ?array

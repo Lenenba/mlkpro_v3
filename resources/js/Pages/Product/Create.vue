@@ -12,6 +12,10 @@ const props = defineProps({
         type: Object,
         default: null,
     },
+    ai_image: {
+        type: Object,
+        default: () => ({}),
+    },
 });
 
 
@@ -21,6 +25,6 @@ const props = defineProps({
 
     <Head :title="$t('products.single')" />
     <AuthenticatedLayout >
-        <ProductForm :product="product" :categories="categories" />
+        <ProductForm :product="product" :categories="categories" :ai-image="ai_image" />
     </AuthenticatedLayout>
 </template>
