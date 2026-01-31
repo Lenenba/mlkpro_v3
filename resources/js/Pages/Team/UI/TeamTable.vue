@@ -27,6 +27,7 @@ const roleOptions = [
     { id: 'admin', name: 'Administrator' },
     { id: 'member', name: 'Team member' },
     { id: 'seller', name: 'Seller (POS)' },
+    { id: 'sales_manager', name: 'Sales manager' },
 ];
 
 const normalize = (value) => String(value || '').toLowerCase();
@@ -184,7 +185,18 @@ const roleBadge = (member) => {
     if (member.role === 'seller') {
         return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-300';
     }
+    if (member.role === 'sales_manager') {
+        return 'bg-teal-100 text-teal-800 dark:bg-teal-500/10 dark:text-teal-300';
+    }
     return 'bg-amber-100 text-amber-800 dark:bg-amber-500/10 dark:text-amber-300';
+};
+
+const roleLabel = (role) => {
+    const entry = roleOptions.find((option) => option.id === role);
+    if (entry) {
+        return entry.name;
+    }
+    return String(role || '').replace(/_/g, ' ');
 };
 
 const formatDate = (value) => humanizeDate(value) || String(value || '');
@@ -334,7 +346,7 @@ watch(() => editForm.profile_picture, (value) => {
                             <td class="size-px whitespace-nowrap px-4 py-2">
                                 <span class="py-1.5 px-2 inline-flex items-center text-xs font-medium rounded-full"
                                     :class="roleBadge(member)">
-                                    {{ member.role }}
+                                    {{ roleLabel(member.role) }}
                                 </span>
                             </td>
                             <td class="size-px whitespace-nowrap px-4 py-2">

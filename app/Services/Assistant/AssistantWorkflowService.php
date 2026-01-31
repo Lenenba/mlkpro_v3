@@ -4674,6 +4674,10 @@ class AssistantWorkflowService
             return 'admin';
         }
 
+        if (in_array($value, ['sales_manager', 'sales manager', 'manager sales', 'responsable vente', 'responsable de rayon'], true)) {
+            return 'sales_manager';
+        }
+
         if (in_array($value, ['seller', 'sales', 'vendeur'], true)) {
             return 'seller';
         }
@@ -4769,6 +4773,9 @@ class AssistantWorkflowService
             ],
             'seller' => [
                 'sales.pos',
+            ],
+            'sales_manager' => [
+                'sales.manage',
             ],
             default => [
                 'jobs.view',

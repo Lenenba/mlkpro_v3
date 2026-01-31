@@ -191,7 +191,7 @@ Output JSON schema:
   "team_member": {
     "name": "",
     "email": "",
-    "role": "admin|member|seller",
+    "role": "admin|member|seller|sales_manager",
     "permissions": []
   },
   "team_members": [],

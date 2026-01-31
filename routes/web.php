@@ -22,6 +22,9 @@ use App\Http\Controllers\ProductsSearchController;
 use App\Http\Controllers\QuoteEmaillingController;
 use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\PipelineController;
+use App\Http\Controllers\PlanningController;
+use App\Http\Controllers\PerformanceController;
+use App\Http\Controllers\PresenceController;
 use App\Http\Controllers\RequestController;
 use App\Http\Controllers\RequestMediaController;
 use App\Http\Controllers\RequestNoteController;
@@ -291,6 +294,17 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
 
     // Sales Management (products)
     Route::middleware('company.feature:sales')->group(function () {
+        Route::get('/performance', [PerformanceController::class, 'index'])->name('performance.index');
+        Route::get('/performance/employees/{employee}', [PerformanceController::class, 'employee'])
+            ->name('performance.employee.show');
+        Route::get('/presence', [PresenceController::class, 'index'])->name('presence.index');
+        Route::post('/presence/clock-in', [PresenceController::class, 'clockIn'])->name('presence.clock-in');
+        Route::post('/presence/clock-out', [PresenceController::class, 'clockOut'])->name('presence.clock-out');
+        Route::get('/planning', [PlanningController::class, 'index'])->name('planning.index');
+        Route::get('/planning/events', [PlanningController::class, 'events'])->name('planning.events');
+        Route::post('/planning/shifts', [PlanningController::class, 'store'])->name('planning.shifts.store');
+        Route::delete('/planning/shifts/{shift}', [PlanningController::class, 'destroy'])->name('planning.shifts.destroy');
+
         Route::get('/orders', [SaleController::class, 'ordersIndex'])->name('orders.index');
         Route::get('/sales', [SaleController::class, 'index'])->name('sales.index');
         Route::get('/sales/create', [SaleController::class, 'create'])->name('sales.create');

@@ -29,6 +29,9 @@ const homeRoute = computed(() => (showPlatformNav.value ? 'superadmin.dashboard'
 const canSales = computed(() =>
     isOwner.value || teamPermissions.value.includes('sales.manage') || teamPermissions.value.includes('sales.pos')
 );
+const canSalesManage = computed(() =>
+    isOwner.value || teamPermissions.value.includes('sales.manage')
+);
 const canQuotes = computed(() =>
     isOwner.value || teamPermissions.value.includes('quotes.view') || teamPermissions.value.includes('quotes.edit')
 );
@@ -374,6 +377,56 @@ const isCustomerActive = computed(() => {
                                             <circle cx="8" cy="21" r="1" />
                                             <circle cx="19" cy="21" r="1" />
                                             <path d="M2.05 2.05h2l2.6 12.4a2 2 0 0 0 2 1.6h9.6a2 2 0 0 0 2-1.6l1.2-6.4H6.2" />
+                                        </svg>
+                                    </template>
+                                </LinkAncor>
+                                <!-- End Item -->
+
+                                <!-- Item -->
+                                <LinkAncor v-if="companyType === 'products' && hasFeature('sales') && canSalesManage" :label="$t('nav.performance')" :href="'performance.index'" tone="performance"
+                                    :active="route().current('performance.*')">
+                                    <template #icon>
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                                            fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                            stroke-linejoin="round" class="lucide lucide-bar-chart-3">
+                                            <path d="M3 3v18h18" />
+                                            <path d="M18 17V9" />
+                                            <path d="M13 17V5" />
+                                            <path d="M8 17v-3" />
+                                        </svg>
+                                    </template>
+                                </LinkAncor>
+                                <!-- End Item -->
+
+                                <!-- Item -->
+                                <LinkAncor v-if="companyType === 'products' && hasFeature('sales') && canSales" :label="$t('nav.presence')" :href="'presence.index'" tone="presence"
+                                    :active="route().current('presence.*')">
+                                    <template #icon>
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round"
+                                            class="lucide lucide-clock">
+                                            <circle cx="12" cy="12" r="10" />
+                                            <polyline points="12 6 12 12 16 14" />
+                                        </svg>
+                                    </template>
+                                </LinkAncor>
+                                <!-- End Item -->
+
+                                <!-- Item -->
+                                <LinkAncor v-if="companyType === 'products' && hasFeature('sales') && canSales" :label="$t('nav.planning')" :href="'planning.index'" tone="planning"
+                                    :active="route().current('planning.*')">
+                                    <template #icon>
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round"
+                                            class="lucide lucide-calendar-clock">
+                                            <path d="M21 14V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h8" />
+                                            <path d="M16 2v4" />
+                                            <path d="M8 2v4" />
+                                            <path d="M3 10h18" />
+                                            <path d="M16 22a6 6 0 1 0 0-12 6 6 0 0 0 0 12Z" />
+                                            <path d="M16 16v2l1.5 1.5" />
                                         </svg>
                                     </template>
                                 </LinkAncor>
