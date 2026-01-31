@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref, watch } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { Link, router, useForm } from '@inertiajs/vue3';
 import { humanizeDate } from '@/utils/date';
 import ProductForm from './ProductForm.vue';
@@ -23,6 +23,10 @@ const props = defineProps({
     categories: {
         type: Array,
         required: true,
+    },
+    aiImage: {
+        type: Object,
+        default: () => ({}),
     },
     count: {
         type: Number,
@@ -76,6 +80,16 @@ const filterForm = useForm({
 const { t } = useI18n();
 
 const canEdit = computed(() => Boolean(props.canEdit));
+const aiImage = computed(() => (props.aiImage && typeof props.aiImage === 'object' ? props.aiImage : {}));
+const aiImageEnabled = computed(() => Boolean(aiImage.value.enabled) && Boolean(aiImage.value.generate_url));
+const aiImageLimit = computed(() => Number(aiImage.value.daily_limit ?? 1));
+const aiImageRemaining = ref(Number(aiImage.value.product?.remaining ?? aiImageLimit.value));
+const aiImageCreditBalance = ref(Number(aiImage.value.credit_balance ?? 0));
+const aiBulkGenerating = ref(false);
+const aiBulkError = ref('');
+const aiBulkProgress = ref({ total: 0, done: 0, failed: 0 });
+const aiMissingProducts = ref([]);
+const aiMissingLoading = ref(false);
 
 const showAdvanced = ref(false);
 const isLoading = ref(false);
@@ -309,6 +323,12 @@ const isLowStock = (product) =>
 const isOutOfStock = (product) =>
     getAvailableStock(product) <= 0;
 
+const missingImageProducts = computed(() => aiMissingProducts.value || []);
+
+const aiBulkCanGenerate = computed(() =>
+    aiImageEnabled.value && (aiImageRemaining.value > 0 || aiImageCreditBalance.value > 0)
+);
+
 const alertBadgeClasses = {
     danger: 'bg-red-100 text-red-800 dark:bg-red-500/10 dark:text-red-400',
     warning: 'bg-amber-100 text-amber-800 dark:bg-amber-500/10 dark:text-amber-400',
@@ -515,6 +535,17 @@ watch(() => props.products.data, () => {
     selected.value = [];
 }, { deep: true });
 
+watch(
+    () => props.aiImage,
+    (next) => {
+        const data = next && typeof next === 'object' ? next : {};
+        aiImageRemaining.value = Number(data.product?.remaining ?? aiImageLimit.value);
+        aiImageCreditBalance.value = Number(data.credit_balance ?? 0);
+    },
+    { deep: true }
+);
+
+
 watch([allSelected, someSelected], () => {
     if (selectAllRef.value) {
         selectAllRef.value.indeterminate = someSelected.value;
@@ -547,6 +578,117 @@ const runBulk = (action) => {
             selected.value = [];
         },
     });
+};
+
+const syncAiUsage = (payload) => {
+    if (payload && typeof payload === 'object') {
+        if (payload.remaining !== undefined) {
+            aiImageRemaining.value = Number(payload.remaining ?? aiImageRemaining.value);
+        }
+        if (payload.credit_balance !== undefined) {
+            aiImageCreditBalance.value = Number(payload.credit_balance ?? aiImageCreditBalance.value);
+        }
+    }
+};
+
+const fetchMissingProducts = async () => {
+    if (aiMissingLoading.value) {
+        return;
+    }
+    aiMissingLoading.value = true;
+    try {
+        const { data } = await axios.get(route('product.ai-missing'), {
+            headers: { Accept: 'application/json' },
+        });
+        aiMissingProducts.value = Array.isArray(data?.products) ? data.products : [];
+    } catch (error) {
+        aiBulkError.value = error?.response?.data?.message || t('products.ai_bulk.error');
+    } finally {
+        aiMissingLoading.value = false;
+    }
+};
+
+onMounted(() => {
+    if (canEdit.value && aiImageEnabled.value) {
+        fetchMissingProducts();
+    }
+});
+
+watch(aiImageEnabled, (enabled) => {
+    if (enabled && canEdit.value) {
+        fetchMissingProducts();
+    }
+});
+
+const generateAiImagesForMissing = async () => {
+    if (aiBulkGenerating.value) {
+        return;
+    }
+    aiBulkError.value = '';
+    await fetchMissingProducts();
+    const missing = missingImageProducts.value;
+    if (!missing.length) {
+        aiBulkError.value = t('products.ai_bulk.none_missing');
+        return;
+    }
+    if (!aiImageEnabled.value) {
+        aiBulkError.value = t('products.ai_bulk.disabled');
+        return;
+    }
+    if (!aiBulkCanGenerate.value) {
+        aiBulkError.value = t('products.ai_bulk.limit_reached');
+        return;
+    }
+
+    const confirmed = confirm(t('products.ai_bulk.confirm', { count: missing.length }));
+    if (!confirmed) {
+        return;
+    }
+
+    aiBulkGenerating.value = true;
+    aiBulkProgress.value = { total: missing.length, done: 0, failed: 0 };
+
+    for (const product of missing) {
+        if (!aiBulkCanGenerate.value) {
+            aiBulkError.value = t('products.ai_bulk.limit_reached');
+            break;
+        }
+        try {
+            const response = await axios.post(route('product.ai-image', product.id), {}, {
+                headers: { Accept: 'application/json' },
+            });
+            const url = response?.data?.url;
+            if (url) {
+                product.image_url = url;
+                product.image = url;
+                const localProduct = (props.products?.data || []).find((item) => item.id === product.id);
+                if (localProduct) {
+                    localProduct.image_url = url;
+                    localProduct.image = url;
+                    if (Array.isArray(localProduct.images)) {
+                        localProduct.images = [
+                            { id: response?.data?.image_id, url, image_url: url, path: url, is_primary: true },
+                            ...localProduct.images.filter((image) => image?.id !== response?.data?.image_id),
+                        ];
+                    }
+                }
+            }
+            syncAiUsage(response?.data);
+            aiMissingProducts.value = aiMissingProducts.value.filter((item) => item.id !== product.id);
+            aiBulkProgress.value.done += 1;
+        } catch (error) {
+            aiBulkProgress.value.failed += 1;
+            const status = error?.response?.status;
+            const message = error?.response?.data?.message || t('products.ai_bulk.error');
+            aiBulkError.value = message;
+            if (status === 429) {
+                break;
+            }
+        }
+        await new Promise((resolve) => setTimeout(resolve, 300));
+    }
+
+    aiBulkGenerating.value = false;
 };
 
 const editingId = ref(null);
@@ -818,8 +960,33 @@ const submitImport = () => {
                             </svg>
                             {{ $t('products.actions.add_product') }}
                         </button>
+                        <button
+                            type="button"
+                            class="py-2 px-2.5 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 disabled:opacity-50 disabled:pointer-events-none dark:border-emerald-500/40 dark:bg-emerald-500/10 dark:text-emerald-200 dark:hover:bg-emerald-500/20"
+                            :disabled="aiBulkGenerating || aiMissingLoading || !aiImageEnabled"
+                            @click="generateAiImagesForMissing"
+                        >
+                            {{ aiBulkGenerating ? $t('products.ai_bulk.generate_busy') : $t('products.ai_bulk.generate') }}
+                        </button>
                     </template>
                 </div>
+            </div>
+            <div v-if="canEdit && aiImageEnabled" class="text-xs text-stone-500 dark:text-neutral-400">
+                <span v-if="aiMissingLoading">
+                    {{ $t('products.ai_bulk.loading') }}
+                </span>
+                <span v-else>
+                    {{ $t('products.ai_bulk.missing_count', { count: missingImageProducts.length }) }}
+                </span>
+                <span v-if="aiBulkGenerating" class="ml-2">
+                    {{ $t('products.ai_bulk.progress', { done: aiBulkProgress.done, total: aiBulkProgress.total }) }}
+                </span>
+            </div>
+            <div v-if="canEdit && !aiImageEnabled" class="text-xs text-amber-600">
+                {{ $t('products.ai_bulk.disabled') }}
+            </div>
+            <div v-if="aiBulkError" class="text-xs text-rose-600">
+                {{ aiBulkError }}
             </div>
 
             <div class="flex flex-wrap items-center justify-between gap-2">
@@ -1321,7 +1488,7 @@ const submitImport = () => {
                     </td>
 
                     <Modal v-if="canEdit" :title="$t('products.actions.edit_product')" :id="'hs-pro-edit' + product.id">
-                        <ProductForm :product="product" :categories="categories" :id="'hs-pro-edit' + product.id" />
+                        <ProductForm :product="product" :categories="categories" :id="'hs-pro-edit' + product.id" :ai-image="aiImage" />
                     </Modal>
                 </tr>
                 </template>
@@ -1636,7 +1803,7 @@ const submitImport = () => {
     </Modal>
 
     <Modal v-if="canEdit" :title="$t('products.actions.add_product')" :id="'hs-pro-dasadpm'">
-        <ProductForm :product="product" :categories="categories" :id="'hs-pro-dasadpm'" />
+        <ProductForm :product="product" :categories="categories" :id="'hs-pro-dasadpm'" :ai-image="aiImage" />
     </Modal>
 
     <Modal v-if="canEdit" :title="$t('products.import.title')" :id="'hs-pro-import'">

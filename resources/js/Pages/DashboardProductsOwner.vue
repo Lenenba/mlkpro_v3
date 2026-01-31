@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Head, Link, router } from '@inertiajs/vue3';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
@@ -23,6 +23,10 @@ const props = defineProps({
         type: Array,
         default: () => [],
     },
+    performance: {
+        type: Object,
+        default: () => ({ periods: {}, seller_of_year: null }),
+    },
 });
 
 const { t } = useI18n();
@@ -32,6 +36,54 @@ const formatCurrency = (value) =>
 
 const formatNumber = (value) =>
     Number(value || 0).toLocaleString(undefined, { maximumFractionDigits: 0 });
+
+const performanceData = computed(() => (props.performance && typeof props.performance === 'object'
+    ? props.performance
+    : { periods: {}, seller_of_year: null }));
+
+const periodOptions = computed(() => ([
+    { key: 'day', label: t('dashboard_products.owner.performance.period.day') },
+    { key: 'week', label: t('dashboard_products.owner.performance.period.week') },
+    { key: 'month', label: t('dashboard_products.owner.performance.period.month') },
+    { key: 'year', label: t('dashboard_products.owner.performance.period.year') },
+]));
+
+const activePeriod = ref('month');
+const emptyPeriod = {
+    range: { start: '', end: '' },
+    orders: 0,
+    revenue: 0,
+    avg_order: 0,
+    revenue_per_seller: 0,
+    items_sold: 0,
+    customers: 0,
+    active_sellers: 0,
+    top_sellers: [],
+    top_products: [],
+};
+
+const periodStats = computed(() => {
+    const periods = performanceData.value?.periods || {};
+    return periods[activePeriod.value] || emptyPeriod;
+});
+
+const sellerOfYear = computed(() => performanceData.value?.seller_of_year || null);
+
+const sellerDisplayName = (seller) => {
+    if (seller?.type === 'online') {
+        return t('dashboard_products.owner.performance.online_label');
+    }
+    return seller?.name || t('dashboard_products.owner.performance.seller_fallback');
+};
+
+const sellerInitials = (seller) => {
+    const clean = String(sellerDisplayName(seller) || '').trim();
+    if (!clean) {
+        return '--';
+    }
+    const parts = clean.split(/\s+/).slice(0, 2);
+    return parts.map((part) => part[0]?.toUpperCase()).join('');
+};
 
 const kpiCards = computed(() => ([
     {
@@ -209,6 +261,199 @@ const requestSupplierStock = (product) => {
                     </div>
                 </div>
             </div>
+
+            <Card class="rise-in" :style="{ animationDelay: '100ms' }">
+                <template #title>{{ $t('dashboard_products.owner.performance.title') }}</template>
+                <div class="space-y-4">
+                    <div class="flex flex-wrap items-center gap-2">
+                        <button
+                            v-for="period in periodOptions"
+                            :key="period.key"
+                            type="button"
+                            class="rounded-full px-3 py-1.5 text-xs font-semibold transition"
+                            :class="activePeriod === period.key
+                                ? 'bg-green-600 text-white shadow-sm'
+                                : 'bg-stone-100 text-stone-600 hover:bg-stone-200 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700'"
+                            @click="activePeriod = period.key"
+                        >
+                            {{ period.label }}
+                        </button>
+                        <span v-if="periodStats.range?.start" class="text-xs text-stone-500 dark:text-neutral-400 self-center">
+                            {{ $t('dashboard_products.owner.performance.range', { start: periodStats.range.start, end: periodStats.range.end }) }}
+                        </span>
+                        <span class="text-xs text-stone-500 dark:text-neutral-400 self-center">
+                            {{ $t('dashboard_products.owner.performance.active_sellers', { count: formatNumber(periodStats.active_sellers) }) }}
+                        </span>
+                        <a
+                            :href="route('dashboard.products.sellers-export', { period: activePeriod })"
+                            class="ml-auto rounded-sm border border-stone-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-stone-600 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300 dark:hover:bg-neutral-800"
+                        >
+                            {{ $t('dashboard_products.owner.performance.export') }}
+                        </a>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
+                        <div class="rounded-sm border border-stone-200 bg-white p-3 text-xs text-stone-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-400">
+                            <p class="uppercase">{{ $t('dashboard_products.owner.performance.kpi.revenue') }}</p>
+                            <p class="mt-1 text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                                {{ formatCurrency(periodStats.revenue) }}
+                            </p>
+                        </div>
+                        <div class="rounded-sm border border-stone-200 bg-white p-3 text-xs text-stone-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-400">
+                            <p class="uppercase">{{ $t('dashboard_products.owner.performance.kpi.orders') }}</p>
+                            <p class="mt-1 text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                                {{ formatNumber(periodStats.orders) }}
+                            </p>
+                        </div>
+                        <div class="rounded-sm border border-stone-200 bg-white p-3 text-xs text-stone-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-400">
+                            <p class="uppercase">{{ $t('dashboard_products.owner.performance.kpi.items_sold') }}</p>
+                            <p class="mt-1 text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                                {{ formatNumber(periodStats.items_sold) }}
+                            </p>
+                        </div>
+                        <div class="rounded-sm border border-stone-200 bg-white p-3 text-xs text-stone-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-400">
+                            <p class="uppercase">{{ $t('dashboard_products.owner.performance.kpi.avg_order') }}</p>
+                            <p class="mt-1 text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                                {{ formatCurrency(periodStats.avg_order) }}
+                            </p>
+                        </div>
+                        <div class="rounded-sm border border-stone-200 bg-white p-3 text-xs text-stone-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-400">
+                            <p class="uppercase">{{ $t('dashboard_products.owner.performance.kpi.customers') }}</p>
+                            <p class="mt-1 text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                                {{ formatNumber(periodStats.customers) }}
+                            </p>
+                        </div>
+                        <div class="rounded-sm border border-stone-200 bg-white p-3 text-xs text-stone-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-400">
+                            <p class="uppercase">{{ $t('dashboard_products.owner.performance.kpi.revenue_per_seller') }}</p>
+                            <p class="mt-1 text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                                {{ formatCurrency(periodStats.revenue_per_seller) }}
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 gap-4 lg:grid-cols-3">
+                        <div class="lg:col-span-2 space-y-4">
+                            <div>
+                                <h3 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                                    {{ $t('dashboard_products.owner.performance.top_sellers') }}
+                                </h3>
+                                <div v-if="!periodStats.top_sellers?.length" class="mt-2 text-sm text-stone-500 dark:text-neutral-400">
+                                    {{ $t('dashboard_products.owner.performance.no_sellers') }}
+                                </div>
+                                <div v-else class="mt-3 space-y-2">
+                                    <div
+                                        v-for="(seller, index) in periodStats.top_sellers"
+                                        :key="seller.id"
+                                        class="flex items-center gap-3 rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+                                    >
+                                        <span class="w-6 text-xs font-semibold text-stone-400">#{{ index + 1 }}</span>
+                                        <div class="h-10 w-10 overflow-hidden rounded-full border border-stone-200 bg-stone-100 dark:border-neutral-700 dark:bg-neutral-800">
+                                            <img
+                                                v-if="seller.profile_picture_url"
+                                                :src="seller.profile_picture_url"
+                                                :alt="sellerDisplayName(seller)"
+                                                class="h-full w-full object-cover"
+                                                loading="lazy"
+                                                decoding="async"
+                                            />
+                                            <div v-else class="flex h-full w-full items-center justify-center text-xs font-semibold text-stone-600 dark:text-neutral-300">
+                                                {{ sellerInitials(seller) }}
+                                            </div>
+                                        </div>
+                                        <div class="flex-1">
+                                            <div class="flex flex-wrap items-center gap-2">
+                                                <p class="font-semibold text-stone-800 dark:text-neutral-100">{{ sellerDisplayName(seller) }}</p>
+                                                <span
+                                                    v-if="seller.type === 'online'"
+                                                    class="rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-semibold text-sky-700 dark:bg-sky-500/10 dark:text-sky-200"
+                                                >
+                                                    {{ $t('dashboard_products.owner.performance.online_badge') }}
+                                                </span>
+                                            </div>
+                                            <p class="text-xs text-stone-500 dark:text-neutral-400">
+                                                {{ $t('dashboard_products.owner.performance.seller_line', {
+                                                    revenue: formatCurrency(seller.revenue),
+                                                    orders: formatNumber(seller.orders),
+                                                    items: formatNumber(seller.items),
+                                                }) }}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div>
+                                <h3 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                                    {{ $t('dashboard_products.owner.performance.top_products') }}
+                                </h3>
+                                <div v-if="!periodStats.top_products?.length" class="mt-2 text-sm text-stone-500 dark:text-neutral-400">
+                                    {{ $t('dashboard_products.owner.performance.no_products') }}
+                                </div>
+                                <div v-else class="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
+                                    <div
+                                        v-for="product in periodStats.top_products"
+                                        :key="product.id"
+                                        class="flex items-center gap-3 rounded-sm border border-stone-200 bg-white p-3 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+                                    >
+                                        <img
+                                            :src="product.image_url"
+                                            :alt="product.name"
+                                            class="h-12 w-12 rounded-sm border border-stone-200 object-cover dark:border-neutral-700"
+                                            loading="lazy"
+                                            decoding="async"
+                                        />
+                                        <div class="flex-1">
+                                            <p class="font-semibold text-stone-800 dark:text-neutral-100">{{ product.name }}</p>
+                                            <p class="text-xs text-stone-500 dark:text-neutral-400">
+                                                {{ $t('dashboard_products.owner.performance.product_line', {
+                                                    revenue: formatCurrency(product.revenue),
+                                                    quantity: formatNumber(product.quantity),
+                                                }) }}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="space-y-3">
+                            <div class="rounded-sm border border-emerald-200 bg-emerald-50/50 p-4 text-sm text-emerald-900 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200">
+                                <p class="text-xs uppercase tracking-wide text-emerald-700 dark:text-emerald-200">
+                                    {{ $t('dashboard_products.owner.performance.seller_of_year') }}
+                                </p>
+                                <div v-if="sellerOfYear" class="mt-3 flex items-center gap-3">
+                                    <div class="h-14 w-14 overflow-hidden rounded-full border border-emerald-200 bg-white dark:border-emerald-500/40 dark:bg-neutral-900">
+                                        <img
+                                            v-if="sellerOfYear.profile_picture_url"
+                                            :src="sellerOfYear.profile_picture_url"
+                                            :alt="sellerDisplayName(sellerOfYear)"
+                                            class="h-full w-full object-cover"
+                                            loading="lazy"
+                                            decoding="async"
+                                        />
+                                        <div v-else class="flex h-full w-full items-center justify-center text-sm font-semibold text-emerald-700 dark:text-emerald-200">
+                                            {{ sellerInitials(sellerOfYear) }}
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <p class="text-sm font-semibold">{{ sellerDisplayName(sellerOfYear) }}</p>
+                                        <p class="text-xs text-emerald-700/80 dark:text-emerald-200/80">
+                                            {{ $t('dashboard_products.owner.performance.seller_line', {
+                                                revenue: formatCurrency(sellerOfYear.revenue),
+                                                orders: formatNumber(sellerOfYear.orders),
+                                                items: formatNumber(sellerOfYear.items),
+                                            }) }}
+                                        </p>
+                                    </div>
+                                </div>
+                                <p v-else class="mt-3 text-sm text-emerald-700/80 dark:text-emerald-200/80">
+                                    {{ $t('dashboard_products.owner.performance.no_seller_year') }}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </Card>
 
             <div class="grid grid-cols-1 gap-4 lg:grid-cols-3">
                 <Card class="rise-in lg:col-span-2" :style="{ animationDelay: '120ms' }">

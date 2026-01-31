@@ -25,6 +25,10 @@ const props = defineProps({
         type: Object,
         required: true,
     },
+    ai_image: {
+        type: Object,
+        default: () => ({}),
+    },
     topProducts: {
         type: Array,
         required: true,
@@ -58,6 +62,7 @@ const props = defineProps({
                     :warehouses="warehouses"
                     :defaultWarehouseId="defaultWarehouseId"
                     :canEdit="canEdit"
+                    :ai-image="ai_image"
                 />
             </div>
             <ProductUsageStat :items="topProducts" />

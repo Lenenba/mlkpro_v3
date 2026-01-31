@@ -55,22 +55,41 @@ class OpenAiClient
         ];
 
         $size = $options['size'] ?? config('services.openai.image_size');
-        if ($size) {
+        if (is_string($size)) {
+            $size = trim($size);
+        }
+        $allowedSizes = ['256x256', '512x512', '1024x1024', '1024x1792', '1792x1024'];
+        if ($size && in_array($size, $allowedSizes, true)) {
             $payload['size'] = $size;
         }
 
         $quality = $options['quality'] ?? config('services.openai.image_quality');
-        if ($quality) {
+        if (is_string($quality)) {
+            $quality = strtolower(trim($quality));
+        }
+        $allowedQualities = ['standard', 'hd', 'low', 'medium', 'high'];
+        if ($quality && in_array($quality, $allowedQualities, true)) {
             $payload['quality'] = $quality;
         }
 
         $background = $options['background'] ?? config('services.openai.image_background');
-        if ($background) {
+        if (is_string($background)) {
+            $background = strtolower(trim($background));
+        }
+        $allowedBackgrounds = ['transparent', 'opaque'];
+        if ($background && in_array($background, $allowedBackgrounds, true)) {
             $payload['background'] = $background;
         }
 
         $outputFormat = $options['output_format'] ?? config('services.openai.image_output_format');
-        if ($outputFormat) {
+        if (is_string($outputFormat)) {
+            $outputFormat = strtolower(trim($outputFormat));
+        }
+        if ($outputFormat === 'jpg') {
+            $outputFormat = 'jpeg';
+        }
+        $allowedFormats = ['png', 'jpeg', 'webp'];
+        if ($outputFormat && in_array($outputFormat, $allowedFormats, true)) {
             $payload['output_format'] = $outputFormat;
         }
 

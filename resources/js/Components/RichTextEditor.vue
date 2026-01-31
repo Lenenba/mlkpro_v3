@@ -30,6 +30,14 @@ const props = defineProps({
         type: Boolean,
         default: false,
     },
+    aiContext: {
+        type: String,
+        default: '',
+    },
+    aiAllowed: {
+        type: Boolean,
+        default: true,
+    },
     aiGenerateUrl: {
         type: String,
         default: '',
@@ -48,7 +56,7 @@ const props = defineProps({
     },
 });
 
-const emit = defineEmits(['update:modelValue']);
+const emit = defineEmits(['update:modelValue', 'ai-generated']);
 
 const editorRef = ref(null);
 const isFocused = ref(false);
@@ -129,6 +137,11 @@ const generateImage = async () => {
 
     try {
         const token = resolveCsrfToken();
+        const body = { prompt };
+        if (props.aiContext) {
+            body.context = props.aiContext;
+        }
+
         const response = await fetch(props.aiGenerateUrl, {
             method: 'POST',
             headers: {
@@ -136,7 +149,7 @@ const generateImage = async () => {
                 'X-Requested-With': 'XMLHttpRequest',
                 ...(token ? { 'X-CSRF-TOKEN': token } : {}),
             },
-            body: JSON.stringify({ prompt }),
+            body: JSON.stringify(body),
         });
 
         const payload = await response.json().catch(() => ({}));
@@ -149,6 +162,7 @@ const generateImage = async () => {
         }
 
         runCommand('insertImage', payload.url);
+        emit('ai-generated', payload);
     } catch (error) {
         aiError.value = error?.message || 'Image generation failed.';
     } finally {
@@ -211,7 +225,7 @@ watch(
                     class="editor-btn"
                     :title="labels.aiImage || 'AI image'"
                     :aria-label="labels.aiImage || 'AI image'"
-                    :disabled="disabled || isGenerating"
+                    :disabled="disabled || isGenerating || !aiAllowed"
                     @click="generateImage"
                 >
                     {{ isGenerating ? aiBusyLabel : 'AI' }}

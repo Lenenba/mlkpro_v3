@@ -9,6 +9,7 @@ use App\Models\ProductCategory;
 use App\Models\Warehouse;
 use App\Services\CompanyNotificationPreferenceService;
 use App\Services\SupplierDirectory;
+use App\Services\AiImageUsageService;
 use App\Services\UsageLimitService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -47,6 +48,19 @@ class CompanySettingsController extends Controller
             ->orderBy('name')
             ->get(['id', 'name', 'code', 'address', 'city', 'state', 'postal_code', 'country', 'is_default', 'is_active']);
         $notificationSettings = app(CompanyNotificationPreferenceService::class)->resolveFor($user);
+        $aiImageUsage = app(AiImageUsageService::class);
+        $aiImagePayload = [
+            'enabled' => (bool) config('services.openai.key'),
+            'generate_url' => route('ai.images.generate'),
+            'daily_limit' => AiImageUsageService::FREE_DAILY_LIMIT,
+            'credit_balance' => $aiImageUsage->creditBalance($user),
+            'store' => [
+                'remaining' => $aiImageUsage->remaining($user, AiImageUsageService::CONTEXT_STORE),
+            ],
+            'product' => [
+                'remaining' => $aiImageUsage->remaining($user, AiImageUsageService::CONTEXT_PRODUCT),
+            ],
+        ];
 
         return $this->inertiaOrJson('Settings/Company', [
             'company' => [
@@ -74,6 +88,7 @@ class CompanySettingsController extends Controller
                 ->orderBy('name')
                 ->get(['id', 'name']),
             'usage_limits' => $usageLimits,
+            'ai_image' => $aiImagePayload,
             'suppliers' => $suppliers,
             'supplier_preferences' => $supplierPreferences,
             'preferred_limit' => config('suppliers.preferred_limit', 4),

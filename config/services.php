@@ -84,6 +84,7 @@ return [
         'image_quality' => env('OPENAI_IMAGE_QUALITY'),
         'image_background' => env('OPENAI_IMAGE_BACKGROUND'),
         'image_output_format' => env('OPENAI_IMAGE_OUTPUT_FORMAT', 'png'),
+        'image_timeout' => env('OPENAI_IMAGE_TIMEOUT', 120),
     ],
 
 ];

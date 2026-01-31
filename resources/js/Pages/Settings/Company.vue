@@ -11,6 +11,7 @@ import InputError from '@/Components/InputError.vue';
 import DropzoneInput from '@/Components/DropzoneInput.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
 import DatePicker from '@/Components/DatePicker.vue';
+import Modal from '@/Components/UI/Modal.vue';
 import RichTextEditor from '@/Components/RichTextEditor.vue';
 
 const props = defineProps({
@@ -33,6 +34,10 @@ const props = defineProps({
     usage_limits: {
         type: Object,
         default: () => ({ items: [] }),
+    },
+    ai_image: {
+        type: Object,
+        default: () => ({}),
     },
     warehouses: {
         type: Array,
@@ -359,6 +364,14 @@ const removeHeroImageUrl = (url, index) => {
     form.store_hero_images_text = next.join('\n');
 };
 
+const addHeroImageUrl = (url) => {
+    const next = heroImageUrlList.value.slice();
+    if (!next.includes(url)) {
+        next.push(url);
+        form.store_hero_images_text = next.join('\n');
+    }
+};
+
 const removeHeroImageFile = (index) => {
     const next = (form.store_hero_images_files || []).slice();
     const [removed] = next.splice(index, 1);
@@ -367,6 +380,78 @@ const removeHeroImageFile = (index) => {
     }
     form.store_hero_images_files = next;
     removeHeroCaptionAt(heroImageUrlList.value.length + index);
+};
+
+const syncStoreAiUsage = (payload) => {
+    if (payload && typeof payload === 'object') {
+        if (payload.remaining !== undefined) {
+            storeAiRemaining.value = Number(payload.remaining ?? storeAiRemaining.value);
+        }
+        if (payload.credit_balance !== undefined) {
+            aiImageCreditBalance.value = Number(payload.credit_balance ?? aiImageCreditBalance.value);
+        }
+    }
+};
+
+const handleStoreAiGenerated = (payload) => {
+    syncStoreAiUsage(payload);
+};
+
+const storeAiModalId = 'hs-store-ai-image';
+const storeAiPrompt = ref('');
+const storeAiPromptError = ref('');
+
+const openStoreAiModal = () => {
+    storeAiPrompt.value = '';
+    storeAiPromptError.value = '';
+    storeAiError.value = '';
+};
+
+const submitStoreAiImage = async () => {
+    if (!aiImageSettings.value.generate_url) {
+        return;
+    }
+
+    const trimmedPrompt = storeAiPrompt.value.trim();
+    if (!trimmedPrompt) {
+        storeAiPromptError.value = t('settings.company.store.ai_images_prompt_required');
+        return;
+    }
+    if (!storeAiCanGenerate.value) {
+        storeAiPromptError.value = aiImageEnabled.value
+            ? t('settings.company.store.ai_images_limit_reached')
+            : t('settings.company.store.ai_images_disabled');
+        return;
+    }
+
+    storeAiGenerating.value = true;
+    storeAiError.value = '';
+    storeAiPromptError.value = '';
+
+    try {
+        const response = await axios.post(aiImageSettings.value.generate_url, {
+            prompt: trimmedPrompt,
+            context: 'store',
+        }, {
+            headers: { Accept: 'application/json' },
+        });
+        const url = response?.data?.url;
+        if (!url) {
+            throw new Error('Missing URL');
+        }
+        addHeroImageUrl(url);
+        syncStoreAiUsage(response?.data);
+        if (window.HSOverlay) {
+            window.HSOverlay.close(`#${storeAiModalId}`);
+        }
+        storeAiPrompt.value = '';
+    } catch (error) {
+        const message = error?.response?.data?.message || t('settings.company.store.ai_images_error');
+        storeAiError.value = message;
+        storeAiPromptError.value = message;
+    } finally {
+        storeAiGenerating.value = false;
+    }
 };
 
 watch(() => form.store_hero_images_files, (files, previous) => {
@@ -399,6 +484,32 @@ const editorLabels = computed(() => {
     const labels = tm('settings.company.store.editor_labels');
     return labels && typeof labels === 'object' ? labels : {};
 });
+const aiImageSettings = computed(() => (props.ai_image && typeof props.ai_image === 'object' ? props.ai_image : {}));
+const aiImageEnabled = computed(() => Boolean(aiImageSettings.value.enabled) && Boolean(aiImageSettings.value.generate_url));
+const storeAiVisible = computed(() => Boolean(aiImageSettings.value.generate_url));
+const aiImageLimit = computed(() => Number(aiImageSettings.value.daily_limit ?? 1));
+const aiImageCreditBalance = ref(Number(aiImageSettings.value.credit_balance ?? 0));
+const storeAiRemaining = ref(Number(aiImageSettings.value.store?.remaining ?? aiImageLimit.value));
+const storeAiGenerating = ref(false);
+const storeAiError = ref('');
+const storeAiCanGenerate = computed(() =>
+    aiImageEnabled.value && (aiImageCreditBalance.value > 0 || storeAiRemaining.value > 0)
+);
+const storeAiLimitReached = computed(() =>
+    aiImageEnabled.value && aiImageCreditBalance.value <= 0 && storeAiRemaining.value <= 0
+);
+const editorAiPrompt = computed(() => t('settings.company.store.ai_images_prompt'));
+const editorAiBusyLabel = computed(() => t('settings.company.store.ai_images_generate_busy'));
+
+watch(
+    () => props.ai_image,
+    (next) => {
+        const data = next && typeof next === 'object' ? next : {};
+        aiImageCreditBalance.value = Number(data.credit_balance ?? 0);
+        storeAiRemaining.value = Number(data.store?.remaining ?? aiImageLimit.value);
+    },
+    { deep: true }
+);
 
 watch(
     () => props.company.store_settings?.hero_images,
@@ -1512,6 +1623,64 @@ watch(activeTab, (value) => {
                                 class="mt-1"
                                 :message="form.errors['company_store_settings.hero_images'] || form.errors['company_store_settings.hero_images.0']"
                             />
+                            <div v-if="storeAiVisible" class="mt-3 rounded-sm border border-dashed border-emerald-200 bg-emerald-50/40 p-3 text-xs text-emerald-800 dark:border-emerald-500/40 dark:bg-emerald-500/10 dark:text-emerald-200">
+                                <div class="flex flex-wrap items-center justify-between gap-2">
+                                    <span class="font-semibold">{{ $t('settings.company.store.ai_images_generate') }}</span>
+                                    <button
+                                        type="button"
+                                        :data-hs-overlay="`#${storeAiModalId}`"
+                                        class="inline-flex items-center rounded-sm bg-emerald-600 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
+                                        :disabled="storeAiGenerating || !storeAiCanGenerate"
+                                        @click="openStoreAiModal"
+                                    >
+                                        {{ storeAiGenerating ? $t('settings.company.store.ai_images_generate_busy') : $t('settings.company.store.ai_images_generate') }}
+                                    </button>
+                                </div>
+                                <p class="mt-1 text-[11px] text-emerald-700/80 dark:text-emerald-200/80">
+                                    {{ $t('settings.company.store.ai_images_hint', { remaining: storeAiRemaining, limit: aiImageLimit }) }}
+                                </p>
+                                <p v-if="!aiImageEnabled" class="mt-1 text-[11px] text-stone-600 dark:text-stone-300">
+                                    {{ $t('settings.company.store.ai_images_disabled') }}
+                                </p>
+                                <p v-if="storeAiLimitReached" class="mt-1 text-[11px] text-amber-700 dark:text-amber-300">
+                                    {{ $t('settings.company.store.ai_images_limit_reached') }}
+                                </p>
+                                <p v-if="storeAiError" class="mt-1 text-[11px] text-rose-600">
+                                    {{ storeAiError }}
+                                </p>
+                            </div>
+                            <Modal :title="$t('settings.company.store.ai_images_modal_title')" :id="storeAiModalId">
+                                <div class="space-y-3">
+                                    <FloatingTextarea
+                                        v-model="storeAiPrompt"
+                                        :label="$t('settings.company.store.ai_images_modal_label')"
+                                        rows="3"
+                                    />
+                                    <p class="text-xs text-stone-500 dark:text-neutral-400">
+                                        {{ $t('settings.company.store.ai_images_modal_hint') }}
+                                    </p>
+                                    <p v-if="storeAiPromptError" class="text-xs text-rose-600">
+                                        {{ storeAiPromptError }}
+                                    </p>
+                                    <div class="flex justify-end gap-2 pt-2">
+                                        <button
+                                            type="button"
+                                            :data-hs-overlay="`#${storeAiModalId}`"
+                                            class="py-2 px-3 inline-flex items-center text-xs font-semibold rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
+                                        >
+                                            {{ $t('settings.company.actions.cancel') }}
+                                        </button>
+                                        <button
+                                            type="button"
+                                            class="py-2 px-3 inline-flex items-center text-xs font-semibold rounded-sm border border-transparent bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-60"
+                                            :disabled="storeAiGenerating || !storeAiCanGenerate || !storeAiPrompt.trim()"
+                                            @click="submitStoreAiImage"
+                                        >
+                                            {{ storeAiGenerating ? $t('settings.company.store.ai_images_generate_busy') : $t('settings.company.store.ai_images_generate') }}
+                                        </button>
+                                    </div>
+                                </div>
+                            </Modal>
                             <div class="mt-3 space-y-2">
                                 <label class="block text-xs text-stone-500 dark:text-neutral-400">
                                     {{ $t('settings.company.store.hero_images_upload') }}
@@ -1603,6 +1772,13 @@ watch(activeTab, (value) => {
                                     :label="$t('settings.company.store.hero_copy_fr')"
                                     :placeholder="$t('settings.company.store.hero_copy_placeholder')"
                                     :labels="editorLabels"
+                                    :ai-enabled="aiImageEnabled"
+                                    :ai-generate-url="aiImageSettings.generate_url"
+                                    :ai-context="'store'"
+                                    :ai-allowed="storeAiCanGenerate"
+                                    :ai-prompt="editorAiPrompt"
+                                    :ai-busy-label="editorAiBusyLabel"
+                                    @ai-generated="handleStoreAiGenerated"
                                 />
                                 <InputError class="mt-1" :message="form.errors['company_store_settings.hero_copy.fr']" />
                             </div>
@@ -1612,6 +1788,13 @@ watch(activeTab, (value) => {
                                     :label="$t('settings.company.store.hero_copy_en')"
                                     :placeholder="$t('settings.company.store.hero_copy_placeholder')"
                                     :labels="editorLabels"
+                                    :ai-enabled="aiImageEnabled"
+                                    :ai-generate-url="aiImageSettings.generate_url"
+                                    :ai-context="'store'"
+                                    :ai-allowed="storeAiCanGenerate"
+                                    :ai-prompt="editorAiPrompt"
+                                    :ai-busy-label="editorAiBusyLabel"
+                                    @ai-generated="handleStoreAiGenerated"
                                 />
                                 <InputError class="mt-1" :message="form.errors['company_store_settings.hero_copy.en']" />
                             </div>

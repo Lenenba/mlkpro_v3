@@ -349,6 +349,37 @@
         "damaged": "Damaged {count}",
         "expired": "Expired {count}",
         "expiring": "Expiring {count}"
+      },
+      "performance": {
+        "title": "Seller performance",
+        "range": "{start} - {end}",
+        "export": "Export ranking",
+        "active_sellers": "{count} active sellers",
+        "online_label": "Online store",
+        "online_badge": "Online",
+        "seller_fallback": "Seller",
+        "period": {
+          "day": "Today",
+          "week": "This week",
+          "month": "This month",
+          "year": "This year"
+        },
+        "kpi": {
+          "revenue": "Revenue",
+          "orders": "Orders",
+          "items_sold": "Items sold",
+          "avg_order": "Avg order value",
+          "customers": "Customers",
+          "revenue_per_seller": "Revenue per seller"
+        },
+        "top_sellers": "Top sellers",
+        "top_products": "Top products",
+        "seller_of_year": "Seller of the year",
+        "seller_line": "{revenue} · {orders} orders · {items} items",
+        "product_line": "{revenue} · {quantity} items",
+        "no_sellers": "No seller performance yet.",
+        "no_products": "No product performance yet.",
+        "no_seller_year": "No seller data for the year yet."
       }
     },
     "team": {
@@ -3020,6 +3051,27 @@
       "promo_start": "Promo start",
       "promo_end": "Promo end"
     },
+    "ai": {
+      "generate": "Generate AI image",
+      "generate_busy": "Generating...",
+      "prompt": "Describe the product image to generate",
+      "hint": "Daily limit: {limit} image(s). Remaining today: {remaining}.",
+      "disabled": "AI image generation is disabled. Add an AI pack in Billing or configure your AI key.",
+      "limit_reached": "Daily AI image limit reached. Buy an AI pack in Billing to generate more.",
+      "error": "Unable to generate the AI image."
+    },
+    "ai_bulk": {
+      "generate": "Generate AI images",
+      "generate_busy": "Generating images...",
+      "confirm": "Generate AI images for {count} products without images? This will use your daily limit/credits.",
+      "loading": "Checking products without images...",
+      "missing_count": "{count} products without images.",
+      "progress": "{done}/{total} generated",
+      "none_missing": "All products already have images.",
+      "limit_reached": "Daily AI image limit reached. Buy an AI pack to continue.",
+      "disabled": "AI image generation is disabled.",
+      "error": "Unable to generate one or more AI images."
+    },
     "price_lookup": {
       "title": "Price lookup",
       "search_term": "Search term",
@@ -3040,6 +3092,10 @@
       "no_live_prices": "No live prices found.",
       "search_failed": "Price lookup failed.",
       "selected_image": "Selected image"
+    },
+    "images": {
+      "primary": "Primary",
+      "set_primary": "Set as primary"
     },
     "lots": {
       "status": {
@@ -4390,6 +4446,17 @@
           "hero_images_upload": "Upload images (computer)",
           "hero_images_upload_hint": "Select high-resolution images (min. 1280x720) to avoid pixelation.",
           "hero_images_new": "New",
+          "ai_images_generate": "Generate AI image",
+          "ai_images_generate_busy": "Generating...",
+          "ai_images_modal_title": "Generate hero image",
+          "ai_images_modal_label": "Describe the image you want",
+          "ai_images_modal_hint": "Mention the product, mood, background, and style.",
+          "ai_images_prompt": "Describe the image to generate",
+          "ai_images_prompt_required": "Add a short description to generate the image.",
+          "ai_images_hint": "Daily limit: {limit} image(s). Remaining today: {remaining}.",
+          "ai_images_limit_reached": "Daily AI image limit reached. Buy an AI pack in Billing to generate more.",
+          "ai_images_disabled": "AI image generation is disabled. Add an AI pack in Billing or configure your AI key.",
+          "ai_images_error": "Unable to generate the AI image.",
           "hero_captions_title": "Per-slide text (optional)",
           "hero_captions_hint": "Add a caption per slide. Leave empty to use the global hero text.",
           "hero_captions_fr": "Slide text (FR)",

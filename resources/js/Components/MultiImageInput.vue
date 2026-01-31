@@ -19,14 +19,32 @@ const props = defineProps({
         type: String,
         default: 'Additional images',
     },
+    primaryId: {
+        type: [Number, String],
+        default: null,
+    },
+    primaryLabel: {
+        type: String,
+        default: 'Primary',
+    },
+    makePrimaryLabel: {
+        type: String,
+        default: 'Set as primary',
+    },
 });
 
-const emit = defineEmits(['update:files', 'update:removedIds']);
+const emit = defineEmits(['update:files', 'update:removedIds', 'update:primaryId']);
 const errorMessage = ref('');
 
 const visibleExisting = computed(() =>
     props.existing.filter((image) => !props.removedIds.includes(image.id)),
 );
+const isPrimary = (image) => {
+    if (props.primaryId !== null && props.primaryId !== undefined && props.primaryId !== '') {
+        return String(image.id) === String(props.primaryId);
+    }
+    return Boolean(image.is_primary);
+};
 
 const addFiles = async (event) => {
     const selected = Array.from(event.target.files || []);
@@ -62,6 +80,13 @@ const removeExisting = (id) => {
     emit('update:removedIds', [...props.removedIds, id]);
 };
 
+const setPrimary = (image) => {
+    if (!image?.id) {
+        return;
+    }
+    emit('update:primaryId', image.id);
+};
+
 const previewUrl = (file) => {
     if (file instanceof File) {
         return URL.createObjectURL(file);
@@ -85,7 +110,22 @@ const previewUrl = (file) => {
                 class="relative group border border-stone-200 rounded-sm overflow-hidden bg-white dark:bg-neutral-900 dark:border-neutral-700"
             >
                 <img :src="image.url || image.image_url || image.path" :alt="image.id" class="w-full h-24 object-cover" />
+                <div
+                    v-if="isPrimary(image)"
+                    class="absolute left-2 top-2 rounded-full bg-emerald-600 px-2 py-1 text-[10px] font-semibold text-white shadow"
+                >
+                    {{ primaryLabel }}
+                </div>
                 <button
+                    v-else
+                    type="button"
+                    class="absolute left-2 top-2 rounded-full bg-white/90 px-2 py-1 text-[10px] font-semibold text-stone-700 shadow opacity-0 group-hover:opacity-100 transition"
+                    @click="setPrimary(image)"
+                >
+                    {{ makePrimaryLabel }}
+                </button>
+                <button
+                    v-if="!isPrimary(image)"
                     type="button"
                     class="absolute top-2 right-2 size-7 inline-flex items-center justify-center rounded-full bg-black/70 text-white opacity-0 group-hover:opacity-100 transition"
                     @click="removeExisting(image.id)"

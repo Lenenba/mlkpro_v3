@@ -349,6 +349,37 @@
         "damaged": "Endommages {count}",
         "expired": "Expire {count}",
         "expiring": "Expire bientot {count}"
+      },
+      "performance": {
+        "title": "Performance vendeurs",
+        "range": "{start} - {end}",
+        "export": "Exporter classement",
+        "active_sellers": "{count} vendeurs actifs",
+        "online_label": "Boutique en ligne",
+        "online_badge": "En ligne",
+        "seller_fallback": "Vendeur",
+        "period": {
+          "day": "Aujourd'hui",
+          "week": "Cette semaine",
+          "month": "Ce mois-ci",
+          "year": "Cette annee"
+        },
+        "kpi": {
+          "revenue": "Chiffre d'affaires",
+          "orders": "Ventes",
+          "items_sold": "Articles vendus",
+          "avg_order": "Panier moyen",
+          "customers": "Clients",
+          "revenue_per_seller": "CA par vendeur"
+        },
+        "top_sellers": "Classement vendeurs",
+        "top_products": "Produits phares",
+        "seller_of_year": "Vendeur de l'annee",
+        "seller_line": "{revenue} · {orders} ventes · {items} articles",
+        "product_line": "{revenue} · {quantity} articles",
+        "no_sellers": "Aucune performance vendeur pour le moment.",
+        "no_products": "Aucune performance produit pour le moment.",
+        "no_seller_year": "Pas encore de vendeur de l'annee."
       }
     },
     "team": {
@@ -3020,6 +3051,27 @@
       "promo_start": "Debut de promo",
       "promo_end": "Fin de promo"
     },
+    "ai": {
+      "generate": "Generer une image IA",
+      "generate_busy": "Generation...",
+      "prompt": "Decrivez l'image du produit a generer",
+      "hint": "Limite quotidienne : {limit} image(s). Restant aujourd'hui : {remaining}.",
+      "disabled": "La generation d images IA est desactivee. Ajoutez un pack IA dans la facturation ou configurez la cle IA.",
+      "limit_reached": "Limite quotidienne d'images IA atteinte. Achetez un pack IA dans la facturation pour continuer.",
+      "error": "Impossible de generer l'image IA."
+    },
+    "ai_bulk": {
+      "generate": "Generer des images IA",
+      "generate_busy": "Generation des images...",
+      "confirm": "Generer des images IA pour {count} produits sans image ? Cela utilisera votre limite/credits.",
+      "loading": "Verification des produits sans image...",
+      "missing_count": "{count} produits sans image.",
+      "progress": "{done}/{total} generees",
+      "none_missing": "Tous les produits ont deja une image.",
+      "limit_reached": "Limite quotidienne d images IA atteinte. Achetez un pack IA pour continuer.",
+      "disabled": "La generation d images IA est desactivee.",
+      "error": "Impossible de generer une ou plusieurs images IA."
+    },
     "price_lookup": {
       "title": "Recherche de prix",
       "search_term": "Terme de recherche",
@@ -3040,6 +3092,10 @@
       "no_live_prices": "Aucun prix en direct trouve.",
       "search_failed": "Recherche de prix echouee.",
       "selected_image": "Image selectionnee"
+    },
+    "images": {
+      "primary": "Principale",
+      "set_primary": "Mettre en principale"
     },
     "lots": {
       "status": {
@@ -4390,6 +4446,17 @@
           "hero_images_upload": "Importer des images (ordinateur)",
           "hero_images_upload_hint": "Selectionnez des images haute resolution (min. 1280x720) pour eviter la pixelisation.",
           "hero_images_new": "Nouveau",
+          "ai_images_generate": "Generer une image IA",
+          "ai_images_generate_busy": "Generation...",
+          "ai_images_modal_title": "Generer une image IA",
+          "ai_images_modal_label": "Decrivez l image que vous voulez",
+          "ai_images_modal_hint": "Indiquez le produit, le decor, l ambiance et le style.",
+          "ai_images_prompt": "Decrivez l image a generer",
+          "ai_images_prompt_required": "Ajoutez une description pour generer l image.",
+          "ai_images_hint": "Limite quotidienne : {limit} image(s). Restant aujourd hui : {remaining}.",
+          "ai_images_limit_reached": "Limite quotidienne d images IA atteinte. Achetez un pack IA dans la facturation pour continuer.",
+          "ai_images_disabled": "La generation d images IA est desactivee. Ajoutez un pack IA dans la facturation ou configurez la cle IA.",
+          "ai_images_error": "Impossible de generer l image IA.",
           "hero_captions_title": "Textes par image (optionnel)",
           "hero_captions_hint": "Ajoutez un texte par slide. Laissez vide pour utiliser le texte global.",
           "hero_captions_fr": "Texte slide (FR)",

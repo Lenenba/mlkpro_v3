@@ -15,12 +15,12 @@ class AssistantCreditService
         return (int) ($owner->assistant_credit_balance ?? 0);
     }
 
-    public function consume(User $user, int $credits = 1): bool
+    public function consume(User $user, int $credits = 1, string $source = 'assistant', array $meta = []): bool
     {
         $credits = max(1, $credits);
         $owner = $this->resolveOwner($user);
 
-        return DB::transaction(function () use ($owner, $credits) {
+        return DB::transaction(function () use ($owner, $credits, $source, $meta) {
             $updated = User::query()
                 ->whereKey($owner->id)
                 ->where('assistant_credit_balance', '>=', $credits)
@@ -34,7 +34,8 @@ class AssistantCreditService
                 'user_id' => $owner->id,
                 'type' => 'consume',
                 'credits' => $credits,
-                'source' => 'assistant',
+                'source' => $source,
+                'meta' => $meta ?: null,
             ]);
 
             return true;

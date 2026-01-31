@@ -28,6 +28,10 @@ const props = defineProps({
         type: String,
         default: null,
     },
+    aiImage: {
+        type: Object,
+        default: () => ({}),
+    },
 });
 
 const emit = defineEmits(['submitted']); // Déclare l'événement "submitted"
@@ -36,6 +40,30 @@ const initialImageUrl = ref(props.product?.image_url || '');
 const initialImage = ref(props.product?.image_url || props.product?.image || '');
 
 const { t } = useI18n();
+const aiImageSettings = computed(() => (props.aiImage && typeof props.aiImage === 'object' ? props.aiImage : {}));
+const aiImageEnabled = computed(() => Boolean(aiImageSettings.value.enabled) && Boolean(aiImageSettings.value.generate_url));
+const aiImageVisible = computed(() => Boolean(aiImageSettings.value.generate_url));
+const aiImageLimit = computed(() => Number(aiImageSettings.value.daily_limit ?? 1));
+const aiImageRemaining = ref(Number(aiImageSettings.value.product?.remaining ?? aiImageLimit.value));
+const aiImageCreditBalance = ref(Number(aiImageSettings.value.credit_balance ?? 0));
+const aiImageLoading = ref(false);
+const aiImageError = ref('');
+const aiImageCanGenerate = computed(() =>
+    aiImageEnabled.value && (aiImageCreditBalance.value > 0 || aiImageRemaining.value > 0)
+);
+const aiImageLimitReached = computed(() =>
+    aiImageEnabled.value && aiImageCreditBalance.value <= 0 && aiImageRemaining.value <= 0
+);
+
+watch(
+    () => props.aiImage,
+    (next) => {
+        const data = next && typeof next === 'object' ? next : {};
+        aiImageRemaining.value = Number(data.product?.remaining ?? aiImageLimit.value);
+        aiImageCreditBalance.value = Number(data.credit_balance ?? 0);
+    },
+    { deep: true }
+);
 
 const toDateInput = (value) => {
     if (!value) {
@@ -70,6 +98,7 @@ const form = useForm({
     image_url: props.product?.image_url || '',
     images: [],
     remove_image_ids: [],
+    primary_image_id: props.product?.images?.find((image) => image?.is_primary)?.id || null,
     sku: props.product?.sku || '',
     barcode: props.product?.barcode || '',
     unit: props.product?.unit || '',
@@ -84,8 +113,18 @@ watch(
     (value) => {
         initialImageUrl.value = value?.image_url || '';
         initialImage.value = value?.image_url || value?.image || '';
+        form.primary_image_id = value?.images?.find((image) => image?.is_primary)?.id || null;
     },
     { immediate: true }
+);
+
+watch(
+    () => form.image,
+    (value) => {
+        if (value instanceof File) {
+            form.primary_image_id = null;
+        }
+    }
 );
 
 const unitOptions = computed(() => ([
@@ -260,9 +299,22 @@ const applyPrice = (source) => {
 
 const applyImage = (source) => {
     if (source?.image_url) {
+        form.primary_image_id = null;
         form.image_url = source.image_url;
         form.image = source.image_url;
     }
+};
+
+const setPrimaryImage = (id) => {
+    const selected = existingImages.value.find((image) => String(image.id) === String(id));
+    if (!selected) {
+        return;
+    }
+    const path = selected.path || selected.image_url || '';
+    const url = selected.url || selected.image_url || selected.path || '';
+    form.primary_image_id = selected.id;
+    form.image = url;
+    form.image_url = path || url;
 };
 
 const applyBestPrice = () => {
@@ -280,6 +332,120 @@ const applyBestPrice = () => {
     applyCost(best);
     applyPrice(best);
     applyImage(best);
+};
+
+const syncAiUsage = (payload) => {
+    if (payload && typeof payload === 'object') {
+        if (payload.remaining !== undefined) {
+            aiImageRemaining.value = Number(payload.remaining ?? aiImageRemaining.value);
+        }
+        if (payload.credit_balance !== undefined) {
+            aiImageCreditBalance.value = Number(payload.credit_balance ?? aiImageCreditBalance.value);
+        }
+    }
+};
+
+const trimText = (value, limit = 420) => {
+    const text = String(value ?? '').trim();
+    if (!text) {
+        return '';
+    }
+    if (text.length <= limit) {
+        return text;
+    }
+    return `${text.slice(0, limit).trim()}...`;
+};
+
+const resolveCategoryName = () => {
+    const id = form.category_id;
+    if (!id) {
+        return '';
+    }
+    const match = selectableCategories.value.find((category) => String(category.id) === String(id));
+    return match?.name || '';
+};
+
+const buildProductAiPrompt = () => {
+    const details = [];
+    const addDetail = (label, value) => {
+        const text = String(value ?? '').trim();
+        if (!text) {
+            return;
+        }
+        details.push(`${label}: ${text}`);
+    };
+    const addNumber = (label, value, suffix = '') => {
+        const numeric = Number(value);
+        if (!Number.isFinite(numeric) || numeric <= 0) {
+            return;
+        }
+        details.push(`${label}: ${numeric}${suffix}`);
+    };
+
+    addDetail('Name', trimText(form.name, 140));
+    addDetail('Category', trimText(resolveCategoryName(), 140));
+    addDetail('Description', trimText(form.description, 600));
+    addDetail('Unit', trimText(form.unit, 80));
+    addDetail('SKU', trimText(form.sku, 80));
+    addDetail('Barcode', trimText(form.barcode, 80));
+    addDetail('Supplier', trimText(form.supplier_name, 120));
+    addDetail('Supplier email', trimText(form.supplier_email, 120));
+    addDetail('Tracking', form.tracking_type && form.tracking_type !== 'none' ? form.tracking_type : '');
+    addNumber('Price', form.price, ' USD');
+    addNumber('Promo discount', form.promo_discount_percent, '%');
+    const promoDates = [form.promo_start_at, form.promo_end_at].filter(Boolean).join(' to ');
+    addDetail('Promo dates', promoDates);
+    addNumber('Cost price', form.cost_price, ' USD');
+    addNumber('Margin', form.margin_percent, '%');
+    addNumber('Tax rate', form.tax_rate, '%');
+    addNumber('Stock', form.stock);
+    addNumber('Minimum stock', form.minimum_stock);
+    if (form.is_active === false) {
+        addDetail('Status', 'inactive');
+    }
+
+    const detailBlock = details.length
+        ? `Product details:\n${details.map((item) => `- ${item}`).join('\n')}`
+        : '';
+
+    return [
+        'Create a high-quality product photo for an ecommerce listing.',
+        'Use the details below. If a detail is not visually relevant (like price or stock), ignore it.',
+        detailBlock,
+        'Style: clean studio lighting, neutral background, realistic, no text, no watermark.',
+    ].filter(Boolean).join('\n');
+};
+
+const generateAiImage = async () => {
+    if (!aiImageCanGenerate.value || !aiImageSettings.value.generate_url) {
+        return;
+    }
+
+    const prompt = buildProductAiPrompt();
+
+    aiImageLoading.value = true;
+    aiImageError.value = '';
+
+    try {
+        const response = await axios.post(aiImageSettings.value.generate_url, {
+            prompt,
+            context: 'product',
+        }, {
+            headers: { Accept: 'application/json' },
+        });
+        const url = response?.data?.url;
+        if (!url) {
+            throw new Error('Missing URL');
+        }
+        form.image = url;
+        form.image_url = url;
+        form.primary_image_id = null;
+        syncAiUsage(response?.data);
+    } catch (error) {
+        aiImageError.value = error?.response?.data?.message || t('products.ai.error');
+    } finally {
+        aiImageLoading.value = false;
+    }
 };
 
 const addCategoryOption = (category) => {
@@ -399,6 +565,9 @@ const submit = () => {
             promo_start_at: data.promo_start_at || null,
             promo_end_at: data.promo_end_at || null,
             image_url: (() => {
+                if (data.primary_image_id) {
+                    return null;
+                }
                 if (data.image instanceof File) {
                     return null;
                 }
@@ -415,6 +584,7 @@ const submit = () => {
             })(),
             images: data.images?.filter((file) => file instanceof File) || [],
             remove_image_ids: data.remove_image_ids || [],
+            primary_image_id: data.primary_image_id || null,
         }))
         [props.product?.id ? 'put' : 'post'](route(routeName, routeParams), {
             onSuccess: () => {
@@ -493,10 +663,39 @@ const buttonLabel = computed(() => (props.product
                     </div>
                     <FloatingTextarea v-model="form.description" :label="$t('products.form.description')" />
                     <DropzoneInput v-model="form.image" :label="$t('products.form.primary_image')" />
+                    <div v-if="aiImageVisible" class="mt-2 rounded-sm border border-dashed border-emerald-200 bg-emerald-50/40 p-3 text-xs text-emerald-800 dark:border-emerald-500/40 dark:bg-emerald-500/10 dark:text-emerald-200">
+                        <div class="flex flex-wrap items-center justify-between gap-2">
+                            <span class="font-semibold">{{ $t('products.ai.generate') }}</span>
+                            <button
+                                type="button"
+                                class="inline-flex items-center rounded-sm bg-emerald-600 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
+                                :disabled="aiImageLoading || !aiImageCanGenerate"
+                                @click="generateAiImage"
+                            >
+                                {{ aiImageLoading ? $t('products.ai.generate_busy') : $t('products.ai.generate') }}
+                            </button>
+                        </div>
+                        <p class="mt-1 text-[11px] text-emerald-700/80 dark:text-emerald-200/80">
+                            {{ $t('products.ai.hint', { remaining: aiImageRemaining, limit: aiImageLimit }) }}
+                        </p>
+                        <p v-if="!aiImageEnabled" class="mt-1 text-[11px] text-stone-600 dark:text-stone-300">
+                            {{ $t('products.ai.disabled') }}
+                        </p>
+                        <p v-if="aiImageLimitReached" class="mt-1 text-[11px] text-amber-700 dark:text-amber-300">
+                            {{ $t('products.ai.limit_reached') }}
+                        </p>
+                        <p v-if="aiImageError" class="mt-1 text-[11px] text-rose-600">
+                            {{ aiImageError }}
+                        </p>
+                    </div>
                     <MultiImageInput
                         v-model:files="form.images"
                         v-model:removedIds="form.remove_image_ids"
+                        v-model:primaryId="form.primary_image_id"
                         :existing="existingImages"
+                        :primary-label="$t('products.images.primary')"
+                        :make-primary-label="$t('products.images.set_primary')"
+                        @update:primaryId="setPrimaryImage"
                     />
                 </productCard>
             </div>

@@ -41,6 +41,7 @@ use App\Http\Controllers\PublicWorkProofController;
 use App\Http\Controllers\PublicTaskMediaController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\AssistantController;
+use App\Http\Controllers\AiImageController;
 use App\Http\Controllers\Settings\CompanySettingsController;
 use App\Http\Controllers\Settings\BillingSettingsController;
 use App\Http\Controllers\Settings\ProductCategoryController;
@@ -133,6 +134,9 @@ Route::get('/onboarding', [OnboardingController::class, 'index'])
 
 // Dashboard Route
 Route::get('/dashboard', [DashboardController::class, 'index'])->middleware(['auth', 'verified'])->name('dashboard');
+Route::get('/dashboard/products/sellers-export', [DashboardController::class, 'exportProductSellers'])
+    ->middleware(['auth', 'verified'])
+    ->name('dashboard.products.sellers-export');
 Route::post('/locale', [LocaleController::class, 'update'])->name('locale.update');
 
 // Authenticated User Routes
@@ -155,6 +159,7 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
     Route::post('/assistant/message', [AssistantController::class, 'message'])
         ->middleware('company.feature:assistant')
         ->name('assistant.message');
+    Route::post('/ai/images', [AiImageController::class, 'generate'])->name('ai.images.generate');
     Route::get('/pipeline/timeline/{entityType}/{entityId}', [PipelineController::class, 'timeline'])
         ->name('pipeline.timeline');
     Route::get('/pipeline', [PipelineController::class, 'data'])->name('pipeline.data');
@@ -271,6 +276,8 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
     Route::middleware('company.feature:products')->group(function () {
         Route::post('/product/bulk', [ProductController::class, 'bulk'])->name('product.bulk');
         Route::post('/product/{product}/duplicate', [ProductController::class, 'duplicate'])->name('product.duplicate');
+        Route::get('/product/ai-missing', [ProductController::class, 'missingAiImages'])->name('product.ai-missing');
+        Route::post('/product/{product}/ai-image', [ProductController::class, 'generateAiImage'])->name('product.ai-image');
         Route::put('/product/{product}/quick-update', [ProductController::class, 'quickUpdate'])->name('product.quick-update');
         Route::post('/product/{product}/adjust-stock', [ProductController::class, 'adjustStock'])->name('product.adjust-stock');
         Route::get('/product/{product}/reserved-orders', [ProductController::class, 'reservedOrders'])

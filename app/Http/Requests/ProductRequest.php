@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Models\ProductImage;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -86,6 +87,29 @@ class ProductRequest extends FormRequest
             ],
             'images' => 'nullable|array',
             'images.*' => 'image|mimes:jpg,png,jpeg,webp|max:5000',
+            'primary_image_id' => [
+                'nullable',
+                'integer',
+                function ($attribute, $value, $fail) {
+                    if (!$value) {
+                        return;
+                    }
+
+                    $product = $this->route('product');
+                    if (!$product) {
+                        return;
+                    }
+
+                    $exists = ProductImage::query()
+                        ->where('id', $value)
+                        ->where('product_id', $product->id)
+                        ->exists();
+
+                    if (!$exists) {
+                        $fail('The primary image selection is invalid.');
+                    }
+                },
+            ],
             'remove_image_ids' => 'nullable|array',
             'remove_image_ids.*' => 'integer',
         ];
