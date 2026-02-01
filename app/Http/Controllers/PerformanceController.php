@@ -116,12 +116,20 @@ class PerformanceController extends Controller
             $periodData[$key] = $this->buildSellerPerformancePeriod($accountId, $start, $end, $sellerLimit, $productLimit);
         }
 
-        $sellerOfYear = collect($periodData['year']['top_sellers'] ?? [])
-            ->first(fn($seller) => ($seller['type'] ?? null) === 'user')
-            ?? ($periodData['year']['top_sellers'][0] ?? null);
+        $sellerOfPeriods = [];
+
+        foreach ($periodData as $key => $period) {
+            $topSellers = $period['top_sellers'] ?? [];
+            $sellerOfPeriods[$key] = collect($topSellers)
+                ->first(fn($seller) => ($seller['type'] ?? null) === 'user')
+                ?? ($topSellers[0] ?? null);
+        }
+
+        $sellerOfYear = $sellerOfPeriods['year'] ?? null;
 
         return [
             'periods' => $periodData,
+            'seller_of_periods' => $sellerOfPeriods,
             'seller_of_year' => $sellerOfYear,
         ];
     }
@@ -279,10 +287,17 @@ class PerformanceController extends Controller
             $periodData[$key] = $this->buildCustomerPerformancePeriod($accountId, $start, $end, $customerLimit);
         }
 
-        $customerOfYear = $periodData['year']['top_customers'][0] ?? null;
+        $customerOfPeriods = [];
+
+        foreach ($periodData as $key => $period) {
+            $customerOfPeriods[$key] = $period['top_customers'][0] ?? null;
+        }
+
+        $customerOfYear = $customerOfPeriods['year'] ?? null;
 
         return [
             'periods' => $periodData,
+            'customer_of_periods' => $customerOfPeriods,
             'customer_of_year' => $customerOfYear,
         ];
     }

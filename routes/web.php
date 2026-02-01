@@ -301,6 +301,7 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
         Route::post('/presence/clock-in', [PresenceController::class, 'clockIn'])->name('presence.clock-in');
         Route::post('/presence/clock-out', [PresenceController::class, 'clockOut'])->name('presence.clock-out');
         Route::get('/planning', [PlanningController::class, 'index'])->name('planning.index');
+        Route::get('/planning/calendar', [PlanningController::class, 'calendar'])->name('planning.calendar');
         Route::get('/planning/events', [PlanningController::class, 'events'])->name('planning.events');
         Route::post('/planning/shifts', [PlanningController::class, 'store'])->name('planning.shifts.store');
         Route::delete('/planning/shifts/{shift}', [PlanningController::class, 'destroy'])->name('planning.shifts.destroy');

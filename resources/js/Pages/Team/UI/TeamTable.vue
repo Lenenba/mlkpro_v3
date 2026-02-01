@@ -56,6 +56,32 @@ const closeOverlay = (overlayId) => {
     }
 };
 
+const detailMember = ref(null);
+const detailLoading = ref(false);
+let detailLoadingTimer = null;
+
+const openDetailMember = (member) => {
+    detailMember.value = member;
+    detailLoading.value = true;
+    if (detailLoadingTimer) {
+        clearTimeout(detailLoadingTimer);
+    }
+    detailLoadingTimer = setTimeout(() => {
+        detailLoading.value = false;
+    }, 320);
+    if (window.HSOverlay) {
+        window.HSOverlay.open('#hs-team-detail');
+    }
+};
+
+const openEditFromDetail = () => {
+    if (!detailMember.value) {
+        return;
+    }
+    closeOverlay('#hs-team-detail');
+    openEditMember(detailMember.value);
+};
+
 const createForm = useForm({
     name: '',
     email: '',
@@ -223,6 +249,19 @@ const clearAvatarIcon = (form) => {
     form.avatar_icon = '';
 };
 
+const permissionMap = computed(() => {
+    const map = new Map();
+    (props.availablePermissions || []).forEach((permission) => {
+        map.set(permission.id, permission.name);
+    });
+    return map;
+});
+
+const permissionLabels = (member) => {
+    const permissions = Array.isArray(member?.permissions) ? member.permissions : [];
+    return permissions.map((permission) => permissionMap.value.get(permission) || permission);
+};
+
 watch(() => createForm.profile_picture, (value) => {
     if (value instanceof File) {
         createForm.avatar_icon = '';
@@ -334,7 +373,10 @@ watch(() => editForm.profile_picture, (value) => {
                                         </span>
                                     </div>
                                     <div class="flex flex-col">
-                                        <span class="text-sm font-medium text-stone-800 dark:text-neutral-200">
+                                        <span
+                                            class="text-sm font-medium text-stone-800 hover:text-stone-900 cursor-pointer dark:text-neutral-200 dark:hover:text-white"
+                                            @click="openDetailMember(member)"
+                                        >
                                             {{ member.user?.name || `Member #${member.id}` }}
                                         </span>
                                         <span class="text-xs text-stone-500 dark:text-neutral-500">
@@ -384,9 +426,13 @@ watch(() => editForm.profile_picture, (value) => {
                                         </svg>
                                     </button>
 
-                                    <div class="hs-dropdown-menu hs-dropdown-open:opacity-100 w-40 transition-[opacity,margin] duration opacity-0 hidden z-10 bg-white rounded-sm shadow-[0_10px_40px_10px_rgba(0,0,0,0.08)] dark:shadow-[0_10px_40px_10px_rgba(0,0,0,0.2)] dark:bg-neutral-900"
-                                        role="menu" aria-orientation="vertical">
+                                        <div class="hs-dropdown-menu hs-dropdown-open:opacity-100 w-40 transition-[opacity,margin] duration opacity-0 hidden z-10 bg-white rounded-sm shadow-[0_10px_40px_10px_rgba(0,0,0,0.08)] dark:shadow-[0_10px_40px_10px_rgba(0,0,0,0.2)] dark:bg-neutral-900"
+                                            role="menu" aria-orientation="vertical">
                                         <div class="p-1">
+                                            <button type="button" @click="openDetailMember(member)"
+                                                class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
+                                                Details
+                                            </button>
                                             <button type="button" @click="openEditMember(member)"
                                                 class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
                                                 Edit
@@ -417,6 +463,144 @@ watch(() => editForm.profile_picture, (value) => {
             </p>
         </div>
     </div>
+
+    <Modal :title="'Team member details'" :id="'hs-team-detail'">
+        <div v-if="detailLoading" class="space-y-4 animate-pulse">
+            <div class="flex items-center gap-3">
+                <div class="size-12 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
+                <div class="flex-1 space-y-2">
+                    <div class="h-3 w-32 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
+                    <div class="h-3 w-40 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
+                    <div class="h-4 w-24 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div class="h-12 rounded-md bg-stone-200 dark:bg-neutral-700"></div>
+                <div class="h-12 rounded-md bg-stone-200 dark:bg-neutral-700"></div>
+                <div class="h-12 rounded-md bg-stone-200 dark:bg-neutral-700"></div>
+                <div class="h-12 rounded-md bg-stone-200 dark:bg-neutral-700"></div>
+            </div>
+            <div class="h-8 rounded-md bg-stone-200 dark:bg-neutral-700"></div>
+        </div>
+        <div v-else-if="detailMember" class="space-y-4">
+            <div class="flex items-center gap-3">
+                <div class="size-12 rounded-full bg-stone-100 text-stone-600 flex items-center justify-center overflow-hidden dark:bg-neutral-700 dark:text-neutral-200">
+                    <img
+                        v-if="memberAvatarUrl(detailMember)"
+                        :src="memberAvatarUrl(detailMember)"
+                        alt="Member avatar"
+                        class="h-full w-full object-cover"
+                        loading="lazy"
+                        decoding="async"
+                    >
+                    <span v-else class="text-sm font-semibold">
+                        {{ memberInitials(detailMember) }}
+                    </span>
+                </div>
+                <div class="flex-1">
+                    <p class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                        {{ detailMember.user?.name || `Member #${detailMember.id}` }}
+                    </p>
+                    <p class="text-xs text-stone-500 dark:text-neutral-400">
+                        {{ detailMember.user?.email || '-' }}
+                    </p>
+                    <div class="mt-2 flex flex-wrap items-center gap-2">
+                        <span class="py-1 px-2 inline-flex items-center text-xs font-medium rounded-full"
+                            :class="statusBadge(detailMember)">
+                            {{ detailMember.is_active ? 'active' : 'inactive' }}
+                        </span>
+                        <span class="py-1 px-2 inline-flex items-center text-xs font-medium rounded-full"
+                            :class="roleBadge(detailMember)">
+                            {{ roleLabel(detailMember.role) }}
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div class="flex items-start gap-2">
+                    <span class="mt-0.5 flex h-7 w-7 items-center justify-center rounded-full bg-stone-100 text-stone-500 dark:bg-neutral-800 dark:text-neutral-300">
+                        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="3" y="7" width="18" height="13" rx="2" />
+                            <path d="M16 7V5a4 4 0 0 0-8 0v2" />
+                        </svg>
+                    </span>
+                    <div>
+                        <p class="text-[11px] uppercase tracking-wide text-stone-500 dark:text-neutral-400">Title</p>
+                        <p class="text-sm text-stone-800 dark:text-neutral-200">{{ detailMember.title || '-' }}</p>
+                    </div>
+                </div>
+                <div class="flex items-start gap-2">
+                    <span class="mt-0.5 flex h-7 w-7 items-center justify-center rounded-full bg-stone-100 text-stone-500 dark:bg-neutral-800 dark:text-neutral-300">
+                        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.79 19.79 0 0 1 2.09 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.12.81.3 1.6.54 2.36a2 2 0 0 1-.45 2.11L8.09 9.09a16 16 0 0 0 6 6l1.9-1.1a2 2 0 0 1 2.11-.45c.76.24 1.55.42 2.36.54A2 2 0 0 1 22 16.92z" />
+                        </svg>
+                    </span>
+                    <div>
+                        <p class="text-[11px] uppercase tracking-wide text-stone-500 dark:text-neutral-400">Phone</p>
+                        <p class="text-sm text-stone-800 dark:text-neutral-200">{{ detailMember.phone || '-' }}</p>
+                    </div>
+                </div>
+                <div class="flex items-start gap-2">
+                    <span class="mt-0.5 flex h-7 w-7 items-center justify-center rounded-full bg-stone-100 text-stone-500 dark:bg-neutral-800 dark:text-neutral-300">
+                        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="3" y="4" width="18" height="18" rx="2" />
+                            <path d="M8 2v4" />
+                            <path d="M16 2v4" />
+                            <path d="M3 10h18" />
+                        </svg>
+                    </span>
+                    <div>
+                        <p class="text-[11px] uppercase tracking-wide text-stone-500 dark:text-neutral-400">Joined</p>
+                        <p class="text-sm text-stone-800 dark:text-neutral-200">{{ formatDate(detailMember.created_at) }}</p>
+                    </div>
+                </div>
+                <div class="flex items-start gap-2">
+                    <span class="mt-0.5 flex h-7 w-7 items-center justify-center rounded-full bg-stone-100 text-stone-500 dark:bg-neutral-800 dark:text-neutral-300">
+                        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M10 7h4" />
+                            <path d="M10 11h4" />
+                            <path d="M5 4h14v16H5z" />
+                        </svg>
+                    </span>
+                    <div>
+                        <p class="text-[11px] uppercase tracking-wide text-stone-500 dark:text-neutral-400">Member ID</p>
+                        <p class="text-sm text-stone-800 dark:text-neutral-200">#{{ detailMember.id }}</p>
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <p class="text-[11px] uppercase tracking-wide text-stone-500 dark:text-neutral-400">Permissions</p>
+                <div v-if="permissionLabels(detailMember).length" class="mt-2 flex flex-wrap gap-2">
+                    <span
+                        v-for="permission in permissionLabels(detailMember)"
+                        :key="permission"
+                        class="rounded-full bg-stone-100 px-2 py-1 text-[11px] font-semibold text-stone-700 dark:bg-neutral-800 dark:text-neutral-200"
+                    >
+                        {{ permission }}
+                    </span>
+                </div>
+                <p v-else class="mt-1 text-sm text-stone-500 dark:text-neutral-400">
+                    No specific permissions.
+                </p>
+            </div>
+
+            <div class="flex justify-end gap-2">
+                <button type="button" @click="openEditFromDetail"
+                    class="py-2 px-3 inline-flex items-center text-sm font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200">
+                    Edit
+                </button>
+                <button type="button" data-hs-overlay="#hs-team-detail"
+                    class="py-2 px-3 inline-flex items-center text-sm font-medium rounded-sm border border-transparent bg-stone-800 text-white hover:bg-stone-700 dark:bg-neutral-200 dark:text-neutral-900">
+                    Close
+                </button>
+            </div>
+        </div>
+        <div v-else class="text-sm text-stone-500 dark:text-neutral-400">
+            No team member selected.
+        </div>
+    </Modal>
 
     <Modal :title="'Add team member'" :id="'hs-team-create'">
         <form class="space-y-4" @submit.prevent="submitCreate">

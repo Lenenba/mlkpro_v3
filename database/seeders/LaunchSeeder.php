@@ -3168,6 +3168,53 @@ class LaunchSeeder extends Seeder
                 }
             }
 
+            if ($performanceSellerUsers->isNotEmpty() && $productSalesCatalog->isNotEmpty()) {
+                $highlightCustomer = $performanceCustomers->first();
+                $daySeller = $performanceSellerUsers->first();
+                $weekSeller = $performanceSellerUsers->get(1) ?? $daySeller;
+
+                if ($daySeller) {
+                    $dayLines = [
+                        ['product' => $productSalesCatalog->get(0), 'quantity' => 4],
+                        ['product' => $productSalesCatalog->get(1), 'quantity' => 2],
+                    ];
+
+                    $createSale(
+                        'Seeded performance highlight - Today',
+                        $highlightCustomer,
+                        Sale::STATUS_PAID,
+                        $dayLines,
+                        $now->copy()->subHours(2),
+                        $daySeller->id
+                    );
+                }
+
+                if ($weekSeller) {
+                    $weekDate = $now->copy()->startOfWeek()->addDays(2)->setTime(11, 30);
+                    if ($weekDate->isSameDay($now)) {
+                        $alternateDate = $now->copy()->startOfWeek()->addDays(1)->setTime(11, 30);
+                        if ($alternateDate->isSameDay($now)) {
+                            $alternateDate = $now->copy()->startOfWeek()->setTime(11, 30);
+                        }
+                        $weekDate = $alternateDate;
+                    }
+
+                    $weekLines = [
+                        ['product' => $productSalesCatalog->get(2), 'quantity' => 8],
+                        ['product' => $productSalesCatalog->get(3), 'quantity' => 5],
+                    ];
+
+                    $createSale(
+                        'Seeded performance highlight - Week',
+                        $highlightCustomer,
+                        Sale::STATUS_PAID,
+                        $weekLines,
+                        $weekDate,
+                        $weekSeller->id
+                    );
+                }
+            }
+
             $attendanceMembers = TeamMember::query()
                 ->where('account_id', $productOwner->id)
                 ->whereIn('user_id', $performanceSellerUsers->pluck('id')->all())

@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Head, Link, router } from '@inertiajs/vue3';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
@@ -30,6 +30,14 @@ const props = defineProps({
 });
 
 const { t } = useI18n();
+
+const isHydrating = ref(true);
+
+onMounted(() => {
+    setTimeout(() => {
+        isHydrating.value = false;
+    }, 450);
+});
 
 const formatCurrency = (value) =>
     `$${Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -124,6 +132,61 @@ const kpiCards = computed(() => ([
     },
 ]));
 
+const kpiIconStyles = {
+    emerald: 'bg-emerald-500/90 text-white shadow-emerald-500/30',
+    sky: 'bg-sky-500/90 text-white shadow-sky-500/30',
+    amber: 'bg-amber-500/90 text-white shadow-amber-500/30',
+    red: 'bg-red-500/90 text-white shadow-red-500/30',
+};
+
+const performanceKpiIcons = {
+    revenue: ['M12 6v12', 'M8.5 9.5a3.5 3.5 0 117 0c0 1.933-1.567 3.5-3.5 3.5S8.5 11.433 8.5 9.5z'],
+    orders: ['M3 3h2l.4 2', 'M7 13h10l4-8H5.4', 'M7 13L5.4 5', 'M7 13l-2 6', 'M17 13l2 6'],
+    items_sold: ['M12 3l8 4-8 4-8-4 8-4z', 'M4 7v10l8 4 8-4V7'],
+    avg_order: ['M6 4h12v16l-3-1.5-3 1.5-3-1.5-3 1.5V4z', 'M9 9h6', 'M9 13h6'],
+    customers: ['M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2', 'M9 7a4 4 0 100 8 4 4 0 000-8z'],
+    revenue_per_seller: ['M3 17l6-6 4 4 7-7', 'M14 7h7v7'],
+};
+
+const performanceKpis = computed(() => ([
+    {
+        key: 'revenue',
+        label: t('dashboard_products.owner.performance.kpi.revenue'),
+        value: formatCurrency(periodStats.value.revenue),
+        tone: 'emerald',
+    },
+    {
+        key: 'orders',
+        label: t('dashboard_products.owner.performance.kpi.orders'),
+        value: formatNumber(periodStats.value.orders),
+        tone: 'sky',
+    },
+    {
+        key: 'items_sold',
+        label: t('dashboard_products.owner.performance.kpi.items_sold'),
+        value: formatNumber(periodStats.value.items_sold),
+        tone: 'amber',
+    },
+    {
+        key: 'avg_order',
+        label: t('dashboard_products.owner.performance.kpi.avg_order'),
+        value: formatCurrency(periodStats.value.avg_order),
+        tone: 'emerald',
+    },
+    {
+        key: 'customers',
+        label: t('dashboard_products.owner.performance.kpi.customers'),
+        value: formatNumber(periodStats.value.customers),
+        tone: 'sky',
+    },
+    {
+        key: 'revenue_per_seller',
+        label: t('dashboard_products.owner.performance.kpi.revenue_per_seller'),
+        value: formatCurrency(periodStats.value.revenue_per_seller),
+        tone: 'amber',
+    },
+]));
+
 const statusLabels = computed(() => ({
     draft: t('client_orders.status.draft'),
     pending: t('client_orders.status.pending'),
@@ -174,6 +237,9 @@ const requestSupplierStock = (product) => {
         preserveScroll: true,
     });
 };
+
+const skeletonKpis = Array.from({ length: 6 }, (_, index) => index);
+const skeletonRows = Array.from({ length: 4 }, (_, index) => index);
 </script>
 
 <template>
@@ -214,6 +280,22 @@ const requestSupplierStock = (product) => {
 
             <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
                 <div
+                    v-if="isHydrating"
+                    v-for="index in skeletonKpis"
+                    :key="`kpi-skeleton-${index}`"
+                    class="rise-in rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900"
+                    :style="{ animationDelay: `${index * 80}ms` }"
+                >
+                    <div class="flex items-center justify-between gap-3 animate-pulse">
+                        <div class="space-y-2">
+                            <div class="h-3 w-20 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
+                            <div class="h-5 w-24 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
+                        </div>
+                        <div class="h-10 w-10 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
+                    </div>
+                </div>
+                <div
+                    v-else
                     v-for="(card, index) in kpiCards"
                     :key="card.label"
                     class="rise-in rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900"
@@ -225,8 +307,8 @@ const requestSupplierStock = (product) => {
                             <p class="mt-1 text-lg font-semibold text-stone-800 dark:text-neutral-100">{{ card.value }}</p>
                         </div>
                         <span
-                            class="flex h-10 w-10 items-center justify-center rounded-full"
-                            :class="stockSignalClasses[card.tone]"
+                            class="flex h-10 w-10 items-center justify-center rounded-full shadow-lg ring-1 ring-white/20 animate-[pulse_3s_ease-in-out_infinite]"
+                            :class="kpiIconStyles[card.tone] || 'bg-stone-600/90 text-white shadow-stone-500/30'"
                         >
                             <svg v-if="card.icon === 'bag'" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <path d="m6 2 1.5 6h9L18 2" />
@@ -293,41 +375,52 @@ const requestSupplierStock = (product) => {
                     </div>
 
                     <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
-                        <div class="rounded-sm border border-stone-200 bg-white p-3 text-xs text-stone-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-400">
-                            <p class="uppercase">{{ $t('dashboard_products.owner.performance.kpi.revenue') }}</p>
-                            <p class="mt-1 text-sm font-semibold text-stone-800 dark:text-neutral-100">
-                                {{ formatCurrency(periodStats.revenue) }}
-                            </p>
+                        <div
+                            v-if="isHydrating"
+                            v-for="index in skeletonKpis"
+                            :key="`perf-kpi-skeleton-${index}`"
+                            class="rounded-sm border border-stone-200 bg-white p-3 text-xs text-stone-500 animate-pulse dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-400"
+                        >
+                            <div class="flex items-start justify-between gap-2">
+                                <div class="space-y-2">
+                                    <div class="h-3 w-16 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
+                                    <div class="h-4 w-20 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
+                                </div>
+                                <div class="h-8 w-8 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
+                            </div>
                         </div>
-                        <div class="rounded-sm border border-stone-200 bg-white p-3 text-xs text-stone-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-400">
-                            <p class="uppercase">{{ $t('dashboard_products.owner.performance.kpi.orders') }}</p>
-                            <p class="mt-1 text-sm font-semibold text-stone-800 dark:text-neutral-100">
-                                {{ formatNumber(periodStats.orders) }}
-                            </p>
-                        </div>
-                        <div class="rounded-sm border border-stone-200 bg-white p-3 text-xs text-stone-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-400">
-                            <p class="uppercase">{{ $t('dashboard_products.owner.performance.kpi.items_sold') }}</p>
-                            <p class="mt-1 text-sm font-semibold text-stone-800 dark:text-neutral-100">
-                                {{ formatNumber(periodStats.items_sold) }}
-                            </p>
-                        </div>
-                        <div class="rounded-sm border border-stone-200 bg-white p-3 text-xs text-stone-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-400">
-                            <p class="uppercase">{{ $t('dashboard_products.owner.performance.kpi.avg_order') }}</p>
-                            <p class="mt-1 text-sm font-semibold text-stone-800 dark:text-neutral-100">
-                                {{ formatCurrency(periodStats.avg_order) }}
-                            </p>
-                        </div>
-                        <div class="rounded-sm border border-stone-200 bg-white p-3 text-xs text-stone-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-400">
-                            <p class="uppercase">{{ $t('dashboard_products.owner.performance.kpi.customers') }}</p>
-                            <p class="mt-1 text-sm font-semibold text-stone-800 dark:text-neutral-100">
-                                {{ formatNumber(periodStats.customers) }}
-                            </p>
-                        </div>
-                        <div class="rounded-sm border border-stone-200 bg-white p-3 text-xs text-stone-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-400">
-                            <p class="uppercase">{{ $t('dashboard_products.owner.performance.kpi.revenue_per_seller') }}</p>
-                            <p class="mt-1 text-sm font-semibold text-stone-800 dark:text-neutral-100">
-                                {{ formatCurrency(periodStats.revenue_per_seller) }}
-                            </p>
+                        <div
+                            v-else
+                            v-for="card in performanceKpis"
+                            :key="card.label"
+                            class="rounded-sm border border-stone-200 bg-white p-3 text-xs text-stone-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-400"
+                        >
+                            <div class="flex items-start justify-between gap-2">
+                                <div>
+                                    <p class="uppercase">{{ card.label }}</p>
+                                    <p class="mt-1 text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                                        {{ card.value }}
+                                    </p>
+                                </div>
+                                <span
+                                    class="flex h-8 w-8 items-center justify-center rounded-full shadow-md ring-1 ring-white/20 animate-[pulse_3s_ease-in-out_infinite]"
+                                    :class="kpiIconStyles[card.tone] || 'bg-stone-600/90 text-white shadow-stone-500/30'"
+                                >
+                                    <svg
+                                        v-if="performanceKpiIcons[card.key]"
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        class="h-4 w-4"
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        stroke-width="1.8"
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                    >
+                                        <path v-for="path in performanceKpiIcons[card.key]" :key="path" :d="path" />
+                                    </svg>
+                                </span>
+                            </div>
                         </div>
                     </div>
 
@@ -337,7 +430,21 @@ const requestSupplierStock = (product) => {
                                 <h3 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
                                     {{ $t('dashboard_products.owner.performance.top_sellers') }}
                                 </h3>
-                                <div v-if="!periodStats.top_sellers?.length" class="mt-2 text-sm text-stone-500 dark:text-neutral-400">
+                                <div v-if="isHydrating" class="mt-3 space-y-2">
+                                    <div
+                                        v-for="index in skeletonRows"
+                                        :key="`seller-skeleton-${index}`"
+                                        class="flex items-center gap-3 rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm animate-pulse dark:border-neutral-700 dark:bg-neutral-900"
+                                    >
+                                        <div class="h-4 w-6 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
+                                        <div class="h-10 w-10 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
+                                        <div class="flex-1 space-y-2">
+                                            <div class="h-3 w-32 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
+                                            <div class="h-3 w-40 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div v-else-if="!periodStats.top_sellers?.length" class="mt-2 text-sm text-stone-500 dark:text-neutral-400">
                                     {{ $t('dashboard_products.owner.performance.no_sellers') }}
                                 </div>
                                 <div v-else class="mt-3 space-y-2">
@@ -386,7 +493,20 @@ const requestSupplierStock = (product) => {
                                 <h3 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
                                     {{ $t('dashboard_products.owner.performance.top_products') }}
                                 </h3>
-                                <div v-if="!periodStats.top_products?.length" class="mt-2 text-sm text-stone-500 dark:text-neutral-400">
+                                <div v-if="isHydrating" class="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
+                                    <div
+                                        v-for="index in skeletonRows"
+                                        :key="`product-skeleton-${index}`"
+                                        class="flex items-center gap-3 rounded-sm border border-stone-200 bg-white p-3 text-sm animate-pulse dark:border-neutral-700 dark:bg-neutral-900"
+                                    >
+                                        <div class="h-12 w-12 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                                        <div class="flex-1 space-y-2">
+                                            <div class="h-3 w-28 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
+                                            <div class="h-3 w-32 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div v-else-if="!periodStats.top_products?.length" class="mt-2 text-sm text-stone-500 dark:text-neutral-400">
                                     {{ $t('dashboard_products.owner.performance.no_products') }}
                                 </div>
                                 <div v-else class="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
@@ -421,7 +541,14 @@ const requestSupplierStock = (product) => {
                                 <p class="text-xs uppercase tracking-wide text-emerald-700 dark:text-emerald-200">
                                     {{ $t('dashboard_products.owner.performance.seller_of_year') }}
                                 </p>
-                                <div v-if="sellerOfYear" class="mt-3 flex items-center gap-3">
+                                <div v-if="isHydrating" class="mt-3 flex items-center gap-3 animate-pulse">
+                                    <div class="h-14 w-14 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
+                                    <div class="flex-1 space-y-2">
+                                        <div class="h-3 w-32 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
+                                        <div class="h-3 w-40 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
+                                    </div>
+                                </div>
+                                <div v-else-if="sellerOfYear" class="mt-3 flex items-center gap-3">
                                     <div class="h-14 w-14 overflow-hidden rounded-full border border-emerald-200 bg-white dark:border-emerald-500/40 dark:bg-neutral-900">
                                         <img
                                             v-if="sellerOfYear.profile_picture_url"
@@ -458,7 +585,23 @@ const requestSupplierStock = (product) => {
             <div class="grid grid-cols-1 gap-4 lg:grid-cols-3">
                 <Card class="rise-in lg:col-span-2" :style="{ animationDelay: '120ms' }">
                     <template #title>{{ $t('dashboard_products.common.recent_sales_title') }}</template>
-                    <div v-if="!recentSales.length" class="text-sm text-stone-500 dark:text-neutral-400">
+                    <div v-if="isHydrating" class="divide-y divide-stone-200 dark:divide-neutral-700">
+                        <div
+                            v-for="index in skeletonRows"
+                            :key="`recent-sale-skeleton-${index}`"
+                            class="flex items-center justify-between gap-3 py-3 text-sm animate-pulse"
+                        >
+                            <div class="space-y-2">
+                                <div class="h-3 w-32 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
+                                <div class="h-3 w-40 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
+                            </div>
+                            <div class="space-y-2 text-right">
+                                <div class="h-3 w-16 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
+                                <div class="h-4 w-14 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div v-else-if="!recentSales.length" class="text-sm text-stone-500 dark:text-neutral-400">
                         {{ $t('dashboard_products.common.recent_sales_empty') }}
                     </div>
                     <div v-else class="divide-y divide-stone-200 dark:divide-neutral-700">
@@ -490,6 +633,15 @@ const requestSupplierStock = (product) => {
                     <template #title>{{ $t('dashboard_products.common.stock_alerts_title') }}</template>
                     <div class="flex flex-wrap gap-2 text-xs">
                         <span
+                            v-if="isHydrating"
+                            v-for="index in 3"
+                            :key="`stock-chip-skeleton-${index}`"
+                            class="rounded-full px-2 py-1 font-semibold bg-stone-200 text-stone-200 animate-pulse dark:bg-neutral-700 dark:text-neutral-700"
+                        >
+                            ---
+                        </span>
+                        <span
+                            v-else
                             v-for="signal in stockSignals"
                             :key="signal.label"
                             class="rounded-full px-2 py-1 font-semibold"
@@ -499,7 +651,26 @@ const requestSupplierStock = (product) => {
                         </span>
                     </div>
                     <div class="mt-4 space-y-2 text-sm">
-                        <div v-if="!stockAlerts.length" class="text-stone-500 dark:text-neutral-400">
+                        <div v-if="isHydrating" class="space-y-3">
+                            <div
+                                v-for="index in skeletonRows"
+                                :key="`stock-alert-skeleton-${index}`"
+                                class="space-y-2 animate-pulse"
+                            >
+                                <div class="flex items-center justify-between">
+                                    <div class="space-y-2">
+                                        <div class="h-3 w-32 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
+                                        <div class="h-3 w-40 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
+                                    </div>
+                                    <div class="h-4 w-16 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
+                                </div>
+                                <div class="flex items-center justify-between">
+                                    <div class="h-3 w-24 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
+                                    <div class="h-6 w-20 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div v-else-if="!stockAlerts.length" class="text-stone-500 dark:text-neutral-400">
                             {{ $t('dashboard_products.common.stock_alerts_empty') }}
                         </div>
                         <div v-else class="space-y-3">
@@ -539,7 +710,20 @@ const requestSupplierStock = (product) => {
 
             <Card class="rise-in" :style="{ animationDelay: '200ms' }">
                 <template #title>{{ $t('dashboard_products.common.top_products_title') }}</template>
-                <div v-if="!topProducts.length" class="text-sm text-stone-500 dark:text-neutral-400">
+                <div v-if="isHydrating" class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+                    <div
+                        v-for="index in skeletonRows"
+                        :key="`top-product-skeleton-${index}`"
+                        class="flex items-center gap-3 rounded-sm border border-stone-200 p-3 animate-pulse dark:border-neutral-700"
+                    >
+                        <div class="h-12 w-12 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                        <div class="flex-1 space-y-2">
+                            <div class="h-3 w-28 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
+                            <div class="h-3 w-24 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
+                        </div>
+                    </div>
+                </div>
+                <div v-else-if="!topProducts.length" class="text-sm text-stone-500 dark:text-neutral-400">
                     {{ $t('dashboard_products.common.top_products_empty') }}
                 </div>
                 <div v-else class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">

@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { Head, Link } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
@@ -8,11 +8,11 @@ import Card from '@/Components/UI/Card.vue';
 const props = defineProps({
     employeePerformance: {
         type: Object,
-        default: () => ({ periods: {}, seller_of_year: null }),
+        default: () => ({ periods: {}, seller_of_periods: {}, seller_of_year: null }),
     },
     clientPerformance: {
         type: Object,
-        default: () => ({ periods: {}, customer_of_year: null }),
+        default: () => ({ periods: {}, customer_of_periods: {}, customer_of_year: null }),
     },
     tab: {
         type: String,
@@ -24,6 +24,13 @@ const { t } = useI18n();
 
 const activeTab = ref(props.tab === 'employees' ? 'employees' : 'clients');
 const activePeriod = ref('month');
+const isHydrating = ref(true);
+
+onMounted(() => {
+    setTimeout(() => {
+        isHydrating.value = false;
+    }, 450);
+});
 
 const periodOptions = computed(() => ([
     { key: 'day', label: t('performance.period.day') },
@@ -65,25 +72,212 @@ const emptyClientPeriod = {
 const employeePeriod = computed(() => props.employeePerformance?.periods?.[activePeriod.value] || emptyEmployeePeriod);
 const clientPeriod = computed(() => props.clientPerformance?.periods?.[activePeriod.value] || emptyClientPeriod);
 
-const sellerOfYear = computed(() => props.employeePerformance?.seller_of_year || null);
-const customerOfYear = computed(() => props.clientPerformance?.customer_of_year || null);
+const sellerOfPeriod = computed(() => {
+    const periodKey = activePeriod.value;
+    const periodSeller = props.employeePerformance?.seller_of_periods?.[periodKey];
+    if (periodSeller !== undefined) {
+        return periodSeller || null;
+    }
+    const topSellers = employeePeriod.value.top_sellers || [];
+    return topSellers.find((seller) => seller?.type === 'user') ?? topSellers[0] ?? null;
+});
 
-const clientKpis = computed(() => ([
-    { label: t('performance.kpi.revenue'), value: formatCurrency(clientPeriod.value.revenue) },
-    { label: t('performance.kpi.orders'), value: formatNumber(clientPeriod.value.orders) },
-    { label: t('performance.kpi.items_sold'), value: formatNumber(clientPeriod.value.items_sold) },
-    { label: t('performance.kpi.avg_order'), value: formatCurrency(clientPeriod.value.avg_order) },
-    { label: t('performance.kpi.customers'), value: formatNumber(clientPeriod.value.customers) },
-    { label: t('performance.kpi.avg_customer_value'), value: formatCurrency(clientPeriod.value.avg_customer_value) },
+const customerOfPeriod = computed(() => {
+    const periodKey = activePeriod.value;
+    const periodCustomer = props.clientPerformance?.customer_of_periods?.[periodKey];
+    if (periodCustomer !== undefined) {
+        return periodCustomer || null;
+    }
+    return clientPeriod.value.top_customers?.[0] ?? null;
+});
+
+const sellerHighlightLabel = computed(() => t(`performance.employees.seller_of_${activePeriod.value}`));
+const customerHighlightLabel = computed(() => t(`performance.clients.customer_of_${activePeriod.value}`));
+const sellerEmptyLabel = computed(() => t('performance.employees.no_seller_period'));
+const customerEmptyLabel = computed(() => t('performance.clients.no_customer_period'));
+const periodBadgeText = computed(() => periodOptions.value.find((option) => option.key === activePeriod.value)?.label || '');
+
+const highlightThemes = {
+    day: {
+        seller: {
+            container: 'border-emerald-200 bg-emerald-50/70 dark:border-emerald-500/30 dark:bg-emerald-500/10',
+            accent: 'bg-emerald-500',
+            badge: 'bg-emerald-600 text-white',
+            text: 'text-emerald-900 dark:text-emerald-200',
+            label: 'text-emerald-700 dark:text-emerald-200',
+            subtle: 'text-emerald-700/80 dark:text-emerald-200/80',
+            avatarBorder: 'border-emerald-200 dark:border-emerald-500/40',
+        },
+        client: {
+            container: 'border-amber-200 bg-amber-50/70 dark:border-amber-500/30 dark:bg-amber-500/10',
+            accent: 'bg-amber-500',
+            badge: 'bg-amber-600 text-white',
+            text: 'text-amber-900 dark:text-amber-200',
+            label: 'text-amber-700 dark:text-amber-200',
+            subtle: 'text-amber-700/80 dark:text-amber-200/80',
+            avatarBorder: 'border-amber-200 dark:border-amber-500/40',
+        },
+    },
+    week: {
+        seller: {
+            container: 'border-sky-200 bg-sky-50/70 dark:border-sky-500/30 dark:bg-sky-500/10',
+            accent: 'bg-sky-500',
+            badge: 'bg-sky-600 text-white',
+            text: 'text-sky-900 dark:text-sky-200',
+            label: 'text-sky-700 dark:text-sky-200',
+            subtle: 'text-sky-700/80 dark:text-sky-200/80',
+            avatarBorder: 'border-sky-200 dark:border-sky-500/40',
+        },
+        client: {
+            container: 'border-orange-200 bg-orange-50/70 dark:border-orange-500/30 dark:bg-orange-500/10',
+            accent: 'bg-orange-500',
+            badge: 'bg-orange-600 text-white',
+            text: 'text-orange-900 dark:text-orange-200',
+            label: 'text-orange-700 dark:text-orange-200',
+            subtle: 'text-orange-700/80 dark:text-orange-200/80',
+            avatarBorder: 'border-orange-200 dark:border-orange-500/40',
+        },
+    },
+    month: {
+        seller: {
+            container: 'border-teal-200 bg-teal-50/70 dark:border-teal-500/30 dark:bg-teal-500/10',
+            accent: 'bg-teal-500',
+            badge: 'bg-teal-600 text-white',
+            text: 'text-teal-900 dark:text-teal-200',
+            label: 'text-teal-700 dark:text-teal-200',
+            subtle: 'text-teal-700/80 dark:text-teal-200/80',
+            avatarBorder: 'border-teal-200 dark:border-teal-500/40',
+        },
+        client: {
+            container: 'border-yellow-200 bg-yellow-50/70 dark:border-yellow-500/30 dark:bg-yellow-500/10',
+            accent: 'bg-yellow-500',
+            badge: 'bg-yellow-600 text-white',
+            text: 'text-yellow-900 dark:text-yellow-200',
+            label: 'text-yellow-700 dark:text-yellow-200',
+            subtle: 'text-yellow-700/80 dark:text-yellow-200/80',
+            avatarBorder: 'border-yellow-200 dark:border-yellow-500/40',
+        },
+    },
+    year: {
+        seller: {
+            container: 'border-stone-200 bg-stone-50/70 dark:border-stone-700 dark:bg-neutral-900',
+            accent: 'bg-stone-500',
+            badge: 'bg-stone-700 text-white',
+            text: 'text-stone-900 dark:text-neutral-100',
+            label: 'text-stone-600 dark:text-neutral-300',
+            subtle: 'text-stone-600/80 dark:text-neutral-400',
+            avatarBorder: 'border-stone-200 dark:border-stone-700',
+        },
+        client: {
+            container: 'border-stone-200 bg-stone-50/70 dark:border-stone-700 dark:bg-neutral-900',
+            accent: 'bg-stone-500',
+            badge: 'bg-stone-700 text-white',
+            text: 'text-stone-900 dark:text-neutral-100',
+            label: 'text-stone-600 dark:text-neutral-300',
+            subtle: 'text-stone-600/80 dark:text-neutral-400',
+            avatarBorder: 'border-stone-200 dark:border-stone-700',
+        },
+    },
+};
+
+const sellerHighlightStyles = computed(() => highlightThemes[activePeriod.value]?.seller || highlightThemes.month.seller);
+const customerHighlightStyles = computed(() => highlightThemes[activePeriod.value]?.client || highlightThemes.month.client);
+
+const kpiIcons = {
+    revenue: {
+        viewBox: '0 0 24 24',
+        paths: [
+            'M12 6v12',
+            'M8.5 9.5a3.5 3.5 0 117 0c0 1.933-1.567 3.5-3.5 3.5S8.5 11.433 8.5 9.5z',
+            'M8.5 14.5a3.5 3.5 0 117 0c0 1.933-1.567 3.5-3.5 3.5S8.5 16.433 8.5 14.5z',
+        ],
+    },
+    orders: {
+        viewBox: '0 0 24 24',
+        paths: [
+            'M3 3h2l.4 2',
+            'M7 13h10l4-8H5.4',
+            'M7 13L5.4 5',
+            'M7 13l-2 6',
+            'M17 13l2 6',
+            'M9 21a1 1 0 100-2 1 1 0 000 2',
+            'M17 21a1 1 0 100-2 1 1 0 000 2',
+        ],
+    },
+    items_sold: {
+        viewBox: '0 0 24 24',
+        paths: [
+            'M12 3l8 4-8 4-8-4 8-4z',
+            'M4 7v10l8 4 8-4V7',
+        ],
+    },
+    avg_order: {
+        viewBox: '0 0 24 24',
+        paths: [
+            'M6 4h12v16l-3-1.5-3 1.5-3-1.5-3 1.5V4z',
+            'M9 8h6',
+            'M9 12h6',
+        ],
+    },
+    customers: {
+        viewBox: '0 0 24 24',
+        paths: [
+            'M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2',
+            'M9 7a4 4 0 100 8 4 4 0 000-8z',
+            'M23 21v-2a4 4 0 00-3-3.87',
+            'M16 3.13a4 4 0 010 7.75',
+        ],
+    },
+    avg_customer_value: {
+        viewBox: '0 0 24 24',
+        paths: [
+            'M2 5h20a2 2 0 012 2v10a2 2 0 01-2 2H2a2 2 0 01-2-2V7a2 2 0 012-2z',
+            'M2 11h20',
+            'M6 15h4',
+        ],
+    },
+    revenue_per_seller: {
+        viewBox: '0 0 24 24',
+        paths: [
+            'M3 17l6-6 4 4 7-7',
+            'M14 8h6v6',
+        ],
+    },
+};
+
+const kpiStyles = {
+    revenue: 'bg-emerald-500/90 text-white shadow-emerald-500/30',
+    orders: 'bg-sky-500/90 text-white shadow-sky-500/30',
+    items_sold: 'bg-amber-500/90 text-white shadow-amber-500/30',
+    avg_order: 'bg-violet-500/90 text-white shadow-violet-500/30',
+    customers: 'bg-rose-500/90 text-white shadow-rose-500/30',
+    avg_customer_value: 'bg-teal-500/90 text-white shadow-teal-500/30',
+    revenue_per_seller: 'bg-cyan-500/90 text-white shadow-cyan-500/30',
+};
+
+const buildKpis = (items) =>
+    items.map((item) => ({
+        ...item,
+        icon: kpiIcons[item.key],
+        iconClass: kpiStyles[item.key] || 'bg-stone-600/90 text-white shadow-stone-500/30',
+    }));
+
+const clientKpis = computed(() => buildKpis([
+    { key: 'revenue', label: t('performance.kpi.revenue'), value: formatCurrency(clientPeriod.value.revenue) },
+    { key: 'orders', label: t('performance.kpi.orders'), value: formatNumber(clientPeriod.value.orders) },
+    { key: 'items_sold', label: t('performance.kpi.items_sold'), value: formatNumber(clientPeriod.value.items_sold) },
+    { key: 'avg_order', label: t('performance.kpi.avg_order'), value: formatCurrency(clientPeriod.value.avg_order) },
+    { key: 'customers', label: t('performance.kpi.customers'), value: formatNumber(clientPeriod.value.customers) },
+    { key: 'avg_customer_value', label: t('performance.kpi.avg_customer_value'), value: formatCurrency(clientPeriod.value.avg_customer_value) },
 ]));
 
-const employeeKpis = computed(() => ([
-    { label: t('performance.kpi.revenue'), value: formatCurrency(employeePeriod.value.revenue) },
-    { label: t('performance.kpi.orders'), value: formatNumber(employeePeriod.value.orders) },
-    { label: t('performance.kpi.items_sold'), value: formatNumber(employeePeriod.value.items_sold) },
-    { label: t('performance.kpi.avg_order'), value: formatCurrency(employeePeriod.value.avg_order) },
-    { label: t('performance.kpi.customers'), value: formatNumber(employeePeriod.value.customers) },
-    { label: t('performance.kpi.revenue_per_seller'), value: formatCurrency(employeePeriod.value.revenue_per_seller) },
+const employeeKpis = computed(() => buildKpis([
+    { key: 'revenue', label: t('performance.kpi.revenue'), value: formatCurrency(employeePeriod.value.revenue) },
+    { key: 'orders', label: t('performance.kpi.orders'), value: formatNumber(employeePeriod.value.orders) },
+    { key: 'items_sold', label: t('performance.kpi.items_sold'), value: formatNumber(employeePeriod.value.items_sold) },
+    { key: 'avg_order', label: t('performance.kpi.avg_order'), value: formatCurrency(employeePeriod.value.avg_order) },
+    { key: 'customers', label: t('performance.kpi.customers'), value: formatNumber(employeePeriod.value.customers) },
+    { key: 'revenue_per_seller', label: t('performance.kpi.revenue_per_seller'), value: formatCurrency(employeePeriod.value.revenue_per_seller) },
 ]));
 
 const sellerDisplayName = (seller) => {
@@ -115,6 +309,9 @@ const rangeLabel = computed(() => {
 const activeSellersLabel = computed(() =>
     t('performance.employees.active_sellers', { count: formatNumber(employeePeriod.value.active_sellers) }),
 );
+
+const skeletonKpis = Array.from({ length: 6 }, (_, index) => index);
+const skeletonRows = Array.from({ length: 4 }, (_, index) => index);
 </script>
 
 <template>
@@ -180,19 +377,69 @@ const activeSellersLabel = computed(() =>
             <div v-if="activeTab === 'clients'" class="space-y-4">
                 <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
                     <div
+                        v-if="isHydrating"
+                        v-for="index in skeletonKpis"
+                        :key="`client-kpi-skeleton-${index}`"
+                        class="rounded-sm border border-stone-200 bg-white p-4 text-xs text-stone-500 shadow-sm animate-pulse dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-400"
+                    >
+                        <div class="flex items-start justify-between gap-2">
+                            <div class="space-y-2">
+                                <div class="h-3 w-16 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
+                                <div class="h-4 w-20 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
+                            </div>
+                            <div class="h-9 w-9 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
+                        </div>
+                    </div>
+                    <div
+                        v-else
                         v-for="card in clientKpis"
                         :key="card.label"
                         class="rounded-sm border border-stone-200 bg-white p-4 text-xs text-stone-500 shadow-sm dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-400"
                     >
-                        <p class="uppercase">{{ card.label }}</p>
-                        <p class="mt-1 text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ card.value }}</p>
+                        <div class="flex items-start justify-between gap-2">
+                            <div>
+                                <p class="uppercase">{{ card.label }}</p>
+                                <p class="mt-1 text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ card.value }}</p>
+                            </div>
+                            <div
+                                class="flex h-9 w-9 items-center justify-center rounded-full shadow-lg ring-1 ring-white/20 animate-[pulse_3s_ease-in-out_infinite]"
+                                :class="card.iconClass"
+                            >
+                                <svg
+                                    v-if="card.icon"
+                                    :viewBox="card.icon.viewBox"
+                                    class="h-4 w-4"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    stroke-width="1.8"
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                >
+                                    <path v-for="path in card.icon.paths" :key="path" :d="path" />
+                                </svg>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
                 <div class="grid grid-cols-1 gap-4 lg:grid-cols-3">
                     <Card class="lg:col-span-2">
                         <template #title>{{ t('performance.clients.top_customers') }}</template>
-                        <div v-if="!clientPeriod.top_customers?.length" class="text-sm text-stone-500 dark:text-neutral-400">
+                        <div v-if="isHydrating" class="space-y-2">
+                            <div
+                                v-for="index in skeletonRows"
+                                :key="`client-row-skeleton-${index}`"
+                                class="flex items-center gap-3 rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm animate-pulse dark:border-neutral-700 dark:bg-neutral-900"
+                            >
+                                <div class="h-4 w-6 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
+                                <div class="h-10 w-10 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
+                                <div class="flex-1 space-y-2">
+                                    <div class="h-3 w-32 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
+                                    <div class="h-3 w-40 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div v-else-if="!clientPeriod.top_customers?.length" class="text-sm text-stone-500 dark:text-neutral-400">
                             {{ t('performance.clients.no_customers') }}
                         </div>
                         <div v-else class="space-y-2">
@@ -230,37 +477,67 @@ const activeSellersLabel = computed(() =>
                     </Card>
 
                     <div class="space-y-3">
-                        <div class="rounded-sm border border-amber-200 bg-amber-50/60 p-4 text-sm text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
-                            <p class="text-xs uppercase tracking-wide text-amber-700 dark:text-amber-200">
-                                {{ t('performance.clients.customer_of_year') }}
+                        <div
+                            class="relative overflow-hidden rounded-sm border p-4 ps-5 text-sm"
+                            :class="[customerHighlightStyles.container, customerHighlightStyles.text]"
+                        >
+                            <span
+                                class="absolute -top-6 -end-6 size-20 rounded-full opacity-20 blur-2xl animate-[pulse_6s_ease-in-out_infinite]"
+                                :class="customerHighlightStyles.accent"
+                            ></span>
+                            <span class="absolute inset-y-0 start-0 w-1" :class="customerHighlightStyles.accent"></span>
+                            <div class="flex items-center justify-between gap-2">
+                                <p class="text-xs uppercase tracking-wide" :class="customerHighlightStyles.label">
+                                    {{ customerHighlightLabel }}
+                                </p>
+                                <span
+                                    v-if="periodBadgeText"
+                                    class="rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
+                                    :class="customerHighlightStyles.badge"
+                                >
+                                    {{ periodBadgeText }}
+                                </span>
+                            </div>
+                            <p v-if="rangeLabel" class="mt-1 text-[11px]" :class="customerHighlightStyles.subtle">
+                                {{ rangeLabel }}
                             </p>
-                            <div v-if="customerOfYear" class="mt-3 flex items-center gap-3">
-                                <div class="h-14 w-14 overflow-hidden rounded-full border border-amber-200 bg-white dark:border-amber-500/40 dark:bg-neutral-900">
+                            <div v-if="isHydrating" class="mt-3 flex items-center gap-3 animate-pulse">
+                                <div class="h-14 w-14 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
+                                <div class="flex-1 space-y-2">
+                                    <div class="h-3 w-32 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
+                                    <div class="h-3 w-40 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
+                                </div>
+                            </div>
+                            <div v-else-if="customerOfPeriod" class="mt-3 flex items-center gap-3">
+                                <div
+                                    class="h-14 w-14 overflow-hidden rounded-full border bg-white dark:bg-neutral-900"
+                                    :class="customerHighlightStyles.avatarBorder"
+                                >
                                     <img
-                                        v-if="customerOfYear.logo_url"
-                                        :src="customerOfYear.logo_url"
-                                        :alt="customerDisplayName(customerOfYear)"
+                                        v-if="customerOfPeriod.logo_url"
+                                        :src="customerOfPeriod.logo_url"
+                                        :alt="customerDisplayName(customerOfPeriod)"
                                         class="h-full w-full object-cover"
                                         loading="lazy"
                                         decoding="async"
                                     />
-                                    <div v-else class="flex h-full w-full items-center justify-center text-sm font-semibold text-amber-700 dark:text-amber-200">
-                                        {{ initials(customerDisplayName(customerOfYear)) }}
+                                    <div v-else class="flex h-full w-full items-center justify-center text-sm font-semibold" :class="customerHighlightStyles.label">
+                                        {{ initials(customerDisplayName(customerOfPeriod)) }}
                                     </div>
                                 </div>
                                 <div>
-                                    <p class="text-sm font-semibold">{{ customerDisplayName(customerOfYear) }}</p>
-                                    <p class="text-xs text-amber-700/80 dark:text-amber-200/80">
+                                    <p class="text-sm font-semibold">{{ customerDisplayName(customerOfPeriod) }}</p>
+                                    <p class="text-xs" :class="customerHighlightStyles.subtle">
                                         {{ t('performance.clients.line', {
-                                            revenue: formatCurrency(customerOfYear.revenue),
-                                            orders: formatNumber(customerOfYear.orders),
-                                            items: formatNumber(customerOfYear.items),
+                                            revenue: formatCurrency(customerOfPeriod.revenue),
+                                            orders: formatNumber(customerOfPeriod.orders),
+                                            items: formatNumber(customerOfPeriod.items),
                                         }) }}
                                     </p>
                                 </div>
                             </div>
-                            <p v-else class="mt-3 text-sm text-amber-700/80 dark:text-amber-200/80">
-                                {{ t('performance.clients.no_customer_year') }}
+                            <p v-else class="mt-3 text-sm" :class="customerHighlightStyles.subtle">
+                                {{ customerEmptyLabel }}
                             </p>
                         </div>
                     </div>
@@ -270,12 +547,48 @@ const activeSellersLabel = computed(() =>
             <div v-else class="space-y-4">
                 <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
                     <div
+                        v-if="isHydrating"
+                        v-for="index in skeletonKpis"
+                        :key="`employee-kpi-skeleton-${index}`"
+                        class="rounded-sm border border-stone-200 bg-white p-4 text-xs text-stone-500 shadow-sm animate-pulse dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-400"
+                    >
+                        <div class="flex items-start justify-between gap-2">
+                            <div class="space-y-2">
+                                <div class="h-3 w-16 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
+                                <div class="h-4 w-20 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
+                            </div>
+                            <div class="h-9 w-9 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
+                        </div>
+                    </div>
+                    <div
+                        v-else
                         v-for="card in employeeKpis"
                         :key="card.label"
                         class="rounded-sm border border-stone-200 bg-white p-4 text-xs text-stone-500 shadow-sm dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-400"
                     >
-                        <p class="uppercase">{{ card.label }}</p>
-                        <p class="mt-1 text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ card.value }}</p>
+                        <div class="flex items-start justify-between gap-2">
+                            <div>
+                                <p class="uppercase">{{ card.label }}</p>
+                                <p class="mt-1 text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ card.value }}</p>
+                            </div>
+                            <div
+                                class="flex h-9 w-9 items-center justify-center rounded-full shadow-lg ring-1 ring-white/20 animate-[pulse_3s_ease-in-out_infinite]"
+                                :class="card.iconClass"
+                            >
+                                <svg
+                                    v-if="card.icon"
+                                    :viewBox="card.icon.viewBox"
+                                    class="h-4 w-4"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    stroke-width="1.8"
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                >
+                                    <path v-for="path in card.icon.paths" :key="path" :d="path" />
+                                </svg>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -283,7 +596,21 @@ const activeSellersLabel = computed(() =>
                     <div class="lg:col-span-2 space-y-4">
                         <Card>
                             <template #title>{{ t('performance.employees.top_sellers') }}</template>
-                            <div v-if="!employeePeriod.top_sellers?.length" class="text-sm text-stone-500 dark:text-neutral-400">
+                            <div v-if="isHydrating" class="space-y-2">
+                                <div
+                                    v-for="index in skeletonRows"
+                                    :key="`seller-row-skeleton-${index}`"
+                                    class="flex items-center gap-3 rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm animate-pulse dark:border-neutral-700 dark:bg-neutral-900"
+                                >
+                                    <div class="h-4 w-6 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
+                                    <div class="h-10 w-10 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
+                                    <div class="flex-1 space-y-2">
+                                        <div class="h-3 w-32 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
+                                        <div class="h-3 w-40 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div v-else-if="!employeePeriod.top_sellers?.length" class="text-sm text-stone-500 dark:text-neutral-400">
                                 {{ t('performance.employees.no_sellers') }}
                             </div>
                             <div v-else class="space-y-2">
@@ -337,7 +664,20 @@ const activeSellersLabel = computed(() =>
 
                         <Card>
                             <template #title>{{ t('performance.employees.top_products') }}</template>
-                            <div v-if="!employeePeriod.top_products?.length" class="text-sm text-stone-500 dark:text-neutral-400">
+                            <div v-if="isHydrating" class="grid grid-cols-1 gap-3 md:grid-cols-2">
+                                <div
+                                    v-for="index in skeletonRows"
+                                    :key="`product-row-skeleton-${index}`"
+                                    class="flex items-center gap-3 rounded-sm border border-stone-200 bg-white p-3 text-sm animate-pulse dark:border-neutral-700 dark:bg-neutral-900"
+                                >
+                                    <div class="h-12 w-12 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                                    <div class="flex-1 space-y-2">
+                                        <div class="h-3 w-28 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
+                                        <div class="h-3 w-32 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div v-else-if="!employeePeriod.top_products?.length" class="text-sm text-stone-500 dark:text-neutral-400">
                                 {{ t('performance.employees.no_products') }}
                             </div>
                             <div v-else class="grid grid-cols-1 gap-3 md:grid-cols-2">
@@ -368,37 +708,67 @@ const activeSellersLabel = computed(() =>
                     </div>
 
                     <div class="space-y-3">
-                        <div class="rounded-sm border border-emerald-200 bg-emerald-50/60 p-4 text-sm text-emerald-900 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200">
-                            <p class="text-xs uppercase tracking-wide text-emerald-700 dark:text-emerald-200">
-                                {{ t('performance.employees.seller_of_year') }}
+                        <div
+                            class="relative overflow-hidden rounded-sm border p-4 ps-5 text-sm"
+                            :class="[sellerHighlightStyles.container, sellerHighlightStyles.text]"
+                        >
+                            <span
+                                class="absolute -top-6 -end-6 size-20 rounded-full opacity-20 blur-2xl animate-[pulse_6s_ease-in-out_infinite]"
+                                :class="sellerHighlightStyles.accent"
+                            ></span>
+                            <span class="absolute inset-y-0 start-0 w-1" :class="sellerHighlightStyles.accent"></span>
+                            <div class="flex items-center justify-between gap-2">
+                                <p class="text-xs uppercase tracking-wide" :class="sellerHighlightStyles.label">
+                                    {{ sellerHighlightLabel }}
+                                </p>
+                                <span
+                                    v-if="periodBadgeText"
+                                    class="rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
+                                    :class="sellerHighlightStyles.badge"
+                                >
+                                    {{ periodBadgeText }}
+                                </span>
+                            </div>
+                            <p v-if="rangeLabel" class="mt-1 text-[11px]" :class="sellerHighlightStyles.subtle">
+                                {{ rangeLabel }}
                             </p>
-                            <div v-if="sellerOfYear" class="mt-3 flex items-center gap-3">
-                                <div class="h-14 w-14 overflow-hidden rounded-full border border-emerald-200 bg-white dark:border-emerald-500/40 dark:bg-neutral-900">
+                            <div v-if="isHydrating" class="mt-3 flex items-center gap-3 animate-pulse">
+                                <div class="h-14 w-14 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
+                                <div class="flex-1 space-y-2">
+                                    <div class="h-3 w-32 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
+                                    <div class="h-3 w-40 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
+                                </div>
+                            </div>
+                            <div v-else-if="sellerOfPeriod" class="mt-3 flex items-center gap-3">
+                                <div
+                                    class="h-14 w-14 overflow-hidden rounded-full border bg-white dark:bg-neutral-900"
+                                    :class="sellerHighlightStyles.avatarBorder"
+                                >
                                     <img
-                                        v-if="sellerOfYear.profile_picture_url"
-                                        :src="sellerOfYear.profile_picture_url"
-                                        :alt="sellerDisplayName(sellerOfYear)"
+                                        v-if="sellerOfPeriod.profile_picture_url"
+                                        :src="sellerOfPeriod.profile_picture_url"
+                                        :alt="sellerDisplayName(sellerOfPeriod)"
                                         class="h-full w-full object-cover"
                                         loading="lazy"
                                         decoding="async"
                                     />
-                                    <div v-else class="flex h-full w-full items-center justify-center text-sm font-semibold text-emerald-700 dark:text-emerald-200">
-                                        {{ initials(sellerDisplayName(sellerOfYear)) }}
+                                    <div v-else class="flex h-full w-full items-center justify-center text-sm font-semibold" :class="sellerHighlightStyles.label">
+                                        {{ initials(sellerDisplayName(sellerOfPeriod)) }}
                                     </div>
                                 </div>
                                 <div>
-                                    <p class="text-sm font-semibold">{{ sellerDisplayName(sellerOfYear) }}</p>
-                                    <p class="text-xs text-emerald-700/80 dark:text-emerald-200/80">
+                                    <p class="text-sm font-semibold">{{ sellerDisplayName(sellerOfPeriod) }}</p>
+                                    <p class="text-xs" :class="sellerHighlightStyles.subtle">
                                         {{ t('performance.employees.seller_line', {
-                                            revenue: formatCurrency(sellerOfYear.revenue),
-                                            orders: formatNumber(sellerOfYear.orders),
-                                            items: formatNumber(sellerOfYear.items),
+                                            revenue: formatCurrency(sellerOfPeriod.revenue),
+                                            orders: formatNumber(sellerOfPeriod.orders),
+                                            items: formatNumber(sellerOfPeriod.items),
                                         }) }}
                                     </p>
                                 </div>
                             </div>
-                            <p v-else class="mt-3 text-sm text-emerald-700/80 dark:text-emerald-200/80">
-                                {{ t('performance.employees.no_seller_year') }}
+                            <p v-else class="mt-3 text-sm" :class="sellerHighlightStyles.subtle">
+                                {{ sellerEmptyLabel }}
                             </p>
                         </div>
                     </div>

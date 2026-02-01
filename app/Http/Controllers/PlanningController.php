@@ -61,6 +61,18 @@ class PlanningController extends Controller
         ]);
     }
 
+    public function calendar(Request $request)
+    {
+        $user = $request->user();
+        if (!$user) {
+            abort(401);
+        }
+
+        $this->resolvePlanningContext($user);
+
+        return $this->inertiaOrJson('Planning/Calendar', []);
+    }
+
     public function events(Request $request)
     {
         $user = $request->user();
@@ -256,9 +268,23 @@ class PlanningController extends Controller
             ->orderBy('start_time');
 
         if ($canManage) {
-            $filterMember = $request->query('team_member_id');
-            if ($filterMember) {
-                $query->where('team_member_id', (int) $filterMember);
+            $filterMembers = $request->query('team_member_ids');
+            if (is_string($filterMembers)) {
+                $filterMembers = array_filter(explode(',', $filterMembers));
+            }
+            if (is_array($filterMembers)) {
+                $memberIds = collect($filterMembers)
+                    ->map(fn ($id) => (int) $id)
+                    ->filter()
+                    ->values();
+                if ($memberIds->isNotEmpty()) {
+                    $query->whereIn('team_member_id', $memberIds);
+                }
+            } else {
+                $filterMember = $request->query('team_member_id');
+                if ($filterMember) {
+                    $query->where('team_member_id', (int) $filterMember);
+                }
             }
         } elseif ($membership) {
             $query->where('team_member_id', $membership->id);
