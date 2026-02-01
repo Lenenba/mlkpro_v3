@@ -54,6 +54,30 @@
     "mark_all": "Tout marquer",
     "empty": "Aucune notification."
   },
+  "two_factor": {
+    "title": "Verification en deux etapes",
+    "sent": "Nous avons envoye un code a {email}.",
+    "expires": "Ce code expire dans {minutes} minutes.",
+    "code_label": "Code de verification",
+    "code_placeholder": "Entrez le code a 6 chiffres",
+    "submit": "Verifier",
+    "resend": "Renvoyer le code"
+  },
+  "global_search": {
+    "open": "Recherche globale",
+    "placeholder": "Rechercher clients, taches, devis, employes...",
+    "quick_actions": "Actions rapides",
+    "results": "Resultats",
+    "loading": "Recherche...",
+    "no_results": "Aucun resultat.",
+    "hint": "Ctrl + K",
+    "groups": {
+      "customers": "Clients",
+      "tasks": "Taches",
+      "quotes": "Devis",
+      "employees": "Employes"
+    }
+  },
   "alerts": {
     "maintenance": {
       "title": "Maintenance en cours",
@@ -4691,6 +4715,71 @@
       "support": {
         "label": "Support",
         "description": "Incidents et assistance"
+      }
+    },
+    "security": {
+      "meta_title": "Securite",
+      "title": "Securite",
+      "subtitle": "Gerez l authentification a deux facteurs et l activite du compte.",
+      "tabs": {
+        "auth": {
+          "label": "Authentification",
+          "description": "2FA et acces"
+        },
+        "activity": {
+          "label": "Activite",
+          "description": "Connexions recentes"
+        }
+      },
+      "two_factor": {
+        "title": "Authentification a deux facteurs",
+        "description": "Ajoute un code email a la connexion.",
+        "status_required": "Obligatoire",
+        "status_enabled": "Activee",
+        "status_disabled": "Desactivee",
+        "required_hint": "La 2FA est obligatoire pour les owners.",
+        "email_label": "Email",
+        "last_sent": "Dernier code envoye",
+        "last_sent_empty": "Aucun code envoye"
+      },
+      "password": {
+        "title": "Mot de passe",
+        "description": "Changez votre mot de passe depuis votre profil.",
+        "action": "Mettre a jour"
+      },
+      "rate_limit": {
+        "title": "Protection API",
+        "description": "Le rate limiting protege votre API et vos automatisations.",
+        "value": "{limit} requetes / min / utilisateur",
+        "unavailable": "Limite non configuree"
+      },
+      "activity": {
+        "title": "Activite recente",
+        "description": "Dernieres connexions et evenements de securite.",
+        "empty": "Aucune activite de securite.",
+        "columns": {
+          "user": "Utilisateur",
+          "event": "Evenement",
+          "channel": "Canal",
+          "ip": "IP",
+          "device": "Appareil",
+          "date": "Date"
+        },
+        "channels": {
+          "web": "Web",
+          "api": "API"
+        },
+        "unknown_device": "Appareil inconnu",
+        "actions": {
+          "auth.login": "Connexion",
+          "auth.logout": "Deconnexion",
+          "auth.password_changed": "Mot de passe modifie",
+          "auth.2fa.sent": "Code 2FA envoye",
+          "auth.2fa.resend": "Code 2FA renvoye"
+        },
+        "badges": {
+          "two_factor": "2FA"
+        }
       }
     },
     "company": {

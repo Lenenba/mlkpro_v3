@@ -45,11 +45,13 @@ use App\Http\Controllers\PublicTaskMediaController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\AssistantController;
 use App\Http\Controllers\AiImageController;
+use App\Http\Controllers\GlobalSearchController;
 use App\Http\Controllers\Settings\CompanySettingsController;
 use App\Http\Controllers\Settings\BillingSettingsController;
 use App\Http\Controllers\Settings\ProductCategoryController;
 use App\Http\Controllers\Settings\SubscriptionController;
 use App\Http\Controllers\Settings\NotificationSettingsController;
+use App\Http\Controllers\Settings\SecuritySettingsController;
 use App\Http\Controllers\Settings\ApiTokenController;
 use App\Http\Controllers\WarehouseController;
 use App\Http\Controllers\SupportTicketController;
@@ -159,6 +161,7 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
 
     // Onboarding (account setup)
     Route::post('/onboarding', [OnboardingController::class, 'store'])->name('onboarding.store');
+    Route::get('/global-search', GlobalSearchController::class)->name('global.search');
     Route::post('/assistant/message', [AssistantController::class, 'message'])
         ->middleware('company.feature:assistant')
         ->name('assistant.message');
@@ -173,6 +176,7 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
     Route::put('/settings/support/{ticket}', [SupportTicketController::class, 'update'])->name('settings.support.update');
     Route::post('/settings/support/{ticket}/messages', [SupportTicketMessageController::class, 'store'])
         ->name('settings.support.messages.store');
+    Route::get('/settings/security', [SecuritySettingsController::class, 'edit'])->name('settings.security.edit');
 
     // Settings (owner only)
     Route::get('/settings/company', [CompanySettingsController::class, 'edit'])->name('settings.company.edit');

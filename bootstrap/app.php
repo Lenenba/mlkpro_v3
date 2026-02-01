@@ -19,10 +19,12 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->web(append: [
             \App\Http\Middleware\SetLocale::class,
             \App\Http\Middleware\HandleInertiaRequests::class,
+            \App\Http\Middleware\EnsureTwoFactorVerified::class,
             \App\Http\Middleware\EnsureOnboardingIsComplete::class,
             \App\Http\Middleware\EnsureNotSuspended::class,
             \Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets::class,
         ]);
+        $middleware->throttleApi();
 
         $middleware->alias([
             'company.feature' => \App\Http\Middleware\EnsureCompanyFeature::class,

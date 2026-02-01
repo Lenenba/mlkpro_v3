@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Services\CompanyFeatureService;
+use App\Services\SecurityEventService;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Auth\Events\Registered;
@@ -108,6 +109,11 @@ class AuthController extends Controller
 
         $user->loadMissing(['role', 'platformAdmin', 'teamMembership']);
         $token = $user->createToken($deviceName);
+
+        app(SecurityEventService::class)->record($user, 'auth.login', $request, [
+            'channel' => 'api',
+            'device' => $deviceName,
+        ]);
 
         return response()->json([
             'token_type' => 'Bearer',
@@ -259,9 +265,16 @@ class AuthController extends Controller
 
     public function logout(Request $request)
     {
-        $token = $request->user()?->currentAccessToken();
+        $user = $request->user();
+        $token = $user?->currentAccessToken();
         if ($token) {
             $token->delete();
+        }
+
+        if ($user) {
+            app(SecurityEventService::class)->record($user, 'auth.logout', $request, [
+                'channel' => 'api',
+            ]);
         }
 
         return response()->json([

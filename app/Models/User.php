@@ -103,6 +103,9 @@ class User extends Authenticatable
             'payment_methods' => 'array',
             'trial_ends_at' => 'datetime',
             'must_change_password' => 'boolean',
+            'two_factor_enabled' => 'boolean',
+            'two_factor_expires_at' => 'datetime',
+            'two_factor_last_sent_at' => 'datetime',
             'company_features' => 'array',
             'company_limits' => 'array',
             'assistant_credit_balance' => 'integer',
@@ -250,6 +253,15 @@ class User extends Authenticatable
         }
 
         return false;
+    }
+
+    public function requiresTwoFactor(): bool
+    {
+        if ($this->isSuperadmin() || $this->isPlatformAdmin()) {
+            return false;
+        }
+
+        return $this->isAccountOwner();
     }
 
     public function getCompanyLogoUrlAttribute(): ?string

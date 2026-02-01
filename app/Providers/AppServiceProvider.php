@@ -11,9 +11,12 @@ use App\Listeners\SendDatabasePushNotifications;
 use App\Listeners\SendEmailMirrorNotifications;
 use App\Services\PlatformAdminNotifier;
 use Illuminate\Auth\Events\Registered;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
 use Illuminate\Notifications\Events\NotificationFailed;
 use Illuminate\Notifications\Events\NotificationSent;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\ServiceProvider;
 use Laravel\Paddle\Cashier;
@@ -41,6 +44,14 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        RateLimiter::for('api', function (Request $request) {
+            $user = $request->user();
+            $key = $user ? 'user:' . $user->id : 'ip:' . $request->ip();
+            $limit = (int) config('services.rate_limits.api_per_user', 120);
+
+            return Limit::perMinute(max(1, $limit))->by($key);
+        });
+
         Cashier::useCustomerModel(PaddleCustomer::class);
         Cashier::useSubscriptionModel(PaddleSubscriptionModel::class);
         Cashier::useSubscriptionItemModel(PaddleSubscriptionItem::class);

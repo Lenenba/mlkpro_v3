@@ -1,3 +1,7 @@
+<script setup>
+import GlobalSearch from '@/Components/UI/GlobalSearch.vue';
+</script>
+
 <template>
     <!-- ========== HEADER ========== -->
     <header
@@ -15,7 +19,7 @@
                 </svg>
             </button>
             <!-- End Sidebar Toggle -->
-            <div></div>
+            <GlobalSearch />
         </div>
     </header>
     <!-- ========== END HEADER ========== -->

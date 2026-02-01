@@ -54,6 +54,30 @@
     "mark_all": "Mark all",
     "empty": "No notifications."
   },
+  "two_factor": {
+    "title": "Two-factor verification",
+    "sent": "We sent a verification code to {email}.",
+    "expires": "This code expires in {minutes} minutes.",
+    "code_label": "Verification code",
+    "code_placeholder": "Enter the 6-digit code",
+    "submit": "Verify",
+    "resend": "Resend code"
+  },
+  "global_search": {
+    "open": "Global search",
+    "placeholder": "Search customers, tasks, quotes, employees...",
+    "quick_actions": "Quick actions",
+    "results": "Results",
+    "loading": "Searching...",
+    "no_results": "No results found.",
+    "hint": "Ctrl + K",
+    "groups": {
+      "customers": "Customers",
+      "tasks": "Tasks",
+      "quotes": "Quotes",
+      "employees": "Employees"
+    }
+  },
   "alerts": {
     "maintenance": {
       "title": "Maintenance mode",
@@ -4691,6 +4715,71 @@
       "support": {
         "label": "Support",
         "description": "Incidents and help"
+      }
+    },
+    "security": {
+      "meta_title": "Security",
+      "title": "Security",
+      "subtitle": "Manage two-factor authentication and account activity.",
+      "tabs": {
+        "auth": {
+          "label": "Authentication",
+          "description": "2FA and access"
+        },
+        "activity": {
+          "label": "Activity",
+          "description": "Recent sign-ins"
+        }
+      },
+      "two_factor": {
+        "title": "Two-factor authentication",
+        "description": "Adds an extra email code at login.",
+        "status_required": "Required",
+        "status_enabled": "Enabled",
+        "status_disabled": "Disabled",
+        "required_hint": "2FA is mandatory for account owners.",
+        "email_label": "Email",
+        "last_sent": "Last code sent",
+        "last_sent_empty": "No code sent yet"
+      },
+      "password": {
+        "title": "Password",
+        "description": "Change your password from your profile page.",
+        "action": "Update password"
+      },
+      "rate_limit": {
+        "title": "API protection",
+        "description": "Rate limiting protects your API and automation.",
+        "value": "{limit} requests / min / user",
+        "unavailable": "Rate limit not configured"
+      },
+      "activity": {
+        "title": "Recent activity",
+        "description": "Latest sign-ins and security events.",
+        "empty": "No security events yet.",
+        "columns": {
+          "user": "User",
+          "event": "Event",
+          "channel": "Channel",
+          "ip": "IP",
+          "device": "Device",
+          "date": "Date"
+        },
+        "channels": {
+          "web": "Web",
+          "api": "API"
+        },
+        "unknown_device": "Unknown device",
+        "actions": {
+          "auth.login": "Signed in",
+          "auth.logout": "Signed out",
+          "auth.password_changed": "Password changed",
+          "auth.2fa.sent": "2FA code sent",
+          "auth.2fa.resend": "2FA code resent"
+        },
+        "badges": {
+          "two_factor": "2FA"
+        }
       }
     },
     "company": {
