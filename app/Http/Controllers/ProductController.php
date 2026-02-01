@@ -129,9 +129,17 @@ class ProductController extends Controller
             ->withQueryString();
 
         $productCollection = $products->getCollection();
+        $inventoryService = app(InventoryService::class);
+        $reservedTotals = $inventoryService->syncReservedForProducts(
+            $accountId,
+            $productCollection->pluck('id')->all()
+        );
         $reservedOrders = $this->resolveReservedOrders($accountId, $productCollection);
-        $productCollection->transform(function (Product $product) use ($reservedOrders) {
+        $productCollection->transform(function (Product $product) use ($reservedOrders, $reservedTotals) {
             $product->setAttribute('reserved_orders', $reservedOrders[$product->id] ?? []);
+            if (array_key_exists($product->id, $reservedTotals)) {
+                $product->setAttribute('reserved_total', $reservedTotals[$product->id]);
+            }
             return $product;
         });
         $products->setCollection($productCollection);
