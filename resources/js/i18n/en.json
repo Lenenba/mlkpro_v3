@@ -403,9 +403,12 @@
   "performance": {
     "title": "Performance",
     "subtitle": "Sales insights for customers and sellers.",
+    "subtitle_services": "Service insights for clients and the team.",
     "tabs": {
       "clients": "Customers",
-      "employees": "Employees"
+      "employees": "Employees",
+      "clients_services": "Clients",
+      "employees_services": "Team"
     },
     "period": {
       "day": "Today",
@@ -418,9 +421,13 @@
       "revenue": "Revenue",
       "orders": "Orders",
       "items_sold": "Items sold",
+      "jobs": "Jobs",
+      "tasks": "Tasks",
       "avg_order": "Avg order value",
+      "avg_job": "Avg job value",
       "customers": "Customers",
       "revenue_per_seller": "Revenue per seller",
+      "revenue_per_member": "Revenue per member",
       "avg_customer_value": "Revenue per customer"
     },
     "clients": {
@@ -434,26 +441,40 @@
       "no_customers": "No customer data yet.",
       "no_customer_period": "No customer data for this period yet.",
       "no_customer_year": "No customer data for the year yet.",
-      "line": "{revenue} · {orders} orders · {items} items"
+      "line": "{revenue} · {orders} orders · {items} items",
+      "line_services": "{revenue} · {orders} jobs · {items} tasks"
     },
     "employees": {
       "title": "Seller performance",
       "top_sellers": "Top sellers",
       "top_products": "Top products",
+      "top_team": "Top team members",
+      "top_jobs": "Top jobs",
       "seller_of_day": "Seller of the day",
       "seller_of_week": "Seller of the week",
       "seller_of_month": "Seller of the month",
       "seller_of_year": "Seller of the year",
+      "member_of_day": "Team member of the day",
+      "member_of_week": "Team member of the week",
+      "member_of_month": "Team member of the month",
+      "member_of_year": "Team member of the year",
       "seller_fallback": "Seller",
+      "member_fallback": "Team member",
       "online_label": "Online store",
       "online_badge": "Online",
       "active_sellers": "{count} active sellers",
+      "active_members": "{count} active members",
       "no_sellers": "No seller performance yet.",
+      "no_members": "No team performance yet.",
       "no_products": "No product performance yet.",
+      "no_jobs": "No job performance yet.",
       "no_seller_period": "No seller data for this period yet.",
+      "no_member_period": "No team data for this period yet.",
       "no_seller_year": "No seller data for the year yet.",
       "seller_line": "{revenue} · {orders} orders · {items} items",
+      "member_line": "{revenue} · {orders} jobs · {items} tasks",
       "product_line": "{revenue} · {quantity} items",
+      "job_line": "{revenue} · {quantity} jobs",
       "view_employee": "View profile"
     },
     "employee": {
@@ -466,8 +487,12 @@
       "top_customers": "Top customers",
       "no_products": "No product data yet.",
       "no_customers": "No customer data yet.",
+      "top_jobs": "Top jobs",
+      "no_jobs": "No job data yet.",
       "customer_line": "{revenue} · {orders} orders · {items} items",
-      "product_line": "{revenue} · {quantity} items"
+      "customer_line_services": "{revenue} · {orders} jobs · {items} tasks",
+      "product_line": "{revenue} · {quantity} items",
+      "job_line": "{revenue} · {quantity} jobs"
     }
   },
   "presence": {
@@ -488,6 +513,8 @@
       "last_in": "Last clock-in",
       "last_out": "Last clock-out",
       "method": "Method",
+      "jobs_today": "Jobs today",
+      "tasks_today": "Tasks today",
       "none": "--",
       "role_fallback": "Team member"
     },
@@ -514,6 +541,7 @@
   "planning": {
     "title": "Planning",
     "subtitle": "Schedule recurring shifts for the sales team.",
+    "subtitle_services": "Schedule jobs and tasks across the team.",
     "calendar": {
       "title": "Team schedule",
       "today": "Today",
@@ -521,12 +549,20 @@
       "week": "Week",
       "day": "Day"
     },
+    "preview": {
+      "empty": "No shifts",
+      "empty_services": "No events",
+      "count": "{count} shifts",
+      "count_services": "{count} events"
+    },
     "filters": {
       "member": "Team member",
       "all_members": "All team members",
       "range": "Range",
       "loading": "Loading shifts...",
-      "empty": "No shifts scheduled for this range."
+      "loading_services": "Loading schedules...",
+      "empty": "No shifts scheduled for this range.",
+      "empty_services": "No jobs or tasks scheduled for this range."
     },
     "form": {
       "title": "Add shift",
@@ -571,6 +607,10 @@
     "empty": {
       "title": "Scheduling locked",
       "description": "Only managers can create shifts."
+    },
+    "empty_services": {
+      "title": "Planning overview",
+      "description": "Schedules are derived from jobs and tasks."
     },
     "delete": {
       "title": "Delete shift",
@@ -1200,6 +1240,9 @@
         "invoices": "Invoices",
         "jobs": "Jobs",
         "products": "Products",
+        "performance": "Performance",
+        "presence": "Presence",
+        "planning": "Planning",
         "services": "Services",
         "tasks": "Tasks",
         "team_members": "Team members",
@@ -1931,6 +1974,13 @@
     "team": {
       "title": "Invite the team (optional)",
       "subtitle": "Add members now or later.",
+      "size_title": "Team size",
+      "size_hint": "Tell us how many people will use the platform.",
+      "size_label": "Number of team members",
+      "recommendation_title": "Recommended plan",
+      "recommendation_subtitle": "Based on {count} team members",
+      "recommendation_limit": "Up to {count} members",
+      "recommendation_unlimited": "Unlimited members",
       "add": "+ Add",
       "empty": "No invitations added.",
       "name": "Name",

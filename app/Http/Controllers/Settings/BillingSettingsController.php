@@ -139,6 +139,7 @@ class BillingSettingsController extends Controller
             ->all();
 
         $subscriptionSummary = $billingService->subscriptionSummary($user);
+        $seatQuantity = $billingService->resolveSeatQuantity($user);
         $planModules = PlatformSetting::getValue('plan_modules', []);
         $planKey = $billingService->resolvePlanKey($user, $planModules);
         $assistantIncluded = $planKey ? (bool) ($planModules[$planKey]['assistant'] ?? false) : false;
@@ -184,6 +185,7 @@ class BillingSettingsController extends Controller
             'paymentMethods' => array_values($user->payment_methods ?? []),
             'plans' => $plans,
             'subscription' => $subscriptionSummary,
+            'seatQuantity' => $seatQuantity,
             'assistantAddon' => [
                 'included' => $assistantIncluded,
                 'enabled' => $assistantEnabled,

@@ -1,6 +1,6 @@
 <script setup>
 import { computed, reactive, ref, watch } from 'vue';
-import { Head } from '@inertiajs/vue3';
+import { Head, usePage } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
 import axios from 'axios';
 import dayjs from 'dayjs';
@@ -36,6 +36,31 @@ const props = defineProps({
 });
 
 const { t } = useI18n();
+const page = usePage();
+const companyType = computed(() => page.props.auth?.account?.company?.type ?? null);
+const isServiceCompany = computed(() => companyType.value !== 'products');
+const subtitleLabel = computed(() =>
+    isServiceCompany.value ? t('planning.subtitle_services') : t('planning.subtitle')
+);
+const loadingLabel = computed(() =>
+    isServiceCompany.value ? t('planning.filters.loading_services') : t('planning.filters.loading')
+);
+const emptyLabel = computed(() =>
+    isServiceCompany.value ? t('planning.filters.empty_services') : t('planning.filters.empty')
+);
+const previewEmptyLabel = computed(() =>
+    isServiceCompany.value ? t('planning.preview.empty_services') : t('planning.preview.empty')
+);
+const lockedTitle = computed(() =>
+    isServiceCompany.value ? t('planning.empty_services.title') : t('planning.empty.title')
+);
+const lockedDescription = computed(() =>
+    isServiceCompany.value ? t('planning.empty_services.description') : t('planning.empty.description')
+);
+const yearCountLabel = (count) =>
+    isServiceCompany.value
+        ? t('planning.preview.count_services', { count })
+        : t('planning.preview.count', { count });
 
 const calendarEvents = ref([...(props.events || [])]);
 const loadingEvents = ref(false);
@@ -901,7 +926,7 @@ syncRangeFromView(viewMode.value, false);
                         {{ t('planning.title') }}
                     </h1>
                     <p class="text-sm text-stone-500 dark:text-neutral-400">
-                        {{ t('planning.subtitle') }}
+                        {{ subtitleLabel }}
                     </p>
                 </div>
             </div>
@@ -1006,7 +1031,7 @@ syncRangeFromView(viewMode.value, false);
                         <div class="text-xs text-stone-500 dark:text-neutral-400">
                             {{ t('planning.filters.range') }}: {{ rangeLabel || '--' }}
                             <span v-if="loadingEvents" class="ms-2 text-stone-400">
-                                ({{ t('planning.filters.loading') }})
+                                ({{ loadingLabel }})
                             </span>
                         </div>
                         <div class="flex items-center gap-2">
@@ -1255,7 +1280,7 @@ syncRangeFromView(viewMode.value, false);
                                         </div>
                                     </div>
                                     <p v-if="!getDayEvents(selectedDate.format('YYYY-MM-DD')).length" class="mt-3 text-xs text-stone-500 dark:text-neutral-400">
-                                        {{ t('planning.filters.empty') }}
+                                        {{ emptyLabel }}
                                     </p>
                                 </div>
                             </div>
@@ -1278,7 +1303,7 @@ syncRangeFromView(viewMode.value, false);
                                         {{ month.format('YYYY') }}
                                     </div>
                                     <div class="mt-1 text-[11px] text-stone-500 dark:text-neutral-400">
-                                        {{ eventsByMonth[month.format('YYYY-MM')] || 0 }} shifts
+                                        {{ yearCountLabel(eventsByMonth[month.format('YYYY-MM')] || 0) }}
                                     </div>
                                     <div class="mt-2 space-y-1">
                                         <div
@@ -1292,7 +1317,7 @@ syncRangeFromView(viewMode.value, false);
                                             </span>
                                         </div>
                                         <div v-if="!getMonthPreviewEvents(month.format('YYYY-MM')).length" class="text-[10px] text-stone-400 dark:text-neutral-500">
-                                            No shifts
+                                            {{ previewEmptyLabel }}
                                         </div>
                                     </div>
                                 </button>
@@ -1310,7 +1335,7 @@ syncRangeFromView(viewMode.value, false);
                         v-else-if="!loadingEvents && !visibleEvents.length"
                         class="border-t border-stone-200 p-3 text-xs text-stone-500 dark:border-neutral-800 dark:text-neutral-400"
                     >
-                        {{ t('planning.filters.empty') }}
+                        {{ emptyLabel }}
                     </div>
                 </section>
 
@@ -1318,9 +1343,9 @@ syncRangeFromView(viewMode.value, false);
                     <template #title>{{ t('planning.form.title') }}</template>
                     <div v-if="!props.canManage" class="space-y-2 text-sm text-stone-500 dark:text-neutral-400">
                         <p class="font-semibold text-stone-700 dark:text-neutral-200">
-                            {{ t('planning.empty.title') }}
+                            {{ lockedTitle }}
                         </p>
-                        <p>{{ t('planning.empty.description') }}</p>
+                        <p>{{ lockedDescription }}</p>
                     </div>
                     <form v-else class="space-y-3" @submit.prevent="submitShift">
                         <div v-if="formNotice.message" class="rounded-sm border p-2 text-xs" :class="noticeClass">

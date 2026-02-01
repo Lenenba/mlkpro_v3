@@ -32,6 +32,21 @@ const canSales = computed(() =>
 const canSalesManage = computed(() =>
     isOwner.value || teamPermissions.value.includes('sales.manage')
 );
+const canService = computed(() =>
+    isOwner.value
+    || teamPermissions.value.includes('jobs.view')
+    || teamPermissions.value.includes('tasks.view')
+    || teamPermissions.value.includes('jobs.edit')
+    || teamPermissions.value.includes('tasks.edit')
+);
+const canServiceManage = computed(() =>
+    isOwner.value
+    || teamPermissions.value.includes('jobs.edit')
+    || teamPermissions.value.includes('tasks.edit')
+);
+const hasServiceOps = computed(() =>
+    showServices.value && (hasFeature('jobs') || hasFeature('tasks'))
+);
 const canQuotes = computed(() =>
     isOwner.value || teamPermissions.value.includes('quotes.view') || teamPermissions.value.includes('quotes.edit')
 );
@@ -383,7 +398,7 @@ const isCustomerActive = computed(() => {
                                 <!-- End Item -->
 
                                 <!-- Item -->
-                                <LinkAncor v-if="companyType === 'products' && hasFeature('sales') && canSalesManage" :label="$t('nav.performance')" :href="'performance.index'" tone="performance"
+                                <LinkAncor v-if="(companyType === 'products' && hasFeature('sales') && hasFeature('performance') && canSalesManage) || (hasServiceOps && hasFeature('performance') && canServiceManage)" :label="$t('nav.performance')" :href="'performance.index'" tone="performance"
                                     :active="route().current('performance.*')">
                                     <template #icon>
                                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
@@ -399,7 +414,7 @@ const isCustomerActive = computed(() => {
                                 <!-- End Item -->
 
                                 <!-- Item -->
-                                <LinkAncor v-if="companyType === 'products' && hasFeature('sales') && canSales" :label="$t('nav.presence')" :href="'presence.index'" tone="presence"
+                                <LinkAncor v-if="(companyType === 'products' && hasFeature('sales') && hasFeature('presence') && canSales) || (hasServiceOps && hasFeature('presence') && canService)" :label="$t('nav.presence')" :href="'presence.index'" tone="presence"
                                     :active="route().current('presence.*')">
                                     <template #icon>
                                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
@@ -414,7 +429,7 @@ const isCustomerActive = computed(() => {
                                 <!-- End Item -->
 
                                 <!-- Item -->
-                                <LinkAncor v-if="companyType === 'products' && hasFeature('sales') && canSales" :label="$t('nav.planning')" :href="'planning.index'" tone="planning"
+                                <LinkAncor v-if="(companyType === 'products' && hasFeature('sales') && hasFeature('planning') && canSales) || (hasServiceOps && hasFeature('planning') && canService)" :label="$t('nav.planning')" :href="'planning.index'" tone="planning"
                                     :active="route().current('planning.*')">
                                     <template #icon>
                                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"

@@ -41,7 +41,10 @@ class AttendanceService
         $autoClockOut = array_key_exists('auto_clock_out', $settings) ? (bool) $settings['auto_clock_out'] : true;
         $manualClock = array_key_exists('manual_clock', $settings) ? (bool) $settings['manual_clock'] : true;
 
-        $enabled = $owner->company_type === 'products' && $owner->hasCompanyFeature('sales');
+        $isProductCompany = $owner->company_type === 'products';
+        $enabled = $isProductCompany
+            ? $owner->hasCompanyFeature('sales')
+            : ($owner->hasCompanyFeature('jobs') || $owner->hasCompanyFeature('tasks'));
         if (!$enabled) {
             return [
                 'enabled' => false,

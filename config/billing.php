@@ -42,10 +42,11 @@ return [
             'price' => env($pricePrefix . '_PRICE_STARTER_AMOUNT'),
             'features' => [
                 'Clients, devis, jobs et factures',
-                'Planning d equipe + assignations',
+                'Planning d equipe (jour/semaine/mois/annee)',
+                'Presence et pointage equipe',
                 'Catalogue produits/services + prix',
                 'Portail client et validations',
-                'Rapports de base',
+                'Performance par periode',
                 'Assistant IA (option payante)',
             ],
         ],
@@ -56,6 +57,8 @@ return [
             'features' => [
                 'Tout Starter',
                 'Equipe et permissions',
+                'Planning combine jobs + taches',
+                'Performance avancee clients/equipe',
                 'Scan de plan et devis accelere',
                 'Workflow avance et automatisations',
                 'Support prioritaire',
@@ -68,6 +71,7 @@ return [
             'price' => env($pricePrefix . '_PRICE_SCALE_AMOUNT'),
             'features' => [
                 'Tout Growth',
+                'Rapports avances et exports',
                 'Assistant IA (inclus)',
                 'Onboarding dedie',
                 'Support prioritaire',

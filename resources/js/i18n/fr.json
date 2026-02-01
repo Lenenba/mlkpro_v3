@@ -403,9 +403,12 @@
   "performance": {
     "title": "Performance",
     "subtitle": "Vue globale des ventes par clients et vendeurs.",
+    "subtitle_services": "Indicateurs services pour les clients et l equipe.",
     "tabs": {
       "clients": "Clients",
-      "employees": "Employés"
+      "employees": "Employés",
+      "clients_services": "Clients",
+      "employees_services": "Equipe"
     },
     "period": {
       "day": "Aujourd'hui",
@@ -418,9 +421,13 @@
       "revenue": "Chiffre d'affaires",
       "orders": "Commandes",
       "items_sold": "Articles vendus",
+      "jobs": "Interventions",
+      "tasks": "Taches",
       "avg_order": "Panier moyen",
+      "avg_job": "Valeur moyenne",
       "customers": "Clients",
       "revenue_per_seller": "CA par vendeur",
+      "revenue_per_member": "CA par membre",
       "avg_customer_value": "CA par client"
     },
     "clients": {
@@ -434,26 +441,40 @@
       "no_customers": "Aucune donnée client.",
       "no_customer_period": "Aucune donnée client pour cette période.",
       "no_customer_year": "Aucune donnée client pour l'année.",
-      "line": "{revenue} · {orders} commandes · {items} articles"
+      "line": "{revenue} · {orders} commandes · {items} articles",
+      "line_services": "{revenue} · {orders} interventions · {items} taches"
     },
     "employees": {
       "title": "Performance vendeurs",
       "top_sellers": "Meilleurs vendeurs",
       "top_products": "Produits phares",
+      "top_team": "Meilleurs membres",
+      "top_jobs": "Interventions phares",
       "seller_of_day": "Vendeur du jour",
       "seller_of_week": "Vendeur de la semaine",
       "seller_of_month": "Vendeur du mois",
       "seller_of_year": "Vendeur de l'année",
+      "member_of_day": "Membre du jour",
+      "member_of_week": "Membre de la semaine",
+      "member_of_month": "Membre du mois",
+      "member_of_year": "Membre de l'année",
       "seller_fallback": "Vendeur",
+      "member_fallback": "Membre",
       "online_label": "Boutique en ligne",
       "online_badge": "En ligne",
       "active_sellers": "{count} vendeurs actifs",
+      "active_members": "{count} membres actifs",
       "no_sellers": "Aucune performance vendeur.",
+      "no_members": "Aucune performance equipe.",
       "no_products": "Aucune performance produit.",
+      "no_jobs": "Aucune performance intervention.",
       "no_seller_period": "Aucune donnée vendeur pour cette période.",
+      "no_member_period": "Aucune donnée equipe pour cette période.",
       "no_seller_year": "Aucune donnée vendeur pour l'année.",
       "seller_line": "{revenue} · {orders} commandes · {items} articles",
+      "member_line": "{revenue} · {orders} interventions · {items} taches",
       "product_line": "{revenue} · {quantity} articles",
+      "job_line": "{revenue} · {quantity} interventions",
       "view_employee": "Voir la fiche"
     },
     "employee": {
@@ -464,10 +485,14 @@
       "status_inactive": "Inactif",
       "top_products": "Meilleurs produits",
       "top_customers": "Meilleurs clients",
+      "top_jobs": "Meilleures interventions",
       "no_products": "Aucune donnée produit.",
       "no_customers": "Aucune donnée client.",
+      "no_jobs": "Aucune donnée intervention.",
       "customer_line": "{revenue} · {orders} commandes · {items} articles",
-      "product_line": "{revenue} · {quantity} articles"
+      "customer_line_services": "{revenue} · {orders} interventions · {items} taches",
+      "product_line": "{revenue} · {quantity} articles",
+      "job_line": "{revenue} · {quantity} interventions"
     }
   },
   "presence": {
@@ -488,6 +513,8 @@
       "last_in": "Dernier pointage entree",
       "last_out": "Dernier pointage sortie",
       "method": "Mode",
+      "jobs_today": "Interventions du jour",
+      "tasks_today": "Taches du jour",
       "none": "--",
       "role_fallback": "Employe"
     },
@@ -514,6 +541,7 @@
   "planning": {
     "title": "Planning",
     "subtitle": "Planifier les shifts et recurrences pour l equipe de vente.",
+    "subtitle_services": "Planifier les interventions et taches de l equipe.",
     "calendar": {
       "title": "Planning equipe",
       "today": "Aujourd hui",
@@ -521,12 +549,20 @@
       "week": "Semaine",
       "day": "Jour"
     },
+    "preview": {
+      "empty": "Aucun shift",
+      "empty_services": "Aucun evenement",
+      "count": "{count} shifts",
+      "count_services": "{count} evenements"
+    },
     "filters": {
       "member": "Employe",
       "all_members": "Toute l equipe",
       "range": "Periode",
       "loading": "Chargement des shifts...",
-      "empty": "Aucun shift sur cette periode."
+      "loading_services": "Chargement du planning...",
+      "empty": "Aucun shift sur cette periode.",
+      "empty_services": "Aucune intervention ni tache sur cette periode."
     },
     "form": {
       "title": "Ajouter un shift",
@@ -571,6 +607,10 @@
     "empty": {
       "title": "Planning verrouille",
       "description": "Seuls les managers peuvent creer des shifts."
+    },
+    "empty_services": {
+      "title": "Vue planning",
+      "description": "Les evenements viennent des interventions et taches."
     },
     "delete": {
       "title": "Supprimer le shift",
@@ -1200,6 +1240,9 @@
         "invoices": "Factures",
         "jobs": "Chantiers",
         "products": "Produits",
+        "performance": "Performance",
+        "presence": "Presence",
+        "planning": "Planning",
         "services": "Services",
         "tasks": "Taches",
         "team_members": "Membres equipe",
@@ -1931,6 +1974,13 @@
     "team": {
       "title": "Inviter l'equipe (optionnel)",
       "subtitle": "Ajoutez des membres maintenant ou plus tard.",
+      "size_title": "Taille de l'equipe",
+      "size_hint": "Indiquez combien de personnes utiliseront la plateforme.",
+      "size_label": "Nombre de membres",
+      "recommendation_title": "Forfait recommande",
+      "recommendation_subtitle": "Base sur {count} membres",
+      "recommendation_limit": "Jusqu'a {count} membres",
+      "recommendation_unlimited": "Membres illimites",
       "add": "+ Ajouter",
       "empty": "Aucune invitation ajoutee.",
       "name": "Nom",
