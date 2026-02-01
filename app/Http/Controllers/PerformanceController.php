@@ -8,6 +8,7 @@ use App\Models\Sale;
 use App\Models\SaleItem;
 use App\Models\Task;
 use App\Models\TeamMember;
+use App\Models\TeamMemberShift;
 use App\Models\User;
 use App\Models\Work;
 use Illuminate\Http\Request;
@@ -88,9 +89,19 @@ class PerformanceController extends Controller
             )
             : $this->buildSellerDetailPerformance($accountId, $employee->id, now(), 6, 6);
 
+        $timeOffSummary = $this->buildTimeOffSummary(
+            $accountId,
+            $membership?->id ?? TeamMember::query()
+                ->where('account_id', $accountId)
+                ->where('user_id', $employee->id)
+                ->value('id'),
+            now()
+        );
+
         return $this->inertiaOrJson('Performance/EmployeeShow', [
             'employee' => $employeePayload,
             'performance' => $performance,
+            'timeOff' => $timeOffSummary,
         ]);
     }
 
@@ -1009,6 +1020,177 @@ class PerformanceController extends Controller
             'top_products' => $topJobs,
             'top_customers' => $topCustomers,
         ];
+    }
+
+    private function buildTimeOffSummary(int $accountId, ?int $teamMemberId, Carbon $now): array
+    {
+        $periods = [
+            'day' => [$now->copy()->startOfDay(), $now->copy()->endOfDay()],
+            'week' => [$now->copy()->startOfWeek(), $now->copy()->endOfWeek()],
+            'month' => [$now->copy()->startOfMonth(), $now->copy()->endOfMonth()],
+            'year' => [$now->copy()->startOfYear(), $now->copy()->endOfYear()],
+        ];
+
+        $summary = [];
+
+        foreach ($periods as $key => [$start, $end]) {
+            if (!$teamMemberId) {
+                $summary[$key] = [
+                    'absence_days' => 0,
+                    'leave_days' => 0,
+                    'partial_hours' => 0,
+                    'entries' => 0,
+                    'recent' => [],
+                    'range' => [
+                        'start' => $start->toDateString(),
+                        'end' => $end->toDateString(),
+                    ],
+                ];
+                continue;
+            }
+
+            $entries = TeamMemberShift::query()
+                ->where('account_id', $accountId)
+                ->where('team_member_id', $teamMemberId)
+                ->whereIn('kind', ['absence', 'leave'])
+                ->whereIn('status', ['approved', 'pending'])
+                ->whereBetween('shift_date', [$start->toDateString(), $end->toDateString()])
+                ->orderByDesc('shift_date')
+                ->orderByDesc('start_time')
+                ->get(['id', 'kind', 'shift_date', 'start_time', 'end_time', 'notes']);
+
+            $summary[$key] = array_merge(
+                $this->summarizeTimeOffEntries($entries),
+                [
+                    'range' => [
+                        'start' => $start->toDateString(),
+                        'end' => $end->toDateString(),
+                    ],
+                ]
+            );
+        }
+
+        $upcomingStart = $now->copy()->startOfDay();
+        $upcomingEnd = $now->copy()->addDays(30)->endOfDay();
+        $upcoming = [];
+        if ($teamMemberId) {
+            $upcoming = TeamMemberShift::query()
+                ->where('account_id', $accountId)
+                ->where('team_member_id', $teamMemberId)
+                ->whereIn('kind', ['absence', 'leave'])
+                ->whereIn('status', ['approved', 'pending'])
+                ->whereBetween('shift_date', [$upcomingStart->toDateString(), $upcomingEnd->toDateString()])
+                ->orderBy('shift_date')
+                ->orderBy('start_time')
+                ->limit(8)
+                ->get(['id', 'kind', 'shift_date', 'start_time', 'end_time', 'notes'])
+                ->map(function (TeamMemberShift $entry) {
+                    return [
+                        'id' => $entry->id,
+                        'kind' => $entry->kind ?? 'absence',
+                        'date' => $entry->shift_date?->toDateString(),
+                        'start_time' => substr((string) $entry->start_time, 0, 5),
+                        'end_time' => substr((string) $entry->end_time, 0, 5),
+                        'notes' => $entry->notes,
+                        'all_day' => $this->isAllDayTimeOff($entry->start_time, $entry->end_time),
+                    ];
+                })
+                ->values()
+                ->all();
+        }
+
+        return [
+            'periods' => $summary,
+            'upcoming' => $upcoming,
+            'upcoming_range' => [
+                'start' => $upcomingStart->toDateString(),
+                'end' => $upcomingEnd->toDateString(),
+            ],
+        ];
+    }
+
+    private function summarizeTimeOffEntries($entries): array
+    {
+        $absenceDays = 0;
+        $leaveDays = 0;
+        $partialHours = 0;
+
+        foreach ($entries as $entry) {
+            $isAllDay = $this->isAllDayTimeOff($entry->start_time, $entry->end_time);
+            if ($isAllDay) {
+                if (($entry->kind ?? 'absence') === 'leave') {
+                    $leaveDays++;
+                } else {
+                    $absenceDays++;
+                }
+                continue;
+            }
+
+            $partialHours += $this->hoursBetween($entry->start_time, $entry->end_time);
+        }
+
+        $recent = $entries->take(8)->map(function (TeamMemberShift $entry) {
+            return [
+                'id' => $entry->id,
+                'kind' => $entry->kind ?? 'absence',
+                'date' => $entry->shift_date?->toDateString(),
+                'start_time' => substr((string) $entry->start_time, 0, 5),
+                'end_time' => substr((string) $entry->end_time, 0, 5),
+                'notes' => $entry->notes,
+                'all_day' => $this->isAllDayTimeOff($entry->start_time, $entry->end_time),
+            ];
+        })->values()->all();
+
+        return [
+            'absence_days' => $absenceDays,
+            'leave_days' => $leaveDays,
+            'partial_hours' => round($partialHours, 1),
+            'entries' => $entries->count(),
+            'recent' => $recent,
+        ];
+    }
+
+    private function isAllDayTimeOff(?string $startTime, ?string $endTime): bool
+    {
+        $start = substr((string) $startTime, 0, 5);
+        $end = substr((string) $endTime, 0, 5);
+
+        return $start === '00:00' && $end === '23:59';
+    }
+
+    private function hoursBetween(?string $startTime, ?string $endTime): float
+    {
+        $start = $this->parseTime($startTime);
+        $end = $this->parseTime($endTime);
+        if (!$start || !$end) {
+            return 0;
+        }
+        if ($end->lt($start)) {
+            return 0;
+        }
+        return $start->diffInMinutes($end) / 60;
+    }
+
+    private function parseTime(?string $value): ?Carbon
+    {
+        if (!$value) {
+            return null;
+        }
+
+        $value = trim((string) $value);
+        if ($value === '') {
+            return null;
+        }
+
+        foreach (['H:i', 'H:i:s'] as $format) {
+            try {
+                return Carbon::createFromFormat($format, $value);
+            } catch (\Throwable $exception) {
+                continue;
+            }
+        }
+
+        return null;
     }
 
     private function resolveCustomerName(?Customer $customer): string

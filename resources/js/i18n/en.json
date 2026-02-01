@@ -483,6 +483,15 @@
       "role_owner": "Owner",
       "status_active": "Active",
       "status_inactive": "Inactive",
+      "time_off_title": "Absences & leave",
+      "time_off_recent": "Recent time off",
+      "time_off_none": "No absences recorded.",
+      "time_off_upcoming": "Upcoming time off",
+      "time_off_upcoming_empty": "No upcoming absences.",
+      "time_off_upcoming_range": "Range: {start} → {end}",
+      "absence_days": "Absence days",
+      "leave_days": "Leave days",
+      "partial_hours": "Partial hours",
       "top_products": "Top products",
       "top_customers": "Top customers",
       "no_products": "No product data yet.",
@@ -539,6 +548,15 @@
     "empty": "No team members to show."
   },
   "planning": {
+    "absence_overview": {
+      "title": "Time off overview",
+      "week_range": "This week",
+      "today": "Today",
+      "week": "This week",
+      "empty_today": "No time off today.",
+      "empty_week": "No time off this week.",
+      "more_week": "+{count} more"
+    },
     "title": "Planning",
     "subtitle": "Schedule recurring shifts for the sales team.",
     "subtitle_services": "Schedule jobs and tasks across the team.",
@@ -564,22 +582,39 @@
       "empty": "No shifts scheduled for this range.",
       "empty_services": "No jobs or tasks scheduled for this range."
     },
+    "kinds": {
+      "shift": "Shift",
+      "absence": "Absence",
+      "leave": "Leave"
+    },
     "form": {
       "title": "Add shift",
+      "title_absence": "Report an absence",
+      "title_leave": "Request leave",
+      "kind": "Type",
       "member": "Team member",
       "date": "Shift date",
+      "start_date": "Start date",
+      "end_date": "End date",
+      "duration": "Duration",
+      "full_day": "Full day",
+      "hours": "A few hours",
       "start_time": "Start time",
       "end_time": "End time",
       "shift_title": "Shift title",
       "notes": "Notes",
+      "reason": "Reason / notes",
       "recurring": "Recurring shift",
       "frequency": "Frequency",
       "recurrence_end": "Repeat until",
       "weekdays": "Days of week",
       "month_day": "Day of month",
       "create": "Create shift",
-      "creating": "Creating..."
+      "creating": "Creating...",
+      "save_time_off": "Save",
+      "saving_time_off": "Saving..."
     },
+    "all_day": "All day",
     "frequency": {
       "daily": "Daily",
       "weekly": "Weekly",
@@ -598,11 +633,36 @@
     "errors": {
       "load": "Unable to load shifts.",
       "save": "Unable to save the shift.",
-      "delete": "Unable to delete the shift."
+      "delete": "Unable to delete the shift.",
+      "status": "Unable to update the status."
     },
     "notices": {
       "created": "{count} shift(s) created.",
+      "absence_created": "Absence saved.",
+      "absence_created_many": "{count} absence day(s) saved.",
+      "leave_created": "Leave saved.",
+      "leave_created_many": "{count} leave day(s) saved.",
+      "absence_deleted": "Absence deleted.",
+      "leave_deleted": "Leave deleted.",
+      "approved": "Request approved.",
+      "rejected": "Request rejected.",
       "deleted": "Shift deleted."
+    },
+    "status": {
+      "label": "Status",
+      "pending": "Pending",
+      "approved": "Approved",
+      "rejected": "Rejected",
+      "approve": "Approve",
+      "approving": "Approving...",
+      "reject": "Reject",
+      "rejecting": "Rejecting..."
+    },
+    "pending": {
+      "title": "Pending requests",
+      "empty": "No pending requests.",
+      "count": "{count} pending",
+      "more": "+{count} more requests"
     },
     "empty": {
       "title": "Scheduling locked",
@@ -614,7 +674,11 @@
     },
     "delete": {
       "title": "Delete shift",
+      "absence_title": "Delete absence",
+      "leave_title": "Delete leave",
       "description": "Remove this shift from the calendar?",
+      "absence_description": "Remove this absence from the calendar?",
+      "leave_description": "Remove this leave from the calendar?",
       "confirm": "Delete",
       "cancel": "Cancel",
       "deleting": "Deleting..."

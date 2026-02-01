@@ -1,6 +1,7 @@
 <script setup>
 import { computed, ref, watch } from 'vue';
-import { router, useForm } from '@inertiajs/vue3';
+import { Link, router, useForm } from '@inertiajs/vue3';
+import { useI18n } from 'vue-i18n';
 import Modal from '@/Components/UI/Modal.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
@@ -21,6 +22,7 @@ const props = defineProps({
     },
 });
 
+const { t } = useI18n();
 const query = ref('');
 const isAvatarIcon = (value) => avatarIconPresets.includes(value);
 const roleOptions = [
@@ -80,6 +82,14 @@ const openEditFromDetail = () => {
     }
     closeOverlay('#hs-team-detail');
     openEditMember(detailMember.value);
+};
+
+const memberPerformanceUrl = (member) => {
+    const userId = member?.user?.id || member?.user_id;
+    if (!userId) {
+        return null;
+    }
+    return route('performance.employee.show', userId);
 };
 
 const createForm = useForm({
@@ -433,6 +443,13 @@ watch(() => editForm.profile_picture, (value) => {
                                                 class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
                                                 Details
                                             </button>
+                                            <Link
+                                                v-if="memberPerformanceUrl(member)"
+                                                :href="memberPerformanceUrl(member)"
+                                                class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800"
+                                            >
+                                                {{ t('performance.employees.view_employee') }}
+                                            </Link>
                                             <button type="button" @click="openEditMember(member)"
                                                 class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800">
                                                 Edit
@@ -587,6 +604,13 @@ watch(() => editForm.profile_picture, (value) => {
             </div>
 
             <div class="flex justify-end gap-2">
+                <Link
+                    v-if="memberPerformanceUrl(detailMember)"
+                    :href="memberPerformanceUrl(detailMember)"
+                    class="py-2 px-3 inline-flex items-center text-sm font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200"
+                >
+                    {{ t('performance.employees.view_employee') }}
+                </Link>
                 <button type="button" @click="openEditFromDetail"
                     class="py-2 px-3 inline-flex items-center text-sm font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200">
                     Edit

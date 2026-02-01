@@ -21,6 +21,7 @@ const isPlatformAdmin = computed(() => Boolean(page.props.auth?.account?.is_plat
 const platformPermissions = computed(() => page.props.auth?.account?.platform?.permissions || []);
 const teamPermissions = computed(() => page.props.auth?.account?.team?.permissions || []);
 const teamRole = computed(() => page.props.auth?.account?.team?.role || null);
+const isTeamMember = computed(() => Boolean(teamRole.value));
 const featureFlags = computed(() => page.props.auth?.account?.features || {});
 const hasFeature = (key) => isFeatureEnabled(featureFlags.value, key);
 const showPlatformNav = computed(() => isSuperadmin.value || isPlatformAdmin.value);
@@ -61,6 +62,7 @@ const avatarUrl = computed(() =>
 const showNotifications = computed(() => Boolean(page.props.notifications));
 const unreadCount = computed(() => page.props.notifications?.unread_count || 0);
 const hasUnread = computed(() => unreadCount.value > 0);
+const planningPendingCount = computed(() => page.props.planning?.pending_count || 0);
 const menuIconBaseClass = 'relative inline-flex size-9 items-center justify-center rounded-sm hover:bg-stone-100 focus:outline-none focus:ring-2 dark:hover:bg-neutral-800';
 const languageButtonClass = `${menuIconBaseClass} text-sky-600 focus:ring-sky-500 dark:text-sky-400`;
 const notificationButtonClass = `${menuIconBaseClass} text-amber-600 focus:ring-amber-500 dark:text-amber-400`;
@@ -429,7 +431,8 @@ const isCustomerActive = computed(() => {
                                 <!-- End Item -->
 
                                 <!-- Item -->
-                                <LinkAncor v-if="(companyType === 'products' && hasFeature('sales') && hasFeature('planning') && canSales) || (hasServiceOps && hasFeature('planning') && canService)" :label="$t('nav.planning')" :href="'planning.index'" tone="planning"
+                                <LinkAncor v-if="(companyType === 'products' && hasFeature('sales') && hasFeature('planning') && (canSales || isTeamMember)) || (hasServiceOps && hasFeature('planning') && (canService || isTeamMember))" :label="$t('nav.planning')" :href="'planning.index'" tone="planning"
+                                    :badge="planningPendingCount"
                                     :active="route().current('planning.*')">
                                     <template #icon>
                                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"

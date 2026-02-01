@@ -14,6 +14,10 @@ class TeamMemberShift extends Model
         'account_id',
         'team_member_id',
         'created_by_user_id',
+        'approved_by_user_id',
+        'approved_at',
+        'kind',
+        'status',
         'title',
         'notes',
         'shift_date',
@@ -24,6 +28,7 @@ class TeamMemberShift extends Model
 
     protected $casts = [
         'shift_date' => 'date',
+        'approved_at' => 'datetime',
     ];
 
     public function account(): BelongsTo

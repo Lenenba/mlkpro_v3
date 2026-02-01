@@ -86,6 +86,12 @@ const kpiTone = {
     sky: 'bg-sky-100 text-sky-700 dark:bg-sky-500/10 dark:text-sky-300',
 };
 
+const kpiBorderStyles = {
+    emerald: 'border-t-emerald-500 dark:border-t-emerald-400',
+    amber: 'border-t-amber-500 dark:border-t-amber-400',
+    sky: 'border-t-sky-500 dark:border-t-sky-400',
+};
+
 const formatDate = (value) => humanizeDate(value);
 const formatDateTime = (value) => {
     if (!value) {
@@ -198,7 +204,8 @@ const orderActionRoute = (sale) => {
                 <div
                     v-for="(card, index) in kpiCards"
                     :key="card.label"
-                    class="rise-in rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900"
+                    class="rise-in rounded-sm border border-t-4 border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900"
+                    :class="kpiBorderStyles[card.tone] || 'border-t-stone-300 dark:border-t-neutral-600'"
                     :style="{ animationDelay: `${index * 80}ms` }"
                 >
                     <div class="flex items-center justify-between">

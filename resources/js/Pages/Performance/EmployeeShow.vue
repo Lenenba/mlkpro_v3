@@ -1,5 +1,6 @@
 <script setup>
 import { computed, ref } from 'vue';
+import dayjs from 'dayjs';
 import { Head, Link, usePage } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
@@ -11,6 +12,10 @@ const props = defineProps({
         default: () => ({}),
     },
     performance: {
+        type: Object,
+        default: () => ({ periods: {} }),
+    },
+    timeOff: {
         type: Object,
         default: () => ({ periods: {} }),
     },
@@ -36,6 +41,9 @@ const formatCurrency = (value) =>
 const formatNumber = (value) =>
     Number(value || 0).toLocaleString(undefined, { maximumFractionDigits: 0 });
 
+const formatHours = (value) =>
+    Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+
 const emptyPeriod = {
     range: { start: '', end: '' },
     orders: 0,
@@ -48,6 +56,19 @@ const emptyPeriod = {
 };
 
 const periodStats = computed(() => props.performance?.periods?.[activePeriod.value] || emptyPeriod);
+
+const emptyTimeOff = {
+    absence_days: 0,
+    leave_days: 0,
+    partial_hours: 0,
+    entries: 0,
+    recent: [],
+    range: { start: '', end: '' },
+};
+
+const timeOffStats = computed(() => props.timeOff?.periods?.[activePeriod.value] || emptyTimeOff);
+const upcomingTimeOff = computed(() => props.timeOff?.upcoming || []);
+const upcomingRange = computed(() => props.timeOff?.upcoming_range || null);
 
 const roleLabel = computed(() => {
     if (props.employee?.role === 'owner') {
@@ -70,21 +91,51 @@ const initials = (label) => {
 };
 
 const kpiCards = computed(() => ([
-    { label: t('performance.kpi.revenue'), value: formatCurrency(periodStats.value.revenue) },
+    { label: t('performance.kpi.revenue'), value: formatCurrency(periodStats.value.revenue), tone: 'emerald' },
     {
         label: isServiceCompany.value ? t('performance.kpi.jobs') : t('performance.kpi.orders'),
         value: formatNumber(periodStats.value.orders),
+        tone: isServiceCompany.value ? 'indigo' : 'sky',
     },
     {
         label: isServiceCompany.value ? t('performance.kpi.tasks') : t('performance.kpi.items_sold'),
         value: formatNumber(periodStats.value.items_sold),
+        tone: isServiceCompany.value ? 'rose' : 'amber',
     },
     {
         label: isServiceCompany.value ? t('performance.kpi.avg_job') : t('performance.kpi.avg_order'),
         value: formatCurrency(periodStats.value.avg_order),
+        tone: 'violet',
     },
-    { label: t('performance.kpi.customers'), value: formatNumber(periodStats.value.customers) },
+    { label: t('performance.kpi.customers'), value: formatNumber(periodStats.value.customers), tone: 'rose' },
 ]));
+
+const timeOffCards = computed(() => ([
+    {
+        label: t('performance.employee.absence_days'),
+        value: formatNumber(timeOffStats.value.absence_days),
+        tone: 'amber',
+    },
+    {
+        label: t('performance.employee.leave_days'),
+        value: formatNumber(timeOffStats.value.leave_days),
+        tone: 'sky',
+    },
+    {
+        label: t('performance.employee.partial_hours'),
+        value: formatHours(timeOffStats.value.partial_hours),
+        tone: 'emerald',
+    },
+]));
+
+const kpiBorderStyles = {
+    emerald: 'border-t-emerald-500 dark:border-t-emerald-400',
+    sky: 'border-t-sky-500 dark:border-t-sky-400',
+    amber: 'border-t-amber-500 dark:border-t-amber-400',
+    rose: 'border-t-rose-500 dark:border-t-rose-400',
+    indigo: 'border-t-indigo-500 dark:border-t-indigo-400',
+    violet: 'border-t-violet-500 dark:border-t-violet-400',
+};
 
 const rangeLabel = computed(() => {
     const range = periodStats.value.range;
@@ -93,6 +144,28 @@ const rangeLabel = computed(() => {
     }
     return t('performance.range', { start: range.start, end: range.end });
 });
+
+const timeOffKindLabel = (kind) => {
+    if (kind === 'leave') {
+        return t('planning.kinds.leave');
+    }
+    return t('planning.kinds.absence');
+};
+
+const formatTimeOffDate = (date) => {
+    const parsed = dayjs(date);
+    return parsed.isValid() ? parsed.format('MMM D, YYYY') : date;
+};
+
+const formatTimeOffTime = (entry) => {
+    if (entry?.all_day) {
+        return t('planning.all_day');
+    }
+    if (!entry?.start_time || !entry?.end_time) {
+        return '';
+    }
+    return `${entry.start_time} - ${entry.end_time}`;
+};
 
 const customerDisplayName = (customer) => customer?.name || t('performance.clients.customer_fallback');
 const topProductsLabel = computed(() =>
@@ -184,11 +257,93 @@ const customerLineKey = computed(() =>
                 <div
                     v-for="card in kpiCards"
                     :key="card.label"
-                    class="rounded-sm border border-stone-200 bg-white p-4 text-xs text-stone-500 shadow-sm dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-400"
+                    class="rounded-sm border border-t-4 border-stone-200 bg-white p-4 text-xs text-stone-500 shadow-sm dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-400"
+                    :class="kpiBorderStyles[card.tone] || 'border-t-stone-300 dark:border-t-neutral-600'"
                 >
                     <p class="uppercase">{{ card.label }}</p>
                     <p class="mt-1 text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ card.value }}</p>
                 </div>
+            </div>
+
+            <div class="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-3">
+                <Card>
+                    <template #title>{{ t('performance.employee.time_off_title') }}</template>
+                    <div class="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                        <div
+                            v-for="card in timeOffCards"
+                            :key="card.label"
+                            class="rounded-sm border border-t-4 border-stone-200 bg-white p-4 text-xs text-stone-500 shadow-sm dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-400"
+                            :class="kpiBorderStyles[card.tone] || 'border-t-stone-300 dark:border-t-neutral-600'"
+                        >
+                            <p class="uppercase">{{ card.label }}</p>
+                            <p class="mt-1 text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ card.value }}</p>
+                        </div>
+                    </div>
+                </Card>
+
+                <Card>
+                    <template #title>{{ t('performance.employee.time_off_recent') }}</template>
+                    <div v-if="!timeOffStats.recent?.length" class="text-sm text-stone-500 dark:text-neutral-400">
+                        {{ t('performance.employee.time_off_none') }}
+                    </div>
+                    <div v-else class="space-y-3">
+                        <div
+                            v-for="entry in timeOffStats.recent"
+                            :key="entry.id"
+                            class="rounded-sm border border-stone-200 bg-white p-3 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+                        >
+                            <div class="flex items-center justify-between gap-2">
+                                <span class="font-semibold text-stone-800 dark:text-neutral-100">
+                                    {{ timeOffKindLabel(entry.kind) }}
+                                </span>
+                                <span class="text-xs text-stone-500 dark:text-neutral-400">
+                                    {{ formatTimeOffDate(entry.date) }}
+                                </span>
+                            </div>
+                            <div class="text-xs text-stone-500 dark:text-neutral-400">
+                                {{ formatTimeOffTime(entry) }}
+                            </div>
+                            <div v-if="entry.notes" class="text-xs text-stone-400 dark:text-neutral-500">
+                                {{ entry.notes }}
+                            </div>
+                        </div>
+                    </div>
+                </Card>
+
+                <Card>
+                    <template #title>{{ t('performance.employee.time_off_upcoming') }}</template>
+                    <div v-if="upcomingRange?.start" class="text-xs text-stone-500 dark:text-neutral-400">
+                        {{ t('performance.employee.time_off_upcoming_range', {
+                            start: formatTimeOffDate(upcomingRange.start),
+                            end: formatTimeOffDate(upcomingRange.end),
+                        }) }}
+                    </div>
+                    <div v-if="!upcomingTimeOff.length" class="mt-2 text-sm text-stone-500 dark:text-neutral-400">
+                        {{ t('performance.employee.time_off_upcoming_empty') }}
+                    </div>
+                    <div v-else class="mt-2 space-y-3">
+                        <div
+                            v-for="entry in upcomingTimeOff"
+                            :key="entry.id"
+                            class="rounded-sm border border-stone-200 bg-white p-3 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+                        >
+                            <div class="flex items-center justify-between gap-2">
+                                <span class="font-semibold text-stone-800 dark:text-neutral-100">
+                                    {{ timeOffKindLabel(entry.kind) }}
+                                </span>
+                                <span class="text-xs text-stone-500 dark:text-neutral-400">
+                                    {{ formatTimeOffDate(entry.date) }}
+                                </span>
+                            </div>
+                            <div class="text-xs text-stone-500 dark:text-neutral-400">
+                                {{ formatTimeOffTime(entry) }}
+                            </div>
+                            <div v-if="entry.notes" class="text-xs text-stone-400 dark:text-neutral-500">
+                                {{ entry.notes }}
+                            </div>
+                        </div>
+                    </div>
+                </Card>
             </div>
 
             <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">

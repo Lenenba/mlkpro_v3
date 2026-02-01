@@ -1,5 +1,5 @@
 <script setup>
-import { computed, reactive, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import { Head, usePage } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
 import axios from 'axios';
@@ -25,7 +25,19 @@ const props = defineProps({
         type: Object,
         default: () => ({}),
     },
+    pendingRequests: {
+        type: Array,
+        default: () => [],
+    },
+    timeOffSummary: {
+        type: Object,
+        default: () => ({}),
+    },
     canManage: {
+        type: Boolean,
+        default: false,
+    },
+    canApproveTimeOff: {
         type: Boolean,
         default: false,
     },
@@ -65,6 +77,13 @@ const yearCountLabel = (count) =>
 const calendarEvents = ref([...(props.events || [])]);
 const loadingEvents = ref(false);
 const loadError = ref('');
+const pendingQueue = ref([...(props.pendingRequests || [])]);
+const summaryQueue = ref({
+    today: props.timeOffSummary?.today || [],
+    week: props.timeOffSummary?.week || [],
+});
+const pollIntervalMs = 30000;
+let pollTimer = null;
 
 const defaultRange = {
     start: props.range?.start || dayjs().startOf('week').format('YYYY-MM-DD'),
@@ -79,8 +98,10 @@ const selectedDate = ref(todayDate);
 const viewMode = ref('month');
 
 const form = reactive({
+    kind: props.canManage ? 'shift' : 'absence',
     team_member_id: props.selfTeamMemberId || props.teamMembers?.[0]?.id || '',
     shift_date: todayDate.format('YYYY-MM-DD'),
+    end_date: todayDate.format('YYYY-MM-DD'),
     start_time: '09:00',
     end_time: '17:00',
     title: '',
@@ -90,19 +111,29 @@ const form = reactive({
     recurrence_end_date: dayjs().add(1, 'month').format('YYYY-MM-DD'),
 });
 
+const timeOffMode = ref('full');
 const weekdayValues = ['su', 'mo', 'tu', 'we', 'th', 'fr', 'sa'];
 const recurrenceWeekdays = ref([]);
 const monthlyDay = ref(String(dayjs().date()));
 
 const formErrors = ref({});
 const formProcessing = ref(false);
-const formNotice = ref({ type: '', message: '' });
-
 const deleteProcessing = ref(false);
 const deleteError = ref('');
+const statusProcessing = ref(false);
+const statusError = ref('');
 const selectedShift = ref(null);
 
-const canCreate = computed(() => props.canManage && (props.teamMembers || []).length > 0);
+const canCreate = computed(() => {
+    if (props.canManage) {
+        return (props.teamMembers || []).length > 0;
+    }
+    return Boolean(props.selfTeamMemberId);
+});
+
+const isTimeOffKind = computed(() => ['absence', 'leave'].includes(form.kind));
+const isTimeOffHours = computed(() => isTimeOffKind.value && timeOffMode.value === 'hours');
+const canSubmit = computed(() => canCreate.value && (props.canManage || isTimeOffKind.value));
 
 const memberOptions = computed(() =>
     (props.teamMembers || []).map((member) => ({
@@ -110,6 +141,77 @@ const memberOptions = computed(() =>
         label: member.title ? `${member.name} - ${member.title}` : member.name,
     }))
 );
+
+const kindOptions = computed(() => {
+    const options = [];
+    if (props.canManage) {
+        options.push({ value: 'shift', label: t('planning.kinds.shift') });
+    }
+    options.push(
+        { value: 'absence', label: t('planning.kinds.absence') },
+        { value: 'leave', label: t('planning.kinds.leave') },
+    );
+    return options;
+});
+
+const timeOffModeOptions = computed(() => ([
+    { value: 'full', label: t('planning.form.full_day') },
+    { value: 'hours', label: t('planning.form.hours') },
+]));
+
+const formTitle = computed(() => {
+    if (form.kind === 'absence') return t('planning.form.title_absence');
+    if (form.kind === 'leave') return t('planning.form.title_leave');
+    return t('planning.form.title');
+});
+
+const dateLabel = computed(() =>
+    isTimeOffKind.value ? t('planning.form.start_date') : t('planning.form.date')
+);
+
+const notesLabel = computed(() =>
+    isTimeOffKind.value ? t('planning.form.reason') : t('planning.form.notes')
+);
+
+const submitLabel = computed(() => {
+    if (formProcessing.value) {
+        return isTimeOffKind.value ? t('planning.form.saving_time_off') : t('planning.form.creating');
+    }
+    return isTimeOffKind.value ? t('planning.form.save_time_off') : t('planning.form.create');
+});
+
+const deleteTitle = computed(() => {
+    const kind = selectedShift.value?.kind;
+    if (kind === 'absence') {
+        return t('planning.delete.absence_title');
+    }
+    if (kind === 'leave') {
+        return t('planning.delete.leave_title');
+    }
+    return t('planning.delete.title');
+});
+
+const deleteDescription = computed(() => {
+    const kind = selectedShift.value?.kind;
+    if (kind === 'absence') {
+        return t('planning.delete.absence_description');
+    }
+    if (kind === 'leave') {
+        return t('planning.delete.leave_description');
+    }
+    return t('planning.delete.description');
+});
+
+const getDeleteToastMessage = () => {
+    const kind = selectedShift.value?.kind;
+    if (kind === 'absence') {
+        return t('planning.notices.absence_deleted');
+    }
+    if (kind === 'leave') {
+        return t('planning.notices.leave_deleted');
+    }
+    return t('planning.notices.deleted');
+};
 
 const frequencyOptions = computed(() => ([
     { value: 'daily', label: t('planning.frequency.daily') },
@@ -314,6 +416,20 @@ const calendarDays = computed(() => {
     });
 });
 
+const monthViewDays = computed(() => {
+    const days = calendarDays.value || [];
+    if (!days.length) {
+        return days;
+    }
+    const weekStart = getWeekStart(todayDate);
+    const weekKey = weekStart.format('YYYY-MM-DD');
+    const startIndex = days.findIndex((day) => day.key === weekKey);
+    if (startIndex <= 0) {
+        return days;
+    }
+    return [...days.slice(startIndex), ...days.slice(0, startIndex)];
+});
+
 const weekDays = computed(() => {
     const start = getWeekStart(selectedDate.value);
     return Array.from({ length: 7 }, (_, index) => {
@@ -373,6 +489,57 @@ const visibleEvents = computed(() => {
         return memberFilters.value.includes(memberId);
     });
 });
+
+const pendingRequests = computed(() => {
+    const pendingFromEvents = visibleEvents.value.filter((event) =>
+        isTimeOffEvent(event) && event?.extendedProps?.status === 'pending'
+    );
+    const merged = new Map();
+    [...pendingQueue.value, ...pendingFromEvents].forEach((event) => {
+        if (!event?.id) {
+            return;
+        }
+        merged.set(event.id, event);
+    });
+    let list = Array.from(merged.values());
+    if (allMemberIds.value.length && !memberFilters.value.length) {
+        return [];
+    }
+    if (memberFilters.value.length && memberFilters.value.length !== allMemberIds.value.length) {
+        const allowed = new Set(memberFilters.value);
+        list = list.filter((event) => {
+            const memberId = event?.extendedProps?.team_member_id;
+            if (!memberId) {
+                return false;
+            }
+            return allowed.has(memberId);
+        });
+    }
+    return list.sort((a, b) => String(a.start).localeCompare(String(b.start)));
+});
+
+const filterSummaryList = (list) => {
+    if (!Array.isArray(list)) {
+        return [];
+    }
+    if (allMemberIds.value.length && !memberFilters.value.length) {
+        return [];
+    }
+    if (memberFilters.value.length && memberFilters.value.length !== allMemberIds.value.length) {
+        const allowed = new Set(memberFilters.value);
+        return list.filter((event) => {
+            const memberId = event?.extendedProps?.team_member_id;
+            if (!memberId) {
+                return false;
+            }
+            return allowed.has(memberId);
+        });
+    }
+    return list;
+};
+
+const todayTimeOff = computed(() => filterSummaryList(summaryQueue.value.today || []));
+const weekTimeOff = computed(() => filterSummaryList(summaryQueue.value.week || []));
 
 const eventsByDate = computed(() => {
     const map = {};
@@ -532,13 +699,40 @@ const getDayIndicatorClasses = (dayKey) => {
 
 const formatTimeLabel = (time) => (time.minute() === 0 ? time.format('hA') : time.format('h:mmA'));
 
+const isTimeOffEvent = (event) => ['absence', 'leave'].includes(event?.extendedProps?.kind);
+
+const getEventTitle = (event) => {
+    const memberName = event?.extendedProps?.member_name || '';
+    const kind = event?.extendedProps?.kind;
+    if (kind === 'absence') {
+        const prefix = memberName ? `${memberName} · ` : '';
+        return `${prefix}${t('planning.kinds.absence')}`;
+    }
+    if (kind === 'leave') {
+        const prefix = memberName ? `${memberName} · ` : '';
+        return `${prefix}${t('planning.kinds.leave')}`;
+    }
+    return event?.title || '';
+};
+
 const formatEventTime = (event) => {
+    if (isTimeOffEvent(event) && event?.allDay) {
+        const allDayLabel = t('planning.all_day');
+        if (event?.extendedProps?.status === 'pending') {
+            return `${allDayLabel} · ${t('planning.status.pending')}`;
+        }
+        return allDayLabel;
+    }
     const start = dayjs(event.start);
     const end = dayjs(event.end);
     if (!start.isValid() || !end.isValid()) {
         return '';
     }
-    return `${formatTimeLabel(start)} - ${formatTimeLabel(end)}`;
+    const base = `${formatTimeLabel(start)} - ${formatTimeLabel(end)}`;
+    if (isTimeOffEvent(event) && event?.extendedProps?.status === 'pending') {
+        return `${base} · ${t('planning.status.pending')}`;
+    }
+    return base;
 };
 
 const isCurrentHour = (dayKey, hour) => {
@@ -551,18 +745,11 @@ const yearMonths = computed(() => {
     return Array.from({ length: 12 }, (_, index) => start.add(index, 'month'));
 });
 
-const noticeClass = computed(() => {
-    if (!formNotice.value?.message) {
-        return '';
+const pushToast = (type, message) => {
+    if (typeof window === 'undefined') {
+        return;
     }
-
-    return formNotice.value.type === 'success'
-        ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-        : 'border-red-200 bg-red-50 text-red-700';
-});
-
-const setNotice = (type, message) => {
-    formNotice.value = { type, message };
+    window.dispatchEvent(new CustomEvent('mlk-toast', { detail: { type, message } }));
 };
 
 const normalizeErrors = (error) => {
@@ -590,6 +777,17 @@ const syncDefaultsFromDate = (value) => {
     monthlyDay.value = String(date.date());
     if (!recurrenceWeekdays.value.length) {
         recurrenceWeekdays.value = [weekdayValues[date.day()]];
+    }
+
+    if (isTimeOffKind.value) {
+        if (timeOffMode.value === 'hours') {
+            form.end_date = date.format('YYYY-MM-DD');
+        } else {
+            const endDate = dayjs(form.end_date);
+            if (!endDate.isValid() || endDate.isBefore(date, 'day')) {
+                form.end_date = date.format('YYYY-MM-DD');
+            }
+        }
     }
 };
 
@@ -654,6 +852,15 @@ const fetchEvents = async (start, end) => {
             params,
         });
         calendarEvents.value = response?.data?.events || [];
+        if (Array.isArray(response?.data?.pending_requests)) {
+            pendingQueue.value = response.data.pending_requests;
+        }
+        if (response?.data?.time_off_summary) {
+            summaryQueue.value = {
+                today: response.data.time_off_summary.today || [],
+                week: response.data.time_off_summary.week || [],
+            };
+        }
     } catch (error) {
         loadError.value = error?.response?.data?.message || t('planning.errors.load');
     } finally {
@@ -661,8 +868,42 @@ const fetchEvents = async (start, end) => {
     }
 };
 
+const pollEvents = () => {
+    if (document.visibilityState !== 'visible' || loadingEvents.value) {
+        return;
+    }
+    if (allMemberIds.value.length && !memberFilters.value.length) {
+        return;
+    }
+    fetchEvents(currentRange.value.start, currentRange.value.end);
+};
+
+const startPolling = () => {
+    if (pollTimer) {
+        return;
+    }
+    pollTimer = window.setInterval(pollEvents, pollIntervalMs);
+};
+
+const stopPolling = () => {
+    if (!pollTimer) {
+        return;
+    }
+    window.clearInterval(pollTimer);
+    pollTimer = null;
+};
+
+const handleVisibilityChange = () => {
+    if (document.visibilityState === 'visible') {
+        startPolling();
+        pollEvents();
+        return;
+    }
+    stopPolling();
+};
+
 const openShiftDetails = (event) => {
-    if (!props.canManage) {
+    if (!event?.extendedProps?.can_delete && !event?.extendedProps?.can_approve) {
         return;
     }
 
@@ -670,13 +911,16 @@ const openShiftDetails = (event) => {
     const end = dayjs(event.end);
     selectedShift.value = {
         id: event.id,
-        title: event.title,
+        title: getEventTitle(event),
         member: event.extendedProps?.member_name || '',
         date: start.isValid() ? start.format('YYYY-MM-DD') : '',
-        start: start.isValid() ? start.format('HH:mm') : '',
-        end: end.isValid() ? end.format('HH:mm') : '',
+        time: formatEventTime(event),
+        kind: event.extendedProps?.kind || 'shift',
+        status: event.extendedProps?.status || 'approved',
+        canApprove: Boolean(event.extendedProps?.can_approve),
     };
     deleteError.value = '';
+    statusError.value = '';
 
     if (window.HSOverlay) {
         window.HSOverlay.open('#hs-planning-delete');
@@ -684,28 +928,43 @@ const openShiftDetails = (event) => {
 };
 
 const submitShift = async () => {
-    if (!canCreate.value || formProcessing.value) {
+    if (!canSubmit.value || formProcessing.value) {
         return;
     }
 
     formProcessing.value = true;
     formErrors.value = {};
-    setNotice('', '');
 
     const payload = {
+        kind: form.kind,
         team_member_id: form.team_member_id,
         shift_date: form.shift_date,
-        start_time: form.start_time,
-        end_time: form.end_time,
         title: form.title || null,
         notes: form.notes || null,
-        is_recurring: form.is_recurring,
     };
 
-    if (form.is_recurring) {
-        payload.frequency = form.frequency;
-        payload.recurrence_end_date = form.recurrence_end_date;
-        payload.repeats_on = buildRepeatsOn();
+    if (!props.canManage && props.selfTeamMemberId) {
+        payload.team_member_id = props.selfTeamMemberId;
+    }
+
+    if (isTimeOffKind.value) {
+        if (timeOffMode.value === 'hours') {
+            payload.start_time = form.start_time;
+            payload.end_time = form.end_time;
+            payload.end_date = form.shift_date;
+        } else {
+            payload.end_date = form.end_date || form.shift_date;
+        }
+    } else {
+        payload.start_time = form.start_time;
+        payload.end_time = form.end_time;
+        payload.is_recurring = form.is_recurring;
+
+        if (form.is_recurring) {
+            payload.frequency = form.frequency;
+            payload.recurrence_end_date = form.recurrence_end_date;
+            payload.repeats_on = buildRepeatsOn();
+        }
     }
 
     try {
@@ -714,13 +973,30 @@ const submitShift = async () => {
             ?? response?.data?.events?.length
             ?? 1;
 
-        setNotice('success', t('planning.notices.created', { count: createdCount }));
+        if (isTimeOffKind.value) {
+            let message = '';
+            if (form.kind === 'absence') {
+                message = createdCount > 1
+                    ? t('planning.notices.absence_created_many', { count: createdCount })
+                    : t('planning.notices.absence_created');
+            } else {
+                message = createdCount > 1
+                    ? t('planning.notices.leave_created_many', { count: createdCount })
+                    : t('planning.notices.leave_created');
+            }
+            pushToast('success', message);
+        } else {
+            pushToast('success', t('planning.notices.created', { count: createdCount }));
+        }
         form.title = '';
         form.notes = '';
+        if (isTimeOffKind.value) {
+            form.end_date = form.shift_date;
+        }
         await fetchEvents(currentRange.value.start, currentRange.value.end);
     } catch (error) {
         formErrors.value = normalizeErrors(error);
-        setNotice('error', error?.response?.data?.message || t('planning.errors.save'));
+        pushToast('error', error?.response?.data?.message || t('planning.errors.save'));
     } finally {
         formProcessing.value = false;
     }
@@ -739,13 +1015,45 @@ const deleteShift = async () => {
         if (window.HSOverlay) {
             window.HSOverlay.close('#hs-planning-delete');
         }
-        setNotice('success', t('planning.notices.deleted'));
+        pushToast('success', getDeleteToastMessage());
         await fetchEvents(currentRange.value.start, currentRange.value.end);
         selectedShift.value = null;
     } catch (error) {
         deleteError.value = error?.response?.data?.message || t('planning.errors.delete');
     } finally {
         deleteProcessing.value = false;
+    }
+};
+
+const updateShiftStatus = async (status, target = selectedShift.value) => {
+    const shiftId = target?.id;
+    const canApprove = target?.canApprove ?? target?.extendedProps?.can_approve;
+    if (!shiftId || statusProcessing.value) {
+        return;
+    }
+    if (!canApprove) {
+        return;
+    }
+
+    statusProcessing.value = true;
+    statusError.value = '';
+
+    try {
+        await axios.patch(route('planning.shifts.status', shiftId), { status });
+        if (window.HSOverlay) {
+            window.HSOverlay.close('#hs-planning-delete');
+        }
+        if (status === 'approved') {
+            pushToast('success', t('planning.notices.approved'));
+        } else {
+            pushToast('success', t('planning.notices.rejected'));
+        }
+        await fetchEvents(currentRange.value.start, currentRange.value.end);
+        selectedShift.value = null;
+    } catch (error) {
+        statusError.value = error?.response?.data?.message || t('planning.errors.status');
+    } finally {
+        statusProcessing.value = false;
     }
 };
 
@@ -845,6 +1153,15 @@ const selectDate = (date) => {
     }
 };
 
+const openDayView = (date) => {
+    if (!date) {
+        return;
+    }
+    selectedDate.value = date;
+    setViewMode('day');
+    setShiftDate(date.format('YYYY-MM-DD'));
+};
+
 const setShiftDate = (dateKey) => {
     form.shift_date = dateKey;
     selectedDate.value = dayjs(dateKey);
@@ -888,10 +1205,31 @@ const toggleMemberFilter = (memberId) => {
 watch(
     () => props.teamMembers,
     (members) => {
-        if (!form.team_member_id && members?.length) {
+        if (!props.canManage && props.selfTeamMemberId) {
+            form.team_member_id = props.selfTeamMemberId;
+        } else if (!form.team_member_id && members?.length) {
             form.team_member_id = members[0].id;
         }
         memberFilters.value = (members || []).map((member) => member.id);
+    },
+    { immediate: true }
+);
+
+watch(
+    () => props.pendingRequests,
+    (requests) => {
+        pendingQueue.value = Array.isArray(requests) ? [...requests] : [];
+    },
+    { immediate: true }
+);
+
+watch(
+    () => props.timeOffSummary,
+    (summary) => {
+        summaryQueue.value = {
+            today: summary?.today || [],
+            week: summary?.week || [],
+        };
     },
     { immediate: true }
 );
@@ -911,7 +1249,58 @@ watch(
     { immediate: true }
 );
 
+watch(
+    () => form.kind,
+    (value, previous) => {
+        if (!props.canManage && value === 'shift') {
+            form.kind = 'absence';
+            return;
+        }
+        if (isTimeOffKind.value) {
+            form.is_recurring = false;
+            if (!previous || previous === 'shift') {
+                timeOffMode.value = 'full';
+            }
+            if (timeOffMode.value === 'hours') {
+                form.end_date = form.shift_date;
+            } else if (!form.end_date) {
+                form.end_date = form.shift_date;
+            }
+        }
+    }
+);
+
+watch(
+    () => timeOffMode.value,
+    (value) => {
+        if (!isTimeOffKind.value) {
+            return;
+        }
+        if (value === 'hours') {
+            form.end_date = form.shift_date;
+            return;
+        }
+        const startDate = dayjs(form.shift_date);
+        const endDate = dayjs(form.end_date);
+        if (!endDate.isValid() || (startDate.isValid() && endDate.isBefore(startDate, 'day'))) {
+            form.end_date = form.shift_date;
+        }
+    }
+);
+
 syncRangeFromView(viewMode.value, false);
+
+onMounted(() => {
+    if (document.visibilityState === 'visible') {
+        startPolling();
+    }
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+});
+
+onBeforeUnmount(() => {
+    stopPolling();
+    document.removeEventListener('visibilitychange', handleVisibilityChange);
+});
 
 </script>
 
@@ -933,6 +1322,67 @@ syncRangeFromView(viewMode.value, false);
 
             <div class="grid gap-4 xl:grid-cols-[260px_minmax(0,1fr)_320px]">
                 <aside class="space-y-4">
+                    <div
+                        v-if="props.canApproveTimeOff"
+                        class="rounded-xl border border-stone-200 bg-white p-3 shadow-sm dark:border-neutral-800 dark:bg-neutral-900"
+                    >
+                        <div class="flex items-center justify-between gap-2">
+                            <span class="text-xs font-semibold text-stone-700 dark:text-neutral-200">
+                                {{ t('planning.absence_overview.title') }}
+                            </span>
+                            <span class="text-[10px] text-stone-400 dark:text-neutral-500">
+                                {{ t('planning.absence_overview.week_range') }}
+                            </span>
+                        </div>
+
+                        <div class="mt-3 space-y-3">
+                            <div>
+                                <div class="text-[11px] font-semibold uppercase text-stone-500 dark:text-neutral-400">
+                                    {{ t('planning.absence_overview.today') }}
+                                </div>
+                                <div v-if="!todayTimeOff.length" class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
+                                    {{ t('planning.absence_overview.empty_today') }}
+                                </div>
+                                <div v-else class="mt-2 space-y-2">
+                                    <div
+                                        v-for="event in todayTimeOff"
+                                        :key="`today-${event.id}`"
+                                        class="rounded-md border border-stone-200 bg-stone-50 p-2 text-xs text-stone-700 dark:border-neutral-800 dark:bg-neutral-800 dark:text-neutral-200"
+                                    >
+                                        <div class="font-semibold">{{ getEventTitle(event) }}</div>
+                                        <div class="text-[11px] text-stone-500 dark:text-neutral-400">
+                                            {{ formatEventTime(event) }}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div>
+                                <div class="text-[11px] font-semibold uppercase text-stone-500 dark:text-neutral-400">
+                                    {{ t('planning.absence_overview.week') }}
+                                </div>
+                                <div v-if="!weekTimeOff.length" class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
+                                    {{ t('planning.absence_overview.empty_week') }}
+                                </div>
+                                <div v-else class="mt-2 space-y-2">
+                                    <div
+                                        v-for="event in weekTimeOff.slice(0, 6)"
+                                        :key="`week-${event.id}`"
+                                        class="rounded-md border border-stone-200 bg-white p-2 text-xs text-stone-700 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-200"
+                                    >
+                                        <div class="font-semibold">{{ getEventTitle(event) }}</div>
+                                        <div class="text-[11px] text-stone-500 dark:text-neutral-400">
+                                            {{ dayjs(event.start).format('YYYY-MM-DD') }} · {{ formatEventTime(event) }}
+                                        </div>
+                                    </div>
+                                </div>
+                                <div v-if="weekTimeOff.length > 6" class="mt-2 text-[11px] text-stone-500 dark:text-neutral-400">
+                                    {{ t('planning.absence_overview.more_week', { count: weekTimeOff.length - 6 }) }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="rounded-xl border border-stone-200 bg-white p-3 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
                         <div class="flex items-center justify-between gap-2">
                             <span class="text-xs font-semibold text-stone-700 dark:text-neutral-200">
@@ -978,6 +1428,59 @@ syncRangeFromView(viewMode.value, false);
                                     :class="getDayIndicatorClasses(day.key)"
                                 ></span>
                             </button>
+                        </div>
+                    </div>
+
+                    <div
+                        v-if="props.canApproveTimeOff"
+                        class="rounded-xl border border-stone-200 bg-white p-3 shadow-sm dark:border-neutral-800 dark:bg-neutral-900"
+                    >
+                        <div class="flex items-center justify-between gap-2">
+                            <span class="text-xs font-semibold text-stone-700 dark:text-neutral-200">
+                                {{ t('planning.pending.title') }}
+                            </span>
+                            <span v-if="pendingRequests.length" class="text-[10px] font-semibold text-amber-600 dark:text-amber-300">
+                                {{ t('planning.pending.count', { count: pendingRequests.length }) }}
+                            </span>
+                        </div>
+
+                        <div v-if="!pendingRequests.length" class="mt-2 text-xs text-stone-500 dark:text-neutral-400">
+                            {{ t('planning.pending.empty') }}
+                        </div>
+                        <div v-else class="mt-2 space-y-2">
+                            <div
+                                v-for="request in pendingRequests.slice(0, 5)"
+                                :key="request.id"
+                                class="rounded-md border border-stone-200 bg-stone-50 p-2 text-xs text-stone-700 dark:border-neutral-800 dark:bg-neutral-800 dark:text-neutral-200"
+                            >
+                                <div class="font-semibold">
+                                    {{ getEventTitle(request) }}
+                                </div>
+                                <div class="text-[11px] text-stone-500 dark:text-neutral-400">
+                                    {{ dayjs(request.start).format('YYYY-MM-DD') }} · {{ formatEventTime(request) }}
+                                </div>
+                                <div v-if="request.extendedProps?.can_approve" class="mt-2 flex items-center gap-2">
+                                    <button
+                                        type="button"
+                                        class="rounded-sm bg-emerald-600 px-2 py-1 text-[11px] font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
+                                        :disabled="statusProcessing"
+                                        @click="updateShiftStatus('approved', request)"
+                                    >
+                                        {{ t('planning.status.approve') }}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        class="rounded-sm bg-amber-500 px-2 py-1 text-[11px] font-semibold text-white hover:bg-amber-600 disabled:opacity-50"
+                                        :disabled="statusProcessing"
+                                        @click="updateShiftStatus('rejected', request)"
+                                    >
+                                        {{ t('planning.status.reject') }}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div v-if="pendingRequests.length > 5" class="mt-2 text-[11px] text-stone-500 dark:text-neutral-400">
+                            {{ t('planning.pending.more', { count: pendingRequests.length - 5 }) }}
                         </div>
                     </div>
 
@@ -1107,7 +1610,7 @@ syncRangeFromView(viewMode.value, false);
 
                             <div class="grid grid-cols-7">
                                 <div
-                                    v-for="(day, index) in calendarDays"
+                                    v-for="(day, index) in monthViewDays"
                                     :key="day.key"
                                     class="relative min-h-[120px] border-t border-l border-stone-200 dark:border-neutral-800"
                                     :class="[
@@ -1142,7 +1645,7 @@ syncRangeFromView(viewMode.value, false);
                                             :class="getEventClasses(event)"
                                             @click="openShiftDetails(event)"
                                         >
-                                            <span class="block truncate font-semibold">{{ event.title }}</span>
+                                            <span class="block truncate font-semibold">{{ getEventTitle(event) }}</span>
                                             <span class="block truncate">{{ formatEventTime(event) }}</span>
                                         </button>
 
@@ -1150,6 +1653,7 @@ syncRangeFromView(viewMode.value, false);
                                             v-if="getDayEvents(day.key).length > 2"
                                             type="button"
                                             class="text-[11px] text-stone-500 hover:text-stone-700 dark:text-neutral-400"
+                                            @click="openDayView(day.date)"
                                         >
                                             {{ getDayEvents(day.key).length - 2 }} more
                                         </button>
@@ -1209,7 +1713,7 @@ syncRangeFromView(viewMode.value, false);
                                                 }"
                                                 @click="openShiftDetails(block.event)"
                                             >
-                                                <span class="block truncate font-semibold">{{ block.event.title }}</span>
+                                                <span class="block truncate font-semibold">{{ getEventTitle(block.event) }}</span>
                                                 <span class="block truncate">{{ formatEventTime(block.event) }}</span>
                                             </button>
                                         </div>
@@ -1273,7 +1777,7 @@ syncRangeFromView(viewMode.value, false);
                                                     }"
                                                     @click="openShiftDetails(block.event)"
                                                 >
-                                                    <span class="block truncate font-semibold">{{ block.event.title }}</span>
+                                                    <span class="block truncate font-semibold">{{ getEventTitle(block.event) }}</span>
                                                     <span class="block truncate">{{ formatEventTime(block.event) }}</span>
                                                 </button>
                                             </div>
@@ -1313,7 +1817,7 @@ syncRangeFromView(viewMode.value, false);
                                         >
                                             <span class="h-1.5 w-1.5 rounded-full" :class="getDayIndicatorClasses(dayjs(event.start).format('YYYY-MM-DD'))"></span>
                                             <span class="truncate">
-                                                {{ dayjs(event.start).format('MMM D') }} · {{ event.title }}
+                                                {{ dayjs(event.start).format('MMM D') }} · {{ getEventTitle(event) }}
                                             </span>
                                         </div>
                                         <div v-if="!getMonthPreviewEvents(month.format('YYYY-MM')).length" class="text-[10px] text-stone-400 dark:text-neutral-500">
@@ -1340,19 +1844,24 @@ syncRangeFromView(viewMode.value, false);
                 </section>
 
                 <Card id="planning-shift-form" class="xl:sticky xl:top-24">
-                    <template #title>{{ t('planning.form.title') }}</template>
-                    <div v-if="!props.canManage" class="space-y-2 text-sm text-stone-500 dark:text-neutral-400">
+                    <template #title>{{ formTitle }}</template>
+                    <div v-if="!canCreate" class="space-y-2 text-sm text-stone-500 dark:text-neutral-400">
                         <p class="font-semibold text-stone-700 dark:text-neutral-200">
                             {{ lockedTitle }}
                         </p>
                         <p>{{ lockedDescription }}</p>
                     </div>
                     <form v-else class="space-y-3" @submit.prevent="submitShift">
-                        <div v-if="formNotice.message" class="rounded-sm border p-2 text-xs" :class="noticeClass">
-                            {{ formNotice.message }}
+                        <div>
+                            <FloatingSelect
+                                v-model="form.kind"
+                                :label="t('planning.form.kind')"
+                                :options="kindOptions"
+                            />
+                            <InputError :message="formErrors.kind" />
                         </div>
 
-                        <div>
+                        <div v-if="props.canManage">
                             <FloatingSelect
                                 v-model="form.team_member_id"
                                 :label="t('planning.form.member')"
@@ -1362,11 +1871,24 @@ syncRangeFromView(viewMode.value, false);
                         </div>
 
                         <div>
-                            <FloatingInput v-model="form.shift_date" type="date" :label="t('planning.form.date')" />
+                            <FloatingInput v-model="form.shift_date" type="date" :label="dateLabel" />
                             <InputError :message="formErrors.shift_date" />
                         </div>
 
-                        <div class="grid grid-cols-2 gap-2">
+                        <div v-if="isTimeOffKind">
+                            <FloatingSelect
+                                v-model="timeOffMode"
+                                :label="t('planning.form.duration')"
+                                :options="timeOffModeOptions"
+                            />
+                        </div>
+
+                        <div v-if="isTimeOffKind && !isTimeOffHours">
+                            <FloatingInput v-model="form.end_date" type="date" :label="t('planning.form.end_date')" />
+                            <InputError :message="formErrors.end_date" />
+                        </div>
+
+                        <div v-if="!isTimeOffKind || isTimeOffHours" class="grid grid-cols-2 gap-2">
                             <div>
                                 <FloatingInput v-model="form.start_time" type="time" :label="t('planning.form.start_time')" />
                                 <InputError :message="formErrors.start_time" />
@@ -1377,17 +1899,17 @@ syncRangeFromView(viewMode.value, false);
                             </div>
                         </div>
 
-                        <div>
+                        <div v-if="!isTimeOffKind">
                             <FloatingInput v-model="form.title" :label="t('planning.form.shift_title')" />
                             <InputError :message="formErrors.title" />
                         </div>
 
                         <div>
-                            <FloatingTextarea v-model="form.notes" :label="t('planning.form.notes')" />
+                            <FloatingTextarea v-model="form.notes" :label="notesLabel" />
                             <InputError :message="formErrors.notes" />
                         </div>
 
-                        <div class="flex items-center gap-2 text-sm text-stone-600 dark:text-neutral-300">
+                        <div v-if="!isTimeOffKind" class="flex items-center gap-2 text-sm text-stone-600 dark:text-neutral-300">
                             <input
                                 id="planning-recurring"
                                 v-model="form.is_recurring"
@@ -1397,7 +1919,7 @@ syncRangeFromView(viewMode.value, false);
                             <label for="planning-recurring">{{ t('planning.form.recurring') }}</label>
                         </div>
 
-                        <div v-if="form.is_recurring" class="space-y-3">
+                        <div v-if="!isTimeOffKind && form.is_recurring" class="space-y-3">
                             <div>
                                 <FloatingSelect
                                     v-model="form.frequency"
@@ -1446,9 +1968,9 @@ syncRangeFromView(viewMode.value, false);
                             <button
                                 type="submit"
                                 class="rounded-sm border border-emerald-200 bg-emerald-600 px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:opacity-50"
-                                :disabled="formProcessing || !canCreate"
+                                :disabled="formProcessing || !canSubmit"
                             >
-                                {{ formProcessing ? t('planning.form.creating') : t('planning.form.create') }}
+                                {{ submitLabel }}
                             </button>
                         </div>
                     </form>
@@ -1456,24 +1978,51 @@ syncRangeFromView(viewMode.value, false);
             </div>
         </div>
 
-        <Modal id="hs-planning-delete" :title="t('planning.delete.title')">
+        <Modal id="hs-planning-delete" :title="deleteTitle">
             <div class="space-y-3">
                 <p class="text-sm text-stone-600 dark:text-neutral-300">
-                    {{ t('planning.delete.description') }}
+                    {{ deleteDescription }}
                 </p>
 
                 <div v-if="selectedShift" class="rounded-sm border border-stone-200 bg-stone-50 p-3 text-sm text-stone-700 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200">
                     <div class="font-semibold">{{ selectedShift.title }}</div>
                     <div class="text-xs text-stone-500 dark:text-neutral-400">
-                        {{ selectedShift.member }} - {{ selectedShift.date }} - {{ selectedShift.start }} - {{ selectedShift.end }}
+                        {{ selectedShift.member }} - {{ selectedShift.date }} - {{ selectedShift.time }}
+                    </div>
+                    <div
+                        v-if="selectedShift.status && ['absence', 'leave'].includes(selectedShift.kind)"
+                        class="mt-1 text-xs text-stone-500 dark:text-neutral-400"
+                    >
+                        {{ t('planning.status.label') }}: {{ t(`planning.status.${selectedShift.status}`) }}
                     </div>
                 </div>
 
                 <div v-if="deleteError" class="rounded-sm border border-red-200 bg-red-50 p-2 text-xs text-red-700">
                     {{ deleteError }}
                 </div>
+                <div v-if="statusError" class="rounded-sm border border-red-200 bg-red-50 p-2 text-xs text-red-700">
+                    {{ statusError }}
+                </div>
 
                 <div class="flex justify-end gap-2">
+                    <button
+                        v-if="selectedShift?.canApprove"
+                        type="button"
+                        class="rounded-sm border border-emerald-200 bg-emerald-600 px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:opacity-50"
+                        :disabled="statusProcessing"
+                        @click="updateShiftStatus('approved')"
+                    >
+                        {{ statusProcessing ? t('planning.status.approving') : t('planning.status.approve') }}
+                    </button>
+                    <button
+                        v-if="selectedShift?.canApprove"
+                        type="button"
+                        class="rounded-sm border border-amber-200 bg-amber-500 px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-amber-600 disabled:opacity-50"
+                        :disabled="statusProcessing"
+                        @click="updateShiftStatus('rejected')"
+                    >
+                        {{ statusProcessing ? t('planning.status.rejecting') : t('planning.status.reject') }}
+                    </button>
                     <button
                         type="button"
                         class="rounded-sm border border-stone-200 bg-white px-3 py-2 text-xs font-semibold text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"

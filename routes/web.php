@@ -313,6 +313,8 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
         Route::get('/planning/events', [PlanningController::class, 'events'])->name('planning.events');
         Route::post('/planning/shifts', [PlanningController::class, 'store'])->name('planning.shifts.store');
         Route::delete('/planning/shifts/{shift}', [PlanningController::class, 'destroy'])->name('planning.shifts.destroy');
+        Route::patch('/planning/shifts/{shift}/status', [PlanningController::class, 'updateStatus'])
+            ->name('planning.shifts.status');
     });
 
     // Sales Management (products)

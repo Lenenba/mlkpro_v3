@@ -17,6 +17,14 @@ const props = defineProps({
         type: String,
         default: '',
     },
+    badge: {
+        type: Number,
+        default: 0,
+    },
+    badgeClass: {
+        type: String,
+        default: 'absolute -top-1 -end-1 rounded-full bg-amber-500 px-1.5 text-[10px] font-semibold text-white',
+    },
 });
 
 const tonePalette = {
@@ -156,6 +164,9 @@ onBeforeUnmount(() => {
                 :data-tone="props.tone || null"
                 :style="toneStyle">
                 <slot name="icon"/>
+                <span v-if="badge" :class="badgeClass">
+                    {{ badge > 9 ? '9+' : badge }}
+                </span>
             </span>
             <span v-if="!compact">{{ label }}</span>
             <span v-else class="sr-only">{{ label }}</span>
