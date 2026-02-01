@@ -139,6 +139,13 @@ const kpiIconStyles = {
     red: 'bg-red-500/90 text-white shadow-red-500/30',
 };
 
+const kpiBorderStyles = {
+    emerald: 'border-t-emerald-500 dark:border-t-emerald-400',
+    sky: 'border-t-sky-500 dark:border-t-sky-400',
+    amber: 'border-t-amber-500 dark:border-t-amber-400',
+    red: 'border-t-red-500 dark:border-t-red-400',
+};
+
 const performanceKpiIcons = {
     revenue: ['M12 6v12', 'M8.5 9.5a3.5 3.5 0 117 0c0 1.933-1.567 3.5-3.5 3.5S8.5 11.433 8.5 9.5z'],
     orders: ['M3 3h2l.4 2', 'M7 13h10l4-8H5.4', 'M7 13L5.4 5', 'M7 13l-2 6', 'M17 13l2 6'],
@@ -283,7 +290,7 @@ const skeletonRows = Array.from({ length: 4 }, (_, index) => index);
                     v-if="isHydrating"
                     v-for="index in skeletonKpis"
                     :key="`kpi-skeleton-${index}`"
-                    class="rise-in rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900"
+                    class="rise-in rounded-sm border border-t-4 border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:border-t-neutral-600 dark:bg-neutral-900"
                     :style="{ animationDelay: `${index * 80}ms` }"
                 >
                     <div class="flex items-center justify-between gap-3 animate-pulse">
@@ -298,7 +305,8 @@ const skeletonRows = Array.from({ length: 4 }, (_, index) => index);
                     v-else
                     v-for="(card, index) in kpiCards"
                     :key="card.label"
-                    class="rise-in rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900"
+                    class="rise-in rounded-sm border border-t-4 border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900"
+                    :class="kpiBorderStyles[card.tone] || 'border-t-stone-300 dark:border-t-neutral-600'"
                     :style="{ animationDelay: `${index * 80}ms` }"
                 >
                     <div class="flex items-center justify-between gap-3">
@@ -379,7 +387,7 @@ const skeletonRows = Array.from({ length: 4 }, (_, index) => index);
                             v-if="isHydrating"
                             v-for="index in skeletonKpis"
                             :key="`perf-kpi-skeleton-${index}`"
-                            class="rounded-sm border border-stone-200 bg-white p-3 text-xs text-stone-500 animate-pulse dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-400"
+                            class="rounded-sm border border-t-4 border-stone-200 bg-white p-3 text-xs text-stone-500 animate-pulse dark:border-neutral-700 dark:border-t-neutral-600 dark:bg-neutral-900 dark:text-neutral-400"
                         >
                             <div class="flex items-start justify-between gap-2">
                                 <div class="space-y-2">
@@ -393,7 +401,8 @@ const skeletonRows = Array.from({ length: 4 }, (_, index) => index);
                             v-else
                             v-for="card in performanceKpis"
                             :key="card.label"
-                            class="rounded-sm border border-stone-200 bg-white p-3 text-xs text-stone-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-400"
+                            class="rounded-sm border border-t-4 border-stone-200 bg-white p-3 text-xs text-stone-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-400"
+                            :class="kpiBorderStyles[card.tone] || 'border-t-stone-300 dark:border-t-neutral-600'"
                         >
                             <div class="flex items-start justify-between gap-2">
                                 <div>

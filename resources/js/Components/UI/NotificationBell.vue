@@ -1,5 +1,5 @@
 <script setup>
-import { computed, nextTick, onBeforeUnmount, ref } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import { router, usePage } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
 
@@ -24,12 +24,15 @@ const { t } = useI18n();
 const notifications = computed(() => page.props.notifications?.items || []);
 const unreadCount = computed(() => page.props.notifications?.unread_count || 0);
 const hasNotifications = computed(() => notifications.value.length > 0);
+const shouldPoll = computed(() => Boolean(page.props.notifications));
 
 const isOpen = ref(false);
 const toggleRef = ref(null);
 const menuRef = ref(null);
 const menuStyle = ref({});
 let listenersBound = false;
+const pollIntervalMs = 30000;
+let pollTimer = null;
 
 const formatDate = (value) => {
     if (!value) {
@@ -116,6 +119,37 @@ const handleOutsideClick = (event) => {
     closeMenu();
 };
 
+const pollNotifications = () => {
+    if (document.visibilityState !== 'visible' || isOpen.value) {
+        return;
+    }
+    router.reload({ only: ['notifications', 'planning'], preserveScroll: true, preserveState: true });
+};
+
+const startPolling = () => {
+    if (pollTimer || !shouldPoll.value) {
+        return;
+    }
+    pollTimer = window.setInterval(pollNotifications, pollIntervalMs);
+};
+
+const stopPolling = () => {
+    if (!pollTimer) {
+        return;
+    }
+    window.clearInterval(pollTimer);
+    pollTimer = null;
+};
+
+const handleVisibilityChange = () => {
+    if (document.visibilityState === 'visible') {
+        startPolling();
+        pollNotifications();
+        return;
+    }
+    stopPolling();
+};
+
 const markAllRead = () => {
     if (!unreadCount.value) {
         return;
@@ -177,7 +211,19 @@ const openNotification = (notification, event) => {
 };
 
 onBeforeUnmount(() => {
+    stopPolling();
+    document.removeEventListener('visibilitychange', handleVisibilityChange);
     removeListeners();
+});
+
+onMounted(() => {
+    if (!page.props.auth?.user || !shouldPoll.value) {
+        return;
+    }
+    if (document.visibilityState === 'visible') {
+        startPolling();
+    }
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 });
 </script>
 

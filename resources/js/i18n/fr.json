@@ -483,6 +483,15 @@
       "role_owner": "Propriétaire",
       "status_active": "Actif",
       "status_inactive": "Inactif",
+      "time_off_title": "Absences & congés",
+      "time_off_recent": "Dernières absences",
+      "time_off_none": "Aucune absence enregistrée.",
+      "time_off_upcoming": "Absences à venir",
+      "time_off_upcoming_empty": "Aucune absence à venir.",
+      "time_off_upcoming_range": "Période : {start} → {end}",
+      "absence_days": "Jours d'absence",
+      "leave_days": "Jours de congé",
+      "partial_hours": "Heures partielles",
       "top_products": "Meilleurs produits",
       "top_customers": "Meilleurs clients",
       "top_jobs": "Meilleures interventions",
@@ -539,6 +548,15 @@
     "empty": "Aucun membre a afficher."
   },
   "planning": {
+    "absence_overview": {
+      "title": "Absences & congés",
+      "week_range": "Cette semaine",
+      "today": "Aujourd'hui",
+      "week": "Cette semaine",
+      "empty_today": "Aucune absence aujourd'hui.",
+      "empty_week": "Aucune absence cette semaine.",
+      "more_week": "+{count} autres"
+    },
     "title": "Planning",
     "subtitle": "Planifier les shifts et recurrences pour l equipe de vente.",
     "subtitle_services": "Planifier les interventions et taches de l equipe.",
@@ -564,22 +582,39 @@
       "empty": "Aucun shift sur cette periode.",
       "empty_services": "Aucune intervention ni tache sur cette periode."
     },
+    "kinds": {
+      "shift": "Shift",
+      "absence": "Absence",
+      "leave": "Conge"
+    },
     "form": {
       "title": "Ajouter un shift",
+      "title_absence": "Signaler une absence",
+      "title_leave": "Signaler un conge",
+      "kind": "Type",
       "member": "Employe",
       "date": "Date du shift",
+      "start_date": "Date de debut",
+      "end_date": "Date de fin",
+      "duration": "Duree",
+      "full_day": "Journee entiere",
+      "hours": "Quelques heures",
       "start_time": "Heure de debut",
       "end_time": "Heure de fin",
       "shift_title": "Titre du shift",
       "notes": "Notes",
+      "reason": "Motif / notes",
       "recurring": "Shift recurrent",
       "frequency": "Frequence",
       "recurrence_end": "Repeter jusqu au",
       "weekdays": "Jours de semaine",
       "month_day": "Jour du mois",
       "create": "Creer le shift",
-      "creating": "Creation..."
+      "creating": "Creation...",
+      "save_time_off": "Enregistrer",
+      "saving_time_off": "Enregistrement..."
     },
+    "all_day": "Toute la journee",
     "frequency": {
       "daily": "Quotidien",
       "weekly": "Hebdomadaire",
@@ -598,11 +633,36 @@
     "errors": {
       "load": "Impossible de charger les shifts.",
       "save": "Impossible d enregistrer le shift.",
-      "delete": "Impossible de supprimer le shift."
+      "delete": "Impossible de supprimer le shift.",
+      "status": "Impossible de mettre à jour le statut."
     },
     "notices": {
       "created": "{count} shift(s) cree(s).",
+      "absence_created": "Absence enregistree.",
+      "absence_created_many": "{count} jours d'absence enregistres.",
+      "leave_created": "Conge enregistre.",
+      "leave_created_many": "{count} jours de conge enregistres.",
+      "absence_deleted": "Absence supprimee.",
+      "leave_deleted": "Conge supprime.",
+      "approved": "Demande approuvée.",
+      "rejected": "Demande refusée.",
       "deleted": "Shift supprime."
+    },
+    "status": {
+      "label": "Statut",
+      "pending": "En attente",
+      "approved": "Approuve",
+      "rejected": "Refuse",
+      "approve": "Approuver",
+      "approving": "Approbation...",
+      "reject": "Refuser",
+      "rejecting": "Refus..."
+    },
+    "pending": {
+      "title": "Demandes en attente",
+      "empty": "Aucune demande en attente.",
+      "count": "{count} en attente",
+      "more": "+{count} autres demandes"
     },
     "empty": {
       "title": "Planning verrouille",
@@ -614,7 +674,11 @@
     },
     "delete": {
       "title": "Supprimer le shift",
+      "absence_title": "Supprimer l'absence",
+      "leave_title": "Supprimer le conge",
       "description": "Retirer ce shift du planning ?",
+      "absence_description": "Retirer cette absence du planning ?",
+      "leave_description": "Retirer ce conge du planning ?",
       "confirm": "Supprimer",
       "cancel": "Annuler",
       "deleting": "Suppression..."

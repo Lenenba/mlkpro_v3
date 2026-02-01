@@ -330,6 +330,20 @@ const kpiStyles = {
     revenue_per_member: 'bg-cyan-500/90 text-white shadow-cyan-500/30',
 };
 
+const kpiBorderStyles = {
+    revenue: 'border-t-emerald-500 dark:border-t-emerald-400',
+    orders: 'border-t-sky-500 dark:border-t-sky-400',
+    items_sold: 'border-t-amber-500 dark:border-t-amber-400',
+    jobs: 'border-t-indigo-500 dark:border-t-indigo-400',
+    tasks: 'border-t-rose-500 dark:border-t-rose-400',
+    avg_order: 'border-t-violet-500 dark:border-t-violet-400',
+    avg_job: 'border-t-violet-500 dark:border-t-violet-400',
+    customers: 'border-t-rose-500 dark:border-t-rose-400',
+    avg_customer_value: 'border-t-teal-500 dark:border-t-teal-400',
+    revenue_per_seller: 'border-t-cyan-500 dark:border-t-cyan-400',
+    revenue_per_member: 'border-t-cyan-500 dark:border-t-cyan-400',
+};
+
 const buildKpis = (items) =>
     items.map((item) => {
         const iconKey = item.iconKey || item.key;
@@ -337,6 +351,7 @@ const buildKpis = (items) =>
             ...item,
             icon: kpiIcons[iconKey],
             iconClass: kpiStyles[iconKey] || 'bg-stone-600/90 text-white shadow-stone-500/30',
+            borderClass: kpiBorderStyles[iconKey] || 'border-t-stone-300 dark:border-t-neutral-600',
         };
     });
 
@@ -497,7 +512,7 @@ const skeletonRows = Array.from({ length: 4 }, (_, index) => index);
                         v-if="isHydrating"
                         v-for="index in skeletonKpis"
                         :key="`client-kpi-skeleton-${index}`"
-                        class="rounded-sm border border-stone-200 bg-white p-4 text-xs text-stone-500 shadow-sm animate-pulse dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-400"
+                        class="rounded-sm border border-t-4 border-stone-200 bg-white p-4 text-xs text-stone-500 shadow-sm animate-pulse dark:border-neutral-700 dark:border-t-neutral-600 dark:bg-neutral-900 dark:text-neutral-400"
                     >
                         <div class="flex items-start justify-between gap-2">
                             <div class="space-y-2">
@@ -511,7 +526,8 @@ const skeletonRows = Array.from({ length: 4 }, (_, index) => index);
                         v-else
                         v-for="card in clientKpis"
                         :key="card.label"
-                        class="rounded-sm border border-stone-200 bg-white p-4 text-xs text-stone-500 shadow-sm dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-400"
+                        class="rounded-sm border border-t-4 border-stone-200 bg-white p-4 text-xs text-stone-500 shadow-sm dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-400"
+                        :class="card.borderClass"
                     >
                         <div class="flex items-start justify-between gap-2">
                             <div>
@@ -667,7 +683,7 @@ const skeletonRows = Array.from({ length: 4 }, (_, index) => index);
                         v-if="isHydrating"
                         v-for="index in skeletonKpis"
                         :key="`employee-kpi-skeleton-${index}`"
-                        class="rounded-sm border border-stone-200 bg-white p-4 text-xs text-stone-500 shadow-sm animate-pulse dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-400"
+                        class="rounded-sm border border-t-4 border-stone-200 bg-white p-4 text-xs text-stone-500 shadow-sm animate-pulse dark:border-neutral-700 dark:border-t-neutral-600 dark:bg-neutral-900 dark:text-neutral-400"
                     >
                         <div class="flex items-start justify-between gap-2">
                             <div class="space-y-2">
@@ -681,7 +697,8 @@ const skeletonRows = Array.from({ length: 4 }, (_, index) => index);
                         v-else
                         v-for="card in employeeKpis"
                         :key="card.label"
-                        class="rounded-sm border border-stone-200 bg-white p-4 text-xs text-stone-500 shadow-sm dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-400"
+                        class="rounded-sm border border-t-4 border-stone-200 bg-white p-4 text-xs text-stone-500 shadow-sm dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-400"
+                        :class="card.borderClass"
                     >
                         <div class="flex items-start justify-between gap-2">
                             <div>

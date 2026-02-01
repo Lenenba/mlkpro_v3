@@ -361,7 +361,12 @@ class PublicStoreController extends Controller
                 'warehouse' => $warehouse,
                 'reference' => $sale,
                 'reason' => 'sale_reservation',
+                'skip_sync' => true,
             ]);
+        }
+
+        if ($productIds->isNotEmpty()) {
+            $inventoryService->syncReservedForProducts($accountId, $productIds->all(), $warehouse->id);
         }
     }
 

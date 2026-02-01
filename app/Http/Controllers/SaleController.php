@@ -1550,9 +1550,12 @@ class SaleController extends Controller
                     'warehouse' => $warehouse,
                     'reference' => $sale,
                     'reason' => 'sale_reservation',
+                    'skip_sync' => true,
                 ]);
             }
         }
+
+        $inventoryService->syncReservedForProducts($accountId, $productIds, $warehouse->id);
     }
 
     private function generatePickupCode(): string

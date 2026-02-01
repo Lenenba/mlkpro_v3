@@ -672,6 +672,44 @@ class LaunchSeeder extends Seeder
             $productSellerUserThree,
         ])->filter();
 
+        $pendingServiceDate = $now->copy()->addDays(3)->toDateString();
+        if ($memberMember?->id && $memberUser?->id) {
+            TeamMemberShift::updateOrCreate(
+                [
+                    'account_id' => $serviceOwner->id,
+                    'team_member_id' => $memberMember->id,
+                    'shift_date' => $pendingServiceDate,
+                    'kind' => 'absence',
+                    'start_time' => '00:00:00',
+                ],
+                [
+                    'created_by_user_id' => $memberUser->id,
+                    'status' => 'pending',
+                    'end_time' => '23:59:00',
+                    'notes' => 'Seeded pending absence request.',
+                ]
+            );
+        }
+
+        $pendingProductDate = $now->copy()->addDays(5)->toDateString();
+        if ($productSellerMember?->id && $productSellerUser?->id) {
+            TeamMemberShift::updateOrCreate(
+                [
+                    'account_id' => $productOwner->id,
+                    'team_member_id' => $productSellerMember->id,
+                    'shift_date' => $pendingProductDate,
+                    'kind' => 'leave',
+                    'start_time' => '00:00:00',
+                ],
+                [
+                    'created_by_user_id' => $productSellerUser->id,
+                    'status' => 'pending',
+                    'end_time' => '23:59:00',
+                    'notes' => 'Seeded pending leave request.',
+                ]
+            );
+        }
+
         $serviceCategory = ProductCategory::resolveForAccount($serviceOwner->id, $serviceOwner->id, 'Services');
         $productCategoryNames = [
             'Products',

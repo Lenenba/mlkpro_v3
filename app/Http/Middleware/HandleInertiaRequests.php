@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Models\User;
+use App\Models\TeamMemberShift;
 use App\Models\PlatformSetting;
 use App\Services\CompanyFeatureService;
 use Illuminate\Http\Request;
@@ -102,6 +103,26 @@ class HandleInertiaRequests extends Middleware
             ];
         }
 
+        $planningPendingCount = 0;
+        if ($user && $accountOwner && ($accountFeatures['planning'] ?? false)) {
+            $isServiceCompany = $accountOwner->company_type !== 'products';
+            $canApproveTimeOff = $user->id === $accountOwner->id;
+            if ($teamMembership) {
+                $isRoleApprover = in_array($teamMembership->role, ['admin', 'sales_manager'], true);
+                $hasManagePermission = $isServiceCompany
+                    ? ($teamMembership->hasPermission('jobs.edit') || $teamMembership->hasPermission('tasks.edit'))
+                    : $teamMembership->hasPermission('sales.manage');
+                $canApproveTimeOff = $canApproveTimeOff || $isRoleApprover || $hasManagePermission;
+            }
+            if ($canApproveTimeOff) {
+                $planningPendingCount = TeamMemberShift::query()
+                    ->where('account_id', $accountOwner->id)
+                    ->whereIn('kind', ['absence', 'leave'])
+                    ->where('status', 'pending')
+                    ->count();
+            }
+        }
+
         $assistantEnabled = (bool) config('services.openai.key');
         if (!$user) {
             $assistantEnabled = false;
@@ -142,6 +163,9 @@ class HandleInertiaRequests extends Middleware
                 'maintenance' => $maintenance,
             ],
             'notifications' => $notifications,
+            'planning' => [
+                'pending_count' => $planningPendingCount,
+            ],
             'locale' => app()->getLocale(),
             'locales' => ['fr', 'en'],
             'demo' => [

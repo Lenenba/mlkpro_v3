@@ -6,6 +6,7 @@ use App\Models\Product;
 use App\Models\ProductInventory;
 use App\Models\ProductLot;
 use App\Models\ProductStockMovement;
+use App\Models\Sale;
 use App\Models\TeamMember;
 use App\Models\User;
 use App\Notifications\LowStockNotification;
@@ -175,10 +176,98 @@ class InventoryService
         $this->syncProductStock($product);
     }
 
+    public function syncReservedForProducts(int $accountId, $productIds, ?int $warehouseId = null): array
+    {
+        $ids = collect($productIds)
+            ->filter()
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values();
+
+        if ($ids->isEmpty()) {
+            return [];
+        }
+
+        $products = Product::query()
+            ->where('user_id', $accountId)
+            ->whereIn('id', $ids)
+            ->get()
+            ->keyBy('id');
+
+        if ($products->isEmpty()) {
+            return [];
+        }
+
+        $warehouse = $this->resolveWarehouseForAccount($warehouseId, $accountId);
+
+        $reservedTotals = DB::table('sale_items')
+            ->join('sales', 'sale_items.sale_id', '=', 'sales.id')
+            ->where('sales.user_id', $accountId)
+            ->whereIn('sale_items.product_id', $products->keys())
+            ->where('sales.status', Sale::STATUS_PENDING)
+            ->where(function ($query) {
+                $query->whereNull('sales.fulfillment_status')
+                    ->orWhereNotIn('sales.fulfillment_status', [
+                        Sale::FULFILLMENT_COMPLETED,
+                        Sale::FULFILLMENT_CONFIRMED,
+                    ]);
+            })
+            ->groupBy('sale_items.product_id')
+            ->select([
+                'sale_items.product_id',
+                DB::raw('SUM(sale_items.quantity) as quantity'),
+            ])
+            ->pluck('quantity', 'sale_items.product_id');
+
+        $reservedMap = [];
+        foreach ($products as $product) {
+            $reservedMap[$product->id] = (int) ($reservedTotals[$product->id] ?? 0);
+        }
+
+        DB::transaction(function () use ($products, $warehouse, $reservedMap) {
+            foreach ($products as $product) {
+                $inventory = $this->ensureInventory($product, $warehouse);
+                $next = (int) ($reservedMap[$product->id] ?? 0);
+                if ((int) $inventory->reserved !== $next) {
+                    $inventory->reserved = $next;
+                    $inventory->save();
+                }
+            }
+
+            ProductInventory::query()
+                ->whereIn('product_id', $products->keys())
+                ->where('warehouse_id', '!=', $warehouse->id)
+                ->where('reserved', '>', 0)
+                ->update(['reserved' => 0]);
+        });
+
+        foreach ($products as $product) {
+            $this->recalculateProductStock($product);
+        }
+
+        return $reservedMap;
+    }
+
     private function resolveWarehouse(Product $product, ?int $warehouseId, ?int $accountId = null): Warehouse
     {
         $accountId = $accountId ?? $product->user_id;
 
+        if ($warehouseId) {
+            $warehouse = Warehouse::query()
+                ->forAccount($accountId)
+                ->whereKey($warehouseId)
+                ->first();
+
+            if ($warehouse) {
+                return $warehouse;
+            }
+        }
+
+        return $this->resolveDefaultWarehouse($accountId);
+    }
+
+    private function resolveWarehouseForAccount(?int $warehouseId, int $accountId): Warehouse
+    {
         if ($warehouseId) {
             $warehouse = Warehouse::query()
                 ->forAccount($accountId)
