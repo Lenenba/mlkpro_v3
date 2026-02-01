@@ -75,6 +75,7 @@ class CompanySettingsController extends Controller
                 'company_type' => $user->company_type,
                 'fulfillment' => $user->company_fulfillment ?? null,
                 'store_settings' => $user->company_store_settings ?? null,
+                'time_settings' => $user->company_time_settings ?? null,
                 'company_notification_settings' => $notificationSettings,
             ],
             'store_products' => Product::query()
@@ -152,6 +153,10 @@ class CompanySettingsController extends Controller
             'company_store_settings.hero_captions.fr.*' => 'nullable|string|max:5000',
             'company_store_settings.hero_captions.en' => 'nullable|array',
             'company_store_settings.hero_captions.en.*' => 'nullable|string|max:5000',
+            'company_time_settings' => 'nullable|array',
+            'company_time_settings.auto_clock_in' => 'nullable|boolean',
+            'company_time_settings.auto_clock_out' => 'nullable|boolean',
+            'company_time_settings.manual_clock' => 'nullable|boolean',
             'company_notification_settings' => 'nullable|array',
             'company_notification_settings.task_day' => 'nullable|array',
             'company_notification_settings.task_day.email' => 'nullable|boolean',
@@ -305,6 +310,16 @@ class CompanySettingsController extends Controller
                 ->mergeSettings($user, $validated['company_notification_settings'] ?? []);
         }
 
+        $timeSettings = $user->company_time_settings;
+        if (array_key_exists('company_time_settings', $validated)) {
+            $timeInput = is_array($validated['company_time_settings']) ? $validated['company_time_settings'] : [];
+            $timeSettings = [
+                'auto_clock_in' => filter_var($timeInput['auto_clock_in'] ?? false, FILTER_VALIDATE_BOOLEAN),
+                'auto_clock_out' => filter_var($timeInput['auto_clock_out'] ?? false, FILTER_VALIDATE_BOOLEAN),
+                'manual_clock' => filter_var($timeInput['manual_clock'] ?? false, FILTER_VALIDATE_BOOLEAN),
+            ];
+        }
+
         $companySlug = $this->resolveCompanySlug($validated, $user);
 
         $user->update([
@@ -325,6 +340,7 @@ class CompanySettingsController extends Controller
             'company_fulfillment' => $fulfillment,
             'company_store_settings' => $storeSettings,
             'company_notification_settings' => $notificationSettings,
+            'company_time_settings' => $timeSettings,
         ]);
 
         if ($this->shouldReturnJson($request)) {

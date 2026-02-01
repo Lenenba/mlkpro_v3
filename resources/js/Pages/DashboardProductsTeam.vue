@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Head, Link, router } from '@inertiajs/vue3';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
@@ -27,6 +27,14 @@ const props = defineProps({
 
 const { t } = useI18n();
 
+const isHydrating = ref(true);
+
+onMounted(() => {
+    setTimeout(() => {
+        isHydrating.value = false;
+    }, 450);
+});
+
 const formatCurrency = (value) =>
     `$${Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
@@ -37,21 +45,25 @@ const kpiCards = computed(() => ([
     {
         label: t('dashboard_products.team.kpi.sales_today'),
         value: formatNumber(props.stats.sales_today),
+        icon: 'bag',
         tone: 'emerald',
     },
     {
         label: t('dashboard_products.team.kpi.revenue_today'),
         value: formatCurrency(props.stats.revenue_today),
+        icon: 'cash',
         tone: 'sky',
     },
     {
         label: t('dashboard_products.team.kpi.low_stock'),
         value: formatNumber(props.stats.low_stock),
+        icon: 'alert',
         tone: 'amber',
     },
     {
         label: t('dashboard_products.team.kpi.out_of_stock'),
         value: formatNumber(props.stats.out_of_stock),
+        icon: 'warning',
         tone: 'red',
     },
 ]));
@@ -93,12 +105,15 @@ const requestSupplierStock = (product) => {
     });
 };
 
-const kpiTone = {
-    red: 'bg-red-100 text-red-700 dark:bg-red-500/10 dark:text-red-300',
-    amber: 'bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300',
-    sky: 'bg-sky-100 text-sky-700 dark:bg-sky-500/10 dark:text-sky-300',
-    emerald: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300',
+const kpiIconStyles = {
+    emerald: 'bg-emerald-500/90 text-white shadow-emerald-500/30',
+    sky: 'bg-sky-500/90 text-white shadow-sky-500/30',
+    amber: 'bg-amber-500/90 text-white shadow-amber-500/30',
+    red: 'bg-red-500/90 text-white shadow-red-500/30',
 };
+
+const skeletonKpis = Array.from({ length: 4 }, (_, index) => index);
+const skeletonRows = Array.from({ length: 4 }, (_, index) => index);
 </script>
 
 <template>
@@ -125,6 +140,22 @@ const kpiTone = {
 
             <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
                 <div
+                    v-if="isHydrating"
+                    v-for="index in skeletonKpis"
+                    :key="`team-kpi-skeleton-${index}`"
+                    class="rise-in rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900"
+                    :style="{ animationDelay: `${index * 80}ms` }"
+                >
+                    <div class="flex items-center justify-between gap-3 animate-pulse">
+                        <div class="space-y-2">
+                            <div class="h-3 w-20 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
+                            <div class="h-5 w-24 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
+                        </div>
+                        <div class="h-9 w-9 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
+                    </div>
+                </div>
+                <div
+                    v-else
                     v-for="(card, index) in kpiCards"
                     :key="card.label"
                     class="rise-in rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900"
@@ -135,7 +166,30 @@ const kpiTone = {
                             <p class="text-xs uppercase text-stone-400">{{ card.label }}</p>
                             <p class="mt-1 text-lg font-semibold text-stone-800 dark:text-neutral-100">{{ card.value }}</p>
                         </div>
-                        <span class="h-9 w-9 rounded-full" :class="kpiTone[card.tone]"></span>
+                        <span
+                            class="flex h-9 w-9 items-center justify-center rounded-full shadow-lg ring-1 ring-white/20 animate-[pulse_3s_ease-in-out_infinite]"
+                            :class="kpiIconStyles[card.tone] || 'bg-stone-600/90 text-white shadow-stone-500/30'"
+                        >
+                            <svg v-if="card.icon === 'bag'" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="m6 2 1.5 6h9L18 2" />
+                                <path d="M4 8h16l-1 12H5z" />
+                                <path d="M9 12h6" />
+                            </svg>
+                            <svg v-else-if="card.icon === 'cash'" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="2" y="5" width="20" height="14" rx="2" />
+                                <path d="M16 10a4 4 0 1 1-8 0 4 4 0 0 1 8 0Z" />
+                            </svg>
+                            <svg v-else-if="card.icon === 'alert'" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="m21.73 18-8-14a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
+                                <path d="M12 9v4" />
+                                <path d="M12 17h.01" />
+                            </svg>
+                            <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M12 9v4" />
+                                <path d="M12 17h.01" />
+                                <path d="m21.73 18-8-14a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
+                            </svg>
+                        </span>
                     </div>
                 </div>
             </div>
@@ -143,7 +197,23 @@ const kpiTone = {
             <div class="grid grid-cols-1 gap-4 lg:grid-cols-3">
                 <Card class="rise-in lg:col-span-2" :style="{ animationDelay: '120ms' }">
                     <template #title>{{ $t('dashboard_products.common.recent_sales_title') }}</template>
-                    <div v-if="!recentSales.length" class="text-sm text-stone-500 dark:text-neutral-400">
+                    <div v-if="isHydrating" class="divide-y divide-stone-200 dark:divide-neutral-700">
+                        <div
+                            v-for="index in skeletonRows"
+                            :key="`team-sale-skeleton-${index}`"
+                            class="flex items-center justify-between gap-3 py-3 text-sm animate-pulse"
+                        >
+                            <div class="space-y-2">
+                                <div class="h-3 w-32 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
+                                <div class="h-3 w-40 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
+                            </div>
+                            <div class="space-y-2 text-right">
+                                <div class="h-3 w-16 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
+                                <div class="h-4 w-14 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div v-else-if="!recentSales.length" class="text-sm text-stone-500 dark:text-neutral-400">
                         {{ $t('dashboard_products.common.recent_sales_empty') }}
                     </div>
                     <div v-else class="divide-y divide-stone-200 dark:divide-neutral-700">
@@ -173,7 +243,26 @@ const kpiTone = {
 
                 <Card class="rise-in" :style="{ animationDelay: '160ms' }">
                     <template #title>{{ $t('dashboard_products.common.stock_alerts_title') }}</template>
-                    <div v-if="!stockAlerts.length" class="text-sm text-stone-500 dark:text-neutral-400">
+                    <div v-if="isHydrating" class="space-y-3">
+                        <div
+                            v-for="index in skeletonRows"
+                            :key="`team-stock-skeleton-${index}`"
+                            class="space-y-2 animate-pulse"
+                        >
+                            <div class="flex items-center justify-between">
+                                <div class="space-y-2">
+                                    <div class="h-3 w-32 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
+                                    <div class="h-3 w-40 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
+                                </div>
+                                <div class="h-4 w-16 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <div class="h-3 w-24 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
+                                <div class="h-6 w-20 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div v-else-if="!stockAlerts.length" class="text-sm text-stone-500 dark:text-neutral-400">
                         {{ $t('dashboard_products.common.stock_alerts_empty') }}
                     </div>
                     <div v-else class="space-y-3">
@@ -210,9 +299,22 @@ const kpiTone = {
                 </Card>
             </div>
 
-            <Card v-if="topProducts.length" class="rise-in" :style="{ animationDelay: '200ms' }">
+            <Card v-if="isHydrating || topProducts.length" class="rise-in" :style="{ animationDelay: '200ms' }">
                 <template #title>{{ $t('dashboard_products.common.top_products_title') }}</template>
-                <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+                <div v-if="isHydrating" class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+                    <div
+                        v-for="index in skeletonRows"
+                        :key="`team-top-product-skeleton-${index}`"
+                        class="flex items-center gap-3 rounded-sm border border-stone-200 p-3 animate-pulse dark:border-neutral-700"
+                    >
+                        <div class="h-12 w-12 rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                        <div class="flex-1 space-y-2">
+                            <div class="h-3 w-28 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
+                            <div class="h-3 w-24 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
+                        </div>
+                    </div>
+                </div>
+                <div v-else class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
                     <div v-for="product in topProducts" :key="product.id" class="flex items-center gap-3 rounded-sm border border-stone-200 p-3 dark:border-neutral-700">
                         <img
                             :src="product.image_url"

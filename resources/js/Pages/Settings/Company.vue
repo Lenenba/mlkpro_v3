@@ -289,6 +289,9 @@ const form = useForm({
     notification_task_day_email: props.company.company_notification_settings?.task_day?.email ?? true,
     notification_task_day_sms: props.company.company_notification_settings?.task_day?.sms ?? false,
     notification_task_day_whatsapp: props.company.company_notification_settings?.task_day?.whatsapp ?? false,
+    presence_auto_clock_in: toBool(props.company.time_settings?.auto_clock_in ?? true),
+    presence_auto_clock_out: toBool(props.company.time_settings?.auto_clock_out ?? true),
+    presence_manual_clock: toBool(props.company.time_settings?.manual_clock ?? true),
     supplier_enabled: initialEnabledSuppliers,
     supplier_preferred: initialPreferredSuppliers,
     custom_suppliers: initialCustomSuppliers,
@@ -937,6 +940,12 @@ const submit = () => {
                 },
             };
 
+            payload.company_time_settings = {
+                auto_clock_in: Boolean(data.presence_auto_clock_in),
+                auto_clock_out: Boolean(data.presence_auto_clock_out),
+                manual_clock: Boolean(data.presence_manual_clock),
+            };
+
             delete payload.fulfillment_delivery_enabled;
             delete payload.fulfillment_pickup_enabled;
             delete payload.fulfillment_delivery_fee;
@@ -955,6 +964,9 @@ const submit = () => {
             delete payload.notification_task_day_email;
             delete payload.notification_task_day_sms;
             delete payload.notification_task_day_whatsapp;
+            delete payload.presence_auto_clock_in;
+            delete payload.presence_auto_clock_out;
+            delete payload.presence_manual_clock;
 
             if (data.company_logo instanceof File) {
                 payload.company_logo = data.company_logo;
@@ -1238,6 +1250,34 @@ watch(activeTab, (value) => {
                                 <span>{{ $t('settings.company.notifications.whatsapp') }}</span>
                             </label>
                         </div>
+                    </div>
+
+                    <div v-if="isProductCompany" class="rounded-sm border border-stone-200 bg-stone-50 p-4 space-y-3 dark:border-neutral-700 dark:bg-neutral-900">
+                        <div>
+                            <h3 class="text-sm font-semibold text-stone-800 dark:text-neutral-200">
+                                {{ $t('settings.company.presence.title') }}
+                            </h3>
+                            <p class="text-xs text-stone-500 dark:text-neutral-400">
+                                {{ $t('settings.company.presence.description') }}
+                            </p>
+                        </div>
+                        <div class="flex flex-wrap gap-4 text-sm text-stone-700 dark:text-neutral-200">
+                            <label class="flex items-center gap-2">
+                                <input type="checkbox" v-model="form.presence_auto_clock_in" />
+                                <span>{{ $t('settings.company.presence.auto_clock_in') }}</span>
+                            </label>
+                            <label class="flex items-center gap-2">
+                                <input type="checkbox" v-model="form.presence_auto_clock_out" />
+                                <span>{{ $t('settings.company.presence.auto_clock_out') }}</span>
+                            </label>
+                            <label class="flex items-center gap-2">
+                                <input type="checkbox" v-model="form.presence_manual_clock" />
+                                <span>{{ $t('settings.company.presence.manual_clock') }}</span>
+                            </label>
+                        </div>
+                        <p class="text-xs text-stone-500 dark:text-neutral-400">
+                            {{ $t('settings.company.presence.manual_hint') }}
+                        </p>
                     </div>
 
                     <div v-if="isProductCompany" class="rounded-sm border border-stone-200 bg-stone-50 p-4 space-y-3 dark:border-neutral-700 dark:bg-neutral-900">

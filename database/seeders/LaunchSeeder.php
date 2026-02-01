@@ -29,6 +29,8 @@ use App\Models\Task;
 use App\Models\TaskMaterial;
 use App\Models\TaskMedia;
 use App\Models\TeamMember;
+use App\Models\TeamMemberAttendance;
+use App\Models\TeamMemberShift;
 use App\Models\Transaction;
 use App\Models\User;
 use App\Models\Warehouse;
@@ -240,6 +242,11 @@ class LaunchSeeder extends Seeder
                     'prep_time_minutes' => 25,
                     'delivery_notes' => 'Delivery within 24 hours',
                     'pickup_notes' => 'Show your order number at pickup',
+                ],
+                'company_time_settings' => [
+                    'auto_clock_in' => true,
+                    'auto_clock_out' => true,
+                    'manual_clock' => true,
                 ],
                 'payment_methods' => ['cash', 'card'],
             ]
@@ -586,6 +593,84 @@ class LaunchSeeder extends Seeder
                 'is_active' => true,
             ]
         );
+
+        $productSalesManagerUser = User::updateOrCreate(
+            ['email' => 'sales.manager.products@example.com'],
+            [
+                'name' => 'Sales Manager',
+                'password' => Hash::make('password'),
+                'role_id' => $employeeRoleId,
+                'email_verified_at' => $now,
+            ]
+        );
+
+        TeamMember::updateOrCreate(
+            [
+                'account_id' => $productOwner->id,
+                'user_id' => $productSalesManagerUser->id,
+            ],
+            [
+                'role' => 'sales_manager',
+                'permissions' => [
+                    'sales.manage',
+                ],
+                'is_active' => true,
+            ]
+        );
+
+        $productSellerUserTwo = User::updateOrCreate(
+            ['email' => 'seller2.products@example.com'],
+            [
+                'name' => 'Product Seller Two',
+                'password' => Hash::make('password'),
+                'role_id' => $employeeRoleId,
+                'email_verified_at' => $now,
+            ]
+        );
+
+        TeamMember::updateOrCreate(
+            [
+                'account_id' => $productOwner->id,
+                'user_id' => $productSellerUserTwo->id,
+            ],
+            [
+                'role' => 'seller',
+                'permissions' => [
+                    'sales.pos',
+                ],
+                'is_active' => true,
+            ]
+        );
+
+        $productSellerUserThree = User::updateOrCreate(
+            ['email' => 'seller3.products@example.com'],
+            [
+                'name' => 'Product Seller Three',
+                'password' => Hash::make('password'),
+                'role_id' => $employeeRoleId,
+                'email_verified_at' => $now,
+            ]
+        );
+
+        TeamMember::updateOrCreate(
+            [
+                'account_id' => $productOwner->id,
+                'user_id' => $productSellerUserThree->id,
+            ],
+            [
+                'role' => 'seller',
+                'permissions' => [
+                    'sales.pos',
+                ],
+                'is_active' => true,
+            ]
+        );
+
+        $productSellerUsers = collect([
+            $productSellerUser,
+            $productSellerUserTwo,
+            $productSellerUserThree,
+        ])->filter();
 
         $serviceCategory = ProductCategory::resolveForAccount($serviceOwner->id, $serviceOwner->id, 'Services');
         $productCategoryNames = [
@@ -3008,6 +3093,219 @@ class LaunchSeeder extends Seeder
 
                     $setTimestamps($productReview, $reviewTimestamp->copy()->addMinutes($reviewIndex + 1));
                     $reviewIndex++;
+                }
+            }
+
+            $performanceSellerUsers = $productSellerUsers->values();
+            $performanceCustomers = collect([
+                $productCustomer,
+                $productCustomerRetail,
+                $productCustomerWholesale,
+            ])->filter()->values();
+            $performanceDayOffsets = [2, 5, 9, 12, 16, 20, 24, 27];
+            $monthsToSeed = 12;
+
+            for ($monthOffset = 0; $monthOffset < $monthsToSeed; $monthOffset += 1) {
+                $monthDate = $now->copy()->subMonths($monthOffset);
+                $monthBase = $monthDate->copy()->startOfMonth();
+                $monthKey = $monthDate->format('Y-m');
+
+                foreach ($performanceSellerUsers as $sellerIndex => $seller) {
+                    for ($saleIndex = 0; $saleIndex < 2; $saleIndex += 1) {
+                        $dayOffset = $performanceDayOffsets[($sellerIndex + $saleIndex + $monthOffset) % count($performanceDayOffsets)];
+                        $saleDate = $monthBase->copy()->addDays($dayOffset)->setTime(10 + ($saleIndex * 2), 15);
+                        $customer = $performanceCustomers->isNotEmpty()
+                            ? $performanceCustomers[($sellerIndex + $saleIndex + $monthOffset) % $performanceCustomers->count()]
+                            : null;
+                        $productIndex = ($sellerIndex + $saleIndex + $monthOffset) % $productSalesCatalog->count();
+                        $secondaryIndex = ($productIndex + 3) % $productSalesCatalog->count();
+                        $lines = [
+                            [
+                                'product' => $productSalesCatalog->get($productIndex),
+                                'quantity' => 1 + (($sellerIndex + $monthOffset) % 3),
+                            ],
+                            [
+                                'product' => $productSalesCatalog->get($secondaryIndex),
+                                'quantity' => 1 + (($saleIndex + $monthOffset) % 2),
+                            ],
+                        ];
+
+                        $createSale(
+                            "Seeded performance sale {$monthKey} Seller {$seller->id} #{$saleIndex}",
+                            $customer,
+                            Sale::STATUS_PAID,
+                            $lines,
+                            $saleDate,
+                            $seller->id
+                        );
+                    }
+                }
+
+                if ($performanceCustomers->isNotEmpty()) {
+                    $onlineDayOffset = $performanceDayOffsets[($monthOffset + 3) % count($performanceDayOffsets)];
+                    $onlineDate = $monthBase->copy()->addDays($onlineDayOffset)->setTime(15, 30);
+                    $onlineProductIndex = ($monthOffset + 1) % $productSalesCatalog->count();
+                    $onlineLines = [
+                        [
+                            'product' => $productSalesCatalog->get($onlineProductIndex),
+                            'quantity' => 1 + ($monthOffset % 3),
+                        ],
+                    ];
+
+                    $createSale(
+                        "Seeded performance sale {$monthKey} Online #1",
+                        $performanceCustomers[$monthOffset % $performanceCustomers->count()],
+                        Sale::STATUS_PAID,
+                        $onlineLines,
+                        $onlineDate,
+                        null,
+                        [],
+                        [
+                            'source' => 'portal',
+                            'created_by_user_id' => null,
+                        ]
+                    );
+                }
+            }
+
+            if ($performanceSellerUsers->isNotEmpty() && $productSalesCatalog->isNotEmpty()) {
+                $highlightCustomer = $performanceCustomers->first();
+                $daySeller = $performanceSellerUsers->first();
+                $weekSeller = $performanceSellerUsers->get(1) ?? $daySeller;
+
+                if ($daySeller) {
+                    $dayLines = [
+                        ['product' => $productSalesCatalog->get(0), 'quantity' => 4],
+                        ['product' => $productSalesCatalog->get(1), 'quantity' => 2],
+                    ];
+
+                    $createSale(
+                        'Seeded performance highlight - Today',
+                        $highlightCustomer,
+                        Sale::STATUS_PAID,
+                        $dayLines,
+                        $now->copy()->subHours(2),
+                        $daySeller->id
+                    );
+                }
+
+                if ($weekSeller) {
+                    $weekDate = $now->copy()->startOfWeek()->addDays(2)->setTime(11, 30);
+                    if ($weekDate->isSameDay($now)) {
+                        $alternateDate = $now->copy()->startOfWeek()->addDays(1)->setTime(11, 30);
+                        if ($alternateDate->isSameDay($now)) {
+                            $alternateDate = $now->copy()->startOfWeek()->setTime(11, 30);
+                        }
+                        $weekDate = $alternateDate;
+                    }
+
+                    $weekLines = [
+                        ['product' => $productSalesCatalog->get(2), 'quantity' => 8],
+                        ['product' => $productSalesCatalog->get(3), 'quantity' => 5],
+                    ];
+
+                    $createSale(
+                        'Seeded performance highlight - Week',
+                        $highlightCustomer,
+                        Sale::STATUS_PAID,
+                        $weekLines,
+                        $weekDate,
+                        $weekSeller->id
+                    );
+                }
+            }
+
+            $attendanceMembers = TeamMember::query()
+                ->where('account_id', $productOwner->id)
+                ->whereIn('user_id', $performanceSellerUsers->pluck('id')->all())
+                ->get()
+                ->keyBy('user_id');
+            $attendanceDayOffsets = [1, 2, 3, 5, 7, 9, 11, 14];
+            $attendanceShifts = [
+                ['08:45:00', '16:30:00'],
+                ['09:15:00', '17:10:00'],
+            ];
+
+            foreach ($performanceSellerUsers as $sellerIndex => $seller) {
+                $member = $attendanceMembers->get($seller->id);
+                foreach ($attendanceDayOffsets as $dayIndex => $dayOffset) {
+                    [$startTime, $endTime] = $attendanceShifts[($sellerIndex + $dayIndex) % count($attendanceShifts)];
+                    [$startHour, $startMinute, $startSecond] = array_pad(explode(':', $startTime), 3, 0);
+                    [$endHour, $endMinute, $endSecond] = array_pad(explode(':', $endTime), 3, 0);
+                    $clockIn = $now->copy()->subDays($dayOffset)->setTime((int) $startHour, (int) $startMinute, (int) $startSecond);
+                    $clockOut = $now->copy()->subDays($dayOffset)->setTime((int) $endHour, (int) $endMinute, (int) $endSecond);
+
+                    $attendance = TeamMemberAttendance::updateOrCreate(
+                        [
+                            'account_id' => $productOwner->id,
+                            'user_id' => $seller->id,
+                            'clock_in_at' => $clockIn,
+                        ],
+                        [
+                            'team_member_id' => $member?->id,
+                            'clock_out_at' => $clockOut,
+                            'method' => $dayIndex % 2 === 0 ? 'auto' : 'manual',
+                            'clock_out_method' => $dayIndex % 2 === 0 ? 'auto' : 'manual',
+                        ]
+                    );
+                    $setTimestamps($attendance, $clockOut);
+                }
+            }
+
+            $openSeller = $performanceSellerUsers->first();
+            if ($openSeller) {
+                $member = $attendanceMembers->get($openSeller->id);
+                $openClockIn = $now->copy()->subHours(2);
+                $attendance = TeamMemberAttendance::updateOrCreate(
+                    [
+                        'account_id' => $productOwner->id,
+                        'user_id' => $openSeller->id,
+                        'clock_in_at' => $openClockIn,
+                    ],
+                    [
+                        'team_member_id' => $member?->id,
+                        'clock_out_at' => null,
+                        'method' => 'auto',
+                        'clock_out_method' => null,
+                    ]
+                );
+                $setTimestamps($attendance, $openClockIn);
+            }
+
+            $shiftMembers = $attendanceMembers->values();
+            if ($shiftMembers->isNotEmpty()) {
+                $shiftStart = $now->copy()->startOfWeek();
+                $shiftTemplates = [
+                    ['offset' => 0, 'start' => '09:00:00', 'end' => '17:00:00', 'title' => 'Shift matin'],
+                    ['offset' => 2, 'start' => '12:00:00', 'end' => '20:00:00', 'title' => 'Shift apres-midi'],
+                    ['offset' => 4, 'start' => '08:30:00', 'end' => '16:30:00', 'title' => 'Shift complet'],
+                ];
+                $weeksToSeed = 4;
+
+                foreach ($shiftMembers as $member) {
+                    $groupId = Str::uuid()->toString();
+                    for ($week = 0; $week < $weeksToSeed; $week += 1) {
+                        foreach ($shiftTemplates as $templateIndex => $template) {
+                            $shiftDate = $shiftStart->copy()->addWeeks($week)->addDays($template['offset']);
+                            $shift = TeamMemberShift::updateOrCreate(
+                                [
+                                    'account_id' => $productOwner->id,
+                                    'team_member_id' => $member->id,
+                                    'shift_date' => $shiftDate->toDateString(),
+                                    'start_time' => $template['start'],
+                                ],
+                                [
+                                    'created_by_user_id' => $productOwner->id,
+                                    'title' => $template['title'],
+                                    'notes' => $templateIndex === 0 ? 'Seeded weekly shift.' : null,
+                                    'end_time' => $template['end'],
+                                    'recurrence_group_id' => $groupId,
+                                ]
+                            );
+                            $shiftTimestamp = $shiftDate->copy()->setTimeFromTimeString($template['start']);
+                            $setTimestamps($shift, $shiftTimestamp);
+                        }
+                    }
                 }
             }
         }

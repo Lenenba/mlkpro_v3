@@ -15,6 +15,9 @@
     "customers": "Clients",
     "products": "Produits",
     "sales": "Ventes",
+    "performance": "Performance",
+    "presence": "Presence",
+    "planning": "Planning",
     "orders": "Commandes",
     "services": "Prestations",
     "categories": "Rubriques",
@@ -395,6 +398,186 @@
         "low_stock": "Stock faible",
         "out_of_stock": "Rupture de stock"
       }
+    }
+  },
+  "performance": {
+    "title": "Performance",
+    "subtitle": "Vue globale des ventes par clients et vendeurs.",
+    "tabs": {
+      "clients": "Clients",
+      "employees": "Employés"
+    },
+    "period": {
+      "day": "Aujourd'hui",
+      "week": "Cette semaine",
+      "month": "Ce mois-ci",
+      "year": "Cette année"
+    },
+    "range": "{start} - {end}",
+    "kpi": {
+      "revenue": "Chiffre d'affaires",
+      "orders": "Commandes",
+      "items_sold": "Articles vendus",
+      "avg_order": "Panier moyen",
+      "customers": "Clients",
+      "revenue_per_seller": "CA par vendeur",
+      "avg_customer_value": "CA par client"
+    },
+    "clients": {
+      "title": "Performance clients",
+      "top_customers": "Meilleurs clients",
+      "customer_of_day": "Client du jour",
+      "customer_of_week": "Client de la semaine",
+      "customer_of_month": "Client du mois",
+      "customer_of_year": "Client de l'année",
+      "customer_fallback": "Client",
+      "no_customers": "Aucune donnée client.",
+      "no_customer_period": "Aucune donnée client pour cette période.",
+      "no_customer_year": "Aucune donnée client pour l'année.",
+      "line": "{revenue} · {orders} commandes · {items} articles"
+    },
+    "employees": {
+      "title": "Performance vendeurs",
+      "top_sellers": "Meilleurs vendeurs",
+      "top_products": "Produits phares",
+      "seller_of_day": "Vendeur du jour",
+      "seller_of_week": "Vendeur de la semaine",
+      "seller_of_month": "Vendeur du mois",
+      "seller_of_year": "Vendeur de l'année",
+      "seller_fallback": "Vendeur",
+      "online_label": "Boutique en ligne",
+      "online_badge": "En ligne",
+      "active_sellers": "{count} vendeurs actifs",
+      "no_sellers": "Aucune performance vendeur.",
+      "no_products": "Aucune performance produit.",
+      "no_seller_period": "Aucune donnée vendeur pour cette période.",
+      "no_seller_year": "Aucune donnée vendeur pour l'année.",
+      "seller_line": "{revenue} · {orders} commandes · {items} articles",
+      "product_line": "{revenue} · {quantity} articles",
+      "view_employee": "Voir la fiche"
+    },
+    "employee": {
+      "title": "Performance employé",
+      "back": "Retour performance",
+      "role_owner": "Propriétaire",
+      "status_active": "Actif",
+      "status_inactive": "Inactif",
+      "top_products": "Meilleurs produits",
+      "top_customers": "Meilleurs clients",
+      "no_products": "Aucune donnée produit.",
+      "no_customers": "Aucune donnée client.",
+      "customer_line": "{revenue} · {orders} commandes · {items} articles",
+      "product_line": "{revenue} · {quantity} articles"
+    }
+  },
+  "presence": {
+    "title": "Presence",
+    "subtitle": "Suivi des presences et pointages.",
+    "cards": {
+      "settings": "Parametres de presence",
+      "me": "Mon statut",
+      "team": "Presence equipe"
+    },
+    "labels": {
+      "auto_clock_in": "Pointage auto a la connexion",
+      "auto_clock_out": "Pointage auto a la deconnexion",
+      "manual_clock": "Pointage manuel",
+      "enabled": "Active",
+      "disabled": "Desactive",
+      "status": "Statut",
+      "last_in": "Dernier pointage entree",
+      "last_out": "Dernier pointage sortie",
+      "method": "Mode",
+      "none": "--",
+      "role_fallback": "Employe"
+    },
+    "status": {
+      "clocked_in": "En service",
+      "clocked_out": "Hors service",
+      "no_activity": "Aucune activite"
+    },
+    "actions": {
+      "clock_in": "Pointer",
+      "clock_out": "Sortir",
+      "clocking_in": "Pointage...",
+      "clocking_out": "Sortie..."
+    },
+    "help": {
+      "manual_disabled": "Le pointage manuel est desactive par le owner."
+    },
+    "errors": {
+      "clock_in": "Impossible de pointer.",
+      "clock_out": "Impossible de sortir."
+    },
+    "empty": "Aucun membre a afficher."
+  },
+  "planning": {
+    "title": "Planning",
+    "subtitle": "Planifier les shifts et recurrences pour l equipe de vente.",
+    "calendar": {
+      "title": "Planning equipe",
+      "today": "Aujourd hui",
+      "month": "Mois",
+      "week": "Semaine",
+      "day": "Jour"
+    },
+    "filters": {
+      "member": "Employe",
+      "all_members": "Toute l equipe",
+      "range": "Periode",
+      "loading": "Chargement des shifts...",
+      "empty": "Aucun shift sur cette periode."
+    },
+    "form": {
+      "title": "Ajouter un shift",
+      "member": "Employe",
+      "date": "Date du shift",
+      "start_time": "Heure de debut",
+      "end_time": "Heure de fin",
+      "shift_title": "Titre du shift",
+      "notes": "Notes",
+      "recurring": "Shift recurrent",
+      "frequency": "Frequence",
+      "recurrence_end": "Repeter jusqu au",
+      "weekdays": "Jours de semaine",
+      "month_day": "Jour du mois",
+      "create": "Creer le shift",
+      "creating": "Creation..."
+    },
+    "frequency": {
+      "daily": "Quotidien",
+      "weekly": "Hebdomadaire",
+      "monthly": "Mensuel",
+      "yearly": "Annuel"
+    },
+    "weekdays": {
+      "mo": "Lun",
+      "tu": "Mar",
+      "we": "Mer",
+      "th": "Jeu",
+      "fr": "Ven",
+      "sa": "Sam",
+      "su": "Dim"
+    },
+    "errors": {
+      "load": "Impossible de charger les shifts.",
+      "save": "Impossible d enregistrer le shift.",
+      "delete": "Impossible de supprimer le shift."
+    },
+    "notices": {
+      "created": "{count} shift(s) cree(s).",
+      "deleted": "Shift supprime."
+    },
+    "empty": {
+      "title": "Planning verrouille",
+      "description": "Seuls les managers peuvent creer des shifts."
+    },
+    "delete": {
+      "title": "Supprimer le shift",
+      "description": "Retirer ce shift du planning ?",
+      "confirm": "Supprimer",
+      "cancel": "Annuler",
+      "deleting": "Suppression..."
     }
   },
   "super_admin": {
@@ -4534,6 +4717,14 @@
         "email": "Email",
         "sms": "SMS",
         "whatsapp": "WhatsApp"
+      },
+      "presence": {
+        "title": "Presence & pointage",
+        "description": "Configurez le pointage auto et manuel.",
+        "auto_clock_in": "Pointage auto a la connexion",
+        "auto_clock_out": "Pointage auto a la deconnexion",
+        "manual_clock": "Autoriser le pointage manuel",
+        "manual_hint": "Les employes peuvent pointer depuis la page Presence."
       },
       "actions": {
         "save": "Enregistrer",

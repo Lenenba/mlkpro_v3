@@ -53,7 +53,7 @@ class TeamMemberController extends Controller
                 'total' => $teamMembers->count(),
                 'active' => $teamMembers->where('is_active', true)->count(),
                 'admins' => $teamMembers->where('role', 'admin')->count(),
-                'members' => $teamMembers->whereIn('role', ['member', 'seller'])->count(),
+                'members' => $teamMembers->whereIn('role', ['member', 'seller', 'sales_manager'])->count(),
             ],
         ]);
     }
@@ -72,7 +72,7 @@ class TeamMemberController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|string|lowercase|email|max:255|unique:users,email',
-            'role' => 'required|string|in:admin,member,seller',
+            'role' => 'required|string|in:admin,member,seller,sales_manager',
             'title' => 'nullable|string|max:255',
             'phone' => 'nullable|string|max:255',
             'permissions' => 'nullable|array',
@@ -176,7 +176,7 @@ class TeamMemberController extends Controller
             'name' => 'nullable|string|max:255',
             'email' => 'nullable|string|lowercase|email|max:255|unique:users,email,' . $teamMember->user_id,
             'password' => 'nullable|string|min:8',
-            'role' => 'nullable|string|in:admin,member,seller',
+            'role' => 'nullable|string|in:admin,member,seller,sales_manager',
             'title' => 'nullable|string|max:255',
             'phone' => 'nullable|string|max:255',
             'permissions' => 'nullable|array',
@@ -294,6 +294,9 @@ class TeamMemberController extends Controller
         ],
             'seller' => [
                 'sales.pos',
+            ],
+            'sales_manager' => [
+                'sales.manage',
             ],
             default => [
                 'jobs.view',

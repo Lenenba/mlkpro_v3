@@ -15,6 +15,9 @@
     "customers": "Customers",
     "products": "Products",
     "sales": "Sales",
+    "performance": "Performance",
+    "presence": "Presence",
+    "planning": "Planning",
     "orders": "Orders",
     "services": "Services",
     "categories": "Categories",
@@ -395,6 +398,186 @@
         "low_stock": "Low stock",
         "out_of_stock": "Out of stock"
       }
+    }
+  },
+  "performance": {
+    "title": "Performance",
+    "subtitle": "Sales insights for customers and sellers.",
+    "tabs": {
+      "clients": "Customers",
+      "employees": "Employees"
+    },
+    "period": {
+      "day": "Today",
+      "week": "This week",
+      "month": "This month",
+      "year": "This year"
+    },
+    "range": "{start} - {end}",
+    "kpi": {
+      "revenue": "Revenue",
+      "orders": "Orders",
+      "items_sold": "Items sold",
+      "avg_order": "Avg order value",
+      "customers": "Customers",
+      "revenue_per_seller": "Revenue per seller",
+      "avg_customer_value": "Revenue per customer"
+    },
+    "clients": {
+      "title": "Customer performance",
+      "top_customers": "Top customers",
+      "customer_of_day": "Customer of the day",
+      "customer_of_week": "Customer of the week",
+      "customer_of_month": "Customer of the month",
+      "customer_of_year": "Customer of the year",
+      "customer_fallback": "Customer",
+      "no_customers": "No customer data yet.",
+      "no_customer_period": "No customer data for this period yet.",
+      "no_customer_year": "No customer data for the year yet.",
+      "line": "{revenue} · {orders} orders · {items} items"
+    },
+    "employees": {
+      "title": "Seller performance",
+      "top_sellers": "Top sellers",
+      "top_products": "Top products",
+      "seller_of_day": "Seller of the day",
+      "seller_of_week": "Seller of the week",
+      "seller_of_month": "Seller of the month",
+      "seller_of_year": "Seller of the year",
+      "seller_fallback": "Seller",
+      "online_label": "Online store",
+      "online_badge": "Online",
+      "active_sellers": "{count} active sellers",
+      "no_sellers": "No seller performance yet.",
+      "no_products": "No product performance yet.",
+      "no_seller_period": "No seller data for this period yet.",
+      "no_seller_year": "No seller data for the year yet.",
+      "seller_line": "{revenue} · {orders} orders · {items} items",
+      "product_line": "{revenue} · {quantity} items",
+      "view_employee": "View profile"
+    },
+    "employee": {
+      "title": "Employee performance",
+      "back": "Back to performance",
+      "role_owner": "Owner",
+      "status_active": "Active",
+      "status_inactive": "Inactive",
+      "top_products": "Top products",
+      "top_customers": "Top customers",
+      "no_products": "No product data yet.",
+      "no_customers": "No customer data yet.",
+      "customer_line": "{revenue} · {orders} orders · {items} items",
+      "product_line": "{revenue} · {quantity} items"
+    }
+  },
+  "presence": {
+    "title": "Presence",
+    "subtitle": "Track team attendance and clock-ins.",
+    "cards": {
+      "settings": "Presence settings",
+      "me": "My status",
+      "team": "Team presence"
+    },
+    "labels": {
+      "auto_clock_in": "Auto clock-in on login",
+      "auto_clock_out": "Auto clock-out on logout",
+      "manual_clock": "Manual clock in/out",
+      "enabled": "Enabled",
+      "disabled": "Disabled",
+      "status": "Status",
+      "last_in": "Last clock-in",
+      "last_out": "Last clock-out",
+      "method": "Method",
+      "none": "--",
+      "role_fallback": "Team member"
+    },
+    "status": {
+      "clocked_in": "Clocked in",
+      "clocked_out": "Clocked out",
+      "no_activity": "No activity"
+    },
+    "actions": {
+      "clock_in": "Clock in",
+      "clock_out": "Clock out",
+      "clocking_in": "Clocking in...",
+      "clocking_out": "Clocking out..."
+    },
+    "help": {
+      "manual_disabled": "Manual clocking is disabled by the owner."
+    },
+    "errors": {
+      "clock_in": "Unable to clock in.",
+      "clock_out": "Unable to clock out."
+    },
+    "empty": "No team members to show."
+  },
+  "planning": {
+    "title": "Planning",
+    "subtitle": "Schedule recurring shifts for the sales team.",
+    "calendar": {
+      "title": "Team schedule",
+      "today": "Today",
+      "month": "Month",
+      "week": "Week",
+      "day": "Day"
+    },
+    "filters": {
+      "member": "Team member",
+      "all_members": "All team members",
+      "range": "Range",
+      "loading": "Loading shifts...",
+      "empty": "No shifts scheduled for this range."
+    },
+    "form": {
+      "title": "Add shift",
+      "member": "Team member",
+      "date": "Shift date",
+      "start_time": "Start time",
+      "end_time": "End time",
+      "shift_title": "Shift title",
+      "notes": "Notes",
+      "recurring": "Recurring shift",
+      "frequency": "Frequency",
+      "recurrence_end": "Repeat until",
+      "weekdays": "Days of week",
+      "month_day": "Day of month",
+      "create": "Create shift",
+      "creating": "Creating..."
+    },
+    "frequency": {
+      "daily": "Daily",
+      "weekly": "Weekly",
+      "monthly": "Monthly",
+      "yearly": "Yearly"
+    },
+    "weekdays": {
+      "mo": "Mon",
+      "tu": "Tue",
+      "we": "Wed",
+      "th": "Thu",
+      "fr": "Fri",
+      "sa": "Sat",
+      "su": "Sun"
+    },
+    "errors": {
+      "load": "Unable to load shifts.",
+      "save": "Unable to save the shift.",
+      "delete": "Unable to delete the shift."
+    },
+    "notices": {
+      "created": "{count} shift(s) created.",
+      "deleted": "Shift deleted."
+    },
+    "empty": {
+      "title": "Scheduling locked",
+      "description": "Only managers can create shifts."
+    },
+    "delete": {
+      "title": "Delete shift",
+      "description": "Remove this shift from the calendar?",
+      "confirm": "Delete",
+      "cancel": "Cancel",
+      "deleting": "Deleting..."
     }
   },
   "super_admin": {
@@ -4534,6 +4717,14 @@
         "email": "Email",
         "sms": "SMS",
         "whatsapp": "WhatsApp"
+      },
+      "presence": {
+        "title": "Attendance & presence",
+        "description": "Configure auto clock-in/out and manual time tracking.",
+        "auto_clock_in": "Auto clock-in on login",
+        "auto_clock_out": "Auto clock-out on logout",
+        "manual_clock": "Allow manual clock in/out",
+        "manual_hint": "Employees can clock in/out from the Presence page."
       },
       "actions": {
         "save": "Save",

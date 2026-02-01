@@ -3,6 +3,118 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    --app-background: #f8fafc;
+    --app-foreground: #0f172a;
+    --app-layer: #ffffff;
+    --app-layer-line: #e2e8f0;
+    --app-layer-foreground: #0f172a;
+    --app-layer-hover: #f1f5f9;
+    --app-layer-focus: #e2e8f0;
+    --app-surface: #f8fafc;
+    --app-surface-1: #e2e8f0;
+    --app-surface-2: #cbd5e1;
+    --app-surface-hover: #f1f5f9;
+    --app-surface-focus: #e2e8f0;
+    --app-surface-foreground: #0f172a;
+    --app-sidebar: #ffffff;
+    --app-sidebar-2: #f8fafc;
+    --app-sidebar-line: #e2e8f0;
+    --app-sidebar-divider: #cbd5e1;
+    --app-sidebar-2-divider: #e2e8f0;
+    --app-line-1: #e2e8f0;
+    --app-line-2: #e5e7eb;
+    --app-line-3: #cbd5e1;
+    --app-line-6: #94a3b8;
+    --app-primary: #2563eb;
+    --app-primary-hover: #1d4ed8;
+    --app-primary-focus: #1e40af;
+    --app-primary-line: #2563eb;
+    --app-primary-foreground: #ffffff;
+    --app-primary-checked: #2563eb;
+    --app-muted-foreground: #94a3b8;
+    --app-muted-foreground-1: #64748b;
+    --app-muted-foreground-2: #475569;
+    --app-dropdown: #ffffff;
+    --app-dropdown-line: #e2e8f0;
+    --app-dropdown-item-hover: #f1f5f9;
+    --app-dropdown-item-focus: #e2e8f0;
+    --app-dropdown-item-foreground: #0f172a;
+    --app-select: #ffffff;
+    --app-select-line: #e2e8f0;
+    --app-select-item-active: #f1f5f9;
+    --app-select-item-hover: #f8fafc;
+    --app-select-item-focus: #e2e8f0;
+    --app-select-item-foreground: #0f172a;
+    --app-tooltip: #0f172a;
+    --app-tooltip-line: #0f172a;
+    --app-tooltip-foreground: #f8fafc;
+    --app-overlay: #ffffff;
+    --app-overlay-line: #e2e8f0;
+    --app-overlay-divider: #e5e7eb;
+    --app-overlay-footer: #e5e7eb;
+    --app-scrollbar-track: #f1f5f9;
+    --app-scrollbar-thumb: #cbd5e1;
+    --app-destructive: #dc2626;
+    --app-destructive-50: #fef2f2;
+  }
+
+  html.dark {
+    --app-background: #0b0f14;
+    --app-foreground: #f8fafc;
+    --app-layer: #111827;
+    --app-layer-line: #334155;
+    --app-layer-foreground: #f8fafc;
+    --app-layer-hover: #1f2937;
+    --app-layer-focus: #1f2937;
+    --app-surface: #0f172a;
+    --app-surface-1: #1f2937;
+    --app-surface-2: #374151;
+    --app-surface-hover: #1f2937;
+    --app-surface-focus: #1f2937;
+    --app-surface-foreground: #f8fafc;
+    --app-sidebar: #0f172a;
+    --app-sidebar-2: #111827;
+    --app-sidebar-line: #334155;
+    --app-sidebar-divider: #1f2937;
+    --app-sidebar-2-divider: #1f2937;
+    --app-line-1: #334155;
+    --app-line-2: #1f2937;
+    --app-line-3: #475569;
+    --app-line-6: #64748b;
+    --app-primary: #3b82f6;
+    --app-primary-hover: #2563eb;
+    --app-primary-focus: #1d4ed8;
+    --app-primary-line: #3b82f6;
+    --app-primary-foreground: #ffffff;
+    --app-primary-checked: #3b82f6;
+    --app-muted-foreground: #94a3b8;
+    --app-muted-foreground-1: #94a3b8;
+    --app-muted-foreground-2: #64748b;
+    --app-dropdown: #111827;
+    --app-dropdown-line: #334155;
+    --app-dropdown-item-hover: #1f2937;
+    --app-dropdown-item-focus: #1f2937;
+    --app-dropdown-item-foreground: #f8fafc;
+    --app-select: #111827;
+    --app-select-line: #334155;
+    --app-select-item-active: #1f2937;
+    --app-select-item-hover: #1f2937;
+    --app-select-item-focus: #1f2937;
+    --app-select-item-foreground: #f8fafc;
+    --app-tooltip: #0b0f14;
+    --app-tooltip-line: #0b0f14;
+    --app-tooltip-foreground: #f8fafc;
+    --app-overlay: #111827;
+    --app-overlay-line: #334155;
+    --app-overlay-divider: #1f2937;
+    --app-overlay-footer: #1f2937;
+    --app-scrollbar-track: #0f172a;
+    --app-scrollbar-thumb: #334155;
+    --app-destructive: #ef4444;
+    --app-destructive-50: #7f1d1d;
+  }
+
   html,
   body {
     width: 100%;
@@ -259,6 +371,10 @@
 
   .rise-stagger > *:nth-child(12) {
     animation-delay: 880ms;
+  }
+
+  .text-nowrap {
+    white-space: nowrap;
   }
 
   .task-drag-ghost {
