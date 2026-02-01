@@ -48,7 +48,20 @@ const resolveHref = (href) => {
 
 const isExternalHref = (href) => {
     const value = String(href || '').trim();
-    return value.startsWith('http://') || value.startsWith('https://');
+    if (!value.startsWith('http://') && !value.startsWith('https://')) {
+        return false;
+    }
+
+    if (typeof window === 'undefined') {
+        return true;
+    }
+
+    try {
+        const url = new URL(value, window.location.origin);
+        return url.origin !== window.location.origin;
+    } catch (error) {
+        return true;
+    }
 };
 
 const navButtonClass = (style) => {
