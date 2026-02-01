@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue';
-import { Head, Link } from '@inertiajs/vue3';
+import { Head, Link, usePage } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import Card from '@/Components/UI/Card.vue';
@@ -21,6 +21,9 @@ const props = defineProps({
 });
 
 const { t } = useI18n();
+const page = usePage();
+const companyType = computed(() => page.props.auth?.account?.company?.type ?? null);
+const isServiceCompany = computed(() => companyType.value !== 'products');
 
 const activeTab = ref(props.tab === 'employees' ? 'employees' : 'clients');
 const activePeriod = ref('month');
@@ -91,11 +94,49 @@ const customerOfPeriod = computed(() => {
     return clientPeriod.value.top_customers?.[0] ?? null;
 });
 
-const sellerHighlightLabel = computed(() => t(`performance.employees.seller_of_${activePeriod.value}`));
+const sellerHighlightLabel = computed(() =>
+    isServiceCompany.value
+        ? t(`performance.employees.member_of_${activePeriod.value}`)
+        : t(`performance.employees.seller_of_${activePeriod.value}`)
+);
 const customerHighlightLabel = computed(() => t(`performance.clients.customer_of_${activePeriod.value}`));
-const sellerEmptyLabel = computed(() => t('performance.employees.no_seller_period'));
+const sellerEmptyLabel = computed(() =>
+    isServiceCompany.value
+        ? t('performance.employees.no_member_period')
+        : t('performance.employees.no_seller_period')
+);
 const customerEmptyLabel = computed(() => t('performance.clients.no_customer_period'));
 const periodBadgeText = computed(() => periodOptions.value.find((option) => option.key === activePeriod.value)?.label || '');
+const subtitleLabel = computed(() =>
+    isServiceCompany.value ? t('performance.subtitle_services') : t('performance.subtitle')
+);
+const clientTabLabel = computed(() =>
+    isServiceCompany.value ? t('performance.tabs.clients_services') : t('performance.tabs.clients')
+);
+const employeeTabLabel = computed(() =>
+    isServiceCompany.value ? t('performance.tabs.employees_services') : t('performance.tabs.employees')
+);
+const topSellersLabel = computed(() =>
+    isServiceCompany.value ? t('performance.employees.top_team') : t('performance.employees.top_sellers')
+);
+const noSellersLabel = computed(() =>
+    isServiceCompany.value ? t('performance.employees.no_members') : t('performance.employees.no_sellers')
+);
+const topProductsLabel = computed(() =>
+    isServiceCompany.value ? t('performance.employees.top_jobs') : t('performance.employees.top_products')
+);
+const noProductsLabel = computed(() =>
+    isServiceCompany.value ? t('performance.employees.no_jobs') : t('performance.employees.no_products')
+);
+const employeeLineKey = computed(() =>
+    isServiceCompany.value ? 'performance.employees.member_line' : 'performance.employees.seller_line'
+);
+const clientLineKey = computed(() =>
+    isServiceCompany.value ? 'performance.clients.line_services' : 'performance.clients.line'
+);
+const productLineKey = computed(() =>
+    isServiceCompany.value ? 'performance.employees.job_line' : 'performance.employees.product_line'
+);
 
 const highlightThemes = {
     day: {
@@ -211,7 +252,30 @@ const kpiIcons = {
             'M4 7v10l8 4 8-4V7',
         ],
     },
+    jobs: {
+        viewBox: '0 0 24 24',
+        paths: [
+            'M2 7h20v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V7',
+            'M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2',
+            'M2 11h20',
+        ],
+    },
+    tasks: {
+        viewBox: '0 0 24 24',
+        paths: [
+            'M9 11l3 3L22 4',
+            'M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11',
+        ],
+    },
     avg_order: {
+        viewBox: '0 0 24 24',
+        paths: [
+            'M6 4h12v16l-3-1.5-3 1.5-3-1.5-3 1.5V4z',
+            'M9 8h6',
+            'M9 12h6',
+        ],
+    },
+    avg_job: {
         viewBox: '0 0 24 24',
         paths: [
             'M6 4h12v16l-3-1.5-3 1.5-3-1.5-3 1.5V4z',
@@ -243,48 +307,99 @@ const kpiIcons = {
             'M14 8h6v6',
         ],
     },
+    revenue_per_member: {
+        viewBox: '0 0 24 24',
+        paths: [
+            'M3 17l6-6 4 4 7-7',
+            'M14 8h6v6',
+        ],
+    },
 };
 
 const kpiStyles = {
     revenue: 'bg-emerald-500/90 text-white shadow-emerald-500/30',
     orders: 'bg-sky-500/90 text-white shadow-sky-500/30',
     items_sold: 'bg-amber-500/90 text-white shadow-amber-500/30',
+    jobs: 'bg-indigo-500/90 text-white shadow-indigo-500/30',
+    tasks: 'bg-rose-500/90 text-white shadow-rose-500/30',
     avg_order: 'bg-violet-500/90 text-white shadow-violet-500/30',
+    avg_job: 'bg-violet-500/90 text-white shadow-violet-500/30',
     customers: 'bg-rose-500/90 text-white shadow-rose-500/30',
     avg_customer_value: 'bg-teal-500/90 text-white shadow-teal-500/30',
     revenue_per_seller: 'bg-cyan-500/90 text-white shadow-cyan-500/30',
+    revenue_per_member: 'bg-cyan-500/90 text-white shadow-cyan-500/30',
 };
 
 const buildKpis = (items) =>
-    items.map((item) => ({
-        ...item,
-        icon: kpiIcons[item.key],
-        iconClass: kpiStyles[item.key] || 'bg-stone-600/90 text-white shadow-stone-500/30',
-    }));
+    items.map((item) => {
+        const iconKey = item.iconKey || item.key;
+        return {
+            ...item,
+            icon: kpiIcons[iconKey],
+            iconClass: kpiStyles[iconKey] || 'bg-stone-600/90 text-white shadow-stone-500/30',
+        };
+    });
 
 const clientKpis = computed(() => buildKpis([
     { key: 'revenue', label: t('performance.kpi.revenue'), value: formatCurrency(clientPeriod.value.revenue) },
-    { key: 'orders', label: t('performance.kpi.orders'), value: formatNumber(clientPeriod.value.orders) },
-    { key: 'items_sold', label: t('performance.kpi.items_sold'), value: formatNumber(clientPeriod.value.items_sold) },
-    { key: 'avg_order', label: t('performance.kpi.avg_order'), value: formatCurrency(clientPeriod.value.avg_order) },
+    {
+        key: isServiceCompany.value ? 'jobs' : 'orders',
+        iconKey: isServiceCompany.value ? 'jobs' : 'orders',
+        label: isServiceCompany.value ? t('performance.kpi.jobs') : t('performance.kpi.orders'),
+        value: formatNumber(clientPeriod.value.orders),
+    },
+    {
+        key: isServiceCompany.value ? 'tasks' : 'items_sold',
+        iconKey: isServiceCompany.value ? 'tasks' : 'items_sold',
+        label: isServiceCompany.value ? t('performance.kpi.tasks') : t('performance.kpi.items_sold'),
+        value: formatNumber(clientPeriod.value.items_sold),
+    },
+    {
+        key: isServiceCompany.value ? 'avg_job' : 'avg_order',
+        iconKey: isServiceCompany.value ? 'avg_job' : 'avg_order',
+        label: isServiceCompany.value ? t('performance.kpi.avg_job') : t('performance.kpi.avg_order'),
+        value: formatCurrency(clientPeriod.value.avg_order),
+    },
     { key: 'customers', label: t('performance.kpi.customers'), value: formatNumber(clientPeriod.value.customers) },
     { key: 'avg_customer_value', label: t('performance.kpi.avg_customer_value'), value: formatCurrency(clientPeriod.value.avg_customer_value) },
 ]));
 
 const employeeKpis = computed(() => buildKpis([
     { key: 'revenue', label: t('performance.kpi.revenue'), value: formatCurrency(employeePeriod.value.revenue) },
-    { key: 'orders', label: t('performance.kpi.orders'), value: formatNumber(employeePeriod.value.orders) },
-    { key: 'items_sold', label: t('performance.kpi.items_sold'), value: formatNumber(employeePeriod.value.items_sold) },
-    { key: 'avg_order', label: t('performance.kpi.avg_order'), value: formatCurrency(employeePeriod.value.avg_order) },
+    {
+        key: isServiceCompany.value ? 'jobs' : 'orders',
+        iconKey: isServiceCompany.value ? 'jobs' : 'orders',
+        label: isServiceCompany.value ? t('performance.kpi.jobs') : t('performance.kpi.orders'),
+        value: formatNumber(employeePeriod.value.orders),
+    },
+    {
+        key: isServiceCompany.value ? 'tasks' : 'items_sold',
+        iconKey: isServiceCompany.value ? 'tasks' : 'items_sold',
+        label: isServiceCompany.value ? t('performance.kpi.tasks') : t('performance.kpi.items_sold'),
+        value: formatNumber(employeePeriod.value.items_sold),
+    },
+    {
+        key: isServiceCompany.value ? 'avg_job' : 'avg_order',
+        iconKey: isServiceCompany.value ? 'avg_job' : 'avg_order',
+        label: isServiceCompany.value ? t('performance.kpi.avg_job') : t('performance.kpi.avg_order'),
+        value: formatCurrency(employeePeriod.value.avg_order),
+    },
     { key: 'customers', label: t('performance.kpi.customers'), value: formatNumber(employeePeriod.value.customers) },
-    { key: 'revenue_per_seller', label: t('performance.kpi.revenue_per_seller'), value: formatCurrency(employeePeriod.value.revenue_per_seller) },
+    {
+        key: isServiceCompany.value ? 'revenue_per_member' : 'revenue_per_seller',
+        iconKey: isServiceCompany.value ? 'revenue_per_member' : 'revenue_per_seller',
+        label: isServiceCompany.value ? t('performance.kpi.revenue_per_member') : t('performance.kpi.revenue_per_seller'),
+        value: formatCurrency(employeePeriod.value.revenue_per_seller),
+    },
 ]));
 
 const sellerDisplayName = (seller) => {
-    if (seller?.type === 'online') {
+    if (!isServiceCompany.value && seller?.type === 'online') {
         return t('performance.employees.online_label');
     }
-    return seller?.name || t('performance.employees.seller_fallback');
+    return seller?.name || (isServiceCompany.value
+        ? t('performance.employees.member_fallback')
+        : t('performance.employees.seller_fallback'));
 };
 
 const customerDisplayName = (customer) => customer?.name || t('performance.clients.customer_fallback');
@@ -307,7 +422,9 @@ const rangeLabel = computed(() => {
 });
 
 const activeSellersLabel = computed(() =>
-    t('performance.employees.active_sellers', { count: formatNumber(employeePeriod.value.active_sellers) }),
+    isServiceCompany.value
+        ? t('performance.employees.active_members', { count: formatNumber(employeePeriod.value.active_sellers) })
+        : t('performance.employees.active_sellers', { count: formatNumber(employeePeriod.value.active_sellers) }),
 );
 
 const skeletonKpis = Array.from({ length: 6 }, (_, index) => index);
@@ -325,7 +442,7 @@ const skeletonRows = Array.from({ length: 4 }, (_, index) => index);
                         {{ t('performance.title') }}
                     </h1>
                     <p class="text-sm text-stone-500 dark:text-neutral-400">
-                        {{ t('performance.subtitle') }}
+                        {{ subtitleLabel }}
                     </p>
                 </div>
             </div>
@@ -339,7 +456,7 @@ const skeletonRows = Array.from({ length: 4 }, (_, index) => index);
                         : 'bg-stone-100 text-stone-600 hover:bg-stone-200 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700'"
                     @click="activeTab = 'clients'"
                 >
-                    {{ t('performance.tabs.clients') }}
+                    {{ clientTabLabel }}
                 </button>
                 <button
                     type="button"
@@ -349,7 +466,7 @@ const skeletonRows = Array.from({ length: 4 }, (_, index) => index);
                         : 'bg-stone-100 text-stone-600 hover:bg-stone-200 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700'"
                     @click="activeTab = 'employees'"
                 >
-                    {{ t('performance.tabs.employees') }}
+                    {{ employeeTabLabel }}
                 </button>
             </div>
 
@@ -465,11 +582,11 @@ const skeletonRows = Array.from({ length: 4 }, (_, index) => index);
                                 <div class="flex-1">
                                     <p class="font-semibold text-stone-800 dark:text-neutral-100">{{ customerDisplayName(customer) }}</p>
                                     <p class="text-xs text-stone-500 dark:text-neutral-400">
-                                        {{ t('performance.clients.line', {
-                                            revenue: formatCurrency(customer.revenue),
-                                            orders: formatNumber(customer.orders),
-                                            items: formatNumber(customer.items),
-                                        }) }}
+                            {{ t(clientLineKey, {
+                                revenue: formatCurrency(customer.revenue),
+                                orders: formatNumber(customer.orders),
+                                items: formatNumber(customer.items),
+                            }) }}
                                     </p>
                                 </div>
                             </div>
@@ -528,11 +645,11 @@ const skeletonRows = Array.from({ length: 4 }, (_, index) => index);
                                 <div>
                                     <p class="text-sm font-semibold">{{ customerDisplayName(customerOfPeriod) }}</p>
                                     <p class="text-xs" :class="customerHighlightStyles.subtle">
-                                        {{ t('performance.clients.line', {
-                                            revenue: formatCurrency(customerOfPeriod.revenue),
-                                            orders: formatNumber(customerOfPeriod.orders),
-                                            items: formatNumber(customerOfPeriod.items),
-                                        }) }}
+                                            {{ t(clientLineKey, {
+                                                revenue: formatCurrency(customerOfPeriod.revenue),
+                                                orders: formatNumber(customerOfPeriod.orders),
+                                                items: formatNumber(customerOfPeriod.items),
+                                            }) }}
                                     </p>
                                 </div>
                             </div>
@@ -595,7 +712,7 @@ const skeletonRows = Array.from({ length: 4 }, (_, index) => index);
                 <div class="grid grid-cols-1 gap-4 lg:grid-cols-3">
                     <div class="lg:col-span-2 space-y-4">
                         <Card>
-                            <template #title>{{ t('performance.employees.top_sellers') }}</template>
+                            <template #title>{{ topSellersLabel }}</template>
                             <div v-if="isHydrating" class="space-y-2">
                                 <div
                                     v-for="index in skeletonRows"
@@ -611,7 +728,7 @@ const skeletonRows = Array.from({ length: 4 }, (_, index) => index);
                                 </div>
                             </div>
                             <div v-else-if="!employeePeriod.top_sellers?.length" class="text-sm text-stone-500 dark:text-neutral-400">
-                                {{ t('performance.employees.no_sellers') }}
+                                {{ noSellersLabel }}
                             </div>
                             <div v-else class="space-y-2">
                                 <div
@@ -637,14 +754,14 @@ const skeletonRows = Array.from({ length: 4 }, (_, index) => index);
                                         <div class="flex flex-wrap items-center gap-2">
                                             <p class="font-semibold text-stone-800 dark:text-neutral-100">{{ sellerDisplayName(seller) }}</p>
                                             <span
-                                                v-if="seller.type === 'online'"
+                                                v-if="!isServiceCompany && seller.type === 'online'"
                                                 class="rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-semibold text-sky-700 dark:bg-sky-500/10 dark:text-sky-200"
                                             >
                                                 {{ t('performance.employees.online_badge') }}
                                             </span>
                                         </div>
                                         <p class="text-xs text-stone-500 dark:text-neutral-400">
-                                            {{ t('performance.employees.seller_line', {
+                                            {{ t(employeeLineKey, {
                                                 revenue: formatCurrency(seller.revenue),
                                                 orders: formatNumber(seller.orders),
                                                 items: formatNumber(seller.items),
@@ -663,7 +780,7 @@ const skeletonRows = Array.from({ length: 4 }, (_, index) => index);
                         </Card>
 
                         <Card>
-                            <template #title>{{ t('performance.employees.top_products') }}</template>
+                            <template #title>{{ topProductsLabel }}</template>
                             <div v-if="isHydrating" class="grid grid-cols-1 gap-3 md:grid-cols-2">
                                 <div
                                     v-for="index in skeletonRows"
@@ -678,7 +795,7 @@ const skeletonRows = Array.from({ length: 4 }, (_, index) => index);
                                 </div>
                             </div>
                             <div v-else-if="!employeePeriod.top_products?.length" class="text-sm text-stone-500 dark:text-neutral-400">
-                                {{ t('performance.employees.no_products') }}
+                                {{ noProductsLabel }}
                             </div>
                             <div v-else class="grid grid-cols-1 gap-3 md:grid-cols-2">
                                 <div
@@ -686,17 +803,23 @@ const skeletonRows = Array.from({ length: 4 }, (_, index) => index);
                                     :key="product.id"
                                     class="flex items-center gap-3 rounded-sm border border-stone-200 bg-white p-3 text-sm dark:border-neutral-700 dark:bg-neutral-900"
                                 >
-                                    <img
-                                        :src="product.image_url"
-                                        :alt="product.name"
-                                        class="h-12 w-12 rounded-sm border border-stone-200 object-cover dark:border-neutral-700"
-                                        loading="lazy"
-                                        decoding="async"
-                                    />
+                                    <div class="h-12 w-12 overflow-hidden rounded-sm border border-stone-200 bg-stone-100 dark:border-neutral-700 dark:bg-neutral-800">
+                                        <img
+                                            v-if="product.image_url"
+                                            :src="product.image_url"
+                                            :alt="product.name"
+                                            class="h-full w-full object-cover"
+                                            loading="lazy"
+                                            decoding="async"
+                                        />
+                                        <div v-else class="flex h-full w-full items-center justify-center text-xs font-semibold text-stone-600 dark:text-neutral-300">
+                                            {{ initials(product.name) }}
+                                        </div>
+                                    </div>
                                     <div class="flex-1">
                                         <p class="font-semibold text-stone-800 dark:text-neutral-100">{{ product.name }}</p>
                                         <p class="text-xs text-stone-500 dark:text-neutral-400">
-                                            {{ t('performance.employees.product_line', {
+                                            {{ t(productLineKey, {
                                                 revenue: formatCurrency(product.revenue),
                                                 quantity: formatNumber(product.quantity),
                                             }) }}
@@ -759,7 +882,7 @@ const skeletonRows = Array.from({ length: 4 }, (_, index) => index);
                                 <div>
                                     <p class="text-sm font-semibold">{{ sellerDisplayName(sellerOfPeriod) }}</p>
                                     <p class="text-xs" :class="sellerHighlightStyles.subtle">
-                                        {{ t('performance.employees.seller_line', {
+                                        {{ t(employeeLineKey, {
                                             revenue: formatCurrency(sellerOfPeriod.revenue),
                                             orders: formatNumber(sellerOfPeriod.orders),
                                             items: formatNumber(sellerOfPeriod.items),

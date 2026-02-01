@@ -6,6 +6,7 @@ use App\Models\Role;
 use App\Models\TeamMember;
 use App\Models\User;
 use App\Models\ProductCategory;
+use App\Models\PlatformSetting;
 use App\Notifications\WelcomeEmailNotification;
 use App\Services\PlatformAdminNotifier;
 use App\Support\NotificationDispatcher;
@@ -36,6 +37,8 @@ class OnboardingController extends Controller
         if (!$user) {
             return $this->inertiaOrJson('Onboarding/Index', [
                 'preset' => (object) [],
+                'plans' => $this->planOptions(),
+                'planLimits' => $this->planLimits(),
             ]);
         }
 
@@ -61,8 +64,11 @@ class OnboardingController extends Controller
                 'company_city' => $user->company_city,
                 'company_type' => $user->company_type,
                 'company_sector' => $user->company_sector,
+                'company_team_size' => $user->company_team_size,
                 'onboarding_completed_at' => $user->onboarding_completed_at,
             ],
+            'plans' => $this->planOptions(),
+            'planLimits' => $this->planLimits(),
         ]);
     }
 
@@ -92,6 +98,7 @@ class OnboardingController extends Controller
             'company_city' => 'nullable|string|max:255',
             'company_type' => 'required|string|in:services,products',
             'company_sector' => 'required|string|max:255',
+            'company_team_size' => 'nullable|integer|min:1|max:5000',
 
             'invites' => 'nullable|array|max:20',
             'invites.*.name' => 'required|string|max:255',
@@ -132,6 +139,7 @@ class OnboardingController extends Controller
             'company_city' => $validated['company_city'] ?? null,
             'company_type' => $validated['company_type'],
             'company_sector' => $validated['company_sector'],
+            'company_team_size' => $validated['company_team_size'] ?? null,
             'onboarding_completed_at' => now(),
         ]);
 
@@ -315,5 +323,23 @@ class OnboardingController extends Controller
                 'jobs.view',
             ],
         };
+    }
+
+    private function planOptions(): array
+    {
+        return collect(config('billing.plans', []))
+            ->map(function (array $plan, string $key) {
+                return [
+                    'key' => $key,
+                    'name' => $plan['name'] ?? $key,
+                ];
+            })
+            ->values()
+            ->all();
+    }
+
+    private function planLimits(): array
+    {
+        return PlatformSetting::getValue('plan_limits', []);
     }
 }

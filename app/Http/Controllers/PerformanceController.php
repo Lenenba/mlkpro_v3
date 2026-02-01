@@ -6,8 +6,10 @@ use App\Models\Customer;
 use App\Models\Product;
 use App\Models\Sale;
 use App\Models\SaleItem;
+use App\Models\Task;
 use App\Models\TeamMember;
 use App\Models\User;
+use App\Models\Work;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -21,11 +23,16 @@ class PerformanceController extends Controller
             abort(401);
         }
 
-        $accountOwner = $this->resolvePerformanceAccount($user);
+        [$accountOwner, $isServiceCompany] = $this->resolvePerformanceContext($user);
         $now = now();
 
-        $employeePerformance = $this->buildSellerPerformance($accountOwner->id, $now, 12, 6);
-        $clientPerformance = $this->buildCustomerPerformance($accountOwner->id, $now, 10);
+        if ($isServiceCompany) {
+            $employeePerformance = $this->buildServiceTeamPerformance($accountOwner->id, $now, 12, 6);
+            $clientPerformance = $this->buildServiceClientPerformance($accountOwner->id, $now, 10);
+        } else {
+            $employeePerformance = $this->buildSellerPerformance($accountOwner->id, $now, 12, 6);
+            $clientPerformance = $this->buildCustomerPerformance($accountOwner->id, $now, 10);
+        }
 
         return $this->inertiaOrJson('Performance/Index', [
             'employeePerformance' => $employeePerformance,
@@ -41,7 +48,7 @@ class PerformanceController extends Controller
             abort(401);
         }
 
-        $accountOwner = $this->resolvePerformanceAccount($user);
+        [$accountOwner, $isServiceCompany] = $this->resolvePerformanceContext($user);
         $accountId = $accountOwner->id;
 
         $membership = null;
@@ -68,7 +75,18 @@ class PerformanceController extends Controller
             'joined_at' => $membership?->created_at?->toDateString() ?? $employee->created_at?->toDateString(),
         ];
 
-        $performance = $this->buildSellerDetailPerformance($accountId, $employee->id, now(), 6, 6);
+        $performance = $isServiceCompany
+            ? $this->buildServiceMemberDetailPerformance(
+                $accountId,
+                $membership?->id ?? TeamMember::query()
+                    ->where('account_id', $accountId)
+                    ->where('user_id', $employee->id)
+                    ->value('id'),
+                now(),
+                6,
+                6
+            )
+            : $this->buildSellerDetailPerformance($accountId, $employee->id, now(), 6, 6);
 
         return $this->inertiaOrJson('Performance/EmployeeShow', [
             'employee' => $employeePayload,
@@ -76,14 +94,23 @@ class PerformanceController extends Controller
         ]);
     }
 
-    private function resolvePerformanceAccount(User $user): User
+    private function resolvePerformanceContext(User $user): array
     {
         $ownerId = $user->accountOwnerId();
         $owner = $ownerId === $user->id
             ? $user
             : User::query()->find($ownerId);
 
-        if (!$owner || $owner->company_type !== 'products') {
+        if (!$owner) {
+            abort(403);
+        }
+
+        $isServiceCompany = $owner->company_type !== 'products';
+        if ($isServiceCompany) {
+            if (!$owner->hasCompanyFeature('jobs') && !$owner->hasCompanyFeature('tasks')) {
+                abort(403);
+            }
+        } elseif (!$owner->hasCompanyFeature('sales')) {
             abort(403);
         }
 
@@ -92,13 +119,23 @@ class PerformanceController extends Controller
                 ? $user->teamMembership
                 : $user->teamMembership()->first();
 
-            $canManage = $membership?->hasPermission('sales.manage') ?? false;
-            if (!$canManage) {
+            if ($isServiceCompany) {
+                $canManage = ($membership?->hasPermission('jobs.edit') ?? false)
+                    || ($membership?->hasPermission('tasks.edit') ?? false);
+                $canView = $canManage
+                    || ($membership?->hasPermission('jobs.view') ?? false)
+                    || ($membership?->hasPermission('tasks.view') ?? false);
+            } else {
+                $canManage = $membership?->hasPermission('sales.manage') ?? false;
+                $canView = $canManage || ($membership?->hasPermission('sales.pos') ?? false);
+            }
+
+            if (!$canView) {
                 abort(403);
             }
         }
 
-        return $owner;
+        return [$owner, $isServiceCompany];
     }
 
     private function buildSellerPerformance(int $accountId, Carbon $now, int $sellerLimit = 12, int $productLimit = 6): array
@@ -553,6 +590,423 @@ class PerformanceController extends Controller
             'items_sold' => $itemsSold,
             'customers' => (int) $uniqueCustomers,
             'top_products' => $topProducts,
+            'top_customers' => $topCustomers,
+        ];
+    }
+
+    private function buildServiceTeamPerformance(int $accountId, Carbon $now, int $memberLimit = 12, int $jobLimit = 6): array
+    {
+        $periods = [
+            'day' => [$now->copy()->startOfDay(), $now->copy()->endOfDay()],
+            'week' => [$now->copy()->startOfWeek(), $now->copy()->endOfWeek()],
+            'month' => [$now->copy()->startOfMonth(), $now->copy()->endOfMonth()],
+            'year' => [$now->copy()->startOfYear(), $now->copy()->endOfYear()],
+        ];
+
+        $periodData = [];
+
+        foreach ($periods as $key => [$start, $end]) {
+            $periodData[$key] = $this->buildServiceTeamPerformancePeriod(
+                $accountId,
+                $start,
+                $end,
+                $memberLimit,
+                $jobLimit
+            );
+        }
+
+        $memberOfPeriods = [];
+        foreach ($periodData as $key => $period) {
+            $memberOfPeriods[$key] = $period['top_sellers'][0] ?? null;
+        }
+
+        return [
+            'periods' => $periodData,
+            'seller_of_periods' => $memberOfPeriods,
+            'seller_of_year' => $memberOfPeriods['year'] ?? null,
+        ];
+    }
+
+    private function buildServiceTeamPerformancePeriod(
+        int $accountId,
+        Carbon $start,
+        Carbon $end,
+        ?int $memberLimit = 12,
+        ?int $jobLimit = 6
+    ): array {
+        $startDate = $start->toDateString();
+        $endDate = $end->toDateString();
+
+        $worksQuery = Work::query()
+            ->where('user_id', $accountId)
+            ->whereBetween('start_date', [$startDate, $endDate]);
+
+        $orders = (clone $worksQuery)->count();
+        $revenue = (float) (clone $worksQuery)->sum('total');
+        $avgOrder = $orders > 0 ? round($revenue / $orders, 2) : 0.0;
+        $uniqueCustomers = (clone $worksQuery)
+            ->whereNotNull('customer_id')
+            ->distinct('customer_id')
+            ->count('customer_id');
+
+        $taskQuery = Task::query()
+            ->forAccount($accountId)
+            ->whereBetween('due_date', [$startDate, $endDate]);
+        $itemsSold = (int) (clone $taskQuery)->count();
+
+        $workRows = DB::table('work_team_members')
+            ->join('works', 'work_team_members.work_id', '=', 'works.id')
+            ->select(
+                'work_team_members.team_member_id as member_id',
+                DB::raw('COUNT(*) as orders'),
+                DB::raw('SUM(works.total) as revenue')
+            )
+            ->where('works.user_id', $accountId)
+            ->whereBetween('works.start_date', [$startDate, $endDate])
+            ->groupBy('work_team_members.team_member_id')
+            ->get();
+
+        $tasksByMember = (clone $taskQuery)
+            ->whereNotNull('assigned_team_member_id')
+            ->select('assigned_team_member_id as member_id', DB::raw('COUNT(*) as items'))
+            ->groupBy('assigned_team_member_id')
+            ->pluck('items', 'member_id')
+            ->toArray();
+
+        $memberIds = collect($workRows->pluck('member_id')->all())
+            ->merge(array_keys($tasksByMember))
+            ->filter()
+            ->unique()
+            ->values();
+
+        $activeSellers = $memberIds->count();
+        $revenuePerSeller = $activeSellers > 0 ? round($revenue / $activeSellers, 2) : 0.0;
+
+        $memberMap = $memberIds->isNotEmpty()
+            ? TeamMember::query()
+                ->whereIn('id', $memberIds)
+                ->with('user:id,name,profile_picture')
+                ->get()
+                ->keyBy('id')
+            : collect();
+
+        $workMap = $workRows->keyBy('member_id');
+        $memberStats = $memberIds->map(function ($memberId) use ($memberMap, $workMap, $tasksByMember) {
+            $work = $workMap->get($memberId);
+            $member = $memberMap->get($memberId);
+            $userId = $member?->user_id ? (int) $member->user_id : null;
+
+            return [
+                'id' => $userId ?? (int) $memberId,
+                'team_member_id' => (int) $memberId,
+                'type' => $userId ? 'user' : 'member',
+                'name' => $member?->user?->name ?? 'Member',
+                'profile_picture_url' => $member?->user?->profile_picture_url,
+                'orders' => (int) ($work?->orders ?? 0),
+                'revenue' => (float) ($work?->revenue ?? 0),
+                'items' => (int) ($tasksByMember[$memberId] ?? 0),
+            ];
+        })->values();
+
+        $memberStats = $memberStats->sort(function ($a, $b) {
+            if ($a['revenue'] !== $b['revenue']) {
+                return $a['revenue'] < $b['revenue'] ? 1 : -1;
+            }
+            if ($a['orders'] !== $b['orders']) {
+                return $a['orders'] < $b['orders'] ? 1 : -1;
+            }
+            if ($a['items'] !== $b['items']) {
+                return $a['items'] < $b['items'] ? 1 : -1;
+            }
+            return 0;
+        })->values();
+
+        if ($memberLimit) {
+            $memberStats = $memberStats->take($memberLimit)->values();
+        }
+
+        $topJobsQuery = (clone $worksQuery)
+            ->select('job_title', DB::raw('COUNT(*) as quantity'), DB::raw('SUM(total) as revenue'))
+            ->groupBy('job_title')
+            ->orderByDesc('revenue');
+        if ($jobLimit) {
+            $topJobsQuery->limit($jobLimit);
+        }
+        $topJobs = $topJobsQuery->get()->map(function ($row) {
+            $title = $row->job_title ?: 'Job';
+            return [
+                'id' => md5((string) $title),
+                'name' => $title,
+                'image_url' => null,
+                'quantity' => (int) $row->quantity,
+                'revenue' => (float) $row->revenue,
+            ];
+        })->values();
+
+        return [
+            'range' => [
+                'start' => $startDate,
+                'end' => $endDate,
+            ],
+            'orders' => $orders,
+            'revenue' => $revenue,
+            'avg_order' => $avgOrder,
+            'revenue_per_seller' => $revenuePerSeller,
+            'items_sold' => $itemsSold,
+            'customers' => (int) $uniqueCustomers,
+            'active_sellers' => $activeSellers,
+            'top_sellers' => $memberStats->values(),
+            'top_products' => $topJobs,
+        ];
+    }
+
+    private function buildServiceClientPerformance(int $accountId, Carbon $now, int $customerLimit = 10): array
+    {
+        $periods = [
+            'day' => [$now->copy()->startOfDay(), $now->copy()->endOfDay()],
+            'week' => [$now->copy()->startOfWeek(), $now->copy()->endOfWeek()],
+            'month' => [$now->copy()->startOfMonth(), $now->copy()->endOfMonth()],
+            'year' => [$now->copy()->startOfYear(), $now->copy()->endOfYear()],
+        ];
+
+        $periodData = [];
+
+        foreach ($periods as $key => [$start, $end]) {
+            $periodData[$key] = $this->buildServiceClientPerformancePeriod($accountId, $start, $end, $customerLimit);
+        }
+
+        $customerOfPeriods = [];
+        foreach ($periodData as $key => $period) {
+            $customerOfPeriods[$key] = $period['top_customers'][0] ?? null;
+        }
+
+        return [
+            'periods' => $periodData,
+            'customer_of_periods' => $customerOfPeriods,
+            'customer_of_year' => $customerOfPeriods['year'] ?? null,
+        ];
+    }
+
+    private function buildServiceClientPerformancePeriod(
+        int $accountId,
+        Carbon $start,
+        Carbon $end,
+        ?int $customerLimit = 10
+    ): array {
+        $startDate = $start->toDateString();
+        $endDate = $end->toDateString();
+
+        $worksQuery = Work::query()
+            ->where('user_id', $accountId)
+            ->whereBetween('start_date', [$startDate, $endDate]);
+
+        $orders = (clone $worksQuery)->count();
+        $revenue = (float) (clone $worksQuery)->sum('total');
+        $avgOrder = $orders > 0 ? round($revenue / $orders, 2) : 0.0;
+        $uniqueCustomers = (clone $worksQuery)
+            ->whereNotNull('customer_id')
+            ->distinct('customer_id')
+            ->count('customer_id');
+        $avgCustomerValue = $uniqueCustomers > 0 ? round($revenue / $uniqueCustomers, 2) : 0.0;
+
+        $taskQuery = Task::query()
+            ->forAccount($accountId)
+            ->whereBetween('due_date', [$startDate, $endDate]);
+        $itemsSold = (int) (clone $taskQuery)->count();
+
+        $customerRowsQuery = (clone $worksQuery)
+            ->select('customer_id', DB::raw('COUNT(*) as orders'), DB::raw('SUM(total) as revenue'))
+            ->whereNotNull('customer_id')
+            ->groupBy('customer_id')
+            ->orderByDesc('revenue');
+
+        if ($customerLimit) {
+            $customerRowsQuery->limit($customerLimit);
+        }
+
+        $customerRows = $customerRowsQuery->get();
+        $customerIds = $customerRows->pluck('customer_id')->filter()->unique()->values();
+
+        $customerMap = $customerIds->isNotEmpty()
+            ? Customer::query()
+                ->whereIn('id', $customerIds)
+                ->get(['id', 'first_name', 'last_name', 'company_name', 'logo'])
+                ->keyBy('id')
+            : collect();
+
+        $tasksByCustomer = (clone $taskQuery)
+            ->whereNotNull('customer_id')
+            ->select('customer_id', DB::raw('COUNT(*) as items'))
+            ->groupBy('customer_id')
+            ->pluck('items', 'customer_id')
+            ->toArray();
+
+        $topCustomers = $customerRows->map(function ($row) use ($customerMap, $tasksByCustomer) {
+            $customerId = (int) $row->customer_id;
+            $customer = $customerMap->get($customerId);
+            $items = (int) ($tasksByCustomer[$customerId] ?? 0);
+
+            return [
+                'id' => $customerId,
+                'name' => $this->resolveCustomerName($customer),
+                'logo_url' => $customer?->logo_url,
+                'orders' => (int) $row->orders,
+                'revenue' => (float) $row->revenue,
+                'items' => $items,
+            ];
+        })->values();
+
+        return [
+            'range' => [
+                'start' => $startDate,
+                'end' => $endDate,
+            ],
+            'orders' => $orders,
+            'revenue' => $revenue,
+            'avg_order' => $avgOrder,
+            'avg_customer_value' => $avgCustomerValue,
+            'items_sold' => $itemsSold,
+            'customers' => (int) $uniqueCustomers,
+            'top_customers' => $topCustomers,
+        ];
+    }
+
+    private function buildServiceMemberDetailPerformance(
+        int $accountId,
+        ?int $teamMemberId,
+        Carbon $now,
+        int $jobLimit = 6,
+        int $customerLimit = 6
+    ): array {
+        if (!$teamMemberId) {
+            return ['periods' => []];
+        }
+
+        $periods = [
+            'day' => [$now->copy()->startOfDay(), $now->copy()->endOfDay()],
+            'week' => [$now->copy()->startOfWeek(), $now->copy()->endOfWeek()],
+            'month' => [$now->copy()->startOfMonth(), $now->copy()->endOfMonth()],
+            'year' => [$now->copy()->startOfYear(), $now->copy()->endOfYear()],
+        ];
+
+        $periodData = [];
+        foreach ($periods as $key => [$start, $end]) {
+            $periodData[$key] = $this->buildServiceMemberDetailPerformancePeriod(
+                $accountId,
+                $teamMemberId,
+                $start,
+                $end,
+                $jobLimit,
+                $customerLimit
+            );
+        }
+
+        return [
+            'periods' => $periodData,
+        ];
+    }
+
+    private function buildServiceMemberDetailPerformancePeriod(
+        int $accountId,
+        int $teamMemberId,
+        Carbon $start,
+        Carbon $end,
+        ?int $jobLimit = 6,
+        ?int $customerLimit = 6
+    ): array {
+        $startDate = $start->toDateString();
+        $endDate = $end->toDateString();
+
+        $worksQuery = Work::query()
+            ->join('work_team_members', 'work_team_members.work_id', '=', 'works.id')
+            ->where('works.user_id', $accountId)
+            ->where('work_team_members.team_member_id', $teamMemberId)
+            ->whereBetween('works.start_date', [$startDate, $endDate]);
+
+        $orders = (clone $worksQuery)->count();
+        $revenue = (float) (clone $worksQuery)->sum('works.total');
+        $avgOrder = $orders > 0 ? round($revenue / $orders, 2) : 0.0;
+        $uniqueCustomers = (clone $worksQuery)
+            ->whereNotNull('works.customer_id')
+            ->distinct('works.customer_id')
+            ->count('works.customer_id');
+
+        $tasksQuery = Task::query()
+            ->forAccount($accountId)
+            ->where('assigned_team_member_id', $teamMemberId)
+            ->whereBetween('due_date', [$startDate, $endDate]);
+        $itemsSold = (int) (clone $tasksQuery)->count();
+
+        $topJobsQuery = (clone $worksQuery)
+            ->select('works.job_title as job_title', DB::raw('COUNT(*) as quantity'), DB::raw('SUM(works.total) as revenue'))
+            ->groupBy('works.job_title')
+            ->orderByDesc('revenue');
+
+        if ($jobLimit) {
+            $topJobsQuery->limit($jobLimit);
+        }
+        $topJobs = $topJobsQuery->get()->map(function ($row) {
+            $title = $row->job_title ?: 'Job';
+            return [
+                'id' => md5((string) $title),
+                'name' => $title,
+                'image_url' => null,
+                'quantity' => (int) $row->quantity,
+                'revenue' => (float) $row->revenue,
+            ];
+        })->values();
+
+        $customerRowsQuery = (clone $worksQuery)
+            ->select('works.customer_id as customer_id', DB::raw('COUNT(*) as orders'), DB::raw('SUM(works.total) as revenue'))
+            ->whereNotNull('works.customer_id')
+            ->groupBy('works.customer_id')
+            ->orderByDesc('revenue');
+        if ($customerLimit) {
+            $customerRowsQuery->limit($customerLimit);
+        }
+        $customerRows = $customerRowsQuery->get();
+        $customerIds = $customerRows->pluck('customer_id')->filter()->unique()->values();
+
+        $customerMap = $customerIds->isNotEmpty()
+            ? Customer::query()
+                ->whereIn('id', $customerIds)
+                ->get(['id', 'first_name', 'last_name', 'company_name', 'logo'])
+                ->keyBy('id')
+            : collect();
+
+        $tasksByCustomer = (clone $tasksQuery)
+            ->whereNotNull('customer_id')
+            ->select('customer_id', DB::raw('COUNT(*) as items'))
+            ->groupBy('customer_id')
+            ->pluck('items', 'customer_id')
+            ->toArray();
+
+        $topCustomers = $customerRows->map(function ($row) use ($customerMap, $tasksByCustomer) {
+            $customerId = (int) $row->customer_id;
+            $customer = $customerMap->get($customerId);
+            $items = (int) ($tasksByCustomer[$customerId] ?? 0);
+
+            return [
+                'id' => $customerId,
+                'name' => $this->resolveCustomerName($customer),
+                'logo_url' => $customer?->logo_url,
+                'orders' => (int) $row->orders,
+                'revenue' => (float) $row->revenue,
+                'items' => $items,
+            ];
+        })->values();
+
+        return [
+            'range' => [
+                'start' => $startDate,
+                'end' => $endDate,
+            ],
+            'orders' => $orders,
+            'revenue' => $revenue,
+            'avg_order' => $avgOrder,
+            'items_sold' => $itemsSold,
+            'customers' => (int) $uniqueCustomers,
+            'top_products' => $topJobs,
             'top_customers' => $topCustomers,
         ];
     }

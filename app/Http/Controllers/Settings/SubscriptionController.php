@@ -186,7 +186,8 @@ class SubscriptionController extends Controller
             }
 
             try {
-                $updated = app(StripeBillingService::class)->swapSubscription($user, $validated['price_id']);
+                $seatQuantity = $billingService->resolveSeatQuantity($user);
+                $updated = app(StripeBillingService::class)->swapSubscription($user, $validated['price_id'], $seatQuantity);
                 if (!$updated) {
                     throw new \RuntimeException('Stripe subscription update failed.');
                 }
@@ -302,12 +303,14 @@ class SubscriptionController extends Controller
         $cancelUrl = route('settings.billing.edit', ['checkout' => 'cancel']);
 
         try {
+            $seatQuantity = $billingService->resolveSeatQuantity($user);
             $session = app(StripeBillingService::class)->createCheckoutSession(
                 $user,
                 $validated['price_id'],
                 $successUrl,
                 $cancelUrl,
-                $planKey
+                $planKey,
+                $seatQuantity
             );
         } catch (\Throwable $exception) {
             Log::error('Stripe checkout session creation failed.', [

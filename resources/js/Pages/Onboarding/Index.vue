@@ -12,6 +12,14 @@ import TermsContent from '@/Components/Legal/TermsContent.vue';
 
 const props = defineProps({
     preset: Object,
+    plans: {
+        type: Array,
+        default: () => [],
+    },
+    planLimits: {
+        type: Object,
+        default: () => ({}),
+    },
 });
 
 const page = usePage();
@@ -61,6 +69,8 @@ const selectStep = (item) => {
 };
 
 const preset = computed(() => props.preset || {});
+const planOptions = computed(() => props.plans || []);
+const planLimits = computed(() => props.planLimits || {});
 
 const registerForm = useForm({
     name: '',
@@ -121,6 +131,7 @@ const form = useForm({
     company_type: preset.value.company_type || 'services',
     company_sector: preset.value.company_sector || '',
     company_sector_other: '',
+    company_team_size: preset.value.company_team_size || '',
     invites: [],
     accept_terms: false,
 });
@@ -318,6 +329,43 @@ const companySectorLabel = computed(() => {
     return match?.name || form.company_sector || '-';
 });
 
+const teamSizeValue = computed(() => {
+    const raw = Number(form.company_team_size);
+    if (Number.isFinite(raw) && raw > 0) {
+        return Math.floor(raw);
+    }
+    const inviteCount = Array.isArray(form.invites) ? form.invites.length : 0;
+    return Math.max(1, inviteCount + 1);
+});
+
+const planCandidates = computed(() => planOptions.value.map((plan) => {
+    const limit = planLimits.value?.[plan.key]?.team_members;
+    return {
+        ...plan,
+        team_limit: typeof limit === 'number' ? limit : null,
+    };
+}));
+
+const recommendedPlan = computed(() => {
+    if (!planCandidates.value.length) {
+        return null;
+    }
+    const size = teamSizeValue.value;
+    const candidate = planCandidates.value.find((plan) => plan.team_limit === null || plan.team_limit >= size);
+    return candidate || planCandidates.value[planCandidates.value.length - 1];
+});
+
+const recommendedPlanLimitLabel = computed(() => {
+    if (!recommendedPlan.value) {
+        return '';
+    }
+    const limit = recommendedPlan.value.team_limit;
+    if (limit === null || typeof limit === 'undefined') {
+        return t('onboarding.team.recommendation_unlimited');
+    }
+    return t('onboarding.team.recommendation_limit', { count: limit });
+});
+
 const goNext = () => {
     if (step.value < totalSteps.value) {
         step.value += 1;
@@ -349,6 +397,13 @@ const submit = () => {
         const trimmed = String(value || '').trim();
         return trimmed.length ? trimmed : null;
     };
+    const normalizeNumber = (value) => {
+        const raw = Number(value);
+        if (!Number.isFinite(raw) || raw <= 0) {
+            return null;
+        }
+        return Math.floor(raw);
+    };
 
     form
         .transform((data) => {
@@ -360,6 +415,7 @@ const submit = () => {
                 company_province: normalizeText(data.company_province),
                 company_city: normalizeText(data.company_city),
                 company_sector: normalizeText(sector),
+                company_team_size: normalizeNumber(data.company_team_size),
             };
 
             if (data.company_logo instanceof File) {
@@ -646,6 +702,37 @@ const closeTerms = () => {
                     </div>
 
                     <div v-else-if="step === stepIds.team" class="space-y-3">
+                        <div class="rounded-sm border border-stone-200 bg-stone-50 p-3 text-sm text-stone-700 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200">
+                            <h3 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ $t('onboarding.team.size_title') }}</h3>
+                            <p class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('onboarding.team.size_hint') }}</p>
+                            <div class="mt-3">
+                                <FloatingInput
+                                    v-model="form.company_team_size"
+                                    type="number"
+                                    min="1"
+                                    :label="$t('onboarding.team.size_label')"
+                                />
+                                <InputError class="mt-1" :message="form.errors.company_team_size" />
+                            </div>
+                        </div>
+
+                        <div v-if="recommendedPlan" class="rounded-sm border border-stone-200 bg-white p-3 text-sm text-stone-700 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200">
+                            <p class="text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">
+                                {{ $t('onboarding.team.recommendation_title') }}
+                            </p>
+                            <div class="mt-2 flex flex-wrap items-center justify-between gap-2">
+                                <div>
+                                    <p class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ recommendedPlan.name }}</p>
+                                    <p class="text-xs text-stone-500 dark:text-neutral-400">
+                                        {{ $t('onboarding.team.recommendation_subtitle', { count: teamSizeValue }) }}
+                                    </p>
+                                </div>
+                                <span class="rounded-full bg-stone-100 px-2 py-1 text-xs font-semibold text-stone-600 dark:bg-neutral-800 dark:text-neutral-200">
+                                    {{ recommendedPlanLimitLabel }}
+                                </span>
+                            </div>
+                        </div>
+
                         <div class="flex items-center justify-between">
                             <div>
                                 <h3 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ $t('onboarding.team.title') }}</h3>

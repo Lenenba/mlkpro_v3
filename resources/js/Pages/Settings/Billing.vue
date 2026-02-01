@@ -31,6 +31,10 @@ const props = defineProps({
         type: Object,
         default: () => ({}),
     },
+    seatQuantity: {
+        type: Number,
+        default: 1,
+    },
     checkoutStatus: {
         type: String,
         default: null,
@@ -119,6 +123,13 @@ const isSubscribed = computed(() => Boolean(props.subscription?.active));
 const hasSubscription = computed(() => Boolean(props.subscription?.provider_id));
 const hasPlans = computed(() => props.plans.some((plan) => Boolean(plan.price_id)));
 const canUsePaddle = computed(() => Boolean(isPaddleProvider.value && props.paddle?.js_enabled && props.paddle?.api_enabled && !props.paddle?.error));
+const seatQuantity = computed(() => {
+    const value = Number(props.seatQuantity || 1);
+    if (!Number.isFinite(value)) {
+        return 1;
+    }
+    return Math.max(1, Math.floor(value));
+});
 
 const activePlan = computed(() => {
     if (!props.subscription?.price_id) {
@@ -492,7 +503,7 @@ const openPaddleCheckout = async (plan) => {
         items: [
             {
                 priceId: plan.price_id,
-                quantity: 1,
+                quantity: seatQuantity.value,
             },
         ],
         customData: {

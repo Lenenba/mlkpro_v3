@@ -4,7 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Models\TeamMember;
 use App\Models\TeamMemberShift;
+use App\Models\Task;
 use App\Models\User;
+use App\Models\Work;
 use App\Services\ShiftScheduleService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -21,7 +23,7 @@ class PlanningController extends Controller
             abort(401);
         }
 
-        [$owner, $membership, $canManage] = $this->resolvePlanningContext($user);
+        [$owner, $membership, $canManage, $isServiceCompany] = $this->resolvePlanningContext($user);
 
         $teamMembers = TeamMember::query()
             ->where('account_id', $owner->id)
@@ -47,16 +49,20 @@ class PlanningController extends Controller
         $start = $request->query('start') ? Carbon::parse($request->query('start')) : now()->startOfWeek();
         $end = $request->query('end') ? Carbon::parse($request->query('end')) : now()->addWeeks(4)->endOfWeek();
 
-        $shifts = $this->loadShiftsForRange($owner->id, $membership, $canManage, $start, $end, $request);
+        $events = $isServiceCompany
+            ? $this->loadServiceEventsForRange($owner->id, $membership, $start, $end, $request)
+            : $this->formatShiftEvents(
+                $this->loadShiftsForRange($owner->id, $membership, $canManage, $start, $end, $request)
+            );
 
         return $this->inertiaOrJson('Planning/Index', [
             'teamMembers' => $memberPayload->values(),
-            'events' => $this->formatShiftEvents($shifts),
+            'events' => $events,
             'range' => [
                 'start' => $start->toDateString(),
                 'end' => $end->toDateString(),
             ],
-            'canManage' => $canManage,
+            'canManage' => $isServiceCompany ? false : $canManage,
             'selfTeamMemberId' => $membership?->id,
         ]);
     }
@@ -80,15 +86,19 @@ class PlanningController extends Controller
             abort(401);
         }
 
-        [$owner, $membership, $canManage] = $this->resolvePlanningContext($user);
+        [$owner, $membership, $canManage, $isServiceCompany] = $this->resolvePlanningContext($user);
 
         $start = $request->query('start') ? Carbon::parse($request->query('start')) : now()->startOfWeek();
         $end = $request->query('end') ? Carbon::parse($request->query('end')) : now()->addWeeks(4)->endOfWeek();
 
-        $shifts = $this->loadShiftsForRange($owner->id, $membership, $canManage, $start, $end, $request);
+        $events = $isServiceCompany
+            ? $this->loadServiceEventsForRange($owner->id, $membership, $start, $end, $request)
+            : $this->formatShiftEvents(
+                $this->loadShiftsForRange($owner->id, $membership, $canManage, $start, $end, $request)
+            );
 
         return response()->json([
-            'events' => $this->formatShiftEvents($shifts),
+            'events' => $events,
         ]);
     }
 
@@ -99,7 +109,10 @@ class PlanningController extends Controller
             abort(401);
         }
 
-        [$owner, $membership, $canManage] = $this->resolvePlanningContext($user);
+        [$owner, $membership, $canManage, $isServiceCompany] = $this->resolvePlanningContext($user);
+        if ($isServiceCompany) {
+            abort(403);
+        }
         if (!$canManage) {
             abort(403);
         }
@@ -202,7 +215,10 @@ class PlanningController extends Controller
             abort(401);
         }
 
-        [$owner, $membership, $canManage] = $this->resolvePlanningContext($user);
+        [$owner, $membership, $canManage, $isServiceCompany] = $this->resolvePlanningContext($user);
+        if ($isServiceCompany) {
+            abort(403);
+        }
         if (!$canManage) {
             abort(403);
         }
@@ -225,7 +241,16 @@ class PlanningController extends Controller
             ? $user
             : User::query()->find($ownerId);
 
-        if (!$owner || $owner->company_type !== 'products' || !$owner->hasCompanyFeature('sales')) {
+        if (!$owner) {
+            abort(403);
+        }
+
+        $isServiceCompany = $owner->company_type !== 'products';
+        if ($isServiceCompany) {
+            if (!$owner->hasCompanyFeature('jobs') && !$owner->hasCompanyFeature('tasks')) {
+                abort(403);
+            }
+        } elseif (!$owner->hasCompanyFeature('sales')) {
             abort(403);
         }
 
@@ -242,14 +267,23 @@ class PlanningController extends Controller
             }
         }
 
-        $canManage = $user->id === $owner->id
-            || ($membership?->hasPermission('sales.manage') ?? false);
-        $canView = $canManage || ($membership?->hasPermission('sales.pos') ?? false);
+        if ($isServiceCompany) {
+            $canManage = $user->id === $owner->id
+                || ($membership?->hasPermission('jobs.edit') ?? false)
+                || ($membership?->hasPermission('tasks.edit') ?? false);
+            $canView = $canManage
+                || ($membership?->hasPermission('jobs.view') ?? false)
+                || ($membership?->hasPermission('tasks.view') ?? false);
+        } else {
+            $canManage = $user->id === $owner->id
+                || ($membership?->hasPermission('sales.manage') ?? false);
+            $canView = $canManage || ($membership?->hasPermission('sales.pos') ?? false);
+        }
         if (!$canView) {
             abort(403);
         }
 
-        return [$owner, $membership, $canManage];
+        return [$owner, $membership, $canManage, $isServiceCompany];
     }
 
     private function loadShiftsForRange(
@@ -316,6 +350,140 @@ class PlanningController extends Controller
                 ],
             ];
         })->values()->all();
+    }
+
+    private function loadServiceEventsForRange(
+        int $accountId,
+        ?TeamMember $membership,
+        Carbon $start,
+        Carbon $end,
+        Request $request
+    ): array {
+        $startDate = $start->toDateString();
+        $endDate = $end->toDateString();
+
+        $teamMemberIds = TeamMember::query()
+            ->where('account_id', $accountId)
+            ->pluck('id')
+            ->all();
+
+        $filterMembers = $request->query('team_member_ids');
+        if (is_string($filterMembers)) {
+            $filterMembers = array_filter(explode(',', $filterMembers));
+        }
+        $filterMemberIds = null;
+        if (is_array($filterMembers) && $filterMembers) {
+            $filterMemberIds = collect($filterMembers)->map(fn ($id) => (int) $id)->filter()->values()->all();
+        } elseif ($request->query('team_member_id')) {
+            $filterMemberIds = [(int) $request->query('team_member_id')];
+        } elseif ($membership) {
+            $filterMemberIds = [$membership->id];
+        }
+
+        if ($filterMemberIds) {
+            $teamMemberIds = array_values(array_intersect($teamMemberIds, $filterMemberIds));
+        }
+
+        $works = Work::query()
+            ->where('user_id', $accountId)
+            ->whereBetween('start_date', [$startDate, $endDate])
+            ->with(['teamMembers.user:id,name'])
+            ->orderBy('start_date')
+            ->orderBy('start_time')
+            ->get([
+                'id',
+                'job_title',
+                'start_date',
+                'start_time',
+                'end_time',
+                'is_all_day',
+            ]);
+
+        $tasks = Task::query()
+            ->forAccount($accountId)
+            ->whereBetween('due_date', [$startDate, $endDate])
+            ->whereNull('work_id')
+            ->with(['assignee.user:id,name'])
+            ->orderBy('due_date')
+            ->orderBy('start_time')
+            ->get([
+                'id',
+                'title',
+                'due_date',
+                'start_time',
+                'end_time',
+                'assigned_team_member_id',
+            ]);
+
+        $events = collect();
+
+        foreach ($works as $work) {
+            $members = $work->teamMembers->isNotEmpty()
+                ? $work->teamMembers
+                : collect([null]);
+
+            foreach ($members as $member) {
+                $memberId = $member?->id;
+                if ($filterMemberIds && !$memberId) {
+                    continue;
+                }
+                if ($teamMemberIds && $memberId && !in_array($memberId, $teamMemberIds, true)) {
+                    continue;
+                }
+
+                $memberName = $member?->user?->name ?? 'Team';
+                $titleLabel = $work->job_title ?: 'Job';
+                $date = $work->start_date ? $work->start_date->toDateString() : $startDate;
+                $startTime = $work->start_time ?: ($work->is_all_day ? '00:00:00' : '09:00:00');
+                $endTime = $work->end_time ?: ($work->is_all_day ? '23:59:00' : '10:00:00');
+
+                $events->push([
+                    'id' => 'work-' . $work->id . '-' . ($memberId ?: 'na'),
+                    'title' => trim($memberName . ' · ' . $titleLabel),
+                    'start' => $date . 'T' . substr((string) $startTime, 0, 8),
+                    'end' => $date . 'T' . substr((string) $endTime, 0, 8),
+                    'allDay' => (bool) $work->is_all_day,
+                    'extendedProps' => [
+                        'team_member_id' => $memberId,
+                        'member_name' => $memberName,
+                        'kind' => 'work',
+                        'reference_id' => $work->id,
+                    ],
+                ]);
+            }
+        }
+
+        foreach ($tasks as $task) {
+            $memberId = $task->assigned_team_member_id;
+            if ($filterMemberIds && !$memberId) {
+                continue;
+            }
+            if ($teamMemberIds && $memberId && !in_array($memberId, $teamMemberIds, true)) {
+                continue;
+            }
+
+            $memberName = $task->assignee?->user?->name ?? 'Team';
+            $titleLabel = $task->title ?: 'Task';
+            $date = $task->due_date ? $task->due_date->toDateString() : $startDate;
+            $startTime = $task->start_time ?: '09:00:00';
+            $endTime = $task->end_time ?: '10:00:00';
+
+            $events->push([
+                'id' => 'task-' . $task->id,
+                'title' => trim($memberName . ' · ' . $titleLabel),
+                'start' => $date . 'T' . substr((string) $startTime, 0, 8),
+                'end' => $date . 'T' . substr((string) $endTime, 0, 8),
+                'allDay' => false,
+                'extendedProps' => [
+                    'team_member_id' => $memberId,
+                    'member_name' => $memberName,
+                    'kind' => 'task',
+                    'reference_id' => $task->id,
+                ],
+            ]);
+        }
+
+        return $events->values()->all();
     }
 
     private function parseTime(?string $value): ?Carbon

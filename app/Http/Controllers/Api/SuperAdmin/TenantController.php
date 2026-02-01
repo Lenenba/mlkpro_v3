@@ -44,6 +44,9 @@ class TenantController extends BaseController
         'invoices',
         'jobs',
         'products',
+        'performance',
+        'presence',
+        'planning',
         'services',
         'tasks',
         'team_members',
@@ -276,8 +279,9 @@ class TenantController extends BaseController
         }
 
         try {
+            $seatQuantity = app(BillingSubscriptionService::class)->resolveSeatQuantity($tenant);
             $updated = app(StripeBillingService::class)
-                ->assignPlan($tenant, $validated['price_id'], $comped, $planKey);
+                ->assignPlan($tenant, $validated['price_id'], $comped, $planKey, $seatQuantity);
             if (!$updated) {
                 throw new \RuntimeException('Stripe subscription update failed.');
             }

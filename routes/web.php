@@ -292,20 +292,31 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
         Route::resource('product', ProductController::class);
     });
 
-    // Sales Management (products)
-    Route::middleware('company.feature:sales')->group(function () {
+    // Performance
+    Route::middleware('company.feature:performance')->group(function () {
         Route::get('/performance', [PerformanceController::class, 'index'])->name('performance.index');
         Route::get('/performance/employees/{employee}', [PerformanceController::class, 'employee'])
             ->name('performance.employee.show');
+    });
+
+    // Presence
+    Route::middleware('company.feature:presence')->group(function () {
         Route::get('/presence', [PresenceController::class, 'index'])->name('presence.index');
         Route::post('/presence/clock-in', [PresenceController::class, 'clockIn'])->name('presence.clock-in');
         Route::post('/presence/clock-out', [PresenceController::class, 'clockOut'])->name('presence.clock-out');
+    });
+
+    // Planning
+    Route::middleware('company.feature:planning')->group(function () {
         Route::get('/planning', [PlanningController::class, 'index'])->name('planning.index');
         Route::get('/planning/calendar', [PlanningController::class, 'calendar'])->name('planning.calendar');
         Route::get('/planning/events', [PlanningController::class, 'events'])->name('planning.events');
         Route::post('/planning/shifts', [PlanningController::class, 'store'])->name('planning.shifts.store');
         Route::delete('/planning/shifts/{shift}', [PlanningController::class, 'destroy'])->name('planning.shifts.destroy');
+    });
 
+    // Sales Management (products)
+    Route::middleware('company.feature:sales')->group(function () {
         Route::get('/orders', [SaleController::class, 'ordersIndex'])->name('orders.index');
         Route::get('/sales', [SaleController::class, 'index'])->name('sales.index');
         Route::get('/sales/create', [SaleController::class, 'create'])->name('sales.create');

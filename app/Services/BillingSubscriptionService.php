@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Billing\StripeSubscription;
+use App\Models\TeamMember;
 use App\Models\User;
 use Carbon\Carbon;
 use Laravel\Paddle\Subscription as PaddleSubscription;
@@ -113,6 +114,17 @@ class BillingSubscriptionService
 
         $subscription = $accountOwner->subscription(PaddleSubscription::DEFAULT_TYPE);
         return $subscription?->items()->value('price_id');
+    }
+
+    public function resolveSeatQuantity(User $accountOwner): int
+    {
+        $declared = (int) ($accountOwner->company_team_size ?? 0);
+        $teamCount = TeamMember::query()
+            ->forAccount($accountOwner->id)
+            ->active()
+            ->count();
+
+        return max(1, $declared, $teamCount);
     }
 
     private function isStripeActiveStatus(string $status): bool
