@@ -625,6 +625,7 @@
       "hours": "Quelques heures",
       "start_time": "Heure de debut",
       "end_time": "Heure de fin",
+      "break_minutes": "Pause (min)",
       "shift_title": "Titre du shift",
       "notes": "Notes",
       "reason": "Motif / notes",
@@ -658,7 +659,9 @@
       "load": "Impossible de charger les shifts.",
       "save": "Impossible d enregistrer le shift.",
       "delete": "Impossible de supprimer le shift.",
-      "status": "Impossible de mettre à jour le statut."
+      "status": "Impossible de mettre à jour le statut.",
+      "update": "Impossible de mettre a jour le shift.",
+      "conflict": "Conflit de planning detecte."
     },
     "notices": {
       "created": "{count} shift(s) cree(s).",
@@ -668,6 +671,7 @@
       "leave_created_many": "{count} jours de conge enregistres.",
       "absence_deleted": "Absence supprimee.",
       "leave_deleted": "Conge supprime.",
+      "updated": "Shift mis a jour.",
       "approved": "Demande approuvée.",
       "rejected": "Demande refusée.",
       "deleted": "Shift supprime."
@@ -4331,16 +4335,28 @@
       "rating": "Note",
       "total": "Total",
       "start_date": "Date de debut",
+      "created_at": "Cree le",
       "results": "resultats"
     },
     "actions": {
       "filters": "Filtres",
       "reset": "Reinitialiser",
+      "create": "Creer un chantier",
       "view": "Voir",
       "edit": "Modifier",
       "schedule": "Planifier",
       "view_invoice": "Voir la facture",
       "create_invoice": "Creer une facture"
+    },
+    "create_modal": {
+      "title": "Creer un chantier",
+      "subtitle": "Choisissez un client pour creer un chantier sans devis.",
+      "customer_label": "Client",
+      "customer_required": "Selectionnez un client pour continuer.",
+      "empty": "Aucun client disponible pour le moment.",
+      "add_customer": "Ajouter un client",
+      "cancel": "Annuler",
+      "create": "Creer le chantier"
     },
     "labels": {
       "unknown_customer": "Client inconnu"
@@ -4703,6 +4719,10 @@
         "label": "Entreprise",
         "description": "Informations, catégories et paramètres"
       },
+      "hr": {
+        "label": "RH",
+        "description": "Modeles de shifts"
+      },
       "billing": {
         "label": "Facturation",
         "description": "Plan, paiements et historique"
@@ -5039,6 +5059,53 @@
       "confirm": {
         "delete_warehouse": "Supprimer l'entrepot \"{name}\" ?",
         "revoke_token": "Revoquer ce token ?"
+      }
+    },
+    "hr": {
+      "meta_title": "Parametres RH",
+      "title": "Parametres RH",
+      "subtitle": "Definir des shifts par poste.",
+      "sections": {
+        "templates": {
+          "title": "Modeles de shift",
+          "description": "Creer des shifts predefinis par poste."
+        },
+        "defaults": {
+          "title": "Defaut global",
+          "description": "Utilise si aucun modele n existe pour un poste."
+        }
+      },
+      "form": {
+        "position": "Poste",
+        "start_time": "Heure de debut",
+        "end_time": "Heure de fin",
+        "breaks": "Pauses (min)",
+        "break_total": "Pause totale : {minutes} min (max 60)",
+        "days": "Jours de travail",
+        "active": "Modele actif",
+        "add_break": "Ajouter une pause",
+        "remove_break": "Retirer",
+        "create": "Creer le modele",
+        "update": "Mettre a jour",
+        "cancel": "Annuler"
+      },
+      "table": {
+        "position": "Poste",
+        "time": "Horaire",
+        "breaks": "Pauses",
+        "days": "Jours",
+        "status": "Statut",
+        "actions": "Actions",
+        "global": "Global",
+        "company": "Entreprise",
+        "active": "Actif",
+        "inactive": "Inactif"
+      },
+      "messages": {
+        "empty": "Aucun modele pour le moment."
+      },
+      "confirm": {
+        "delete": "Supprimer ce modele de shift ?"
       }
     },
     "billing": {

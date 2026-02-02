@@ -50,6 +50,7 @@ use App\Http\Controllers\Settings\CompanySettingsController;
 use App\Http\Controllers\Settings\BillingSettingsController;
 use App\Http\Controllers\Settings\ProductCategoryController;
 use App\Http\Controllers\Settings\SubscriptionController;
+use App\Http\Controllers\Settings\HrSettingsController;
 use App\Http\Controllers\Settings\NotificationSettingsController;
 use App\Http\Controllers\Settings\SecuritySettingsController;
 use App\Http\Controllers\Settings\ApiTokenController;
@@ -181,6 +182,13 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
     // Settings (owner only)
     Route::get('/settings/company', [CompanySettingsController::class, 'edit'])->name('settings.company.edit');
     Route::put('/settings/company', [CompanySettingsController::class, 'update'])->name('settings.company.update');
+    Route::get('/settings/hr', [HrSettingsController::class, 'edit'])->name('settings.hr.edit');
+    Route::post('/settings/hr/shift-templates', [HrSettingsController::class, 'store'])
+        ->name('settings.hr.shift-templates.store');
+    Route::patch('/settings/hr/shift-templates/{template}', [HrSettingsController::class, 'update'])
+        ->name('settings.hr.shift-templates.update');
+    Route::delete('/settings/hr/shift-templates/{template}', [HrSettingsController::class, 'destroy'])
+        ->name('settings.hr.shift-templates.destroy');
     Route::post('/settings/api-tokens', [ApiTokenController::class, 'store'])->name('settings.api-tokens.store');
     Route::delete('/settings/api-tokens/{token}', [ApiTokenController::class, 'destroy'])->name('settings.api-tokens.destroy');
     Route::post('/settings/warehouses', [WarehouseController::class, 'store'])->name('settings.warehouses.store');
@@ -316,6 +324,7 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
         Route::get('/planning/calendar', [PlanningController::class, 'calendar'])->name('planning.calendar');
         Route::get('/planning/events', [PlanningController::class, 'events'])->name('planning.events');
         Route::post('/planning/shifts', [PlanningController::class, 'store'])->name('planning.shifts.store');
+        Route::patch('/planning/shifts/{shift}', [PlanningController::class, 'update'])->name('planning.shifts.update');
         Route::delete('/planning/shifts/{shift}', [PlanningController::class, 'destroy'])->name('planning.shifts.destroy');
         Route::patch('/planning/shifts/{shift}/status', [PlanningController::class, 'updateStatus'])
             ->name('planning.shifts.status');

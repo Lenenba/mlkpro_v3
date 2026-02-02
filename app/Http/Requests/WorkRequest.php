@@ -28,17 +28,6 @@ class WorkRequest extends FormRequest
         $user = $this->user();
         $accountId = $user?->accountOwnerId() ?? 0;
 
-        $accountCompanyType = null;
-        if ($user && $accountId) {
-            $accountCompanyType = $accountId === $user->id
-                ? $user->company_type
-                : User::query()->whereKey($accountId)->value('company_type');
-        }
-
-        $itemType = $accountCompanyType === 'products'
-            ? Product::ITEM_TYPE_PRODUCT
-            : Product::ITEM_TYPE_SERVICE;
-
         return [
             'customer_id' => 'required|integer|exists:customers,id',
             'job_title' => 'required|string|max:255',
@@ -80,12 +69,15 @@ class WorkRequest extends FormRequest
             'billing_date_rule' => 'nullable|string|max:50',
             'products' => 'nullable|array',
             'products.*.id' => [
-                'required_with:products',
+                'nullable',
                 'integer',
                 Rule::exists('products', 'id')
-                    ->where('user_id', $accountId)
-                    ->where('item_type', $itemType),
+                    ->where('user_id', $accountId),
             ],
+            'products.*.item_type' => ['nullable', Rule::in([Product::ITEM_TYPE_PRODUCT, Product::ITEM_TYPE_SERVICE])],
+            'products.*.name' => 'required_without:products.*.id|string',
+            'products.*.description' => 'nullable|string',
+            'products.*.source_details' => 'nullable',
             'products.*.quantity' => 'required_with:products|integer|min:1',
             'products.*.price' => 'nullable|numeric|min:0',
             'products.*.total' => 'nullable|numeric|min:0',

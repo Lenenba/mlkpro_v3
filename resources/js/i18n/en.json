@@ -625,6 +625,7 @@
       "hours": "A few hours",
       "start_time": "Start time",
       "end_time": "End time",
+      "break_minutes": "Break (min)",
       "shift_title": "Shift title",
       "notes": "Notes",
       "reason": "Reason / notes",
@@ -658,7 +659,9 @@
       "load": "Unable to load shifts.",
       "save": "Unable to save the shift.",
       "delete": "Unable to delete the shift.",
-      "status": "Unable to update the status."
+      "status": "Unable to update the status.",
+      "update": "Unable to update the shift.",
+      "conflict": "Scheduling conflict detected."
     },
     "notices": {
       "created": "{count} shift(s) created.",
@@ -668,6 +671,7 @@
       "leave_created_many": "{count} leave day(s) saved.",
       "absence_deleted": "Absence deleted.",
       "leave_deleted": "Leave deleted.",
+      "updated": "Shift updated.",
       "approved": "Request approved.",
       "rejected": "Request rejected.",
       "deleted": "Shift deleted."
@@ -4331,16 +4335,28 @@
       "rating": "Rating",
       "total": "Total",
       "start_date": "Start date",
+      "created_at": "Created",
       "results": "results"
     },
     "actions": {
       "filters": "Filters",
       "reset": "Reset",
+      "create": "Create job",
       "view": "View",
       "edit": "Edit",
       "schedule": "Schedule",
       "view_invoice": "View invoice",
       "create_invoice": "Create invoice"
+    },
+    "create_modal": {
+      "title": "Create job",
+      "subtitle": "Choose a customer to start a job without a quote.",
+      "customer_label": "Customer",
+      "customer_required": "Select a customer to continue.",
+      "empty": "No customers available yet.",
+      "add_customer": "Add a customer",
+      "cancel": "Cancel",
+      "create": "Create job"
     },
     "labels": {
       "unknown_customer": "Unknown"
@@ -4703,6 +4719,10 @@
         "label": "Company",
         "description": "Info and categories"
       },
+      "hr": {
+        "label": "HR",
+        "description": "Shift templates"
+      },
       "billing": {
         "label": "Billing",
         "description": "Plan and payments"
@@ -5039,6 +5059,53 @@
       "confirm": {
         "delete_warehouse": "Delete warehouse \"{name}\"?",
         "revoke_token": "Revoke this token?"
+      }
+    },
+    "hr": {
+      "meta_title": "HR settings",
+      "title": "HR settings",
+      "subtitle": "Define default shifts by position.",
+      "sections": {
+        "templates": {
+          "title": "Shift templates",
+          "description": "Create predefined shifts per position."
+        },
+        "defaults": {
+          "title": "Global default",
+          "description": "Used when no template exists for a position."
+        }
+      },
+      "form": {
+        "position": "Position",
+        "start_time": "Start time",
+        "end_time": "End time",
+        "breaks": "Breaks (min)",
+        "break_total": "Total break: {minutes} min (max 60)",
+        "days": "Working days",
+        "active": "Active template",
+        "add_break": "Add break",
+        "remove_break": "Remove",
+        "create": "Create template",
+        "update": "Update template",
+        "cancel": "Cancel"
+      },
+      "table": {
+        "position": "Position",
+        "time": "Time",
+        "breaks": "Breaks",
+        "days": "Days",
+        "status": "Status",
+        "actions": "Actions",
+        "global": "Global",
+        "company": "Company",
+        "active": "Active",
+        "inactive": "Inactive"
+      },
+      "messages": {
+        "empty": "No templates yet."
+      },
+      "confirm": {
+        "delete": "Delete this shift template?"
       }
     },
     "billing": {

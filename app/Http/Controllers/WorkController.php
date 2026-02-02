@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Carbon\Carbon;
 use App\Models\Work;
 use App\Models\Product;
+use App\Models\ProductCategory;
 use App\Models\Customer;
 use App\Models\Quote;
 use App\Models\QuoteProduct;
@@ -66,7 +67,7 @@ class WorkController extends Controller
             }
         }
 
-        $sort = in_array($filters['sort'] ?? null, ['start_date', 'status', 'total', 'job_title'], true)
+        $sort = in_array($filters['sort'] ?? null, ['start_date', 'created_at', 'status', 'total', 'job_title'], true)
             ? $filters['sort']
             : 'start_date';
         $direction = ($filters['direction'] ?? 'desc') === 'asc' ? 'asc' : 'desc';
@@ -174,6 +175,7 @@ class WorkController extends Controller
         $itemType = $user->company_type === 'products'
             ? Product::ITEM_TYPE_PRODUCT
             : Product::ITEM_TYPE_SERVICE;
+        $creatorId = $user?->id ?? $accountId;
 
         return $this->inertiaOrJson('Work/Create', [
             'lastWorkNumber' => $this->generateNextNumber($customer->works->last()->number ?? null),
@@ -303,45 +305,13 @@ class WorkController extends Controller
 
         $lines = collect();
         if (array_key_exists('products', $validated)) {
-            $lines = collect($validated['products'] ?? [])
-                ->map(function ($product) {
-                    $quantity = (int) ($product['quantity'] ?? 1);
-                    $price = (float) ($product['price'] ?? 0);
-
-                    return [
-                        'product_id' => (int) $product['id'],
-                        'quantity' => $quantity,
-                        'price' => $price,
-                        'total' => round($quantity * $price, 2),
-                    ];
-                })
-                ->filter(fn($line) => $line['product_id'] > 0);
-
-            $productMap = collect();
-            if ($lines->isNotEmpty()) {
-                $productMap = Product::byUser($accountId)
-                    ->where('item_type', $itemType)
-                    ->whereIn('id', $lines->pluck('product_id'))
-                    ->get()
-                    ->keyBy('id');
-            }
-
-            $lines = $lines->map(function ($line) use ($productMap) {
-                $product = $productMap->get($line['product_id']);
-                if (!$product) {
-                    return null;
-                }
-
-                $price = $line['price'] > 0 ? $line['price'] : (float) $product->price;
-                $quantity = (int) $line['quantity'];
-
-                return [
-                    'product_id' => $product->id,
-                    'quantity' => $quantity,
-                    'price' => $price,
-                    'total' => round($price * $quantity, 2),
-                ];
-            })->filter();
+            $lines = collect($this->buildWorkItems(
+                $validated['products'] ?? [],
+                $itemType,
+                $accountId,
+                $accountId,
+                $creatorId
+            ));
 
             $subtotal = $lines->sum('total');
             $validated['subtotal'] = $subtotal;
@@ -363,6 +333,7 @@ class WorkController extends Controller
                         $line['product_id'] => [
                             'quantity' => $line['quantity'],
                             'price' => $line['price'],
+                            'description' => $line['description'] ?? null,
                             'total' => $line['total'],
                         ],
                     ];
@@ -531,45 +502,14 @@ class WorkController extends Controller
                 ];
             });
         } else {
-            $lines = collect($validated['products'] ?? [])
-                ->map(function ($product) {
-                    $quantity = (int) ($product['quantity'] ?? 1);
-                    $price = (float) ($product['price'] ?? 0);
-
-                    return [
-                        'product_id' => (int) $product['id'],
-                        'quantity' => $quantity,
-                        'price' => $price,
-                        'total' => round($quantity * $price, 2),
-                    ];
-                })
-                ->filter(fn($line) => $line['product_id'] > 0);
-
-            $productMap = collect();
-            if ($lines->isNotEmpty()) {
-                $productMap = Product::byUser($accountId)
-                    ->where('item_type', $itemType)
-                    ->whereIn('id', $lines->pluck('product_id'))
-                    ->get()
-                    ->keyBy('id');
-            }
-
-            $lines = $lines->map(function ($line) use ($productMap) {
-                $product = $productMap->get($line['product_id']);
-                if (!$product) {
-                    return null;
-                }
-
-                $price = $line['price'] > 0 ? $line['price'] : (float) $product->price;
-                $quantity = (int) $line['quantity'];
-
-                return [
-                    'product_id' => $product->id,
-                    'quantity' => $quantity,
-                    'price' => $price,
-                    'total' => round($price * $quantity, 2),
-                ];
-            })->filter();
+            $creatorId = $user?->id ?? $accountId;
+            $lines = collect($this->buildWorkItems(
+                $validated['products'] ?? [],
+                $itemType,
+                $accountId,
+                $accountId,
+                $creatorId
+            ));
 
             $subtotal = $lines->sum('total');
             $validated['subtotal'] = $subtotal;
@@ -635,6 +575,7 @@ class WorkController extends Controller
                         $line['product_id'] => [
                             'quantity' => $line['quantity'],
                             'price' => $line['price'],
+                            'description' => $line['description'] ?? null,
                             'total' => $line['total'],
                         ],
                     ];
@@ -974,6 +915,140 @@ class WorkController extends Controller
         }
 
         return redirect()->route('customer.quote.edit', $quote)->with('success', 'Extra quote created.');
+    }
+
+    private function buildWorkItems(array $lines, string $itemType, int $userId, int $accountId, int $creatorId): array
+    {
+        $lines = collect($lines);
+        $productIds = $lines->pluck('id')->filter()->map(fn ($id) => (int) $id)->unique()->values();
+        $productMap = $productIds->isNotEmpty()
+            ? Product::byUser($userId)
+                ->whereIn('id', $productIds)
+                ->get()
+                ->keyBy('id')
+            : collect();
+
+        return $lines->map(function (array $line) use ($productMap, $itemType, $userId, $accountId, $creatorId) {
+            $quantity = (int) ($line['quantity'] ?? 1);
+            $price = (float) ($line['price'] ?? 0);
+            $description = $line['description'] ?? null;
+            $sourceDetails = $this->normalizeSourceDetails($line['source_details'] ?? null);
+            $productId = isset($line['id']) && $line['id'] !== null ? (int) $line['id'] : null;
+            $lineItemType = $line['item_type'] ?? $itemType;
+
+            if (!$productId) {
+                $name = trim((string) ($line['name'] ?? ''));
+                if ($name === '') {
+                    return null;
+                }
+
+                $product = $this->createProductFromLine($userId, $accountId, $creatorId, $lineItemType, $line, $sourceDetails);
+                $productId = $product->id;
+                if (!$description) {
+                    $description = $product->description;
+                }
+            } else {
+                $model = $productMap->get($productId);
+                if (!$model) {
+                    return null;
+                }
+                $lineItemType = $model?->item_type ?? $lineItemType;
+                if (!$description) {
+                    $description = $model?->description;
+                }
+                $price = $price > 0 ? $price : (float) $model->price;
+            }
+
+            return [
+                'product_id' => $productId,
+                'quantity' => $quantity,
+                'price' => $price,
+                'total' => round($quantity * $price, 2),
+                'description' => $description,
+            ];
+        })->filter()->values()->all();
+    }
+
+    private function normalizeSourceDetails($details): ?array
+    {
+        if (!$details) {
+            return null;
+        }
+
+        if (is_string($details)) {
+            $decoded = json_decode($details, true);
+            return is_array($decoded) ? $decoded : null;
+        }
+
+        if (is_object($details)) {
+            $details = json_decode(json_encode($details), true);
+        }
+
+        return is_array($details) ? $details : null;
+    }
+
+    private function createProductFromLine(
+        int $userId,
+        int $accountId,
+        int $creatorId,
+        string $itemType,
+        array $line,
+        ?array $sourceDetails
+    ): Product {
+        $name = trim((string) ($line['name'] ?? ''));
+        $query = Product::byUser($userId)
+            ->where('item_type', $itemType)
+            ->whereRaw('LOWER(name) = ?', [strtolower($name)]);
+
+        $existing = $query->first();
+        if ($existing) {
+            return $existing;
+        }
+
+        $category = $this->resolveCategory($accountId, $creatorId, $itemType);
+
+        $selected = $sourceDetails['selected_source'] ?? null;
+        $best = $sourceDetails['best_source'] ?? null;
+        $source = is_array($selected) ? $selected : (is_array($best) ? $best : null);
+        $supplierName = is_array($source) ? ($source['name'] ?? null) : null;
+        $imageUrl = is_array($source) ? ($source['image_url'] ?? null) : null;
+        $sourcePrice = is_array($source) && isset($source['price']) ? (float) $source['price'] : null;
+
+        $price = (float) ($line['price'] ?? 0);
+        $costPrice = $sourcePrice ?? $price;
+        $marginPercent = 0.0;
+        if ($price > 0 && $costPrice > 0) {
+            $marginPercent = round((($price - $costPrice) / $price) * 100, 2);
+        }
+
+        $description = $line['description'] ?? null;
+        if (!$description && is_array($source)) {
+            $description = $source['title'] ?? null;
+        }
+
+        return Product::create([
+            'user_id' => $userId,
+            'name' => $name ?: 'Job line',
+            'description' => $description ?: 'Auto-generated from job line.',
+            'category_id' => $category->id,
+            'price' => $price,
+            'cost_price' => $costPrice,
+            'margin_percent' => $marginPercent,
+            'unit' => $line['unit'] ?? null,
+            'supplier_name' => $supplierName,
+            'stock' => 0,
+            'minimum_stock' => 0,
+            'is_active' => true,
+            'item_type' => $itemType,
+            'image' => $imageUrl,
+        ]);
+    }
+
+    private function resolveCategory(int $accountId, int $creatorId, string $itemType): ProductCategory
+    {
+        $name = $itemType === 'product' ? 'Products' : 'Services';
+
+        return ProductCategory::resolveForAccount($accountId, $creatorId, $name);
     }
 
     private function applyQuoteSnapshotToWork(Work $work): void

@@ -1,11 +1,13 @@
 <script setup>
 import { computed, ref, watch } from 'vue';
-import { Link, router, useForm } from '@inertiajs/vue3';
+import { Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
 import StarRating from '@/Components/UI/StarRating.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
 import DatePicker from '@/Components/DatePicker.vue';
 import { humanizeDate } from '@/utils/date';
+import Modal from '@/Components/UI/Modal.vue';
+import InputError from '@/Components/InputError.vue';
 
 const props = defineProps({
     works: {
@@ -34,8 +36,12 @@ const filterForm = useForm({
 
 const showAdvanced = ref(false);
 const isLoading = ref(false);
+const createCustomerId = ref('');
+const createError = ref('');
 
 const { t } = useI18n();
+const page = usePage();
+const isOwner = computed(() => Boolean(page.props.auth?.account?.is_owner));
 
 const statusOptions = computed(() => ([
     { value: '', label: t('jobs.filters.status.all') },
@@ -60,6 +66,13 @@ const customerOptions = computed(() => ([
         label: customer.company_name || `${customer.first_name} ${customer.last_name}`,
     })),
 ]));
+
+const createCustomerOptions = computed(() =>
+    (props.customers || []).map((customer) => ({
+        value: String(customer.id),
+        label: customer.company_name || `${customer.first_name} ${customer.last_name}`,
+    }))
+);
 
 const statusLabels = computed(() => ({
     to_schedule: t('jobs.status.to_schedule'),
@@ -170,6 +183,36 @@ const createInvoice = (work) => {
         preserveScroll: true,
     });
 };
+
+const openCreateModal = () => {
+    createError.value = '';
+    if (window.HSOverlay) {
+        window.HSOverlay.open('#hs-work-create');
+    }
+};
+
+const createJob = () => {
+    if (!createCustomerId.value) {
+        createError.value = t('jobs.create_modal.customer_required');
+        return;
+    }
+    createError.value = '';
+    const customerId = Number(createCustomerId.value);
+    if (!customerId) {
+        createError.value = t('jobs.create_modal.customer_required');
+        return;
+    }
+    if (window.HSOverlay) {
+        window.HSOverlay.close('#hs-work-create');
+    }
+    router.visit(route('work.create', customerId));
+};
+
+watch(createCustomerId, () => {
+    if (createError.value) {
+        createError.value = '';
+    }
+});
 </script>
 
 <template>
@@ -201,6 +244,14 @@ const createInvoice = (work) => {
                     <button type="button" @click="clearFilters"
                         class="py-2 px-2.5 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 focus:outline-none focus:bg-stone-100 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700">
                         {{ $t('jobs.actions.reset') }}
+                    </button>
+                    <button
+                        v-if="isOwner"
+                        type="button"
+                        @click="openCreateModal"
+                        class="py-2 px-2.5 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-transparent bg-emerald-600 text-white hover:bg-emerald-700"
+                    >
+                        {{ $t('jobs.actions.create') }}
                     </button>
                 </div>
             </div>
@@ -287,6 +338,18 @@ const createInvoice = (work) => {
                                     </svg>
                                 </button>
                             </th>
+                            <th scope="col" class="min-w-32">
+                                <button type="button" @click="toggleSort('created_at')"
+                                    class="px-5 py-2.5 text-start w-full flex items-center gap-x-1 text-sm font-normal text-stone-500 hover:text-stone-700 focus:outline-none dark:text-neutral-500 dark:hover:text-neutral-300">
+                                    {{ $t('jobs.table.created_at') }}
+                                    <svg v-if="filterForm.sort === 'created_at'" class="size-3" xmlns="http://www.w3.org/2000/svg"
+                                        viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                        stroke-linecap="round" stroke-linejoin="round"
+                                        :class="filterForm.direction === 'asc' ? 'rotate-180' : ''">
+                                        <path d="m6 9 6 6 6-6" />
+                                    </svg>
+                                </button>
+                            </th>
                             <th scope="col"></th>
                         </tr>
                     </thead>
@@ -360,6 +423,11 @@ const createInvoice = (work) => {
                             <td class="size-px whitespace-nowrap px-4 py-2">
                                 <span class="text-xs text-stone-500 dark:text-neutral-500">
                                     {{ formatDate(work.start_date) }}
+                                </span>
+                            </td>
+                            <td class="size-px whitespace-nowrap px-4 py-2">
+                                <span class="text-xs text-stone-500 dark:text-neutral-500">
+                                    {{ formatDate(work.created_at) }}
                                 </span>
                             </td>
                             <td class="size-px whitespace-nowrap px-4 py-2 text-end">
@@ -458,6 +526,53 @@ const createInvoice = (work) => {
                 </Link>
             </nav>
         </div>
+
+        <Modal :title="$t('jobs.create_modal.title')" :id="'hs-work-create'">
+            <div class="space-y-4">
+                <p class="text-sm text-stone-600 dark:text-neutral-300">
+                    {{ $t('jobs.create_modal.subtitle') }}
+                </p>
+
+                <div v-if="!createCustomerOptions.length" class="rounded-sm border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
+                    {{ $t('jobs.create_modal.empty') }}
+                    <div class="mt-2">
+                        <Link
+                            :href="route('customer.create')"
+                            class="inline-flex items-center text-xs font-semibold text-amber-800 hover:underline dark:text-amber-200"
+                        >
+                            {{ $t('jobs.create_modal.add_customer') }}
+                        </Link>
+                    </div>
+                </div>
+
+                <div v-else>
+                    <FloatingSelect
+                        v-model="createCustomerId"
+                        :label="$t('jobs.create_modal.customer_label')"
+                        :options="createCustomerOptions"
+                    />
+                    <InputError class="mt-1" :message="createError" />
+                </div>
+
+                <div class="flex justify-end gap-2">
+                    <button
+                        type="button"
+                        class="py-2 px-3 inline-flex items-center text-sm font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200"
+                        data-hs-overlay="#hs-work-create"
+                    >
+                        {{ $t('jobs.create_modal.cancel') }}
+                    </button>
+                    <button
+                        type="button"
+                        class="py-2 px-3 inline-flex items-center text-sm font-medium rounded-sm border border-transparent bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50"
+                        :disabled="!createCustomerOptions.length"
+                        @click="createJob"
+                    >
+                        {{ $t('jobs.create_modal.create') }}
+                    </button>
+                </div>
+            </div>
+        </Modal>
     </div>
 </template>
 

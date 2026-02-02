@@ -70,6 +70,14 @@ const navTabs = computed(() => {
                     ownerOnly: true,
                 },
                 {
+                    id: 'hr',
+                    label: t('settings.items.hr.label'),
+                    description: t('settings.items.hr.description'),
+                    route: 'settings.hr.edit',
+                    icon: 'users',
+                    ownerOnly: true,
+                },
+                {
                     id: 'billing',
                     label: t('settings.items.billing.label'),
                     description: t('settings.items.billing.description'),
