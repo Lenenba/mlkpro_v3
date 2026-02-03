@@ -162,7 +162,7 @@ const submit = () => {
 <template>
     <Head title="Notifications" />
 
-    <SettingsLayout active="notifications" content-class="w-full max-w-7xl">
+    <SettingsLayout active="notifications" content-class="w-[1400px] max-w-full">
         <div class="w-full space-y-4">
             <div class="flex flex-wrap items-center justify-between gap-3">
                 <div>
@@ -315,4 +315,6 @@ const submit = () => {
         </div>
     </SettingsLayout>
 </template>
+
+
 

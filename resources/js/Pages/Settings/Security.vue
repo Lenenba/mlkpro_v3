@@ -174,7 +174,7 @@ const switchToEmail = () => {
 <template>
     <Head :title="t('settings.security.meta_title')" />
 
-    <SettingsLayout active="security" content-class="w-full max-w-7xl">
+    <SettingsLayout active="security" content-class="w-[1400px] max-w-full">
         <div class="w-full space-y-4">
             <div>
                 <h1 class="text-xl font-semibold text-stone-800 dark:text-neutral-100">
@@ -436,4 +436,6 @@ const switchToEmail = () => {
         </div>
     </SettingsLayout>
 </template>
+
+
 
