@@ -30,6 +30,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'company.feature' => \App\Http\Middleware\EnsureCompanyFeature::class,
             'impersonating' => \App\Http\Middleware\EnsureImpersonating::class,
             'demo.safe' => \App\Http\Middleware\EnsureDemoSafeMode::class,
+            'not.superadmin' => \App\Http\Middleware\EnsureNotSuperadmin::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

@@ -150,6 +150,19 @@ const isCustomerActive = computed(() => {
                                         </template>
                                     </LinkAncor>
 
+                                    <LinkAncor v-if="isSuperadmin" :label="$t('nav.plans')" :href="'superadmin.settings.edit'" tone="settings"
+                                        :active="route().current('superadmin.settings.*')">
+                                        <template #icon>
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                                stroke-linecap="round" stroke-linejoin="round"
+                                                class="lucide lucide-tag">
+                                                <path d="M20.59 13.41 11 3H4v7l9.59 9.59a2 2 0 0 0 2.82 0l4.18-4.18a2 2 0 0 0 0-2.82Z"/>
+                                                <circle cx="7.5" cy="7.5" r="0.5"/>
+                                            </svg>
+                                        </template>
+                                    </LinkAncor>
+
                                     <LinkAncor v-if="canPlatform('support.manage')" :label="$t('nav.support')" :href="'superadmin.support.index'" tone="support"
                                         :active="route().current('superadmin.support.*')">
                                         <template #icon>
@@ -642,7 +655,7 @@ const isCustomerActive = computed(() => {
                                         </div>
                                     </div>
                                     <div class="p-1">
-                                        <Link v-if="isOwner" :href="route('settings.company.edit')"
+                                        <Link v-if="isOwner && !isSuperadmin" :href="route('settings.company.edit')"
                                             class="flex items-center gap-x-3 py-1.5 px-2.5 rounded-sm text-sm text-stone-700 hover:bg-stone-100 focus:outline-none focus:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800 dark:focus:bg-neutral-800">
                                             <svg class="shrink-0 mt-0.5 size-4" xmlns="http://www.w3.org/2000/svg"
                                                 width="24" height="24" viewBox="0 0 24 24" fill="none"
@@ -654,7 +667,7 @@ const isCustomerActive = computed(() => {
                                             {{ $t('account.settings') }}
                                         </Link>
 
-                                        <Link v-if="isOwner" :href="route('settings.billing.edit')"
+                                        <Link v-if="isOwner && !isSuperadmin" :href="route('settings.billing.edit')"
                                             class="flex items-center gap-x-3 py-1.5 px-2.5 rounded-sm text-sm text-stone-700 hover:bg-stone-100 focus:outline-none focus:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800 dark:focus:bg-neutral-800">
                                             <svg class="shrink-0 mt-0.5 size-4" xmlns="http://www.w3.org/2000/svg"
                                                 width="24" height="24" viewBox="0 0 24 24" fill="none"

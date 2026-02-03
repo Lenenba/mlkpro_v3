@@ -2,6 +2,7 @@
   "nav": {
     "admin": "Administration",
     "tenants": "Espaces",
+    "plans": "Forfaits",
     "support": "Assistance",
     "admins": "Administrateurs",
     "notifications": "Alertes",
@@ -1312,6 +1313,23 @@
         "save": "Enregistrer les modules",
         "edit_modules_title": "Modifier les modules - {plan}",
         "modal_hint": "Desactivez des modules pour les cacher sur ce plan."
+      },
+      "plan_display": {
+        "title": "Affichage des forfaits",
+        "subtitle": "Modifier le contenu affiche sur les forfaits (nom, prix, badge, features).",
+        "empty": "Aucun plan configure.",
+        "edit_display": "Modifier l affichage",
+        "helper": "Cliquez sur un plan pour modifier ce qui est visible pour les entreprises.",
+        "save": "Enregistrer l affichage",
+        "edit_display_title": "Modifier l affichage - {plan}",
+        "fields": {
+          "name": "Nom du forfait",
+          "price": "Libelle du prix",
+          "badge": "Libelle du badge",
+          "features": "Fonctionnalites",
+          "add_feature": "Ajouter une fonctionnalite",
+          "remove": "Retirer"
+        }
       },
       "limits": {
         "quotes": "Devis",

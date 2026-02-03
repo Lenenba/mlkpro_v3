@@ -1,7 +1,7 @@
 <script setup>
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { Head, useForm } from '@inertiajs/vue3';
+import { Head, useForm, usePage } from '@inertiajs/vue3';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import Checkbox from '@/Components/Checkbox.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
@@ -29,9 +29,15 @@ const props = defineProps({
         type: Object,
         default: () => ({}),
     },
+    plan_display: {
+        type: Object,
+        default: () => ({}),
+    },
 });
 
 const { t } = useI18n();
+const page = usePage();
+const isSuperadmin = computed(() => Boolean(page.props.auth?.account?.is_superadmin));
 
 const limitKeys = computed(() => [
     { key: 'quotes', label: t('super_admin.settings.limits.quotes') },
@@ -88,6 +94,16 @@ const form = useForm({
         }, {});
         return acc;
     }, {}),
+    plan_display: props.plans.reduce((acc, plan) => {
+        const existing = props.plan_display?.[plan.key] || {};
+        acc[plan.key] = {
+            name: existing.name ?? plan.name ?? plan.key,
+            price: existing.price ?? '',
+            badge: existing.badge ?? '',
+            features: Array.isArray(existing.features) ? [...existing.features] : [],
+        };
+        return acc;
+    }, {}),
 });
 
 const activePlanKey = ref(null);
@@ -97,6 +113,10 @@ const showPlanModal = computed(() => Boolean(activePlan.value));
 const activeModulePlanKey = ref(null);
 const activeModulePlan = computed(() => props.plans.find((plan) => plan.key === activeModulePlanKey.value) || null);
 const showModuleModal = computed(() => Boolean(activeModulePlan.value));
+
+const activeDisplayPlanKey = ref(null);
+const activeDisplayPlan = computed(() => props.plans.find((plan) => plan.key === activeDisplayPlanKey.value) || null);
+const showDisplayModal = computed(() => Boolean(activeDisplayPlan.value));
 
 const limitValue = (planKey, limitKey) => {
     const value = form.plan_limits?.[planKey]?.[limitKey];
@@ -127,6 +147,39 @@ const closeModulePlan = () => {
     activeModulePlanKey.value = null;
 };
 
+const openDisplayPlan = (plan) => {
+    activeDisplayPlanKey.value = plan.key;
+    if (form.plan_display?.[plan.key] && !Array.isArray(form.plan_display[plan.key].features)) {
+        form.plan_display[plan.key].features = [];
+    }
+};
+
+const closeDisplayPlan = () => {
+    activeDisplayPlanKey.value = null;
+};
+
+const addDisplayFeature = (planKey) => {
+    if (!form.plan_display?.[planKey]) {
+        return;
+    }
+    if (!Array.isArray(form.plan_display[planKey].features)) {
+        form.plan_display[planKey].features = [];
+    }
+    form.plan_display[planKey].features.push('');
+};
+
+const removeDisplayFeature = (planKey, index) => {
+    if (!form.plan_display?.[planKey]?.features) {
+        return;
+    }
+    form.plan_display[planKey].features.splice(index, 1);
+};
+
+const displayFeatureCount = (planKey) =>
+    (form.plan_display?.[planKey]?.features || [])
+        .filter((feature) => typeof feature === 'string' && feature.trim() !== '')
+        .length;
+
 const submit = () => {
     form.put(route('superadmin.settings.update'), { preserveScroll: true });
 };
@@ -142,6 +195,13 @@ const submitPlanModules = () => {
     form.put(route('superadmin.settings.update'), {
         preserveScroll: true,
         onSuccess: () => closeModulePlan(),
+    });
+};
+
+const submitPlanDisplay = () => {
+    form.put(route('superadmin.settings.update'), {
+        preserveScroll: true,
+        onSuccess: () => closeDisplayPlan(),
     });
 };
 </script>
@@ -162,7 +222,7 @@ const submitPlanModules = () => {
                 </div>
             </section>
 
-            <div class="rounded-sm border border-stone-200 border-t-4 border-t-amber-600 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-800">
+            <div v-if="!isSuperadmin" class="rounded-sm border border-stone-200 border-t-4 border-t-amber-600 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-800">
                 <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
                     {{ $t('super_admin.settings.maintenance.title') }}
                 </h2>
@@ -184,7 +244,7 @@ const submitPlanModules = () => {
                 </form>
             </div>
 
-            <div class="rounded-sm border border-stone-200 border-t-4 border-t-sky-600 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-800">
+            <div v-if="!isSuperadmin" class="rounded-sm border border-stone-200 border-t-4 border-t-sky-600 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-800">
                 <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
                     {{ $t('super_admin.settings.templates.title') }}
                 </h2>
@@ -222,7 +282,7 @@ const submitPlanModules = () => {
                 </form>
             </div>
 
-            <div class="rounded-sm border border-stone-200 border-t-4 border-t-zinc-600 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-800">
+            <div v-if="!isSuperadmin" class="rounded-sm border border-stone-200 border-t-4 border-t-zinc-600 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-800">
                 <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
                     {{ $t('super_admin.settings.plan_limits.title') }}
                 </h2>
@@ -310,7 +370,7 @@ const submitPlanModules = () => {
                 </Modal>
             </div>
 
-            <div class="rounded-sm border border-stone-200 border-t-4 border-t-emerald-600 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-800">
+            <div v-if="!isSuperadmin" class="rounded-sm border border-stone-200 border-t-4 border-t-emerald-600 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-800">
                 <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
                     {{ $t('super_admin.settings.plan_modules.title') }}
                 </h2>
@@ -389,6 +449,128 @@ const submitPlanModules = () => {
                                 <button type="submit" :disabled="form.processing"
                                     class="py-2 px-3 text-sm font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:pointer-events-none">
                                     {{ $t('super_admin.settings.plan_modules.save') }}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </Modal>
+            </div>
+
+            <div class="rounded-sm border border-stone-200 border-t-4 border-t-indigo-600 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-800">
+                <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                    {{ $t('super_admin.settings.plan_display.title') }}
+                </h2>
+                <p class="mt-1 text-sm text-stone-600 dark:text-neutral-400">
+                    {{ $t('super_admin.settings.plan_display.subtitle') }}
+                </p>
+                <form class="mt-4 space-y-4" @submit.prevent="submitPlanDisplay">
+                    <div v-if="plans.length === 0" class="text-sm text-stone-500 dark:text-neutral-400">
+                        {{ $t('super_admin.settings.plan_display.empty') }}
+                    </div>
+                    <div v-else class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                        <div v-for="plan in plans" :key="plan.key"
+                            class="cursor-pointer rounded-sm border border-stone-200 bg-white p-4 shadow-sm transition hover:border-indigo-500 hover:shadow-md dark:border-neutral-700 dark:bg-neutral-900/40 dark:hover:border-indigo-500"
+                            role="button"
+                            tabindex="0"
+                            @click="openDisplayPlan(plan)"
+                            @keydown.enter="openDisplayPlan(plan)"
+                            @keydown.space.prevent="openDisplayPlan(plan)">
+                            <div class="flex items-start justify-between gap-3">
+                                <div class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                                    {{ form.plan_display[plan.key].name }}
+                                </div>
+                                <span class="text-xs text-stone-500 dark:text-neutral-400">
+                                    {{ $t('super_admin.settings.plan_display.edit_display') }}
+                                </span>
+                            </div>
+                            <div class="mt-3 grid gap-2 text-xs sm:grid-cols-2">
+                                <div class="flex items-center justify-between gap-2 rounded-sm border border-stone-200 bg-stone-50 px-2 py-1 dark:border-neutral-700 dark:bg-neutral-900">
+                                    <span class="text-stone-500 dark:text-neutral-400">{{ $t('super_admin.settings.plan_display.fields.price') }}</span>
+                                    <span class="font-semibold text-stone-800 dark:text-neutral-100">
+                                        {{ form.plan_display[plan.key].price || '--' }}
+                                    </span>
+                                </div>
+                                <div class="flex items-center justify-between gap-2 rounded-sm border border-stone-200 bg-stone-50 px-2 py-1 dark:border-neutral-700 dark:bg-neutral-900">
+                                    <span class="text-stone-500 dark:text-neutral-400">{{ $t('super_admin.settings.plan_display.fields.features') }}</span>
+                                    <span class="font-semibold text-stone-800 dark:text-neutral-100">
+                                        {{ displayFeatureCount(plan.key) }}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex flex-wrap items-center justify-between gap-2">
+                        <p class="text-xs text-stone-500 dark:text-neutral-400">
+                            {{ $t('super_admin.settings.plan_display.helper') }}
+                        </p>
+                        <button type="submit" :disabled="form.processing"
+                            class="py-2 px-3 text-sm font-medium rounded-sm border border-transparent bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 disabled:pointer-events-none">
+                            {{ $t('super_admin.settings.plan_display.save') }}
+                        </button>
+                    </div>
+                </form>
+
+                <Modal :show="showDisplayModal" @close="closeDisplayPlan" maxWidth="3xl">
+                    <div v-if="activeDisplayPlan" class="p-5">
+                        <div class="flex items-center justify-between">
+                            <h3 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                                {{ $t('super_admin.settings.plan_display.edit_display_title', { plan: activeDisplayPlan.name }) }}
+                            </h3>
+                            <button type="button" @click="closeDisplayPlan"
+                                class="text-sm text-stone-500 dark:text-neutral-400">
+                                {{ $t('super_admin.common.close') }}
+                            </button>
+                        </div>
+                        <form class="mt-4 space-y-4" @submit.prevent="submitPlanDisplay">
+                            <div class="grid gap-3 md:grid-cols-3">
+                                <div>
+                                    <FloatingInput v-model="form.plan_display[activeDisplayPlan.key].name"
+                                        :label="$t('super_admin.settings.plan_display.fields.name')" />
+                                    <InputError class="mt-1" :message="form.errors[`plan_display.${activeDisplayPlan.key}.name`]" />
+                                </div>
+                                <div>
+                                    <FloatingInput v-model="form.plan_display[activeDisplayPlan.key].price"
+                                        :label="$t('super_admin.settings.plan_display.fields.price')" />
+                                    <InputError class="mt-1" :message="form.errors[`plan_display.${activeDisplayPlan.key}.price`]" />
+                                </div>
+                                <div>
+                                    <FloatingInput v-model="form.plan_display[activeDisplayPlan.key].badge"
+                                        :label="$t('super_admin.settings.plan_display.fields.badge')" />
+                                    <InputError class="mt-1" :message="form.errors[`plan_display.${activeDisplayPlan.key}.badge`]" />
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-xs text-stone-500 dark:text-neutral-400">
+                                    {{ $t('super_admin.settings.plan_display.fields.features') }}
+                                </label>
+                                <div class="mt-2 space-y-2">
+                                    <div v-for="(feature, index) in form.plan_display[activeDisplayPlan.key].features"
+                                        :key="`${activeDisplayPlan.key}-feature-${index}`"
+                                        class="flex items-center gap-2">
+                                        <input v-model="form.plan_display[activeDisplayPlan.key].features[index]" type="text"
+                                            class="block w-full rounded-sm border-stone-200 text-sm focus:border-indigo-600 focus:ring-indigo-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200" />
+                                        <button type="button" @click="removeDisplayFeature(activeDisplayPlan.key, index)"
+                                            class="px-2 py-1 text-xs font-semibold text-stone-600 hover:text-rose-600 dark:text-neutral-400">
+                                            {{ $t('super_admin.settings.plan_display.fields.remove') }}
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="mt-2">
+                                    <button type="button" @click="addDisplayFeature(activeDisplayPlan.key)"
+                                        class="text-xs font-semibold text-indigo-600 hover:text-indigo-700">
+                                        {{ $t('super_admin.settings.plan_display.fields.add_feature') }}
+                                    </button>
+                                </div>
+                                <InputError class="mt-1" :message="form.errors[`plan_display.${activeDisplayPlan.key}.features`]" />
+                            </div>
+                            <div class="flex justify-end gap-2">
+                                <button type="button" @click="closeDisplayPlan"
+                                    class="py-2 px-3 text-sm font-medium rounded-sm border border-stone-200 text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700">
+                                    {{ $t('super_admin.common.cancel') }}
+                                </button>
+                                <button type="submit" :disabled="form.processing"
+                                    class="py-2 px-3 text-sm font-medium rounded-sm border border-transparent bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 disabled:pointer-events-none">
+                                    {{ $t('super_admin.settings.plan_display.save') }}
                                 </button>
                             </div>
                         </form>

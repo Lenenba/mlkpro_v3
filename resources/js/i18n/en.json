@@ -2,6 +2,7 @@
   "nav": {
     "admin": "Admin",
     "tenants": "Tenants",
+    "plans": "Plans",
     "support": "Support",
     "admins": "Admins",
     "notifications": "Notifications",
@@ -1312,6 +1313,23 @@
         "save": "Save modules",
         "edit_modules_title": "Edit modules - {plan}",
         "modal_hint": "Disable modules to hide them from this plan."
+      },
+      "plan_display": {
+        "title": "Plan display",
+        "subtitle": "Edit the content shown on plan cards (name, price label, badge, features).",
+        "empty": "No plans configured.",
+        "edit_display": "Edit display",
+        "helper": "Click a plan card to edit what is shown to companies.",
+        "save": "Save display",
+        "edit_display_title": "Edit display - {plan}",
+        "fields": {
+          "name": "Plan name",
+          "price": "Price label",
+          "badge": "Badge label",
+          "features": "Features",
+          "add_feature": "Add feature",
+          "remove": "Remove"
+        }
       },
       "limits": {
         "quotes": "Quotes",

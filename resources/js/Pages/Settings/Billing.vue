@@ -695,6 +695,9 @@ watch(
                                         class="plan-card__badge plan-card__badge--active">
                                         {{ $t('settings.billing.plan.badge_active') }}
                                     </span>
+                                    <span v-else-if="plan.badge" class="plan-card__badge">
+                                        {{ plan.badge }}
+                                    </span>
                                     <span v-else-if="plan.key === 'growth'" class="plan-card__badge">
                                         {{ $t('settings.billing.plan.badge_popular') }}
                                     </span>
