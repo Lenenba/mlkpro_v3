@@ -119,7 +119,7 @@ Route::middleware('guest')->group(function () {
     Route::post('/demo/login/{type}', [DemoController::class, 'login'])->name('demo.login');
 });
 
-Route::middleware('signed')->group(function () {
+Route::middleware(['signed', 'throttle:public-signed'])->group(function () {
     Route::get('/pay/invoices/{invoice}', [PublicInvoiceController::class, 'show'])->name('public.invoices.show');
     Route::post('/pay/invoices/{invoice}', [PublicInvoiceController::class, 'storePayment'])->name('public.invoices.pay');
     Route::post('/pay/invoices/{invoice}/stripe', [PublicInvoiceController::class, 'createStripeCheckout'])

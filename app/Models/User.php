@@ -257,8 +257,16 @@ class User extends Authenticatable
 
     public function requiresTwoFactor(): bool
     {
-        if ($this->isSuperadmin() || $this->isPlatformAdmin()) {
+        if ($this->isSuperadmin()) {
             return false;
+        }
+
+        if ($this->isPlatformAdmin()) {
+            $platformAdmin = $this->relationLoaded('platformAdmin')
+                ? $this->platformAdmin
+                : $this->platformAdmin()->first();
+
+            return (bool) ($platformAdmin?->require_2fa);
         }
 
         return $this->isAccountOwner();

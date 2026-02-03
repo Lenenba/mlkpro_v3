@@ -89,6 +89,8 @@ return [
 
     'rate_limits' => [
         'api_per_user' => env('API_RATE_LIMIT_PER_MINUTE', 120),
+        'public_signed_per_minute' => env('PUBLIC_SIGNED_RATE_LIMIT_PER_MINUTE', 30),
+        'register_per_minute' => env('REGISTER_RATE_LIMIT_PER_MINUTE', 10),
     ],
 
 ];
