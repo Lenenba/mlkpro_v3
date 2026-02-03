@@ -44,7 +44,7 @@ watch(activeTab, (value) => {
 <template>
     <Head title="Profil" />
 
-    <SettingsLayout active="profile" content-class="w-full max-w-6xl">
+    <SettingsLayout active="profile" content-class="w-full max-w-7xl">
         <div class="w-full space-y-5">
             <div>
                 <h1 class="text-xl font-semibold text-stone-800 dark:text-neutral-100">Profil</h1>
@@ -102,3 +102,4 @@ watch(activeTab, (value) => {
         </div>
     </SettingsLayout>
 </template>
+

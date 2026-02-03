@@ -1121,7 +1121,7 @@ watch(activeTab, (value) => {
 <template>
     <Head :title="$t('settings.company.meta_title')" />
 
-    <SettingsLayout active="company" content-class="w-full max-w-6xl">
+    <SettingsLayout active="company" content-class="w-full max-w-7xl">
         <div class="w-full space-y-4">
             <div class="flex flex-wrap items-center justify-between gap-3">
                 <div>
@@ -2050,3 +2050,4 @@ watch(activeTab, (value) => {
         </div>
     </SettingsLayout>
 </template>
+
