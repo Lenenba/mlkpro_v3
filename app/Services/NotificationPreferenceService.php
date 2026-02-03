@@ -13,6 +13,12 @@ class NotificationPreferenceService
     public const CATEGORY_ORDERS = 'orders';
     public const CATEGORY_SALES = 'sales';
     public const CATEGORY_STOCK = 'stock';
+    public const CATEGORY_PLANNING = 'planning';
+    public const CATEGORY_BILLING = 'billing';
+    public const CATEGORY_CRM = 'crm';
+    public const CATEGORY_SUPPORT = 'support';
+    public const CATEGORY_SECURITY = 'security';
+    public const CATEGORY_EMAILS_MIRROR = 'emails_mirror';
     public const CATEGORY_SYSTEM = 'system';
 
     public function defaultsFor(User $user): array
@@ -28,6 +34,7 @@ class NotificationPreferenceService
         $isClient = $user->isClient();
         $isOwner = $user->isAccountOwner();
         $isSeller = $teamRole === 'seller';
+        $isManager = in_array($teamRole, ['admin', 'sales_manager'], true);
         $isPlatform = $user->isSuperadmin() || $user->isPlatformAdmin();
 
         $channels = [
@@ -43,6 +50,12 @@ class NotificationPreferenceService
             self::CATEGORY_ORDERS => $isClient || $isOwner || $isSeller,
             self::CATEGORY_SALES => $isOwner || $isSeller,
             self::CATEGORY_STOCK => $isOwner || $isSeller,
+            self::CATEGORY_PLANNING => !$isClient,
+            self::CATEGORY_BILLING => $isOwner || $isManager,
+            self::CATEGORY_CRM => $isOwner || $isSeller || $isManager,
+            self::CATEGORY_SUPPORT => $isOwner || $isManager,
+            self::CATEGORY_SECURITY => true,
+            self::CATEGORY_EMAILS_MIRROR => !$isClient,
             self::CATEGORY_SYSTEM => true,
         ];
 
@@ -81,6 +94,10 @@ class NotificationPreferenceService
         $channelEnabled = array_key_exists($channel, $channels)
             ? (bool) $channels[$channel]
             : true;
+        if ($category === self::CATEGORY_SECURITY) {
+            return $channelEnabled;
+        }
+
         $categoryEnabled = array_key_exists($category, $categories)
             ? (bool) $categories[$category]
             : true;
@@ -99,6 +116,12 @@ class NotificationPreferenceService
             self::CATEGORY_ORDERS => (bool) ($settings['categories'][self::CATEGORY_ORDERS] ?? true),
             self::CATEGORY_SALES => (bool) ($settings['categories'][self::CATEGORY_SALES] ?? true),
             self::CATEGORY_STOCK => (bool) ($settings['categories'][self::CATEGORY_STOCK] ?? true),
+            self::CATEGORY_PLANNING => (bool) ($settings['categories'][self::CATEGORY_PLANNING] ?? true),
+            self::CATEGORY_BILLING => (bool) ($settings['categories'][self::CATEGORY_BILLING] ?? true),
+            self::CATEGORY_CRM => (bool) ($settings['categories'][self::CATEGORY_CRM] ?? true),
+            self::CATEGORY_SUPPORT => (bool) ($settings['categories'][self::CATEGORY_SUPPORT] ?? true),
+            self::CATEGORY_SECURITY => true,
+            self::CATEGORY_EMAILS_MIRROR => (bool) ($settings['categories'][self::CATEGORY_EMAILS_MIRROR] ?? true),
             self::CATEGORY_SYSTEM => (bool) ($settings['categories'][self::CATEGORY_SYSTEM] ?? true),
         ];
 

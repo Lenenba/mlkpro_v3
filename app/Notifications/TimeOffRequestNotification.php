@@ -29,7 +29,7 @@ class TimeOffRequestNotification extends Notification
             'title' => $this->title,
             'message' => $this->message,
             'action_url' => $this->actionUrl,
-            'category' => NotificationPreferenceService::CATEGORY_SYSTEM,
+            'category' => NotificationPreferenceService::CATEGORY_PLANNING,
         ], $this->payload);
     }
 }

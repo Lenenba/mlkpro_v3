@@ -31,7 +31,7 @@ class TaskAssignmentConflictNotification extends Notification
             'title' => 'Unassigned tasks created',
             'message' => "{$this->conflictCount} {$label} were left unassigned for job {$number} because the assignee was busy.",
             'action_url' => route('task.index'),
-            'category' => NotificationPreferenceService::CATEGORY_SYSTEM,
+            'category' => NotificationPreferenceService::CATEGORY_PLANNING,
             'work_id' => $this->work->id,
             'unassigned_count' => $this->conflictCount,
         ];

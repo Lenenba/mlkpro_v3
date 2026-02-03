@@ -5,6 +5,7 @@ namespace App\Support;
 use App\Models\Customer;
 use App\Models\User;
 use App\Notifications\EmailMirrorNotification;
+use App\Services\NotificationPreferenceService;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 use Illuminate\Support\Collection;
@@ -42,6 +43,11 @@ class EmailMirrorNotifier
         $pushRecipients = collect();
 
         foreach ($recipients as $user) {
+            $category = (string) ($payload['category'] ?? NotificationPreferenceService::CATEGORY_EMAILS_MIRROR);
+            $preferences = app(NotificationPreferenceService::class);
+            if (!$preferences->shouldNotify($user, $category, NotificationPreferenceService::CHANNEL_IN_APP)) {
+                continue;
+            }
             if ($status !== 'queued') {
                 $existingQueued = $dedupeKey !== '' ? self::findQueuedNotification($user, $dedupeKey) : null;
                 if ($existingQueued) {
@@ -120,7 +126,7 @@ class EmailMirrorNotifier
             'title' => $title ?: 'Notification',
             'message' => $message ?: 'Email en file d\'attente.',
             'action_url' => $actionUrl,
-            'category' => 'system',
+            'category' => NotificationPreferenceService::CATEGORY_EMAILS_MIRROR,
             'data' => $data,
         ];
     }

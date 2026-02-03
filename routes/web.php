@@ -37,6 +37,7 @@ use App\Http\Controllers\LocaleController;
 use App\Http\Controllers\PublicInvoiceController;
 use App\Http\Controllers\PublicPageController;
 use App\Http\Controllers\PublicStoreController;
+use App\Http\Controllers\PublicShowcaseController;
 use App\Http\Controllers\PublicQuoteController;
 use App\Http\Controllers\PublicRequestController;
 use App\Http\Controllers\PublicWorkController;
@@ -98,6 +99,11 @@ Route::get('/refund', [LegalController::class, 'refund'])->name('refund');
 Route::get('/pricing', [LegalController::class, 'pricing'])->name('pricing');
 Route::get('/pages/{slug}', [PublicPageController::class, 'show'])->name('public.pages.show');
 Route::get('/store/{slug}', [PublicStoreController::class, 'show'])->name('public.store.show');
+Route::get('/services/{slug}', [PublicShowcaseController::class, 'show'])
+    ->where('slug', '^(?!categories$|options$|quick$).+')
+    ->name('public.showcase.show');
+Route::get('/showcase/{slug}', fn (string $slug) => redirect()->route('public.showcase.show', ['slug' => $slug], 301))
+    ->name('public.showcase.legacy');
 Route::prefix('/store/{slug}')->group(function () {
     Route::get('/products/{product}/reviews', [PublicStoreController::class, 'reviews'])
         ->name('public.store.product.reviews');

@@ -4816,14 +4816,18 @@
           "label": "Suppliers",
           "description": "Active platforms"
         },
-        "store": {
-          "label": "Store",
-          "description": "Store settings"
-        },
-        "categories": {
-          "label": "Categories",
-          "description": "Services and products"
-        },
+      "store": {
+        "label": "Store",
+        "description": "Store settings"
+      },
+      "showcase": {
+        "label": "Showcase",
+        "description": "Service showcase settings"
+      },
+      "categories": {
+        "label": "Categories",
+        "description": "Services and products"
+      },
         "warehouses": {
           "label": "Warehouses",
           "description": "Stock locations"
@@ -4844,9 +4848,13 @@
       "store": {
         "title": "Storefront settings",
         "description": "Customize your public store header and featured product.",
+        "title_services": "Service showcase settings",
+        "description_services": "Customize your public service showcase.",
         "header_color": "Header color",
         "featured_product": "Featured product",
+        "featured_service": "Featured service",
         "featured_placeholder": "Select a featured product",
+        "featured_placeholder_service": "Select a featured service",
           "hero_images": "Hero background images",
           "hero_images_hint": "Paste one image URL per line. These will rotate behind the featured product.",
           "hero_images_upload": "Upload images (computer)",
@@ -4891,7 +4899,7 @@
       "fields": {
         "name": "Company name",
         "public_slug": "Public slug (store)",
-        "public_slug_hint": "Used for the public URL: /store/{slug}.",
+      "public_slug_hint": "Used for the public URL: /{path}/{slug}.",
         "logo_optional": "Logo (optional)",
         "logo_upload": "Upload your logo",
         "description_optional": "Description (optional)",
@@ -5123,7 +5131,9 @@
       },
       "actions": {
         "switch_plan": "Switch to this plan",
-        "choose_plan": "Choose this plan"
+        "choose_plan": "Choose this plan",
+        "contact_sales": "Contact sales",
+        "contact_phone": "Phone: {phone}"
       },
       "status": {
         "active": "Active",
@@ -5174,7 +5184,9 @@
         "badge_popular": "Popular",
         "interval_month": "/month",
         "current_plan": "You are on this plan.",
-        "cta_active": "Active plan"
+        "cta_active": "Active plan",
+        "team_limit": "Up to {count} employees",
+        "team_limit_plus": "{count}+ employees"
       },
       "assistant_addon": {
         "title": "AI assistant",
@@ -5480,18 +5492,18 @@
       "starter": {
         "label": "Starter",
         "price": "Contact us",
-        "desc": "For small teams starting with quotes and jobs."
+        "desc": "For small teams (up to 10 employees) starting with quotes and jobs."
       },
       "pro": {
         "label": "Pro",
         "badge": "Recommended",
         "price": "Contact us",
-        "desc": "For growing teams managing services and products."
+        "desc": "For growing teams (up to 25 employees) managing services and products."
       },
       "enterprise": {
         "label": "Enterprise",
         "price": "Custom",
-        "desc": "Advanced controls, multi-entity support, and SLA options."
+        "desc": "50+ employees with advanced controls, multi-entity support, and SLA options."
       }
     },
     "features": {
@@ -5752,5 +5764,40 @@
         "substitution_allowed": "Allow substitutions",
         "substitution_notes": "Substitution preferences"
       }
+  },
+  "public_showcase": {
+    "title": "{company} services",
+    "company_fallback": "Company",
+    "eyebrow": "Service showcase",
+    "headline": "Services by {company}.",
+    "subheadline": "Browse the services we deliver for your projects.",
+    "cta_request": "Request a quote",
+    "cta_contact": "Contact us",
+    "featured": "Featured service",
+    "empty": "No services available yet.",
+    "empty_description": "No description available.",
+    "category_fallback": "Uncategorized",
+    "price_from": "From",
+    "price_quote": "Quote required",
+    "stats_services": "{count} services",
+    "stats_categories": "{count} categories",
+    "filters": {
+      "search": "Search",
+      "search_placeholder": "Search services",
+      "category": "Category",
+      "all": "All categories"
+    },
+    "sections": {
+      "services": "Services",
+      "services_hint": "Pick a service and request a quote in minutes."
+    },
+    "contact": {
+      "title": "Contact us",
+      "subtitle": "Tell us about your project and we will respond quickly.",
+      "phone": "Phone",
+      "email": "Email",
+      "location": "Location",
+      "empty": "Contact details are coming soon."
+    }
   }
 }

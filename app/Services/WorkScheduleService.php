@@ -454,7 +454,7 @@ class WorkScheduleService
         }
 
         $preferences = app(NotificationPreferenceService::class);
-        if (!$preferences->shouldNotify($owner, NotificationPreferenceService::CATEGORY_SYSTEM)) {
+        if (!$preferences->shouldNotify($owner, NotificationPreferenceService::CATEGORY_PLANNING)) {
             return;
         }
 

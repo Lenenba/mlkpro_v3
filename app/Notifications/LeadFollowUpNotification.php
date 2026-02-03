@@ -61,7 +61,7 @@ class LeadFollowUpNotification extends Notification implements ShouldQueue
             'title' => $this->title(),
             'message' => $this->message(),
             'action_url' => $this->actionUrl(),
-            'category' => NotificationPreferenceService::CATEGORY_SYSTEM,
+            'category' => NotificationPreferenceService::CATEGORY_CRM,
             'lead_id' => $this->lead->id,
             'type' => $this->type,
             'hours' => $this->hours,

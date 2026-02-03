@@ -39,12 +39,29 @@ class NotificationSettingsController extends Controller
             'categories.orders' => 'boolean',
             'categories.sales' => 'boolean',
             'categories.stock' => 'boolean',
+            'categories.planning' => 'boolean',
+            'categories.billing' => 'boolean',
+            'categories.crm' => 'boolean',
+            'categories.support' => 'boolean',
+            'categories.security' => 'boolean',
+            'categories.emails_mirror' => 'boolean',
             'categories.system' => 'boolean',
         ]);
 
         $payload = [
             'channels' => Arr::only($validated['channels'] ?? [], ['in_app', 'push']),
-            'categories' => Arr::only($validated['categories'] ?? [], ['orders', 'sales', 'stock', 'system']),
+            'categories' => Arr::only($validated['categories'] ?? [], [
+                'orders',
+                'sales',
+                'stock',
+                'planning',
+                'billing',
+                'crm',
+                'support',
+                'security',
+                'emails_mirror',
+                'system',
+            ]),
         ];
 
         $settings = app(NotificationPreferenceService::class)->applyUpdate($user, $payload);

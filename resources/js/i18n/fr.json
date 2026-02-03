@@ -4816,14 +4816,18 @@
           "label": "Fournisseurs",
           "description": "Plateformes actives"
         },
-        "store": {
-          "label": "Boutique",
-          "description": "Parametres de la boutique"
-        },
-        "categories": {
-          "label": "Categories",
-          "description": "Services et produits"
-        },
+      "store": {
+        "label": "Boutique",
+        "description": "Parametres de la boutique"
+      },
+      "showcase": {
+        "label": "Vitrine services",
+        "description": "Parametres de la vitrine services"
+      },
+      "categories": {
+        "label": "Categories",
+        "description": "Services et produits"
+      },
         "warehouses": {
           "label": "Entrepots",
           "description": "Emplacements de stock"
@@ -4844,9 +4848,13 @@
       "store": {
         "title": "Parametres de la boutique",
         "description": "Personnalisez l en-tete et le produit vedette.",
+        "title_services": "Parametres de la vitrine services",
+        "description_services": "Personnalisez la vitrine publique de vos services.",
         "header_color": "Couleur de l en-tete",
         "featured_product": "Produit vedette",
+        "featured_service": "Service vedette",
         "featured_placeholder": "Selectionner un produit",
+        "featured_placeholder_service": "Selectionner un service",
           "hero_images": "Images de fond du produit vedette",
           "hero_images_hint": "Collez une URL d image par ligne. Elles defileront derriere le produit vedette.",
           "hero_images_upload": "Importer des images (ordinateur)",
@@ -4891,7 +4899,7 @@
       "fields": {
         "name": "Nom de l'entreprise",
         "public_slug": "Slug public (boutique)",
-        "public_slug_hint": "Utilise pour l'URL publique: /store/{slug}.",
+      "public_slug_hint": "Utilise pour l'URL publique: /{path}/{slug}.",
         "logo_optional": "Logo (optionnel)",
         "logo_upload": "Telecharger votre logo",
         "description_optional": "Description (optionnel)",
@@ -5123,7 +5131,9 @@
       },
       "actions": {
         "switch_plan": "Changer pour ce plan",
-        "choose_plan": "Choisir ce plan"
+        "choose_plan": "Choisir ce plan",
+        "contact_sales": "Demander une offre",
+        "contact_phone": "Telephone : {phone}"
       },
       "status": {
         "active": "Actif",
@@ -5174,7 +5184,9 @@
         "badge_popular": "Populaire",
         "interval_month": "/mois",
         "current_plan": "Vous etes sur ce plan.",
-        "cta_active": "Plan actif"
+        "cta_active": "Plan actif",
+        "team_limit": "Jusqu a {count} employes",
+        "team_limit_plus": "{count}+ employes"
       },
       "assistant_addon": {
         "title": "Assistant IA",
@@ -5480,18 +5492,18 @@
       "starter": {
         "label": "Essentiel",
         "price": "Contactez-nous",
-        "desc": "Pour les petites equipes qui demarrent."
+        "desc": "Pour les petites equipes (jusqu a 10 employes) qui demarrent."
       },
       "pro": {
         "label": "Professionnel",
         "badge": "Recommande",
         "price": "Contactez-nous",
-        "desc": "Pour les equipes en croissance et multi-activites."
+        "desc": "Pour les equipes en croissance (jusqu a 25 employes)."
       },
       "enterprise": {
         "label": "Entreprise",
         "price": "Sur mesure",
-        "desc": "Controles avances, multi-entites et options SLA."
+        "desc": "50+ employes avec controles avances et options SLA."
       }
     },
     "features": {
@@ -5752,5 +5764,40 @@
         "substitution_allowed": "Autoriser les substitutions",
         "substitution_notes": "Preferences de substitution"
       }
+  },
+  "public_showcase": {
+    "title": "Services {company}",
+    "company_fallback": "Entreprise",
+    "eyebrow": "Vitrine services",
+    "headline": "Services par {company}.",
+    "subheadline": "Decouvrez les services que nous realisons pour vos projets.",
+    "cta_request": "Demander un devis",
+    "cta_contact": "Nous contacter",
+    "featured": "Service phare",
+    "empty": "Aucun service disponible pour le moment.",
+    "empty_description": "Description non disponible.",
+    "category_fallback": "Sans categorie",
+    "price_from": "A partir de",
+    "price_quote": "Devis requis",
+    "stats_services": "{count} services",
+    "stats_categories": "{count} categories",
+    "filters": {
+      "search": "Recherche",
+      "search_placeholder": "Rechercher un service",
+      "category": "Categorie",
+      "all": "Toutes les categories"
+    },
+    "sections": {
+      "services": "Services",
+      "services_hint": "Choisissez un service et demandez un devis en quelques minutes."
+    },
+    "contact": {
+      "title": "Nous contacter",
+      "subtitle": "Parlez-nous de votre projet, nous repondons rapidement.",
+      "phone": "Telephone",
+      "email": "Email",
+      "location": "Localisation",
+      "empty": "Les informations de contact arrivent bientot."
+    }
   }
 }

@@ -11,6 +11,7 @@ use App\Models\ShiftTemplate;
 use App\Notifications\ActionEmailNotification;
 use App\Notifications\TimeOffRequestNotification;
 use App\Services\ShiftScheduleService;
+use App\Services\NotificationPreferenceService;
 use App\Support\NotificationDispatcher;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -1325,7 +1326,11 @@ class PlanningController extends Controller
         }
 
         $approvers = $this->resolveTimeOffApprovers($owner);
+        $preferences = app(NotificationPreferenceService::class);
         foreach ($approvers as $approver) {
+            if (!$preferences->shouldNotify($approver, NotificationPreferenceService::CATEGORY_PLANNING)) {
+                continue;
+            }
             NotificationDispatcher::send($approver, new TimeOffRequestNotification(
                 $title,
                 $message,

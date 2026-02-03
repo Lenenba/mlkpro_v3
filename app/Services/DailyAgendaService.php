@@ -12,6 +12,7 @@ use App\Notifications\ActionEmailNotification;
 use App\Notifications\ShiftNoticeNotification;
 use App\Support\NotificationDispatcher;
 use App\Services\CompanyNotificationPreferenceService;
+use App\Services\NotificationPreferenceService;
 use App\Services\TaskBillingService;
 use App\Services\TaskStatusHistoryService;
 use App\Services\TaskTimingService;
@@ -768,7 +769,11 @@ class DailyAgendaService
         }
         $recipients = $recipients->filter()->unique('id');
 
+        $preferences = app(NotificationPreferenceService::class);
         foreach ($recipients as $user) {
+            if (!$preferences->shouldNotify($user, NotificationPreferenceService::CATEGORY_PLANNING)) {
+                continue;
+            }
             $locale = $user->locale ?? 'fr';
             $isFr = str_starts_with(strtolower($locale), 'fr');
             $isSelf = $memberUser && $user->id === $memberUser->id;
@@ -813,7 +818,11 @@ class DailyAgendaService
         }
         $recipients = $recipients->filter()->unique('id');
 
+        $preferences = app(NotificationPreferenceService::class);
         foreach ($recipients as $user) {
+            if (!$preferences->shouldNotify($user, NotificationPreferenceService::CATEGORY_PLANNING)) {
+                continue;
+            }
             $locale = $user->locale ?? 'fr';
             $isFr = str_starts_with(strtolower($locale), 'fr');
             $isSelf = $memberUser && $user->id === $memberUser->id;
