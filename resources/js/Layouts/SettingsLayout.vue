@@ -13,7 +13,7 @@ const props = defineProps({
     },
     contentClass: {
         type: String,
-        default: 'w-full max-w-6xl',
+        default: 'w-full max-w-7xl',
     },
 });
 
@@ -285,3 +285,4 @@ const navTabs = computed(() => {
     min-width: 0;
 }
 </style>
+
