@@ -33,6 +33,7 @@ class EnsureOnboardingIsComplete
         $route = $request->route();
         if ($route?->named('onboarding.*')
             || $route?->named('api.onboarding.*')
+            || $route?->named('two-factor.*')
             || $route?->named('logout')
             || $route?->named('verification.*')
             || $route?->named('password.*')

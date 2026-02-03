@@ -4,11 +4,15 @@ namespace App\Services;
 
 use App\Models\Task;
 use App\Models\TeamMember;
+use App\Models\TeamMemberAttendance;
+use App\Models\TeamMemberShift;
 use App\Models\User;
 use App\Models\Work;
 use App\Notifications\ActionEmailNotification;
+use App\Notifications\ShiftNoticeNotification;
 use App\Support\NotificationDispatcher;
 use App\Services\CompanyNotificationPreferenceService;
+use App\Services\NotificationPreferenceService;
 use App\Services\TaskBillingService;
 use App\Services\TaskStatusHistoryService;
 use App\Services\TaskTimingService;
@@ -33,6 +37,8 @@ class DailyAgendaService
             'tasks_completed' => $this->handleTaskEndOfDay($now),
             'tasks_overdue' => $this->handleTaskOverdue($now),
             'clients_notified' => $this->handleClientNotifications($now),
+            'shift_reminders' => $this->handleShiftReminders($now),
+            'shift_late' => $this->handleShiftLateAlerts($now),
         ];
     }
 
@@ -343,6 +349,169 @@ class DailyAgendaService
         return $count;
     }
 
+    private function handleShiftReminders(Carbon $now): int
+    {
+        $minutesBefore = (int) config('agenda.shift_reminder_minutes', 30);
+        if ($minutesBefore <= 0) {
+            return 0;
+        }
+
+        $accountIds = TeamMemberShift::query()
+            ->where('kind', 'shift')
+            ->whereNull('reminder_sent_at')
+            ->where(function ($query) {
+                $query->whereNull('status')
+                    ->orWhere('status', 'approved');
+            })
+            ->distinct()
+            ->pluck('account_id')
+            ->filter();
+
+        $count = 0;
+        foreach ($accountIds as $accountId) {
+            $timezone = TaskTimingService::resolveTimezoneForAccountId($accountId);
+            $accountNow = $now->copy()->setTimezone($timezone);
+            $today = $accountNow->toDateString();
+            $windowEnd = $accountNow->copy()->addMinutes($minutesBefore);
+
+            $owner = User::query()->select(['id', 'name', 'locale'])->find($accountId);
+            if (!$owner) {
+                continue;
+            }
+
+            $shifts = TeamMemberShift::query()
+                ->where('account_id', $accountId)
+                ->where('kind', 'shift')
+                ->whereDate('shift_date', $today)
+                ->whereNull('reminder_sent_at')
+                ->where(function ($query) {
+                    $query->whereNull('status')
+                        ->orWhere('status', 'approved');
+                })
+                ->with(['teamMember.user:id,name,locale'])
+                ->get([
+                    'id',
+                    'team_member_id',
+                    'shift_date',
+                    'start_time',
+                    'end_time',
+                ]);
+
+            foreach ($shifts as $shift) {
+                if (!$shift->start_time) {
+                    continue;
+                }
+
+                $startAt = Carbon::parse(
+                    $shift->shift_date->toDateString() . ' ' . $shift->start_time,
+                    $timezone
+                );
+
+                if ($startAt->lt($accountNow) || $startAt->gt($windowEnd)) {
+                    continue;
+                }
+
+                $this->notifyShiftReminder($owner, $shift, $startAt);
+                $shift->reminder_sent_at = $now;
+                $shift->save();
+                $count += 1;
+            }
+        }
+
+        return $count;
+    }
+
+    private function handleShiftLateAlerts(Carbon $now): int
+    {
+        $graceMinutes = (int) config('agenda.shift_late_grace_minutes', 10);
+        if ($graceMinutes < 0) {
+            return 0;
+        }
+
+        $accountIds = TeamMemberShift::query()
+            ->where('kind', 'shift')
+            ->whereNull('late_alerted_at')
+            ->where(function ($query) {
+                $query->whereNull('status')
+                    ->orWhere('status', 'approved');
+            })
+            ->distinct()
+            ->pluck('account_id')
+            ->filter();
+
+        $count = 0;
+        foreach ($accountIds as $accountId) {
+            $timezone = TaskTimingService::resolveTimezoneForAccountId($accountId);
+            $accountNow = $now->copy()->setTimezone($timezone);
+            $today = $accountNow->toDateString();
+
+            $owner = User::query()->select(['id', 'name', 'locale'])->find($accountId);
+            if (!$owner) {
+                continue;
+            }
+
+            $shifts = TeamMemberShift::query()
+                ->where('account_id', $accountId)
+                ->where('kind', 'shift')
+                ->whereDate('shift_date', $today)
+                ->whereNull('late_alerted_at')
+                ->where(function ($query) {
+                    $query->whereNull('status')
+                        ->orWhere('status', 'approved');
+                })
+                ->with(['teamMember.user:id,name,locale'])
+                ->get([
+                    'id',
+                    'team_member_id',
+                    'shift_date',
+                    'start_time',
+                    'end_time',
+                ]);
+
+            foreach ($shifts as $shift) {
+                if (!$shift->start_time) {
+                    continue;
+                }
+
+                $startAt = Carbon::parse(
+                    $shift->shift_date->toDateString() . ' ' . $shift->start_time,
+                    $timezone
+                );
+                $lateAt = $startAt->copy()->addMinutes($graceMinutes);
+
+                if ($accountNow->lt($lateAt)) {
+                    continue;
+                }
+
+                if ($shift->end_time) {
+                    $endAt = Carbon::parse(
+                        $shift->shift_date->toDateString() . ' ' . $shift->end_time,
+                        $timezone
+                    );
+                    if ($accountNow->gt($endAt)) {
+                        $shift->late_alerted_at = $now;
+                        $shift->save();
+                        continue;
+                    }
+                }
+
+                $memberUser = $shift->teamMember?->user;
+                if ($this->hasClockedInForShift($accountId, $memberUser, $startAt, $lateAt)) {
+                    $shift->late_alerted_at = $now;
+                    $shift->save();
+                    continue;
+                }
+
+                $this->notifyShiftLate($owner, $shift, $startAt, $lateAt);
+                $shift->late_alerted_at = $now;
+                $shift->save();
+                $count += 1;
+            }
+        }
+
+        return $count;
+    }
+
     private function notifyClientTaskDay(Task $task, User $owner, array $channels, Carbon $now): bool
     {
         $customer = $task->customer;
@@ -546,6 +715,142 @@ class DailyAgendaService
             ->filter();
 
         return collect([$owner])->merge($admins)->filter()->unique('id');
+    }
+
+    private function resolveShiftManagers(int $accountId)
+    {
+        $owners = $this->resolveAdminUsers($accountId);
+
+        $managers = TeamMember::query()
+            ->forAccount($accountId)
+            ->active()
+            ->whereIn('role', ['sales_manager'])
+            ->with('user:id,name,locale')
+            ->get()
+            ->map(fn($member) => $member->user)
+            ->filter();
+
+        return $owners->merge($managers)->filter()->unique('id');
+    }
+
+    private function hasClockedInForShift(
+        int $accountId,
+        ?User $memberUser,
+        Carbon $startAt,
+        Carbon $lateAt
+    ): bool {
+        if (!$memberUser) {
+            return false;
+        }
+
+        $appTimezone = config('app.timezone', 'UTC');
+        $startUtc = $startAt->copy()->setTimezone($appTimezone);
+        $lateUtc = $lateAt->copy()->setTimezone($appTimezone);
+
+        return TeamMemberAttendance::query()
+            ->where('account_id', $accountId)
+            ->where('user_id', $memberUser->id)
+            ->where('clock_in_at', '<=', $lateUtc)
+            ->where(function ($query) use ($startUtc) {
+                $query->whereNull('clock_out_at')
+                    ->orWhere('clock_out_at', '>=', $startUtc);
+            })
+            ->exists();
+    }
+
+    private function notifyShiftReminder(User $owner, TeamMemberShift $shift, Carbon $startAt): void
+    {
+        $memberUser = $shift->teamMember?->user;
+        $memberName = $memberUser?->name ?? 'Employe';
+        $timeLabel = $startAt->format('H:i');
+        $recipients = $this->resolveShiftManagers($owner->id);
+        if ($memberUser) {
+            $recipients = $recipients->merge([$memberUser]);
+        }
+        $recipients = $recipients->filter()->unique('id');
+
+        $preferences = app(NotificationPreferenceService::class);
+        foreach ($recipients as $user) {
+            if (!$preferences->shouldNotify($user, NotificationPreferenceService::CATEGORY_PLANNING)) {
+                continue;
+            }
+            $locale = $user->locale ?? 'fr';
+            $isFr = str_starts_with(strtolower($locale), 'fr');
+            $isSelf = $memberUser && $user->id === $memberUser->id;
+            $title = $isFr ? 'Rappel de shift' : 'Shift reminder';
+            if ($isSelf) {
+                $message = $isFr
+                    ? "Ton shift commence a {$timeLabel}."
+                    : "Your shift starts at {$timeLabel}.";
+            } else {
+                $message = $isFr
+                    ? "Shift pour {$memberName} a {$timeLabel}."
+                    : "{$memberName}'s shift starts at {$timeLabel}.";
+            }
+
+            $user->notify(new ShiftNoticeNotification(
+                $title,
+                $message,
+                route('planning.index'),
+                [
+                    'type' => 'shift_reminder',
+                    'shift_id' => $shift->id,
+                    'team_member_id' => $shift->team_member_id,
+                    'shift_date' => $shift->shift_date?->toDateString(),
+                    'start_time' => $timeLabel,
+                ]
+            ));
+        }
+    }
+
+    private function notifyShiftLate(
+        User $owner,
+        TeamMemberShift $shift,
+        Carbon $startAt,
+        Carbon $lateAt
+    ): void {
+        $memberUser = $shift->teamMember?->user;
+        $memberName = $memberUser?->name ?? 'Employe';
+        $timeLabel = $startAt->format('H:i');
+        $recipients = $this->resolveShiftManagers($owner->id);
+        if ($memberUser) {
+            $recipients = $recipients->merge([$memberUser]);
+        }
+        $recipients = $recipients->filter()->unique('id');
+
+        $preferences = app(NotificationPreferenceService::class);
+        foreach ($recipients as $user) {
+            if (!$preferences->shouldNotify($user, NotificationPreferenceService::CATEGORY_PLANNING)) {
+                continue;
+            }
+            $locale = $user->locale ?? 'fr';
+            $isFr = str_starts_with(strtolower($locale), 'fr');
+            $isSelf = $memberUser && $user->id === $memberUser->id;
+            $title = $isFr ? 'Retard de shift' : 'Shift late';
+            if ($isSelf) {
+                $message = $isFr
+                    ? "Tu es en retard pour ton shift de {$timeLabel}."
+                    : "You are late for your {$timeLabel} shift.";
+            } else {
+                $message = $isFr
+                    ? "Retard: {$memberName} devait commencer a {$timeLabel}."
+                    : "Late: {$memberName} was scheduled at {$timeLabel}.";
+            }
+
+            $user->notify(new ShiftNoticeNotification(
+                $title,
+                $message,
+                route('planning.index'),
+                [
+                    'type' => 'shift_late',
+                    'shift_id' => $shift->id,
+                    'team_member_id' => $shift->team_member_id,
+                    'shift_date' => $shift->shift_date?->toDateString(),
+                    'start_time' => $timeLabel,
+                    'late_after_minutes' => (int) config('agenda.shift_late_grace_minutes', 10),
+                ]
+            ));
+        }
     }
 
     private function buildPayload(User $user, string $type, array $context): array

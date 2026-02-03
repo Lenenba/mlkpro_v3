@@ -199,6 +199,14 @@ const removeTeamMember = (memberId) => {
 };
 
 const isLockedFromQuote = computed(() => Boolean(props.lockedFromQuote));
+const lineItemsError = computed(() => {
+    if (form.errors.products) {
+        return form.errors.products;
+    }
+    const keys = Object.keys(form.errors || {});
+    const key = keys.find((errorKey) => errorKey.startsWith('products'));
+    return key ? form.errors[key] : '';
+});
 
 const primaryProperty = computed(() => {
     const properties = props.customer?.properties || [];
@@ -654,6 +662,18 @@ const totalWithTaxes = computed(() => {
 const submit = () => {
     const routeName = props.work?.id ? 'work.update' : 'work.store';
     const routeParams = props.work?.id ? props.work.id : undefined;
+    const productsPayload = (form.products || []).filter((line) => {
+        if (!line) {
+            return false;
+        }
+        const name = typeof line.name === 'string' ? line.name.trim() : '';
+        return Boolean(line.id || name);
+    });
+
+    form.transform((data) => ({
+        ...data,
+        products: productsPayload.length ? productsPayload : null,
+    }));
 
     form[props.work?.id ? 'put' : 'post'](route(routeName, routeParams), {
         onSuccess: () => {
@@ -848,6 +868,19 @@ onBeforeUnmount(() => {
                                 </div>
                             </div>
                         </div>
+                    </div>
+                    <div
+                        class="mt-4 p-5 space-y-3 flex flex-col bg-white border border-stone-200 rounded-sm shadow-sm xl:shadow-none dark:bg-neutral-900 dark:border-neutral-700"
+                        data-testid="demo-work-line-items"
+                    >
+                        <ProductTableList
+                            v-model="form.products"
+                            :read-only="isLockedFromQuote"
+                            :allow-mixed-types="true"
+                            :enable-price-lookup="true"
+                            @update:subtotal="updateSubtotal"
+                        />
+                        <InputError class="mt-2" :message="lineItemsError" />
                     </div>
                     <div class="mt-4">
 

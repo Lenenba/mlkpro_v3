@@ -1,8 +1,9 @@
 <script setup>
+import { computed } from 'vue';
 import ApplicationLogo from '@/Components/ApplicationLogo.vue';
 import { Head, Link } from '@inertiajs/vue3';
 
-defineProps({
+const props = defineProps({
     canLogin: {
         type: Boolean,
         default: true,
@@ -11,7 +12,22 @@ defineProps({
         type: Boolean,
         default: true,
     },
+    pricingPlans: {
+        type: Array,
+        default: () => [],
+    },
+    highlightedPlanKey: {
+        type: String,
+        default: null,
+    },
 });
+
+const plans = computed(() => (Array.isArray(props.pricingPlans) ? props.pricingPlans : []));
+const highlightedKey = computed(() => props.highlightedPlanKey || plans.value[1]?.key || plans.value[0]?.key || null);
+
+const isHighlighted = (plan) => Boolean(plan?.key && plan.key === highlightedKey.value);
+const resolvePrice = (plan) => plan?.display_price || plan?.price || '--';
+const resolveFeatures = (plan) => (Array.isArray(plan?.features) ? plan.features.filter((feature) => !!feature) : []);
 </script>
 
 <template>
@@ -58,44 +74,43 @@ defineProps({
                     </div>
 
                     <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
-                        <div class="rounded-sm border border-stone-200 bg-stone-50 p-4 text-sm text-stone-700 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200">
-                            <div class="text-xs uppercase tracking-wide text-stone-500 dark:text-neutral-400">
-                                {{ $t('pricing.plans.starter.label') }}
-                            </div>
-                            <div class="mt-2 text-xl font-semibold text-stone-900 dark:text-neutral-100">
-                                {{ $t('pricing.plans.starter.price') }}
-                            </div>
-                            <p class="mt-2 text-sm text-stone-600 dark:text-neutral-300">
-                                {{ $t('pricing.plans.starter.desc') }}
-                            </p>
-                        </div>
-
-                        <div class="rounded-sm border border-emerald-200 bg-emerald-50 p-4 text-sm text-stone-700 dark:border-emerald-900/40 dark:bg-neutral-900 dark:text-neutral-200">
+                        <div v-for="plan in plans" :key="plan.key"
+                            :class="[
+                                'rounded-sm border p-4 text-sm',
+                                isHighlighted(plan)
+                                    ? 'border-emerald-200 bg-emerald-50 text-stone-700 dark:border-emerald-900/40 dark:bg-neutral-900 dark:text-neutral-200'
+                                    : 'border-stone-200 bg-stone-50 text-stone-700 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200'
+                            ]">
                             <div class="flex items-center justify-between">
-                                <div class="text-xs uppercase tracking-wide text-emerald-700 dark:text-emerald-300">
-                                    {{ $t('pricing.plans.pro.label') }}
+                                <div
+                                    :class="[
+                                        'text-xs uppercase tracking-wide',
+                                        isHighlighted(plan)
+                                            ? 'text-emerald-700 dark:text-emerald-300'
+                                            : 'text-stone-500 dark:text-neutral-400'
+                                    ]">
+                                    {{ plan.name }}
                                 </div>
-                                <span class="rounded-sm bg-emerald-600 px-2 py-0.5 text-[10px] font-semibold uppercase text-white">
-                                    {{ $t('pricing.plans.pro.badge') }}
+                                <span v-if="plan.badge || isHighlighted(plan)"
+                                    :class="[
+                                        'rounded-sm px-2 py-0.5 text-[10px] font-semibold uppercase',
+                                        isHighlighted(plan)
+                                            ? 'bg-emerald-600 text-white'
+                                            : 'bg-stone-200 text-stone-700 dark:bg-neutral-700 dark:text-neutral-200'
+                                    ]">
+                                    {{ plan.badge || $t('pricing.plans.pro.badge') }}
                                 </span>
                             </div>
                             <div class="mt-2 text-xl font-semibold text-stone-900 dark:text-neutral-100">
-                                {{ $t('pricing.plans.pro.price') }}
+                                {{ resolvePrice(plan) }}
                             </div>
-                            <p class="mt-2 text-sm text-stone-600 dark:text-neutral-300">
-                                {{ $t('pricing.plans.pro.desc') }}
-                            </p>
-                        </div>
-
-                        <div class="rounded-sm border border-stone-200 bg-stone-50 p-4 text-sm text-stone-700 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200">
-                            <div class="text-xs uppercase tracking-wide text-stone-500 dark:text-neutral-400">
-                                {{ $t('pricing.plans.enterprise.label') }}
-                            </div>
-                            <div class="mt-2 text-xl font-semibold text-stone-900 dark:text-neutral-100">
-                                {{ $t('pricing.plans.enterprise.price') }}
-                            </div>
-                            <p class="mt-2 text-sm text-stone-600 dark:text-neutral-300">
-                                {{ $t('pricing.plans.enterprise.desc') }}
+                            <ul v-if="resolveFeatures(plan).length" class="mt-3 space-y-1 text-xs text-stone-600 dark:text-neutral-300">
+                                <li v-for="feature in resolveFeatures(plan).slice(0, 4)" :key="feature">
+                                    {{ feature }}
+                                </li>
+                            </ul>
+                            <p v-else class="mt-2 text-sm text-stone-600 dark:text-neutral-300">
+                                {{ $t('pricing.hero.note') }}
                             </p>
                         </div>
                     </div>

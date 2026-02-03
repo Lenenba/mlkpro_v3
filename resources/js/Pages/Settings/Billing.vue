@@ -43,6 +43,10 @@ const props = defineProps({
         type: String,
         default: null,
     },
+    activePlanKey: {
+        type: String,
+        default: null,
+    },
     creditStatus: {
         type: String,
         default: null,
@@ -123,6 +127,7 @@ const isSubscribed = computed(() => Boolean(props.subscription?.active));
 const hasSubscription = computed(() => Boolean(props.subscription?.provider_id));
 const hasPlans = computed(() => props.plans.some((plan) => Boolean(plan.price_id)));
 const canUsePaddle = computed(() => Boolean(isPaddleProvider.value && props.paddle?.js_enabled && props.paddle?.api_enabled && !props.paddle?.error));
+const activePlanKey = computed(() => props.activePlanKey || null);
 const seatQuantity = computed(() => {
     const value = Number(props.seatQuantity || 1);
     if (!Number.isFinite(value)) {
@@ -130,8 +135,20 @@ const seatQuantity = computed(() => {
     }
     return Math.max(1, Math.floor(value));
 });
+const supportPhone = computed(() => (props.billing?.support_phone || '').trim());
+const supportPhoneHref = computed(() => {
+    const raw = supportPhone.value;
+    if (!raw) {
+        return '';
+    }
+    const digits = raw.replace(/[^\d+]/g, '');
+    return digits ? `tel:${digits}` : '';
+});
 
 const activePlan = computed(() => {
+    if (activePlanKey.value) {
+        return props.plans.find((plan) => plan.key === activePlanKey.value) || null;
+    }
     if (!props.subscription?.price_id) {
         return null;
     }
@@ -139,11 +156,36 @@ const activePlan = computed(() => {
     return props.plans.find((plan) => plan.price_id === props.subscription.price_id) || null;
 });
 
+const isPlanActive = (plan) => {
+    if (!plan) {
+        return false;
+    }
+    if (activePlanKey.value) {
+        return plan.key === activePlanKey.value;
+    }
+    if (props.subscription?.price_id) {
+        return plan.price_id === props.subscription.price_id;
+    }
+    return false;
+};
+
 const planActionLabel = computed(() =>
     isSubscribed.value
         ? t('settings.billing.actions.switch_plan')
         : t('settings.billing.actions.choose_plan')
 );
+
+const resolveTeamLimitLabel = (plan) => {
+    const limit = Number(plan?.team_members_limit);
+    if (Number.isFinite(limit) && limit > 0) {
+        return t('settings.billing.plan.team_limit', { count: limit });
+    }
+    if (plan?.contact_only) {
+        const min = Number(plan?.team_members_min || 50);
+        return t('settings.billing.plan.team_limit_plus', { count: min });
+    }
+    return null;
+};
 
 const checkoutPlanName = computed(() => {
     if (!props.checkoutPlanKey) {
@@ -521,7 +563,7 @@ const openPaddleCheckout = async (plan) => {
 };
 
 const startCheckout = (plan) => {
-    if (!plan?.price_id || plan.price_id === props.subscription?.price_id) {
+    if (!plan?.price_id || isPlanActive(plan)) {
         return;
     }
 
@@ -641,17 +683,20 @@ watch(
                     </div>
 
                     <div class="billing-plans">
-                        <div class="billing-plans__grid">
+                            <div class="billing-plans__grid">
                             <div v-for="plan in plans" :key="plan.key" class="plan-card"
-                                :data-active="plan.price_id === subscription?.price_id">
+                                :data-active="isPlanActive(plan)">
                                 <div class="plan-card__top">
                                     <div>
                                         <h3 class="plan-card__name">{{ plan.name }}</h3>
                                         <p class="plan-card__meta">{{ $t('settings.billing.plan.monthly') }}</p>
                                     </div>
-                                    <span v-if="subscription?.price_id === plan.price_id"
+                                    <span v-if="isPlanActive(plan)"
                                         class="plan-card__badge plan-card__badge--active">
                                         {{ $t('settings.billing.plan.badge_active') }}
+                                    </span>
+                                    <span v-else-if="plan.badge" class="plan-card__badge">
+                                        {{ plan.badge }}
                                     </span>
                                     <span v-else-if="plan.key === 'growth'" class="plan-card__badge">
                                         {{ $t('settings.billing.plan.badge_popular') }}
@@ -659,9 +704,14 @@ watch(
                                 </div>
                                 <div class="plan-card__price">
                                     <span class="plan-card__amount">{{ plan.display_price || '--' }}</span>
-                                    <span class="plan-card__interval">{{ $t('settings.billing.plan.interval_month') }}</span>
+                                    <span v-if="!plan.contact_only" class="plan-card__interval">
+                                        {{ $t('settings.billing.plan.interval_month') }}
+                                    </span>
                                 </div>
-                                <p v-if="subscription?.active && plan.price_id === subscription?.price_id"
+                                <p v-if="resolveTeamLimitLabel(plan)" class="plan-card__limit">
+                                    {{ resolveTeamLimitLabel(plan) }}
+                                </p>
+                                <p v-if="isPlanActive(plan)"
                                     class="plan-card__status">
                                     {{ $t('settings.billing.plan.current_plan') }}
                                 </p>
@@ -670,10 +720,26 @@ watch(
                                         {{ feature }}
                                     </li>
                                 </ul>
-                                <button type="button" @click="startCheckout(plan)" class="plan-card__cta"
-                                    :disabled="paddleIsLoading || !plan.price_id || plan.price_id === subscription?.price_id"
-                                    :class="{ 'is-active': plan.price_id === subscription?.price_id }">
-                                    <span v-if="plan.price_id === subscription?.price_id">{{ $t('settings.billing.plan.cta_active') }}</span>
+                                <div v-if="plan.contact_only" class="plan-card__contact">
+                                    <a v-if="plan.cta_url"
+                                        :href="plan.cta_url"
+                                        class="plan-card__cta plan-card__cta--contact"
+                                    >
+                                        {{ $t('settings.billing.actions.contact_sales') }}
+                                    </a>
+                                    <div v-if="supportPhone" class="plan-card__phone">
+                                        <a v-if="supportPhoneHref" :href="supportPhoneHref">
+                                            {{ $t('settings.billing.actions.contact_phone', { phone: supportPhone }) }}
+                                        </a>
+                                        <span v-else>
+                                            {{ $t('settings.billing.actions.contact_phone', { phone: supportPhone }) }}
+                                        </span>
+                                    </div>
+                                </div>
+                                <button v-else type="button" @click="startCheckout(plan)" class="plan-card__cta"
+                                    :disabled="paddleIsLoading || !plan.price_id || isPlanActive(plan)"
+                                    :class="{ 'is-active': isPlanActive(plan) }">
+                                    <span v-if="isPlanActive(plan)">{{ $t('settings.billing.plan.cta_active') }}</span>
                                     <span v-else>{{ planActionLabel }}</span>
                                 </button>
                             </div>
@@ -1027,6 +1093,12 @@ watch(
     color: var(--plan-muted);
 }
 
+.plan-card__limit {
+    margin-top: 6px;
+    font-size: 0.78rem;
+    color: var(--plan-muted);
+}
+
 .plan-card__status {
     font-size: 0.78rem;
     color: var(--plan-status);
@@ -1082,6 +1154,39 @@ watch(
     transform: translateY(-1px);
     border-color: var(--plan-cta-hover-border);
     background: var(--plan-cta-hover-bg);
+}
+
+.plan-card__cta--contact {
+    background: transparent;
+    border-color: var(--plan-accent);
+    color: var(--plan-accent);
+    text-align: center;
+}
+
+.plan-card__cta--contact:hover {
+    background: rgba(16, 185, 129, 0.08);
+    box-shadow: none;
+}
+
+.plan-card__contact {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.plan-card__phone {
+    font-size: 0.78rem;
+    text-align: center;
+    color: var(--plan-muted);
+}
+
+.plan-card__phone a {
+    color: var(--plan-muted);
+    text-decoration: none;
+}
+
+.plan-card__phone a:hover {
+    color: var(--plan-text);
 }
 
 .plan-card__cta:disabled,

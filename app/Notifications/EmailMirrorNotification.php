@@ -4,6 +4,7 @@ namespace App\Notifications;
 
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Notification;
+use App\Services\NotificationPreferenceService;
 
 class EmailMirrorNotification extends Notification
 {
@@ -29,7 +30,7 @@ class EmailMirrorNotification extends Notification
             'title' => $this->title,
             'message' => $this->message,
             'action_url' => $this->actionUrl,
-            'category' => $this->category,
+            'category' => $this->category ?? NotificationPreferenceService::CATEGORY_EMAILS_MIRROR,
             'data' => $this->data ?: null,
         ], fn ($value) => $value !== null);
     }

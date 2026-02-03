@@ -20,11 +20,13 @@ class TeamMember extends Model
         'title',
         'phone',
         'permissions',
+        'planning_rules',
         'is_active',
     ];
 
     protected $casts = [
         'permissions' => 'array',
+        'planning_rules' => 'array',
         'is_active' => 'boolean',
     ];
 

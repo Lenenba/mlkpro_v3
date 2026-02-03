@@ -2,6 +2,7 @@
   "nav": {
     "admin": "Admin",
     "tenants": "Tenants",
+    "plans": "Plans",
     "support": "Support",
     "admins": "Admins",
     "notifications": "Notifications",
@@ -53,6 +54,30 @@
     "title": "Notifications",
     "mark_all": "Mark all",
     "empty": "No notifications."
+  },
+  "two_factor": {
+    "title": "Two-factor verification",
+    "sent": "We sent a verification code to {email}.",
+    "expires": "This code expires in {minutes} minutes.",
+    "code_label": "Verification code",
+    "code_placeholder": "Enter the 6-digit code",
+    "submit": "Verify",
+    "resend": "Resend code"
+  },
+  "global_search": {
+    "open": "Global search",
+    "placeholder": "Search customers, tasks, quotes, employees...",
+    "quick_actions": "Quick actions",
+    "results": "Results",
+    "loading": "Searching...",
+    "no_results": "No results found.",
+    "hint": "Ctrl + K",
+    "groups": {
+      "customers": "Customers",
+      "tasks": "Tasks",
+      "quotes": "Quotes",
+      "employees": "Employees"
+    }
   },
   "alerts": {
     "maintenance": {
@@ -601,6 +626,7 @@
       "hours": "A few hours",
       "start_time": "Start time",
       "end_time": "End time",
+      "break_minutes": "Break (min)",
       "shift_title": "Shift title",
       "notes": "Notes",
       "reason": "Reason / notes",
@@ -634,7 +660,9 @@
       "load": "Unable to load shifts.",
       "save": "Unable to save the shift.",
       "delete": "Unable to delete the shift.",
-      "status": "Unable to update the status."
+      "status": "Unable to update the status.",
+      "update": "Unable to update the shift.",
+      "conflict": "Scheduling conflict detected."
     },
     "notices": {
       "created": "{count} shift(s) created.",
@@ -644,6 +672,7 @@
       "leave_created_many": "{count} leave day(s) saved.",
       "absence_deleted": "Absence deleted.",
       "leave_deleted": "Leave deleted.",
+      "updated": "Shift updated.",
       "approved": "Request approved.",
       "rejected": "Request rejected.",
       "deleted": "Shift deleted."
@@ -1284,6 +1313,23 @@
         "save": "Save modules",
         "edit_modules_title": "Edit modules - {plan}",
         "modal_hint": "Disable modules to hide them from this plan."
+      },
+      "plan_display": {
+        "title": "Plan display",
+        "subtitle": "Edit the content shown on plan cards (name, price label, badge, features).",
+        "empty": "No plans configured.",
+        "edit_display": "Edit display",
+        "helper": "Click a plan card to edit what is shown to companies.",
+        "save": "Save display",
+        "edit_display_title": "Edit display - {plan}",
+        "fields": {
+          "name": "Plan name",
+          "price": "Price label",
+          "badge": "Badge label",
+          "features": "Features",
+          "add_feature": "Add feature",
+          "remove": "Remove"
+        }
       },
       "limits": {
         "quotes": "Quotes",
@@ -4307,16 +4353,28 @@
       "rating": "Rating",
       "total": "Total",
       "start_date": "Start date",
+      "created_at": "Created",
       "results": "results"
     },
     "actions": {
       "filters": "Filters",
       "reset": "Reset",
+      "create": "Create job",
       "view": "View",
       "edit": "Edit",
       "schedule": "Schedule",
       "view_invoice": "View invoice",
       "create_invoice": "Create invoice"
+    },
+    "create_modal": {
+      "title": "Create job",
+      "subtitle": "Choose a customer to start a job without a quote.",
+      "customer_label": "Customer",
+      "customer_required": "Select a customer to continue.",
+      "empty": "No customers available yet.",
+      "add_customer": "Add a customer",
+      "cancel": "Cancel",
+      "create": "Create job"
     },
     "labels": {
       "unknown_customer": "Unknown"
@@ -4679,6 +4737,10 @@
         "label": "Company",
         "description": "Info and categories"
       },
+      "hr": {
+        "label": "HR",
+        "description": "Shift templates"
+      },
       "billing": {
         "label": "Billing",
         "description": "Plan and payments"
@@ -4691,6 +4753,71 @@
       "support": {
         "label": "Support",
         "description": "Incidents and help"
+      }
+    },
+    "security": {
+      "meta_title": "Security",
+      "title": "Security",
+      "subtitle": "Manage two-factor authentication and account activity.",
+      "tabs": {
+        "auth": {
+          "label": "Authentication",
+          "description": "2FA and access"
+        },
+        "activity": {
+          "label": "Activity",
+          "description": "Recent sign-ins"
+        }
+      },
+      "two_factor": {
+        "title": "Two-factor authentication",
+        "description": "Adds an extra email code at login.",
+        "status_required": "Required",
+        "status_enabled": "Enabled",
+        "status_disabled": "Disabled",
+        "required_hint": "2FA is mandatory for account owners.",
+        "email_label": "Email",
+        "last_sent": "Last code sent",
+        "last_sent_empty": "No code sent yet"
+      },
+      "password": {
+        "title": "Password",
+        "description": "Change your password from your profile page.",
+        "action": "Update password"
+      },
+      "rate_limit": {
+        "title": "API protection",
+        "description": "Rate limiting protects your API and automation.",
+        "value": "{limit} requests / min / user",
+        "unavailable": "Rate limit not configured"
+      },
+      "activity": {
+        "title": "Recent activity",
+        "description": "Latest sign-ins and security events.",
+        "empty": "No security events yet.",
+        "columns": {
+          "user": "User",
+          "event": "Event",
+          "channel": "Channel",
+          "ip": "IP",
+          "device": "Device",
+          "date": "Date"
+        },
+        "channels": {
+          "web": "Web",
+          "api": "API"
+        },
+        "unknown_device": "Unknown device",
+        "actions": {
+          "auth.login": "Signed in",
+          "auth.logout": "Signed out",
+          "auth.password_changed": "Password changed",
+          "auth.2fa.sent": "2FA code sent",
+          "auth.2fa.resend": "2FA code resent"
+        },
+        "badges": {
+          "two_factor": "2FA"
+        }
       }
     },
     "company": {
@@ -4707,14 +4834,18 @@
           "label": "Suppliers",
           "description": "Active platforms"
         },
-        "store": {
-          "label": "Store",
-          "description": "Store settings"
-        },
-        "categories": {
-          "label": "Categories",
-          "description": "Services and products"
-        },
+      "store": {
+        "label": "Store",
+        "description": "Store settings"
+      },
+      "showcase": {
+        "label": "Showcase",
+        "description": "Service showcase settings"
+      },
+      "categories": {
+        "label": "Categories",
+        "description": "Services and products"
+      },
         "warehouses": {
           "label": "Warehouses",
           "description": "Stock locations"
@@ -4735,9 +4866,13 @@
       "store": {
         "title": "Storefront settings",
         "description": "Customize your public store header and featured product.",
+        "title_services": "Service showcase settings",
+        "description_services": "Customize your public service showcase.",
         "header_color": "Header color",
         "featured_product": "Featured product",
+        "featured_service": "Featured service",
         "featured_placeholder": "Select a featured product",
+        "featured_placeholder_service": "Select a featured service",
           "hero_images": "Hero background images",
           "hero_images_hint": "Paste one image URL per line. These will rotate behind the featured product.",
           "hero_images_upload": "Upload images (computer)",
@@ -4782,7 +4917,7 @@
       "fields": {
         "name": "Company name",
         "public_slug": "Public slug (store)",
-        "public_slug_hint": "Used for the public URL: /store/{slug}.",
+      "public_slug_hint": "Used for the public URL: /{path}/{slug}.",
         "logo_optional": "Logo (optional)",
         "logo_upload": "Upload your logo",
         "description_optional": "Description (optional)",
@@ -4952,6 +5087,53 @@
         "revoke_token": "Revoke this token?"
       }
     },
+    "hr": {
+      "meta_title": "HR settings",
+      "title": "HR settings",
+      "subtitle": "Define default shifts by position.",
+      "sections": {
+        "templates": {
+          "title": "Shift templates",
+          "description": "Create predefined shifts per position."
+        },
+        "defaults": {
+          "title": "Global default",
+          "description": "Used when no template exists for a position."
+        }
+      },
+      "form": {
+        "position": "Position",
+        "start_time": "Start time",
+        "end_time": "End time",
+        "breaks": "Breaks (min)",
+        "break_total": "Total break: {minutes} min (max 60)",
+        "days": "Working days",
+        "active": "Active template",
+        "add_break": "Add break",
+        "remove_break": "Remove",
+        "create": "Create template",
+        "update": "Update template",
+        "cancel": "Cancel"
+      },
+      "table": {
+        "position": "Position",
+        "time": "Time",
+        "breaks": "Breaks",
+        "days": "Days",
+        "status": "Status",
+        "actions": "Actions",
+        "global": "Global",
+        "company": "Company",
+        "active": "Active",
+        "inactive": "Inactive"
+      },
+      "messages": {
+        "empty": "No templates yet."
+      },
+      "confirm": {
+        "delete": "Delete this shift template?"
+      }
+    },
     "billing": {
       "meta_title": "Billing",
       "aria_sections": "Billing sections",
@@ -4967,7 +5149,9 @@
       },
       "actions": {
         "switch_plan": "Switch to this plan",
-        "choose_plan": "Choose this plan"
+        "choose_plan": "Choose this plan",
+        "contact_sales": "Contact sales",
+        "contact_phone": "Phone: {phone}"
       },
       "status": {
         "active": "Active",
@@ -5018,7 +5202,9 @@
         "badge_popular": "Popular",
         "interval_month": "/month",
         "current_plan": "You are on this plan.",
-        "cta_active": "Active plan"
+        "cta_active": "Active plan",
+        "team_limit": "Up to {count} employees",
+        "team_limit_plus": "{count}+ employees"
       },
       "assistant_addon": {
         "title": "AI assistant",
@@ -5324,18 +5510,18 @@
       "starter": {
         "label": "Starter",
         "price": "Contact us",
-        "desc": "For small teams starting with quotes and jobs."
+        "desc": "For small teams (up to 10 employees) starting with quotes and jobs."
       },
       "pro": {
         "label": "Pro",
         "badge": "Recommended",
         "price": "Contact us",
-        "desc": "For growing teams managing services and products."
+        "desc": "For growing teams (up to 25 employees) managing services and products."
       },
       "enterprise": {
         "label": "Enterprise",
         "price": "Custom",
-        "desc": "Advanced controls, multi-entity support, and SLA options."
+        "desc": "50+ employees with advanced controls, multi-entity support, and SLA options."
       }
     },
     "features": {
@@ -5596,5 +5782,40 @@
         "substitution_allowed": "Allow substitutions",
         "substitution_notes": "Substitution preferences"
       }
+  },
+  "public_showcase": {
+    "title": "{company} services",
+    "company_fallback": "Company",
+    "eyebrow": "Service showcase",
+    "headline": "Services by {company}.",
+    "subheadline": "Browse the services we deliver for your projects.",
+    "cta_request": "Request a quote",
+    "cta_contact": "Contact us",
+    "featured": "Featured service",
+    "empty": "No services available yet.",
+    "empty_description": "No description available.",
+    "category_fallback": "Uncategorized",
+    "price_from": "From",
+    "price_quote": "Quote required",
+    "stats_services": "{count} services",
+    "stats_categories": "{count} categories",
+    "filters": {
+      "search": "Search",
+      "search_placeholder": "Search services",
+      "category": "Category",
+      "all": "All categories"
+    },
+    "sections": {
+      "services": "Services",
+      "services_hint": "Pick a service and request a quote in minutes."
+    },
+    "contact": {
+      "title": "Contact us",
+      "subtitle": "Tell us about your project and we will respond quickly.",
+      "phone": "Phone",
+      "email": "Email",
+      "location": "Location",
+      "empty": "Contact details are coming soon."
+    }
   }
 }

@@ -9,6 +9,7 @@ use App\Models\PlatformSetting;
 use App\Services\BillingSubscriptionService;
 use App\Services\StripeConnectService;
 use App\Services\StripeBillingService;
+use App\Support\PlanDisplay;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
@@ -124,15 +125,32 @@ class BillingSettingsController extends Controller
             }
         }
 
+        $planLimits = PlatformSetting::getValue('plan_limits', []);
+        $planDisplayOverrides = PlatformSetting::getValue('plan_display', []);
         $plans = collect(config('billing.plans', []))
-            ->map(function (array $plan, string $key) {
+            ->map(function (array $plan, string $key) use ($planLimits, $planDisplayOverrides) {
+                $display = PlanDisplay::merge($plan, $key, $planDisplayOverrides);
+                $displayPrice = $this->resolvePlanDisplayPrice([
+                    'price' => $display['price'],
+                ]);
+                $teamLimitRaw = $planLimits[$key]['team_members'] ?? null;
+                $teamLimit = is_numeric($teamLimitRaw) ? (int) $teamLimitRaw : null;
+                $contactOnly = !empty($plan['contact_only']);
+                $teamMinRaw = $plan['team_members_min'] ?? null;
+                $teamMin = is_numeric($teamMinRaw) ? (int) $teamMinRaw : null;
+
                 return [
                     'key' => $key,
-                    'name' => $plan['name'] ?? ucfirst($key),
+                    'name' => $display['name'],
                     'price_id' => $plan['price_id'] ?? null,
-                    'price' => $plan['price'] ?? null,
-                    'display_price' => $this->resolvePlanDisplayPrice($plan),
-                    'features' => $plan['features'] ?? [],
+                    'price' => $display['price'],
+                    'display_price' => $displayPrice,
+                    'features' => $display['features'],
+                    'badge' => $display['badge'],
+                    'team_members_limit' => $teamLimit,
+                    'team_members_min' => $teamMin,
+                    'contact_only' => $contactOnly,
+                    'cta_url' => $contactOnly ? route('settings.support.index') : null,
                 ];
             })
             ->values()
@@ -180,12 +198,14 @@ class BillingSettingsController extends Controller
                 'provider_label' => $providerLabel,
                 'provider_ready' => $providerReady,
                 'is_paddle' => $isPaddleProvider,
+                'support_phone' => config('app.support_phone'),
             ],
             'availableMethods' => self::AVAILABLE_METHODS,
             'paymentMethods' => array_values($user->payment_methods ?? []),
             'plans' => $plans,
             'subscription' => $subscriptionSummary,
             'seatQuantity' => $seatQuantity,
+            'activePlanKey' => $planKey,
             'assistantAddon' => [
                 'included' => $assistantIncluded,
                 'enabled' => $assistantEnabled,

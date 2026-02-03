@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\SuperAdmin;
 
 use App\Models\PlatformSetting;
+use App\Support\PlanDisplay;
 use App\Support\PlatformPermissions;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -50,6 +51,8 @@ class PlatformSettingsController extends BaseController
         ]);
         $planLimits = PlatformSetting::getValue('plan_limits', []);
         $planModules = PlatformSetting::getValue('plan_modules', []);
+        $planDisplayOverrides = PlatformSetting::getValue('plan_display', []);
+        $planDisplay = PlanDisplay::normalize($rawPlans, $planDisplayOverrides);
         $rawPlans = config('billing.plans', []);
         $plans = collect($rawPlans)
             ->map(function (array $plan, string $key) {
@@ -97,6 +100,7 @@ class PlatformSettingsController extends BaseController
             'plans' => $plans,
             'plan_limits' => $planLimits,
             'plan_modules' => $planModules,
+            'plan_display' => $planDisplay,
         ]);
     }
 
@@ -116,6 +120,13 @@ class PlatformSettingsController extends BaseController
             'plan_modules' => 'nullable|array',
             'plan_modules.*' => 'array',
             'plan_modules.*.*' => 'nullable|boolean',
+            'plan_display' => 'nullable|array',
+            'plan_display.*' => 'array',
+            'plan_display.*.name' => 'nullable|string|max:120',
+            'plan_display.*.price' => 'nullable',
+            'plan_display.*.badge' => 'nullable|string|max:40',
+            'plan_display.*.features' => 'nullable|array',
+            'plan_display.*.features.*' => 'nullable|string|max:140',
         ]);
 
         PlatformSetting::setValue('maintenance', [
@@ -134,6 +145,37 @@ class PlatformSettingsController extends BaseController
 
         $modulesPayload = $this->buildModulePayload($validated['plan_modules'] ?? []);
         PlatformSetting::setValue('plan_modules', $modulesPayload);
+
+        $displayPayload = [];
+        $inputDisplay = $validated['plan_display'] ?? [];
+        foreach (config('billing.plans', []) as $planKey => $plan) {
+            $planInput = $inputDisplay[$planKey] ?? [];
+            $name = is_string($planInput['name'] ?? null) ? trim($planInput['name']) : '';
+            $badge = is_string($planInput['badge'] ?? null) ? trim($planInput['badge']) : '';
+            $price = $planInput['price'] ?? null;
+            if (is_string($price)) {
+                $price = trim($price);
+                $price = $price === '' ? null : $price;
+            }
+            $features = $planInput['features'] ?? [];
+            if (!is_array($features)) {
+                $features = [];
+            }
+            $features = collect($features)
+                ->map(fn ($feature) => is_string($feature) ? trim($feature) : '')
+                ->filter()
+                ->values()
+                ->all();
+
+            $displayPayload[$planKey] = [
+                'name' => $name !== '' ? $name : ($plan['name'] ?? ucfirst($planKey)),
+                'price' => $price,
+                'badge' => $badge !== '' ? $badge : null,
+                'features' => $features,
+            ];
+        }
+
+        PlatformSetting::setValue('plan_display', $displayPayload);
 
         $this->logAudit($request, 'platform_settings.updated');
 

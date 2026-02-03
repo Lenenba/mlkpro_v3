@@ -532,16 +532,17 @@ const categoryForm = useForm({
     name: '',
 });
 
-const storeUrl = computed(() => {
+const publicSlugPath = computed(() => (isProductCompany.value ? 'store' : 'services'));
+const publicUrl = computed(() => {
     if (typeof window === 'undefined') {
         return '';
     }
     const slug = String(form.company_slug || '').trim();
-    return slug ? `${window.location.origin}/store/${slug}` : '';
+    return slug ? `${window.location.origin}/${publicSlugPath.value}/${slug}` : '';
 });
 
 const storeProductOptions = computed(() => ([
-    { value: '', label: t('settings.company.store.featured_placeholder') },
+    { value: '', label: featuredPlaceholder.value },
     ...(props.store_products || []).map((product) => ({
         value: String(product.id),
         label: product.sku ? `${product.name} (${product.sku})` : product.name,
@@ -1038,6 +1039,37 @@ const usageStatusClass = (status) => {
 };
 
 const isProductCompany = computed(() => form.company_type === 'products');
+const isServiceCompany = computed(() => form.company_type === 'services');
+const storeTabLabel = computed(() => (
+    isProductCompany.value
+        ? t('settings.company.tabs.store.label')
+        : t('settings.company.tabs.showcase.label')
+));
+const storeTabDescription = computed(() => (
+    isProductCompany.value
+        ? t('settings.company.tabs.store.description')
+        : t('settings.company.tabs.showcase.description')
+));
+const storeTitle = computed(() => (
+    isProductCompany.value
+        ? t('settings.company.store.title')
+        : t('settings.company.store.title_services')
+));
+const storeDescription = computed(() => (
+    isProductCompany.value
+        ? t('settings.company.store.description')
+        : t('settings.company.store.description_services')
+));
+const featuredLabel = computed(() => (
+    isProductCompany.value
+        ? t('settings.company.store.featured_product')
+        : t('settings.company.store.featured_service')
+));
+const featuredPlaceholder = computed(() => (
+    isProductCompany.value
+        ? t('settings.company.store.featured_placeholder')
+        : t('settings.company.store.featured_placeholder_service')
+));
 
 const preferredLimit = computed(() => {
     const limit = Number(props.preferred_limit) || 4;
@@ -1056,8 +1088,8 @@ const tabs = computed(() => {
         { id: 'company', label: t('settings.company.tabs.company.label'), description: t('settings.company.tabs.company.description') },
         { id: 'suppliers', label: t('settings.company.tabs.suppliers.label'), description: t('settings.company.tabs.suppliers.description') },
     ];
-    if (isProductCompany.value) {
-        base.push({ id: 'store', label: t('settings.company.tabs.store.label'), description: t('settings.company.tabs.store.description') });
+    if (isProductCompany.value || isServiceCompany.value) {
+        base.push({ id: 'store', label: storeTabLabel.value, description: storeTabDescription.value });
     }
     base.push(
         { id: 'categories', label: t('settings.company.tabs.categories.label'), description: t('settings.company.tabs.categories.description') },
@@ -1132,10 +1164,10 @@ watch(activeTab, (value) => {
                     <div>
                         <FloatingInput v-model="form.company_slug" :label="$t('settings.company.fields.public_slug')" />
                         <p class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
-                            {{ $t('settings.company.fields.public_slug_hint') }}
+                            {{ $t('settings.company.fields.public_slug_hint', { path: publicSlugPath }) }}
                         </p>
-                        <p v-if="storeUrl" class="mt-1 text-xs text-emerald-700 dark:text-emerald-300">
-                            {{ storeUrl }}
+                        <p v-if="publicUrl" class="mt-1 text-xs text-emerald-700 dark:text-emerald-300">
+                            {{ publicUrl }}
                         </p>
                         <InputError class="mt-1" :message="form.errors.company_slug" />
                     </div>
@@ -1622,10 +1654,10 @@ watch(activeTab, (value) => {
                     <div class="rounded-sm border border-stone-200 bg-stone-50 p-4 dark:border-neutral-700 dark:bg-neutral-900">
                         <div>
                             <h3 class="text-sm font-semibold text-stone-700 dark:text-neutral-200">
-                                {{ $t('settings.company.store.title') }}
+                                {{ storeTitle }}
                             </h3>
                             <p class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
-                                {{ $t('settings.company.store.description') }}
+                                {{ storeDescription }}
                             </p>
                         </div>
                         <div class="mt-3 grid gap-3 md:grid-cols-2">
@@ -1643,7 +1675,7 @@ watch(activeTab, (value) => {
                             <div>
                                 <FloatingSelect
                                     v-model="form.store_featured_product_id"
-                                    :label="$t('settings.company.store.featured_product')"
+                                    :label="featuredLabel"
                                     :options="storeProductOptions"
                                     option-value="value"
                                     option-label="label"

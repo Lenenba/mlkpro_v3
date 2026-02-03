@@ -62,6 +62,15 @@ class CompanySettingsController extends Controller
             ],
         ];
 
+        $storeProductsQuery = Product::query()
+            ->where('user_id', $accountId)
+            ->where('is_active', true);
+        if ($user->company_type === 'services') {
+            $storeProductsQuery->services();
+        } else {
+            $storeProductsQuery->products();
+        }
+
         return $this->inertiaOrJson('Settings/Company', [
             'company' => [
                 'company_name' => $user->company_name,
@@ -78,10 +87,7 @@ class CompanySettingsController extends Controller
                 'time_settings' => $user->company_time_settings ?? null,
                 'company_notification_settings' => $notificationSettings,
             ],
-            'store_products' => Product::query()
-                ->products()
-                ->where('user_id', $accountId)
-                ->where('is_active', true)
+            'store_products' => $storeProductsQuery
                 ->orderBy('name')
                 ->get(['id', 'name', 'sku']),
             'categories' => ProductCategory::forAccount($accountId)

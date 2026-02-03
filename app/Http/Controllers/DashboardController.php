@@ -17,11 +17,13 @@ use App\Models\Sale;
 use App\Models\SaleItem;
 use App\Models\PlanScan;
 use App\Models\PlatformAnnouncement;
+use App\Models\PlatformSetting;
 use App\Models\User;
 use App\Services\BillingSubscriptionService;
 use App\Services\StripeInvoiceService;
 use App\Services\StripeSaleService;
 use App\Services\UsageLimitService;
+use App\Support\PlanDisplay;
 use Illuminate\Support\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -1230,15 +1232,20 @@ class DashboardController extends Controller
             'inventory_value' => $inventorySeries['values'],
         ];
 
+        $planDisplayOverrides = PlatformSetting::getValue('plan_display', []);
         $plans = collect(config('billing.plans', []))
-            ->map(function (array $plan, string $key) {
+            ->map(function (array $plan, string $key) use ($planDisplayOverrides) {
+                $display = PlanDisplay::merge($plan, $key, $planDisplayOverrides);
                 return [
                     'key' => $key,
-                    'name' => $plan['name'] ?? ucfirst($key),
+                    'name' => $display['name'],
                     'price_id' => $plan['price_id'] ?? null,
-                    'price' => $plan['price'] ?? null,
-                    'display_price' => $this->resolvePlanDisplayPrice($plan),
-                    'features' => $plan['features'] ?? [],
+                    'price' => $display['price'],
+                    'display_price' => $this->resolvePlanDisplayPrice([
+                        'price' => $display['price'],
+                    ]),
+                    'features' => $display['features'],
+                    'badge' => $display['badge'],
                 ];
             })
             ->values()

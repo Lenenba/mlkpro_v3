@@ -26,6 +26,12 @@ const form = useForm({
         orders: Boolean(props.settings?.categories?.orders ?? true),
         sales: Boolean(props.settings?.categories?.sales ?? true),
         stock: Boolean(props.settings?.categories?.stock ?? true),
+        planning: Boolean(props.settings?.categories?.planning ?? true),
+        billing: Boolean(props.settings?.categories?.billing ?? true),
+        crm: Boolean(props.settings?.categories?.crm ?? true),
+        support: Boolean(props.settings?.categories?.support ?? true),
+        security: Boolean(props.settings?.categories?.security ?? true),
+        emails_mirror: Boolean(props.settings?.categories?.emails_mirror ?? true),
         system: Boolean(props.settings?.categories?.system ?? true),
     },
 });
@@ -58,6 +64,36 @@ const categoryOptions = [
         key: 'stock',
         label: 'Stock',
         description: 'Alertes de stock bas et ruptures.',
+    },
+    {
+        key: 'planning',
+        label: 'Planning & RH',
+        description: 'Absences, rappels de shift, retards, conflits.',
+    },
+    {
+        key: 'billing',
+        label: 'Facturation',
+        description: 'Paiements recus, factures, acomptes.',
+    },
+    {
+        key: 'crm',
+        label: 'CRM & Leads',
+        description: 'Relances de leads, devis, suivi commercial.',
+    },
+    {
+        key: 'support',
+        label: 'Support',
+        description: 'Tickets et messages support.',
+    },
+    {
+        key: 'security',
+        label: 'Securite',
+        description: 'Alertes critiques de securite (toujours active).',
+    },
+    {
+        key: 'emails_mirror',
+        label: 'Miroir des emails',
+        description: 'Copie des emails envoyes dans les notifications.',
     },
     {
         key: 'system',
@@ -203,7 +239,12 @@ const submit = () => {
                         :key="category.key"
                         class="flex items-start gap-3 rounded-sm border border-stone-200 bg-stone-50 p-3 text-sm text-stone-700 dark:border-neutral-800 dark:bg-neutral-800/70 dark:text-neutral-200"
                     >
-                        <input type="checkbox" v-model="form.categories[category.key]" class="mt-1" />
+                        <input
+                            type="checkbox"
+                            v-model="form.categories[category.key]"
+                            class="mt-1"
+                            :disabled="category.key === 'security'"
+                        />
                         <span>
                             <span class="block font-semibold">{{ category.label }}</span>
                             <span class="text-xs text-stone-500 dark:text-neutral-400">

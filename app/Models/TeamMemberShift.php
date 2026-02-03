@@ -23,12 +23,17 @@ class TeamMemberShift extends Model
         'shift_date',
         'start_time',
         'end_time',
+        'break_minutes',
+        'reminder_sent_at',
+        'late_alerted_at',
         'recurrence_group_id',
     ];
 
     protected $casts = [
         'shift_date' => 'date',
         'approved_at' => 'datetime',
+        'reminder_sent_at' => 'datetime',
+        'late_alerted_at' => 'datetime',
     ];
 
     public function account(): BelongsTo

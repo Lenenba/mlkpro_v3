@@ -4,6 +4,7 @@ namespace App\Notifications;
 
 use App\Models\Invoice;
 use App\Models\Payment;
+use App\Services\NotificationPreferenceService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Notification;
 
@@ -42,6 +43,7 @@ class InvoicePaymentNotification extends Notification
             'title' => $title,
             'message' => $message,
             'action_url' => $actionUrl,
+            'category' => NotificationPreferenceService::CATEGORY_BILLING,
             'invoice_id' => $this->invoice->id,
             'payment_id' => $this->payment->id,
             'audience' => $this->audience,

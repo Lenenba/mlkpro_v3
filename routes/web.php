@@ -37,6 +37,7 @@ use App\Http\Controllers\LocaleController;
 use App\Http\Controllers\PublicInvoiceController;
 use App\Http\Controllers\PublicPageController;
 use App\Http\Controllers\PublicStoreController;
+use App\Http\Controllers\PublicShowcaseController;
 use App\Http\Controllers\PublicQuoteController;
 use App\Http\Controllers\PublicRequestController;
 use App\Http\Controllers\PublicWorkController;
@@ -45,11 +46,14 @@ use App\Http\Controllers\PublicTaskMediaController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\AssistantController;
 use App\Http\Controllers\AiImageController;
+use App\Http\Controllers\GlobalSearchController;
 use App\Http\Controllers\Settings\CompanySettingsController;
 use App\Http\Controllers\Settings\BillingSettingsController;
 use App\Http\Controllers\Settings\ProductCategoryController;
 use App\Http\Controllers\Settings\SubscriptionController;
+use App\Http\Controllers\Settings\HrSettingsController;
 use App\Http\Controllers\Settings\NotificationSettingsController;
+use App\Http\Controllers\Settings\SecuritySettingsController;
 use App\Http\Controllers\Settings\ApiTokenController;
 use App\Http\Controllers\WarehouseController;
 use App\Http\Controllers\SupportTicketController;
@@ -95,6 +99,11 @@ Route::get('/refund', [LegalController::class, 'refund'])->name('refund');
 Route::get('/pricing', [LegalController::class, 'pricing'])->name('pricing');
 Route::get('/pages/{slug}', [PublicPageController::class, 'show'])->name('public.pages.show');
 Route::get('/store/{slug}', [PublicStoreController::class, 'show'])->name('public.store.show');
+Route::get('/services/{slug}', [PublicShowcaseController::class, 'show'])
+    ->where('slug', '^(?!categories$|options$|quick$).+')
+    ->name('public.showcase.show');
+Route::get('/showcase/{slug}', fn (string $slug) => redirect()->route('public.showcase.show', ['slug' => $slug], 301))
+    ->name('public.showcase.legacy');
 Route::prefix('/store/{slug}')->group(function () {
     Route::get('/products/{product}/reviews', [PublicStoreController::class, 'reviews'])
         ->name('public.store.product.reviews');
@@ -159,6 +168,7 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
 
     // Onboarding (account setup)
     Route::post('/onboarding', [OnboardingController::class, 'store'])->name('onboarding.store');
+    Route::get('/global-search', GlobalSearchController::class)->name('global.search');
     Route::post('/assistant/message', [AssistantController::class, 'message'])
         ->middleware('company.feature:assistant')
         ->name('assistant.message');
@@ -167,49 +177,59 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
         ->name('pipeline.timeline');
     Route::get('/pipeline', [PipelineController::class, 'data'])->name('pipeline.data');
 
-    Route::get('/settings/support', [SupportTicketController::class, 'index'])->name('settings.support.index');
-    Route::get('/settings/support/{ticket}', [SupportTicketController::class, 'show'])->name('settings.support.show');
-    Route::post('/settings/support', [SupportTicketController::class, 'store'])->name('settings.support.store');
-    Route::put('/settings/support/{ticket}', [SupportTicketController::class, 'update'])->name('settings.support.update');
-    Route::post('/settings/support/{ticket}/messages', [SupportTicketMessageController::class, 'store'])
-        ->name('settings.support.messages.store');
+    Route::middleware('not.superadmin')->group(function () {
+        Route::get('/settings/support', [SupportTicketController::class, 'index'])->name('settings.support.index');
+        Route::get('/settings/support/{ticket}', [SupportTicketController::class, 'show'])->name('settings.support.show');
+        Route::post('/settings/support', [SupportTicketController::class, 'store'])->name('settings.support.store');
+        Route::put('/settings/support/{ticket}', [SupportTicketController::class, 'update'])->name('settings.support.update');
+        Route::post('/settings/support/{ticket}/messages', [SupportTicketMessageController::class, 'store'])
+            ->name('settings.support.messages.store');
+        Route::get('/settings/security', [SecuritySettingsController::class, 'edit'])->name('settings.security.edit');
 
-    // Settings (owner only)
-    Route::get('/settings/company', [CompanySettingsController::class, 'edit'])->name('settings.company.edit');
-    Route::put('/settings/company', [CompanySettingsController::class, 'update'])->name('settings.company.update');
-    Route::post('/settings/api-tokens', [ApiTokenController::class, 'store'])->name('settings.api-tokens.store');
-    Route::delete('/settings/api-tokens/{token}', [ApiTokenController::class, 'destroy'])->name('settings.api-tokens.destroy');
-    Route::post('/settings/warehouses', [WarehouseController::class, 'store'])->name('settings.warehouses.store');
-    Route::put('/settings/warehouses/{warehouse}', [WarehouseController::class, 'update'])
-        ->name('settings.warehouses.update');
-    Route::patch('/settings/warehouses/{warehouse}/default', [WarehouseController::class, 'setDefault'])
-        ->name('settings.warehouses.default');
-    Route::delete('/settings/warehouses/{warehouse}', [WarehouseController::class, 'destroy'])
-        ->name('settings.warehouses.destroy');
-    Route::post('/settings/categories', [ProductCategoryController::class, 'store'])->name('settings.categories.store');
-    Route::patch('/settings/categories/{category}', [ProductCategoryController::class, 'update'])
-        ->name('settings.categories.update');
-    Route::patch('/settings/categories/{category}/archive', [ProductCategoryController::class, 'archive'])
-        ->name('settings.categories.archive');
-    Route::patch('/settings/categories/{category}/restore', [ProductCategoryController::class, 'restore'])
-        ->name('settings.categories.restore');
-    Route::get('/settings/billing', [BillingSettingsController::class, 'edit'])->name('settings.billing.edit');
-    Route::put('/settings/billing', [BillingSettingsController::class, 'update'])->name('settings.billing.update');
-    Route::post('/settings/billing/checkout', [SubscriptionController::class, 'checkout'])->name('settings.billing.checkout');
-    Route::post('/settings/billing/connect', [BillingSettingsController::class, 'connectStripe'])
-        ->name('settings.billing.connect');
-    Route::post('/settings/billing/assistant-addon', [BillingSettingsController::class, 'updateAssistantAddon'])
-        ->name('settings.billing.assistant-addon');
-    Route::post('/settings/billing/assistant-credits', [BillingSettingsController::class, 'createAssistantCreditCheckout'])
-        ->name('settings.billing.assistant-credits');
-    Route::get('/settings/notifications', [NotificationSettingsController::class, 'edit'])
-        ->name('settings.notifications.edit');
-    Route::put('/settings/notifications', [NotificationSettingsController::class, 'update'])
-        ->name('settings.notifications.update');
-    Route::post('/settings/billing/swap', [SubscriptionController::class, 'swap'])->name('settings.billing.swap');
-    Route::post('/settings/billing/portal', [SubscriptionController::class, 'portal'])->name('settings.billing.portal');
-    Route::post('/settings/billing/payment-method', [SubscriptionController::class, 'paymentMethodTransaction'])
-        ->name('settings.billing.payment-method');
+        // Settings (owner only)
+        Route::get('/settings/company', [CompanySettingsController::class, 'edit'])->name('settings.company.edit');
+        Route::put('/settings/company', [CompanySettingsController::class, 'update'])->name('settings.company.update');
+        Route::get('/settings/hr', [HrSettingsController::class, 'edit'])->name('settings.hr.edit');
+        Route::post('/settings/hr/shift-templates', [HrSettingsController::class, 'store'])
+            ->name('settings.hr.shift-templates.store');
+        Route::patch('/settings/hr/shift-templates/{template}', [HrSettingsController::class, 'update'])
+            ->name('settings.hr.shift-templates.update');
+        Route::delete('/settings/hr/shift-templates/{template}', [HrSettingsController::class, 'destroy'])
+            ->name('settings.hr.shift-templates.destroy');
+        Route::post('/settings/api-tokens', [ApiTokenController::class, 'store'])->name('settings.api-tokens.store');
+        Route::delete('/settings/api-tokens/{token}', [ApiTokenController::class, 'destroy'])->name('settings.api-tokens.destroy');
+        Route::post('/settings/warehouses', [WarehouseController::class, 'store'])->name('settings.warehouses.store');
+        Route::put('/settings/warehouses/{warehouse}', [WarehouseController::class, 'update'])
+            ->name('settings.warehouses.update');
+        Route::patch('/settings/warehouses/{warehouse}/default', [WarehouseController::class, 'setDefault'])
+            ->name('settings.warehouses.default');
+        Route::delete('/settings/warehouses/{warehouse}', [WarehouseController::class, 'destroy'])
+            ->name('settings.warehouses.destroy');
+        Route::post('/settings/categories', [ProductCategoryController::class, 'store'])->name('settings.categories.store');
+        Route::patch('/settings/categories/{category}', [ProductCategoryController::class, 'update'])
+            ->name('settings.categories.update');
+        Route::patch('/settings/categories/{category}/archive', [ProductCategoryController::class, 'archive'])
+            ->name('settings.categories.archive');
+        Route::patch('/settings/categories/{category}/restore', [ProductCategoryController::class, 'restore'])
+            ->name('settings.categories.restore');
+        Route::get('/settings/billing', [BillingSettingsController::class, 'edit'])->name('settings.billing.edit');
+        Route::put('/settings/billing', [BillingSettingsController::class, 'update'])->name('settings.billing.update');
+        Route::post('/settings/billing/checkout', [SubscriptionController::class, 'checkout'])->name('settings.billing.checkout');
+        Route::post('/settings/billing/connect', [BillingSettingsController::class, 'connectStripe'])
+            ->name('settings.billing.connect');
+        Route::post('/settings/billing/assistant-addon', [BillingSettingsController::class, 'updateAssistantAddon'])
+            ->name('settings.billing.assistant-addon');
+        Route::post('/settings/billing/assistant-credits', [BillingSettingsController::class, 'createAssistantCreditCheckout'])
+            ->name('settings.billing.assistant-credits');
+        Route::get('/settings/notifications', [NotificationSettingsController::class, 'edit'])
+            ->name('settings.notifications.edit');
+        Route::put('/settings/notifications', [NotificationSettingsController::class, 'update'])
+            ->name('settings.notifications.update');
+        Route::post('/settings/billing/swap', [SubscriptionController::class, 'swap'])->name('settings.billing.swap');
+        Route::post('/settings/billing/portal', [SubscriptionController::class, 'portal'])->name('settings.billing.portal');
+        Route::post('/settings/billing/payment-method', [SubscriptionController::class, 'paymentMethodTransaction'])
+            ->name('settings.billing.payment-method');
+    });
 
     // Lead Requests
     Route::middleware('company.feature:requests')->group(function () {
@@ -312,6 +332,7 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
         Route::get('/planning/calendar', [PlanningController::class, 'calendar'])->name('planning.calendar');
         Route::get('/planning/events', [PlanningController::class, 'events'])->name('planning.events');
         Route::post('/planning/shifts', [PlanningController::class, 'store'])->name('planning.shifts.store');
+        Route::patch('/planning/shifts/{shift}', [PlanningController::class, 'update'])->name('planning.shifts.update');
         Route::delete('/planning/shifts/{shift}', [PlanningController::class, 'destroy'])->name('planning.shifts.destroy');
         Route::patch('/planning/shifts/{shift}/status', [PlanningController::class, 'updateStatus'])
             ->name('planning.shifts.status');

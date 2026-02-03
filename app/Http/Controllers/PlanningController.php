@@ -7,9 +7,11 @@ use App\Models\TeamMemberShift;
 use App\Models\Task;
 use App\Models\User;
 use App\Models\Work;
+use App\Models\ShiftTemplate;
 use App\Notifications\ActionEmailNotification;
 use App\Notifications\TimeOffRequestNotification;
 use App\Services\ShiftScheduleService;
+use App\Services\NotificationPreferenceService;
 use App\Support\NotificationDispatcher;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -83,6 +85,8 @@ class PlanningController extends Controller
         $timeOffSummary = $canApproveTimeOff
             ? $this->buildTimeOffSummary($owner->id, $membership, $canManage, $canApproveTimeOff, $request)
             : ['today' => [], 'week' => []];
+        $shiftTemplates = $this->loadShiftTemplates($owner->id);
+        $defaultShiftTemplate = $this->defaultShiftTemplate();
 
         return $this->inertiaOrJson('Planning/Index', [
             'teamMembers' => $memberPayload->values(),
@@ -96,6 +100,8 @@ class PlanningController extends Controller
             'selfTeamMemberId' => $membership?->id,
             'pendingRequests' => $pendingRequests,
             'timeOffSummary' => $timeOffSummary,
+            'shiftTemplates' => $shiftTemplates,
+            'defaultShiftTemplate' => $defaultShiftTemplate,
         ]);
     }
 
@@ -182,6 +188,7 @@ class PlanningController extends Controller
             'end_date' => 'nullable|date|after_or_equal:shift_date',
             'start_time' => 'nullable|string',
             'end_time' => 'nullable|string',
+            'break_minutes' => 'nullable|integer|min:0|max:60',
             'title' => 'nullable|string|max:120',
             'notes' => 'nullable|string|max:5000',
             'is_recurring' => 'nullable|boolean',
@@ -201,6 +208,9 @@ class PlanningController extends Controller
         if (!$canApproveTimeOff && $status !== 'pending') {
             $status = 'pending';
         }
+        $breakMinutesOverride = array_key_exists('break_minutes', $validated)
+            ? (int) $validated['break_minutes']
+            : null;
 
         if ($isServiceCompany && $kind === 'shift') {
             abort(403);
@@ -216,6 +226,7 @@ class PlanningController extends Controller
         }
 
         if ($isTimeOff) {
+            $breakMinutesOverride = null;
             $startDate = Carbon::parse($validated['shift_date'])->startOfDay();
             $endDate = Carbon::parse($validated['end_date'] ?? $validated['shift_date'])->startOfDay();
             $daySpan = $startDate->diffInDays($endDate);
@@ -312,6 +323,47 @@ class PlanningController extends Controller
             ]);
         }
 
+        $teamMember = TeamMember::query()
+            ->where('account_id', $owner->id)
+            ->with('user')
+            ->find($validated['team_member_id']);
+        if (!$teamMember) {
+            abort(404);
+        }
+
+        $addedMinutesByDate = [];
+        $addedMinutesByWeek = [];
+        foreach ($dates as $date) {
+            $conflicts = $this->findShiftConflicts(
+                $owner->id,
+                $teamMember->id,
+                $date,
+                $startTime,
+                $endTime,
+                null
+            );
+            if ($conflicts->isNotEmpty()) {
+                return response()->json([
+                    'message' => $this->formatConflictMessage($conflicts->first(), $date),
+                    'conflicts' => $this->formatConflictPayload($conflicts),
+                ], 409);
+            }
+
+            if ($kind === 'shift') {
+                $this->assertShiftRules(
+                    $teamMember,
+                    $owner->id,
+                    $date,
+                    $startTime,
+                    $endTime,
+                    null,
+                    $addedMinutesByDate,
+                    $addedMinutesByWeek,
+                    $breakMinutesOverride
+                );
+            }
+        }
+
         $groupId = $isRecurring && count($dates) > 1 ? Str::uuid()->toString() : null;
         if ($isTimeOff && count($dates) > 1) {
             $groupId = Str::uuid()->toString();
@@ -339,6 +391,7 @@ class PlanningController extends Controller
                 'shift_date' => $date->toDateString(),
                 'start_time' => $startTime->format('H:i:s'),
                 'end_time' => $endTime->format('H:i:s'),
+                'break_minutes' => $kind === 'shift' ? $breakMinutesOverride : null,
                 'recurrence_group_id' => $groupId,
             ]);
             $shiftIds[] = $shift->id;
@@ -357,6 +410,110 @@ class PlanningController extends Controller
             'events' => $this->formatShiftEvents($created, $membership, $canManage, $canApproveTimeOff),
             'created' => $created->count(),
         ], 201);
+    }
+
+    public function update(Request $request, TeamMemberShift $shift)
+    {
+        $user = $request->user();
+        if (!$user) {
+            abort(401);
+        }
+
+        [$owner, $membership, $canManage, $isServiceCompany, $canApproveTimeOff] = $this->resolvePlanningContext($user);
+
+        if ($shift->account_id !== $owner->id) {
+            abort(404);
+        }
+
+        $shiftKind = $shift->kind ?? 'shift';
+        $canSelfManage = $membership
+            && $shift->team_member_id === $membership->id
+            && $shift->created_by_user_id === $user->id
+            && in_array($shiftKind, ['absence', 'leave'], true);
+
+        if ($shiftKind === 'shift' && !$canManage) {
+            abort(403);
+        }
+        if ($shiftKind !== 'shift' && !$canApproveTimeOff && !$canSelfManage) {
+            abort(403);
+        }
+
+        $validated = $request->validate([
+            'shift_date' => 'required|date',
+            'start_time' => 'required|string',
+            'end_time' => 'required|string',
+            'break_minutes' => 'nullable|integer|min:0|max:60',
+        ]);
+
+        $shiftDate = Carbon::parse($validated['shift_date'])->startOfDay();
+        $startTime = $this->parseTime($validated['start_time']);
+        $endTime = $this->parseTime($validated['end_time']);
+        if (!$startTime || !$endTime) {
+            throw ValidationException::withMessages([
+                'start_time' => ['Heure invalide.'],
+            ]);
+        }
+        if ($endTime->lte($startTime)) {
+            throw ValidationException::withMessages([
+                'end_time' => ['L heure de fin doit etre apres l heure de debut.'],
+            ]);
+        }
+        $breakMinutesOverride = array_key_exists('break_minutes', $validated)
+            ? (int) $validated['break_minutes']
+            : $shift->break_minutes;
+
+        $teamMember = TeamMember::query()
+            ->where('account_id', $owner->id)
+            ->with('user')
+            ->find($shift->team_member_id);
+        if (!$teamMember) {
+            abort(404);
+        }
+
+        $conflicts = $this->findShiftConflicts(
+            $owner->id,
+            $teamMember->id,
+            $shiftDate,
+            $startTime,
+            $endTime,
+            $shift->id
+        );
+        if ($conflicts->isNotEmpty()) {
+            return response()->json([
+                'message' => $this->formatConflictMessage($conflicts->first(), $shiftDate),
+                'conflicts' => $this->formatConflictPayload($conflicts),
+            ], 409);
+        }
+
+        if ($shiftKind === 'shift') {
+            $addedMinutesByDate = [];
+            $addedMinutesByWeek = [];
+            $this->assertShiftRules(
+                $teamMember,
+                $owner->id,
+                $shiftDate,
+                $startTime,
+                $endTime,
+                $shift->id,
+                $addedMinutesByDate,
+                $addedMinutesByWeek,
+                $breakMinutesOverride
+            );
+        }
+
+        $shift->shift_date = $shiftDate->toDateString();
+        $shift->start_time = $startTime->format('H:i:s');
+        $shift->end_time = $endTime->format('H:i:s');
+        if ($shiftKind === 'shift' && array_key_exists('break_minutes', $validated)) {
+            $shift->break_minutes = $breakMinutesOverride;
+        }
+        $shift->save();
+
+        $shift->load('teamMember.user');
+
+        return response()->json([
+            'event' => $this->formatShiftEvents([$shift], $membership, $canManage, $canApproveTimeOff)[0] ?? null,
+        ]);
     }
 
     public function destroy(Request $request, TeamMemberShift $shift)
@@ -588,6 +745,64 @@ class PlanningController extends Controller
                 ],
             ];
         })->values()->all();
+    }
+
+    private function loadShiftTemplates(int $accountId): array
+    {
+        $templates = ShiftTemplate::query()
+            ->where('is_active', true)
+            ->where(function ($query) use ($accountId) {
+                $query->whereNull('account_id')
+                    ->orWhere('account_id', $accountId);
+            })
+            ->orderBy('position_title')
+            ->get();
+
+        $byPosition = [];
+        foreach ($templates as $template) {
+            $key = strtolower(trim((string) $template->position_title));
+            if ($key === '') {
+                continue;
+            }
+            if ($template->account_id === $accountId || !array_key_exists($key, $byPosition)) {
+                $byPosition[$key] = $template;
+            }
+        }
+
+        return collect($byPosition)
+            ->values()
+            ->map(fn (ShiftTemplate $template) => $this->formatShiftTemplate($template))
+            ->values()
+            ->all();
+    }
+
+    private function formatShiftTemplate(ShiftTemplate $template): array
+    {
+        $breaks = is_array($template->breaks) ? $template->breaks : [];
+        $breakTotal = (int) ($template->break_minutes ?? 0);
+        if ($breakTotal <= 0 && $breaks) {
+            $breakTotal = array_sum($breaks);
+        }
+
+        return [
+            'id' => $template->id,
+            'position_title' => $template->position_title,
+            'start_time' => substr((string) $template->start_time, 0, 5),
+            'end_time' => substr((string) $template->end_time, 0, 5),
+            'break_minutes' => $breakTotal,
+            'breaks' => $breaks,
+            'days_of_week' => $template->days_of_week ?? [],
+        ];
+    }
+
+    private function defaultShiftTemplate(): array
+    {
+        return [
+            'start_time' => '09:00',
+            'end_time' => '17:00',
+            'break_minutes' => 60,
+            'days_of_week' => [],
+        ];
     }
 
     private function isAllDayTimeOff(?string $startTime, ?string $endTime): bool
@@ -846,6 +1061,226 @@ class PlanningController extends Controller
         return $events->values()->all();
     }
 
+    private function findShiftConflicts(
+        int $accountId,
+        int $teamMemberId,
+        Carbon $date,
+        Carbon $startTime,
+        Carbon $endTime,
+        ?int $ignoreId
+    ) {
+        $start = $startTime->format('H:i:s');
+        $end = $endTime->format('H:i:s');
+
+        return TeamMemberShift::query()
+            ->where('account_id', $accountId)
+            ->where('team_member_id', $teamMemberId)
+            ->whereDate('shift_date', $date->toDateString())
+            ->where(function ($query) {
+                $query->whereNull('status')
+                    ->orWhereIn('status', ['approved', 'pending']);
+            })
+            ->when($ignoreId, fn ($query) => $query->where('id', '!=', $ignoreId))
+            ->where('start_time', '<', $end)
+            ->where('end_time', '>', $start)
+            ->with('teamMember.user')
+            ->orderBy('start_time')
+            ->get();
+    }
+
+    private function formatConflictMessage(TeamMemberShift $conflict, Carbon $date): string
+    {
+        $memberName = $conflict->teamMember?->user?->name ?? 'Employe';
+        $kind = $conflict->kind ?? 'shift';
+        $kindLabel = match ($kind) {
+            'leave' => 'conge',
+            'absence' => 'absence',
+            default => 'shift',
+        };
+        $start = substr((string) $conflict->start_time, 0, 5);
+        $end = substr((string) $conflict->end_time, 0, 5);
+        $day = $date->toDateString();
+
+        return "Conflit: {$memberName} a deja un {$kindLabel} le {$day} de {$start} a {$end}.";
+    }
+
+    private function formatConflictPayload($conflicts): array
+    {
+        return collect($conflicts)->map(function (TeamMemberShift $shift) {
+            return [
+                'id' => $shift->id,
+                'kind' => $shift->kind ?? 'shift',
+                'status' => $shift->status ?? 'approved',
+                'shift_date' => $shift->shift_date?->toDateString(),
+                'start_time' => substr((string) $shift->start_time, 0, 5),
+                'end_time' => substr((string) $shift->end_time, 0, 5),
+                'title' => $shift->title,
+                'member_name' => $shift->teamMember?->user?->name,
+            ];
+        })->values()->all();
+    }
+
+    private function assertShiftRules(
+        TeamMember $member,
+        int $accountId,
+        Carbon $date,
+        Carbon $startTime,
+        Carbon $endTime,
+        ?int $ignoreId,
+        array &$addedMinutesByDate,
+        array &$addedMinutesByWeek,
+        ?int $breakMinutesOverride = null
+    ): void {
+        $rules = $this->resolvePlanningRules($member);
+        if (!$rules) {
+            return;
+        }
+
+        $ruleBreakMinutes = $rules['break_minutes'] ?? 0;
+        $breakMinutes = $breakMinutesOverride !== null ? $breakMinutesOverride : $ruleBreakMinutes;
+        $newMinutes = $this->calculateShiftMinutes($startTime, $endTime, (int) $breakMinutes);
+
+        $minDay = $rules['min_hours_day'] ?? null;
+        if ($minDay !== null && $newMinutes < (int) round($minDay * 60)) {
+            throw ValidationException::withMessages([
+                'start_time' => ["Le shift doit durer au moins {$minDay} heure(s)."],
+            ]);
+        }
+
+        $dateKey = $date->toDateString();
+        $existingDayMinutes = $this->sumShiftMinutesForDate(
+            $accountId,
+            $member->id,
+            $date,
+            $ruleBreakMinutes,
+            $ignoreId
+        );
+        $dayTotal = $existingDayMinutes + ($addedMinutesByDate[$dateKey] ?? 0) + $newMinutes;
+        $maxDay = $rules['max_hours_day'] ?? null;
+        if ($maxDay !== null && $dayTotal > (int) round($maxDay * 60)) {
+            throw ValidationException::withMessages([
+                'shift_date' => ["Limite max/jour depassee ({$maxDay} heure(s))."],
+            ]);
+        }
+
+        $weekKey = $date->copy()->startOfWeek()->toDateString();
+        $existingWeekMinutes = $this->sumShiftMinutesForWeek(
+            $accountId,
+            $member->id,
+            $date,
+            $ruleBreakMinutes,
+            $ignoreId
+        );
+        $weekTotal = $existingWeekMinutes + ($addedMinutesByWeek[$weekKey] ?? 0) + $newMinutes;
+        $maxWeek = $rules['max_hours_week'] ?? null;
+        if ($maxWeek !== null && $weekTotal > (int) round($maxWeek * 60)) {
+            throw ValidationException::withMessages([
+                'shift_date' => ["Limite max/semaine depassee ({$maxWeek} heure(s))."],
+            ]);
+        }
+
+        $addedMinutesByDate[$dateKey] = ($addedMinutesByDate[$dateKey] ?? 0) + $newMinutes;
+        $addedMinutesByWeek[$weekKey] = ($addedMinutesByWeek[$weekKey] ?? 0) + $newMinutes;
+    }
+
+    private function resolvePlanningRules(?TeamMember $member): array
+    {
+        $rules = $member?->planning_rules ?? [];
+        if (!is_array($rules)) {
+            return [];
+        }
+
+        return [
+            'break_minutes' => isset($rules['break_minutes']) ? (int) $rules['break_minutes'] : 0,
+            'min_hours_day' => isset($rules['min_hours_day']) ? (float) $rules['min_hours_day'] : null,
+            'max_hours_day' => isset($rules['max_hours_day']) ? (float) $rules['max_hours_day'] : null,
+            'max_hours_week' => isset($rules['max_hours_week']) ? (float) $rules['max_hours_week'] : null,
+        ];
+    }
+
+    private function calculateShiftMinutes(Carbon $startTime, Carbon $endTime, int $breakMinutes = 0): int
+    {
+        if ($endTime->lte($startTime)) {
+            return 0;
+        }
+
+        $minutes = $startTime->diffInMinutes($endTime);
+        if ($breakMinutes > 0) {
+            $minutes = max(0, $minutes - $breakMinutes);
+        }
+
+        return $minutes;
+    }
+
+    private function sumShiftMinutesForDate(
+        int $accountId,
+        int $teamMemberId,
+        Carbon $date,
+        int $fallbackBreakMinutes,
+        ?int $ignoreId
+    ): int {
+        $shifts = TeamMemberShift::query()
+            ->where('account_id', $accountId)
+            ->where('team_member_id', $teamMemberId)
+            ->where('kind', 'shift')
+            ->whereDate('shift_date', $date->toDateString())
+            ->where(function ($query) {
+                $query->whereNull('status')
+                    ->orWhereIn('status', ['approved', 'pending']);
+            })
+            ->when($ignoreId, fn ($query) => $query->where('id', '!=', $ignoreId))
+            ->get(['start_time', 'end_time', 'break_minutes']);
+
+        return $shifts->sum(function (TeamMemberShift $shift) use ($fallbackBreakMinutes) {
+            $start = $this->parseTime($shift->start_time);
+            $end = $this->parseTime($shift->end_time);
+            if (!$start || !$end) {
+                return 0;
+            }
+            $breakMinutes = $shift->break_minutes;
+            if ($breakMinutes === null) {
+                $breakMinutes = $fallbackBreakMinutes;
+            }
+            return $this->calculateShiftMinutes($start, $end, (int) $breakMinutes);
+        });
+    }
+
+    private function sumShiftMinutesForWeek(
+        int $accountId,
+        int $teamMemberId,
+        Carbon $date,
+        int $fallbackBreakMinutes,
+        ?int $ignoreId
+    ): int {
+        $weekStart = $date->copy()->startOfWeek()->toDateString();
+        $weekEnd = $date->copy()->endOfWeek()->toDateString();
+
+        $shifts = TeamMemberShift::query()
+            ->where('account_id', $accountId)
+            ->where('team_member_id', $teamMemberId)
+            ->where('kind', 'shift')
+            ->whereBetween('shift_date', [$weekStart, $weekEnd])
+            ->where(function ($query) {
+                $query->whereNull('status')
+                    ->orWhereIn('status', ['approved', 'pending']);
+            })
+            ->when($ignoreId, fn ($query) => $query->where('id', '!=', $ignoreId))
+            ->get(['start_time', 'end_time', 'break_minutes']);
+
+        return $shifts->sum(function (TeamMemberShift $shift) use ($fallbackBreakMinutes) {
+            $start = $this->parseTime($shift->start_time);
+            $end = $this->parseTime($shift->end_time);
+            if (!$start || !$end) {
+                return 0;
+            }
+            $breakMinutes = $shift->break_minutes;
+            if ($breakMinutes === null) {
+                $breakMinutes = $fallbackBreakMinutes;
+            }
+            return $this->calculateShiftMinutes($start, $end, (int) $breakMinutes);
+        });
+    }
+
     private function notifyTimeOffRequest(
         User $owner,
         $created,
@@ -891,7 +1326,11 @@ class PlanningController extends Controller
         }
 
         $approvers = $this->resolveTimeOffApprovers($owner);
+        $preferences = app(NotificationPreferenceService::class);
         foreach ($approvers as $approver) {
+            if (!$preferences->shouldNotify($approver, NotificationPreferenceService::CATEGORY_PLANNING)) {
+                continue;
+            }
             NotificationDispatcher::send($approver, new TimeOffRequestNotification(
                 $title,
                 $message,

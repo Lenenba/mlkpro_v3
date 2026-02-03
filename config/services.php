@@ -87,4 +87,8 @@ return [
         'image_timeout' => env('OPENAI_IMAGE_TIMEOUT', 120),
     ],
 
+    'rate_limits' => [
+        'api_per_user' => env('API_RATE_LIMIT_PER_MINUTE', 120),
+    ],
+
 ];

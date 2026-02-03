@@ -99,6 +99,12 @@ const createForm = useForm({
     title: '',
     phone: '',
     permissions: ['jobs.view', 'tasks.view', 'tasks.edit'],
+    planning_rules: {
+        break_minutes: '',
+        min_hours_day: '',
+        max_hours_day: '',
+        max_hours_week: '',
+    },
     profile_picture: null,
     avatar_icon: defaultAvatarIcon,
 });
@@ -107,6 +113,8 @@ const submitCreate = () => {
     if (createForm.processing) {
         return;
     }
+
+    const planningRules = buildPlanningRulesPayload(createForm.planning_rules);
 
     createForm
         .transform((data) => {
@@ -119,6 +127,13 @@ const submitCreate = () => {
             if (!payload.avatar_icon) {
                 delete payload.avatar_icon;
             }
+            if (planningRules === null) {
+                payload.planning_rules = null;
+            } else if (planningRules) {
+                payload.planning_rules = planningRules;
+            } else {
+                delete payload.planning_rules;
+            }
             return payload;
         })
         .post(route('team.store'), {
@@ -128,6 +143,12 @@ const submitCreate = () => {
                 createForm.role = 'member';
                 createForm.profile_picture = null;
                 createForm.avatar_icon = defaultAvatarIcon;
+                createForm.planning_rules = {
+                    break_minutes: '',
+                    min_hours_day: '',
+                    max_hours_day: '',
+                    max_hours_week: '',
+                };
                 closeOverlay('#hs-team-create');
             },
         });
@@ -142,6 +163,12 @@ const editForm = useForm({
     title: '',
     phone: '',
     permissions: [],
+    planning_rules: {
+        break_minutes: '',
+        min_hours_day: '',
+        max_hours_day: '',
+        max_hours_week: '',
+    },
     is_active: true,
     profile_picture: null,
     avatar_icon: '',
@@ -158,6 +185,12 @@ const openEditMember = (member) => {
     editForm.title = member.title || '';
     editForm.phone = member.phone || '';
     editForm.permissions = Array.isArray(member.permissions) ? member.permissions : [];
+    editForm.planning_rules = {
+        break_minutes: member.planning_rules?.break_minutes ?? '',
+        min_hours_day: member.planning_rules?.min_hours_day ?? '',
+        max_hours_day: member.planning_rules?.max_hours_day ?? '',
+        max_hours_week: member.planning_rules?.max_hours_week ?? '',
+    };
     editForm.is_active = Boolean(member.is_active);
     const avatarUrl = member.user?.profile_picture_url || member.user?.profile_picture || '';
     editForm.avatar_icon = isAvatarIcon(member.user?.profile_picture)
@@ -175,6 +208,8 @@ const submitEdit = () => {
         return;
     }
 
+    const planningRules = buildPlanningRulesPayload(editForm.planning_rules);
+
     editForm
         .transform((data) => {
             const payload = { ...data };
@@ -186,6 +221,13 @@ const submitEdit = () => {
             if (!payload.avatar_icon) {
                 delete payload.avatar_icon;
             }
+            if (planningRules === null) {
+                payload.planning_rules = null;
+            } else if (planningRules) {
+                payload.planning_rules = planningRules;
+            } else {
+                delete payload.planning_rules;
+            }
             return payload;
         })
         .put(route('team.update', editingMemberId.value), {
@@ -193,6 +235,12 @@ const submitEdit = () => {
             onSuccess: () => {
                 editForm.password = '';
                 editForm.profile_picture = null;
+                editForm.planning_rules = {
+                    break_minutes: '',
+                    min_hours_day: '',
+                    max_hours_day: '',
+                    max_hours_week: '',
+                };
                 closeOverlay('#hs-team-edit');
             },
         });
@@ -257,6 +305,38 @@ const selectAvatarIcon = (form, icon) => {
 
 const clearAvatarIcon = (form) => {
     form.avatar_icon = '';
+};
+
+const buildPlanningRulesPayload = (rules) => {
+    if (!rules || typeof rules !== 'object') {
+        return null;
+    }
+
+    const normalized = {};
+    const fields = [
+        'break_minutes',
+        'min_hours_day',
+        'max_hours_day',
+        'max_hours_week',
+    ];
+
+    fields.forEach((field) => {
+        const raw = rules[field];
+        if (raw === '' || raw === null || raw === undefined) {
+            return;
+        }
+        const numberValue = Number(raw);
+        if (Number.isNaN(numberValue)) {
+            return;
+        }
+        normalized[field] = numberValue;
+    });
+
+    if (!Object.keys(normalized).length) {
+        return null;
+    }
+
+    return normalized;
 };
 
 const permissionMap = computed(() => {
@@ -682,6 +762,29 @@ watch(() => editForm.profile_picture, (value) => {
                     <FloatingInput v-model="createForm.phone" label="Phone (optional)" />
                     <InputError class="mt-1" :message="createForm.errors.phone" />
                 </div>
+                <div class="md:col-span-2 space-y-2 rounded-sm border border-stone-200 bg-stone-50 p-3 text-xs text-stone-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300">
+                    <p class="text-[11px] font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">
+                        Planning rules (optional)
+                    </p>
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-2">
+                        <div>
+                            <FloatingInput v-model="createForm.planning_rules.break_minutes" type="number" label="Break (min)" />
+                            <InputError class="mt-1" :message="createForm.errors['planning_rules.break_minutes']" />
+                        </div>
+                        <div>
+                            <FloatingInput v-model="createForm.planning_rules.min_hours_day" type="number" step="0.25" label="Min hours/day" />
+                            <InputError class="mt-1" :message="createForm.errors['planning_rules.min_hours_day']" />
+                        </div>
+                        <div>
+                            <FloatingInput v-model="createForm.planning_rules.max_hours_day" type="number" step="0.25" label="Max hours/day" />
+                            <InputError class="mt-1" :message="createForm.errors['planning_rules.max_hours_day']" />
+                        </div>
+                        <div>
+                            <FloatingInput v-model="createForm.planning_rules.max_hours_week" type="number" step="0.25" label="Max hours/week" />
+                            <InputError class="mt-1" :message="createForm.errors['planning_rules.max_hours_week']" />
+                        </div>
+                    </div>
+                </div>
             </div>
             <p class="text-xs text-stone-500 dark:text-neutral-400">
                 Un lien de connexion sera envoye par email pour definir le mot de passe.
@@ -770,6 +873,29 @@ watch(() => editForm.profile_picture, (value) => {
                 <div>
                     <FloatingInput v-model="editForm.phone" label="Phone (optional)" />
                     <InputError class="mt-1" :message="editForm.errors.phone" />
+                </div>
+                <div class="md:col-span-2 space-y-2 rounded-sm border border-stone-200 bg-stone-50 p-3 text-xs text-stone-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300">
+                    <p class="text-[11px] font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">
+                        Planning rules (optional)
+                    </p>
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-2">
+                        <div>
+                            <FloatingInput v-model="editForm.planning_rules.break_minutes" type="number" label="Break (min)" />
+                            <InputError class="mt-1" :message="editForm.errors['planning_rules.break_minutes']" />
+                        </div>
+                        <div>
+                            <FloatingInput v-model="editForm.planning_rules.min_hours_day" type="number" step="0.25" label="Min hours/day" />
+                            <InputError class="mt-1" :message="editForm.errors['planning_rules.min_hours_day']" />
+                        </div>
+                        <div>
+                            <FloatingInput v-model="editForm.planning_rules.max_hours_day" type="number" step="0.25" label="Max hours/day" />
+                            <InputError class="mt-1" :message="editForm.errors['planning_rules.max_hours_day']" />
+                        </div>
+                        <div>
+                            <FloatingInput v-model="editForm.planning_rules.max_hours_week" type="number" step="0.25" label="Max hours/week" />
+                            <InputError class="mt-1" :message="editForm.errors['planning_rules.max_hours_week']" />
+                        </div>
+                    </div>
                 </div>
                 <div class="md:col-span-2">
                     <label class="flex items-center gap-2 text-sm text-stone-700 dark:text-neutral-200">

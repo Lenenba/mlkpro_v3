@@ -29,6 +29,7 @@ return [
             'price_id' => null,
             'price' => env($pricePrefix . '_PRICE_FREE_AMOUNT', 0),
             'features' => [
+                'Jusqu a 3 employes',
                 'Clients, devis et factures de base',
                 'Jobs, taches et planning simple',
                 'Catalogue produits et services',
@@ -41,6 +42,7 @@ return [
             'price_id' => env($pricePrefix . '_PRICE_STARTER'),
             'price' => env($pricePrefix . '_PRICE_STARTER_AMOUNT'),
             'features' => [
+                'Jusqu a 10 employes',
                 'Clients, devis, jobs et factures',
                 'Planning d equipe (jour/semaine/mois/annee)',
                 'Presence et pointage equipe',
@@ -55,6 +57,7 @@ return [
             'price_id' => env($pricePrefix . '_PRICE_GROWTH'),
             'price' => env($pricePrefix . '_PRICE_GROWTH_AMOUNT'),
             'features' => [
+                'Jusqu a 25 employes',
                 'Tout Starter',
                 'Equipe et permissions',
                 'Planning combine jobs + taches',
@@ -70,12 +73,27 @@ return [
             'price_id' => env($pricePrefix . '_PRICE_SCALE'),
             'price' => env($pricePrefix . '_PRICE_SCALE_AMOUNT'),
             'features' => [
+                'Jusqu a 50 employes',
                 'Tout Growth',
                 'Rapports avances et exports',
                 'Assistant IA (inclus)',
                 'Onboarding dedie',
                 'Support prioritaire',
                 'Parametrages avances',
+            ],
+        ],
+        'enterprise' => [
+            'name' => 'Enterprise',
+            'price_id' => null,
+            'price' => 'Sur mesure',
+            'contact_only' => true,
+            'team_members_min' => 50,
+            'features' => [
+                '50+ employes',
+                'Tout Scale',
+                'Integrations et SLA sur mesure',
+                'Onboarding et accompagnement dedie',
+                'Support prioritaire 24/7',
             ],
         ],
     ],

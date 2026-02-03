@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class TeamMemberController extends Controller
 {
@@ -77,6 +78,11 @@ class TeamMemberController extends Controller
             'phone' => 'nullable|string|max:255',
             'permissions' => 'nullable|array',
             'permissions.*' => ['string', 'in:' . implode(',', $allowedPermissions)],
+            'planning_rules' => 'nullable|array',
+            'planning_rules.break_minutes' => 'nullable|integer|min:0|max:240',
+            'planning_rules.min_hours_day' => 'nullable|numeric|min:0|max:24',
+            'planning_rules.max_hours_day' => 'nullable|numeric|min:0|max:24',
+            'planning_rules.max_hours_week' => 'nullable|numeric|min:0|max:168',
             'profile_picture' => 'nullable|image|mimes:jpg,jpeg,png,svg|max:2048',
             'avatar_icon' => [
                 'nullable',
@@ -117,6 +123,8 @@ class TeamMemberController extends Controller
             $permissions = $this->defaultPermissionsForRole($validated['role']);
         }
 
+        $planningRules = $this->normalizePlanningRules($validated['planning_rules'] ?? null);
+
         $teamMember = TeamMember::create([
             'account_id' => $user->id,
             'user_id' => $memberUser->id,
@@ -124,6 +132,7 @@ class TeamMemberController extends Controller
             'title' => $validated['title'] ?? null,
             'phone' => $validated['phone'] ?? null,
             'permissions' => $permissions,
+            'planning_rules' => $planningRules,
             'is_active' => true,
         ]);
 
@@ -181,6 +190,11 @@ class TeamMemberController extends Controller
             'phone' => 'nullable|string|max:255',
             'permissions' => 'nullable|array',
             'permissions.*' => ['string', 'in:' . implode(',', $allowedPermissions)],
+            'planning_rules' => 'nullable|array',
+            'planning_rules.break_minutes' => 'nullable|integer|min:0|max:240',
+            'planning_rules.min_hours_day' => 'nullable|numeric|min:0|max:24',
+            'planning_rules.max_hours_day' => 'nullable|numeric|min:0|max:24',
+            'planning_rules.max_hours_week' => 'nullable|numeric|min:0|max:168',
             'is_active' => 'nullable|boolean',
             'profile_picture' => 'nullable|image|mimes:jpg,jpeg,png,svg|max:2048',
             'avatar_icon' => [
@@ -237,6 +251,9 @@ class TeamMemberController extends Controller
             if (array_key_exists($field, $validated)) {
                 $teamMemberUpdates[$field] = $validated[$field];
             }
+        }
+        if (array_key_exists('planning_rules', $validated)) {
+            $teamMemberUpdates['planning_rules'] = $this->normalizePlanningRules($validated['planning_rules']);
         }
         if ($teamMemberUpdates) {
             $teamMember->update($teamMemberUpdates);
@@ -304,5 +321,35 @@ class TeamMemberController extends Controller
                 'tasks.edit',
             ],
         };
+    }
+
+    private function normalizePlanningRules(?array $rules): ?array
+    {
+        if (!$rules) {
+            return null;
+        }
+
+        $normalized = [];
+        if (array_key_exists('break_minutes', $rules) && $rules['break_minutes'] !== null && $rules['break_minutes'] !== '') {
+            $normalized['break_minutes'] = (int) $rules['break_minutes'];
+        }
+        if (array_key_exists('min_hours_day', $rules) && $rules['min_hours_day'] !== null && $rules['min_hours_day'] !== '') {
+            $normalized['min_hours_day'] = (float) $rules['min_hours_day'];
+        }
+        if (array_key_exists('max_hours_day', $rules) && $rules['max_hours_day'] !== null && $rules['max_hours_day'] !== '') {
+            $normalized['max_hours_day'] = (float) $rules['max_hours_day'];
+        }
+        if (array_key_exists('max_hours_week', $rules) && $rules['max_hours_week'] !== null && $rules['max_hours_week'] !== '') {
+            $normalized['max_hours_week'] = (float) $rules['max_hours_week'];
+        }
+
+        if (isset($normalized['min_hours_day'], $normalized['max_hours_day'])
+            && $normalized['max_hours_day'] < $normalized['min_hours_day']) {
+            throw ValidationException::withMessages([
+                'planning_rules.max_hours_day' => ['La limite max doit etre superieure a la limite min.'],
+            ]);
+        }
+
+        return $normalized ?: null;
     }
 }

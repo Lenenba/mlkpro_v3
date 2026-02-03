@@ -10,6 +10,7 @@ use App\Models\Work;
 use App\Notifications\ActionEmailNotification;
 use App\Notifications\InvoicePaymentNotification;
 use App\Support\NotificationDispatcher;
+use App\Services\NotificationPreferenceService;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
 use Stripe\StripeClient;
@@ -271,7 +272,10 @@ class StripeInvoiceService
         }
 
         if ($owner) {
-            Notification::send($owner, new InvoicePaymentNotification($invoice, $payment, 'owner'));
+            $preferences = app(NotificationPreferenceService::class);
+            if ($preferences->shouldNotify($owner, NotificationPreferenceService::CATEGORY_BILLING)) {
+                Notification::send($owner, new InvoicePaymentNotification($invoice, $payment, 'owner'));
+            }
         }
     }
 
@@ -301,7 +305,11 @@ class StripeInvoiceService
         }
 
         if ($customer->portalUser) {
-            Notification::send($customer->portalUser, new InvoicePaymentNotification($invoice, $payment, 'client'));
+            $portalUser = $customer->portalUser;
+            $preferences = app(NotificationPreferenceService::class);
+            if ($preferences->shouldNotify($portalUser, NotificationPreferenceService::CATEGORY_BILLING)) {
+                Notification::send($portalUser, new InvoicePaymentNotification($invoice, $payment, 'client'));
+            }
         }
     }
 

@@ -45,6 +45,14 @@ const props = defineProps({
         type: Number,
         default: null,
     },
+    shiftTemplates: {
+        type: Array,
+        default: () => [],
+    },
+    defaultShiftTemplate: {
+        type: Object,
+        default: () => ({}),
+    },
 });
 
 const { t } = useI18n();
@@ -96,14 +104,23 @@ const initialMonth = currentRange.value.start ? dayjs(currentRange.value.start) 
 const currentMonth = ref(initialMonth.isValid() ? initialMonth : todayDate);
 const selectedDate = ref(todayDate);
 const viewMode = ref('month');
+const defaultShiftTemplate = computed(() => ({
+    start_time: props.defaultShiftTemplate?.start_time || '09:00',
+    end_time: props.defaultShiftTemplate?.end_time || '17:00',
+    break_minutes: Number(props.defaultShiftTemplate?.break_minutes ?? 60),
+    days_of_week: Array.isArray(props.defaultShiftTemplate?.days_of_week)
+        ? props.defaultShiftTemplate.days_of_week
+        : [],
+}));
 
 const form = reactive({
     kind: props.canManage ? 'shift' : 'absence',
     team_member_id: props.selfTeamMemberId || props.teamMembers?.[0]?.id || '',
     shift_date: todayDate.format('YYYY-MM-DD'),
     end_date: todayDate.format('YYYY-MM-DD'),
-    start_time: '09:00',
-    end_time: '17:00',
+    start_time: defaultShiftTemplate.value.start_time,
+    end_time: defaultShiftTemplate.value.end_time,
+    break_minutes: defaultShiftTemplate.value.break_minutes,
     title: '',
     notes: '',
     is_recurring: false,
@@ -118,11 +135,13 @@ const monthlyDay = ref(String(dayjs().date()));
 
 const formErrors = ref({});
 const formProcessing = ref(false);
+const updateProcessing = ref(false);
 const deleteProcessing = ref(false);
 const deleteError = ref('');
 const statusProcessing = ref(false);
 const statusError = ref('');
 const selectedShift = ref(null);
+const dragState = ref(null);
 
 const canCreate = computed(() => {
     if (props.canManage) {
@@ -141,6 +160,66 @@ const memberOptions = computed(() =>
         label: member.title ? `${member.name} - ${member.title}` : member.name,
     }))
 );
+
+const memberById = computed(() => new Map(
+    (props.teamMembers || []).map((member) => [Number(member.id), member])
+));
+
+const normalizePosition = (value) => String(value || '').trim().toLowerCase();
+
+const templateMap = computed(() => {
+    const map = new Map();
+    (props.shiftTemplates || []).forEach((template) => {
+        const key = normalizePosition(template.position_title);
+        if (!key) {
+            return;
+        }
+        map.set(key, template);
+    });
+    return map;
+});
+
+const isTemplateActiveForDate = (template, dateValue) => {
+    const days = template?.days_of_week || [];
+    if (!Array.isArray(days) || !days.length) {
+        return true;
+    }
+    const date = dayjs(dateValue);
+    if (!date.isValid()) {
+        return true;
+    }
+    const dayKey = weekdayValues[date.day()];
+    return days.map((item) => String(item).toLowerCase()).includes(dayKey);
+};
+
+const manualTimeOverride = ref(false);
+const autoApplying = ref(false);
+
+const applyTemplateForSelection = () => {
+    if (form.kind !== 'shift') {
+        return;
+    }
+
+    const member = memberById.value.get(Number(form.team_member_id));
+    const positionKey = normalizePosition(member?.title);
+    const template = positionKey ? templateMap.value.get(positionKey) : null;
+    const shouldApplyTemplate = template && isTemplateActiveForDate(template, form.shift_date);
+    const source = shouldApplyTemplate ? template : defaultShiftTemplate.value;
+
+    autoApplying.value = true;
+    if (source?.start_time) {
+        form.start_time = source.start_time;
+    }
+    if (source?.end_time) {
+        form.end_time = source.end_time;
+    }
+    if (typeof source?.break_minutes === 'number') {
+        form.break_minutes = source.break_minutes;
+    }
+    window.setTimeout(() => {
+        autoApplying.value = false;
+    }, 0);
+};
 
 const kindOptions = computed(() => {
     const options = [];
@@ -735,6 +814,149 @@ const formatEventTime = (event) => {
     return base;
 };
 
+const canDragEvent = (event) => {
+    const kind = event?.extendedProps?.kind;
+    if (kind === 'shift') {
+        return props.canManage;
+    }
+    if (['absence', 'leave'].includes(kind)) {
+        return Boolean(event?.extendedProps?.can_approve || event?.extendedProps?.can_delete);
+    }
+    return false;
+};
+
+const getEventDurationMinutes = (event) => {
+    const start = dayjs(event?.start);
+    const end = dayjs(event?.end);
+    if (!start.isValid() || !end.isValid()) {
+        return 60;
+    }
+    const diff = end.diff(start, 'minute');
+    return diff > 0 ? diff : 60;
+};
+
+const onDragStart = (event, domEvent) => {
+    if (!canDragEvent(event)) {
+        domEvent.preventDefault();
+        return;
+    }
+    const duration = getEventDurationMinutes(event);
+    dragState.value = {
+        event,
+        duration,
+    };
+    if (domEvent?.dataTransfer) {
+        domEvent.dataTransfer.effectAllowed = 'move';
+        domEvent.dataTransfer.setData('text/plain', String(event.id || 'shift'));
+    }
+};
+
+const onDragEnd = () => {
+    dragState.value = null;
+};
+
+const clampToDay = (start) => {
+    let newStart = start;
+    let newEnd = null;
+    if (dragState.value?.duration) {
+        newEnd = newStart.add(dragState.value.duration, 'minute');
+    }
+
+    const endOfDay = start.endOf('day').minute(59).second(0);
+    if (newEnd && newEnd.isAfter(endOfDay)) {
+        newEnd = endOfDay;
+    }
+    if (newEnd && !newEnd.isAfter(newStart)) {
+        newEnd = newStart.add(30, 'minute');
+    }
+    if (newEnd && newEnd.isAfter(endOfDay)) {
+        newEnd = endOfDay;
+    }
+
+    return { start: newStart, end: newEnd };
+};
+
+const updateShiftFromDrag = async (event, start, end) => {
+    if (!event?.id || updateProcessing.value) {
+        return;
+    }
+    if (!start?.isValid() || !end?.isValid()) {
+        return;
+    }
+
+    updateProcessing.value = true;
+    try {
+        await axios.patch(route('planning.shifts.update', event.id), {
+            shift_date: start.format('YYYY-MM-DD'),
+            start_time: start.format('HH:mm'),
+            end_time: end.format('HH:mm'),
+        });
+        pushToast('success', t('planning.notices.updated'));
+        await fetchEvents(currentRange.value.start, currentRange.value.end);
+    } catch (error) {
+        const status = error?.response?.status;
+        if (status === 409) {
+            pushToast('error', error?.response?.data?.message || t('planning.errors.conflict'));
+        } else {
+            const message = extractErrorMessage(error) || t('planning.errors.update');
+            pushToast('error', message);
+        }
+    } finally {
+        updateProcessing.value = false;
+    }
+};
+
+const handleMonthDrop = async (dayKey, domEvent) => {
+    domEvent.preventDefault();
+    const dragging = resolveDraggedEvent(domEvent);
+    if (!dragging || !canDragEvent(dragging)) {
+        return;
+    }
+    const start = dayjs(dragging.start);
+    if (!start.isValid()) {
+        return;
+    }
+    const newStart = dayjs(dayKey)
+        .hour(start.hour())
+        .minute(start.minute())
+        .second(0);
+    const { start: clampedStart, end } = clampToDay(newStart);
+    await updateShiftFromDrag(dragging, clampedStart, end);
+};
+
+const resolveTimeFromDrop = (dayKey, domEvent, baseHour, totalHours) => {
+    const rect = domEvent.currentTarget?.getBoundingClientRect();
+    if (!rect) {
+        return null;
+    }
+    const offsetY = domEvent.clientY - rect.top;
+    const totalMinutes = Math.max(0, Math.min(offsetY / minuteHeight, totalHours * 60));
+    const roundedMinutes = Math.round(totalMinutes / 15) * 15;
+    return dayjs(dayKey)
+        .hour(baseHour)
+        .minute(0)
+        .second(0)
+        .add(roundedMinutes, 'minute');
+};
+
+const handleTimelineDrop = async (dayKey, domEvent, mode) => {
+    domEvent.preventDefault();
+    const dragging = resolveDraggedEvent(domEvent);
+    if (!dragging || !canDragEvent(dragging)) {
+        return;
+    }
+    const baseHour = mode === 'week' ? weekStartHour : dayStartHour;
+    const totalHours = mode === 'week'
+        ? (weekEndHour - weekStartHour)
+        : (dayEndHour - dayStartHour);
+    const proposedStart = resolveTimeFromDrop(dayKey, domEvent, baseHour, totalHours);
+    if (!proposedStart) {
+        return;
+    }
+    const { start, end } = clampToDay(proposedStart);
+    await updateShiftFromDrag(dragging, start, end);
+};
+
 const isCurrentHour = (dayKey, hour) => {
     const now = dayjs();
     return now.format('YYYY-MM-DD') === dayKey && now.hour() === hour;
@@ -750,6 +972,35 @@ const pushToast = (type, message) => {
         return;
     }
     window.dispatchEvent(new CustomEvent('mlk-toast', { detail: { type, message } }));
+};
+
+const resolveDraggedEvent = (domEvent) => {
+    if (dragState.value?.event) {
+        return dragState.value.event;
+    }
+    const dragId = domEvent?.dataTransfer?.getData('text/plain');
+    if (!dragId) {
+        return null;
+    }
+    const candidates = visibleEvents.value?.length ? visibleEvents.value : (calendarEvents.value || []);
+    return candidates.find((event) => String(event.id) === String(dragId)) || null;
+};
+
+const extractErrorMessage = (error) => {
+    const data = error?.response?.data || {};
+    if (typeof data.message === 'string' && data.message.trim()) {
+        return data.message;
+    }
+    const errors = data.errors || {};
+    const key = Object.keys(errors)[0];
+    if (!key) {
+        return '';
+    }
+    const value = errors[key];
+    if (Array.isArray(value)) {
+        return value[0] || '';
+    }
+    return value || '';
 };
 
 const normalizeErrors = (error) => {
@@ -958,6 +1209,7 @@ const submitShift = async () => {
     } else {
         payload.start_time = form.start_time;
         payload.end_time = form.end_time;
+        payload.break_minutes = form.break_minutes;
         payload.is_recurring = form.is_recurring;
 
         if (form.is_recurring) {
@@ -1245,8 +1497,29 @@ watch(
     () => form.shift_date,
     (value) => {
         syncDefaultsFromDate(value);
+        if (!manualTimeOverride.value) {
+            applyTemplateForSelection();
+        }
     },
     { immediate: true }
+);
+
+watch(
+    () => form.team_member_id,
+    () => {
+        manualTimeOverride.value = false;
+        applyTemplateForSelection();
+    }
+);
+
+watch(
+    () => [form.start_time, form.end_time, form.break_minutes],
+    () => {
+        if (autoApplying.value) {
+            return;
+        }
+        manualTimeOverride.value = true;
+    }
 );
 
 watch(
@@ -1266,6 +1539,11 @@ watch(
             } else if (!form.end_date) {
                 form.end_date = form.shift_date;
             }
+            return;
+        }
+        if (value === 'shift' && previous !== 'shift') {
+            manualTimeOverride.value = false;
+            applyTemplateForSelection();
         }
     }
 );
@@ -1617,6 +1895,8 @@ onBeforeUnmount(() => {
                                         index % 7 === 0 ? 'border-l-0' : '',
                                         day.isWeekend ? 'bg-stone-50/70 dark:bg-neutral-900/40' : '',
                                     ]"
+                                    @dragover.prevent
+                                    @drop="handleMonthDrop(day.key, $event)"
                                 >
                                     <button
                                         type="button"
@@ -1642,7 +1922,10 @@ onBeforeUnmount(() => {
                                             :key="event.id"
                                             type="button"
                                             class="w-full text-left text-[11px] leading-snug"
-                                            :class="getEventClasses(event)"
+                                            :class="[getEventClasses(event), canDragEvent(event) ? 'cursor-move' : '']"
+                                            :draggable="canDragEvent(event)"
+                                            @dragstart="onDragStart(event, $event)"
+                                            @dragend="onDragEnd"
                                             @click="openShiftDetails(event)"
                                         >
                                             <span class="block truncate font-semibold">{{ getEventTitle(event) }}</span>
@@ -1689,6 +1972,8 @@ onBeforeUnmount(() => {
                                         class="relative border-l border-stone-200 dark:border-neutral-800"
                                         :class="day.isWeekend ? 'bg-stone-50/70 dark:bg-neutral-900/40' : ''"
                                         :style="{ height: `${weekTimelineHeight}px` }"
+                                        @dragover.prevent
+                                        @drop="handleTimelineDrop(day.key, $event, 'week')"
                                     >
                                         <div class="flex flex-col h-full">
                                             <div
@@ -1704,13 +1989,16 @@ onBeforeUnmount(() => {
                                                 :key="block.event.id"
                                                 type="button"
                                                 class="absolute z-10 overflow-hidden text-left text-[10px] leading-snug"
-                                                :class="getEventClasses(block.event)"
+                                                :class="[getEventClasses(block.event), canDragEvent(block.event) ? 'cursor-move' : '']"
                                                 :style="{
                                                     top: `${block.top}px`,
                                                     height: `${block.height}px`,
                                                     left: `${block.left}%`,
                                                     width: `${block.width}%`,
                                                 }"
+                                                :draggable="canDragEvent(block.event)"
+                                                @dragstart="onDragStart(block.event, $event)"
+                                                @dragend="onDragEnd"
                                                 @click="openShiftDetails(block.event)"
                                             >
                                                 <span class="block truncate font-semibold">{{ getEventTitle(block.event) }}</span>
@@ -1752,6 +2040,8 @@ onBeforeUnmount(() => {
                                         <div
                                             class="relative border-l border-stone-200 dark:border-neutral-800"
                                             :style="{ height: `${dayTimelineHeight}px` }"
+                                            @dragover.prevent
+                                            @drop="handleTimelineDrop(selectedDate.format('YYYY-MM-DD'), $event, 'day')"
                                         >
                                             <div class="flex flex-col h-full">
                                                 <div
@@ -1768,13 +2058,16 @@ onBeforeUnmount(() => {
                                                     :key="block.event.id"
                                                     type="button"
                                                     class="absolute z-10 overflow-hidden text-left text-[10px] leading-snug"
-                                                    :class="getEventClasses(block.event)"
+                                                    :class="[getEventClasses(block.event), canDragEvent(block.event) ? 'cursor-move' : '']"
                                                     :style="{
                                                         top: `${block.top}px`,
                                                         height: `${block.height}px`,
                                                         left: `${block.left}%`,
                                                         width: `${block.width}%`,
                                                     }"
+                                                    :draggable="canDragEvent(block.event)"
+                                                    @dragstart="onDragStart(block.event, $event)"
+                                                    @dragend="onDragEnd"
                                                     @click="openShiftDetails(block.event)"
                                                 >
                                                     <span class="block truncate font-semibold">{{ getEventTitle(block.event) }}</span>
@@ -1897,6 +2190,11 @@ onBeforeUnmount(() => {
                                 <FloatingInput v-model="form.end_time" type="time" :label="t('planning.form.end_time')" />
                                 <InputError :message="formErrors.end_time" />
                             </div>
+                        </div>
+
+                        <div v-if="!isTimeOffKind" class="mt-2">
+                            <FloatingInput v-model="form.break_minutes" type="number" min="0" max="60" :label="t('planning.form.break_minutes')" />
+                            <InputError :message="formErrors.break_minutes" />
                         </div>
 
                         <div v-if="!isTimeOffKind">

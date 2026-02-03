@@ -2,6 +2,7 @@
   "nav": {
     "admin": "Administration",
     "tenants": "Espaces",
+    "plans": "Forfaits",
     "support": "Assistance",
     "admins": "Administrateurs",
     "notifications": "Alertes",
@@ -53,6 +54,30 @@
     "title": "Notifications",
     "mark_all": "Tout marquer",
     "empty": "Aucune notification."
+  },
+  "two_factor": {
+    "title": "Verification en deux etapes",
+    "sent": "Nous avons envoye un code a {email}.",
+    "expires": "Ce code expire dans {minutes} minutes.",
+    "code_label": "Code de verification",
+    "code_placeholder": "Entrez le code a 6 chiffres",
+    "submit": "Verifier",
+    "resend": "Renvoyer le code"
+  },
+  "global_search": {
+    "open": "Recherche globale",
+    "placeholder": "Rechercher clients, taches, devis, employes...",
+    "quick_actions": "Actions rapides",
+    "results": "Resultats",
+    "loading": "Recherche...",
+    "no_results": "Aucun resultat.",
+    "hint": "Ctrl + K",
+    "groups": {
+      "customers": "Clients",
+      "tasks": "Taches",
+      "quotes": "Devis",
+      "employees": "Employes"
+    }
   },
   "alerts": {
     "maintenance": {
@@ -601,6 +626,7 @@
       "hours": "Quelques heures",
       "start_time": "Heure de debut",
       "end_time": "Heure de fin",
+      "break_minutes": "Pause (min)",
       "shift_title": "Titre du shift",
       "notes": "Notes",
       "reason": "Motif / notes",
@@ -634,7 +660,9 @@
       "load": "Impossible de charger les shifts.",
       "save": "Impossible d enregistrer le shift.",
       "delete": "Impossible de supprimer le shift.",
-      "status": "Impossible de mettre à jour le statut."
+      "status": "Impossible de mettre à jour le statut.",
+      "update": "Impossible de mettre a jour le shift.",
+      "conflict": "Conflit de planning detecte."
     },
     "notices": {
       "created": "{count} shift(s) cree(s).",
@@ -644,6 +672,7 @@
       "leave_created_many": "{count} jours de conge enregistres.",
       "absence_deleted": "Absence supprimee.",
       "leave_deleted": "Conge supprime.",
+      "updated": "Shift mis a jour.",
       "approved": "Demande approuvée.",
       "rejected": "Demande refusée.",
       "deleted": "Shift supprime."
@@ -1284,6 +1313,23 @@
         "save": "Enregistrer les modules",
         "edit_modules_title": "Modifier les modules - {plan}",
         "modal_hint": "Desactivez des modules pour les cacher sur ce plan."
+      },
+      "plan_display": {
+        "title": "Affichage des forfaits",
+        "subtitle": "Modifier le contenu affiche sur les forfaits (nom, prix, badge, features).",
+        "empty": "Aucun plan configure.",
+        "edit_display": "Modifier l affichage",
+        "helper": "Cliquez sur un plan pour modifier ce qui est visible pour les entreprises.",
+        "save": "Enregistrer l affichage",
+        "edit_display_title": "Modifier l affichage - {plan}",
+        "fields": {
+          "name": "Nom du forfait",
+          "price": "Libelle du prix",
+          "badge": "Libelle du badge",
+          "features": "Fonctionnalites",
+          "add_feature": "Ajouter une fonctionnalite",
+          "remove": "Retirer"
+        }
       },
       "limits": {
         "quotes": "Devis",
@@ -4307,16 +4353,28 @@
       "rating": "Note",
       "total": "Total",
       "start_date": "Date de debut",
+      "created_at": "Cree le",
       "results": "resultats"
     },
     "actions": {
       "filters": "Filtres",
       "reset": "Reinitialiser",
+      "create": "Creer un chantier",
       "view": "Voir",
       "edit": "Modifier",
       "schedule": "Planifier",
       "view_invoice": "Voir la facture",
       "create_invoice": "Creer une facture"
+    },
+    "create_modal": {
+      "title": "Creer un chantier",
+      "subtitle": "Choisissez un client pour creer un chantier sans devis.",
+      "customer_label": "Client",
+      "customer_required": "Selectionnez un client pour continuer.",
+      "empty": "Aucun client disponible pour le moment.",
+      "add_customer": "Ajouter un client",
+      "cancel": "Annuler",
+      "create": "Creer le chantier"
     },
     "labels": {
       "unknown_customer": "Client inconnu"
@@ -4679,6 +4737,10 @@
         "label": "Entreprise",
         "description": "Informations, catégories et paramètres"
       },
+      "hr": {
+        "label": "RH",
+        "description": "Modeles de shifts"
+      },
       "billing": {
         "label": "Facturation",
         "description": "Plan, paiements et historique"
@@ -4691,6 +4753,71 @@
       "support": {
         "label": "Support",
         "description": "Incidents et assistance"
+      }
+    },
+    "security": {
+      "meta_title": "Securite",
+      "title": "Securite",
+      "subtitle": "Gerez l authentification a deux facteurs et l activite du compte.",
+      "tabs": {
+        "auth": {
+          "label": "Authentification",
+          "description": "2FA et acces"
+        },
+        "activity": {
+          "label": "Activite",
+          "description": "Connexions recentes"
+        }
+      },
+      "two_factor": {
+        "title": "Authentification a deux facteurs",
+        "description": "Ajoute un code email a la connexion.",
+        "status_required": "Obligatoire",
+        "status_enabled": "Activee",
+        "status_disabled": "Desactivee",
+        "required_hint": "La 2FA est obligatoire pour les owners.",
+        "email_label": "Email",
+        "last_sent": "Dernier code envoye",
+        "last_sent_empty": "Aucun code envoye"
+      },
+      "password": {
+        "title": "Mot de passe",
+        "description": "Changez votre mot de passe depuis votre profil.",
+        "action": "Mettre a jour"
+      },
+      "rate_limit": {
+        "title": "Protection API",
+        "description": "Le rate limiting protege votre API et vos automatisations.",
+        "value": "{limit} requetes / min / utilisateur",
+        "unavailable": "Limite non configuree"
+      },
+      "activity": {
+        "title": "Activite recente",
+        "description": "Dernieres connexions et evenements de securite.",
+        "empty": "Aucune activite de securite.",
+        "columns": {
+          "user": "Utilisateur",
+          "event": "Evenement",
+          "channel": "Canal",
+          "ip": "IP",
+          "device": "Appareil",
+          "date": "Date"
+        },
+        "channels": {
+          "web": "Web",
+          "api": "API"
+        },
+        "unknown_device": "Appareil inconnu",
+        "actions": {
+          "auth.login": "Connexion",
+          "auth.logout": "Deconnexion",
+          "auth.password_changed": "Mot de passe modifie",
+          "auth.2fa.sent": "Code 2FA envoye",
+          "auth.2fa.resend": "Code 2FA renvoye"
+        },
+        "badges": {
+          "two_factor": "2FA"
+        }
       }
     },
     "company": {
@@ -4707,14 +4834,18 @@
           "label": "Fournisseurs",
           "description": "Plateformes actives"
         },
-        "store": {
-          "label": "Boutique",
-          "description": "Parametres de la boutique"
-        },
-        "categories": {
-          "label": "Categories",
-          "description": "Services et produits"
-        },
+      "store": {
+        "label": "Boutique",
+        "description": "Parametres de la boutique"
+      },
+      "showcase": {
+        "label": "Vitrine services",
+        "description": "Parametres de la vitrine services"
+      },
+      "categories": {
+        "label": "Categories",
+        "description": "Services et produits"
+      },
         "warehouses": {
           "label": "Entrepots",
           "description": "Emplacements de stock"
@@ -4735,9 +4866,13 @@
       "store": {
         "title": "Parametres de la boutique",
         "description": "Personnalisez l en-tete et le produit vedette.",
+        "title_services": "Parametres de la vitrine services",
+        "description_services": "Personnalisez la vitrine publique de vos services.",
         "header_color": "Couleur de l en-tete",
         "featured_product": "Produit vedette",
+        "featured_service": "Service vedette",
         "featured_placeholder": "Selectionner un produit",
+        "featured_placeholder_service": "Selectionner un service",
           "hero_images": "Images de fond du produit vedette",
           "hero_images_hint": "Collez une URL d image par ligne. Elles defileront derriere le produit vedette.",
           "hero_images_upload": "Importer des images (ordinateur)",
@@ -4782,7 +4917,7 @@
       "fields": {
         "name": "Nom de l'entreprise",
         "public_slug": "Slug public (boutique)",
-        "public_slug_hint": "Utilise pour l'URL publique: /store/{slug}.",
+      "public_slug_hint": "Utilise pour l'URL publique: /{path}/{slug}.",
         "logo_optional": "Logo (optionnel)",
         "logo_upload": "Telecharger votre logo",
         "description_optional": "Description (optionnel)",
@@ -4952,6 +5087,53 @@
         "revoke_token": "Revoquer ce token ?"
       }
     },
+    "hr": {
+      "meta_title": "Parametres RH",
+      "title": "Parametres RH",
+      "subtitle": "Definir des shifts par poste.",
+      "sections": {
+        "templates": {
+          "title": "Modeles de shift",
+          "description": "Creer des shifts predefinis par poste."
+        },
+        "defaults": {
+          "title": "Defaut global",
+          "description": "Utilise si aucun modele n existe pour un poste."
+        }
+      },
+      "form": {
+        "position": "Poste",
+        "start_time": "Heure de debut",
+        "end_time": "Heure de fin",
+        "breaks": "Pauses (min)",
+        "break_total": "Pause totale : {minutes} min (max 60)",
+        "days": "Jours de travail",
+        "active": "Modele actif",
+        "add_break": "Ajouter une pause",
+        "remove_break": "Retirer",
+        "create": "Creer le modele",
+        "update": "Mettre a jour",
+        "cancel": "Annuler"
+      },
+      "table": {
+        "position": "Poste",
+        "time": "Horaire",
+        "breaks": "Pauses",
+        "days": "Jours",
+        "status": "Statut",
+        "actions": "Actions",
+        "global": "Global",
+        "company": "Entreprise",
+        "active": "Actif",
+        "inactive": "Inactif"
+      },
+      "messages": {
+        "empty": "Aucun modele pour le moment."
+      },
+      "confirm": {
+        "delete": "Supprimer ce modele de shift ?"
+      }
+    },
     "billing": {
       "meta_title": "Facturation",
       "aria_sections": "Sections de facturation",
@@ -4967,7 +5149,9 @@
       },
       "actions": {
         "switch_plan": "Changer pour ce plan",
-        "choose_plan": "Choisir ce plan"
+        "choose_plan": "Choisir ce plan",
+        "contact_sales": "Demander une offre",
+        "contact_phone": "Telephone : {phone}"
       },
       "status": {
         "active": "Actif",
@@ -5018,7 +5202,9 @@
         "badge_popular": "Populaire",
         "interval_month": "/mois",
         "current_plan": "Vous etes sur ce plan.",
-        "cta_active": "Plan actif"
+        "cta_active": "Plan actif",
+        "team_limit": "Jusqu a {count} employes",
+        "team_limit_plus": "{count}+ employes"
       },
       "assistant_addon": {
         "title": "Assistant IA",
@@ -5324,18 +5510,18 @@
       "starter": {
         "label": "Essentiel",
         "price": "Contactez-nous",
-        "desc": "Pour les petites equipes qui demarrent."
+        "desc": "Pour les petites equipes (jusqu a 10 employes) qui demarrent."
       },
       "pro": {
         "label": "Professionnel",
         "badge": "Recommande",
         "price": "Contactez-nous",
-        "desc": "Pour les equipes en croissance et multi-activites."
+        "desc": "Pour les equipes en croissance (jusqu a 25 employes)."
       },
       "enterprise": {
         "label": "Entreprise",
         "price": "Sur mesure",
-        "desc": "Controles avances, multi-entites et options SLA."
+        "desc": "50+ employes avec controles avances et options SLA."
       }
     },
     "features": {
@@ -5596,5 +5782,40 @@
         "substitution_allowed": "Autoriser les substitutions",
         "substitution_notes": "Preferences de substitution"
       }
+  },
+  "public_showcase": {
+    "title": "Services {company}",
+    "company_fallback": "Entreprise",
+    "eyebrow": "Vitrine services",
+    "headline": "Services par {company}.",
+    "subheadline": "Decouvrez les services que nous realisons pour vos projets.",
+    "cta_request": "Demander un devis",
+    "cta_contact": "Nous contacter",
+    "featured": "Service phare",
+    "empty": "Aucun service disponible pour le moment.",
+    "empty_description": "Description non disponible.",
+    "category_fallback": "Sans categorie",
+    "price_from": "A partir de",
+    "price_quote": "Devis requis",
+    "stats_services": "{count} services",
+    "stats_categories": "{count} categories",
+    "filters": {
+      "search": "Recherche",
+      "search_placeholder": "Rechercher un service",
+      "category": "Categorie",
+      "all": "Toutes les categories"
+    },
+    "sections": {
+      "services": "Services",
+      "services_hint": "Choisissez un service et demandez un devis en quelques minutes."
+    },
+    "contact": {
+      "title": "Nous contacter",
+      "subtitle": "Parlez-nous de votre projet, nous repondons rapidement.",
+      "phone": "Telephone",
+      "email": "Email",
+      "location": "Localisation",
+      "empty": "Les informations de contact arrivent bientot."
+    }
   }
 }

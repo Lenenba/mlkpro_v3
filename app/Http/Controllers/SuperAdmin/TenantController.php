@@ -16,6 +16,7 @@ use App\Models\User;
 use App\Models\Work;
 use App\Services\BillingSubscriptionService;
 use App\Services\StripeBillingService;
+use App\Support\PlanDisplay;
 use App\Support\PlatformPermissions;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -85,11 +86,17 @@ class TenantController extends BaseSuperAdminController
         $tenants = $query->orderByDesc('created_at')->paginate(15)->withQueryString();
 
         $subscriptionMap = $this->subscriptionMap($tenants->pluck('id'));
+        $planDisplayOverrides = PlatformSetting::getValue('plan_display', []);
 
-        $tenants->through(function (User $tenant) use ($subscriptionMap) {
+        $tenants->through(function (User $tenant) use ($subscriptionMap, $planDisplayOverrides) {
             $subscription = $subscriptionMap[$tenant->id] ?? null;
             $planKey = $this->resolvePlanKey($subscription?->price_id);
-            $planName = $planKey ? (config('billing.plans.' . $planKey . '.name') ?? $planKey) : null;
+            $planName = null;
+            if ($planKey) {
+                $planConfig = config('billing.plans.' . $planKey, []);
+                $display = PlanDisplay::merge($planConfig, $planKey, $planDisplayOverrides);
+                $planName = $display['name'];
+            }
 
             return [
                 'id' => $tenant->id,
@@ -132,7 +139,13 @@ class TenantController extends BaseSuperAdminController
         $billingService = app(BillingSubscriptionService::class);
         $subscription = $this->subscriptionMap(collect([$tenant->id]))[$tenant->id] ?? null;
         $planKey = $this->resolvePlanKey($subscription?->price_id);
-        $planName = $planKey ? (config('billing.plans.' . $planKey . '.name') ?? $planKey) : null;
+        $planName = null;
+        if ($planKey) {
+            $planDisplayOverrides = PlatformSetting::getValue('plan_display', []);
+            $planConfig = config('billing.plans.' . $planKey, []);
+            $display = PlanDisplay::merge($planConfig, $planKey, $planDisplayOverrides);
+            $planName = $display['name'];
+        }
 
         $stats = [
             'customers' => Customer::query()->where('user_id', $tenant->id)->count(),
@@ -598,11 +611,13 @@ class TenantController extends BaseSuperAdminController
 
     private function planMap(): array
     {
+        $planDisplayOverrides = PlatformSetting::getValue('plan_display', []);
         return collect(config('billing.plans', []))
-            ->map(function (array $plan, string $key) {
+            ->map(function (array $plan, string $key) use ($planDisplayOverrides) {
+                $display = PlanDisplay::merge($plan, $key, $planDisplayOverrides);
                 return [
                     'key' => $key,
-                    'name' => $plan['name'] ?? $key,
+                    'name' => $display['name'],
                     'price_id' => $plan['price_id'] ?? null,
                 ];
             })

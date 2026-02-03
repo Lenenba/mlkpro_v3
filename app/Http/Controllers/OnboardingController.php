@@ -9,6 +9,7 @@ use App\Models\ProductCategory;
 use App\Models\PlatformSetting;
 use App\Notifications\WelcomeEmailNotification;
 use App\Services\PlatformAdminNotifier;
+use App\Support\PlanDisplay;
 use App\Support\NotificationDispatcher;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -327,11 +328,13 @@ class OnboardingController extends Controller
 
     private function planOptions(): array
     {
+        $planDisplayOverrides = PlatformSetting::getValue('plan_display', []);
         return collect(config('billing.plans', []))
-            ->map(function (array $plan, string $key) {
+            ->map(function (array $plan, string $key) use ($planDisplayOverrides) {
+                $display = PlanDisplay::merge($plan, $key, $planDisplayOverrides);
                 return [
                     'key' => $key,
-                    'name' => $plan['name'] ?? $key,
+                    'name' => $display['name'],
                 ];
             })
             ->values()

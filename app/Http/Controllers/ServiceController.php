@@ -92,7 +92,7 @@ class ServiceController extends Controller
 
     public function categories(Request $request)
     {
-        $this->ensureServiceAccess();
+        $this->ensureCategoryAccess();
 
         $user = $request->user();
         $accountId = $user?->accountOwnerId() ?? Auth::id();
@@ -347,6 +347,15 @@ class ServiceController extends Controller
 
         if ($user->company_type === 'products') {
             abort(404);
+        }
+    }
+
+    private function ensureCategoryAccess(): void
+    {
+        $user = Auth::user();
+
+        if (!$user || !$user->isAccountOwner()) {
+            abort(403);
         }
     }
 

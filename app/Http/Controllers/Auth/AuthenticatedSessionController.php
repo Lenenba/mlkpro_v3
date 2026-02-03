@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Services\AttendanceService;
+use App\Services\SecurityEventService;
+use App\Services\TwoFactorService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -45,8 +47,26 @@ class AuthenticatedSessionController extends Controller
                 ->withErrors(['email' => 'Account suspended. Please contact support.']);
         }
 
+        if ($user?->requiresTwoFactor()) {
+            $result = app(TwoFactorService::class)->sendCode($user, true);
+            if ($result['sent'] ?? true) {
+                app(SecurityEventService::class)->record($user, 'auth.2fa.sent', $request, [
+                    'reason' => 'login',
+                ]);
+            }
+            $request->session()->put([
+                'two_factor_passed' => false,
+                'two_factor_pending' => true,
+            ]);
+
+            return redirect()->route('two-factor.challenge');
+        }
+
         if ($user) {
             app(AttendanceService::class)->autoClockIn($user);
+            app(SecurityEventService::class)->record($user, 'auth.login', $request, [
+                'two_factor' => false,
+            ]);
         }
 
         if ($user?->isAccountOwner() && !$user->onboarding_completed_at && !$user->isSuperadmin() && !$user->isPlatformAdmin()) {
@@ -70,6 +90,7 @@ class AuthenticatedSessionController extends Controller
         $user = $request->user();
         if ($user) {
             app(AttendanceService::class)->autoClockOut($user);
+            app(SecurityEventService::class)->record($user, 'auth.logout', $request);
         }
 
         Auth::guard('web')->logout();
