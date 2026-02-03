@@ -190,6 +190,11 @@ class TenantController extends BaseSuperAdminController
                     'is_comped' => (bool) ($subscription?->is_comped ?? false),
                 ] : null,
             ],
+            'security' => [
+                'two_factor_exempt' => (bool) $tenant->two_factor_exempt,
+                'two_factor_method' => $tenant->twoFactorMethod(),
+                'two_factor_has_app' => !empty($tenant->two_factor_secret),
+            ],
             'stats' => $stats,
             'feature_flags' => $featureFlags,
             'usage_limits' => $usageLimits,
@@ -199,6 +204,26 @@ class TenantController extends BaseSuperAdminController
                 'ready' => $billingService->providerReady(),
             ],
         ]);
+    }
+
+    public function updateSecurity(Request $request, User $tenant): RedirectResponse
+    {
+        $this->authorizePermission($request, PlatformPermissions::TENANTS_MANAGE);
+        $this->ensureOwner($tenant);
+
+        $validated = $request->validate([
+            'two_factor_exempt' => ['required', 'boolean'],
+        ]);
+
+        $tenant->forceFill([
+            'two_factor_exempt' => (bool) $validated['two_factor_exempt'],
+        ])->save();
+
+        $this->logAudit($request, 'tenant.security_updated', $tenant, [
+            'two_factor_exempt' => (bool) $validated['two_factor_exempt'],
+        ]);
+
+        return redirect()->back()->with('success', 'Security overrides updated.');
     }
 
     public function suspend(Request $request, User $tenant): RedirectResponse
