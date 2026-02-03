@@ -405,7 +405,7 @@ const getMemberDotClasses = (memberId) => {
 const getEventClasses = (event) => {
     const palette = getPaletteForEvent(event);
     return [
-        'rounded-sm border-l-4 px-2 py-1',
+        'rounded-md border-l-4 px-2.5 py-1.5',
         palette.bg,
         palette.text,
         palette.border,
@@ -527,7 +527,7 @@ const weekStartHour = 6;
 const weekEndHour = 20;
 const dayStartHour = 0;
 const dayEndHour = 24;
-const hourHeight = 56;
+const hourHeight = 72;
 const minuteHeight = hourHeight / 60;
 
 const weekHours = computed(() =>
@@ -718,27 +718,44 @@ const buildEventBlocks = (dayKey, rangeStartHour, rangeEndHour) => {
         return [];
     }
 
-    const lanes = [];
-    const blocks = [];
+    const clusters = [];
+    let currentCluster = null;
     normalized.forEach((item) => {
-        let laneIndex = lanes.findIndex((laneEnd) => laneEnd <= item.startMin);
-        if (laneIndex === -1) {
-            laneIndex = lanes.length;
-            lanes.push(item.endMin);
-        } else {
-            lanes[laneIndex] = item.endMin;
+        if (!currentCluster || item.startMin >= currentCluster.maxEnd) {
+            currentCluster = {
+                items: [item],
+                maxEnd: item.endMin,
+            };
+            clusters.push(currentCluster);
+            return;
         }
-        blocks.push({
-            ...item,
-            lane: laneIndex,
+        currentCluster.items.push(item);
+        currentCluster.maxEnd = Math.max(currentCluster.maxEnd, item.endMin);
+    });
+
+    const blocks = [];
+    clusters.forEach((cluster) => {
+        const lanes = [];
+        cluster.items.forEach((item) => {
+            let laneIndex = lanes.findIndex((laneEnd) => laneEnd <= item.startMin);
+            if (laneIndex === -1) {
+                laneIndex = lanes.length;
+                lanes.push(item.endMin);
+            } else {
+                lanes[laneIndex] = item.endMin;
+            }
+            blocks.push({
+                ...item,
+                lane: laneIndex,
+                laneCount: Math.max(lanes.length, 1),
+            });
         });
     });
 
-    const laneCount = Math.max(lanes.length, 1);
     return blocks.map((item) => {
         const top = (item.clippedStart - rangeStartMin) * minuteHeight;
-        const height = Math.max((item.clippedEnd - item.clippedStart) * minuteHeight, 18);
-        const width = 100 / laneCount;
+        const height = Math.max((item.clippedEnd - item.clippedStart) * minuteHeight, 26);
+        const width = 100 / (item.laneCount || 1);
         const left = item.lane * width;
         return {
             event: item.event,
@@ -1945,66 +1962,56 @@ onBeforeUnmount(() => {
                             </div>
                         </div>
 
-                        <div v-else-if="viewMode === 'week'" class="overflow-x-auto">
-                            <div class="min-w-[860px]">
-                                <div class="grid grid-cols-[72px_repeat(7,minmax(0,1fr))] bg-stone-50 text-[11px] uppercase text-stone-500 dark:bg-neutral-900/60 dark:text-neutral-400">
-                                    <div class="py-2 px-2"></div>
-                                    <div v-for="day in weekDays" :key="`week-header-${day.key}`" class="py-2 px-3 text-end">
-                                        {{ day.date.format('ddd') }} {{ day.label }}
-                                    </div>
-                                </div>
-
-                                <div class="grid grid-cols-[72px_repeat(7,minmax(0,1fr))]">
-                                    <div class="flex flex-col">
+                        <div v-else-if="viewMode === 'week'" class="p-4">
+                            <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-7">
+                                <div
+                                    v-for="day in weekDays"
+                                    :key="`week-list-${day.key}`"
+                                    class="flex min-h-[260px] flex-col overflow-hidden rounded-xl border border-stone-200 bg-white shadow-sm dark:border-neutral-800 dark:bg-neutral-900"
+                                >
+                                    <div class="flex items-center justify-between border-b border-stone-200 px-3 py-2 dark:border-neutral-800">
                                         <div
-                                            v-for="slot in weekHours"
-                                            :key="`week-hour-${slot.hour}`"
-                                            class="border-t border-stone-200 px-2 text-[10px] font-semibold text-stone-400 dark:border-neutral-800 dark:text-neutral-500"
-                                            :style="{ height: `${hourHeight}px` }"
+                                            class="text-[11px] font-semibold uppercase tracking-wide"
+                                            :class="day.isToday ? 'text-emerald-600 dark:text-emerald-400' : 'text-stone-500 dark:text-neutral-400'"
                                         >
-                                            {{ slot.label }}
+                                            {{ day.date.format('ddd') }}
                                         </div>
+                                        <button
+                                            type="button"
+                                            class="flex min-w-7 items-center justify-center rounded-full px-1 text-xs font-semibold"
+                                            :class="day.isToday ? 'bg-emerald-600 text-white' : 'text-stone-600 dark:text-neutral-300'"
+                                            @click="setShiftDate(day.key)"
+                                        >
+                                            {{ day.label }}
+                                        </button>
                                     </div>
-
                                     <div
-                                        v-for="day in weekDays"
-                                        :key="`week-body-${day.key}`"
-                                        class="relative border-l border-stone-200 dark:border-neutral-800"
+                                        class="flex-1 max-h-[70vh] space-y-2 overflow-y-auto px-3 pb-3 pt-2"
                                         :class="day.isWeekend ? 'bg-stone-50/70 dark:bg-neutral-900/40' : ''"
-                                        :style="{ height: `${weekTimelineHeight}px` }"
                                         @dragover.prevent
-                                        @drop="handleTimelineDrop(day.key, $event, 'week')"
+                                        @drop="handleMonthDrop(day.key, $event)"
                                     >
-                                        <div class="flex flex-col h-full">
-                                            <div
-                                                v-for="slot in weekHours"
-                                                :key="`week-line-${day.key}-${slot.hour}`"
-                                                class="border-t border-stone-200/70 dark:border-neutral-800/80"
-                                                :style="{ height: `${hourHeight}px` }"
-                                            ></div>
-                                        </div>
-                                        <div class="absolute inset-0">
-                                            <button
-                                                v-for="block in weekEventBlocks[day.key]"
-                                                :key="block.event.id"
-                                                type="button"
-                                                class="absolute z-10 overflow-hidden text-left text-[10px] leading-snug"
-                                                :class="[getEventClasses(block.event), canDragEvent(block.event) ? 'cursor-move' : '']"
-                                                :style="{
-                                                    top: `${block.top}px`,
-                                                    height: `${block.height}px`,
-                                                    left: `${block.left}%`,
-                                                    width: `${block.width}%`,
-                                                }"
-                                                :draggable="canDragEvent(block.event)"
-                                                @dragstart="onDragStart(block.event, $event)"
-                                                @dragend="onDragEnd"
-                                                @click="openShiftDetails(block.event)"
-                                            >
-                                                <span class="block truncate font-semibold">{{ getEventTitle(block.event) }}</span>
-                                                <span class="block truncate">{{ formatEventTime(block.event) }}</span>
-                                            </button>
-                                        </div>
+                                        <p v-if="!getDayEvents(day.key).length" class="text-xs text-stone-400 dark:text-neutral-500">
+                                            {{ emptyLabel }}
+                                        </p>
+                                        <button
+                                            v-for="event in getDayEvents(day.key)"
+                                            :key="event.id"
+                                            type="button"
+                                            class="w-full text-left text-[12px] leading-snug shadow-sm ring-1 ring-black/5 transition hover:shadow-md"
+                                            :class="[getEventClasses(event), canDragEvent(event) ? 'cursor-move' : '']"
+                                            :draggable="canDragEvent(event)"
+                                            @dragstart="onDragStart(event, $event)"
+                                            @dragend="onDragEnd"
+                                            @click="openShiftDetails(event)"
+                                        >
+                                            <div class="flex items-start justify-between gap-2">
+                                                <span class="truncate font-semibold">{{ getEventTitle(event) }}</span>
+                                            </div>
+                                            <div class="mt-1 text-[11px] font-medium text-stone-600 dark:text-neutral-300">
+                                                {{ formatEventTime(event) }}
+                                            </div>
+                                        </button>
                                     </div>
                                 </div>
                             </div>
@@ -2023,62 +2030,47 @@ onBeforeUnmount(() => {
                                     Set shift date
                                 </button>
                             </div>
-                            <div class="mt-4 overflow-x-auto">
-                                <div class="min-w-[520px]">
-                                    <div class="grid grid-cols-[72px_minmax(0,1fr)]">
-                                        <div class="flex flex-col">
-                                            <div
-                                                v-for="slot in dayHours"
-                                                :key="`day-hour-${slot.hour}`"
-                                                class="border-t border-stone-200 px-2 text-[10px] font-semibold text-stone-400 dark:border-neutral-800 dark:text-neutral-500"
-                                                :style="{ height: `${hourHeight}px` }"
-                                            >
-                                                {{ slot.label }}
-                                            </div>
-                                        </div>
-
-                                        <div
-                                            class="relative border-l border-stone-200 dark:border-neutral-800"
-                                            :style="{ height: `${dayTimelineHeight}px` }"
-                                            @dragover.prevent
-                                            @drop="handleTimelineDrop(selectedDate.format('YYYY-MM-DD'), $event, 'day')"
-                                        >
-                                            <div class="flex flex-col h-full">
-                                                <div
-                                                    v-for="slot in dayHours"
-                                                    :key="`day-line-${slot.hour}`"
-                                                    class="border-t border-stone-200/70 dark:border-neutral-800/80"
-                                                    :class="isCurrentHour(selectedDate.format('YYYY-MM-DD'), slot.hour) ? 'bg-emerald-50/40 dark:bg-emerald-500/10' : ''"
-                                                    :style="{ height: `${hourHeight}px` }"
-                                                ></div>
-                                            </div>
-                                            <div class="absolute inset-0">
-                                                <button
-                                                    v-for="block in dayEventBlocks"
-                                                    :key="block.event.id"
-                                                    type="button"
-                                                    class="absolute z-10 overflow-hidden text-left text-[10px] leading-snug"
-                                                    :class="[getEventClasses(block.event), canDragEvent(block.event) ? 'cursor-move' : '']"
-                                                    :style="{
-                                                        top: `${block.top}px`,
-                                                        height: `${block.height}px`,
-                                                        left: `${block.left}%`,
-                                                        width: `${block.width}%`,
-                                                    }"
-                                                    :draggable="canDragEvent(block.event)"
-                                                    @dragstart="onDragStart(block.event, $event)"
-                                                    @dragend="onDragEnd"
-                                                    @click="openShiftDetails(block.event)"
-                                                >
-                                                    <span class="block truncate font-semibold">{{ getEventTitle(block.event) }}</span>
-                                                    <span class="block truncate">{{ formatEventTime(block.event) }}</span>
-                                                </button>
-                                            </div>
-                                        </div>
+                            <div
+                                class="mt-4 rounded-xl border border-stone-200 bg-white shadow-sm dark:border-neutral-800 dark:bg-neutral-900"
+                                @dragover.prevent
+                                @drop="handleMonthDrop(selectedDate.format('YYYY-MM-DD'), $event)"
+                            >
+                                <div class="flex items-center justify-between border-b border-stone-200 px-4 py-3 dark:border-neutral-800">
+                                    <div class="text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">
+                                        {{ t('planning.calendar.day') }}
                                     </div>
-                                    <p v-if="!getDayEvents(selectedDate.format('YYYY-MM-DD')).length" class="mt-3 text-xs text-stone-500 dark:text-neutral-400">
+                                    <div class="text-xs text-stone-500 dark:text-neutral-400">
+                                        {{ getDayEvents(selectedDate.format('YYYY-MM-DD')).length }}
+                                    </div>
+                                </div>
+                                <div class="max-h-[70vh] space-y-2 overflow-y-auto px-4 py-3">
+                                    <p v-if="!getDayEvents(selectedDate.format('YYYY-MM-DD')).length" class="text-xs text-stone-500 dark:text-neutral-400">
                                         {{ emptyLabel }}
                                     </p>
+                                    <button
+                                        v-for="event in getDayEvents(selectedDate.format('YYYY-MM-DD'))"
+                                        :key="event.id"
+                                        type="button"
+                                        class="w-full text-left text-[12px] leading-snug shadow-sm ring-1 ring-black/5 transition hover:shadow-md"
+                                        :class="[getEventClasses(event), canDragEvent(event) ? 'cursor-move' : '']"
+                                        :draggable="canDragEvent(event)"
+                                        @dragstart="onDragStart(event, $event)"
+                                        @dragend="onDragEnd"
+                                        @click="openShiftDetails(event)"
+                                    >
+                                        <div class="flex items-start justify-between gap-2">
+                                            <span class="truncate text-sm font-semibold">{{ getEventTitle(event) }}</span>
+                                        </div>
+                                        <div class="mt-1 text-[11px] font-medium text-stone-600 dark:text-neutral-300">
+                                            {{ formatEventTime(event) }}
+                                        </div>
+                                        <div
+                                            v-if="event.extendedProps?.notes"
+                                            class="mt-1 text-[10px] text-stone-500 dark:text-neutral-400 line-clamp-2"
+                                        >
+                                            {{ event.extendedProps?.notes }}
+                                        </div>
+                                    </button>
                                 </div>
                             </div>
                         </div>
