@@ -6,7 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
 use App\Models\TeamMember;
 use App\Models\User;
+use App\Services\TotpService;
 use Illuminate\Http\Request;
+use Illuminate\Http\RedirectResponse;
 
 class SecuritySettingsController extends Controller
 {
@@ -83,10 +85,26 @@ class SecuritySettingsController extends Controller
             })
             ->values();
 
+        $setupSecret = $request->session()->get('two_factor_app_setup_secret');
+        $twoFactorSetup = null;
+        if ($setupSecret) {
+            $issuer = (string) config('app.name', 'App');
+            $accountName = $user->email ?: ('user-' . $user->id);
+            $otpAuthUrl = app(TotpService::class)->otpAuthUrl($issuer, $accountName, $setupSecret);
+            $twoFactorSetup = [
+                'secret' => $setupSecret,
+                'otpauth_url' => $otpAuthUrl,
+            ];
+        }
+
         return $this->inertiaOrJson('Settings/Security', [
             'two_factor' => [
                 'required' => $user->requiresTwoFactor(),
                 'enabled' => (bool) $user->two_factor_enabled,
+                'method' => $user->twoFactorMethod(),
+                'has_app' => !empty($user->two_factor_secret),
+                'can_configure' => $user->isAccountOwner() && !$user->isSuperadmin() && !$user->isPlatformAdmin(),
+                'app_setup' => $twoFactorSetup,
                 'email' => $user->email,
                 'last_sent_at' => $user->two_factor_last_sent_at?->toIso8601String(),
             ],
@@ -94,5 +112,82 @@ class SecuritySettingsController extends Controller
             'can_view_team' => $canViewTeam,
             'activity' => $activity,
         ]);
+    }
+
+    public function startAppSetup(Request $request): RedirectResponse
+    {
+        $user = $request->user();
+        if (!$user || !$user->isAccountOwner() || $user->isSuperadmin() || $user->isPlatformAdmin()) {
+            abort(403);
+        }
+
+        $secret = app(TotpService::class)->generateSecret();
+        $request->session()->put('two_factor_app_setup_secret', $secret);
+
+        return redirect()->back()->with('success', 'Authentificateur en preparation.');
+    }
+
+    public function confirmAppSetup(Request $request): RedirectResponse
+    {
+        $user = $request->user();
+        if (!$user || !$user->isAccountOwner() || $user->isSuperadmin() || $user->isPlatformAdmin()) {
+            abort(403);
+        }
+
+        $validated = $request->validate([
+            'code' => 'required|string|min:6|max:10',
+        ]);
+
+        $secret = $request->session()->get('two_factor_app_setup_secret');
+        if (!$secret) {
+            return redirect()->back()->withErrors([
+                'code' => 'Demarrez la configuration avant de valider.',
+            ]);
+        }
+
+        $verified = app(TotpService::class)->verifyCode($secret, $validated['code']);
+        if (!$verified) {
+            return redirect()->back()->withErrors([
+                'code' => 'Code invalide.',
+            ]);
+        }
+
+        $user->forceFill([
+            'two_factor_method' => 'app',
+            'two_factor_secret' => $secret,
+            'two_factor_enabled' => true,
+            'two_factor_code' => null,
+            'two_factor_expires_at' => null,
+            'two_factor_last_sent_at' => null,
+        ])->save();
+
+        $request->session()->forget('two_factor_app_setup_secret');
+
+        return redirect()->back()->with('success', 'Authentificateur active.');
+    }
+
+    public function cancelAppSetup(Request $request): RedirectResponse
+    {
+        $request->session()->forget('two_factor_app_setup_secret');
+        return redirect()->back();
+    }
+
+    public function switchToEmail(Request $request): RedirectResponse
+    {
+        $user = $request->user();
+        if (!$user || !$user->isAccountOwner() || $user->isSuperadmin() || $user->isPlatformAdmin()) {
+            abort(403);
+        }
+
+        $user->forceFill([
+            'two_factor_method' => 'email',
+            'two_factor_secret' => null,
+            'two_factor_code' => null,
+            'two_factor_expires_at' => null,
+        ])->save();
+
+        $request->session()->forget('two_factor_app_setup_secret');
+
+        return redirect()->back()->with('success', '2FA par email active.');
     }
 }

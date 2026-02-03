@@ -151,6 +151,11 @@ class TenantController extends BaseController
                 'created_at' => $tenant->created_at,
                 'is_suspended' => (bool) $tenant->is_suspended,
                 'onboarding_completed' => (bool) $tenant->onboarding_completed_at,
+                'security' => [
+                    'two_factor_exempt' => (bool) $tenant->two_factor_exempt,
+                    'two_factor_method' => $tenant->twoFactorMethod(),
+                    'two_factor_has_app' => !empty($tenant->two_factor_secret),
+                ],
                 'subscription' => ($subscription || $planKey) ? [
                     'status' => $subscription?->status ?? 'free',
                     'price_id' => $subscription?->price_id,
@@ -164,6 +169,29 @@ class TenantController extends BaseController
             'stats' => $stats,
             'feature_flags' => $featureFlags,
             'usage_limits' => $usageLimits,
+        ]);
+    }
+
+    public function updateSecurity(Request $request, User $tenant)
+    {
+        $this->authorizePermission($request, PlatformPermissions::TENANTS_MANAGE);
+        $this->ensureOwner($tenant);
+
+        $validated = $request->validate([
+            'two_factor_exempt' => ['required', 'boolean'],
+        ]);
+
+        $tenant->forceFill([
+            'two_factor_exempt' => (bool) $validated['two_factor_exempt'],
+        ])->save();
+
+        $this->logAudit($request, 'tenant.security_updated', [
+            'tenant_id' => $tenant->id,
+            'two_factor_exempt' => (bool) $validated['two_factor_exempt'],
+        ]);
+
+        return $this->jsonResponse([
+            'message' => 'Security overrides updated.',
         ]);
     }
 

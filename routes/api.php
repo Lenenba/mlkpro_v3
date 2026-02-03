@@ -304,6 +304,7 @@ Route::name('api.')->group(function () {
         Route::get('tenants/{tenant}', [SuperAdminTenantController::class, 'show']);
         Route::post('tenants/{tenant}/suspend', [SuperAdminTenantController::class, 'suspend']);
         Route::post('tenants/{tenant}/restore', [SuperAdminTenantController::class, 'restore']);
+        Route::put('tenants/{tenant}/security', [SuperAdminTenantController::class, 'updateSecurity']);
         Route::put('tenants/{tenant}/features', [SuperAdminTenantController::class, 'updateFeatures']);
         Route::put('tenants/{tenant}/limits', [SuperAdminTenantController::class, 'updateLimits']);
         Route::put('tenants/{tenant}/plan', [SuperAdminTenantController::class, 'updatePlan']);

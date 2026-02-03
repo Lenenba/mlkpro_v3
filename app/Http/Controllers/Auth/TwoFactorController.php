@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Services\AttendanceService;
 use App\Services\SecurityEventService;
 use App\Services\TwoFactorService;
+use App\Services\TotpService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
@@ -21,15 +22,21 @@ class TwoFactorController extends Controller
             return redirect()->route('dashboard');
         }
 
-        $service = app(TwoFactorService::class);
-        if (!$user->two_factor_expires_at || now()->greaterThan($user->two_factor_expires_at)) {
-            $service->sendCode($user, true);
-            $user->refresh();
+        $method = $user->twoFactorMethod();
+        $effectiveMethod = $method === 'app' && empty($user->two_factor_secret) ? 'email' : $method;
+
+        if ($effectiveMethod === 'email') {
+            $service = app(TwoFactorService::class);
+            if (!$user->two_factor_expires_at || now()->greaterThan($user->two_factor_expires_at)) {
+                $service->sendCode($user, true);
+                $user->refresh();
+            }
         }
 
         return Inertia::render('Auth/TwoFactorChallenge', [
             'email' => $user->email,
-            'expires_at' => $user->two_factor_expires_at?->toIso8601String(),
+            'expires_at' => $effectiveMethod === 'email' ? $user->two_factor_expires_at?->toIso8601String() : null,
+            'method' => $effectiveMethod,
             'status' => session('status'),
         ]);
     }
@@ -53,12 +60,29 @@ class TwoFactorController extends Controller
             ]);
         }
 
-        $service = app(TwoFactorService::class);
-        if (!$service->verifyCode($user, trim($validated['code']))) {
+        $method = $user->twoFactorMethod();
+        $effectiveMethod = $method === 'app' && empty($user->two_factor_secret) ? 'email' : $method;
+        $code = trim($validated['code']);
+
+        $verified = false;
+        if ($effectiveMethod === 'app' && !empty($user->two_factor_secret)) {
+            $verified = app(TotpService::class)->verifyCode($user->two_factor_secret, $code);
+        } else {
+            $service = app(TwoFactorService::class);
+            $verified = $service->verifyCode($user, $code);
+        }
+
+        if (!$verified) {
             RateLimiter::hit($limiterKey);
             return back()->withErrors([
                 'code' => 'Code invalide ou expire.',
             ]);
+        }
+
+        if ($effectiveMethod === 'app' && !$user->two_factor_enabled) {
+            $user->forceFill([
+                'two_factor_enabled' => true,
+            ])->save();
         }
 
         RateLimiter::clear($limiterKey);
@@ -96,6 +120,14 @@ class TwoFactorController extends Controller
             $seconds = RateLimiter::availableIn($limiterKey);
             return back()->withErrors([
                 'code' => "Veuillez patienter {$seconds} secondes avant de demander un nouveau code.",
+            ]);
+        }
+
+        $method = $user->twoFactorMethod();
+        $effectiveMethod = $method === 'app' && empty($user->two_factor_secret) ? 'email' : $method;
+        if ($effectiveMethod !== 'email') {
+            return back()->withErrors([
+                'code' => 'Les codes applicatifs ne peuvent pas etre renvoyes.',
             ]);
         }
 

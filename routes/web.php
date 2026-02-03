@@ -185,6 +185,14 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
         Route::post('/settings/support/{ticket}/messages', [SupportTicketMessageController::class, 'store'])
             ->name('settings.support.messages.store');
         Route::get('/settings/security', [SecuritySettingsController::class, 'edit'])->name('settings.security.edit');
+        Route::post('/settings/security/2fa/app/start', [SecuritySettingsController::class, 'startAppSetup'])
+            ->name('settings.security.2fa.app.start');
+        Route::post('/settings/security/2fa/app/confirm', [SecuritySettingsController::class, 'confirmAppSetup'])
+            ->name('settings.security.2fa.app.confirm');
+        Route::post('/settings/security/2fa/app/cancel', [SecuritySettingsController::class, 'cancelAppSetup'])
+            ->name('settings.security.2fa.app.cancel');
+        Route::post('/settings/security/2fa/email', [SecuritySettingsController::class, 'switchToEmail'])
+            ->name('settings.security.2fa.email');
 
         // Settings (owner only)
         Route::get('/settings/company', [CompanySettingsController::class, 'edit'])->name('settings.company.edit');
@@ -485,6 +493,7 @@ require __DIR__ . '/auth.php';
             Route::post('/tenants/{tenant}/reset-onboarding', [SuperAdminTenantController::class, 'resetOnboarding'])->name('tenants.reset-onboarding');
             Route::put('/tenants/{tenant}/features', [SuperAdminTenantController::class, 'updateFeatures'])->name('tenants.features.update');
             Route::put('/tenants/{tenant}/limits', [SuperAdminTenantController::class, 'updateLimits'])->name('tenants.limits.update');
+            Route::put('/tenants/{tenant}/security', [SuperAdminTenantController::class, 'updateSecurity'])->name('tenants.security.update');
             Route::put('/tenants/{tenant}/plan', [SuperAdminTenantController::class, 'updatePlan'])->name('tenants.plan.update');
             Route::post('/tenants/{tenant}/impersonate', [SuperAdminTenantController::class, 'impersonate'])->name('tenants.impersonate');
             Route::get('/tenants/{tenant}/export', [SuperAdminTenantController::class, 'export'])->name('tenants.export');

@@ -20,6 +20,10 @@ const props = defineProps({
         type: Array,
         default: () => [],
     },
+    security: {
+        type: Object,
+        default: () => ({}),
+    },
     usage_limits: {
         type: Object,
         default: () => ({ items: [], overrides: {} }),
@@ -75,6 +79,10 @@ const limitsForm = useForm({
     }, {}) || {},
 });
 
+const securityForm = useForm({
+    two_factor_exempt: Boolean(props.security?.two_factor_exempt),
+});
+
 const planForm = useForm({
     price_id: defaultPlanId.value,
     comped: props.tenant?.subscription?.is_comped ?? true,
@@ -122,6 +130,13 @@ const updatePlan = () => {
         return;
     }
     planForm.put(route('superadmin.tenants.plan.update', props.tenant.id), { preserveScroll: true });
+};
+
+const updateSecurity = () => {
+    if (!canManage.value) {
+        return;
+    }
+    securityForm.put(route('superadmin.tenants.security.update', props.tenant.id), { preserveScroll: true });
 };
 
 const impersonate = () => {
@@ -276,6 +291,28 @@ const impersonate = () => {
                             {{ $t('super_admin.tenants.detail.no_manage_permission') }}
                         </div>
                     </div>
+                </div>
+
+                <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-800">
+                    <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                        {{ $t('super_admin.tenants.detail.security_overrides') }}
+                    </h2>
+                    <div v-if="!canManage" class="mt-3 text-sm text-stone-500 dark:text-neutral-400">
+                        {{ $t('super_admin.tenants.detail.no_manage_permission') }}
+                    </div>
+                    <form v-else class="mt-3 space-y-3" @submit.prevent="updateSecurity">
+                        <label class="flex items-center gap-2 text-sm text-stone-700 dark:text-neutral-200">
+                            <Checkbox v-model:checked="securityForm.two_factor_exempt" :value="true" />
+                            <span>{{ $t('super_admin.tenants.detail.security_disable_2fa') }}</span>
+                        </label>
+                        <p class="text-xs text-stone-500 dark:text-neutral-400">
+                            {{ $t('super_admin.tenants.detail.security_disable_2fa_help') }}
+                        </p>
+                        <button type="submit"
+                            class="mt-1 py-2 px-3 text-sm font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700">
+                            {{ $t('super_admin.tenants.detail.security_save') }}
+                        </button>
+                    </form>
                 </div>
 
                 <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-800">

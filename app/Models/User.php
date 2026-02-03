@@ -83,6 +83,8 @@ class User extends Authenticatable
     protected $hidden = [
         'password',
         'remember_token',
+        'two_factor_code',
+        'two_factor_secret',
     ];
 
     protected $appends = [
@@ -106,6 +108,8 @@ class User extends Authenticatable
             'two_factor_enabled' => 'boolean',
             'two_factor_expires_at' => 'datetime',
             'two_factor_last_sent_at' => 'datetime',
+            'two_factor_secret' => 'encrypted',
+            'two_factor_exempt' => 'boolean',
             'company_features' => 'array',
             'company_limits' => 'array',
             'assistant_credit_balance' => 'integer',
@@ -261,6 +265,10 @@ class User extends Authenticatable
             return false;
         }
 
+        if ($this->two_factor_exempt) {
+            return false;
+        }
+
         if ($this->isPlatformAdmin()) {
             $platformAdmin = $this->relationLoaded('platformAdmin')
                 ? $this->platformAdmin
@@ -270,6 +278,12 @@ class User extends Authenticatable
         }
 
         return $this->isAccountOwner();
+    }
+
+    public function twoFactorMethod(): string
+    {
+        $method = $this->two_factor_method ?: 'email';
+        return in_array($method, ['email', 'app'], true) ? $method : 'email';
     }
 
     public function getCompanyLogoUrlAttribute(): ?string

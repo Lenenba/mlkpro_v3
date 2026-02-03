@@ -48,12 +48,18 @@ class AuthenticatedSessionController extends Controller
         }
 
         if ($user?->requiresTwoFactor()) {
-            $result = app(TwoFactorService::class)->sendCode($user, true);
-            if ($result['sent'] ?? true) {
-                app(SecurityEventService::class)->record($user, 'auth.2fa.sent', $request, [
-                    'reason' => 'login',
-                ]);
+            $method = $user->twoFactorMethod();
+            $useApp = $method === 'app' && !empty($user->two_factor_secret);
+
+            if (!$useApp) {
+                $result = app(TwoFactorService::class)->sendCode($user, true);
+                if ($result['sent'] ?? true) {
+                    app(SecurityEventService::class)->record($user, 'auth.2fa.sent', $request, [
+                        'reason' => 'login',
+                    ]);
+                }
             }
+
             $request->session()->put([
                 'two_factor_passed' => false,
                 'two_factor_pending' => true,
