@@ -52,6 +52,21 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinute(max(1, $limit))->by($key);
         });
 
+        RateLimiter::for('public-signed', function (Request $request) {
+            $limit = (int) config('services.rate_limits.public_signed_per_minute', 30);
+            $key = 'public-signed:' . $request->ip();
+
+            return Limit::perMinute(max(1, $limit))->by($key);
+        });
+
+        RateLimiter::for('register', function (Request $request) {
+            $limit = (int) config('services.rate_limits.register_per_minute', 10);
+            $email = strtolower((string) $request->input('email'));
+            $key = $email !== '' ? 'register:email:' . sha1($email) : 'register:ip:' . $request->ip();
+
+            return Limit::perMinute(max(1, $limit))->by($key);
+        });
+
         Cashier::useCustomerModel(PaddleCustomer::class);
         Cashier::useSubscriptionModel(PaddleSubscriptionModel::class);
         Cashier::useSubscriptionItemModel(PaddleSubscriptionItem::class);
