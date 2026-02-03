@@ -603,7 +603,7 @@ watch(
 <template>
     <Head :title="$t('settings.billing.meta_title')" />
 
-    <SettingsLayout active="billing" content-class="w-full max-w-7xl">
+    <SettingsLayout active="billing" content-class="w-[1400px] max-w-full">
         <div class="w-full space-y-4">
             <SettingsTabs
                 v-model="activeTab"
@@ -1398,4 +1398,6 @@ watch(
     color: rgba(226, 232, 240, 0.6);
 }
 </style>
+
+
 

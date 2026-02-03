@@ -166,7 +166,7 @@ watch(() => breaksTotal.value, () => {
 <template>
     <Head :title="t('settings.hr.meta_title')" />
 
-    <SettingsLayout active="hr" content-class="w-full max-w-7xl">
+    <SettingsLayout active="hr" content-class="w-[1400px] max-w-full">
         <div class="space-y-4">
             <div>
                 <h1 class="text-xl font-semibold text-stone-800 dark:text-neutral-100">
@@ -379,4 +379,6 @@ watch(() => breaksTotal.value, () => {
         </div>
     </SettingsLayout>
 </template>
+
+
 
