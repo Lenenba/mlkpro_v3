@@ -89,7 +89,9 @@ const writeConsentCookie = (value) => {
         return;
     }
     const payload = encodeURIComponent(JSON.stringify(value));
-    document.cookie = `${consentCookie}=${payload}; Path=/; Max-Age=${consentMaxAge}; SameSite=Lax`;
+    const secureFlag =
+        typeof window !== 'undefined' && window.location?.protocol === 'https:' ? '; Secure' : '';
+    document.cookie = `${consentCookie}=${payload}; Path=/; Max-Age=${consentMaxAge}; SameSite=Lax${secureFlag}`;
 };
 
 const applyAnalyticsConsent = (enabled) => {

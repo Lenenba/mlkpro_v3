@@ -379,7 +379,7 @@ const toneClass = (tone) => {
 </template>
 
 <style scoped>
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&family=Sora:wght@400;500;600;700&family=Work+Sans:wght@400;500;600;700&display=swap');
+@import url('https://fonts.bunny.net/css?family=DM+Sans:400,500,600,700&family=Space+Grotesk:400,500,600,700&family=Sora:400,500,600,700&family=Work+Sans:400,500,600,700&display=swap');
 
 .public-page {
     min-height: 100vh;
