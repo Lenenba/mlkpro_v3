@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import ApplicationLogo from '@/Components/ApplicationLogo.vue';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
+import { useI18n } from 'vue-i18n';
 
 const props = defineProps({
     canLogin: {
@@ -12,6 +13,10 @@ const props = defineProps({
         type: Boolean,
         default: true,
     },
+    leadFormUrl: {
+        type: String,
+        default: null,
+    },
     welcomeContent: {
         type: Object,
         default: () => ({}),
@@ -19,6 +24,7 @@ const props = defineProps({
 });
 
 const page = usePage();
+const { t } = useI18n();
 const currentLocale = computed(() => page.props.locale || 'fr');
 const availableLocales = computed(() => page.props.locales || ['fr', 'en']);
 const welcomeContent = computed(() => props.welcomeContent || {});
@@ -69,9 +75,9 @@ const navButtonClass = (style) => {
         return 'rounded-sm border border-transparent bg-green-600 px-3 py-2 text-sm font-medium text-white hover:bg-green-700';
     }
     if (style === 'ghost') {
-        return 'rounded-sm border border-transparent px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-100';
+        return 'rounded-sm border border-stone-200 bg-white/90 px-3 py-2 text-sm font-medium text-stone-800 shadow-sm hover:bg-stone-50';
     }
-    return 'rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm font-medium text-stone-800 hover:bg-stone-50';
+    return 'rounded-sm border border-stone-300 bg-white px-3 py-2 text-sm font-medium text-stone-900 shadow-sm hover:bg-stone-50';
 };
 
 const sectionStyle = (color) => {
@@ -82,6 +88,39 @@ const sectionStyle = (color) => {
 const navMenuItems = computed(() =>
     (welcomeContent.value.nav?.menu || []).filter((item) => item && item.enabled !== false && isHrefAllowed(item.href))
 );
+
+const contactNavItem = computed(() => {
+    if (!props.leadFormUrl) {
+        return null;
+    }
+    return {
+        id: 'contact',
+        label: t('welcome.nav.contact'),
+        href: props.leadFormUrl,
+        style: 'outline',
+    };
+});
+
+const navMenuWithContact = computed(() => {
+    const items = [...navMenuItems.value];
+    const contact = contactNavItem.value;
+    if (!contact) {
+        return items;
+    }
+    const alreadyExists = items.some((item) => {
+        if (!item) {
+            return false;
+        }
+        if (item.id === contact.id) {
+            return true;
+        }
+        return resolveHref(item.href) === contact.href;
+    });
+    if (alreadyExists) {
+        return items;
+    }
+    return [contact, ...items];
+});
 
 const customSections = computed(() =>
     (welcomeContent.value.custom_sections || []).filter((section) => section && section.enabled !== false)
@@ -187,7 +226,7 @@ onBeforeUnmount(() => {
                     </div>
 
                     <div class="flex flex-wrap items-center gap-2">
-                        <template v-for="item in navMenuItems" :key="item.id || item.label || item.href">
+                        <template v-for="item in navMenuWithContact" :key="item.id || item.label || item.href">
                             <a
                                 v-if="isExternalHref(resolveHref(item.href))"
                                 :href="resolveHref(item.href)"
@@ -250,7 +289,7 @@ onBeforeUnmount(() => {
                                     <a
                                         v-if="isExternalHref(resolveHref(welcomeContent.hero?.secondary_href))"
                                         :href="resolveHref(welcomeContent.hero?.secondary_href)"
-                                        class="rounded-sm border border-stone-200 bg-white px-5 py-2.5 text-sm font-semibold text-stone-800 hover:bg-stone-50"
+                                        class="rounded-sm border border-stone-300 bg-white px-5 py-2.5 text-sm font-semibold text-stone-900 shadow-sm hover:bg-stone-100"
                                         rel="noopener noreferrer"
                                         target="_blank"
                                     >

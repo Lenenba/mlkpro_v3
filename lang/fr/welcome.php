@@ -3,6 +3,7 @@
 return [
     'nav' => [
         'tagline' => 'Suite de gestion',
+        'contact' => 'Nous contacter',
     ],
     'hero' => [
         'eyebrow' => 'Concu pour les equipes terrain',
@@ -144,4 +145,3 @@ return [
         'copy' => 'MLK Pro. Tous droits reserves.',
     ],
 ];
-

@@ -57,6 +57,7 @@ const heroImage = computed(() => (
     || null
 ));
 const headerAccent = computed(() => company.value?.store_settings?.header_color || '#0f172a');
+const contactHref = computed(() => props.request_url || '#contact');
 
 const searchQuery = ref('');
 const selectedCategory = ref('');
@@ -181,6 +182,25 @@ const contactItems = computed(() => {
                 <div class="showcase-hero-glow showcase-hero-glow--one"></div>
                 <div class="showcase-hero-glow showcase-hero-glow--two"></div>
             </div>
+            <nav class="showcase-nav">
+                <div class="showcase-nav-shell">
+                    <div class="showcase-nav-brand">
+                        <img
+                            v-if="company?.logo_url"
+                            :src="company.logo_url"
+                            :alt="companyName"
+                            class="showcase-nav-logo"
+                            loading="lazy"
+                            decoding="async"
+                        >
+                        <span class="showcase-nav-name">{{ companyName }}</span>
+                    </div>
+                    <div class="showcase-nav-links">
+                        <a href="#services" class="showcase-nav-link">{{ t('public_showcase.sections.services') }}</a>
+                        <a :href="contactHref" class="showcase-nav-cta">{{ t('public_showcase.cta_contact') }}</a>
+                    </div>
+                </div>
+            </nav>
             <div class="showcase-hero-shell">
                 <div class="showcase-hero-text">
                     <span class="showcase-hero-eyebrow">{{ t('public_showcase.eyebrow') }}</span>
@@ -314,7 +334,7 @@ const contactItems = computed(() => {
             </div>
         </section>
 
-        <section class="showcase-services">
+        <section id="services" class="showcase-services">
             <div class="showcase-section-header">
                 <h2>{{ t('public_showcase.sections.services') }}</h2>
                 <p>{{ t('public_showcase.sections.services_hint') }}</p>
@@ -410,6 +430,86 @@ const contactItems = computed(() => {
     background: #0b1120;
     color: #f8fafc;
     padding: clamp(2.5rem, 6vw, 5rem) clamp(1.5rem, 6vw, 5rem);
+}
+
+.showcase-nav {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    margin: -2.5rem -1.5rem 2.5rem;
+    padding: 1.1rem 1.5rem;
+    background: rgba(11, 17, 32, 0.86);
+    border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+    backdrop-filter: blur(12px);
+}
+
+.showcase-nav-shell {
+    width: min(1200px, 92vw);
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.showcase-nav-brand {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+}
+
+.showcase-nav-logo {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    object-fit: cover;
+    background: rgba(248, 250, 252, 0.08);
+}
+
+.showcase-nav-name {
+    font-size: 0.95rem;
+}
+
+.showcase-nav-links {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.showcase-nav-link {
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: rgba(226, 232, 240, 0.78);
+    text-decoration: none;
+}
+
+.showcase-nav-link:hover {
+    color: #f8fafc;
+}
+
+.showcase-nav-cta {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.5rem 1rem;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    background: var(--hero-accent);
+    color: #0b1120;
+    text-decoration: none;
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.35);
+}
+
+.showcase-nav-cta:hover {
+    filter: brightness(0.98);
 }
 
 .showcase-hero-bg {

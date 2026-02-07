@@ -55,6 +55,7 @@ return [
     'url' => env('APP_URL', 'http://localhost'),
 
     'support_phone' => env('SUPPORT_PHONE'),
+    'lead_intake_user_id' => env('LEAD_INTAKE_USER_ID'),
 
     /*
     |--------------------------------------------------------------------------

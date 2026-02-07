@@ -20,6 +20,15 @@ const props = defineProps({
 });
 
 const { t } = useI18n();
+const contactPhone = computed(() => (props.company?.phone || '').trim());
+const phoneHref = computed(() => {
+    if (!contactPhone.value) {
+        return '';
+    }
+    const sanitized = contactPhone.value.replace(/[^\d+]/g, '');
+    return sanitized ? `tel:${sanitized}` : '';
+});
+const hasPhone = computed(() => contactPhone.value.length > 0 && phoneHref.value.length > 0);
 const form = useForm({
     contact_name: '',
     contact_email: '',
@@ -67,9 +76,25 @@ const submit = () => {
             <p class="text-sm text-stone-500 dark:text-neutral-400">
                 {{ $t('requests.form.subtitle') }}
             </p>
+            <div class="mt-2 flex flex-wrap items-center justify-center gap-2">
+                <a
+                    v-if="hasPhone"
+                    :href="phoneHref"
+                    class="inline-flex items-center gap-2 rounded-sm border border-stone-200 bg-white px-3 py-2 text-xs font-semibold uppercase tracking-wide text-stone-600 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
+                >
+                    <span>{{ $t('requests.form.contact_phone_label') }}</span>
+                    <span class="text-stone-800 dark:text-neutral-100">{{ contactPhone }}</span>
+                </a>
+                <a
+                    href="#lead-form"
+                    class="inline-flex items-center rounded-sm bg-stone-900 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-white hover:bg-stone-800 dark:bg-white dark:text-stone-900"
+                >
+                    {{ $t('requests.form.contact_button') }}
+                </a>
+            </div>
         </div>
 
-        <form class="mt-6 space-y-4" @submit.prevent="submit">
+        <form id="lead-form" class="mt-6 space-y-4" @submit.prevent="submit">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
                     <FloatingInput v-model="form.contact_name" :label="$t('requests.form.contact_name')" />
