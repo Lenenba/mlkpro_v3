@@ -7,6 +7,7 @@ import DemoBanner from '@/Components/Demo/DemoBanner.vue';
 import DemoTourProvider from '@/Components/Demo/DemoTourProvider.vue';
 import GlobalAssistant from '@/Components/Assistant/GlobalAssistant.vue';
 import FlashToaster from '@/Components/UI/FlashToaster.vue';
+import CookieBanner from '@/Components/UI/CookieBanner.vue';
 import { Link, usePage } from '@inertiajs/vue3';
 
 const page = usePage()
@@ -75,5 +76,6 @@ const isClient = computed(() => Boolean(page.props.auth?.account?.is_client));
         </main>
         <!-- ========== END MAIN CONTENT ========== -->
         <GlobalAssistant v-if="!isClient" />
+        <CookieBanner />
     </DemoTourProvider>
 </template>

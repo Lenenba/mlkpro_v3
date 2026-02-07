@@ -2,6 +2,7 @@
 import ApplicationLogo from '@/Components/ApplicationLogo.vue';
 import ValidationSummary from '@/Components/ValidationSummary.vue';
 import FlashToaster from '@/Components/UI/FlashToaster.vue';
+import CookieBanner from '@/Components/UI/CookieBanner.vue';
 import { computed } from 'vue';
 import { Link, usePage } from '@inertiajs/vue3';
 
@@ -21,6 +22,7 @@ const validationErrors = computed(() => page.props.errors || {});
         class="flex min-h-screen flex-col items-center bg-stone-50 pt-6 text-stone-900 sm:justify-center sm:pt-0 dark:bg-neutral-950 dark:text-neutral-100"
     >
         <FlashToaster />
+        <CookieBanner />
         <div>
             <Link href="/">
                 <ApplicationLogo class="h-14 w-44 sm:h-16 sm:w-52" />
