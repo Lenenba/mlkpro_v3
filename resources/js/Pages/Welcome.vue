@@ -611,7 +611,7 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Work+Sans:wght@400;500;600&display=swap');
+@import url('https://fonts.bunny.net/css?family=Space+Grotesk:400,500,600,700&family=Work+Sans:400,500,600&display=swap');
 
 .welcome-page {
     --welcome-ink: #0f172a;

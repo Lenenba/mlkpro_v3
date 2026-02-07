@@ -37,6 +37,12 @@ class SecurityHeaders
 
         $csp = config('security.headers.csp');
         if ($csp && !$headers->has('Content-Security-Policy')) {
+            if (str_contains($csp, '{nonce}')) {
+                $nonce = base64_encode(random_bytes(16));
+                $request->attributes->set('cspNonce', $nonce);
+                view()->share('cspNonce', $nonce);
+                $csp = str_replace('{nonce}', $nonce, $csp);
+            }
             $headers->set('Content-Security-Policy', $csp);
         }
 
