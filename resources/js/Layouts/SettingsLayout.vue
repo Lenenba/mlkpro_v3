@@ -19,6 +19,8 @@ const props = defineProps({
 
 const page = usePage();
 const { t, locale } = useI18n();
+const isFrench = computed(() => (locale.value || 'fr').toLowerCase().startsWith('fr'));
+const cookieLabel = computed(() => (isFrench.value ? 'Cookies' : 'Cookies'));
 const userName = computed(() => {
     locale.value;
     return page.props.auth?.user?.name || t('account.default_name');
@@ -122,6 +124,13 @@ const navTabs = computed(() => {
             badge: item.badge,
         }));
 });
+
+const openCookiePreferences = () => {
+    if (typeof window === 'undefined') {
+        return;
+    }
+    window.dispatchEvent(new CustomEvent('mlk-cookie-preferences'));
+};
 </script>
 
 <template>
@@ -134,15 +143,24 @@ const navTabs = computed(() => {
                             <img v-if="avatarUrl" :src="avatarUrl" :alt="userName" />
                             <span v-else>{{ avatarInitial }}</span>
                         </div>
-                        <div class="settings-hero__text">
-                            <h1 class="settings-hero__title">{{ t('settings._label') }}</h1>
-                            <p class="settings-hero__meta">
-                                <span>{{ userName }}</span>
-                                <span v-if="userEmail" class="settings-hero__dot">&middot;</span>
-                                <span v-if="userEmail">{{ userEmail }}</span>
-                            </p>
-                        </div>
+                    <div class="settings-hero__text">
+                        <h1 class="settings-hero__title">{{ t('settings._label') }}</h1>
+                        <p class="settings-hero__meta">
+                            <span>{{ userName }}</span>
+                            <span v-if="userEmail" class="settings-hero__dot">&middot;</span>
+                            <span v-if="userEmail">{{ userEmail }}</span>
+                        </p>
                     </div>
+                    <div class="settings-hero__actions">
+                        <button
+                            type="button"
+                            class="settings-hero__button"
+                            @click="openCookiePreferences"
+                        >
+                            {{ cookieLabel }}
+                        </button>
+                    </div>
+                </div>
                 </div>
             </header>
 
@@ -252,6 +270,47 @@ const navTabs = computed(() => {
     display: flex;
     flex-direction: column;
     gap: 4px;
+}
+
+.settings-hero__actions {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.settings-hero__button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 12px;
+    border-radius: 3px;
+    border: 1px solid rgba(148, 163, 184, 0.4);
+    background: #ffffff;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #0f172a;
+    transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.settings-hero__button:hover {
+    background: rgba(16, 185, 129, 0.12);
+    border-color: rgba(16, 185, 129, 0.6);
+    color: #0f766e;
+}
+
+:global(.dark) .settings-hero__button {
+    background: rgba(15, 23, 42, 0.8);
+    color: #e2e8f0;
+    border-color: rgba(148, 163, 184, 0.3);
+}
+
+:global(.dark) .settings-hero__button:hover {
+    background: rgba(16, 185, 129, 0.2);
+    border-color: rgba(16, 185, 129, 0.6);
+    color: #d1fae5;
 }
 
 .settings-hero__title {
