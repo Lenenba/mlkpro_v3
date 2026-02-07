@@ -28,6 +28,7 @@ class PublicRequestController extends Controller
                 'id' => $user->id,
                 'name' => $user->company_name ?: $user->name,
                 'logo_url' => $user->company_logo_url,
+                'phone' => $user->phone_number ?: config('app.support_phone'),
             ],
             'submit_url' => URL::signedRoute('public.requests.store', ['user' => $user->id]),
         ]);

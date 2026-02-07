@@ -3754,6 +3754,8 @@
     "form": {
       "title": "Request a service",
       "subtitle": "Tell us what you need and we'll get back to you.",
+      "contact_button": "Contact us",
+      "contact_phone_label": "Call",
       "contact_name": "Full name",
       "contact_email": "Email",
       "contact_phone": "Phone",
@@ -5281,7 +5283,8 @@
       "title": "Welcome"
     },
     "nav": {
-      "tagline": "Operations suite"
+      "tagline": "Operations suite",
+      "contact": "Contact us"
     },
     "hero": {
       "eyebrow": "Built for field teams",

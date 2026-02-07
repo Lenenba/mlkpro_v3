@@ -3754,6 +3754,8 @@
     "form": {
       "title": "Demande de service",
       "subtitle": "Dites-nous ce dont vous avez besoin, nous vous recontacterons.",
+      "contact_button": "Nous contacter",
+      "contact_phone_label": "Telephone",
       "contact_name": "Nom complet",
       "contact_email": "Email",
       "contact_phone": "Telephone",
@@ -5281,7 +5283,8 @@
       "title": "Bienvenue "
     },
     "nav": {
-      "tagline": "Suite de gestion"
+      "tagline": "Suite de gestion",
+      "contact": "Nous contacter"
     },
     "hero": {
       "eyebrow": "Conçu pour les équipes terrain",

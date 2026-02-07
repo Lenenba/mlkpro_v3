@@ -3,6 +3,7 @@
 return [
     'nav' => [
         'tagline' => 'Operations suite',
+        'contact' => 'Contact us',
     ],
     'hero' => [
         'eyebrow' => 'Built for field teams',
@@ -144,4 +145,3 @@ return [
         'copy' => 'MLK Pro. All rights reserved.',
     ],
 ];
-
