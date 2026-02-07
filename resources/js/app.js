@@ -12,6 +12,7 @@ import { applyAccessibilityPreferences, readAccessibilityPreferences } from './u
 
 let i18nInstance = null;
 let sessionReloading = false;
+let csrfRefreshPromise = null;
 
 // Initialisation du nom de l'application
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
@@ -22,12 +23,43 @@ const setDocumentLang = (locale) => {
     }
 };
 
+const dispatchToast = (type, message) => {
+    if (typeof window === 'undefined') {
+        return;
+    }
+    window.dispatchEvent(new CustomEvent('mlk-toast', {
+        detail: { type, message },
+    }));
+};
+
+const refreshCsrfToken = async () => {
+    if (typeof window === 'undefined' || !window.axios) {
+        return;
+    }
+
+    if (csrfRefreshPromise) {
+        return csrfRefreshPromise;
+    }
+
+    csrfRefreshPromise = window.axios
+        .get('/sanctum/csrf-cookie')
+        .catch(() => {})
+        .finally(() => {
+            csrfRefreshPromise = null;
+        });
+
+    return csrfRefreshPromise;
+};
+
 const handleSessionExpired = (status) => {
     if (status !== 419 || sessionReloading || typeof window === 'undefined') {
         return;
     }
     sessionReloading = true;
-    window.location.reload();
+    dispatchToast('warning', 'Session expirée. Veuillez réessayer.');
+    setTimeout(() => {
+        sessionReloading = false;
+    }, 4000);
 };
 
 applyAccessibilityPreferences(readAccessibilityPreferences());
@@ -227,8 +259,22 @@ router.on('invalid', (event) => {
 if (window?.axios?.interceptors?.response) {
     window.axios.interceptors.response.use(
         (response) => response,
-        (error) => {
-            handleSessionExpired(error?.response?.status);
+        async (error) => {
+            const status = error?.response?.status;
+            const config = error?.config;
+
+            if (status === 419 && config && !config.__mlkRetry) {
+                config.__mlkRetry = true;
+                try {
+                    await refreshCsrfToken();
+                    return window.axios(config);
+                } catch (retryError) {
+                    handleSessionExpired(status);
+                    return Promise.reject(retryError);
+                }
+            }
+
+            handleSessionExpired(status);
             return Promise.reject(error);
         },
     );
