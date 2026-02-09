@@ -50,7 +50,6 @@ class RegisteredUserController extends Controller
             'email' => $request->email,
             'password' => Hash::make($request->password),
             'role_id' => $roleId,
-            'trial_ends_at' => now()->addMonthNoOverflow(),
         ]);
 
         event(new Registered($user));

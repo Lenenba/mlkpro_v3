@@ -24,13 +24,15 @@ const props = defineProps({
 
 const page = usePage();
 const isGuest = computed(() => !page.props.auth?.user);
-const { t } = useI18n();
+const { t, locale } = useI18n();
 
 const baseStepItems = computed(() => ([
     { key: 'company', title: t('onboarding.steps.company.title'), description: t('onboarding.steps.company.description') },
     { key: 'type', title: t('onboarding.steps.type.title'), description: t('onboarding.steps.type.description') },
     { key: 'sector', title: t('onboarding.steps.sector.title'), description: t('onboarding.steps.sector.description') },
     { key: 'team', title: t('onboarding.steps.team.title'), description: t('onboarding.steps.team.description') },
+    { key: 'plan', title: t('onboarding.steps.plan.title'), description: t('onboarding.steps.plan.description') },
+    { key: 'security', title: t('onboarding.steps.security.title'), description: t('onboarding.steps.security.description') },
 ]));
 
 const step = ref(1);
@@ -59,6 +61,8 @@ const stepIds = computed(() => ({
     type: 2 + stepOffset.value,
     sector: 3 + stepOffset.value,
     team: 4 + stepOffset.value,
+    plan: 5 + stepOffset.value,
+    security: 6 + stepOffset.value,
 }));
 const isStepDisabled = (item) => isGuest.value && item.key !== 'account';
 const selectStep = (item) => {
@@ -133,8 +137,12 @@ const form = useForm({
     company_sector_other: '',
     company_team_size: preset.value.company_team_size || '',
     invites: [],
+    plan_key: '',
+    two_factor_method: preset.value.two_factor_method || 'email',
     accept_terms: false,
 });
+
+const accountEmail = computed(() => page.props.auth?.user?.email || t('onboarding.security.email_fallback'));
 
 const sectorOptions = computed(() => (form.company_type === 'products' ? productSectorOptions.value : serviceSectorOptions.value));
 
@@ -338,13 +346,15 @@ const teamSizeValue = computed(() => {
     return Math.max(1, inviteCount + 1);
 });
 
-const planCandidates = computed(() => planOptions.value.map((plan) => {
-    const limit = planLimits.value?.[plan.key]?.team_members;
-    return {
-        ...plan,
-        team_limit: typeof limit === 'number' ? limit : null,
-    };
-}));
+const planCandidates = computed(() => planOptions.value
+    .filter((plan) => Boolean(plan?.price_id))
+    .map((plan) => {
+        const limit = planLimits.value?.[plan.key]?.team_members;
+        return {
+            ...plan,
+            team_limit: typeof limit === 'number' ? limit : null,
+        };
+    }));
 
 const recommendedPlan = computed(() => {
     if (!planCandidates.value.length) {
@@ -365,6 +375,40 @@ const recommendedPlanLimitLabel = computed(() => {
     }
     return t('onboarding.team.recommendation_limit', { count: limit });
 });
+
+const addMonthNoOverflow = (date) => {
+    const base = new Date(date);
+    const day = base.getDate();
+    const targetYear = base.getFullYear();
+    const targetMonth = base.getMonth() + 1;
+    const daysInTargetMonth = new Date(targetYear, targetMonth + 1, 0).getDate();
+    return new Date(targetYear, targetMonth, Math.min(day, daysInTargetMonth));
+};
+
+const trialEndLabel = computed(() => {
+    const label = addMonthNoOverflow(new Date());
+    return new Intl.DateTimeFormat(locale.value || undefined, { dateStyle: 'medium' }).format(label);
+});
+
+const resolvePlanPrice = (plan) => plan?.display_price || plan?.price || '--';
+const isPlanSelected = (plan) => form.plan_key === plan?.key;
+const isPlanRecommended = (plan) => recommendedPlan.value?.key === plan?.key;
+const selectPlan = (plan) => {
+    if (!plan?.key || !plan?.price_id) {
+        return;
+    }
+    form.plan_key = plan.key;
+};
+
+watch(
+    () => recommendedPlan.value,
+    (plan) => {
+        if (!form.plan_key && plan?.key && plan?.price_id) {
+            form.plan_key = plan.key;
+        }
+    },
+    { immediate: true }
+);
 
 const goNext = () => {
     if (step.value < totalSteps.value) {
@@ -796,6 +840,63 @@ const closeTerms = () => {
                             </p>
                         </div>
 
+                    </div>
+                    <div v-else-if="step === stepIds.plan" class="space-y-3">
+                        <div class="rounded-sm border border-stone-200 bg-stone-50 p-3 text-sm text-stone-700 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200">
+                            <h3 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ $t('onboarding.plan.title') }}</h3>
+                            <p class="mt-1 text-xs text-stone-500 dark:text-neutral-400">{{ $t('onboarding.plan.subtitle') }}</p>
+                            <p class="mt-2 text-xs text-stone-500 dark:text-neutral-400">
+                                {{ $t('onboarding.plan.trial_note', { date: trialEndLabel }) }}
+                            </p>
+                            <p class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
+                                {{ $t('onboarding.plan.downgrade_note') }}
+                            </p>
+                        </div>
+
+                        <div class="grid gap-3 md:grid-cols-3">
+                            <button
+                                v-for="plan in planOptions"
+                                :key="plan.key"
+                                type="button"
+                                :disabled="!plan.price_id"
+                                @click="selectPlan(plan)"
+                                class="rounded-sm border p-3 text-left transition"
+                                :class="[
+                                    isPlanSelected(plan)
+                                        ? 'border-green-600 bg-green-50 text-green-800 dark:border-green-500/60 dark:bg-green-500/10 dark:text-green-200'
+                                        : 'border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800',
+                                    !plan.price_id ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'
+                                ]"
+                            >
+                                <div class="flex items-start justify-between gap-2">
+                                    <div>
+                                        <p class="text-sm font-semibold">{{ plan.name }}</p>
+                                        <p class="text-xs text-stone-500 dark:text-neutral-400">
+                                            {{ resolvePlanPrice(plan) }}
+                                        </p>
+                                    </div>
+                                    <span
+                                        v-if="isPlanRecommended(plan)"
+                                        class="rounded-full bg-stone-100 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-stone-600 dark:bg-neutral-800 dark:text-neutral-200"
+                                    >
+                                        {{ $t('onboarding.plan.recommended') }}
+                                    </span>
+                                </div>
+
+                                <ul v-if="plan.features?.length" class="mt-2 space-y-1 text-xs text-stone-600 dark:text-neutral-400">
+                                    <li v-for="feature in plan.features.slice(0, 4)" :key="feature">
+                                        {{ feature }}
+                                    </li>
+                                </ul>
+
+                                <p v-if="!plan.price_id" class="mt-2 text-xs text-amber-600 dark:text-amber-400">
+                                    {{ $t('onboarding.plan.unavailable') }}
+                                </p>
+                            </button>
+                        </div>
+
+                        <InputError class="mt-1" :message="form.errors.plan_key" />
+
                         <div class="rounded-sm border border-stone-200 bg-white p-3 text-sm text-stone-700 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200">
                             <label class="flex items-start gap-2">
                                 <input
@@ -818,6 +919,52 @@ const closeTerms = () => {
                             <InputError class="mt-1" :message="form.errors.accept_terms" />
                         </div>
                     </div>
+                    <div v-else-if="step === stepIds.security" class="space-y-3">
+                        <div class="rounded-sm border border-stone-200 bg-stone-50 p-3 text-sm text-stone-700 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200">
+                            <h3 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ $t('onboarding.security.title') }}</h3>
+                            <p class="mt-1 text-xs text-stone-500 dark:text-neutral-400">{{ $t('onboarding.security.subtitle') }}</p>
+                        </div>
+
+                        <div class="grid gap-3 md:grid-cols-2">
+                            <label
+                                class="rounded-sm border p-3 text-left transition"
+                                :class="form.two_factor_method === 'email'
+                                    ? 'border-green-600 bg-green-50 text-green-800 dark:border-green-500/60 dark:bg-green-500/10 dark:text-green-200'
+                                    : 'border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800'"
+                            >
+                                <div class="flex items-start gap-3">
+                                    <input type="radio" value="email" v-model="form.two_factor_method" class="mt-1" />
+                                    <div>
+                                        <p class="text-sm font-semibold">{{ $t('onboarding.security.method_email') }}</p>
+                                        <p class="text-xs text-stone-500 dark:text-neutral-400">
+                                            {{ $t('onboarding.security.method_email_hint', { email: accountEmail }) }}
+                                        </p>
+                                    </div>
+                                </div>
+                            </label>
+                            <label
+                                class="rounded-sm border p-3 text-left transition"
+                                :class="form.two_factor_method === 'app'
+                                    ? 'border-green-600 bg-green-50 text-green-800 dark:border-green-500/60 dark:bg-green-500/10 dark:text-green-200'
+                                    : 'border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800'"
+                            >
+                                <div class="flex items-start gap-3">
+                                    <input type="radio" value="app" v-model="form.two_factor_method" class="mt-1" />
+                                    <div>
+                                        <p class="text-sm font-semibold">{{ $t('onboarding.security.method_app') }}</p>
+                                        <p class="text-xs text-stone-500 dark:text-neutral-400">
+                                            {{ $t('onboarding.security.method_app_hint') }}
+                                        </p>
+                                    </div>
+                                </div>
+                            </label>
+                        </div>
+
+                        <InputError class="mt-1" :message="form.errors.two_factor_method" />
+                        <p class="text-xs text-stone-500 dark:text-neutral-400">
+                            {{ $t('onboarding.security.change_later') }}
+                        </p>
+                    </div>
                 </div>
 
                 <div v-if="!(isGuest && step === stepIds.account)" class="border-t border-stone-200 p-4 dark:border-neutral-700 flex items-center justify-between">
@@ -832,7 +979,7 @@ const closeTerms = () => {
                             {{ $t('onboarding.actions.continue') }}
                         </button>
 
-                        <button v-else type="button" @click="submit" :disabled="form.processing"
+                        <button v-else type="button" @click="submit" :disabled="form.processing || !form.plan_key || !form.two_factor_method"
                             class="rounded-sm border border-transparent bg-green-600 px-3 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50">
                             {{ $t('onboarding.actions.finish') }}
                         </button>

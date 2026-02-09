@@ -2013,6 +2013,14 @@
       "team": {
         "title": "Team",
         "description": "Invite your team."
+      },
+      "plan": {
+        "title": "Plan",
+        "description": "Choose your plan."
+      },
+      "security": {
+        "title": "Security",
+        "description": "Choose your 2FA method."
       }
     },
     "account": {
@@ -2110,10 +2118,28 @@
       "terms_label": "I accept the",
       "terms_action": "terms of use"
     },
+    "plan": {
+      "title": "Choose your plan",
+      "subtitle": "1 month free, then automatic billing based on your plan. Card required.",
+      "trial_note": "Free trial until {date}.",
+      "downgrade_note": "You can change plans during the trial.",
+      "recommended": "Recommended",
+      "unavailable": "Plan unavailable"
+    },
+    "security": {
+      "title": "Choose your 2FA method",
+      "subtitle": "Add an extra layer of protection for the owner account.",
+      "method_email": "Email code",
+      "method_email_hint": "We'll send a one-time code to {email}.",
+      "method_app": "Authenticator app",
+      "method_app_hint": "Use Google Authenticator, Authy, or 1Password.",
+      "change_later": "You can change this later in Security settings.",
+      "email_fallback": "your email"
+    },
     "actions": {
       "back": "Back",
       "continue": "Continue",
-      "finish": "Go to dashboard",
+      "finish": "Start free trial",
       "close": "Close"
     }
   },

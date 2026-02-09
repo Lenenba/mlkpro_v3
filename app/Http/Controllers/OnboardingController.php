@@ -8,14 +8,22 @@ use App\Models\User;
 use App\Models\ProductCategory;
 use App\Models\PlatformSetting;
 use App\Notifications\WelcomeEmailNotification;
+use App\Services\BillingSubscriptionService;
 use App\Services\PlatformAdminNotifier;
+use App\Services\StripeBillingService;
 use App\Support\PlanDisplay;
 use App\Support\NotificationDispatcher;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
+use Inertia\Inertia;
+use Laravel\Paddle\Cashier;
+use Laravel\Paddle\Subscription;
 
 class OnboardingController extends Controller
 {
@@ -66,6 +74,7 @@ class OnboardingController extends Controller
                 'company_type' => $user->company_type,
                 'company_sector' => $user->company_sector,
                 'company_team_size' => $user->company_team_size,
+                'two_factor_method' => $user->two_factor_method,
                 'onboarding_completed_at' => $user->onboarding_completed_at,
             ],
             'plans' => $this->planOptions(),
@@ -90,6 +99,17 @@ class OnboardingController extends Controller
             return redirect()->route('dashboard')->with('error', 'Only the account owner can complete onboarding.');
         }
 
+        $wasOnboarded = (bool) $creator->onboarding_completed_at;
+        $planRule = $wasOnboarded
+            ? ['nullable', Rule::in($this->planKeysForOnboarding())]
+            : ['required', Rule::in($this->planKeysForOnboarding())];
+        $termsRule = $wasOnboarded ? ['nullable'] : ['accepted'];
+        $twoFactorRule = $wasOnboarded
+            ? ['nullable', Rule::in(['email', 'app'])]
+            : ($this->shouldReturnJson($request)
+                ? ['nullable', Rule::in(['email', 'app'])]
+                : ['required', Rule::in(['email', 'app'])]);
+
         $validated = $request->validate([
             'company_name' => 'required|string|max:255',
             'company_logo' => 'nullable|image|max:2048',
@@ -106,17 +126,14 @@ class OnboardingController extends Controller
             'invites.*.email' => 'required|string|lowercase|email|max:255|distinct|unique:users,email',
             'invites.*.role' => 'required|string|in:admin,member',
 
-            'accept_terms' => 'accepted',
+            'plan_key' => $planRule,
+            'accept_terms' => $termsRule,
+            'two_factor_method' => $twoFactorRule,
         ]);
 
         $ownerRoleId = Role::query()->firstOrCreate(
             ['name' => 'owner'],
             ['description' => 'Account owner role']
-        )->id;
-
-        $employeeRoleId = Role::query()->firstOrCreate(
-            ['name' => 'employee'],
-            ['description' => 'Employee role']
         )->id;
 
         $accountOwner = $creator;
@@ -129,8 +146,6 @@ class OnboardingController extends Controller
             $companyLogoPath = $request->file('company_logo')->store('company/logos', 'public');
         }
 
-        $wasOnboarded = (bool) $accountOwner->onboarding_completed_at;
-
         $accountOwner->update([
             'company_name' => $validated['company_name'],
             'company_logo' => $companyLogoPath,
@@ -141,8 +156,25 @@ class OnboardingController extends Controller
             'company_type' => $validated['company_type'],
             'company_sector' => $validated['company_sector'],
             'company_team_size' => $validated['company_team_size'] ?? null,
-            'onboarding_completed_at' => now(),
         ]);
+
+        $twoFactorMethod = $validated['two_factor_method'] ?? null;
+        if (!$twoFactorMethod && !$wasOnboarded) {
+            $twoFactorMethod = 'email';
+        }
+        if ($twoFactorMethod) {
+            $updates = [
+                'two_factor_method' => $twoFactorMethod,
+                'two_factor_code' => null,
+                'two_factor_expires_at' => null,
+            ];
+
+            if ($twoFactorMethod === 'email') {
+                $updates['two_factor_secret'] = null;
+            }
+
+            $accountOwner->forceFill($updates)->save();
+        }
 
         if ($validated['company_type'] === 'services') {
             $this->seedSectorCategories($accountOwner, $creator, $validated['company_sector'] ?? null);
@@ -158,71 +190,100 @@ class OnboardingController extends Controller
             ]);
         }
 
-        $invitePasswords = [];
-        foreach (($validated['invites'] ?? []) as $invite) {
-            $plainPassword = Str::random(14);
-            $memberUser = User::create([
-                'name' => $invite['name'],
-                'email' => $invite['email'],
-                'password' => Hash::make($plainPassword),
-                'role_id' => $employeeRoleId,
-                'email_verified_at' => now(),
-            ]);
-
-            TeamMember::create([
-                'account_id' => $accountOwner->id,
-                'user_id' => $memberUser->id,
-                'role' => $invite['role'],
-                'permissions' => $this->defaultPermissionsForRole($invite['role']),
-                'is_active' => true,
-            ]);
-
-            $invitePasswords[] = $invite['email'] . '=' . $plainPassword;
+        $invites = $validated['invites'] ?? [];
+        if (!is_array($invites)) {
+            $invites = [];
         }
 
-        $messageParts = ['Onboarding completed.'];
-        if ($invitePasswords) {
-            $messageParts[] = 'Team passwords: ' . implode(', ', $invitePasswords);
-        }
-
-        if (!$wasOnboarded && $accountOwner->email) {
-            NotificationDispatcher::send($accountOwner, new WelcomeEmailNotification($accountOwner), [
-                'user_id' => $accountOwner->id,
-            ]);
-        }
-
-        if (!$wasOnboarded) {
-            try {
-                $notifier = app(PlatformAdminNotifier::class);
-                $inviteCount = count($validated['invites'] ?? []);
-
-                $notifier->notify('onboarding_completed', 'Onboarding completed', [
-                    'intro' => ($accountOwner->company_name ?: $accountOwner->email) . ' finished onboarding.',
-                    'details' => [
-                        ['label' => 'Company', 'value' => $accountOwner->company_name ?: 'Not set'],
-                        ['label' => 'Owner', 'value' => $accountOwner->email ?: 'Unknown'],
-                        ['label' => 'Type', 'value' => $accountOwner->company_type ?: 'Not set'],
-                        ['label' => 'Sector', 'value' => $accountOwner->company_sector ?: 'Not set'],
-                        ['label' => 'Team invites', 'value' => (string) $inviteCount],
-                    ],
-                    'actionUrl' => route('superadmin.tenants.show', $accountOwner->id),
-                    'actionLabel' => 'View tenant',
-                    'reference' => 'onboarding:' . $accountOwner->id,
-                    'severity' => 'success',
+        if ($wasOnboarded) {
+            $request->session()->forget('onboarding_invites');
+            $messageParts = ['Onboarding completed.'];
+            if ($this->shouldReturnJson($request)) {
+                return response()->json([
+                    'message' => implode(' ', $messageParts),
+                    'user' => $accountOwner->fresh(),
                 ]);
+            }
+
+            return redirect()->route('dashboard')->with('success', implode(' ', $messageParts));
+        }
+
+        $request->session()->put('onboarding_invites', $invites);
+
+        return $this->startCheckout($request, $accountOwner, (string) $validated['plan_key']);
+    }
+
+    public function billing(Request $request)
+    {
+        $user = $request->user();
+        if (!$user) {
+            abort(401);
+        }
+
+        if (!$user->isAccountOwner()) {
+            if ($this->shouldReturnJson($request)) {
+                return response()->json([
+                    'message' => 'Only the account owner can complete onboarding.',
+                ], 403);
+            }
+
+            return redirect()->route('dashboard')->with('error', 'Only the account owner can complete onboarding.');
+        }
+
+        $status = (string) $request->query('status');
+        if ($status !== 'success') {
+            if ($this->shouldReturnJson($request)) {
+                return response()->json([
+                    'message' => 'Checkout canceled.',
+                ], 409);
+            }
+
+            return redirect()->route('onboarding.index')->with('error', 'Checkout canceled.');
+        }
+
+        $billingService = app(BillingSubscriptionService::class);
+        if ($billingService->isStripe()) {
+            $sessionId = (string) $request->query('session_id');
+            if ($sessionId === '') {
+                if ($this->shouldReturnJson($request)) {
+                    return response()->json([
+                        'message' => 'Checkout session is missing.',
+                    ], 422);
+                }
+
+                return redirect()->route('onboarding.index')->with('error', 'Checkout session is missing.');
+            }
+
+            try {
+                app(StripeBillingService::class)->syncFromCheckoutSession($sessionId, $user);
+            } catch (\Throwable $exception) {
+                report($exception);
+                if ($this->shouldReturnJson($request)) {
+                    return response()->json([
+                        'message' => 'Unable to sync subscription.',
+                    ], 422);
+                }
+
+                return redirect()->route('onboarding.index')->with('error', 'Unable to sync subscription.');
+            }
+        } else {
+            try {
+                $this->syncLatestSubscription($user);
             } catch (\Throwable $exception) {
                 report($exception);
             }
         }
 
+        $message = $this->completeOnboarding($request, $user);
+
         if ($this->shouldReturnJson($request)) {
             return response()->json([
-                'message' => implode(' ', $messageParts),
-                'user' => $accountOwner->fresh(),
+                'message' => $message,
+                'user' => $user->fresh(),
             ]);
         }
 
-        return redirect()->route('dashboard')->with('success', implode(' ', $messageParts));
+        return redirect()->route('dashboard')->with('success', $message);
     }
 
     private function seedSectorCategories(User $accountOwner, User $creator, ?string $sector): void
@@ -300,6 +361,188 @@ class OnboardingController extends Controller
         }
     }
 
+    private function startCheckout(Request $request, User $accountOwner, string $planKey)
+    {
+        $billingService = app(BillingSubscriptionService::class);
+        if (!$billingService->providerReady()) {
+            throw ValidationException::withMessages([
+                'plan_key' => ['Billing is not configured yet.'],
+            ]);
+        }
+
+        if (!$billingService->isStripe()) {
+            throw ValidationException::withMessages([
+                'plan_key' => ['Onboarding checkout is only available with Stripe.'],
+            ]);
+        }
+
+        $plans = config('billing.plans', []);
+        $plan = $plans[$planKey] ?? null;
+        $priceId = $plan['price_id'] ?? null;
+        if (!$priceId) {
+            throw ValidationException::withMessages([
+                'plan_key' => ['The selected plan is not available for checkout.'],
+            ]);
+        }
+
+        $trialEndsAt = now()->addMonthNoOverflow();
+        $seatQuantity = $billingService->resolveSeatQuantity($accountOwner);
+        $successUrl = route('onboarding.billing', ['status' => 'success']);
+        $successUrl .= (str_contains($successUrl, '?') ? '&' : '?') . 'session_id={CHECKOUT_SESSION_ID}';
+        $cancelUrl = route('onboarding.billing', ['status' => 'cancel']);
+
+        $session = app(StripeBillingService::class)->createCheckoutSession(
+            $accountOwner,
+            $priceId,
+            $successUrl,
+            $cancelUrl,
+            $planKey,
+            $seatQuantity,
+            $trialEndsAt
+        );
+
+        $url = $session['url'] ?? null;
+        if (!$url) {
+            throw ValidationException::withMessages([
+                'plan_key' => ['Unable to start checkout.'],
+            ]);
+        }
+
+        return $this->checkoutResponse($request, $url);
+    }
+
+    private function checkoutResponse(Request $request, string $url)
+    {
+        if ($this->shouldReturnJson($request)) {
+            return response()->json([
+                'checkout_url' => $url,
+            ]);
+        }
+
+        if ($request->header('X-Inertia')) {
+            return Inertia::location($url);
+        }
+
+        return redirect()->away($url);
+    }
+
+    private function completeOnboarding(Request $request, User $accountOwner): string
+    {
+        $invitePayload = $this->applyInvitesFromSession($request, $accountOwner);
+        $invitePasswords = $invitePayload['passwords'];
+        $inviteCount = $invitePayload['count'];
+
+        $wasOnboarded = (bool) $accountOwner->onboarding_completed_at;
+        if (!$wasOnboarded) {
+            $accountOwner->forceFill(['onboarding_completed_at' => now()])->save();
+        }
+
+        if (!$wasOnboarded && $accountOwner->email) {
+            NotificationDispatcher::send($accountOwner, new WelcomeEmailNotification($accountOwner), [
+                'user_id' => $accountOwner->id,
+            ]);
+        }
+
+        if (!$wasOnboarded) {
+            try {
+                $notifier = app(PlatformAdminNotifier::class);
+
+                $notifier->notify('onboarding_completed', 'Onboarding completed', [
+                    'intro' => ($accountOwner->company_name ?: $accountOwner->email) . ' finished onboarding.',
+                    'details' => [
+                        ['label' => 'Company', 'value' => $accountOwner->company_name ?: 'Not set'],
+                        ['label' => 'Owner', 'value' => $accountOwner->email ?: 'Unknown'],
+                        ['label' => 'Type', 'value' => $accountOwner->company_type ?: 'Not set'],
+                        ['label' => 'Sector', 'value' => $accountOwner->company_sector ?: 'Not set'],
+                        ['label' => 'Team invites', 'value' => (string) $inviteCount],
+                    ],
+                    'actionUrl' => route('superadmin.tenants.show', $accountOwner->id),
+                    'actionLabel' => 'View tenant',
+                    'reference' => 'onboarding:' . $accountOwner->id,
+                    'severity' => 'success',
+                ]);
+            } catch (\Throwable $exception) {
+                report($exception);
+            }
+        }
+
+        $messageParts = ['Onboarding completed.'];
+        if ($invitePasswords) {
+            $messageParts[] = 'Team passwords: ' . implode(', ', $invitePasswords);
+        }
+
+        return implode(' ', $messageParts);
+    }
+
+    private function applyInvitesFromSession(Request $request, User $accountOwner): array
+    {
+        $invites = $request->session()->pull('onboarding_invites', []);
+        if (!is_array($invites) || $invites === []) {
+            return [
+                'passwords' => [],
+                'count' => 0,
+            ];
+        }
+
+        $employeeRoleId = Role::query()->firstOrCreate(
+            ['name' => 'employee'],
+            ['description' => 'Employee role']
+        )->id;
+
+        $invitePasswords = [];
+        $inviteCount = 0;
+
+        foreach ($invites as $invite) {
+            $name = trim((string) ($invite['name'] ?? ''));
+            $email = strtolower(trim((string) ($invite['email'] ?? '')));
+            $role = (string) ($invite['role'] ?? 'member');
+
+            if ($name === '' || $email === '') {
+                continue;
+            }
+
+            if (User::query()->where('email', $email)->exists()) {
+                continue;
+            }
+
+            if (!in_array($role, ['admin', 'member'], true)) {
+                $role = 'member';
+            }
+
+            $plainPassword = Str::random(14);
+            $memberUser = User::create([
+                'name' => $name,
+                'email' => $email,
+                'password' => Hash::make($plainPassword),
+                'role_id' => $employeeRoleId,
+                'email_verified_at' => now(),
+            ]);
+
+            TeamMember::create([
+                'account_id' => $accountOwner->id,
+                'user_id' => $memberUser->id,
+                'role' => $role,
+                'permissions' => $this->defaultPermissionsForRole($role),
+                'is_active' => true,
+            ]);
+
+            $inviteCount += 1;
+            $invitePasswords[] = $email . '=' . $plainPassword;
+        }
+
+        return [
+            'passwords' => $invitePasswords,
+            'count' => $inviteCount,
+        ];
+    }
+
+    private function planKeysForOnboarding(): array
+    {
+        $plans = config('billing.plans', []);
+        $preferred = ['starter', 'growth', 'scale'];
+        return array_values(array_filter($preferred, fn (string $key) => array_key_exists($key, $plans)));
+    }
+
     private function defaultPermissionsForRole(string $role): array
     {
         return match ($role) {
@@ -329,20 +572,114 @@ class OnboardingController extends Controller
     private function planOptions(): array
     {
         $planDisplayOverrides = PlatformSetting::getValue('plan_display', []);
-        return collect(config('billing.plans', []))
-            ->map(function (array $plan, string $key) use ($planDisplayOverrides) {
+        $plans = config('billing.plans', []);
+
+        return collect($this->planKeysForOnboarding())
+            ->map(function (string $key) use ($plans, $planDisplayOverrides) {
+                $plan = $plans[$key] ?? [];
                 $display = PlanDisplay::merge($plan, $key, $planDisplayOverrides);
+
                 return [
                     'key' => $key,
                     'name' => $display['name'],
+                    'price_id' => $plan['price_id'] ?? null,
+                    'price' => $display['price'],
+                    'display_price' => $this->resolvePlanDisplayPrice($display['price']),
+                    'features' => $display['features'],
+                    'badge' => $display['badge'],
                 ];
             })
             ->values()
             ->all();
     }
 
+    private function resolvePlanDisplayPrice($raw): ?string
+    {
+        $rawValue = is_string($raw) ? trim($raw) : $raw;
+
+        if (is_numeric($rawValue)) {
+            return Cashier::formatAmount((int) round((float) $rawValue * 100), config('cashier.currency', 'USD'));
+        }
+
+        if (is_string($rawValue) && $rawValue !== '') {
+            return $rawValue;
+        }
+
+        return null;
+    }
+
     private function planLimits(): array
     {
         return PlatformSetting::getValue('plan_limits', []);
+    }
+
+    private function syncLatestSubscription(User $user): void
+    {
+        $customer = $user->customer ?: $user->createAsCustomer();
+        if (!$customer) {
+            return;
+        }
+
+        $latest = Cashier::api('GET', 'subscriptions', [
+            'customer_id' => $customer->paddle_id,
+            'per_page' => 1,
+            'status' => implode(',', [
+                Subscription::STATUS_ACTIVE,
+                Subscription::STATUS_TRIALING,
+                Subscription::STATUS_PAST_DUE,
+                Subscription::STATUS_PAUSED,
+                Subscription::STATUS_CANCELED,
+            ]),
+        ])['data'][0] ?? null;
+
+        if (!$latest || empty($latest['id'])) {
+            return;
+        }
+
+        $subscription = $user->subscriptions()->firstOrNew([
+            'paddle_id' => $latest['id'],
+        ]);
+
+        $subscription->type = $latest['custom_data']['subscription_type'] ?? Subscription::DEFAULT_TYPE;
+        $subscription->status = $latest['status'] ?? Subscription::STATUS_ACTIVE;
+        $subscription->trial_ends_at = ($subscription->status === Subscription::STATUS_TRIALING && !empty($latest['next_billed_at']))
+            ? Carbon::parse($latest['next_billed_at'], 'UTC')
+            : null;
+
+        $subscription->paused_at = !empty($latest['paused_at'])
+            ? Carbon::parse($latest['paused_at'], 'UTC')
+            : null;
+
+        $subscription->ends_at = !empty($latest['canceled_at'])
+            ? Carbon::parse($latest['canceled_at'], 'UTC')
+            : null;
+
+        $subscription->save();
+
+        $items = $latest['items'] ?? [];
+        $knownPriceIds = [];
+        foreach ($items as $item) {
+            $priceId = $item['price']['id'] ?? null;
+            if (!$priceId) {
+                continue;
+            }
+
+            $knownPriceIds[] = $priceId;
+
+            $subscription->items()->updateOrCreate([
+                'subscription_id' => $subscription->id,
+                'price_id' => $priceId,
+            ], [
+                'product_id' => $item['price']['product_id'] ?? '',
+                'status' => $item['status'] ?? Subscription::STATUS_ACTIVE,
+                'quantity' => $item['quantity'] ?? 1,
+            ]);
+        }
+
+        if ($knownPriceIds) {
+            $subscription->items()->whereNotIn('price_id', $knownPriceIds)->delete();
+        }
+
+        $user->customer?->update(['trial_ends_at' => null]);
     }
 }

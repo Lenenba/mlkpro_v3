@@ -23,7 +23,8 @@ class StripeBillingService
         string $successUrl,
         string $cancelUrl,
         ?string $planKey = null,
-        int $quantity = 1
+        int $quantity = 1,
+        ?Carbon $trialEndsAt = null
     ): array
     {
         $client = $this->client();
@@ -46,6 +47,13 @@ class StripeBillingService
                 'plan_key' => $planKey,
             ]),
         ];
+
+        if ($trialEndsAt instanceof Carbon) {
+            $payload['subscription_data'] = [
+                'trial_end' => $trialEndsAt->getTimestamp(),
+            ];
+            $payload['payment_method_collection'] = 'always';
+        }
 
         if ($customerId) {
             $payload['customer'] = $customerId;

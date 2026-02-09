@@ -2013,6 +2013,14 @@
       "team": {
         "title": "Equipe",
         "description": "Invitez votre equipe."
+      },
+      "plan": {
+        "title": "Forfait",
+        "description": "Choisissez votre plan."
+      },
+      "security": {
+        "title": "Securite",
+        "description": "Choisissez votre methode 2FA."
       }
     },
     "account": {
@@ -2110,10 +2118,28 @@
       "terms_label": "J'accepte les",
       "terms_action": "conditions d'utilisation"
     },
+    "plan": {
+      "title": "Choisissez votre forfait",
+      "subtitle": "1 mois gratuit, puis facturation automatique selon votre forfait. Carte requise.",
+      "trial_note": "Essai gratuit jusqu'au {date}.",
+      "downgrade_note": "Vous pouvez changer de forfait pendant l'essai.",
+      "recommended": "Recommande",
+      "unavailable": "Forfait indisponible"
+    },
+    "security": {
+      "title": "Choisissez votre methode 2FA",
+      "subtitle": "Ajoutez une protection supplementaire pour le compte owner.",
+      "method_email": "Code par email",
+      "method_email_hint": "Nous enverrons un code a usage unique a {email}.",
+      "method_app": "Application d'authentification",
+      "method_app_hint": "Google Authenticator, Authy ou 1Password.",
+      "change_later": "Vous pourrez changer plus tard dans les parametres de securite.",
+      "email_fallback": "votre email"
+    },
     "actions": {
       "back": "Retour",
       "continue": "Continuer",
-      "finish": "Acceder au tableau de bord",
+      "finish": "Demarrer l'essai gratuit",
       "close": "Fermer"
     }
   },
