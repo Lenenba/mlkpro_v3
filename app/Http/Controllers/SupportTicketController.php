@@ -9,10 +9,8 @@ use App\Utils\FileHandler;
 use App\Services\SupportAssignmentService;
 use App\Services\SupportSettingsService;
 use App\Services\SupportTicketNotificationService;
-use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
-use Inertia\Inertia;
 use Inertia\Response;
 
 class SupportTicketController extends Controller
@@ -28,7 +26,7 @@ class SupportTicketController extends Controller
     ) {
     }
 
-    public function index(Request $request): Response
+    public function index(Request $request): Response|\Illuminate\Http\JsonResponse
     {
         $user = $request->user();
         $accountId = $user?->accountOwnerId();
@@ -77,7 +75,7 @@ class SupportTicketController extends Controller
 
         $tickets = $query->latest()->paginate(15)->withQueryString();
 
-        return Inertia::render('Support/Index', [
+        $payload = [
             'tickets' => $tickets,
             'filters' => $filters,
             'statuses' => self::STATUSES,
@@ -91,10 +89,12 @@ class SupportTicketController extends Controller
                 'resolved' => $resolvedCount,
                 'closed' => $closedCount,
             ],
-        ]);
+        ];
+
+        return $this->inertiaOrJson('Support/Index', $payload);
     }
 
-    public function show(Request $request, PlatformSupportTicket $ticket): Response
+    public function show(Request $request, PlatformSupportTicket $ticket): Response|\Illuminate\Http\JsonResponse
     {
         $user = $request->user();
         $accountId = $user?->accountOwnerId();
@@ -142,16 +142,18 @@ class SupportTicketController extends Controller
             ->limit(50)
             ->get();
 
-        return Inertia::render('Support/Show', [
+        $payload = [
             'ticket' => $ticket,
             'messages' => $messages,
             'activity' => $activity,
             'statuses' => self::STATUSES,
             'priorities' => self::PRIORITIES,
-        ]);
+        ];
+
+        return $this->inertiaOrJson('Support/Show', $payload);
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request)
     {
         $user = $request->user();
         $accountId = $user?->accountOwnerId();
@@ -223,10 +225,18 @@ class SupportTicketController extends Controller
             $this->notificationService->notifyAssignment($ticket->load('creator'), $assignee);
         }
 
+        if ($this->shouldReturnJson($request)) {
+            $ticket->load(['creator:id,name,email', 'assignedTo:id,name,email', 'media']);
+            return response()->json([
+                'message' => 'Support request submitted.',
+                'ticket' => $ticket,
+            ], 201);
+        }
+
         return redirect()->back()->with('success', 'Support request submitted.');
     }
 
-    public function update(Request $request, PlatformSupportTicket $ticket): RedirectResponse
+    public function update(Request $request, PlatformSupportTicket $ticket)
     {
         $user = $request->user();
         $accountId = $user?->accountOwnerId();
@@ -287,6 +297,14 @@ class SupportTicketController extends Controller
             ActivityLog::record($user, $ticket, 'support_ticket.status_changed', [
                 'from' => $originalStatus,
                 'to' => $ticket->status,
+            ]);
+        }
+
+        if ($this->shouldReturnJson($request)) {
+            $ticket->load(['creator:id,name,email', 'assignedTo:id,name,email', 'media']);
+            return response()->json([
+                'message' => 'Support request updated.',
+                'ticket' => $ticket,
             ]);
         }
 

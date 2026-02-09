@@ -9,7 +9,6 @@ use App\Models\PlatformSupportTicketMessage;
 use App\Services\SupportTicketNotificationService;
 use App\Utils\FileHandler;
 use App\Utils\RichTextSanitizer;
-use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 
@@ -19,7 +18,7 @@ class SupportTicketMessageController extends Controller
     {
     }
 
-    public function store(Request $request, PlatformSupportTicket $ticket): RedirectResponse
+    public function store(Request $request, PlatformSupportTicket $ticket)
     {
         $user = $request->user();
         $accountId = $user?->accountOwnerId();
@@ -37,6 +36,12 @@ class SupportTicketMessageController extends Controller
         $body = RichTextSanitizer::sanitize($validated['body'] ?? '');
         $hasAttachments = $request->hasFile('attachments');
         if (trim(strip_tags($body)) === '' && !$hasAttachments) {
+            if ($this->shouldReturnJson($request)) {
+                return response()->json([
+                    'message' => __('validation.required', ['attribute' => 'message']),
+                ], 422);
+            }
+
             return redirect()->back()->withErrors([
                 'body' => __('validation.required', ['attribute' => 'message']),
             ]);
@@ -86,6 +91,33 @@ class SupportTicketMessageController extends Controller
         ]);
 
         $this->notificationService->notifyNewMessage($message, $ticket->load('creator', 'assignedTo', 'account'), $user);
+
+        if ($this->shouldReturnJson($request)) {
+            $media = [];
+            if ($mediaIds) {
+                $media = PlatformSupportTicketMedia::query()
+                    ->where('ticket_id', $ticket->id)
+                    ->whereIn('id', $mediaIds)
+                    ->get()
+                    ->values();
+            }
+
+            return response()->json([
+                'message' => 'Message sent.',
+                'ticket_id' => $ticket->id,
+                'support_message' => [
+                    'id' => $message->id,
+                    'body' => $message->body,
+                    'created_at' => $message->created_at?->toIso8601String(),
+                    'user' => [
+                        'id' => $user->id,
+                        'name' => $user->name,
+                        'email' => $user->email,
+                    ],
+                    'media' => $media,
+                ],
+            ], 201);
+        }
 
         return redirect()->back()->with('success', 'Message sent.');
     }

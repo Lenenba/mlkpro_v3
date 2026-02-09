@@ -5,10 +5,12 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Services\CompanyFeatureService;
 use App\Services\SecurityEventService;
+use App\Services\TwoFactorService;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Validation\Rules\Password as PasswordRule;
@@ -17,7 +19,7 @@ use Illuminate\Support\Str;
 
 class AuthController extends Controller
 {
-    private function buildMeta(User $user): array
+    protected function buildMeta(User $user): array
     {
         $ownerId = $user->accountOwnerId();
 
@@ -145,7 +147,6 @@ class AuthController extends Controller
             'email' => $validated['email'],
             'password' => Hash::make($validated['password']),
             'role_id' => $roleId,
-            'trial_ends_at' => now()->addMonthNoOverflow(),
         ]);
 
         event(new Registered($user));
@@ -158,6 +159,43 @@ class AuthController extends Controller
             $deviceName = 'mobile';
         }
         $deviceName = Str::limit($deviceName, 80, '');
+
+        if ($user->requiresTwoFactor()) {
+            $user->loadMissing(['role', 'platformAdmin', 'teamMembership']);
+            $method = $user->twoFactorMethod();
+            $effectiveMethod = $method === 'app' && empty($user->two_factor_secret) ? 'email' : $method;
+            $expiresAt = null;
+            $retryAfter = 0;
+
+            if ($effectiveMethod === 'email') {
+                if (!$user->two_factor_expires_at || now()->greaterThan($user->two_factor_expires_at)) {
+                    $result = app(TwoFactorService::class)->sendCode($user, true);
+                    $user->refresh();
+                    $expiresAt = $result['expires_at']?->toIso8601String();
+                    $retryAfter = $result['retry_after'] ?? 0;
+                } else {
+                    $expiresAt = $user->two_factor_expires_at?->toIso8601String();
+                }
+            }
+
+            $challengeToken = Str::random(64);
+            Cache::put('two-factor-challenge:' . $challengeToken, [
+                'user_id' => $user->id,
+                'device_name' => $deviceName,
+                'method' => $effectiveMethod,
+            ], now()->addMinutes(15));
+
+            return response()->json([
+                'two_factor_required' => true,
+                'two_factor' => [
+                    'challenge_token' => $challengeToken,
+                    'method' => $effectiveMethod,
+                    'expires_at' => $expiresAt,
+                    'retry_after' => $retryAfter,
+                ],
+                'user' => $user,
+            ]);
+        }
 
         $user->loadMissing(['role', 'platformAdmin', 'teamMembership']);
         $token = $user->createToken($deviceName);

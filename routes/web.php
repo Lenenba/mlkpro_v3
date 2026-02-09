@@ -168,6 +168,7 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
 
     // Onboarding (account setup)
     Route::post('/onboarding', [OnboardingController::class, 'store'])->name('onboarding.store');
+    Route::get('/onboarding/billing', [OnboardingController::class, 'billing'])->name('onboarding.billing');
     Route::get('/global-search', GlobalSearchController::class)->name('global.search');
     Route::post('/assistant/message', [AssistantController::class, 'message'])
         ->middleware('company.feature:assistant')

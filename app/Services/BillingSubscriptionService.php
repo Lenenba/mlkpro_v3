@@ -149,14 +149,6 @@ class BillingSubscriptionService
 
     private function resolveTrialEndsAt(User $accountOwner): ?Carbon
     {
-        if ($accountOwner->trial_ends_at) {
-            return $accountOwner->trial_ends_at;
-        }
-
-        if ($accountOwner->created_at) {
-            return $accountOwner->created_at->copy()->addMonthNoOverflow();
-        }
-
-        return null;
+        return $accountOwner->trial_ends_at;
     }
 }

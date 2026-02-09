@@ -269,6 +269,10 @@ class User extends Authenticatable
             return false;
         }
 
+        if ($this->isAccountOwner() && !$this->onboarding_completed_at) {
+            return false;
+        }
+
         if ($this->isPlatformAdmin()) {
             $platformAdmin = $this->relationLoaded('platformAdmin')
                 ? $this->platformAdmin

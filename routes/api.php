@@ -2,10 +2,18 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\TwoFactorController as ApiTwoFactorController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\LocaleController;
 use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\PlanningController;
+use App\Http\Controllers\PresenceController;
+use App\Http\Controllers\PerformanceController;
+use App\Http\Controllers\PipelineController;
+use App\Http\Controllers\SupportTicketController;
+use App\Http\Controllers\SupportTicketMessageController;
+use App\Http\Controllers\AssistantController;
 use App\Http\Controllers\RequestController;
 use App\Http\Controllers\RequestMediaController;
 use App\Http\Controllers\RequestNoteController;
@@ -66,6 +74,8 @@ Route::name('api.')->group(function () {
         Route::post('register', [AuthController::class, 'register']);
         Route::post('forgot-password', [AuthController::class, 'forgotPassword']);
         Route::post('reset-password', [AuthController::class, 'resetPassword']);
+        Route::post('two-factor/verify', [ApiTwoFactorController::class, 'verify']);
+        Route::post('two-factor/resend', [ApiTwoFactorController::class, 'resend']);
     });
 
     Route::middleware(['auth:sanctum', EnsureNotSuspended::class])->group(function () {
@@ -124,6 +134,7 @@ Route::name('api.')->group(function () {
             Route::post('notifications/{notification}/read', [ApiNotificationController::class, 'markRead']);
             Route::get('notifications/settings', [NotificationSettingsController::class, 'edit']);
             Route::put('notifications/settings', [NotificationSettingsController::class, 'update']);
+            Route::get('pipeline', [PipelineController::class, 'data']);
 
             Route::prefix('settings')->group(function () {
                 Route::get('company', [CompanySettingsController::class, 'edit']);
@@ -142,6 +153,38 @@ Route::name('api.')->group(function () {
                 Route::post('billing/swap', [SubscriptionController::class, 'swap']);
                 Route::post('billing/portal', [SubscriptionController::class, 'portal']);
                 Route::post('billing/payment-method', [SubscriptionController::class, 'paymentMethodTransaction']);
+            });
+
+            Route::middleware('company.feature:planning')->group(function () {
+                Route::get('planning', [PlanningController::class, 'index']);
+                Route::get('planning/events', [PlanningController::class, 'events']);
+                Route::post('planning/shifts', [PlanningController::class, 'store']);
+                Route::patch('planning/shifts/{shift}', [PlanningController::class, 'update']);
+                Route::delete('planning/shifts/{shift}', [PlanningController::class, 'destroy']);
+                Route::patch('planning/shifts/{shift}/status', [PlanningController::class, 'updateStatus']);
+            });
+
+            Route::middleware('company.feature:presence')->group(function () {
+                Route::get('presence', [PresenceController::class, 'index']);
+                Route::post('presence/clock-in', [PresenceController::class, 'clockIn']);
+                Route::post('presence/clock-out', [PresenceController::class, 'clockOut']);
+            });
+
+            Route::middleware('company.feature:performance')->group(function () {
+                Route::get('performance', [PerformanceController::class, 'index']);
+                Route::get('performance/employees/{employee}', [PerformanceController::class, 'employee']);
+            });
+
+            Route::prefix('support')->group(function () {
+                Route::get('/', [SupportTicketController::class, 'index']);
+                Route::get('{ticket}', [SupportTicketController::class, 'show']);
+                Route::post('/', [SupportTicketController::class, 'store']);
+                Route::put('{ticket}', [SupportTicketController::class, 'update']);
+                Route::post('{ticket}/messages', [SupportTicketMessageController::class, 'store']);
+            });
+
+            Route::middleware('company.feature:assistant')->group(function () {
+                Route::post('assistant/message', [AssistantController::class, 'message']);
             });
 
             Route::middleware('company.feature:requests')->group(function () {
