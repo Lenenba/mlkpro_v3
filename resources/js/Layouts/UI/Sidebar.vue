@@ -350,6 +350,53 @@ const isCustomerActive = computed(() => {
                                 <!-- End Item -->
 
                                 <!-- Item -->
+                                <LinkAncor
+                                    v-if="isClient && showServices && hasFeature('reservations')"
+                                    :label="$t('nav.book_reservation')"
+                                    :href="'client.reservations.book'"
+                                    tone="planning"
+                                    :active="route().current('client.reservations.book')"
+                                >
+                                    <template #icon>
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round"
+                                            class="lucide lucide-calendar-plus-2">
+                                            <path d="M8 2v4" />
+                                            <path d="M16 2v4" />
+                                            <path d="M3 10h18" />
+                                            <path d="M21 9v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2Z" />
+                                            <path d="M12 15v6" />
+                                            <path d="M9 18h6" />
+                                        </svg>
+                                    </template>
+                                </LinkAncor>
+                                <!-- End Item -->
+
+                                <!-- Item -->
+                                <LinkAncor
+                                    v-if="isClient && showServices && hasFeature('reservations')"
+                                    :label="$t('nav.my_reservations')"
+                                    :href="'client.reservations.index'"
+                                    tone="planning"
+                                    :active="route().current('client.reservations.*') && !route().current('client.reservations.book')"
+                                >
+                                    <template #icon>
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round"
+                                            class="lucide lucide-calendar-check-2">
+                                            <path d="M8 2v4" />
+                                            <path d="M16 2v4" />
+                                            <path d="M3 10h18" />
+                                            <path d="M21 9v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2Z" />
+                                            <path d="m9 16 2 2 4-4" />
+                                        </svg>
+                                    </template>
+                                </LinkAncor>
+                                <!-- End Item -->
+
+                                <!-- Item -->
                                 <LinkAncor v-if="((showServices && isOwner) || (companyType === 'products' && hasFeature('sales') && canSales)) && !isSeller" :label="$t('nav.customers')" :href="'customer.index'" tone="customers"
                                     :active="isCustomerActive">
                                     <template #icon>
@@ -532,6 +579,33 @@ const isCustomerActive = computed(() => {
                                             <circle cx="6" cy="6" r="3" />
                                             <path d="M13 6h3a2 2 0 0 1 2 2v7" />
                                             <line x1="6" x2="6" y1="9" y2="21" />
+                                        </svg>
+                                    </template>
+                                </LinkAncor>
+                                <!-- End Item -->
+                                <!-- Item -->
+                                <LinkAncor
+                                    v-if="hasFeature('reservations') && !isClient && (isOwner || isTeamMember)"
+                                    :label="$t('nav.reservations')"
+                                    :href="'reservation.index'"
+                                    tone="planning"
+                                    :active="route().current('reservation.*') || route().current('settings.reservations.*') || page.url.startsWith('/app/reservations') || page.url.startsWith('/settings/reservations')"
+                                >
+                                    <template #icon>
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round"
+                                            class="lucide lucide-calendar-clock">
+                                            <path d="M21 7.5V6a2 2 0 0 0-2-2h-1V2" />
+                                            <path d="M17 2v2" />
+                                            <path d="M7 2v2" />
+                                            <path d="M3 10h5" />
+                                            <path d="M3 14h4" />
+                                            <path d="M3 18h3" />
+                                            <path d="M3 7.5V18a2 2 0 0 0 2 2h4" />
+                                            <path d="M9 2v2H8a2 2 0 0 0-2 2v1.5" />
+                                            <circle cx="16" cy="16" r="5" />
+                                            <path d="M16 14v2l1 1" />
                                         </svg>
                                     </template>
                                 </LinkAncor>

@@ -42,6 +42,7 @@ const page = usePage();
 const isSuperadmin = computed(() => Boolean(page.props.auth?.account?.is_superadmin));
 const platformPermissions = computed(() => page.props.auth?.account?.platform?.permissions || []);
 const canManage = computed(() => isSuperadmin.value || platformPermissions.value.includes('tenants.manage'));
+const canManageFeatures = computed(() => isSuperadmin.value);
 const canImpersonate = computed(() => isSuperadmin.value || platformPermissions.value.includes('support.impersonate'));
 const billingProvider = computed(() => props.billing?.provider ?? 'stripe');
 const billingReady = computed(() => Boolean(props.billing?.ready));
@@ -112,7 +113,7 @@ const resetOnboarding = () => {
 };
 
 const updateFeatures = () => {
-    if (!canManage.value) {
+    if (!canManageFeatures.value) {
         return;
     }
     featureForm.put(route('superadmin.tenants.features.update', props.tenant.id), { preserveScroll: true });
@@ -319,7 +320,7 @@ const impersonate = () => {
                     <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
                         {{ $t('super_admin.tenants.detail.feature_flags') }}
                     </h2>
-                    <form v-if="canManage" class="mt-4 space-y-2" @submit.prevent="updateFeatures">
+                    <form v-if="canManageFeatures" class="mt-4 space-y-2" @submit.prevent="updateFeatures">
                         <label v-for="flag in feature_flags" :key="flag.key" class="flex items-center gap-2 text-sm text-stone-700 dark:text-neutral-200">
                             <Checkbox v-model:checked="featureForm.features[flag.key]" :value="true" />
                             <span>{{ flag.label }}</span>

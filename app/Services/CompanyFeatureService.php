@@ -66,6 +66,15 @@ class CompanyFeatureService
 
     private function resolveOwner(User $user): ?User
     {
+        if ($user->isClient()) {
+            $customer = $user->relationLoaded('customerProfile')
+                ? $user->customerProfile
+                : $user->customerProfile()->first();
+            if ($customer && $customer->user_id) {
+                return User::query()->find($customer->user_id);
+            }
+        }
+
         $ownerId = $user->accountOwnerId();
         if (!$ownerId) {
             return null;

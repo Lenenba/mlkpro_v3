@@ -55,6 +55,7 @@ const limitKeys = computed(() => [
 const moduleKeys = computed(() => [
     { key: 'quotes', label: t('super_admin.settings.modules.quotes') },
     { key: 'requests', label: t('super_admin.settings.modules.requests') },
+    { key: 'reservations', label: t('super_admin.settings.modules.reservations') },
     { key: 'plan_scans', label: t('super_admin.settings.modules.plan_scans') },
     { key: 'invoices', label: t('super_admin.settings.modules.invoices') },
     { key: 'jobs', label: t('super_admin.settings.modules.jobs') },
@@ -192,6 +193,9 @@ const submitPlanLimits = () => {
 };
 
 const submitPlanModules = () => {
+    if (!isSuperadmin.value) {
+        return;
+    }
     form.put(route('superadmin.settings.update'), {
         preserveScroll: true,
         onSuccess: () => closeModulePlan(),
@@ -370,7 +374,7 @@ const submitPlanDisplay = () => {
                 </Modal>
             </div>
 
-            <div v-if="!isSuperadmin" class="rounded-sm border border-stone-200 border-t-4 border-t-emerald-600 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-800">
+            <div v-if="isSuperadmin" class="rounded-sm border border-stone-200 border-t-4 border-t-emerald-600 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-800">
                 <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
                     {{ $t('super_admin.settings.plan_modules.title') }}
                 </h2>

@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class TeamMember extends Model
 {
@@ -45,6 +47,26 @@ class TeamMember extends Model
         return $this->belongsToMany(Work::class, 'work_team_members')
             ->withPivot(['role'])
             ->withTimestamps();
+    }
+
+    public function reservations(): HasMany
+    {
+        return $this->hasMany(Reservation::class);
+    }
+
+    public function weeklyAvailabilities(): HasMany
+    {
+        return $this->hasMany(WeeklyAvailability::class);
+    }
+
+    public function availabilityExceptions(): HasMany
+    {
+        return $this->hasMany(AvailabilityException::class);
+    }
+
+    public function reservationSetting(): HasOne
+    {
+        return $this->hasOne(ReservationSetting::class);
     }
 
     public function scopeForAccount(Builder $query, int $accountId): Builder

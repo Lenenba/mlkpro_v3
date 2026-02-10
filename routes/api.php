@@ -11,6 +11,9 @@ use App\Http\Controllers\PlanningController;
 use App\Http\Controllers\PresenceController;
 use App\Http\Controllers\PerformanceController;
 use App\Http\Controllers\PipelineController;
+use App\Http\Controllers\Reservation\ClientReservationController;
+use App\Http\Controllers\Reservation\ReservationSettingsController;
+use App\Http\Controllers\Reservation\StaffReservationController;
 use App\Http\Controllers\SupportTicketController;
 use App\Http\Controllers\SupportTicketMessageController;
 use App\Http\Controllers\AssistantController;
@@ -116,6 +119,17 @@ Route::name('api.')->group(function () {
             Route::post('invoices/{invoice}/payments', [PortalInvoiceController::class, 'storePayment']);
             Route::post('quotes/{quote}/ratings', [PortalRatingController::class, 'storeQuote']);
             Route::post('works/{work}/ratings', [PortalRatingController::class, 'storeWork']);
+
+            Route::middleware('company.feature:reservations')->group(function () {
+                Route::get('reservations/book', [ClientReservationController::class, 'book']);
+                Route::get('reservations/slots', [ClientReservationController::class, 'slots']);
+                Route::post('reservations/book', [ClientReservationController::class, 'store']);
+                Route::get('reservations', [ClientReservationController::class, 'index']);
+                Route::get('reservations/events', [ClientReservationController::class, 'events']);
+                Route::patch('reservations/{reservation}/cancel', [ClientReservationController::class, 'cancel']);
+                Route::post('reservations/{reservation}/review', [ClientReservationController::class, 'review']);
+                Route::patch('reservations/{reservation}/reschedule', [ClientReservationController::class, 'reschedule']);
+            });
         });
 
     Route::middleware(['auth:sanctum', EnsureInternalUser::class, EnsureNotSuspended::class])->group(function () {
@@ -201,6 +215,18 @@ Route::name('api.')->group(function () {
                 Route::post('requests/{lead}/media', [RequestMediaController::class, 'store']);
                 Route::delete('requests/{lead}/media/{media}', [RequestMediaController::class, 'destroy']);
                 Route::delete('requests/{lead}', [RequestController::class, 'destroy']);
+            });
+
+            Route::middleware('company.feature:reservations')->group(function () {
+                Route::get('reservations', [StaffReservationController::class, 'index']);
+                Route::get('reservations/events', [StaffReservationController::class, 'events']);
+                Route::get('reservations/slots', [StaffReservationController::class, 'slots']);
+                Route::post('reservations', [StaffReservationController::class, 'store']);
+                Route::put('reservations/{reservation}', [StaffReservationController::class, 'update']);
+                Route::patch('reservations/{reservation}/status', [StaffReservationController::class, 'updateStatus']);
+                Route::delete('reservations/{reservation}', [StaffReservationController::class, 'destroy']);
+                Route::get('settings/reservations', [ReservationSettingsController::class, 'edit']);
+                Route::put('settings/reservations', [ReservationSettingsController::class, 'update']);
             });
 
             Route::middleware('company.feature:quotes')->group(function () {

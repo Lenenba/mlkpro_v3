@@ -25,6 +25,9 @@ use App\Http\Controllers\PipelineController;
 use App\Http\Controllers\PlanningController;
 use App\Http\Controllers\PerformanceController;
 use App\Http\Controllers\PresenceController;
+use App\Http\Controllers\Reservation\ClientReservationController;
+use App\Http\Controllers\Reservation\ReservationSettingsController;
+use App\Http\Controllers\Reservation\StaffReservationController;
 use App\Http\Controllers\RequestController;
 use App\Http\Controllers\RequestMediaController;
 use App\Http\Controllers\RequestNoteController;
@@ -259,6 +262,25 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
         Route::delete('/requests/{lead}', [RequestController::class, 'destroy'])->name('request.destroy');
     });
 
+    // Reservations
+    Route::middleware('company.feature:reservations')->group(function () {
+        Route::get('/app/reservations', [StaffReservationController::class, 'index'])->name('reservation.index');
+        Route::get('/app/reservations/events', [StaffReservationController::class, 'events'])->name('reservation.events');
+        Route::get('/app/reservations/slots', [StaffReservationController::class, 'slots'])->name('reservation.slots');
+        Route::post('/app/reservations', [StaffReservationController::class, 'store'])->name('reservation.store');
+        Route::put('/app/reservations/{reservation}', [StaffReservationController::class, 'update'])->name('reservation.update');
+        Route::patch('/app/reservations/{reservation}/status', [StaffReservationController::class, 'updateStatus'])
+            ->name('reservation.status');
+        Route::delete('/app/reservations/{reservation}', [StaffReservationController::class, 'destroy'])->name('reservation.destroy');
+        Route::get('/settings/reservations', [ReservationSettingsController::class, 'edit'])
+            ->name('settings.reservations.edit');
+        Route::put('/settings/reservations', [ReservationSettingsController::class, 'update'])
+            ->name('settings.reservations.update');
+        Route::redirect('/app/reservations/settings', '/settings/reservations')
+            ->name('reservation.settings.legacy');
+        Route::redirect('/reservations', '/app/reservations')->name('reservation.legacy');
+    });
+
     Route::middleware('company.feature:quotes')->group(function () {
         Route::get('/quotes', [QuoteController::class, 'index'])->name('quote.index');
         Route::get('/customer/{customer}/quote/create', [QuoteController::class, 'create'])->name('customer.quote.create');
@@ -476,6 +498,21 @@ Route::middleware(['auth', EnsureClientUser::class])
             ->name('invoices.stripe');
         Route::post('/quotes/{quote}/ratings', [PortalRatingController::class, 'storeQuote'])->name('quotes.ratings.store');
         Route::post('/works/{work}/ratings', [PortalRatingController::class, 'storeWork'])->name('works.ratings.store');
+    });
+
+Route::middleware(['auth', EnsureClientUser::class, 'company.feature:reservations'])
+    ->prefix('client/reservations')
+    ->name('client.reservations.')
+    ->group(function () {
+        Route::get('/book', [ClientReservationController::class, 'book'])->name('book');
+        Route::get('/slots', [ClientReservationController::class, 'slots'])->name('slots');
+        Route::post('/book', [ClientReservationController::class, 'store'])->name('store');
+        Route::get('/', [ClientReservationController::class, 'index'])->name('index');
+        Route::get('/events', [ClientReservationController::class, 'events'])->name('events');
+        Route::patch('/{reservation}/cancel', [ClientReservationController::class, 'cancel'])->name('cancel');
+        Route::post('/{reservation}/review', [ClientReservationController::class, 'review'])->name('review');
+        Route::patch('/{reservation}/reschedule', [ClientReservationController::class, 'reschedule'])
+            ->name('reschedule');
     });
 
 // Authentication Routes

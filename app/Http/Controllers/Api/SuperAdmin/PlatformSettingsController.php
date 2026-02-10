@@ -26,6 +26,7 @@ class PlatformSettingsController extends BaseController
     private array $moduleKeys = [
         'quotes',
         'requests',
+        'reservations',
         'plan_scans',
         'invoices',
         'jobs',
@@ -52,8 +53,8 @@ class PlatformSettingsController extends BaseController
         $planLimits = PlatformSetting::getValue('plan_limits', []);
         $planModules = PlatformSetting::getValue('plan_modules', []);
         $planDisplayOverrides = PlatformSetting::getValue('plan_display', []);
-        $planDisplay = PlanDisplay::normalize($rawPlans, $planDisplayOverrides);
         $rawPlans = config('billing.plans', []);
+        $planDisplay = PlanDisplay::normalize($rawPlans, $planDisplayOverrides);
         $plans = collect($rawPlans)
             ->map(function (array $plan, string $key) {
                 return [
@@ -107,6 +108,7 @@ class PlatformSettingsController extends BaseController
     public function update(Request $request)
     {
         $this->authorizePermission($request, PlatformPermissions::SETTINGS_MANAGE);
+        $isSuperadmin = (bool) $request->user()?->isSuperadmin();
 
         $validated = $request->validate([
             'maintenance.enabled' => 'required|boolean',
@@ -143,8 +145,14 @@ class PlatformSettingsController extends BaseController
         $limitsPayload = $this->buildLimitPayload($validated['plan_limits'] ?? []);
         PlatformSetting::setValue('plan_limits', $limitsPayload);
 
-        $modulesPayload = $this->buildModulePayload($validated['plan_modules'] ?? []);
-        PlatformSetting::setValue('plan_modules', $modulesPayload);
+        if (array_key_exists('plan_modules', $validated) && !$isSuperadmin) {
+            abort(403);
+        }
+
+        if ($isSuperadmin && array_key_exists('plan_modules', $validated)) {
+            $modulesPayload = $this->buildModulePayload($validated['plan_modules'] ?? []);
+            PlatformSetting::setValue('plan_modules', $modulesPayload);
+        }
 
         $displayPayload = [];
         $inputDisplay = $validated['plan_display'] ?? [];

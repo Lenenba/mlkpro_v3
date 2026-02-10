@@ -41,6 +41,7 @@ class TenantController extends BaseController
     private array $moduleKeys = [
         'quotes',
         'requests',
+        'reservations',
         'plan_scans',
         'invoices',
         'jobs',
@@ -227,7 +228,7 @@ class TenantController extends BaseController
 
     public function updateFeatures(Request $request, User $tenant)
     {
-        $this->authorizePermission($request, PlatformPermissions::TENANTS_MANAGE);
+        $this->authorizeSuperadmin($request);
         $this->ensureOwner($tenant);
 
         $validated = $request->validate([
@@ -371,6 +372,7 @@ class TenantController extends BaseController
         $defaults = [
             'quotes' => 'Quotes',
             'requests' => 'Requests',
+            'reservations' => 'Reservations',
             'plan_scans' => 'Plan scans',
             'invoices' => 'Invoices',
             'jobs' => 'Jobs',

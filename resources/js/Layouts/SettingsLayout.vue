@@ -5,6 +5,7 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import SettingsTabs from '@/Components/SettingsTabs.vue';
 import { useI18n } from 'vue-i18n';
 import { defaultAvatarIcon } from '@/utils/iconPresets';
+import { isFeatureEnabled } from '@/utils/features';
 
 const props = defineProps({
     active: {
@@ -37,6 +38,14 @@ const avatarInitial = computed(() => {
 });
 
 const isOwner = computed(() => Boolean(page.props.auth?.account?.is_owner));
+const featureFlags = computed(() => page.props.auth?.account?.features || {});
+const teamPermissions = computed(() => page.props.auth?.account?.team?.permissions || []);
+const hasFeature = (key) => isFeatureEnabled(featureFlags.value, key);
+const canManageReservations = computed(() =>
+    isOwner.value
+    || teamPermissions.value.includes('jobs.edit')
+    || teamPermissions.value.includes('tasks.edit')
+);
 
 const navTabs = computed(() => {
     locale.value;
@@ -80,6 +89,14 @@ const navTabs = computed(() => {
                     ownerOnly: true,
                 },
                 {
+                    id: 'reservations',
+                    label: t('settings.items.reservations.label'),
+                    description: t('settings.items.reservations.description'),
+                    route: 'settings.reservations.edit',
+                    icon: 'calendar',
+                    hidden: !hasFeature('reservations') || !canManageReservations.value,
+                },
+                {
                     id: 'billing',
                     label: t('settings.items.billing.label'),
                     description: t('settings.items.billing.description'),
@@ -108,7 +125,7 @@ const navTabs = computed(() => {
     const filteredGroups = groups
         .map((group) => ({
             ...group,
-            items: group.items.filter((item) => !item.ownerOnly || isOwner.value),
+            items: group.items.filter((item) => (!item.ownerOnly || isOwner.value) && !item.hidden),
         }))
         .filter((group) => group.items.length);
 

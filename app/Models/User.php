@@ -137,6 +137,36 @@ class User extends Authenticatable
         return $this->hasMany(Product::class);
     }
 
+    public function reservations(): HasMany
+    {
+        return $this->hasMany(Reservation::class, 'account_id');
+    }
+
+    public function clientReservations(): HasMany
+    {
+        return $this->hasMany(Reservation::class, 'client_user_id');
+    }
+
+    public function reservationReviews(): HasMany
+    {
+        return $this->hasMany(ReservationReview::class, 'client_user_id');
+    }
+
+    public function reservationSettings(): HasMany
+    {
+        return $this->hasMany(ReservationSetting::class, 'account_id');
+    }
+
+    public function weeklyAvailabilities(): HasMany
+    {
+        return $this->hasMany(WeeklyAvailability::class, 'account_id');
+    }
+
+    public function availabilityExceptions(): HasMany
+    {
+        return $this->hasMany(AvailabilityException::class, 'account_id');
+    }
+
     public function role(): BelongsTo
     {
         return $this->belongsTo(Role::class, 'role_id');
