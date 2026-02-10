@@ -189,7 +189,7 @@ onBeforeUnmount(() => {
                     </article>
                 </section>
 
-                <section class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                <section class="p-5 space-y-4 flex flex-col border-t-4 border-t-zinc-600 bg-white border border-stone-200 shadow-sm rounded-sm dark:bg-neutral-800 dark:border-neutral-700">
                     <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ $t('reservations.queue.screen.waiting_list') }}</h2>
                     <div v-if="!(queueData.waiting || []).length" class="mt-3 rounded-sm border border-dashed border-stone-300 bg-stone-50 px-4 py-4 text-sm text-stone-500 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-400">
                         {{ $t('reservations.queue.empty') }}

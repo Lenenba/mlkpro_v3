@@ -134,8 +134,8 @@ const statusClass = (status) => {
     <Head :title="$t('tips_reports.owner.title')" />
 
     <AuthenticatedLayout>
-        <div class="mx-auto w-full max-w-7xl space-y-5">
-            <section class="rounded-sm border border-stone-200 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+        <div class="space-y-4">
+            <section class="rounded-sm border border-stone-200 border-t-4 border-t-emerald-600 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
                 <div class="flex flex-wrap items-center justify-between gap-3">
                     <div>
                         <h1 class="text-xl font-semibold text-stone-800 dark:text-neutral-100">{{ $t('tips_reports.owner.title') }}</h1>
@@ -246,52 +246,86 @@ const statusClass = (status) => {
                 </div>
             </section>
 
-            <section class="rounded-sm border border-stone-200 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-stone-200 dark:divide-neutral-700">
-                        <thead>
-                            <tr class="text-left text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">
-                                <th class="px-3 py-2">{{ $t('tips_reports.table.datetime') }}</th>
-                                <th class="px-3 py-2">{{ $t('tips_reports.table.invoice') }}</th>
-                                <th class="px-3 py-2">{{ $t('tips_reports.table.customer') }}</th>
-                                <th class="px-3 py-2">{{ $t('tips_reports.table.team_member') }}</th>
-                                <th class="px-3 py-2">{{ $t('tips_reports.table.mode') }}</th>
-                                <th class="px-3 py-2">{{ $t('tips_reports.table.tip_amount') }}</th>
-                                <th class="px-3 py-2">{{ $t('tips_reports.table.total_charged') }}</th>
-                                <th class="px-3 py-2">{{ $t('tips_reports.table.status') }}</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-stone-200 dark:divide-neutral-700">
-                            <tr v-for="payment in payments.data || []" :key="payment.id">
-                                <td class="px-3 py-2 text-sm text-stone-700 dark:text-neutral-200">{{ formatDateTime(payment.paid_at) }}</td>
-                                <td class="px-3 py-2 text-sm text-stone-700 dark:text-neutral-200">
-                                    <Link
-                                        v-if="canViewInvoice && payment.invoice_id"
-                                        :href="route('invoice.show', payment.invoice_id)"
-                                        class="text-emerald-700 hover:underline dark:text-emerald-400"
-                                    >
-                                        {{ payment.invoice_number }}
-                                    </Link>
-                                    <span v-else>{{ payment.invoice_number }}</span>
-                                </td>
-                                <td class="px-3 py-2 text-sm text-stone-700 dark:text-neutral-200">{{ payment.customer_name }}</td>
-                                <td class="px-3 py-2 text-sm text-stone-700 dark:text-neutral-200">{{ payment.team_member_name || '-' }}</td>
-                                <td class="px-3 py-2 text-sm text-stone-700 dark:text-neutral-200">{{ modeLabel(payment.tip_mode) }}</td>
-                                <td class="px-3 py-2 text-sm font-medium text-stone-800 dark:text-neutral-100">{{ formatCurrency(payment.tip_amount) }}</td>
-                                <td class="px-3 py-2 text-sm font-medium text-stone-800 dark:text-neutral-100">{{ formatCurrency(payment.charged_total) }}</td>
-                                <td class="px-3 py-2 text-sm">
-                                    <span class="rounded-full px-2 py-0.5 text-xs font-medium" :class="statusClass(payment.status)">
-                                        {{ statusLabel(payment.status) }}
-                                    </span>
-                                </td>
-                            </tr>
-                            <tr v-if="!(payments.data || []).length">
-                                <td colspan="8" class="px-3 py-6 text-center text-sm text-stone-500 dark:text-neutral-400">
-                                    {{ $t('tips_reports.empty.rows') }}
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
+            <section class="p-5 space-y-4 flex flex-col border-t-4 border-t-zinc-600 bg-white border border-stone-200 shadow-sm rounded-sm dark:bg-neutral-800 dark:border-neutral-700">
+                <div class="overflow-x-auto [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-stone-100 [&::-webkit-scrollbar-thumb]:bg-stone-300 dark:[&::-webkit-scrollbar-track]:bg-neutral-700 dark:[&::-webkit-scrollbar-thumb]:bg-neutral-500">
+                    <div class="min-w-full inline-block align-middle">
+                        <table class="min-w-full divide-y divide-stone-200 dark:divide-neutral-700">
+                            <thead>
+                                <tr>
+                                    <th scope="col" class="min-w-52">
+                                        <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
+                                            {{ $t('tips_reports.table.datetime') }}
+                                        </div>
+                                    </th>
+                                    <th scope="col" class="min-w-24">
+                                        <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
+                                            {{ $t('tips_reports.table.invoice') }}
+                                        </div>
+                                    </th>
+                                    <th scope="col" class="min-w-48">
+                                        <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
+                                            {{ $t('tips_reports.table.customer') }}
+                                        </div>
+                                    </th>
+                                    <th scope="col" class="min-w-40">
+                                        <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
+                                            {{ $t('tips_reports.table.team_member') }}
+                                        </div>
+                                    </th>
+                                    <th scope="col" class="min-w-32">
+                                        <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
+                                            {{ $t('tips_reports.table.mode') }}
+                                        </div>
+                                    </th>
+                                    <th scope="col" class="min-w-28">
+                                        <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
+                                            {{ $t('tips_reports.table.tip_amount') }}
+                                        </div>
+                                    </th>
+                                    <th scope="col" class="min-w-32">
+                                        <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
+                                            {{ $t('tips_reports.table.total_charged') }}
+                                        </div>
+                                    </th>
+                                    <th scope="col" class="min-w-28">
+                                        <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
+                                            {{ $t('tips_reports.table.status') }}
+                                        </div>
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-stone-200 dark:divide-neutral-700">
+                                <tr v-for="payment in payments.data || []" :key="payment.id">
+                                    <td class="size-px whitespace-nowrap px-4 py-2 text-sm text-stone-700 dark:text-neutral-200">{{ formatDateTime(payment.paid_at) }}</td>
+                                    <td class="size-px whitespace-nowrap px-4 py-2 text-sm text-stone-700 dark:text-neutral-200">
+                                        <Link
+                                            v-if="canViewInvoice && payment.invoice_id"
+                                            :href="route('invoice.show', payment.invoice_id)"
+                                            class="text-emerald-700 hover:underline dark:text-emerald-400"
+                                        >
+                                            {{ payment.invoice_number }}
+                                        </Link>
+                                        <span v-else>{{ payment.invoice_number }}</span>
+                                    </td>
+                                    <td class="size-px whitespace-nowrap px-4 py-2 text-sm text-stone-700 dark:text-neutral-200">{{ payment.customer_name }}</td>
+                                    <td class="size-px whitespace-nowrap px-4 py-2 text-sm text-stone-700 dark:text-neutral-200">{{ payment.team_member_name || '-' }}</td>
+                                    <td class="size-px whitespace-nowrap px-4 py-2 text-sm text-stone-700 dark:text-neutral-200">{{ modeLabel(payment.tip_mode) }}</td>
+                                    <td class="size-px whitespace-nowrap px-4 py-2 text-sm font-medium text-stone-800 dark:text-neutral-100">{{ formatCurrency(payment.tip_amount) }}</td>
+                                    <td class="size-px whitespace-nowrap px-4 py-2 text-sm font-medium text-stone-800 dark:text-neutral-100">{{ formatCurrency(payment.charged_total) }}</td>
+                                    <td class="size-px whitespace-nowrap px-4 py-2 text-sm">
+                                        <span class="rounded-full px-2 py-0.5 text-xs font-medium" :class="statusClass(payment.status)">
+                                            {{ statusLabel(payment.status) }}
+                                        </span>
+                                    </td>
+                                </tr>
+                                <tr v-if="!(payments.data || []).length">
+                                    <td colspan="8" class="px-4 py-10 text-center text-stone-600 dark:text-neutral-300">
+                                        {{ $t('tips_reports.empty.rows') }}
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
 
                 <div v-if="payments.prev_page_url || payments.next_page_url" class="mt-4 flex items-center justify-end gap-2">
