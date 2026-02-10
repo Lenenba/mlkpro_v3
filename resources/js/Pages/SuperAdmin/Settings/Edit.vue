@@ -181,13 +181,25 @@ const displayFeatureCount = (planKey) =>
         .filter((feature) => typeof feature === 'string' && feature.trim() !== '')
         .length;
 
+const putSettings = (options = {}) => {
+    form.transform((data) => {
+        const payload = { ...data };
+        if (!isSuperadmin.value) {
+            delete payload.plan_modules;
+        }
+        return payload;
+    }).put(route('superadmin.settings.update'), {
+        preserveScroll: true,
+        ...options,
+    });
+};
+
 const submit = () => {
-    form.put(route('superadmin.settings.update'), { preserveScroll: true });
+    putSettings();
 };
 
 const submitPlanLimits = () => {
-    form.put(route('superadmin.settings.update'), {
-        preserveScroll: true,
+    putSettings({
         onSuccess: () => closePlan(),
     });
 };
@@ -196,15 +208,13 @@ const submitPlanModules = () => {
     if (!isSuperadmin.value) {
         return;
     }
-    form.put(route('superadmin.settings.update'), {
-        preserveScroll: true,
+    putSettings({
         onSuccess: () => closeModulePlan(),
     });
 };
 
 const submitPlanDisplay = () => {
-    form.put(route('superadmin.settings.update'), {
-        preserveScroll: true,
+    putSettings({
         onSuccess: () => closeDisplayPlan(),
     });
 };
@@ -226,7 +236,7 @@ const submitPlanDisplay = () => {
                 </div>
             </section>
 
-            <div v-if="!isSuperadmin" class="rounded-sm border border-stone-200 border-t-4 border-t-amber-600 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-800">
+            <div class="rounded-sm border border-stone-200 border-t-4 border-t-amber-600 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-800">
                 <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
                     {{ $t('super_admin.settings.maintenance.title') }}
                 </h2>
@@ -248,7 +258,7 @@ const submitPlanDisplay = () => {
                 </form>
             </div>
 
-            <div v-if="!isSuperadmin" class="rounded-sm border border-stone-200 border-t-4 border-t-sky-600 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-800">
+            <div class="rounded-sm border border-stone-200 border-t-4 border-t-sky-600 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-800">
                 <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
                     {{ $t('super_admin.settings.templates.title') }}
                 </h2>
@@ -286,7 +296,7 @@ const submitPlanDisplay = () => {
                 </form>
             </div>
 
-            <div v-if="!isSuperadmin" class="rounded-sm border border-stone-200 border-t-4 border-t-zinc-600 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-800">
+            <div class="rounded-sm border border-stone-200 border-t-4 border-t-zinc-600 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-800">
                 <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
                     {{ $t('super_admin.settings.plan_limits.title') }}
                 </h2>
