@@ -717,7 +717,7 @@ const goToPage = (url) => {
 
             <section
                 v-if="activeDataTab === 'queue' && (queueModeEnabled || queueRows.length)"
-                class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900"
+                class="p-5 space-y-4 flex flex-col border-t-4 border-t-zinc-600 bg-white border border-stone-200 shadow-sm rounded-sm dark:bg-neutral-800 dark:border-neutral-700"
             >
                 <div class="flex flex-wrap items-center justify-between gap-2">
                     <div>
@@ -912,7 +912,7 @@ const goToPage = (url) => {
 
             <section
                 v-if="activeDataTab === 'waitlist' && (waitlistEnabled || waitlistRows.length)"
-                class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900"
+                class="p-5 space-y-4 flex flex-col border-t-4 border-t-zinc-600 bg-white border border-stone-200 shadow-sm rounded-sm dark:bg-neutral-800 dark:border-neutral-700"
             >
                 <div class="flex flex-wrap items-center justify-between gap-2">
                     <div>
@@ -1211,7 +1211,7 @@ const goToPage = (url) => {
                 @event-click="openFromEvent"
             />
 
-            <section v-else-if="activeDataTab === 'reservations'" class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+            <section v-else-if="activeDataTab === 'reservations'" class="p-5 space-y-4 flex flex-col border-t-4 border-t-zinc-600 bg-white border border-stone-200 shadow-sm rounded-sm dark:bg-neutral-800 dark:border-neutral-700">
                 <div v-if="!reservations?.data?.length" class="rounded-sm border border-dashed border-stone-300 bg-stone-50 px-4 py-6 text-sm text-stone-500 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-400">
                     {{ $t('reservations.empty') }}
                 </div>
