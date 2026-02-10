@@ -11,6 +11,7 @@ use App\Notifications\ActionEmailNotification;
 use App\Notifications\InvoicePaymentNotification;
 use App\Support\NotificationDispatcher;
 use App\Services\NotificationPreferenceService;
+use App\Services\TipAllocationService;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
 use Stripe\StripeClient;
@@ -26,14 +27,27 @@ class StripeInvoiceService
             && (bool) config('services.stripe.secret');
     }
 
-    public function createCheckoutSession(Invoice $invoice, string $successUrl, string $cancelUrl, ?float $amount = null): array
+    public function createCheckoutSession(
+        Invoice $invoice,
+        string $successUrl,
+        string $cancelUrl,
+        ?float $amount = null,
+        array $tip = []
+    ): array
     {
         $invoice->loadMissing(['customer', 'user']);
 
         $balanceDue = (float) $invoice->balance_due;
         $amount = $amount !== null ? (float) $amount : $balanceDue;
-        $amount = min($amount, $balanceDue);
+        $amount = max(0, min($amount, $balanceDue));
+        $tipAmount = max(0, (float) ($tip['tip_amount'] ?? 0));
+        $tipType = (string) ($tip['tip_type'] ?? ($tipAmount > 0 ? 'fixed' : 'none'));
+        $tipPercent = isset($tip['tip_percent']) ? (float) $tip['tip_percent'] : null;
+        $tipBaseAmount = max(0, (float) ($tip['tip_base_amount'] ?? $amount));
+        $chargedTotal = max(0, (float) ($tip['charged_total'] ?? ($amount + $tipAmount)));
+        $tipAssigneeUserId = isset($tip['tip_assignee_user_id']) ? (int) $tip['tip_assignee_user_id'] : null;
         $amountCents = (int) round($amount * 100);
+        $tipCents = (int) round($tipAmount * 100);
         if ($amountCents <= 0) {
             return [
                 'id' => null,
@@ -49,6 +63,13 @@ class StripeInvoiceService
             'invoice_id' => (string) $invoice->id,
             'user_id' => (string) ($invoice->user_id ?? ''),
             'customer_id' => (string) ($invoice->customer_id ?? ''),
+            'payment_amount' => number_format($amount, 2, '.', ''),
+            'tip_amount' => number_format($tipAmount, 2, '.', ''),
+            'tip_type' => $tipType,
+            'tip_percent' => $tipPercent !== null ? number_format($tipPercent, 2, '.', '') : null,
+            'tip_base_amount' => number_format($tipBaseAmount, 2, '.', ''),
+            'charged_total' => number_format($chargedTotal, 2, '.', ''),
+            'tip_assignee_user_id' => $tipAssigneeUserId ?: null,
         ]);
 
         $connectAccountId = $this->resolveConnectedAccountId($invoice);
@@ -60,25 +81,39 @@ class StripeInvoiceService
             }
         }
 
+        $lineItems = [
+            [
+                'price_data' => [
+                    'currency' => $currency,
+                    'product_data' => array_filter([
+                        'name' => $label,
+                        'description' => $companyName ? "Payment to {$companyName}" : null,
+                    ]),
+                    'unit_amount' => $amountCents,
+                ],
+                'quantity' => 1,
+            ],
+        ];
+        if ($tipCents > 0) {
+            $lineItems[] = [
+                'price_data' => [
+                    'currency' => $currency,
+                    'product_data' => [
+                        'name' => 'Tip',
+                    ],
+                    'unit_amount' => $tipCents,
+                ],
+                'quantity' => 1,
+            ];
+        }
+
         $payload = [
             'mode' => 'payment',
             'success_url' => $successUrl,
             'cancel_url' => $cancelUrl,
             'client_reference_id' => (string) $invoice->id,
             'metadata' => $metadata,
-            'line_items' => [
-                [
-                    'price_data' => [
-                        'currency' => $currency,
-                        'product_data' => array_filter([
-                            'name' => $label,
-                            'description' => $companyName ? "Payment to {$companyName}" : null,
-                        ]),
-                        'unit_amount' => $amountCents,
-                    ],
-                    'quantity' => 1,
-                ],
-            ],
+            'line_items' => $lineItems,
             'payment_intent_data' => [
                 'metadata' => $metadata,
                 'description' => $label,
@@ -86,7 +121,7 @@ class StripeInvoiceService
         ];
 
         if ($connectAccountId && $feePercent > 0) {
-            $applicationFee = $this->calculateApplicationFee($amountCents, $feePercent);
+            $applicationFee = $this->calculateApplicationFee($amountCents + $tipCents, $feePercent);
             if ($applicationFee > 0) {
                 $payload['payment_intent_data']['application_fee_amount'] = $applicationFee;
             }
@@ -141,12 +176,30 @@ class StripeInvoiceService
             return null;
         }
 
-        $amount = round(((int) $amountTotal) / 100, 2);
+        $amountTotalFloat = round(((int) $amountTotal) / 100, 2);
+        $amount = $this->parseMetadataAmount($metadata['payment_amount'] ?? null) ?? $amountTotalFloat;
+        $tipAmount = $this->parseMetadataAmount($metadata['tip_amount'] ?? null) ?? 0.0;
+        $tipType = $this->parseMetadataTipType($metadata['tip_type'] ?? null, $tipAmount);
+        $tipPercent = $this->parseMetadataAmount($metadata['tip_percent'] ?? null);
+        $tipBaseAmount = $this->parseMetadataAmount($metadata['tip_base_amount'] ?? null) ?? $amount;
+        $chargedTotal = $this->parseMetadataAmount($metadata['charged_total'] ?? null) ?? round($amount + $tipAmount, 2);
+        $tipAssigneeUserId = $this->parseMetadataInteger($metadata['tip_assignee_user_id'] ?? null);
         if ($amount <= 0) {
             return null;
         }
 
-        return $this->recordStripePayment($invoice, $amount, $paymentIntentId, $session['id'] ?? null);
+        return $this->recordStripePayment(
+            $invoice,
+            $amount,
+            $paymentIntentId,
+            $session['id'] ?? null,
+            $tipAmount,
+            $tipType,
+            $tipPercent,
+            $tipBaseAmount,
+            $chargedTotal,
+            $tipAssigneeUserId
+        );
     }
 
     public function syncFromCheckoutSessionId(string $sessionId, ?string $stripeAccountId = null): ?Payment
@@ -189,16 +242,50 @@ class StripeInvoiceService
             return null;
         }
 
-        $amount = round(((int) $amountTotal) / 100, 2);
+        $amountTotalFloat = round(((int) $amountTotal) / 100, 2);
+        $amount = $this->parseMetadataAmount($metadata['payment_amount'] ?? null) ?? $amountTotalFloat;
+        $tipAmount = $this->parseMetadataAmount($metadata['tip_amount'] ?? null) ?? 0.0;
+        $tipType = $this->parseMetadataTipType($metadata['tip_type'] ?? null, $tipAmount);
+        $tipPercent = $this->parseMetadataAmount($metadata['tip_percent'] ?? null);
+        $tipBaseAmount = $this->parseMetadataAmount($metadata['tip_base_amount'] ?? null) ?? $amount;
+        $chargedTotal = $this->parseMetadataAmount($metadata['charged_total'] ?? null) ?? round($amount + $tipAmount, 2);
+        $tipAssigneeUserId = $this->parseMetadataInteger($metadata['tip_assignee_user_id'] ?? null);
         if ($amount <= 0) {
             return null;
         }
 
-        return $this->recordStripePayment($invoice, $amount, $paymentIntentId, $intent['id'] ?? null);
+        return $this->recordStripePayment(
+            $invoice,
+            $amount,
+            $paymentIntentId,
+            $intent['id'] ?? null,
+            $tipAmount,
+            $tipType,
+            $tipPercent,
+            $tipBaseAmount,
+            $chargedTotal,
+            $tipAssigneeUserId
+        );
     }
 
-    private function recordStripePayment(Invoice $invoice, float $amount, string $paymentIntentId, ?string $sessionId): ?Payment
+    private function recordStripePayment(
+        Invoice $invoice,
+        float $amount,
+        string $paymentIntentId,
+        ?string $sessionId,
+        float $tipAmount = 0,
+        string $tipType = 'none',
+        ?float $tipPercent = null,
+        ?float $tipBaseAmount = null,
+        ?float $chargedTotal = null,
+        ?int $tipAssigneeUserId = null
+    ): ?Payment
     {
+        $tipAmount = max(0, $tipAmount);
+        $tipType = in_array($tipType, ['none', 'percent', 'fixed'], true) ? $tipType : ($tipAmount > 0 ? 'fixed' : 'none');
+        $tipBaseAmount = $tipBaseAmount !== null ? max(0, $tipBaseAmount) : $amount;
+        $chargedTotal = $chargedTotal !== null ? max(0, $chargedTotal) : round($amount + $tipAmount, 2);
+
         $payment = Payment::firstOrCreate(
             [
                 'provider' => 'stripe',
@@ -209,6 +296,12 @@ class StripeInvoiceService
                 'customer_id' => $invoice->customer_id,
                 'user_id' => $invoice->user_id,
                 'amount' => $amount,
+                'tip_amount' => $tipAmount,
+                'tip_type' => $tipType,
+                'tip_percent' => $tipType === 'percent' ? $tipPercent : null,
+                'tip_base_amount' => $tipBaseAmount,
+                'charged_total' => $chargedTotal,
+                'tip_assignee_user_id' => $tipAmount > 0 ? $tipAssigneeUserId : null,
                 'method' => 'stripe',
                 'status' => 'completed',
                 'reference' => $paymentIntentId,
@@ -217,6 +310,8 @@ class StripeInvoiceService
             ]
         );
 
+        app(TipAllocationService::class)->syncForPayment($payment);
+
         $previousStatus = $invoice->status;
         $invoice->refreshPaymentStatus();
 
@@ -224,6 +319,11 @@ class StripeInvoiceService
             ActivityLog::record(null, $payment, 'created', [
                 'invoice_id' => $invoice->id,
                 'amount' => $payment->amount,
+                'tip_amount' => $payment->tip_amount,
+                'tip_type' => $payment->tip_type,
+                'tip_percent' => $payment->tip_percent,
+                'charged_total' => $payment->charged_total,
+                'tip_assignee_user_id' => $payment->tip_assignee_user_id,
                 'method' => $payment->method,
             ], 'Stripe payment received');
 
@@ -257,11 +357,7 @@ class StripeInvoiceService
             NotificationDispatcher::send($owner, new ActionEmailNotification(
                 'Payment received from client',
                 $customerLabel ? $customerLabel . ' paid via Stripe.' : 'A client paid via Stripe.',
-                [
-                    ['label' => 'Invoice', 'value' => $invoice->number ?? $invoice->id],
-                    ['label' => 'Amount', 'value' => '$' . number_format((float) $payment->amount, 2)],
-                    ['label' => 'Balance due', 'value' => '$' . number_format((float) $invoice->balance_due, 2)],
-                ],
+                $this->buildPaymentDetails($invoice, $payment),
                 route('invoice.show', $invoice->id),
                 'View invoice',
                 'Stripe payment received'
@@ -290,11 +386,7 @@ class StripeInvoiceService
             NotificationDispatcher::send($customer, new ActionEmailNotification(
                 'Payment confirmed',
                 'Your payment has been received.',
-                [
-                    ['label' => 'Invoice', 'value' => $invoice->number ?? $invoice->id],
-                    ['label' => 'Amount', 'value' => '$' . number_format((float) $payment->amount, 2)],
-                    ['label' => 'Balance due', 'value' => '$' . number_format((float) $invoice->balance_due, 2)],
-                ],
+                $this->buildPaymentDetails($invoice, $payment),
                 route('public.invoices.show', $invoice->id),
                 'View invoice',
                 'Payment confirmation'
@@ -342,6 +434,54 @@ class StripeInvoiceService
         }
 
         return $owner->stripe_connect_account_id ?: null;
+    }
+
+    private function buildPaymentDetails(Invoice $invoice, Payment $payment): array
+    {
+        $tipAmount = (float) ($payment->tip_amount ?? 0);
+
+        $details = [
+            ['label' => 'Invoice', 'value' => $invoice->number ?? $invoice->id],
+            ['label' => 'Amount', 'value' => '$' . number_format((float) $payment->amount, 2)],
+        ];
+
+        if ($tipAmount > 0) {
+            $details[] = ['label' => 'Tip', 'value' => '$' . number_format($tipAmount, 2)];
+            $details[] = ['label' => 'Total charged', 'value' => '$' . number_format((float) $payment->amount + $tipAmount, 2)];
+        }
+
+        $details[] = ['label' => 'Balance due', 'value' => '$' . number_format((float) $invoice->balance_due, 2)];
+
+        return $details;
+    }
+
+    private function parseMetadataAmount(mixed $value): ?float
+    {
+        if (!is_numeric($value)) {
+            return null;
+        }
+
+        return max(0, round((float) $value, 2));
+    }
+
+    private function parseMetadataTipType(mixed $value, float $tipAmount): string
+    {
+        $type = strtolower(trim((string) $value));
+        if (in_array($type, ['none', 'percent', 'fixed'], true)) {
+            return $type;
+        }
+
+        return $tipAmount > 0 ? 'fixed' : 'none';
+    }
+
+    private function parseMetadataInteger(mixed $value): ?int
+    {
+        if (!is_numeric($value)) {
+            return null;
+        }
+
+        $parsed = (int) $value;
+        return $parsed > 0 ? $parsed : null;
     }
 
     private function calculateApplicationFee(int $amountCents, float $feePercent): int

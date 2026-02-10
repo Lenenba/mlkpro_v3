@@ -41,10 +41,28 @@ class UpdateReservationRequest extends FormRequest
             'starts_at' => ['required', 'date'],
             'ends_at' => ['nullable', 'date', 'after:starts_at'],
             'duration_minutes' => ['nullable', 'integer', 'min:5', 'max:720'],
+            'party_size' => ['nullable', 'integer', 'min:1', 'max:500'],
             'timezone' => ['nullable', 'timezone'],
             'internal_notes' => ['nullable', 'string', 'max:5000'],
             'client_notes' => ['nullable', 'string', 'max:5000'],
             'metadata' => ['nullable', 'array'],
+            'resource_ids' => ['nullable', 'array'],
+            'resource_ids.*' => [
+                'integer',
+                Rule::exists('reservation_resources', 'id')->where(fn ($query) => $query
+                    ->where('account_id', $accountId)
+                    ->where('is_active', true)),
+            ],
+            'resource_filters' => ['nullable', 'array'],
+            'resource_filters.types' => ['nullable', 'array'],
+            'resource_filters.types.*' => ['string', 'max:60'],
+            'resource_filters.resource_ids' => ['nullable', 'array'],
+            'resource_filters.resource_ids.*' => [
+                'integer',
+                Rule::exists('reservation_resources', 'id')->where(fn ($query) => $query
+                    ->where('account_id', $accountId)
+                    ->where('is_active', true)),
+            ],
         ];
     }
 

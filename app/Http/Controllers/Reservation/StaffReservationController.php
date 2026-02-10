@@ -7,14 +7,22 @@ use App\Http\Requests\Reservation\SlotRequest;
 use App\Http\Requests\Reservation\StoreReservationRequest;
 use App\Http\Requests\Reservation\UpdateReservationRequest;
 use App\Models\Customer;
+use App\Models\Payment;
 use App\Models\Product;
 use App\Models\Reservation;
+use App\Models\ReservationQueueItem;
+use App\Models\ReservationResource;
+use App\Models\ReservationResourceAllocation;
+use App\Models\ReservationWaitlist;
 use App\Models\TeamMember;
 use App\Models\User;
+use App\Models\WeeklyAvailability;
 use App\Services\ReservationAvailabilityService;
 use App\Services\ReservationNotificationService;
+use App\Services\ReservationQueueService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
@@ -22,7 +30,8 @@ class StaffReservationController extends Controller
 {
     public function __construct(
         private readonly ReservationAvailabilityService $availabilityService,
-        private readonly ReservationNotificationService $notificationService
+        private readonly ReservationNotificationService $notificationService,
+        private readonly ReservationQueueService $queueService
     ) {
     }
 
@@ -106,6 +115,42 @@ class StaffReservationController extends Controller
             ->get(['id', 'first_name', 'last_name', 'company_name', 'email', 'phone', 'portal_user_id']);
 
         $settings = $this->availabilityService->resolveSettings($account->id, null);
+        $performance = $this->buildPerformanceMetrics($account, $filters, $access, $settings);
+        $waitlistQuery = ReservationWaitlist::query()
+            ->forAccount($account->id)
+            ->with([
+                'client:id,first_name,last_name,company_name,email',
+                'service:id,name',
+                'teamMember.user:id,name',
+            ]);
+        if (!$access['can_view_all'] && $access['own_team_member_id']) {
+            $waitlistQuery->where(function ($query) use ($access) {
+                $query->where('team_member_id', (int) $access['own_team_member_id'])
+                    ->orWhereNull('team_member_id');
+            });
+        }
+
+        $waitlists = (clone $waitlistQuery)
+            ->orderByRaw("CASE status
+                WHEN 'pending' THEN 1
+                WHEN 'released' THEN 2
+                WHEN 'booked' THEN 3
+                WHEN 'cancelled' THEN 4
+                WHEN 'expired' THEN 5
+                ELSE 99
+            END ASC")
+            ->orderBy('requested_start_at')
+            ->limit(30)
+            ->get()
+            ->map(fn (ReservationWaitlist $waitlist) => $this->mapWaitlistEntry($waitlist, $access))
+            ->values();
+
+        $waitlistStats = [
+            'pending' => (clone $waitlistQuery)->where('status', ReservationWaitlist::STATUS_PENDING)->count(),
+            'released' => (clone $waitlistQuery)->where('status', ReservationWaitlist::STATUS_RELEASED)->count(),
+            'booked' => (clone $waitlistQuery)->where('status', ReservationWaitlist::STATUS_BOOKED)->count(),
+        ];
+        $queuePayload = $this->queueService->boardForStaff($account->id, $access, $settings);
 
         return $this->inertiaOrJson('Reservation/Index', [
             'filters' => $filters,
@@ -129,6 +174,58 @@ class StaffReservationController extends Controller
                 'status' => Reservation::STATUS_CONFIRMED,
             ],
             'settings' => $settings,
+            'performance' => $performance,
+            'waitlists' => $waitlists,
+            'waitlistStats' => $waitlistStats,
+            'queueItems' => $queuePayload['items'] ?? [],
+            'queueStats' => $queuePayload['stats'] ?? ['waiting' => 0, 'called' => 0, 'in_service' => 0],
+        ]);
+    }
+
+    public function screen(Request $request)
+    {
+        $user = $request->user();
+        if (!$user) {
+            abort(401);
+        }
+
+        $this->authorize('viewAny', Reservation::class);
+        $account = $this->resolveAccount($user);
+        $access = $this->resolveTeamAccess($user, $account->id);
+        $settings = $this->availabilityService->resolveSettings($account->id, null);
+        $anonymize = $request->boolean('anonymize', true);
+        $payload = $this->buildQueueScreenPayload($account->id, $access, $settings, $anonymize);
+
+        return $this->inertiaOrJson('Reservation/Screen', [
+            'queue' => $payload,
+            'timezone' => $this->availabilityService->timezoneForAccount($account),
+            'settings' => [
+                'queue_mode_enabled' => (bool) ($settings['queue_mode_enabled'] ?? false),
+                'business_preset' => (string) ($settings['business_preset'] ?? 'service_general'),
+                'queue_grace_minutes' => (int) ($settings['queue_grace_minutes'] ?? 5),
+            ],
+            'screen' => [
+                'anonymize_clients' => $anonymize,
+            ],
+        ]);
+    }
+
+    public function screenData(Request $request)
+    {
+        $user = $request->user();
+        if (!$user) {
+            abort(401);
+        }
+
+        $this->authorize('viewAny', Reservation::class);
+        $account = $this->resolveAccount($user);
+        $access = $this->resolveTeamAccess($user, $account->id);
+        $settings = $this->availabilityService->resolveSettings($account->id, null);
+        $anonymize = $request->boolean('anonymize', true);
+
+        return response()->json([
+            'queue' => $this->buildQueueScreenPayload($account->id, $access, $settings, $anonymize),
+            'fetched_at' => now('UTC')->toIso8601String(),
         ]);
     }
 
@@ -189,10 +286,12 @@ class StaffReservationController extends Controller
 
         $result = $this->availabilityService->generateSlots(
             $account->id,
-            \Illuminate\Support\Carbon::parse($validated['range_start'])->utc(),
-            \Illuminate\Support\Carbon::parse($validated['range_end'])->utc(),
+            Carbon::parse($validated['range_start'])->utc(),
+            Carbon::parse($validated['range_end'])->utc(),
             $durationMinutes,
-            isset($validated['team_member_id']) ? (int) $validated['team_member_id'] : null
+            isset($validated['team_member_id']) ? (int) $validated['team_member_id'] : null,
+            isset($validated['party_size']) ? (int) $validated['party_size'] : null,
+            $validated['resource_filters'] ?? null
         );
 
         return response()->json([
@@ -304,6 +403,7 @@ class StaffReservationController extends Controller
         $previousStatus = $reservation->status;
         $payload = [
             'status' => $validated['status'],
+            'metadata' => $this->availabilityService->metadataForStatusTransition($reservation, (string) $validated['status']),
         ];
 
         if ($validated['status'] === Reservation::STATUS_CANCELLED) {
@@ -343,6 +443,182 @@ class StaffReservationController extends Controller
         }
 
         return redirect()->route('reservation.index')->with('success', 'Reservation deleted successfully.');
+    }
+
+    public function updateWaitlistStatus(Request $request, ReservationWaitlist $waitlist)
+    {
+        $user = $request->user();
+        if (!$user) {
+            abort(401);
+        }
+
+        $this->authorize('viewAny', Reservation::class);
+        $account = $this->resolveAccount($user);
+        if ((int) $waitlist->account_id !== (int) $account->id) {
+            abort(404);
+        }
+
+        $access = $this->resolveTeamAccess($user, $account->id);
+        if (!$this->canManageWaitlistStatus($access, $waitlist)) {
+            abort(403);
+        }
+
+        $validated = $request->validate([
+            'status' => ['required', Rule::in(ReservationWaitlist::STATUSES)],
+            'matched_reservation_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('reservations', 'id')->where(fn ($query) => $query->where('account_id', $account->id)),
+            ],
+        ]);
+
+        $status = (string) $validated['status'];
+        $payload = [
+            'status' => $status,
+        ];
+
+        if ($status === ReservationWaitlist::STATUS_RELEASED) {
+            $payload['released_at'] = now('UTC');
+            $payload['cancelled_at'] = null;
+            $payload['resolved_at'] = null;
+            $payload['matched_reservation_id'] = null;
+        } elseif ($status === ReservationWaitlist::STATUS_BOOKED) {
+            $payload['released_at'] = $waitlist->released_at ?: now('UTC');
+            $payload['resolved_at'] = now('UTC');
+            $payload['cancelled_at'] = null;
+            $payload['matched_reservation_id'] = $validated['matched_reservation_id'] ?? null;
+        } elseif ($status === ReservationWaitlist::STATUS_CANCELLED) {
+            $payload['cancelled_at'] = now('UTC');
+            $payload['resolved_at'] = null;
+            $payload['matched_reservation_id'] = null;
+        } elseif ($status === ReservationWaitlist::STATUS_PENDING) {
+            $payload['released_at'] = null;
+            $payload['resolved_at'] = null;
+            $payload['cancelled_at'] = null;
+            $payload['matched_reservation_id'] = null;
+        } elseif ($status === ReservationWaitlist::STATUS_EXPIRED) {
+            $payload['resolved_at'] = now('UTC');
+            $payload['cancelled_at'] = null;
+            $payload['matched_reservation_id'] = null;
+        }
+
+        $waitlist->update($payload);
+        $waitlist->load([
+            'client:id,first_name,last_name,company_name,email',
+            'service:id,name',
+            'teamMember.user:id,name',
+        ]);
+
+        return response()->json([
+            'message' => 'Waitlist status updated.',
+            'waitlist' => $this->mapWaitlistEntry($waitlist, $access),
+        ]);
+    }
+
+    public function queueCheckIn(Request $request, ReservationQueueItem $item)
+    {
+        return $this->updateQueueAction($request, $item, 'check_in');
+    }
+
+    public function queuePreCall(Request $request, ReservationQueueItem $item)
+    {
+        return $this->updateQueueAction($request, $item, 'pre_call');
+    }
+
+    public function queueCall(Request $request, ReservationQueueItem $item)
+    {
+        return $this->updateQueueAction($request, $item, 'call');
+    }
+
+    public function queueStart(Request $request, ReservationQueueItem $item)
+    {
+        return $this->updateQueueAction($request, $item, 'start');
+    }
+
+    public function queueDone(Request $request, ReservationQueueItem $item)
+    {
+        return $this->updateQueueAction($request, $item, 'done');
+    }
+
+    public function queueSkip(Request $request, ReservationQueueItem $item)
+    {
+        return $this->updateQueueAction($request, $item, 'skip');
+    }
+
+    private function updateQueueAction(Request $request, ReservationQueueItem $item, string $action)
+    {
+        $user = $request->user();
+        if (!$user) {
+            abort(401);
+        }
+
+        $this->authorize('viewAny', Reservation::class);
+        $account = $this->resolveAccount($user);
+        if ((int) $item->account_id !== (int) $account->id) {
+            abort(404);
+        }
+
+        $access = $this->resolveTeamAccess($user, $account->id);
+        if (!$this->canManageQueueItem($access, $item)) {
+            abort(403);
+        }
+
+        $validated = $request->validate([
+            'team_member_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('team_members', 'id')->where(fn ($query) => $query
+                    ->where('account_id', $account->id)
+                    ->where('is_active', true)),
+            ],
+        ]);
+
+        $settings = $this->availabilityService->resolveSettings($account->id, null);
+        $context = [];
+        if (!empty($validated['team_member_id'])) {
+            $context['team_member_id'] = (int) $validated['team_member_id'];
+        } elseif (($access['own_team_member_id'] ?? null) && $item->team_member_id === null) {
+            $context['team_member_id'] = (int) $access['own_team_member_id'];
+        }
+
+        $updated = $this->queueService->transition($item, $action, $user, $settings, $context);
+
+        $queueEvent = match ($action) {
+            'pre_call' => 'queue_pre_call',
+            'call' => 'queue_called',
+            default => null,
+        };
+        if ($queueEvent) {
+            $this->notificationService->handleQueueEvent($updated, $queueEvent, $user);
+        }
+
+        $metrics = $this->queueService->refreshMetrics((int) $account->id, $settings);
+
+        $clientName = $updated->client?->company_name
+            ?: trim(($updated->client?->first_name ?? '') . ' ' . ($updated->client?->last_name ?? ''));
+
+        return response()->json([
+            'message' => 'Queue item updated.',
+            'queue_item' => [
+                'id' => $updated->id,
+                'reservation_id' => $updated->reservation_id,
+                'item_type' => $updated->item_type,
+                'queue_number' => $updated->queue_number,
+                'status' => $updated->status,
+                'client_name' => $clientName ?: ($updated->client?->email ?? null),
+                'service_name' => $updated->service?->name,
+                'team_member_id' => $updated->team_member_id,
+                'team_member_name' => $updated->teamMember?->user?->name,
+                'reservation_starts_at' => $updated->reservation?->starts_at?->toIso8601String(),
+                'estimated_duration_minutes' => (int) ($updated->estimated_duration_minutes ?? 0),
+                'position' => $updated->position,
+                'eta_minutes' => $updated->eta_minutes,
+                'callable' => (bool) ($metrics[$updated->id]['callable'] ?? false),
+                'recommended_team_member_id' => $metrics[$updated->id]['recommended_team_member_id'] ?? null,
+                'call_expires_at' => $updated->call_expires_at?->toIso8601String(),
+                'can_update_status' => $this->canManageQueueItem($access, $updated),
+            ],
+        ]);
     }
 
     private function resolveAccount(User $user): User
@@ -576,6 +852,391 @@ class StaffReservationController extends Controller
                 ->count(),
             'past' => (clone $summaryQuery)->where('ends_at', '<', now())->count(),
         ];
+    }
+
+    private function buildPerformanceMetrics(User $account, array $filters, array $access, array $settings): array
+    {
+        $windowDays = 30;
+        $windowStart = now('UTC')->subDays($windowDays)->startOfDay();
+        $windowEnd = now('UTC')->endOfDay();
+        $bookedStatuses = [
+            Reservation::STATUS_CONFIRMED,
+            Reservation::STATUS_RESCHEDULED,
+            Reservation::STATUS_COMPLETED,
+            Reservation::STATUS_NO_SHOW,
+        ];
+
+        $reservationWindowQuery = $this->reservationQuery($account->id, false)
+            ->tap(fn (Builder $builder) => $this->applyReservationFilters($builder, $filters, $access, [
+                'search' => false,
+                'status' => false,
+                'date' => false,
+                'quick' => false,
+            ]))
+            ->where('starts_at', '>=', $windowStart)
+            ->where('starts_at', '<=', $windowEnd);
+
+        $total = (clone $reservationWindowQuery)->count();
+        $completed = (clone $reservationWindowQuery)->where('status', Reservation::STATUS_COMPLETED)->count();
+        $noShow = (clone $reservationWindowQuery)->where('status', Reservation::STATUS_NO_SHOW)->count();
+        $rescheduled = (clone $reservationWindowQuery)->where('status', Reservation::STATUS_RESCHEDULED)->count();
+        $bookedTotal = (clone $reservationWindowQuery)->whereIn('status', $bookedStatuses)->count();
+        $bookedMinutes = (int) ((clone $reservationWindowQuery)->whereIn('status', $bookedStatuses)->sum('duration_minutes') ?? 0);
+
+        $avgServiceValue = round((float) ((clone $reservationWindowQuery)
+            ->where('status', Reservation::STATUS_COMPLETED)
+            ->leftJoin('products', 'reservations.service_id', '=', 'products.id')
+            ->avg('products.price')), 2);
+
+        $teamMemberIds = $this->resolvePerformanceTeamMemberIds($account->id, $filters, $access);
+        $teamUserIds = TeamMember::query()
+            ->whereIn('id', $teamMemberIds)
+            ->pluck('user_id')
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn (int $id) => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
+
+        $paymentWindowQuery = Payment::query()
+            ->where('user_id', $account->id)
+            ->where('status', 'completed')
+            ->where(function ($query) use ($windowStart) {
+                $query->where('paid_at', '>=', $windowStart)
+                    ->orWhere(function ($nested) use ($windowStart) {
+                        $nested->whereNull('paid_at')
+                            ->where('created_at', '>=', $windowStart);
+                    });
+            });
+
+        if (!empty($teamUserIds)) {
+            $paymentWindowQuery->whereIn('tip_assignee_user_id', $teamUserIds);
+        }
+
+        $paidPayments = (clone $paymentWindowQuery)->count();
+        $tipRate = $paidPayments > 0
+            ? round(((clone $paymentWindowQuery)->where('tip_amount', '>', 0)->count() / $paidPayments) * 100, 1)
+            : 0.0;
+
+        $availableMinutes = $this->availableMinutesInWindow($account->id, $teamMemberIds, $windowStart, $windowEnd);
+        $occupancyRate = $availableMinutes > 0
+            ? round(min(100, ($bookedMinutes / $availableMinutes) * 100), 1)
+            : 0.0;
+
+        $metrics = [
+            'window_days' => $windowDays,
+            'audience' => (bool) ($access['can_view_all'] ?? false) ? 'owner' : 'member',
+            'preset' => (string) ($settings['business_preset'] ?? 'service_general'),
+            'occupancy_rate' => $occupancyRate,
+            'no_show_rate' => $bookedTotal > 0 ? round(($noShow / $bookedTotal) * 100, 1) : 0.0,
+            'reschedule_rate' => $total > 0 ? round(($rescheduled / $total) * 100, 1) : 0.0,
+            'completion_rate' => $bookedTotal > 0 ? round(($completed / $bookedTotal) * 100, 1) : 0.0,
+            'avg_service_value' => $avgServiceValue,
+            'tip_rate' => $tipRate,
+        ];
+
+        if ($metrics['preset'] === 'salon') {
+            $bookedReservationIds = (clone $reservationWindowQuery)
+                ->whereIn('status', $bookedStatuses)
+                ->pluck('id')
+                ->map(fn ($id) => (int) $id)
+                ->all();
+
+            $withResource = empty($bookedReservationIds)
+                ? 0
+                : ReservationResourceAllocation::query()
+                    ->forAccount($account->id)
+                    ->whereIn('reservation_id', $bookedReservationIds)
+                    ->distinct('reservation_id')
+                    ->count('reservation_id');
+
+            $metrics['resource_reservation_rate'] = $bookedTotal > 0
+                ? round(($withResource / $bookedTotal) * 100, 1)
+                : 0.0;
+        } elseif ($metrics['preset'] === 'restaurant') {
+            $tableResourceCount = ReservationResource::query()
+                ->forAccount($account->id)
+                ->active()
+                ->where('type', 'table')
+                ->when(!empty($teamMemberIds), function ($query) use ($teamMemberIds) {
+                    $query->where(function ($nested) use ($teamMemberIds) {
+                        $nested->whereNull('team_member_id')
+                            ->orWhereIn('team_member_id', $teamMemberIds);
+                    });
+                })
+                ->count();
+
+            $metrics['table_turnover'] = $tableResourceCount > 0
+                ? round($completed / $tableResourceCount, 1)
+                : 0.0;
+
+            $partySizeValues = (clone $reservationWindowQuery)
+                ->whereIn('status', $bookedStatuses)
+                ->get(['metadata'])
+                ->map(function (Reservation $reservation) {
+                    $size = (int) data_get($reservation->metadata, 'party_size', 0);
+                    return $size > 0 ? $size : null;
+                })
+                ->filter()
+                ->values();
+
+            $metrics['party_size_avg'] = $partySizeValues->isNotEmpty()
+                ? round((float) $partySizeValues->avg(), 1)
+                : 0.0;
+        }
+
+        return $metrics;
+    }
+
+    private function resolvePerformanceTeamMemberIds(int $accountId, array $filters, array $access): array
+    {
+        $memberQuery = TeamMember::query()
+            ->forAccount($accountId)
+            ->active();
+
+        $ownTeamMemberId = (int) ($access['own_team_member_id'] ?? 0);
+        $canViewAll = (bool) ($access['can_view_all'] ?? false);
+        $scope = (string) ($filters['scope'] ?? 'all');
+        $requestedTeamMemberId = (int) ($filters['team_member_id'] ?? 0);
+
+        if ($scope === 'mine' && $ownTeamMemberId > 0) {
+            $memberQuery->whereKey($ownTeamMemberId);
+        } elseif ($requestedTeamMemberId > 0) {
+            if ($canViewAll || ($ownTeamMemberId > 0 && $requestedTeamMemberId === $ownTeamMemberId)) {
+                $memberQuery->whereKey($requestedTeamMemberId);
+            } elseif ($ownTeamMemberId > 0) {
+                $memberQuery->whereKey($ownTeamMemberId);
+            }
+        } elseif (!$canViewAll && $ownTeamMemberId > 0) {
+            $memberQuery->whereKey($ownTeamMemberId);
+        }
+
+        return $memberQuery
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->values()
+            ->all();
+    }
+
+    private function availableMinutesInWindow(
+        int $accountId,
+        array $teamMemberIds,
+        Carbon $windowStart,
+        Carbon $windowEnd
+    ): int {
+        if (empty($teamMemberIds)) {
+            return 0;
+        }
+
+        $minutesByDay = array_fill(0, 7, 0);
+        $weeklyAvailabilities = WeeklyAvailability::query()
+            ->forAccount($accountId)
+            ->whereIn('team_member_id', $teamMemberIds)
+            ->active()
+            ->get(['day_of_week', 'start_time', 'end_time']);
+
+        foreach ($weeklyAvailabilities as $availability) {
+            $dayIndex = (int) $availability->day_of_week;
+            if ($dayIndex < 0 || $dayIndex > 6) {
+                continue;
+            }
+
+            $startMinutes = $this->parseTimeToMinutes((string) $availability->start_time);
+            $endMinutes = $this->parseTimeToMinutes((string) $availability->end_time);
+            if ($endMinutes <= $startMinutes) {
+                continue;
+            }
+
+            $minutesByDay[$dayIndex] += ($endMinutes - $startMinutes);
+        }
+
+        $cursor = $windowStart->copy()->startOfDay();
+        $endDate = $windowEnd->copy()->startOfDay();
+        $availableMinutes = 0;
+
+        while ($cursor->lte($endDate)) {
+            $availableMinutes += (int) ($minutesByDay[$cursor->dayOfWeek] ?? 0);
+            $cursor->addDay();
+        }
+
+        return $availableMinutes;
+    }
+
+    private function parseTimeToMinutes(string $time): int
+    {
+        $normalized = trim($time);
+        if ($normalized === '') {
+            return 0;
+        }
+
+        $hours = (int) substr($normalized, 0, 2);
+        $minutes = (int) substr($normalized, 3, 2);
+
+        return max(0, ($hours * 60) + $minutes);
+    }
+
+    private function canManageWaitlistStatus(array $access, ReservationWaitlist $waitlist): bool
+    {
+        if ($access['can_manage'] ?? false) {
+            return true;
+        }
+
+        $ownTeamMemberId = (int) ($access['own_team_member_id'] ?? 0);
+        if (!$ownTeamMemberId) {
+            return false;
+        }
+
+        return (int) ($waitlist->team_member_id ?? 0) === $ownTeamMemberId;
+    }
+
+    private function canManageQueueItem(array $access, ReservationQueueItem $item): bool
+    {
+        if ($access['can_manage'] ?? false) {
+            return true;
+        }
+
+        $ownTeamMemberId = (int) ($access['own_team_member_id'] ?? 0);
+        if (!$ownTeamMemberId) {
+            return false;
+        }
+
+        return (int) ($item->team_member_id ?? 0) === $ownTeamMemberId || $item->team_member_id === null;
+    }
+
+    private function mapWaitlistEntry(ReservationWaitlist $waitlist, array $access): array
+    {
+        $clientName = $waitlist->client?->company_name
+            ?: trim(($waitlist->client?->first_name ?? '') . ' ' . ($waitlist->client?->last_name ?? ''));
+
+        return [
+            'id' => $waitlist->id,
+            'status' => $waitlist->status,
+            'client_name' => $clientName ?: ($waitlist->client?->email ?? null),
+            'service_id' => $waitlist->service_id,
+            'service_name' => $waitlist->service?->name,
+            'team_member_id' => $waitlist->team_member_id,
+            'team_member_name' => $waitlist->teamMember?->user?->name,
+            'requested_start_at' => $waitlist->requested_start_at?->toIso8601String(),
+            'requested_end_at' => $waitlist->requested_end_at?->toIso8601String(),
+            'duration_minutes' => (int) ($waitlist->duration_minutes ?? 0),
+            'party_size' => $waitlist->party_size,
+            'notes' => $waitlist->notes,
+            'resource_filters' => $waitlist->resource_filters,
+            'can_update_status' => $this->canManageWaitlistStatus($access, $waitlist),
+            'created_at' => $waitlist->created_at?->toIso8601String(),
+        ];
+    }
+
+    private function buildQueueScreenPayload(int $accountId, array $access, array $settings, bool $anonymizeClients): array
+    {
+        $board = $this->queueService->boardForStaff($accountId, $access, $settings);
+        $statuses = [
+            ReservationQueueItem::STATUS_NOT_ARRIVED,
+            ReservationQueueItem::STATUS_CHECKED_IN,
+            ReservationQueueItem::STATUS_PRE_CALLED,
+            ReservationQueueItem::STATUS_CALLED,
+            ReservationQueueItem::STATUS_SKIPPED,
+            ReservationQueueItem::STATUS_IN_SERVICE,
+        ];
+
+        $items = collect($board['items'] ?? [])
+            ->filter(fn (array $item) => in_array((string) ($item['status'] ?? ''), $statuses, true))
+            ->sortBy(function (array $item) {
+                $statusWeight = match ((string) ($item['status'] ?? '')) {
+                    ReservationQueueItem::STATUS_IN_SERVICE => 1,
+                    ReservationQueueItem::STATUS_CALLED => 2,
+                    ReservationQueueItem::STATUS_PRE_CALLED => 3,
+                    ReservationQueueItem::STATUS_CHECKED_IN => 4,
+                    ReservationQueueItem::STATUS_SKIPPED => 5,
+                    ReservationQueueItem::STATUS_NOT_ARRIVED => 6,
+                    default => 99,
+                };
+                $position = is_numeric($item['position'] ?? null) ? (int) $item['position'] : 999;
+                $teamMemberId = is_numeric($item['team_member_id'] ?? null) ? (int) $item['team_member_id'] : 999999;
+
+                return sprintf('%02d-%06d-%04d-%010d', $statusWeight, $teamMemberId, $position, (int) ($item['id'] ?? 0));
+            })
+            ->values()
+            ->map(function (array $item) use ($anonymizeClients) {
+                $clientName = (string) ($item['client_name'] ?? '');
+                return [
+                    'id' => $item['id'],
+                    'queue_number' => $item['queue_number'] ?: ('#' . $item['id']),
+                    'item_type' => $item['item_type'],
+                    'status' => $item['status'],
+                    'client_name' => $clientName,
+                    'display_client_name' => $anonymizeClients
+                        ? $this->anonymizeClientLabel($clientName)
+                        : ($clientName !== '' ? $clientName : '-'),
+                    'service_name' => $item['service_name'] ?: '-',
+                    'team_member_name' => $item['team_member_name'] ?: '-',
+                    'position' => $item['position'],
+                    'eta_minutes' => $item['eta_minutes'],
+                    'call_expires_at' => $item['call_expires_at'] ?? null,
+                    'reservation_starts_at' => $item['reservation_starts_at'] ?? null,
+                ];
+            })
+            ->values();
+
+        $nowServing = $items->first(fn (array $item) => in_array($item['status'], [
+            ReservationQueueItem::STATUS_IN_SERVICE,
+            ReservationQueueItem::STATUS_CALLED,
+            ReservationQueueItem::STATUS_PRE_CALLED,
+        ], true));
+
+        $upNext = $items
+            ->filter(fn (array $item) => in_array($item['status'], [
+                ReservationQueueItem::STATUS_CHECKED_IN,
+                ReservationQueueItem::STATUS_SKIPPED,
+                ReservationQueueItem::STATUS_NOT_ARRIVED,
+            ], true))
+            ->values()
+            ->first();
+
+        $waiting = $items
+            ->filter(fn (array $item) => in_array($item['status'], [
+                ReservationQueueItem::STATUS_CHECKED_IN,
+                ReservationQueueItem::STATUS_PRE_CALLED,
+                ReservationQueueItem::STATUS_CALLED,
+                ReservationQueueItem::STATUS_SKIPPED,
+                ReservationQueueItem::STATUS_NOT_ARRIVED,
+            ], true))
+            ->take(15)
+            ->values()
+            ->all();
+
+        return [
+            'stats' => $board['stats'] ?? ['waiting' => 0, 'called' => 0, 'in_service' => 0],
+            'now_serving' => $nowServing,
+            'up_next' => $upNext,
+            'waiting' => $waiting,
+            'total_active' => (int) $items->count(),
+            'generated_at' => now('UTC')->toIso8601String(),
+        ];
+    }
+
+    private function anonymizeClientLabel(?string $raw): string
+    {
+        $value = trim((string) $raw);
+        if ($value === '') {
+            return '-';
+        }
+
+        if (str_contains($value, '@')) {
+            $local = trim((string) strstr($value, '@', true));
+            if ($local === '') {
+                return '***';
+            }
+
+            return strtoupper(substr($local, 0, 1)) . '***';
+        }
+
+        $parts = array_values(array_filter(preg_split('/\s+/', $value) ?: []));
+        if (count($parts) >= 2) {
+            return strtoupper(substr($parts[0], 0, 1)) . ' ' . strtoupper(substr($parts[1], 0, 1)) . '.';
+        }
+
+        return strtoupper(substr($value, 0, 1)) . '***';
     }
 
     private function mapEvent(Reservation $reservation): array

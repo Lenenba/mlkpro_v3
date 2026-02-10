@@ -31,7 +31,8 @@
     "jobs": "Chantiers",
     "tasks": "Tâches",
     "team": "Équipe",
-    "invoices": "Factures"
+    "invoices": "Factures",
+    "tips": "Pourboires"
   },
   "account": {
     "default_name": "Compte",
@@ -1870,7 +1871,29 @@
       "completed_on": "Termine {date}",
       "issued_on": "Emis {date}",
       "amount": "Montant",
+      "partial_payment_help": "Vous pouvez payer le solde complet ou choisir un montant partiel.",
+      "pay_full_balance": "Payer le solde",
+      "pay_half": "50%",
+      "pay_quarter": "25%",
+      "amount_exceeds_due": "Le montant ne peut pas depasser {amount}.",
+      "partial_selected_remaining": "Paiement partiel selectionne. Solde restant apres paiement : {amount}",
+      "remaining_after_payment": "Solde restant apres paiement : {amount}",
+      "tip_prompt_title": "Ajouter un pourboire ? (optionnel)",
+      "tip_prompt_help": "Le pourboire va directement au membre de l'equipe qui vous sert.",
+      "tip_yes": "Oui, ajouter un pourboire",
+      "tip_no": "Non merci",
+      "tip_mode_percent": "Pourcentage (%)",
+      "tip_mode_fixed": "Montant fixe ($)",
+      "tip_other_percent": "Autre %",
+      "tip_other_amount": "Autre montant",
+      "tip_max_percent": "Max : {value}%",
+      "tip_max_amount": "Max : {amount}",
+      "tip_change_before_pay": "Vous pouvez modifier ou retirer le pourboire avant de payer.",
+      "tip_optional": "Pourboire (optionnel)",
+      "subtotal": "Sous-total",
+      "total_charge": "Total a payer",
       "paid_of": "Paye {paid} sur {total}",
+      "total_to_charge": "Total a payer: {total}",
       "feedback_placeholder": "Commentaire (optionnel)",
       "summary": "Resume",
       "start_date": "Date debut",
@@ -1927,6 +1950,69 @@
       },
       "file": "Fichier (photo ou video)",
       "note_optional": "Note (optionnel)"
+    }
+  },
+  "tips_reports": {
+    "owner": {
+      "title": "Dashboard pourboires",
+      "subtitle": "Suivi des pourboires optionnels payes par les clients."
+    },
+    "member": {
+      "title": "Mes pourboires",
+      "subtitle": "Suivi de vos pourboires sur les services termines."
+    },
+    "actions": {
+      "apply_filters": "Appliquer filtres",
+      "clear_filters": "Effacer filtres",
+      "export_csv": "Exporter CSV"
+    },
+    "filters": {
+      "all_team_members": "Toute l equipe",
+      "all_services": "Tous les services",
+      "all_statuses": "Tous les statuts",
+      "anonymize_customers": "Anonymiser clients"
+    },
+    "period": {
+      "last_7_days": "7 derniers jours",
+      "last_30_days": "30 derniers jours",
+      "last_90_days": "90 derniers jours",
+      "this_month": "Ce mois-ci",
+      "custom": "Periode personnalisee"
+    },
+    "kpi": {
+      "total_tips": "Total pourboires",
+      "average_tip_per_reservation": "Moyenne pourboire / reservation",
+      "top_members": "Top 3 membres",
+      "current_month_tips": "Pourboires du mois",
+      "period_total": "Total periode",
+      "average_tip_per_service": "Moyenne pourboire / service"
+    },
+    "table": {
+      "datetime": "Date et heure",
+      "date": "Date",
+      "invoice": "Facture",
+      "customer": "Client",
+      "team_member": "Membre equipe",
+      "mode": "Mode pourboire",
+      "tip_amount": "Montant pourboire",
+      "total_charged": "Total encaisse",
+      "status": "Statut"
+    },
+    "mode": {
+      "percent": "Pourcentage",
+      "fixed": "Fixe",
+      "none": "Aucun"
+    },
+      "status": {
+        "pending": "En attente",
+        "completed": "Paye",
+        "reversed": "Partiellement inverse",
+        "failed": "Echoue",
+        "refunded": "Inverse"
+      },
+    "empty": {
+      "rows": "Aucun pourboire pour ce filtre.",
+      "top_members": "Aucun classement membre pour le moment."
     }
   },
   "client_orders": {
@@ -2075,6 +2161,9 @@
     "sectors": {
       "service": {
         "placeholder": "Choisir un secteur",
+        "salon": "Salon de coiffure / beaute",
+        "restaurant": "Restaurant",
+        "service_general": "Services general",
         "menuiserie": "Menuiserie",
         "plomberie": "Plomberie",
         "electricite": "Electricite",
@@ -4006,6 +4095,18 @@
       "today": "Aujourd'hui",
       "upcoming": "A venir"
     },
+    "performance": {
+      "title": "Performance ({days} derniers jours)",
+      "occupancy_rate": "Taux d'occupation",
+      "no_show_rate": "Taux d'absence",
+      "reschedule_rate": "Taux de replanification",
+      "completion_rate": "Taux de completion",
+      "avg_service_value": "Panier moyen service",
+      "tip_rate": "Taux de pourboire",
+      "resource_reservation_rate": "Utilisation des ressources",
+      "table_turnover": "Rotation des tables",
+      "party_size_avg": "Taille moyenne du groupe"
+    },
     "filters": {
       "search": "Recherche",
       "search_placeholder": "Client, produit, contact...",
@@ -4045,6 +4146,7 @@
       "already_confirmed": "Deja confirmee",
       "view": "Voir",
       "reschedule": "Replanifier",
+      "filters": "Filtres",
       "clear_filters": "Reinitialiser",
       "delete_confirm": "Supprimer cette reservation ?"
     },
@@ -4077,6 +4179,100 @@
       "actions": "Actions",
       "party_size_value": "Personnes: {value}",
       "quantity_value": "Quantite: {value}"
+    },
+    "waitlist": {
+      "title": "Liste d attente",
+      "subtitle": "Suivez la demande en attente et liberez des creneaux rapidement.",
+      "empty": "Aucune entree en liste d attente.",
+      "cards": {
+        "pending": "En attente",
+        "released": "Diffuse",
+        "booked": "Reserve"
+      },
+      "status": {
+        "pending": "En attente",
+        "released": "Diffuse",
+        "booked": "Reserve",
+        "cancelled": "Annule",
+        "expired": "Expire"
+      },
+      "actions": {
+        "release": "Liberer le creneau",
+        "booked": "Marquer reserve",
+        "updated": "Entree de liste d attente mise a jour.",
+        "update_error": "Impossible de mettre a jour l entree de liste d attente."
+      }
+    },
+    "queue": {
+      "title": "File hybride",
+      "subtitle": "Pilotez les walk-ins et rendez-vous dans une file unique.",
+      "empty": "Aucun element dans la file pour le moment.",
+      "cards": {
+        "waiting": "En attente",
+        "called": "Appeles",
+        "in_service": "En service"
+      },
+      "columns": {
+        "ticket": "Ticket",
+        "position": "Position / ETA"
+      },
+      "types": {
+        "appointment": "Rendez-vous",
+        "ticket": "Ticket walk-in"
+      },
+      "status": {
+        "not_arrived": "Non arrive",
+        "checked_in": "Check-in",
+        "pre_called": "Pre-appel",
+        "called": "Appele",
+        "skipped": "Ignore",
+        "in_service": "En service",
+        "done": "Termine",
+        "no_show": "Absent",
+        "cancelled": "Annule",
+        "left": "Parti"
+      },
+      "actions": {
+        "check_in": "Check-in",
+        "pre_call": "Pre-appel",
+        "call": "Appeler",
+        "start": "Demarrer",
+        "done": "Terminer",
+        "skip": "Ignorer",
+        "updated": "Element de file mis a jour.",
+        "update_error": "Impossible de mettre a jour l element de file."
+      },
+      "client": {
+        "title": "File walk-in",
+        "subtitle": "Prenez un ticket, suivez votre position et confirmez votre presence.",
+        "estimated_duration": "Duree estimee (minutes)",
+        "notes": "Notes",
+        "create": "Prendre un ticket",
+        "created": "Ticket de file cree.",
+        "create_error": "Impossible de creer le ticket de file.",
+        "update_error": "Impossible de mettre a jour le ticket de file.",
+        "cancelled": "Ticket de file annule.",
+        "still_here": "Je suis toujours la",
+        "still_here_done": "Presence confirmee.",
+        "none": "Aucun ticket de file."
+      },
+      "screen": {
+        "open": "Ouvrir ecran live",
+        "title": "Ecran file en direct",
+        "subtitle": "Affiche le service en cours et la file d attente pour les operations salon ou restaurant.",
+        "refresh": "Actualiser",
+        "refresh_error": "Impossible d actualiser les donnees de l ecran live.",
+        "updated_at": "Mis a jour",
+        "now_serving": "En cours",
+        "up_next": "Prochain",
+        "overview": "Synthese",
+        "total_active": "Total actifs",
+        "waiting_list": "File d attente",
+        "call_expires": "Appel expire",
+        "show_names": "Afficher noms",
+        "hide_names": "Masquer noms",
+        "disabled": "Le mode file hybride est desactive. Activez-le dans les parametres reservations."
+      }
     },
     "pagination": {
       "previous": "Precedent",
@@ -4117,6 +4313,12 @@
       "service": "Service",
       "product": "Produit"
     },
+    "payment_policy": {
+      "title": "Snapshot de politique de paiement",
+      "deposit": "Acompte",
+      "no_show_fee": "Frais d absence",
+      "none": "Aucun"
+    },
     "client": {
       "book": {
         "title": "Reserver",
@@ -4130,10 +4332,13 @@
         "default_service": "Reservation",
         "no_upcoming": "Aucune reservation a venir.",
         "select_slot_error": "Selectionnez un creneau disponible pour continuer.",
+        "deposit_notice": "Acompte de reservation requis : {amount}",
+        "no_show_notice": "Politique d absence : {amount}",
         "fields": {
           "team_member": "Membre d'equipe",
           "service": "Service",
           "duration": "Duree (minutes)",
+          "party_size": "Nombre de personnes",
           "contact_name": "Nom du contact",
           "contact_email": "Email du contact",
           "contact_phone": "Telephone du contact",
@@ -4143,6 +4348,18 @@
           "submit": "Confirmer la reservation",
           "submitting": "Envoi...",
           "submitted": "Demande de reservation envoyee."
+        },
+        "waitlist": {
+          "title": "Rejoindre la liste d attente",
+          "description": "Aucun creneau correspondant pour le moment. Rejoignez la liste d attente pour etre prioritaire quand un creneau se libere.",
+          "join_button": "Rejoindre la liste",
+          "created": "Demande de liste d attente envoyee.",
+          "create_error": "Impossible de creer la demande de liste d attente.",
+          "cancelled": "Entree de liste d attente annulee.",
+          "cancel_error": "Impossible d annuler l entree de liste d attente.",
+          "notes": "Details preferes",
+          "my_entries": "Mes entrees en liste d attente",
+          "none": "Aucune entree en liste d attente."
         }
       },
       "index": {
@@ -4705,7 +4922,11 @@
       },
       "payments": {
         "title": "Paiements",
-        "empty": "Aucun paiement pour le moment."
+        "empty": "Aucun paiement pour le moment.",
+        "subtotal": "Sous-total",
+        "tip": "Pourboire",
+        "total_paid": "Total paye",
+        "tip_assigned_to": "Pourboire attribue a"
       },
       "add_payment": {
         "title": "Ajouter un paiement",
@@ -4994,11 +5215,17 @@
         "timezone": "Fuseau horaire",
         "team_members": "Membres d equipe",
         "weekly_rules": "Regles hebdomadaires",
-        "exceptions": "Exceptions"
+        "exceptions": "Exceptions",
+        "resources": "Ressources"
       },
       "company_rules": {
         "title": "Regles de reservation entreprise",
         "description": "Regles par defaut appliquees a tous les membres."
+      },
+      "presets": {
+        "service_general": "Services general",
+        "salon": "Salon de coiffure / beaute",
+        "restaurant": "Restaurant"
       },
       "team_settings": {
         "title": "Surcharges par membre",
@@ -5021,6 +5248,28 @@
           "open": "Ouvert"
         }
       },
+      "resources": {
+        "title": "Ressources et capacite",
+        "description": "Definissez des ressources optionnelles pour controler la capacite des creneaux.",
+        "empty": "Aucune ressource configuree.",
+        "fields": {
+          "name": "Nom de la ressource",
+          "type": "Type de ressource",
+          "capacity": "Capacite",
+          "is_active": "Active"
+        },
+        "types": {
+          "general": "General",
+          "chair": "Fauteuil",
+          "wash_station": "Bac",
+          "table": "Table",
+          "zone": "Zone"
+        },
+        "status": {
+          "active": "Active",
+          "inactive": "Inactive"
+        }
+      },
       "notifications": {
         "title": "Notifications reservations",
         "description": "Configurez les emails, notifications in-app, rappels et demandes d avis.",
@@ -5035,12 +5284,22 @@
           "notify_on_reminder": "Envoyer des rappels avant le debut",
           "notify_on_review_submitted": "Notifier quand un avis est recu",
           "review_request_on_completed": "Demander un avis client apres la fin",
+          "notify_on_queue_pre_call": "Notifier le client au pre-appel file",
+          "notify_on_queue_called": "Notifier le client quand il est appele",
+          "notify_on_queue_grace_expired": "Notifier quand le delai de grace file expire",
           "reminder_hours": "Moments des rappels"
         },
         "reminders": {
           "day_before": "24 heures avant",
           "two_hours": "2 heures avant",
           "one_hour": "1 heure avant"
+        }
+      },
+      "queue": {
+        "dispatch_modes": {
+          "fifo": "FIFO",
+          "fifo_with_appointment_priority": "FIFO + priorite rendez-vous",
+          "skill_based": "Base competences"
         }
       },
       "fields": {
@@ -5058,6 +5317,18 @@
         "min_notice_minutes": "Preavis minimum (minutes)",
         "max_advance_days": "Reservation max a l avance (jours)",
         "cancellation_cutoff_hours": "Limite d annulation (heures)",
+        "business_preset": "Preset metier",
+        "late_release_minutes": "Liberation retard (minutes)",
+        "waitlist_enabled": "Activer la liste d attente",
+        "queue_mode_enabled": "Activer le mode file hybride",
+        "queue_dispatch_mode": "Mode d ordonnancement de file",
+        "queue_grace_minutes": "Delai de grace appel (minutes)",
+        "queue_pre_call_threshold": "Seuil pre-appel (personnes devant)",
+        "queue_no_show_on_grace_expiry": "Marquer absent si delai depasse",
+        "deposit_required": "Exiger un acompte de reservation",
+        "deposit_amount": "Montant de l acompte",
+        "no_show_fee_enabled": "Activer les frais d absence",
+        "no_show_fee_amount": "Montant frais d absence",
         "allow_client_cancel": "Autoriser l annulation client",
         "allow_client_reschedule": "Autoriser le deplacement client"
       },
@@ -5563,6 +5834,20 @@
         "update_card": "Mettre a jour la carte",
         "summary_active": "Abonnement actif: {plan} (Statut: {status})",
         "summary_none": "Aucun abonnement actif pour le moment."
+      },
+      "tips": {
+        "title": "Parametres pourboires",
+        "subtitle": "Configurez les limites, le mode de repartition et la regle de remboursement partiel.",
+        "save": "Enregistrer les parametres",
+        "max_percent": "Pourcentage maximum (%)",
+        "max_fixed_amount": "Montant fixe maximum ($)",
+        "default_percent": "Pourcentage par defaut (%)",
+        "allocation_strategy": "Strategie d attribution",
+        "allocation_primary": "Membre principal",
+        "allocation_split": "Repartition entre membres assignes",
+        "partial_refund_rule": "Regle de remboursement partiel",
+        "refund_prorata": "Repartition au prorata",
+        "refund_manual": "Repartition manuelle"
       },
       "connect": {
         "title": "Stripe Connect",

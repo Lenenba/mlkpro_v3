@@ -11,9 +11,14 @@ use App\Models\User;
 use App\Models\Work;
 use App\Notifications\ActionEmailNotification;
 use App\Support\NotificationDispatcher;
+use App\Services\TipAllocationService;
+use App\Support\TipCalculator;
+use App\Support\TipAssigneeResolver;
+use App\Support\TipSettingsResolver;
 use App\Services\StripeInvoiceService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\URL;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 
 class PortalInvoiceController extends Controller
@@ -40,7 +45,7 @@ class PortalInvoiceController extends Controller
             'items',
             'work.products',
             'work.quote.property',
-            'payments',
+            'payments.tipAssignee:id,name',
         ]);
 
         $owner = User::find($invoice->user_id);
@@ -72,16 +77,43 @@ class PortalInvoiceController extends Controller
 
         $validated = $request->validate([
             'amount' => 'required|numeric|min:0.01',
+            'tip_enabled' => 'nullable|boolean',
+            'tip_mode' => ['nullable', Rule::in(['none', 'percent', 'fixed'])],
+            'tip_percent' => 'nullable|numeric|min:0',
+            'tip_amount' => 'nullable|numeric|min:0',
             'method' => 'nullable|string|max:50',
             'reference' => 'nullable|string|max:120',
             'notes' => 'nullable|string|max:255',
         ]);
 
+        $amount = (float) $validated['amount'];
+        if ($amount > (float) $invoice->balance_due) {
+            if ($this->shouldReturnJson($request)) {
+                return response()->json([
+                    'message' => 'Amount exceeds the balance due.',
+                ], 422);
+            }
+
+            return redirect()->back()->withErrors([
+                'amount' => 'Amount exceeds the balance due.',
+            ]);
+        }
+
+        $tipSettings = TipSettingsResolver::forAccountId((int) $invoice->user_id);
+        $tip = TipCalculator::resolve($amount, $validated, $tipSettings);
+        $tipAssigneeUserId = TipAssigneeResolver::resolveForInvoice($invoice);
+
         $payment = Payment::create([
             'invoice_id' => $invoice->id,
             'customer_id' => $invoice->customer_id,
             'user_id' => $invoice->user_id,
-            'amount' => $validated['amount'],
+            'amount' => $amount,
+            'tip_amount' => $tip['tip_amount'],
+            'tip_type' => $tip['tip_type'],
+            'tip_percent' => $tip['tip_percent'],
+            'tip_base_amount' => $tip['tip_base_amount'],
+            'charged_total' => $tip['charged_total'],
+            'tip_assignee_user_id' => $tip['tip_amount'] > 0 ? $tipAssigneeUserId : null,
             'method' => $validated['method'] ?? null,
             'status' => 'completed',
             'reference' => $validated['reference'] ?? null,
@@ -89,12 +121,19 @@ class PortalInvoiceController extends Controller
             'paid_at' => now(),
         ]);
 
+        app(TipAllocationService::class)->syncForPayment($payment);
+
         $previousStatus = $invoice->status;
         $invoice->refreshPaymentStatus();
 
         ActivityLog::record($request->user(), $payment, 'created', [
             'invoice_id' => $invoice->id,
             'amount' => $payment->amount,
+            'tip_amount' => $payment->tip_amount,
+            'tip_type' => $payment->tip_type,
+            'tip_percent' => $payment->tip_percent,
+            'charged_total' => $payment->charged_total,
+            'tip_assignee_user_id' => $payment->tip_assignee_user_id,
             'method' => $payment->method,
         ], 'Payment recorded by client');
 
@@ -114,15 +153,22 @@ class PortalInvoiceController extends Controller
         if ($owner && $owner->email) {
             $customerLabel = $customer->company_name
                 ?: trim(($customer->first_name ?? '') . ' ' . ($customer->last_name ?? ''));
+            $tipAmount = (float) ($payment->tip_amount ?? 0);
+
+            $details = [
+                ['label' => 'Invoice', 'value' => $invoice->number ?? $invoice->id],
+                ['label' => 'Amount', 'value' => '$' . number_format((float) $payment->amount, 2)],
+            ];
+            if ($tipAmount > 0) {
+                $details[] = ['label' => 'Tip', 'value' => '$' . number_format($tipAmount, 2)];
+                $details[] = ['label' => 'Total charged', 'value' => '$' . number_format((float) $payment->amount + $tipAmount, 2)];
+            }
+            $details[] = ['label' => 'Balance due', 'value' => '$' . number_format((float) $invoice->balance_due, 2)];
 
             NotificationDispatcher::send($owner, new ActionEmailNotification(
                 'Payment received from client',
                 $customerLabel ? $customerLabel . ' recorded a payment.' : 'A client recorded a payment.',
-                [
-                    ['label' => 'Invoice', 'value' => $invoice->number ?? $invoice->id],
-                    ['label' => 'Amount', 'value' => '$' . number_format((float) $payment->amount, 2)],
-                    ['label' => 'Balance due', 'value' => '$' . number_format((float) $invoice->balance_due, 2)],
-                ],
+                $details,
                 route('invoice.show', $invoice->id),
                 'View invoice',
                 'Payment received from client'
@@ -144,6 +190,7 @@ class PortalInvoiceController extends Controller
                 'payment' => [
                     'id' => $payment->id,
                     'amount' => $payment->amount,
+                    'tip_amount' => $payment->tip_amount,
                     'method' => $payment->method,
                     'paid_at' => $payment->paid_at,
                 ],
@@ -171,6 +218,10 @@ class PortalInvoiceController extends Controller
 
         $validated = $request->validate([
             'amount' => 'nullable|numeric|min:0.01',
+            'tip_enabled' => 'nullable|boolean',
+            'tip_mode' => ['nullable', Rule::in(['none', 'percent', 'fixed'])],
+            'tip_percent' => 'nullable|numeric|min:0',
+            'tip_amount' => 'nullable|numeric|min:0',
         ]);
 
         $amount = null;
@@ -188,6 +239,10 @@ class PortalInvoiceController extends Controller
                 ]);
             }
         }
+        $baseAmount = $amount !== null ? $amount : (float) $invoice->balance_due;
+        $tipSettings = TipSettingsResolver::forAccountId((int) $invoice->user_id);
+        $tip = TipCalculator::resolve($baseAmount, $validated, $tipSettings);
+        $tip['tip_assignee_user_id'] = TipAssigneeResolver::resolveForInvoice($invoice);
 
         $stripeService = app(StripeInvoiceService::class);
         if (!$stripeService->isConfigured()) {
@@ -206,7 +261,7 @@ class PortalInvoiceController extends Controller
         $successUrl .= (str_contains($successUrl, '?') ? '&' : '?') . 'session_id={CHECKOUT_SESSION_ID}';
         $cancelUrl = URL::route('dashboard', ['stripe' => 'cancel', 'invoice' => $invoice->id]);
 
-        $session = $stripeService->createCheckoutSession($invoice, $successUrl, $cancelUrl, $amount);
+        $session = $stripeService->createCheckoutSession($invoice, $successUrl, $cancelUrl, $amount, $tip);
         if (empty($session['url'])) {
             if ($this->shouldReturnJson($request)) {
                 return response()->json([

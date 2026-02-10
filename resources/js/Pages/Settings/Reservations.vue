@@ -35,6 +35,10 @@ const props = defineProps({
         type: Array,
         default: () => [],
     },
+    resources: {
+        type: Array,
+        default: () => [],
+    },
     notificationSettings: {
         type: Object,
         default: () => ({}),
@@ -49,6 +53,18 @@ const dayOptions = computed(() => ([
     { value: 4, label: t('planning.weekdays.th') },
     { value: 5, label: t('planning.weekdays.fr') },
     { value: 6, label: t('planning.weekdays.sa') },
+]));
+
+const businessPresetOptions = computed(() => ([
+    { value: 'service_general', label: t('settings.reservations.presets.service_general') },
+    { value: 'salon', label: t('settings.reservations.presets.salon') },
+    { value: 'restaurant', label: t('settings.reservations.presets.restaurant') },
+]));
+
+const queueDispatchOptions = computed(() => ([
+    { value: 'fifo', label: t('settings.reservations.queue.dispatch_modes.fifo') },
+    { value: 'fifo_with_appointment_priority', label: t('settings.reservations.queue.dispatch_modes.fifo_with_appointment_priority') },
+    { value: 'skill_based', label: t('settings.reservations.queue.dispatch_modes.skill_based') },
 ]));
 
 const memberOptions = computed(() => (props.teamMembers || []).map((member) => ({
@@ -66,6 +82,19 @@ const teamSettingMemberOptions = computed(() => [
     ...memberOptions.value,
 ]);
 
+const resourceMemberOptions = computed(() => [
+    { value: '', label: t('settings.reservations.exceptions.all_members') },
+    ...memberOptions.value,
+]);
+
+const resourceTypeOptions = computed(() => ([
+    { value: 'general', label: t('settings.reservations.resources.types.general') },
+    { value: 'chair', label: t('settings.reservations.resources.types.chair') },
+    { value: 'wash_station', label: t('settings.reservations.resources.types.wash_station') },
+    { value: 'table', label: t('settings.reservations.resources.types.table') },
+    { value: 'zone', label: t('settings.reservations.resources.types.zone') },
+]));
+
 const typeOptions = computed(() => ([
     { value: 'closed', label: t('settings.reservations.exceptions.types.closed') },
     { value: 'open', label: t('settings.reservations.exceptions.types.open') },
@@ -79,6 +108,7 @@ const reminderHourOptions = computed(() => ([
 
 const form = useForm({
     account_settings: {
+        business_preset: props.accountSettings?.business_preset ?? 'service_general',
         buffer_minutes: props.accountSettings?.buffer_minutes ?? 0,
         slot_interval_minutes: props.accountSettings?.slot_interval_minutes ?? 30,
         min_notice_minutes: props.accountSettings?.min_notice_minutes ?? 0,
@@ -86,6 +116,17 @@ const form = useForm({
         cancellation_cutoff_hours: props.accountSettings?.cancellation_cutoff_hours ?? 12,
         allow_client_cancel: Boolean(props.accountSettings?.allow_client_cancel ?? true),
         allow_client_reschedule: Boolean(props.accountSettings?.allow_client_reschedule ?? true),
+        late_release_minutes: props.accountSettings?.late_release_minutes ?? 0,
+        waitlist_enabled: Boolean(props.accountSettings?.waitlist_enabled ?? false),
+        queue_mode_enabled: Boolean(props.accountSettings?.queue_mode_enabled ?? false),
+        queue_dispatch_mode: props.accountSettings?.queue_dispatch_mode ?? 'fifo_with_appointment_priority',
+        queue_grace_minutes: props.accountSettings?.queue_grace_minutes ?? 5,
+        queue_pre_call_threshold: props.accountSettings?.queue_pre_call_threshold ?? 2,
+        queue_no_show_on_grace_expiry: Boolean(props.accountSettings?.queue_no_show_on_grace_expiry ?? false),
+        deposit_required: Boolean(props.accountSettings?.deposit_required ?? false),
+        deposit_amount: props.accountSettings?.deposit_amount ?? 0,
+        no_show_fee_enabled: Boolean(props.accountSettings?.no_show_fee_enabled ?? false),
+        no_show_fee_amount: props.accountSettings?.no_show_fee_amount ?? 0,
     },
     team_settings: (props.teamSettings || []).map((item) => ({
         team_member_id: String(item.team_member_id),
@@ -113,6 +154,14 @@ const form = useForm({
         type: item.type || 'closed',
         reason: item.reason || '',
     })),
+    resources: (props.resources || []).map((item) => ({
+        id: item.id ?? null,
+        team_member_id: item.team_member_id ? String(item.team_member_id) : '',
+        name: item.name || '',
+        type: item.type || 'general',
+        capacity: item.capacity ?? 1,
+        is_active: Boolean(item.is_active ?? true),
+    })),
     notification_settings: {
         enabled: Boolean(props.notificationSettings?.enabled ?? true),
         email: Boolean(props.notificationSettings?.email ?? true),
@@ -124,6 +173,9 @@ const form = useForm({
         notify_on_reminder: Boolean(props.notificationSettings?.notify_on_reminder ?? true),
         notify_on_review_submitted: Boolean(props.notificationSettings?.notify_on_review_submitted ?? true),
         review_request_on_completed: Boolean(props.notificationSettings?.review_request_on_completed ?? true),
+        notify_on_queue_pre_call: Boolean(props.notificationSettings?.notify_on_queue_pre_call ?? true),
+        notify_on_queue_called: Boolean(props.notificationSettings?.notify_on_queue_called ?? true),
+        notify_on_queue_grace_expired: Boolean(props.notificationSettings?.notify_on_queue_grace_expired ?? true),
         reminder_hours: Array.isArray(props.notificationSettings?.reminder_hours)
             ? props.notificationSettings.reminder_hours.map((value) => Number(value)).filter((value) => Number.isInteger(value))
             : [24, 2],
@@ -151,6 +203,14 @@ const exceptionDraft = ref({
     reason: '',
 });
 
+const resourceDraft = ref({
+    team_member_id: '',
+    name: '',
+    type: 'general',
+    capacity: 1,
+    is_active: true,
+});
+
 const summaryCards = computed(() => ([
     {
         key: 'timezone',
@@ -175,6 +235,12 @@ const summaryCards = computed(() => ([
         label: t('settings.reservations.summary.exceptions'),
         value: Number(form.exceptions?.length || 0).toLocaleString(),
         border: 'border-t-rose-600',
+    },
+    {
+        key: 'resources',
+        label: t('settings.reservations.summary.resources'),
+        value: Number(form.resources?.length || 0).toLocaleString(),
+        border: 'border-t-cyan-600',
     },
 ]));
 
@@ -254,6 +320,34 @@ const removeException = (index) => {
     form.exceptions.splice(index, 1);
 };
 
+const addResource = () => {
+    const name = String(resourceDraft.value.name || '').trim();
+    if (!name) {
+        return;
+    }
+
+    form.resources.push({
+        id: null,
+        team_member_id: resourceDraft.value.team_member_id,
+        name,
+        type: resourceDraft.value.type || 'general',
+        capacity: Number(resourceDraft.value.capacity || 1),
+        is_active: Boolean(resourceDraft.value.is_active),
+    });
+
+    resourceDraft.value = {
+        team_member_id: '',
+        name: '',
+        type: 'general',
+        capacity: 1,
+        is_active: true,
+    };
+};
+
+const removeResource = (index) => {
+    form.resources.splice(index, 1);
+};
+
 const toggleReminderHour = (hour) => {
     const hours = new Set((form.notification_settings.reminder_hours || []).map((value) => Number(value)));
     if (hours.has(hour)) {
@@ -273,6 +367,24 @@ const memberLabel = (teamMemberId) => memberOptions.value.find((item) => item.va
 const submit = () => {
     form.transform((data) => ({
         ...data,
+        account_settings: {
+            ...data.account_settings,
+            buffer_minutes: Number(data.account_settings?.buffer_minutes || 0),
+            slot_interval_minutes: Number(data.account_settings?.slot_interval_minutes || 30),
+            min_notice_minutes: Number(data.account_settings?.min_notice_minutes || 0),
+            max_advance_days: Number(data.account_settings?.max_advance_days || 90),
+            cancellation_cutoff_hours: Number(data.account_settings?.cancellation_cutoff_hours || 12),
+            late_release_minutes: Number(data.account_settings?.late_release_minutes || 0),
+            queue_mode_enabled: Boolean(data.account_settings?.queue_mode_enabled),
+            queue_dispatch_mode: data.account_settings?.queue_dispatch_mode || 'fifo_with_appointment_priority',
+            queue_grace_minutes: Math.max(1, Number(data.account_settings?.queue_grace_minutes || 5)),
+            queue_pre_call_threshold: Math.max(1, Number(data.account_settings?.queue_pre_call_threshold || 2)),
+            queue_no_show_on_grace_expiry: Boolean(data.account_settings?.queue_no_show_on_grace_expiry),
+            deposit_required: Boolean(data.account_settings?.deposit_required),
+            deposit_amount: Math.max(0, Number(data.account_settings?.deposit_amount || 0)),
+            no_show_fee_enabled: Boolean(data.account_settings?.no_show_fee_enabled),
+            no_show_fee_amount: Math.max(0, Number(data.account_settings?.no_show_fee_amount || 0)),
+        },
         team_settings: (data.team_settings || []).map((item) => ({
             ...item,
             team_member_id: Number(item.team_member_id),
@@ -285,6 +397,12 @@ const submit = () => {
         exceptions: (data.exceptions || []).map((item) => ({
             ...item,
             team_member_id: item.team_member_id ? Number(item.team_member_id) : null,
+        })),
+        resources: (data.resources || []).map((item) => ({
+            ...item,
+            team_member_id: item.team_member_id ? Number(item.team_member_id) : null,
+            capacity: Math.max(1, Number(item.capacity || 1)),
+            is_active: Boolean(item.is_active),
         })),
         notification_settings: {
             ...data.notification_settings,
@@ -332,11 +450,18 @@ const submit = () => {
                     <p class="mt-1 text-xs text-stone-500 dark:text-neutral-400">{{ $t('settings.reservations.company_rules.description') }}</p>
 
                     <div class="mt-3 grid gap-3 md:grid-cols-3">
+                        <FloatingSelect v-model="form.account_settings.business_preset" :options="businessPresetOptions" :label="$t('settings.reservations.fields.business_preset')" />
                         <FloatingInput v-model="form.account_settings.buffer_minutes" type="number" min="0" :label="$t('settings.reservations.fields.buffer_minutes')" />
                         <FloatingInput v-model="form.account_settings.slot_interval_minutes" type="number" min="5" :label="$t('settings.reservations.fields.slot_interval_minutes')" />
                         <FloatingInput v-model="form.account_settings.min_notice_minutes" type="number" min="0" :label="$t('settings.reservations.fields.min_notice_minutes')" />
                         <FloatingInput v-model="form.account_settings.max_advance_days" type="number" min="1" :label="$t('settings.reservations.fields.max_advance_days')" />
                         <FloatingInput v-model="form.account_settings.cancellation_cutoff_hours" type="number" min="0" :label="$t('settings.reservations.fields.cancellation_cutoff_hours')" />
+                        <FloatingInput v-model="form.account_settings.late_release_minutes" type="number" min="0" :label="$t('settings.reservations.fields.late_release_minutes')" />
+                        <FloatingSelect v-model="form.account_settings.queue_dispatch_mode" :options="queueDispatchOptions" :label="$t('settings.reservations.fields.queue_dispatch_mode')" />
+                        <FloatingInput v-model="form.account_settings.queue_grace_minutes" type="number" min="1" :label="$t('settings.reservations.fields.queue_grace_minutes')" />
+                        <FloatingInput v-model="form.account_settings.queue_pre_call_threshold" type="number" min="1" :label="$t('settings.reservations.fields.queue_pre_call_threshold')" />
+                        <FloatingInput v-model="form.account_settings.deposit_amount" type="number" min="0" step="0.01" :label="$t('settings.reservations.fields.deposit_amount')" />
+                        <FloatingInput v-model="form.account_settings.no_show_fee_amount" type="number" min="0" step="0.01" :label="$t('settings.reservations.fields.no_show_fee_amount')" />
                     </div>
                     <div class="mt-3 flex flex-wrap gap-4 text-sm text-stone-700 dark:text-neutral-200">
                         <label class="inline-flex items-center gap-2">
@@ -346,6 +471,26 @@ const submit = () => {
                         <label class="inline-flex items-center gap-2">
                             <input v-model="form.account_settings.allow_client_reschedule" type="checkbox" class="rounded border-stone-300">
                             {{ $t('settings.reservations.fields.allow_client_reschedule') }}
+                        </label>
+                        <label class="inline-flex items-center gap-2">
+                            <input v-model="form.account_settings.waitlist_enabled" type="checkbox" class="rounded border-stone-300">
+                            {{ $t('settings.reservations.fields.waitlist_enabled') }}
+                        </label>
+                        <label class="inline-flex items-center gap-2">
+                            <input v-model="form.account_settings.queue_mode_enabled" type="checkbox" class="rounded border-stone-300">
+                            {{ $t('settings.reservations.fields.queue_mode_enabled') }}
+                        </label>
+                        <label class="inline-flex items-center gap-2">
+                            <input v-model="form.account_settings.queue_no_show_on_grace_expiry" type="checkbox" class="rounded border-stone-300">
+                            {{ $t('settings.reservations.fields.queue_no_show_on_grace_expiry') }}
+                        </label>
+                        <label class="inline-flex items-center gap-2">
+                            <input v-model="form.account_settings.deposit_required" type="checkbox" class="rounded border-stone-300">
+                            {{ $t('settings.reservations.fields.deposit_required') }}
+                        </label>
+                        <label class="inline-flex items-center gap-2">
+                            <input v-model="form.account_settings.no_show_fee_enabled" type="checkbox" class="rounded border-stone-300">
+                            {{ $t('settings.reservations.fields.no_show_fee_enabled') }}
                         </label>
                     </div>
                 </section>
@@ -479,6 +624,50 @@ const submit = () => {
                 </section>
 
                 <section class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                    <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ $t('settings.reservations.resources.title') }}</h2>
+                    <p class="mt-1 text-xs text-stone-500 dark:text-neutral-400">{{ $t('settings.reservations.resources.description') }}</p>
+
+                    <div class="mt-3 grid gap-3 md:grid-cols-6">
+                        <FloatingSelect v-model="resourceDraft.team_member_id" :options="resourceMemberOptions" :label="$t('settings.reservations.fields.team_member')" />
+                        <FloatingInput v-model="resourceDraft.name" :label="$t('settings.reservations.resources.fields.name')" />
+                        <FloatingSelect v-model="resourceDraft.type" :options="resourceTypeOptions" :label="$t('settings.reservations.resources.fields.type')" />
+                        <FloatingInput v-model="resourceDraft.capacity" type="number" min="1" :label="$t('settings.reservations.resources.fields.capacity')" />
+                        <label class="inline-flex items-center gap-2 text-sm text-stone-700 dark:text-neutral-200">
+                            <input v-model="resourceDraft.is_active" type="checkbox" class="rounded border-stone-300">
+                            {{ $t('settings.reservations.resources.fields.is_active') }}
+                        </label>
+                        <button
+                            type="button"
+                            class="inline-flex items-center justify-center rounded-sm bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700"
+                            @click="addResource"
+                        >
+                            {{ $t('settings.reservations.add') }}
+                        </button>
+                    </div>
+
+                    <div class="mt-3 space-y-2">
+                        <div
+                            v-for="(item, index) in form.resources"
+                            :key="`resource-${item.id || index}`"
+                            class="flex items-center justify-between gap-3 rounded-sm border border-stone-200 px-3 py-2 text-sm dark:border-neutral-700"
+                        >
+                            <span>
+                                {{ item.name }}
+                                · {{ $t(`settings.reservations.resources.types.${item.type}`) || item.type }}
+                                · {{ $t('settings.reservations.resources.fields.capacity') }}: {{ item.capacity }}
+                                · {{ item.team_member_id ? memberLabel(item.team_member_id) : $t('settings.reservations.exceptions.all_members') }}
+                                · {{ item.is_active ? $t('settings.reservations.resources.status.active') : $t('settings.reservations.resources.status.inactive') }}
+                            </span>
+                            <button type="button" class="text-rose-600" @click="removeResource(index)">{{ $t('settings.reservations.remove') }}</button>
+                        </div>
+
+                        <div v-if="!form.resources.length" class="rounded-sm border border-dashed border-stone-300 bg-stone-50 px-3 py-3 text-sm text-stone-500 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-400">
+                            {{ $t('settings.reservations.resources.empty') }}
+                        </div>
+                    </div>
+                </section>
+
+                <section class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
                     <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ $t('settings.reservations.notifications.title') }}</h2>
                     <p class="mt-1 text-xs text-stone-500 dark:text-neutral-400">{{ $t('settings.reservations.notifications.description') }}</p>
 
@@ -523,6 +712,18 @@ const submit = () => {
                             <input v-model="form.notification_settings.review_request_on_completed" type="checkbox" class="rounded border-stone-300">
                             {{ $t('settings.reservations.notifications.fields.review_request_on_completed') }}
                         </label>
+                        <label class="inline-flex items-center gap-2">
+                            <input v-model="form.notification_settings.notify_on_queue_pre_call" type="checkbox" class="rounded border-stone-300">
+                            {{ $t('settings.reservations.notifications.fields.notify_on_queue_pre_call') }}
+                        </label>
+                        <label class="inline-flex items-center gap-2">
+                            <input v-model="form.notification_settings.notify_on_queue_called" type="checkbox" class="rounded border-stone-300">
+                            {{ $t('settings.reservations.notifications.fields.notify_on_queue_called') }}
+                        </label>
+                        <label class="inline-flex items-center gap-2">
+                            <input v-model="form.notification_settings.notify_on_queue_grace_expired" type="checkbox" class="rounded border-stone-300">
+                            {{ $t('settings.reservations.notifications.fields.notify_on_queue_grace_expired') }}
+                        </label>
                     </div>
 
                     <div class="mt-3">
@@ -547,7 +748,7 @@ const submit = () => {
                 </section>
 
                 <section class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                    <InputError :message="form.errors.weekly_availabilities || form.errors.exceptions || form.errors.team_settings || form.errors.notification_settings" />
+                    <InputError :message="form.errors.weekly_availabilities || form.errors.exceptions || form.errors.resources || form.errors.team_settings || form.errors.notification_settings" />
                     <div class="flex justify-end">
                         <button type="submit" class="rounded-sm bg-emerald-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50" :disabled="form.processing">
                             {{ form.processing ? $t('settings.reservations.saving') : $t('settings.reservations.save') }}

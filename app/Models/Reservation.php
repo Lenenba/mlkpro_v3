@@ -121,6 +121,26 @@ class Reservation extends Model
         return $this->hasOne(ReservationReview::class);
     }
 
+    public function resourceAllocations(): HasMany
+    {
+        return $this->hasMany(ReservationResourceAllocation::class);
+    }
+
+    public function matchedWaitlistEntries(): HasMany
+    {
+        return $this->hasMany(ReservationWaitlist::class, 'matched_reservation_id');
+    }
+
+    public function queueItems(): HasMany
+    {
+        return $this->hasMany(ReservationQueueItem::class);
+    }
+
+    public function checkIns(): HasMany
+    {
+        return $this->hasMany(ReservationCheckIn::class);
+    }
+
     public function scopeForAccount(Builder $query, int $accountId): Builder
     {
         return $query->where('account_id', $accountId);

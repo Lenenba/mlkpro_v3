@@ -17,6 +17,9 @@ class ReservationNotificationPreferenceService
         'notify_on_reminder' => true,
         'notify_on_review_submitted' => true,
         'review_request_on_completed' => true,
+        'notify_on_queue_pre_call' => true,
+        'notify_on_queue_called' => true,
+        'notify_on_queue_grace_expired' => true,
         'reminder_hours' => [24, 2],
     ];
 

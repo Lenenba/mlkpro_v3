@@ -23,6 +23,17 @@ const form = useForm({
     paid_at: '',
     notes: '',
 });
+const balanceDue = computed(() => {
+    const value = Number(props.invoice?.balance_due || 0);
+    return Number.isFinite(value) ? Math.max(0, value) : 0;
+});
+const paymentAmount = computed(() => {
+    const value = Number(form.amount || 0);
+    return Number.isFinite(value) ? Math.max(0, value) : 0;
+});
+const exceedsBalanceDue = computed(() => paymentAmount.value > balanceDue.value + 0.0001);
+const remainingAfterPayment = computed(() => roundMoney(Math.max(0, balanceDue.value - paymentAmount.value)));
+const isPartialPayment = computed(() => paymentAmount.value > 0 && paymentAmount.value < balanceDue.value);
 
 const dispatchDemoEvent = (eventName) => {
     if (typeof window === 'undefined') {
@@ -32,6 +43,16 @@ const dispatchDemoEvent = (eventName) => {
 };
 
 const submitPayment = () => {
+    if (paymentAmount.value < 0.01) {
+        form.setError('amount', 'Enter a valid amount.');
+        return;
+    }
+
+    if (exceedsBalanceDue.value) {
+        form.setError('amount', `Amount cannot exceed ${formatCurrency(balanceDue.value)}.`);
+        return;
+    }
+
     form.post(route('payment.store', props.invoice.id), {
         preserveScroll: true,
         onSuccess: () => {
@@ -90,6 +111,25 @@ const formatDate = (value) => humanizeDate(value) || '-';
 
 const formatCurrency = (value) =>
     `$${Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const roundMoney = (value) => Math.round((Number(value || 0) + Number.EPSILON) * 100) / 100;
+const setPaymentAmount = (value) => {
+    const normalized = roundMoney(Math.max(0, Math.min(Number(value || 0), balanceDue.value)));
+    form.amount = normalized > 0 ? normalized.toFixed(2) : '';
+    if (form.errors.amount) {
+        form.clearErrors('amount');
+    }
+};
+
+const paymentTipAmount = (payment) => {
+    const value = Number(payment?.tip_amount || 0);
+    return Number.isFinite(value) ? Math.max(0, value) : 0;
+};
+
+const paymentChargedTotal = (payment) => {
+    const fallback = Number(payment?.amount || 0) + paymentTipAmount(payment);
+    const value = Number(payment?.charged_total ?? fallback);
+    return Number.isFinite(value) ? value : fallback;
+};
 
 const formatShortDate = (value) => {
     if (!value) {
@@ -349,6 +389,16 @@ const statusLabel = computed(() => {
                                 <p class="text-sm text-stone-700 dark:text-neutral-200">
                                     {{ formatCurrency(payment.amount) }} - {{ payment.method || $t('invoices.labels.method_fallback') }}
                                 </p>
+                                <div class="mt-1 space-y-0.5 text-xs text-stone-500 dark:text-neutral-400">
+                                    <div>{{ $t('invoices.show.payments.subtotal') }}: {{ formatCurrency(payment.amount) }}</div>
+                                    <div>{{ $t('invoices.show.payments.tip') }}: {{ formatCurrency(paymentTipAmount(payment)) }}</div>
+                                    <div class="font-medium text-stone-700 dark:text-neutral-300">
+                                        {{ $t('invoices.show.payments.total_paid') }}: {{ formatCurrency(paymentChargedTotal(payment)) }}
+                                    </div>
+                                    <div v-if="payment.tip_assignee?.name">
+                                        {{ $t('invoices.show.payments.tip_assigned_to') }}: {{ payment.tip_assignee.name }}
+                                    </div>
+                                </div>
                                 <p class="text-xs text-stone-500 dark:text-neutral-400">
                                     {{ formatDate(payment.paid_at) }}
                                 </p>
@@ -365,6 +415,43 @@ const statusLabel = computed(() => {
                         <input v-model="form.amount" type="number" min="0" step="0.01"
                             class="w-full py-2 px-3 bg-stone-100 border-transparent rounded-sm text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-700 dark:text-neutral-200"
                             :placeholder="$t('invoices.show.add_payment.amount')">
+                        <div v-if="form.errors.amount" class="text-xs text-red-600">{{ form.errors.amount }}</div>
+                        <p class="text-[11px] text-stone-500 dark:text-neutral-400">
+                            For partial payments, enter an amount lower than the current balance.
+                        </p>
+                        <div class="flex flex-wrap gap-2">
+                            <button
+                                type="button"
+                                class="rounded-sm border border-stone-200 bg-white px-2.5 py-1 text-xs font-medium text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-700"
+                                @click="setPaymentAmount(balanceDue)"
+                            >
+                                Pay full balance
+                            </button>
+                            <button
+                                type="button"
+                                class="rounded-sm border border-stone-200 bg-white px-2.5 py-1 text-xs font-medium text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-700"
+                                @click="setPaymentAmount(roundMoney(balanceDue * 0.5))"
+                            >
+                                50%
+                            </button>
+                            <button
+                                type="button"
+                                class="rounded-sm border border-stone-200 bg-white px-2.5 py-1 text-xs font-medium text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-700"
+                                @click="setPaymentAmount(roundMoney(balanceDue * 0.25))"
+                            >
+                                25%
+                            </button>
+                        </div>
+                        <p class="text-[11px] text-stone-500 dark:text-neutral-400">
+                            <template v-if="isPartialPayment">
+                                Partial payment selected. Remaining after this payment:
+                                <span class="font-semibold text-stone-700 dark:text-neutral-200">{{ formatCurrency(remainingAfterPayment) }}</span>
+                            </template>
+                            <template v-else>
+                                Remaining after this payment:
+                                <span class="font-semibold text-stone-700 dark:text-neutral-200">{{ formatCurrency(remainingAfterPayment) }}</span>
+                            </template>
+                        </p>
                         <input v-model="form.method" type="text"
                             class="w-full py-2 px-3 bg-stone-100 border-transparent rounded-sm text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-700 dark:text-neutral-200"
                             :placeholder="$t('invoices.show.add_payment.method')">

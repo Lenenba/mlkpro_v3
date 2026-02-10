@@ -85,6 +85,9 @@ const registerForm = useForm({
 
 const serviceSectorOptions = computed(() => ([
     { id: '', name: t('onboarding.sectors.service.placeholder') },
+    { id: 'salon', name: t('onboarding.sectors.service.salon') },
+    { id: 'restaurant', name: t('onboarding.sectors.service.restaurant') },
+    { id: 'service_general', name: t('onboarding.sectors.service.service_general') },
     { id: 'menuiserie', name: t('onboarding.sectors.service.menuiserie') },
     { id: 'plomberie', name: t('onboarding.sectors.service.plomberie') },
     { id: 'electricite', name: t('onboarding.sectors.service.electricite') },

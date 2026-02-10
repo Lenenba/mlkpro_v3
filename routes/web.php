@@ -5,6 +5,7 @@ use App\Http\Controllers\WorkController;
 use App\Http\Controllers\QuoteController;
 use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\PaymentController;
+use App\Http\Controllers\TipReportController;
 use App\Http\Controllers\SalePaymentController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ProductPriceLookupController;
@@ -265,12 +266,28 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
     // Reservations
     Route::middleware('company.feature:reservations')->group(function () {
         Route::get('/app/reservations', [StaffReservationController::class, 'index'])->name('reservation.index');
+        Route::get('/app/reservations/screen', [StaffReservationController::class, 'screen'])->name('reservation.screen');
+        Route::get('/app/reservations/screen/data', [StaffReservationController::class, 'screenData'])->name('reservation.screen.data');
         Route::get('/app/reservations/events', [StaffReservationController::class, 'events'])->name('reservation.events');
         Route::get('/app/reservations/slots', [StaffReservationController::class, 'slots'])->name('reservation.slots');
         Route::post('/app/reservations', [StaffReservationController::class, 'store'])->name('reservation.store');
         Route::put('/app/reservations/{reservation}', [StaffReservationController::class, 'update'])->name('reservation.update');
         Route::patch('/app/reservations/{reservation}/status', [StaffReservationController::class, 'updateStatus'])
             ->name('reservation.status');
+        Route::patch('/app/reservations/waitlist/{waitlist}/status', [StaffReservationController::class, 'updateWaitlistStatus'])
+            ->name('reservation.waitlist.status');
+        Route::patch('/app/reservations/queue/{item}/check-in', [StaffReservationController::class, 'queueCheckIn'])
+            ->name('reservation.queue.check-in');
+        Route::patch('/app/reservations/queue/{item}/pre-call', [StaffReservationController::class, 'queuePreCall'])
+            ->name('reservation.queue.pre-call');
+        Route::patch('/app/reservations/queue/{item}/call', [StaffReservationController::class, 'queueCall'])
+            ->name('reservation.queue.call');
+        Route::patch('/app/reservations/queue/{item}/start', [StaffReservationController::class, 'queueStart'])
+            ->name('reservation.queue.start');
+        Route::patch('/app/reservations/queue/{item}/done', [StaffReservationController::class, 'queueDone'])
+            ->name('reservation.queue.done');
+        Route::patch('/app/reservations/queue/{item}/skip', [StaffReservationController::class, 'queueSkip'])
+            ->name('reservation.queue.skip');
         Route::delete('/app/reservations/{reservation}', [StaffReservationController::class, 'destroy'])->name('reservation.destroy');
         Route::get('/settings/reservations', [ReservationSettingsController::class, 'edit'])
             ->name('settings.reservations.edit');
@@ -449,6 +466,10 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
         Route::get('/invoices/{invoice}', [InvoiceController::class, 'show'])->name('invoice.show');
         Route::get('/invoices/{invoice}/pdf', [InvoiceController::class, 'pdf'])->name('invoice.pdf');
         Route::post('/work/{work}/invoice', [InvoiceController::class, 'storeFromWork'])->name('invoice.store-from-work');
+        Route::get('/payments/tips', [TipReportController::class, 'ownerIndex'])->name('payments.tips.index');
+        Route::get('/payments/tips/export', [TipReportController::class, 'ownerExport'])->name('payments.tips.export');
+        Route::get('/my-earnings/tips', [TipReportController::class, 'memberIndex'])->name('my-earnings.tips.index');
+        Route::post('/payments/{payment}/tip-reverse', [PaymentController::class, 'reverseTip'])->name('payment.tip-reverse');
     });
 
 // Payment Management
@@ -507,6 +528,12 @@ Route::middleware(['auth', EnsureClientUser::class, 'company.feature:reservation
         Route::get('/book', [ClientReservationController::class, 'book'])->name('book');
         Route::get('/slots', [ClientReservationController::class, 'slots'])->name('slots');
         Route::post('/book', [ClientReservationController::class, 'store'])->name('store');
+        Route::post('/tickets', [ClientReservationController::class, 'ticketStore'])->name('tickets.store');
+        Route::patch('/tickets/{ticket}/cancel', [ClientReservationController::class, 'ticketCancel'])->name('tickets.cancel');
+        Route::patch('/tickets/{ticket}/still-here', [ClientReservationController::class, 'ticketStillHere'])->name('tickets.still-here');
+        Route::post('/waitlist', [ClientReservationController::class, 'waitlistStore'])->name('waitlist.store');
+        Route::patch('/waitlist/{waitlist}/cancel', [ClientReservationController::class, 'waitlistCancel'])
+            ->name('waitlist.cancel');
         Route::get('/', [ClientReservationController::class, 'index'])->name('index');
         Route::get('/events', [ClientReservationController::class, 'events'])->name('events');
         Route::patch('/{reservation}/cancel', [ClientReservationController::class, 'cancel'])->name('cancel');

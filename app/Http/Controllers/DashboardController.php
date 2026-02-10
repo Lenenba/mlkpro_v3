@@ -24,6 +24,7 @@ use App\Services\StripeInvoiceService;
 use App\Services\StripeSaleService;
 use App\Services\UsageLimitService;
 use App\Support\PlanDisplay;
+use App\Support\TipSettingsResolver;
 use Illuminate\Support\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -86,6 +87,7 @@ class DashboardController extends Controller
                     'stripe' => [
                         'enabled' => app(StripeInvoiceService::class)->isConfigured(),
                     ],
+                    'tips' => $this->tipSettings(),
                 ], $cacheKey);
             }
 
@@ -525,6 +527,7 @@ class DashboardController extends Controller
                 'stripe' => [
                     'enabled' => app(StripeInvoiceService::class)->isConfigured(),
                 ],
+                'tips' => $this->tipSettings((int) $customer->user_id),
             ];
 
             return $respond('DashboardClient', $props, $cacheKey);
@@ -1830,6 +1833,11 @@ class DashboardController extends Controller
             })
             ->values()
             ->all();
+    }
+
+    private function tipSettings(?int $accountId = null): array
+    {
+        return TipSettingsResolver::forAccountId($accountId);
     }
 
     private function resolveAnnouncements(int $tenantId, ?User $tenant, string $placement): array

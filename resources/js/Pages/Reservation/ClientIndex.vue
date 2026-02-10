@@ -37,6 +37,14 @@ const props = defineProps({
         type: Object,
         default: () => ({}),
     },
+    waitlistEntries: {
+        type: Array,
+        default: () => [],
+    },
+    queueTickets: {
+        type: Array,
+        default: () => [],
+    },
     timezone: {
         type: String,
         default: 'UTC',
@@ -56,6 +64,9 @@ const calendarRange = ref({
     end: dayjs().endOf('month').toISOString(),
 });
 const detailsActionError = ref('');
+const queueTickets = ref([...(props.queueTickets || [])]);
+const queueActionError = ref('');
+const queueActionSuccess = ref('');
 
 const filterForm = useForm({
     status: props.filters?.status || '',
@@ -133,6 +144,7 @@ const selectedRescheduleEventId = computed(() => {
 
 const statusBadgeClass = (status) => reservationStatusBadgeClass(status);
 const formatDateTime = (value) => (value ? dayjs(value).format('MMM D, YYYY HH:mm') : '-');
+const queueModeEnabled = computed(() => Boolean(props.settings?.queue_mode_enabled));
 
 const isModifyWindowOpen = (reservation) => {
     if (!reservation?.starts_at) {
@@ -205,7 +217,7 @@ const refreshList = () => {
             preserveState: true,
             preserveScroll: true,
             replace: true,
-            only: ['filters', 'reservations', 'stats'],
+            only: ['filters', 'reservations', 'stats', 'queueTickets'],
         }
     );
 
@@ -228,6 +240,13 @@ watch(
             clearTimeout(filterTimer);
         }
         filterTimer = setTimeout(refreshList, 300);
+    }
+);
+
+watch(
+    () => props.queueTickets,
+    (value) => {
+        queueTickets.value = [...(value || [])];
     }
 );
 
@@ -285,6 +304,54 @@ const cancelReservation = async (reservation) => {
         refreshList();
     } catch (error) {
         detailsActionError.value = error?.response?.data?.message || t('reservations.errors.cancel');
+    }
+};
+
+const cancelQueueTicket = async (ticket) => {
+    if (!ticket?.id || !ticket?.can_cancel) {
+        return;
+    }
+
+    queueActionError.value = '';
+    queueActionSuccess.value = '';
+
+    try {
+        const response = await axios.patch(route('client.reservations.tickets.cancel', ticket.id), {}, {
+            headers: {
+                Accept: 'application/json',
+            },
+        });
+        const updated = response?.data?.ticket || { ...ticket, status: 'left', can_cancel: false, can_still_here: false };
+        queueTickets.value = queueTickets.value.map((item) => (
+            Number(item.id) === Number(ticket.id) ? { ...item, ...updated } : item
+        ));
+        queueActionSuccess.value = response?.data?.message || t('reservations.queue.client.cancelled');
+    } catch (error) {
+        queueActionError.value = error?.response?.data?.message || t('reservations.queue.client.update_error');
+    }
+};
+
+const stillHereQueueTicket = async (ticket) => {
+    if (!ticket?.id || !ticket?.can_still_here) {
+        return;
+    }
+
+    queueActionError.value = '';
+    queueActionSuccess.value = '';
+
+    try {
+        const response = await axios.patch(route('client.reservations.tickets.still-here', ticket.id), {}, {
+            headers: {
+                Accept: 'application/json',
+            },
+        });
+        const updated = response?.data?.ticket || ticket;
+        queueTickets.value = queueTickets.value.map((item) => (
+            Number(item.id) === Number(ticket.id) ? { ...item, ...updated } : item
+        ));
+        queueActionSuccess.value = response?.data?.message || t('reservations.queue.client.still_here_done');
+    } catch (error) {
+        queueActionError.value = error?.response?.data?.message || t('reservations.queue.client.update_error');
     }
 };
 
@@ -448,7 +515,7 @@ const goToPage = (url) => {
     router.visit(url, {
         preserveState: true,
         preserveScroll: true,
-        only: ['filters', 'reservations', 'stats'],
+        only: ['filters', 'reservations', 'stats', 'queueTickets'],
     });
 };
 
@@ -482,6 +549,91 @@ onBeforeUnmount(() => {
             </section>
 
             <ReservationStats :stats="stats" />
+
+            <section
+                v-if="queueModeEnabled || queueTickets.length"
+                class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900"
+            >
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                        <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ $t('reservations.queue.client.title') }}</h2>
+                        <p class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('reservations.queue.client.subtitle') }}</p>
+                    </div>
+                    <Link
+                        :href="route('client.reservations.book')"
+                        class="rounded-sm border border-stone-200 px-3 py-2 text-xs font-semibold text-stone-700 dark:border-neutral-700 dark:text-neutral-200"
+                    >
+                        {{ $t('reservations.queue.client.create') }}
+                    </Link>
+                </div>
+
+                <div v-if="queueActionError" class="mt-3 rounded-sm border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">
+                    {{ queueActionError }}
+                </div>
+                <div v-if="queueActionSuccess" class="mt-3 rounded-sm border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
+                    {{ queueActionSuccess }}
+                </div>
+
+                <div v-if="!queueTickets.length" class="mt-3 rounded-sm border border-dashed border-stone-300 bg-stone-50 px-3 py-3 text-sm text-stone-500 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-400">
+                    {{ $t('reservations.queue.client.none') }}
+                </div>
+                <div v-else class="mt-3 overflow-x-auto">
+                    <table class="min-w-full text-sm">
+                        <thead>
+                            <tr class="text-left text-xs uppercase text-stone-500 dark:text-neutral-400">
+                                <th class="px-3 py-2">{{ $t('reservations.queue.columns.ticket') }}</th>
+                                <th class="px-3 py-2">{{ $t('reservations.table.item') }}</th>
+                                <th class="px-3 py-2">{{ $t('planning.form.member') }}</th>
+                                <th class="px-3 py-2">{{ $t('reservations.queue.columns.position') }}</th>
+                                <th class="px-3 py-2">{{ $t('reservations.table.status') }}</th>
+                                <th class="px-3 py-2">{{ $t('reservations.table.actions') }}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr
+                                v-for="ticket in queueTickets"
+                                :key="`client-queue-ticket-${ticket.id}`"
+                                class="border-t border-stone-100 dark:border-neutral-800"
+                            >
+                                <td class="px-3 py-2">{{ ticket.queue_number || `#${ticket.id}` }}</td>
+                                <td class="px-3 py-2">{{ ticket.service_name || $t('reservations.client.book.default_service') }}</td>
+                                <td class="px-3 py-2">{{ ticket.team_member_name || $t('reservations.client.index.any_available') }}</td>
+                                <td class="px-3 py-2">
+                                    {{ ticket.position ?? '-' }}
+                                    <div class="text-xs text-stone-500 dark:text-neutral-400">
+                                        ETA: {{ ticket.eta_minutes !== null && ticket.eta_minutes !== undefined ? `${ticket.eta_minutes} min` : '-' }}
+                                    </div>
+                                </td>
+                                <td class="px-3 py-2">
+                                    <span class="rounded-full px-2 py-0.5 text-[11px] font-semibold capitalize" :class="statusBadgeClass(ticket.status)">
+                                        {{ $t(`reservations.queue.status.${ticket.status}`) || ticket.status }}
+                                    </span>
+                                </td>
+                                <td class="px-3 py-2">
+                                    <div class="flex flex-wrap gap-2">
+                                        <button
+                                            v-if="ticket.can_still_here"
+                                            type="button"
+                                            class="text-xs text-indigo-700 underline"
+                                            @click="stillHereQueueTicket(ticket)"
+                                        >
+                                            {{ $t('reservations.queue.client.still_here') }}
+                                        </button>
+                                        <button
+                                            v-if="ticket.can_cancel"
+                                            type="button"
+                                            class="text-xs text-rose-700 underline"
+                                            @click="cancelQueueTicket(ticket)"
+                                        >
+                                            {{ $t('reservations.actions.cancel') }}
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
 
             <section class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
                 <div class="grid gap-3 md:grid-cols-3">

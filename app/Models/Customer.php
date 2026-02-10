@@ -158,6 +158,11 @@ class Customer extends Model
         return $this->hasMany(ReservationReview::class, 'client_id');
     }
 
+    public function reservationWaitlists(): HasMany
+    {
+        return $this->hasMany(ReservationWaitlist::class, 'client_id');
+    }
+
     public function quotes()
     {
         return $this->hasMany(Quote::class)
