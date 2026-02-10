@@ -97,7 +97,7 @@ class InvoiceController extends Controller
             'work.products',
             'work.quote.property',
             'work.ratings',
-            'payments',
+            'payments.tipAssignee:id,name',
         ]);
 
         $payload = [
@@ -127,7 +127,7 @@ class InvoiceController extends Controller
             'work.products',
             'work.ratings',
             'work.quote.property',
-            'payments',
+            'payments.tipAssignee:id,name',
         ]);
 
         $isTaskBased = $invoice->items->isNotEmpty();

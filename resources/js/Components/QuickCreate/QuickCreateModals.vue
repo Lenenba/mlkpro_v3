@@ -18,6 +18,16 @@ const canServices = computed(() => isFeatureEnabled(featureFlags.value, 'service
 const canQuotes = computed(() => isFeatureEnabled(featureFlags.value, 'quotes'));
 const canRequests = computed(() => isFeatureEnabled(featureFlags.value, 'requests'));
 const canSales = computed(() => isFeatureEnabled(featureFlags.value, 'sales'));
+const categoryOptionsRoutes = computed(() => {
+    const routes = [];
+    if (canProducts.value) {
+        routes.push('product.options');
+    }
+    if (canServices.value) {
+        routes.push('service.options');
+    }
+    return routes;
+});
 
 const customers = ref([]);
 const categories = ref([]);
@@ -42,11 +52,31 @@ const fetchCustomers = async () => {
 };
 
 const fetchCategories = async () => {
+    if (!categoryOptionsRoutes.value.length) {
+        return;
+    }
+
     loadingCategories.value = true;
     categoryError.value = '';
     try {
-        const response = await axios.get(route('product.options'));
-        categories.value = response.data?.categories || [];
+        let resolvedCategories = null;
+        for (const routeName of categoryOptionsRoutes.value) {
+            try {
+                const response = await axios.get(route(routeName));
+                resolvedCategories = response.data?.categories || [];
+                break;
+            } catch (requestError) {
+                if (requestError?.response?.status !== 403) {
+                    throw requestError;
+                }
+            }
+        }
+
+        if (resolvedCategories === null) {
+            throw new Error('Unable to load category options');
+        }
+
+        categories.value = resolvedCategories;
     } catch (error) {
         categoryError.value = t('quick_create.errors.load_categories');
     } finally {

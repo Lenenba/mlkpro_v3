@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Reservation;
 
 use App\Models\AvailabilityException;
+use App\Support\ReservationPresetResolver;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -26,6 +27,18 @@ class ReservationSettingsRequest extends FormRequest
             'account_settings.cancellation_cutoff_hours' => ['nullable', 'integer', 'min:0', 'max:720'],
             'account_settings.allow_client_cancel' => ['nullable', 'boolean'],
             'account_settings.allow_client_reschedule' => ['nullable', 'boolean'],
+            'account_settings.business_preset' => ['nullable', 'string', Rule::in(ReservationPresetResolver::PRESETS)],
+            'account_settings.late_release_minutes' => ['nullable', 'integer', 'min:0', 'max:240'],
+            'account_settings.waitlist_enabled' => ['nullable', 'boolean'],
+            'account_settings.queue_mode_enabled' => ['nullable', 'boolean'],
+            'account_settings.queue_dispatch_mode' => ['nullable', 'string', Rule::in(['fifo', 'fifo_with_appointment_priority', 'skill_based'])],
+            'account_settings.queue_grace_minutes' => ['nullable', 'integer', 'min:1', 'max:60'],
+            'account_settings.queue_pre_call_threshold' => ['nullable', 'integer', 'min:1', 'max:20'],
+            'account_settings.queue_no_show_on_grace_expiry' => ['nullable', 'boolean'],
+            'account_settings.deposit_required' => ['nullable', 'boolean'],
+            'account_settings.deposit_amount' => ['nullable', 'numeric', 'min:0', 'max:10000'],
+            'account_settings.no_show_fee_enabled' => ['nullable', 'boolean'],
+            'account_settings.no_show_fee_amount' => ['nullable', 'numeric', 'min:0', 'max:10000'],
 
             'team_settings' => ['nullable', 'array'],
             'team_settings.*.team_member_id' => [
@@ -69,6 +82,23 @@ class ReservationSettingsRequest extends FormRequest
             'exceptions.*.type' => ['required', Rule::in(AvailabilityException::TYPES)],
             'exceptions.*.reason' => ['nullable', 'string', 'max:255'],
 
+            'resources' => ['nullable', 'array'],
+            'resources.*.id' => [
+                'nullable',
+                'integer',
+                Rule::exists('reservation_resources', 'id')->where(fn ($query) => $query->where('account_id', $accountId)),
+            ],
+            'resources.*.team_member_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('team_members', 'id')->where(fn ($query) => $query->where('account_id', $accountId)),
+            ],
+            'resources.*.name' => ['required', 'string', 'max:120'],
+            'resources.*.type' => ['nullable', 'string', 'max:60'],
+            'resources.*.capacity' => ['nullable', 'integer', 'min:1', 'max:500'],
+            'resources.*.is_active' => ['nullable', 'boolean'],
+            'resources.*.metadata' => ['nullable', 'array'],
+
             'notification_settings' => ['nullable', 'array'],
             'notification_settings.enabled' => ['nullable', 'boolean'],
             'notification_settings.email' => ['nullable', 'boolean'],
@@ -80,6 +110,9 @@ class ReservationSettingsRequest extends FormRequest
             'notification_settings.notify_on_reminder' => ['nullable', 'boolean'],
             'notification_settings.notify_on_review_submitted' => ['nullable', 'boolean'],
             'notification_settings.review_request_on_completed' => ['nullable', 'boolean'],
+            'notification_settings.notify_on_queue_pre_call' => ['nullable', 'boolean'],
+            'notification_settings.notify_on_queue_called' => ['nullable', 'boolean'],
+            'notification_settings.notify_on_queue_grace_expired' => ['nullable', 'boolean'],
             'notification_settings.reminder_hours' => ['nullable', 'array'],
             'notification_settings.reminder_hours.*' => ['integer', 'min:1', 'max:168'],
         ];

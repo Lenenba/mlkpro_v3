@@ -71,6 +71,10 @@ const props = defineProps({
         type: Object,
         default: () => ({ enabled: false }),
     },
+    tips: {
+        type: Object,
+        default: () => ({}),
+    },
 });
 
 const page = usePage();
@@ -81,6 +85,33 @@ const autoValidation = computed(() => ({
     invoices: Boolean(props.autoValidation?.invoices),
 }));
 const stripeEnabled = computed(() => Boolean(props.stripe?.enabled));
+const maxTipPercent = computed(() => Number(props.tips?.max_percent ?? 30));
+const maxTipFixedAmount = computed(() => Number(props.tips?.max_fixed_amount ?? 200));
+const quickTipPercents = computed(() => {
+    const values = Array.isArray(props.tips?.quick_percents) ? props.tips.quick_percents : [5, 10, 15, 20];
+    const normalized = values
+        .map((value) => Number(value))
+        .filter((value, index, arr) => Number.isFinite(value) && value >= 0 && arr.indexOf(value) === index)
+        .map((value) => Math.min(value, maxTipPercent.value));
+
+    return normalized.length ? normalized : [5, 10, 15, 20];
+});
+const quickTipFixedAmounts = computed(() => {
+    const values = Array.isArray(props.tips?.quick_fixed_amounts) ? props.tips.quick_fixed_amounts : [2, 5, 10];
+    const normalized = values
+        .map((value) => Number(value))
+        .filter((value, index, arr) => Number.isFinite(value) && value >= 0 && arr.indexOf(value) === index)
+        .map((value) => Math.min(value, maxTipFixedAmount.value));
+
+    return normalized.length ? normalized : [2, 5, 10];
+});
+const defaultTipPercent = computed(() => {
+    const rawValue = Number(props.tips?.default_percent ?? 10);
+    if (!Number.isFinite(rawValue)) {
+        return 10;
+    }
+    return Math.max(0, Math.min(rawValue, maxTipPercent.value));
+});
 const kpiSeries = computed(() => props.kpiSeries || {});
 const kpiConfig = {
     quotes_pending: { direction: 'down' },
@@ -223,6 +254,10 @@ const proofTypeOptions = computed(() => ([
 ]));
 
 const paymentAmounts = reactive({});
+const paymentTipEnabled = reactive({});
+const paymentTipModes = reactive({});
+const paymentTipPercents = reactive({});
+const paymentTipFixedAmounts = reactive({});
 const stripeProcessing = reactive({});
 const ratingForms = reactive({
     quotes: {},
@@ -323,6 +358,18 @@ watchEffect(() => {
     props.invoicesDue?.forEach((invoice) => {
         if (paymentAmounts[invoice.id] === undefined) {
             paymentAmounts[invoice.id] = invoice.balance_due || 0;
+        }
+        if (paymentTipEnabled[invoice.id] === undefined) {
+            paymentTipEnabled[invoice.id] = false;
+        }
+        if (paymentTipModes[invoice.id] === undefined) {
+            paymentTipModes[invoice.id] = 'percent';
+        }
+        if (paymentTipPercents[invoice.id] === undefined) {
+            paymentTipPercents[invoice.id] = defaultTipPercent.value;
+        }
+        if (paymentTipFixedAmounts[invoice.id] === undefined) {
+            paymentTipFixedAmounts[invoice.id] = 0;
         }
     });
     props.quoteRatingsDue?.forEach((quote) => {
@@ -457,35 +504,134 @@ const disputeWork = (workId) => {
     router.post(route('portal.works.dispute', workId), {}, { preserveScroll: true });
 };
 
-const submitPayment = (invoiceId) => {
+const roundMoney = (value) => Math.round((Number(value || 0) + Number.EPSILON) * 100) / 100;
+
+const invoiceAmountValue = (invoiceId) => {
+    const rawValue = Number(paymentAmounts[invoiceId] || 0);
+    return Number.isFinite(rawValue) ? Math.max(0, rawValue) : 0;
+};
+
+const tipPercentValue = (invoiceId) => {
+    const rawValue = Number(paymentTipPercents[invoiceId] || 0);
+    if (!Number.isFinite(rawValue)) {
+        return 0;
+    }
+    return Math.max(0, Math.min(rawValue, maxTipPercent.value));
+};
+
+const tipFixedAmountValue = (invoiceId) => {
+    const rawValue = Number(paymentTipFixedAmounts[invoiceId] || 0);
+    if (!Number.isFinite(rawValue)) {
+        return 0;
+    }
+    return Math.max(0, Math.min(rawValue, maxTipFixedAmount.value));
+};
+
+const tipAmountValue = (invoiceId) => {
+    if (!paymentTipEnabled[invoiceId]) {
+        return 0;
+    }
+
+    if (paymentTipModes[invoiceId] === 'percent') {
+        return roundMoney(invoiceAmountValue(invoiceId) * (tipPercentValue(invoiceId) / 100));
+    }
+
+    return roundMoney(tipFixedAmountValue(invoiceId));
+};
+
+const totalChargeValue = (invoiceId) => roundMoney(invoiceAmountValue(invoiceId) + tipAmountValue(invoiceId));
+const invoiceBalanceDue = (invoice) => {
+    const value = Number(invoice?.balance_due || 0);
+    return Number.isFinite(value) ? Math.max(0, value) : 0;
+};
+const amountExceedsBalance = (invoice) => invoiceAmountValue(invoice.id) > invoiceBalanceDue(invoice) + 0.0001;
+const remainingBalanceAfterPayment = (invoice) =>
+    roundMoney(Math.max(0, invoiceBalanceDue(invoice) - invoiceAmountValue(invoice.id)));
+const isPartialPayment = (invoice) => {
+    const amount = invoiceAmountValue(invoice.id);
+    const due = invoiceBalanceDue(invoice);
+    return amount > 0 && amount < due;
+};
+const canSubmitInvoicePayment = (invoice) => {
     if (autoValidation.value.invoices) {
+        return false;
+    }
+
+    const amount = invoiceAmountValue(invoice.id);
+    return amount >= 0.01 && !amountExceedsBalance(invoice);
+};
+const setInvoicePaymentAmount = (invoice, value) => {
+    if (!invoice) {
         return;
     }
 
-    const amount = Number(paymentAmounts[invoiceId] || 0);
+    const normalized = roundMoney(Math.max(0, Math.min(Number(value || 0), invoiceBalanceDue(invoice))));
+    paymentAmounts[invoice.id] = normalized;
+};
+
+const tipPayload = (invoiceId) => {
+    if (!paymentTipEnabled[invoiceId]) {
+        return {
+            tip_enabled: false,
+            tip_mode: 'none',
+            tip_percent: null,
+            tip_amount: 0,
+        };
+    }
+
+    const mode = paymentTipModes[invoiceId] === 'fixed' ? 'fixed' : 'percent';
+    if (mode === 'percent') {
+        return {
+            tip_enabled: true,
+            tip_mode: 'percent',
+            tip_percent: tipPercentValue(invoiceId),
+            tip_amount: 0,
+        };
+    }
+
+    return {
+        tip_enabled: true,
+        tip_mode: 'fixed',
+        tip_percent: null,
+        tip_amount: tipFixedAmountValue(invoiceId),
+    };
+};
+
+const submitPayment = (invoice) => {
+    if (!invoice || !canSubmitInvoicePayment(invoice)) {
+        return;
+    }
+
+    const amount = invoiceAmountValue(invoice.id);
     router.post(
-        route('portal.invoices.payments.store', invoiceId),
-        { amount },
+        route('portal.invoices.payments.store', invoice.id),
+        {
+            amount,
+            ...tipPayload(invoice.id),
+        },
         { preserveScroll: true }
     );
 };
 
-const startStripePayment = (invoiceId) => {
-    if (autoValidation.value.invoices || !stripeEnabled.value) {
+const startStripePayment = (invoice) => {
+    if (!invoice || !stripeEnabled.value || !canSubmitInvoicePayment(invoice)) {
         return;
     }
-    if (!invoiceId || stripeProcessing[invoiceId]) {
+    if (stripeProcessing[invoice.id]) {
         return;
     }
 
-    stripeProcessing[invoiceId] = true;
-    const amount = Number(paymentAmounts[invoiceId] || 0);
-    const payload = Number.isFinite(amount) && amount > 0 ? { amount } : {};
+    stripeProcessing[invoice.id] = true;
+    const amount = invoiceAmountValue(invoice.id);
+    const payload = {
+        amount,
+        ...tipPayload(invoice.id),
+    };
 
-    router.post(route('portal.invoices.stripe', invoiceId), payload, {
+    router.post(route('portal.invoices.stripe', invoice.id), payload, {
         preserveScroll: true,
         onFinish: () => {
-            stripeProcessing[invoiceId] = false;
+            stripeProcessing[invoice.id] = false;
         },
     });
 };
@@ -801,29 +947,212 @@ const submitWorkRating = (workId) => {
                                     </span>
                                 </div>
                             </div>
-                            <form class="flex flex-wrap items-center gap-2" @submit.prevent="submitPayment(invoice.id)">
-                                <input v-model.number="paymentAmounts[invoice.id]" type="number" min="0.01" :max="invoice.balance_due" step="0.01"
-                                    class="w-32 py-2 px-3 rounded-sm border border-stone-200 text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
-                                    :placeholder="$t('client_dashboard.labels.amount')" />
-                                <button
-                                    v-if="stripeEnabled"
-                                    type="button"
-                                    :disabled="stripeProcessing[invoice.id]"
-                                    class="py-2 px-3 inline-flex items-center gap-x-2 text-xs font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-800 disabled:opacity-50"
-                                    @click="startStripePayment(invoice.id)"
-                                >
-                                    {{ $t('client_dashboard.actions.pay_with_stripe') }}
-                                </button>
-                                <button
-                                    v-else
-                                    type="submit"
-                                    class="py-2 px-3 inline-flex items-center gap-x-2 text-xs font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700"
-                                >
-                                    {{ $t('client_dashboard.actions.pay_now') }}
-                                </button>
-                                <span class="text-xs text-greee-500 dark:text-neutral-400">
-                                    {{ $t('client_dashboard.labels.paid_of', { paid: formatCurrency(invoice.amount_paid), total: formatCurrency(invoice.total) }) }}
-                                </span>
+                            <form class="space-y-3" @submit.prevent="submitPayment(invoice)">
+                                <div class="space-y-2">
+                                    <input
+                                        v-model.number="paymentAmounts[invoice.id]"
+                                        type="number"
+                                        min="0.01"
+                                        :max="invoice.balance_due"
+                                        step="0.01"
+                                        class="w-40 py-2 px-3 rounded-sm border border-stone-200 text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
+                                        :placeholder="$t('client_dashboard.labels.amount')"
+                                    />
+                                    <div v-if="amountExceedsBalance(invoice)" class="text-xs text-red-600">
+                                        {{ $t('client_dashboard.labels.amount_exceeds_due', { amount: formatCurrency(invoice.balance_due) }) }}
+                                    </div>
+                                    <p class="text-[11px] text-stone-500 dark:text-neutral-400">
+                                        {{ $t('client_dashboard.labels.partial_payment_help') }}
+                                    </p>
+                                    <div class="flex flex-wrap items-center gap-2">
+                                        <button
+                                            type="button"
+                                            class="rounded-sm border border-stone-200 bg-white px-2.5 py-1 text-xs font-medium text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200 dark:hover:bg-neutral-700"
+                                            @click="setInvoicePaymentAmount(invoice, invoice.balance_due)"
+                                        >
+                                            {{ $t('client_dashboard.labels.pay_full_balance') }}
+                                        </button>
+                                        <button
+                                            type="button"
+                                            class="rounded-sm border border-stone-200 bg-white px-2.5 py-1 text-xs font-medium text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200 dark:hover:bg-neutral-700"
+                                            @click="setInvoicePaymentAmount(invoice, roundMoney(invoice.balance_due * 0.5))"
+                                        >
+                                            {{ $t('client_dashboard.labels.pay_half') }}
+                                        </button>
+                                        <button
+                                            type="button"
+                                            class="rounded-sm border border-stone-200 bg-white px-2.5 py-1 text-xs font-medium text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200 dark:hover:bg-neutral-700"
+                                            @click="setInvoicePaymentAmount(invoice, roundMoney(invoice.balance_due * 0.25))"
+                                        >
+                                            {{ $t('client_dashboard.labels.pay_quarter') }}
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div class="rounded-sm border border-stone-200 bg-stone-50 p-3 dark:border-neutral-700 dark:bg-neutral-900">
+                                    <div class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                                        {{ $t('client_dashboard.labels.tip_prompt_title') }}
+                                    </div>
+                                    <p class="text-xs text-stone-500 dark:text-neutral-400">
+                                        {{ $t('client_dashboard.labels.tip_prompt_help') }}
+                                    </p>
+
+                                    <div class="mt-3 flex flex-wrap gap-2">
+                                        <button
+                                            type="button"
+                                            class="rounded-sm border px-3 py-1.5 text-xs font-medium"
+                                            :class="paymentTipEnabled[invoice.id] ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-stone-200 bg-white text-stone-700 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200'"
+                                            @click="paymentTipEnabled[invoice.id] = true"
+                                        >
+                                            {{ $t('client_dashboard.labels.tip_yes') }}
+                                        </button>
+                                        <button
+                                            type="button"
+                                            class="rounded-sm border px-3 py-1.5 text-xs font-medium"
+                                            :class="!paymentTipEnabled[invoice.id] ? 'border-stone-900 bg-stone-900 text-white dark:border-neutral-200 dark:bg-neutral-200 dark:text-neutral-900' : 'border-stone-200 bg-white text-stone-700 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200'"
+                                            @click="paymentTipEnabled[invoice.id] = false"
+                                        >
+                                            {{ $t('client_dashboard.labels.tip_no') }}
+                                        </button>
+                                    </div>
+
+                                    <div v-if="paymentTipEnabled[invoice.id]" class="mt-3 space-y-3">
+                                        <div class="flex flex-wrap gap-2">
+                                            <button
+                                                type="button"
+                                                class="rounded-sm border px-3 py-1.5 text-xs font-medium"
+                                                :class="paymentTipModes[invoice.id] === 'percent' ? 'border-slate-900 bg-slate-900 text-white dark:border-neutral-200 dark:bg-neutral-200 dark:text-neutral-900' : 'border-stone-200 bg-white text-stone-700 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200'"
+                                                @click="paymentTipModes[invoice.id] = 'percent'"
+                                            >
+                                                {{ $t('client_dashboard.labels.tip_mode_percent') }}
+                                            </button>
+                                            <button
+                                                type="button"
+                                                class="rounded-sm border px-3 py-1.5 text-xs font-medium"
+                                                :class="paymentTipModes[invoice.id] === 'fixed' ? 'border-slate-900 bg-slate-900 text-white dark:border-neutral-200 dark:bg-neutral-200 dark:text-neutral-900' : 'border-stone-200 bg-white text-stone-700 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200'"
+                                                @click="paymentTipModes[invoice.id] = 'fixed'"
+                                            >
+                                                {{ $t('client_dashboard.labels.tip_mode_fixed') }}
+                                            </button>
+                                        </div>
+
+                                        <div v-if="paymentTipModes[invoice.id] === 'percent'" class="space-y-2">
+                                            <div class="flex flex-wrap gap-2">
+                                                <button
+                                                    v-for="value in quickTipPercents"
+                                                    :key="`dashboard-tip-percent-${invoice.id}-${value}`"
+                                                    type="button"
+                                                    class="rounded-sm border px-2.5 py-1 text-xs font-medium"
+                                                    :class="tipPercentValue(invoice.id) === value ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-stone-200 bg-white text-stone-700 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200'"
+                                                    @click="paymentTipPercents[invoice.id] = value"
+                                                >
+                                                    {{ value }}%
+                                                </button>
+                                            </div>
+                                            <input
+                                                v-model.number="paymentTipPercents[invoice.id]"
+                                                type="number"
+                                                min="0"
+                                                :max="maxTipPercent"
+                                                step="0.01"
+                                                class="w-full rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm text-stone-700 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200"
+                                                :placeholder="$t('client_dashboard.labels.tip_other_percent')"
+                                            />
+                                            <div class="text-[11px] text-stone-500 dark:text-neutral-400">
+                                                {{ $t('client_dashboard.labels.tip_max_percent', { value: maxTipPercent }) }}
+                                            </div>
+                                        </div>
+
+                                        <div v-else class="space-y-2">
+                                            <div class="flex flex-wrap gap-2">
+                                                <button
+                                                    v-for="value in quickTipFixedAmounts"
+                                                    :key="`dashboard-tip-fixed-${invoice.id}-${value}`"
+                                                    type="button"
+                                                    class="rounded-sm border px-2.5 py-1 text-xs font-medium"
+                                                    :class="tipFixedAmountValue(invoice.id) === value ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-stone-200 bg-white text-stone-700 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200'"
+                                                    @click="paymentTipFixedAmounts[invoice.id] = value"
+                                                >
+                                                    {{ formatCurrency(value) }}
+                                                </button>
+                                            </div>
+                                            <input
+                                                v-model.number="paymentTipFixedAmounts[invoice.id]"
+                                                type="number"
+                                                min="0"
+                                                :max="maxTipFixedAmount"
+                                                step="0.01"
+                                                class="w-full rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm text-stone-700 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200"
+                                                :placeholder="$t('client_dashboard.labels.tip_other_amount')"
+                                            />
+                                            <div class="text-[11px] text-stone-500 dark:text-neutral-400">
+                                                {{ $t('client_dashboard.labels.tip_max_amount', { amount: formatCurrency(maxTipFixedAmount) }) }}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <p class="mt-2 text-[11px] text-stone-500 dark:text-neutral-400">
+                                        {{ $t('client_dashboard.labels.tip_change_before_pay') }}
+                                    </p>
+                                </div>
+
+                                <div class="rounded-sm border border-stone-200 bg-stone-50 px-3 py-2 text-xs text-stone-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300">
+                                    <div class="flex items-center justify-between">
+                                        <span>{{ $t('client_dashboard.labels.subtotal') }}</span>
+                                        <span class="font-medium text-stone-800 dark:text-neutral-100">
+                                            {{ formatCurrency(invoiceAmountValue(invoice.id)) }}
+                                        </span>
+                                    </div>
+                                    <div class="mt-1 flex items-center justify-between">
+                                        <span>{{ $t('client_dashboard.labels.tip_optional') }}</span>
+                                        <span class="font-medium text-stone-800 dark:text-neutral-100">
+                                            {{ formatCurrency(tipAmountValue(invoice.id)) }}
+                                        </span>
+                                    </div>
+                                    <div class="mt-2 flex items-center justify-between border-t border-stone-200 pt-2 dark:border-neutral-700">
+                                        <span class="font-semibold text-stone-800 dark:text-neutral-100">{{ $t('client_dashboard.labels.total_charge') }}</span>
+                                        <span class="font-semibold text-stone-900 dark:text-neutral-100">
+                                            {{ formatCurrency(totalChargeValue(invoice.id)) }}
+                                        </span>
+                                    </div>
+                                </div>
+                                <p class="text-[11px] text-stone-500 dark:text-neutral-400">
+                                    <template v-if="isPartialPayment(invoice)">
+                                        {{ $t('client_dashboard.labels.partial_selected_remaining', { amount: formatCurrency(remainingBalanceAfterPayment(invoice)) }) }}
+                                    </template>
+                                    <template v-else>
+                                        {{ $t('client_dashboard.labels.remaining_after_payment', { amount: formatCurrency(remainingBalanceAfterPayment(invoice)) }) }}
+                                    </template>
+                                </p>
+
+                                <div class="space-y-2 pt-1">
+                                    <button
+                                        v-if="stripeEnabled"
+                                        type="button"
+                                        :disabled="stripeProcessing[invoice.id] || !canSubmitInvoicePayment(invoice)"
+                                        class="w-full py-2 px-3 inline-flex items-center justify-center gap-x-2 text-xs font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-800 disabled:opacity-50"
+                                        @click="startStripePayment(invoice)"
+                                    >
+                                        {{ $t('client_dashboard.actions.pay_with_stripe') }}
+                                    </button>
+                                    <button
+                                        v-else
+                                        type="submit"
+                                        :disabled="!canSubmitInvoicePayment(invoice)"
+                                        class="w-full py-2 px-3 inline-flex items-center justify-center gap-x-2 text-xs font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50"
+                                    >
+                                        {{ $t('client_dashboard.actions.pay_now') }}
+                                    </button>
+                                </div>
+
+                                <div class="flex flex-wrap items-center gap-3 text-xs">
+                                    <span class="text-stone-500 dark:text-neutral-400">
+                                        {{ $t('client_dashboard.labels.paid_of', { paid: formatCurrency(invoice.amount_paid), total: formatCurrency(invoice.total) }) }}
+                                    </span>
+                                    <span class="text-stone-500 dark:text-neutral-400">
+                                        {{ $t('client_dashboard.labels.total_to_charge', { total: formatCurrency(totalChargeValue(invoice.id)) }) }}
+                                    </span>
+                                </div>
                             </form>
                         </div>
                         <div v-if="!invoicesDue.length" class="text-sm text-stone-500 dark:text-neutral-400">

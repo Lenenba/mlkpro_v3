@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Customer;
 use App\Models\Reservation;
+use App\Models\ReservationQueueItem;
 use App\Models\ReservationReview;
 use App\Models\User;
 use App\Notifications\ActionEmailNotification;
@@ -127,6 +128,200 @@ class ReservationNotificationService
             includeClient: false,
             includeInternal: true
         );
+    }
+
+    public function handleQueueEvent(
+        ReservationQueueItem $item,
+        string $event,
+        ?User $actor = null,
+        array $context = []
+    ): bool {
+        $event = strtolower(trim($event));
+
+        $config = match ($event) {
+            'queue_pre_call' => [
+                'title' => 'Queue pre-call',
+                'message' => 'You are almost next. Please be ready.',
+                'include_client' => true,
+                'include_internal' => false,
+            ],
+            'queue_called' => [
+                'title' => 'Queue called',
+                'message' => 'It is your turn now. Please come to the service point.',
+                'include_client' => true,
+                'include_internal' => true,
+            ],
+            'queue_grace_expired' => [
+                'title' => 'Queue grace expired',
+                'message' => 'A called queue item reached the grace limit and was moved forward.',
+                'include_client' => true,
+                'include_internal' => true,
+            ],
+            default => null,
+        };
+
+        if (!$config) {
+            return false;
+        }
+
+        $account = User::query()->find($item->account_id);
+        if (!$account) {
+            return false;
+        }
+
+        $settings = $this->preferences->resolveFor($account);
+        if (!$this->isEventEnabled($settings, $event)) {
+            return false;
+        }
+
+        $metaKey = (string) ($context['meta_key'] ?? ($event . '_sent_at'));
+        if (empty($context['force']) && $this->hasQueueNotificationMeta($item, $metaKey)) {
+            return false;
+        }
+
+        $item->loadMissing([
+            'service:id,name',
+            'teamMember.user:id,name,email',
+            'client:id,first_name,last_name,company_name,email,portal_user_id',
+            'client.portalUser:id,name,email',
+            'clientUser:id,name,email',
+            'reservation:id,starts_at,status,team_member_id,client_id,client_user_id',
+            'reservation.client:id,first_name,last_name,company_name,email,portal_user_id',
+            'reservation.client.portalUser:id,name,email',
+            'reservation.clientUser:id,name,email',
+            'reservation.teamMember.user:id,name,email',
+        ]);
+
+        $clientUser = $item->clientUser
+            ?: $item->reservation?->clientUser
+            ?: $item->client?->portalUser
+            ?: $item->reservation?->client?->portalUser;
+
+        $client = $item->client ?: $item->reservation?->client;
+        $memberUser = $item->teamMember?->user ?: $item->reservation?->teamMember?->user;
+        $clientLabel = (string) (
+            $client?->company_name
+            ?: trim(($client?->first_name ?? '') . ' ' . ($client?->last_name ?? ''))
+            ?: ($clientUser?->name ?? 'Client')
+        );
+
+        $serviceLabel = $item->service?->name ?: 'Service';
+        $queueLabel = $item->queue_number ?: ('#' . $item->id);
+        $details = [
+            ['label' => 'Queue', 'value' => $queueLabel],
+            ['label' => 'Type', 'value' => $item->item_type],
+            ['label' => 'Service', 'value' => $serviceLabel],
+            ['label' => 'Client', 'value' => $clientLabel],
+            ['label' => 'Status', 'value' => $item->status],
+            ['label' => 'Position', 'value' => $item->position ?? '-'],
+            ['label' => 'ETA', 'value' => $item->eta_minutes !== null ? ((int) $item->eta_minutes . ' min') : '-'],
+        ];
+
+        $memberLabel = $memberUser?->name ?: 'Team member';
+        $details[] = ['label' => 'Team member', 'value' => $memberLabel];
+
+        if ($item->call_expires_at) {
+            $callExpiry = $item->call_expires_at->copy()
+                ->setTimezone($account->company_timezone ?: config('app.timezone', 'UTC'))
+                ->format('Y-m-d H:i');
+            $details[] = ['label' => 'Call expires at', 'value' => $callExpiry];
+        }
+
+        $internalUsers = collect([$account, $memberUser])
+            ->filter(fn ($user) => $user instanceof User)
+            ->unique('id')
+            ->reject(function (User $user) use ($actor) {
+                return $actor && (int) $user->id === (int) $actor->id;
+            })
+            ->values();
+
+        $userRecipients = collect();
+        if (!empty($config['include_internal'])) {
+            $userRecipients = $userRecipients->merge($internalUsers);
+        }
+        if (!empty($config['include_client']) && $clientUser instanceof User) {
+            $userRecipients->push($clientUser);
+        }
+        $userRecipients = $userRecipients
+            ->filter(fn ($user) => $user instanceof User)
+            ->unique('id')
+            ->values();
+
+        $sent = 0;
+        foreach ($userRecipients as $recipient) {
+            $isClientRecipient = $clientUser && (int) $recipient->id === (int) $clientUser->id;
+            $actionUrl = $isClientRecipient
+                ? route('client.reservations.index')
+                : route('reservation.index');
+
+            if (!empty($settings['in_app'])) {
+                $dispatchOk = NotificationDispatcher::send($recipient, new ReservationDatabaseNotification([
+                    'title' => (string) $config['title'],
+                    'message' => (string) $config['message'],
+                    'event' => $event,
+                    'action_url' => $actionUrl,
+                    'reservation_id' => $item->reservation_id,
+                    'queue_item_id' => $item->id,
+                    'status' => $item->status,
+                    'starts_at' => $item->reservation?->starts_at?->toIso8601String(),
+                ]), [
+                    'reservation_id' => $item->reservation_id,
+                    'queue_item_id' => $item->id,
+                    'event' => $event,
+                ]);
+                if ($dispatchOk) {
+                    $sent += 1;
+                }
+            }
+
+            if (!empty($settings['email']) && !empty($recipient->email)) {
+                $dispatchOk = NotificationDispatcher::send($recipient, new ActionEmailNotification(
+                    (string) $config['title'],
+                    (string) $config['message'],
+                    $details,
+                    $actionUrl,
+                    'Open reservations',
+                    (string) $config['title']
+                ), [
+                    'reservation_id' => $item->reservation_id,
+                    'queue_item_id' => $item->id,
+                    'event' => $event,
+                ]);
+                if ($dispatchOk) {
+                    $sent += 1;
+                }
+            }
+        }
+
+        if (
+            !empty($config['include_client'])
+            && !($clientUser instanceof User)
+            && $client instanceof Customer
+            && !empty($client->email)
+            && !empty($settings['email'])
+        ) {
+            $dispatchOk = NotificationDispatcher::send($client, new ActionEmailNotification(
+                (string) $config['title'],
+                (string) $config['message'],
+                $details,
+                route('client.reservations.book'),
+                'Open reservations',
+                (string) $config['title']
+            ), [
+                'reservation_id' => $item->reservation_id,
+                'queue_item_id' => $item->id,
+                'event' => $event,
+            ]);
+            if ($dispatchOk) {
+                $sent += 1;
+            }
+        }
+
+        if ($sent > 0) {
+            $this->setQueueNotificationMeta($item, $metaKey, now('UTC')->toIso8601String());
+        }
+
+        return $sent > 0;
     }
 
     public function processScheduledNotifications(?Carbon $reference = null): array
@@ -421,6 +616,9 @@ class ReservationNotificationService
             'reminder' => (bool) ($settings['notify_on_reminder'] ?? true),
             'review_submitted' => (bool) ($settings['notify_on_review_submitted'] ?? true),
             'review_request' => (bool) ($settings['review_request_on_completed'] ?? true),
+            'queue_pre_call' => (bool) ($settings['notify_on_queue_pre_call'] ?? true),
+            'queue_called' => (bool) ($settings['notify_on_queue_called'] ?? true),
+            'queue_grace_expired' => (bool) ($settings['notify_on_queue_grace_expired'] ?? true),
             default => true,
         };
     }
@@ -441,6 +639,26 @@ class ReservationNotificationService
         $metadata['notifications'] = $notifications;
 
         $reservation->forceFill([
+            'metadata' => $metadata,
+        ])->save();
+    }
+
+    private function hasQueueNotificationMeta(ReservationQueueItem $item, string $key): bool
+    {
+        $metadata = (array) ($item->metadata ?? []);
+        $notifications = (array) ($metadata['notifications'] ?? []);
+
+        return !empty($notifications[$key]);
+    }
+
+    private function setQueueNotificationMeta(ReservationQueueItem $item, string $key, string $value): void
+    {
+        $metadata = (array) ($item->metadata ?? []);
+        $notifications = (array) ($metadata['notifications'] ?? []);
+        $notifications[$key] = $value;
+        $metadata['notifications'] = $notifications;
+
+        $item->forceFill([
             'metadata' => $metadata,
         ])->save();
     }

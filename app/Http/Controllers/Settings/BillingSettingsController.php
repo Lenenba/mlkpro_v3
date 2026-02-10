@@ -10,6 +10,7 @@ use App\Services\BillingSubscriptionService;
 use App\Services\StripeConnectService;
 use App\Services\StripeBillingService;
 use App\Support\PlanDisplay;
+use App\Support\TipSettingsResolver;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
@@ -202,6 +203,7 @@ class BillingSettingsController extends Controller
             ],
             'availableMethods' => self::AVAILABLE_METHODS,
             'paymentMethods' => array_values($user->payment_methods ?? []),
+            'tipSettings' => TipSettingsResolver::forUser($user),
             'plans' => $plans,
             'subscription' => $subscriptionSummary,
             'seatQuantity' => $seatQuantity,
@@ -469,16 +471,31 @@ class BillingSettingsController extends Controller
         $validated = $request->validate([
             'payment_methods' => 'nullable|array',
             'payment_methods.*' => ['string', Rule::in($allowed)],
+            'tips' => 'nullable|array',
+            'tips.max_percent' => 'nullable|numeric|min:1|max:100',
+            'tips.max_fixed_amount' => 'nullable|numeric|min:1|max:10000',
+            'tips.default_percent' => 'nullable|numeric|min:0|max:100',
+            'tips.allocation_strategy' => ['nullable', Rule::in(['primary', 'split'])],
+            'tips.partial_refund_rule' => ['nullable', Rule::in(['prorata', 'manual'])],
         ]);
 
+        $storeSettings = is_array($user->company_store_settings) ? $user->company_store_settings : [];
+        $incomingTips = is_array($validated['tips'] ?? null) ? $validated['tips'] : [];
+        $currentTips = is_array($storeSettings['tips'] ?? null) ? $storeSettings['tips'] : [];
+        $storeSettings['tips'] = TipSettingsResolver::sanitize(array_replace($currentTips, $incomingTips));
+
+        $paymentMethods = array_values(array_unique($validated['payment_methods'] ?? ($user->payment_methods ?? [])));
+
         $user->update([
-            'payment_methods' => array_values(array_unique($validated['payment_methods'] ?? [])),
+            'payment_methods' => $paymentMethods,
+            'company_store_settings' => $storeSettings,
         ]);
 
         if ($this->shouldReturnJson($request)) {
             return response()->json([
                 'message' => 'Payment settings updated.',
                 'payment_methods' => $user->payment_methods,
+                'tips' => TipSettingsResolver::forUser($user),
             ]);
         }
 

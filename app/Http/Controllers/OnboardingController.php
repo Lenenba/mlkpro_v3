@@ -28,6 +28,9 @@ use Laravel\Paddle\Subscription;
 class OnboardingController extends Controller
 {
     private const SECTOR_CATEGORIES = [
+        'salon' => ['Coupe', 'Coloration', 'Coiffage', 'Soin capillaire', 'Barbier'],
+        'restaurant' => ['Service en salle', 'Menu degustation', 'Evenement prive', 'Takeout', 'Livraison'],
+        'service_general' => ['Installation', 'Entretien', 'Reparation', 'Conseil', 'Autres'],
         'menuiserie' => ['Fabrication', 'Installation', 'Reparation', 'Finition', 'Sur mesure'],
         'plomberie' => ['Installation', 'Reparation', 'Debouchage', 'Entretien', 'Urgence'],
         'electricite' => ['Installation', 'Maintenance', 'Mise aux normes', 'Depannage', 'Domotique'],

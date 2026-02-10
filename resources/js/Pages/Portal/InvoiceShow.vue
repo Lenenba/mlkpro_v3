@@ -55,6 +55,17 @@ const formatDate = (value) => humanizeDate(value) || '-';
 const formatCurrency = (value) =>
     `$${Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
+const paymentTipAmount = (payment) => {
+    const value = Number(payment?.tip_amount || 0);
+    return Number.isFinite(value) ? Math.max(0, value) : 0;
+};
+
+const paymentChargedTotal = (payment) => {
+    const fallback = Number(payment?.amount || 0) + paymentTipAmount(payment);
+    const value = Number(payment?.charged_total ?? fallback);
+    return Number.isFinite(value) ? value : fallback;
+};
+
 const formatShortDate = (value) => {
     if (!value) {
         return '-';
@@ -301,8 +312,19 @@ const statusClass = (status) => {
                         class="flex items-center justify-between p-2 rounded-sm bg-stone-50 dark:bg-neutral-800">
                         <div>
                             <p class="text-sm text-stone-700 dark:text-neutral-200">
-                                {{ formatCurrency(payment.amount) }} - {{ payment.method || $t('invoices.labels.method_fallback') }}
+                                {{ formatCurrency(payment.amount) }}
+                                - {{ payment.method || $t('invoices.labels.method_fallback') }}
                             </p>
+                            <div class="mt-1 space-y-0.5 text-xs text-stone-500 dark:text-neutral-400">
+                                <div>{{ $t('invoices.show.payments.subtotal') }}: {{ formatCurrency(payment.amount) }}</div>
+                                <div>{{ $t('invoices.show.payments.tip') }}: {{ formatCurrency(paymentTipAmount(payment)) }}</div>
+                                <div class="font-medium text-stone-700 dark:text-neutral-300">
+                                    {{ $t('invoices.show.payments.total_paid') }}: {{ formatCurrency(paymentChargedTotal(payment)) }}
+                                </div>
+                                <div v-if="payment.tip_assignee?.name">
+                                    {{ $t('invoices.show.payments.tip_assigned_to') }}: {{ payment.tip_assignee.name }}
+                                </div>
+                            </div>
                             <p class="text-xs text-stone-500 dark:text-neutral-400">
                                 {{ formatDate(payment.paid_at) }}
                             </p>

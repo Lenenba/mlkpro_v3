@@ -69,6 +69,16 @@ class TeamMember extends Model
         return $this->hasOne(ReservationSetting::class);
     }
 
+    public function reservationResources(): HasMany
+    {
+        return $this->hasMany(ReservationResource::class);
+    }
+
+    public function reservationWaitlists(): HasMany
+    {
+        return $this->hasMany(ReservationWaitlist::class);
+    }
+
     public function scopeForAccount(Builder $query, int $accountId): Builder
     {
         return $query->where('account_id', $accountId);

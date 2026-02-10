@@ -5,18 +5,24 @@ namespace App\Http\Controllers\Reservation;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Reservation\ClientBookingRequest;
 use App\Http\Requests\Reservation\ClientRescheduleRequest;
+use App\Http\Requests\Reservation\ClientTicketRequest;
+use App\Http\Requests\Reservation\ClientWaitlistRequest;
 use App\Http\Requests\Reservation\ReservationReviewRequest;
 use App\Http\Requests\Reservation\SlotRequest;
 use App\Models\ActivityLog;
 use App\Models\Customer;
 use App\Models\Product;
 use App\Models\Reservation;
+use App\Models\ReservationQueueItem;
 use App\Models\ReservationReview;
+use App\Models\ReservationWaitlist;
 use App\Models\TeamMember;
 use App\Models\User;
 use App\Services\ReservationAvailabilityService;
 use App\Services\ReservationNotificationService;
+use App\Services\ReservationQueueService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
@@ -24,7 +30,8 @@ class ClientReservationController extends Controller
 {
     public function __construct(
         private readonly ReservationAvailabilityService $availabilityService,
-        private readonly ReservationNotificationService $notificationService
+        private readonly ReservationNotificationService $notificationService,
+        private readonly ReservationQueueService $queueService
     ) {
     }
 
@@ -84,10 +91,23 @@ class ClientReservationController extends Controller
                 'phone' => $customer->phone,
             ],
             'upcomingReservations' => $upcomingReservations,
+            'waitlistEntries' => $this->mapClientWaitlistEntries($account->id, $customer->id, $user->id),
+            'queueTickets' => $this->queueService->clientTickets($account->id, $customer->id, $user->id, $settings),
             'settings' => [
+                'business_preset' => (string) ($settings['business_preset'] ?? 'service_general'),
+                'waitlist_enabled' => (bool) ($settings['waitlist_enabled'] ?? false),
+                'queue_mode_enabled' => (bool) ($settings['queue_mode_enabled'] ?? false),
+                'queue_dispatch_mode' => (string) ($settings['queue_dispatch_mode'] ?? 'fifo_with_appointment_priority'),
+                'queue_grace_minutes' => (int) ($settings['queue_grace_minutes'] ?? 5),
+                'queue_pre_call_threshold' => (int) ($settings['queue_pre_call_threshold'] ?? 2),
+                'queue_no_show_on_grace_expiry' => (bool) ($settings['queue_no_show_on_grace_expiry'] ?? false),
                 'allow_client_cancel' => (bool) $settings['allow_client_cancel'],
                 'allow_client_reschedule' => (bool) $settings['allow_client_reschedule'],
                 'cancellation_cutoff_hours' => (int) $settings['cancellation_cutoff_hours'],
+                'deposit_required' => (bool) ($settings['deposit_required'] ?? false),
+                'deposit_amount' => (float) ($settings['deposit_amount'] ?? 0),
+                'no_show_fee_enabled' => (bool) ($settings['no_show_fee_enabled'] ?? false),
+                'no_show_fee_amount' => (float) ($settings['no_show_fee_amount'] ?? 0),
             ],
         ]);
     }
@@ -111,10 +131,12 @@ class ClientReservationController extends Controller
 
         $result = $this->availabilityService->generateSlots(
             $account->id,
-            \Illuminate\Support\Carbon::parse($validated['range_start'])->utc(),
-            \Illuminate\Support\Carbon::parse($validated['range_end'])->utc(),
+            Carbon::parse($validated['range_start'])->utc(),
+            Carbon::parse($validated['range_end'])->utc(),
             $durationMinutes,
-            isset($validated['team_member_id']) ? (int) $validated['team_member_id'] : null
+            isset($validated['team_member_id']) ? (int) $validated['team_member_id'] : null,
+            isset($validated['party_size']) ? (int) $validated['party_size'] : null,
+            $validated['resource_filters'] ?? null
         );
 
         return response()->json([
@@ -134,6 +156,21 @@ class ClientReservationController extends Controller
         $this->authorize('create', Reservation::class);
         [$account, $customer] = $this->resolveClientContext($user);
         $validated = $request->validated();
+        $metadata = [
+            'contact_name' => $validated['contact_name']
+                ?? ($customer->company_name ?: trim(($customer->first_name ?? '') . ' ' . ($customer->last_name ?? ''))),
+            'contact_email' => $validated['contact_email'] ?? $customer->email,
+            'contact_phone' => $validated['contact_phone'] ?? $customer->phone,
+        ];
+        if (!empty($validated['party_size'])) {
+            $metadata['party_size'] = (int) $validated['party_size'];
+        }
+        if (!empty($validated['resource_filters']) && is_array($validated['resource_filters'])) {
+            $metadata['resource_filters'] = $validated['resource_filters'];
+        }
+        if (!empty($validated['resource_ids']) && is_array($validated['resource_ids'])) {
+            $metadata['resource_ids'] = array_values(array_map('intval', $validated['resource_ids']));
+        }
 
         $reservation = $this->availabilityService->book([
             ...$validated,
@@ -142,11 +179,7 @@ class ClientReservationController extends Controller
             'client_user_id' => $user->id,
             'source' => Reservation::SOURCE_CLIENT,
             'status' => Reservation::STATUS_PENDING,
-            'metadata' => [
-                'contact_name' => $validated['contact_name'] ?? ($customer->company_name ?: trim(($customer->first_name ?? '') . ' ' . ($customer->last_name ?? ''))),
-                'contact_email' => $validated['contact_email'] ?? $customer->email,
-                'contact_phone' => $validated['contact_phone'] ?? $customer->phone,
-            ],
+            'metadata' => $metadata,
         ], $user);
         $this->notificationService->handleCreated($reservation, $user);
 
@@ -213,11 +246,24 @@ class ClientReservationController extends Controller
             'events' => $events,
             'statuses' => Reservation::STATUSES,
             'stats' => $stats,
+            'waitlistEntries' => $this->mapClientWaitlistEntries($account->id, $customer->id, $user->id),
+            'queueTickets' => $this->queueService->clientTickets($account->id, $customer->id, $user->id, $settings),
             'timezone' => $this->availabilityService->timezoneForAccount($account),
             'settings' => [
+                'business_preset' => (string) ($settings['business_preset'] ?? 'service_general'),
+                'waitlist_enabled' => (bool) ($settings['waitlist_enabled'] ?? false),
+                'queue_mode_enabled' => (bool) ($settings['queue_mode_enabled'] ?? false),
+                'queue_dispatch_mode' => (string) ($settings['queue_dispatch_mode'] ?? 'fifo_with_appointment_priority'),
+                'queue_grace_minutes' => (int) ($settings['queue_grace_minutes'] ?? 5),
+                'queue_pre_call_threshold' => (int) ($settings['queue_pre_call_threshold'] ?? 2),
+                'queue_no_show_on_grace_expiry' => (bool) ($settings['queue_no_show_on_grace_expiry'] ?? false),
                 'allow_client_cancel' => (bool) $settings['allow_client_cancel'],
                 'allow_client_reschedule' => (bool) $settings['allow_client_reschedule'],
                 'cancellation_cutoff_hours' => (int) $settings['cancellation_cutoff_hours'],
+                'deposit_required' => (bool) ($settings['deposit_required'] ?? false),
+                'deposit_amount' => (float) ($settings['deposit_amount'] ?? 0),
+                'no_show_fee_enabled' => (bool) ($settings['no_show_fee_enabled'] ?? false),
+                'no_show_fee_amount' => (float) ($settings['no_show_fee_amount'] ?? 0),
             ],
         ]);
     }
@@ -299,6 +345,7 @@ class ClientReservationController extends Controller
             'cancelled_at' => now(),
             'cancelled_by_user_id' => $user->id,
             'cancel_reason' => $reason['reason'] ?? null,
+            'metadata' => $this->availabilityService->metadataForStatusTransition($reservation, Reservation::STATUS_CANCELLED),
         ]);
         $this->notificationService->handleCancelled($reservation->fresh(), $user);
 
@@ -354,6 +401,167 @@ class ClientReservationController extends Controller
         ]);
     }
 
+    public function waitlistStore(ClientWaitlistRequest $request)
+    {
+        $user = $request->user();
+        if (!$user) {
+            abort(401);
+        }
+
+        $this->authorize('create', Reservation::class);
+        [$account, $customer] = $this->resolveClientContext($user);
+        $settings = $this->availabilityService->resolveSettings($account->id, null);
+        if (!($settings['waitlist_enabled'] ?? false)) {
+            throw ValidationException::withMessages([
+                'waitlist' => ['Waitlist is disabled for this company.'],
+            ]);
+        }
+
+        $validated = $request->validated();
+        $waitlist = ReservationWaitlist::query()->create([
+            'account_id' => $account->id,
+            'client_id' => $customer->id,
+            'client_user_id' => $user->id,
+            'service_id' => $validated['service_id'] ?? null,
+            'team_member_id' => $validated['team_member_id'] ?? null,
+            'status' => ReservationWaitlist::STATUS_PENDING,
+            'requested_start_at' => Carbon::parse($validated['requested_start_at'])->utc(),
+            'requested_end_at' => Carbon::parse($validated['requested_end_at'])->utc(),
+            'duration_minutes' => (int) ($validated['duration_minutes'] ?? 60),
+            'party_size' => isset($validated['party_size']) ? (int) $validated['party_size'] : null,
+            'notes' => $validated['notes'] ?? null,
+            'resource_filters' => $validated['resource_filters'] ?? null,
+            'metadata' => [
+                'source' => 'client',
+                'created_from' => 'client.reservations.book',
+            ],
+        ]);
+
+        $waitlist->load(['service:id,name', 'teamMember.user:id,name']);
+
+        return response()->json([
+            'message' => 'Waitlist entry created.',
+            'waitlist' => $this->mapWaitlistEntry($waitlist),
+        ], 201);
+    }
+
+    public function waitlistCancel(Request $request, ReservationWaitlist $waitlist)
+    {
+        $user = $request->user();
+        if (!$user) {
+            abort(401);
+        }
+
+        $this->authorize('viewAny', Reservation::class);
+        [$account, $customer] = $this->resolveClientContext($user);
+        if ((int) $waitlist->account_id !== (int) $account->id) {
+            abort(404);
+        }
+        if (!$this->clientOwnsWaitlist($waitlist, $customer->id, $user->id)) {
+            abort(403);
+        }
+        if (!in_array($waitlist->status, ReservationWaitlist::OPEN_STATUSES, true)) {
+            throw ValidationException::withMessages([
+                'waitlist' => ['This waitlist entry can no longer be cancelled.'],
+            ]);
+        }
+
+        $waitlist->update([
+            'status' => ReservationWaitlist::STATUS_CANCELLED,
+            'cancelled_at' => now('UTC'),
+        ]);
+
+        return response()->json([
+            'message' => 'Waitlist entry cancelled.',
+            'waitlist' => $this->mapWaitlistEntry($waitlist->fresh(['service:id,name', 'teamMember.user:id,name'])),
+        ]);
+    }
+
+    public function ticketStore(ClientTicketRequest $request)
+    {
+        $user = $request->user();
+        if (!$user) {
+            abort(401);
+        }
+
+        $this->authorize('create', Reservation::class);
+        [$account, $customer] = $this->resolveClientContext($user);
+        $settings = $this->availabilityService->resolveSettings($account->id, null);
+        if (!($settings['queue_mode_enabled'] ?? false)) {
+            throw ValidationException::withMessages([
+                'queue' => ['Queue mode is disabled for this company.'],
+            ]);
+        }
+
+        $validated = $request->validated();
+        $item = $this->queueService->createTicket($account->id, [
+            ...$validated,
+            'client_id' => $customer->id,
+            'client_user_id' => $user->id,
+            'source' => $validated['source'] ?? 'client',
+        ], $user, $settings);
+
+        return response()->json([
+            'message' => 'Queue ticket created.',
+            'ticket' => $this->queueService->clientTickets($account->id, $customer->id, $user->id, $settings, 1)[0] ?? null,
+            'queue_item_id' => $item->id,
+        ], 201);
+    }
+
+    public function ticketCancel(Request $request, ReservationQueueItem $ticket)
+    {
+        $user = $request->user();
+        if (!$user) {
+            abort(401);
+        }
+
+        $this->authorize('viewAny', Reservation::class);
+        [$account, $customer] = $this->resolveClientContext($user);
+
+        if ((int) $ticket->account_id !== (int) $account->id || $ticket->item_type !== ReservationQueueItem::TYPE_TICKET) {
+            abort(404);
+        }
+        if (!$this->clientOwnsQueueTicket($ticket, $customer->id, $user->id)) {
+            abort(403);
+        }
+
+        $settings = $this->availabilityService->resolveSettings($account->id, null);
+        $this->queueService->transition($ticket, 'cancel', $user, $settings, [
+            'by_client' => true,
+        ]);
+
+        return response()->json([
+            'message' => 'Queue ticket cancelled.',
+            'ticket' => $this->mapClientQueueTicket($ticket->fresh(['service:id,name', 'teamMember.user:id,name'])),
+        ]);
+    }
+
+    public function ticketStillHere(Request $request, ReservationQueueItem $ticket)
+    {
+        $user = $request->user();
+        if (!$user) {
+            abort(401);
+        }
+
+        $this->authorize('viewAny', Reservation::class);
+        [$account, $customer] = $this->resolveClientContext($user);
+
+        if ((int) $ticket->account_id !== (int) $account->id || $ticket->item_type !== ReservationQueueItem::TYPE_TICKET) {
+            abort(404);
+        }
+        if (!$this->clientOwnsQueueTicket($ticket, $customer->id, $user->id)) {
+            abort(403);
+        }
+
+        $settings = $this->availabilityService->resolveSettings($account->id, null);
+        $this->queueService->transition($ticket, 'still_here', $user, $settings);
+
+        return response()->json([
+            'message' => 'Queue presence confirmed.',
+            'ticket' => $this->mapClientQueueTicket($ticket->fresh(['service:id,name', 'teamMember.user:id,name'])),
+        ]);
+    }
+
     public function review(ReservationReviewRequest $request, Reservation $reservation)
     {
         $user = $request->user();
@@ -402,6 +610,83 @@ class ClientReservationController extends Controller
                 'reviewed_at' => $review->reviewed_at?->toIso8601String(),
             ],
         ], 201);
+    }
+
+    private function mapClientWaitlistEntries(int $accountId, int $customerId, int $clientUserId): array
+    {
+        return ReservationWaitlist::query()
+            ->forAccount($accountId)
+            ->where(function ($query) use ($customerId, $clientUserId) {
+                $query->where('client_user_id', $clientUserId)
+                    ->orWhere('client_id', $customerId);
+            })
+            ->with(['service:id,name', 'teamMember.user:id,name'])
+            ->orderByDesc('created_at')
+            ->limit(20)
+            ->get()
+            ->map(fn (ReservationWaitlist $waitlist) => $this->mapWaitlistEntry($waitlist))
+            ->values()
+            ->all();
+    }
+
+    private function mapWaitlistEntry(ReservationWaitlist $waitlist): array
+    {
+        return [
+            'id' => $waitlist->id,
+            'status' => $waitlist->status,
+            'service_id' => $waitlist->service_id,
+            'service_name' => $waitlist->service?->name,
+            'team_member_id' => $waitlist->team_member_id,
+            'team_member_name' => $waitlist->teamMember?->user?->name,
+            'requested_start_at' => $waitlist->requested_start_at?->toIso8601String(),
+            'requested_end_at' => $waitlist->requested_end_at?->toIso8601String(),
+            'duration_minutes' => (int) ($waitlist->duration_minutes ?? 0),
+            'party_size' => $waitlist->party_size,
+            'notes' => $waitlist->notes,
+            'resource_filters' => $waitlist->resource_filters,
+            'can_cancel' => in_array($waitlist->status, ReservationWaitlist::OPEN_STATUSES, true),
+            'created_at' => $waitlist->created_at?->toIso8601String(),
+        ];
+    }
+
+    private function clientOwnsWaitlist(ReservationWaitlist $waitlist, int $customerId, int $clientUserId): bool
+    {
+        if ($waitlist->client_user_id) {
+            return (int) $waitlist->client_user_id === $clientUserId;
+        }
+
+        return (int) $waitlist->client_id === $customerId;
+    }
+
+    private function mapClientQueueTicket(ReservationQueueItem $ticket): array
+    {
+        return [
+            'id' => $ticket->id,
+            'queue_number' => $ticket->queue_number,
+            'status' => $ticket->status,
+            'service_name' => $ticket->service?->name,
+            'team_member_name' => $ticket->teamMember?->user?->name,
+            'position' => $ticket->position,
+            'eta_minutes' => $ticket->eta_minutes,
+            'call_expires_at' => $ticket->call_expires_at?->toIso8601String(),
+            'created_at' => $ticket->created_at?->toIso8601String(),
+            'can_cancel' => in_array($ticket->status, ReservationQueueItem::ACTIVE_STATUSES, true),
+            'can_still_here' => in_array($ticket->status, [
+                ReservationQueueItem::STATUS_CHECKED_IN,
+                ReservationQueueItem::STATUS_PRE_CALLED,
+                ReservationQueueItem::STATUS_CALLED,
+                ReservationQueueItem::STATUS_SKIPPED,
+            ], true),
+        ];
+    }
+
+    private function clientOwnsQueueTicket(ReservationQueueItem $ticket, int $customerId, int $clientUserId): bool
+    {
+        if ($ticket->client_user_id) {
+            return (int) $ticket->client_user_id === $clientUserId;
+        }
+
+        return (int) $ticket->client_id === $customerId;
     }
 
     private function resolveClientContext(User $user): array

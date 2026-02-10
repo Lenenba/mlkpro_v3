@@ -41,6 +41,17 @@ class SlotRequest extends FormRequest
             'range_start' => ['required', 'date'],
             'range_end' => ['required', 'date', 'after:range_start'],
             'duration_minutes' => ['nullable', 'integer', 'min:5', 'max:720'],
+            'party_size' => ['nullable', 'integer', 'min:1', 'max:500'],
+            'resource_filters' => ['nullable', 'array'],
+            'resource_filters.types' => ['nullable', 'array'],
+            'resource_filters.types.*' => ['string', 'max:60'],
+            'resource_filters.resource_ids' => ['nullable', 'array'],
+            'resource_filters.resource_ids.*' => [
+                'integer',
+                Rule::exists('reservation_resources', 'id')->where(fn ($query) => $query
+                    ->where('account_id', $accountId)
+                    ->where('is_active', true)),
+            ],
         ];
     }
 

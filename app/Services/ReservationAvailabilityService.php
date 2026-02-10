@@ -5,10 +5,13 @@ namespace App\Services;
 use App\Models\AvailabilityException;
 use App\Models\Product;
 use App\Models\Reservation;
+use App\Models\ReservationResource;
+use App\Models\ReservationResourceAllocation;
 use App\Models\ReservationSetting;
 use App\Models\TeamMember;
 use App\Models\User;
 use App\Models\WeeklyAvailability;
+use App\Support\ReservationPresetResolver;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -50,6 +53,10 @@ class ReservationAvailabilityService
 
     public function resolveSettings(int $accountId, ?int $teamMemberId = null): array
     {
+        $account = User::query()
+            ->select(['id', 'company_sector'])
+            ->find($accountId);
+
         $accountLevel = ReservationSetting::query()
             ->forAccount($accountId)
             ->whereNull('team_member_id')
@@ -63,17 +70,14 @@ class ReservationAvailabilityService
                 ->first();
         }
 
-        $defaults = [
-            'buffer_minutes' => 0,
-            'slot_interval_minutes' => 30,
-            'min_notice_minutes' => 0,
-            'max_advance_days' => 90,
-            'cancellation_cutoff_hours' => 12,
-            'allow_client_cancel' => true,
-            'allow_client_reschedule' => true,
-        ];
+        $resolvedPreset = ReservationPresetResolver::resolveForAccount(
+            $account,
+            $accountLevel?->business_preset
+        );
+        $defaults = ReservationPresetResolver::defaults($resolvedPreset);
 
         return [
+            'business_preset' => $resolvedPreset,
             'buffer_minutes' => (int) ($teamLevel?->buffer_minutes ?? $accountLevel?->buffer_minutes ?? $defaults['buffer_minutes']),
             'slot_interval_minutes' => (int) ($teamLevel?->slot_interval_minutes ?? $accountLevel?->slot_interval_minutes ?? $defaults['slot_interval_minutes']),
             'min_notice_minutes' => (int) ($teamLevel?->min_notice_minutes ?? $accountLevel?->min_notice_minutes ?? $defaults['min_notice_minutes']),
@@ -81,6 +85,17 @@ class ReservationAvailabilityService
             'cancellation_cutoff_hours' => (int) ($teamLevel?->cancellation_cutoff_hours ?? $accountLevel?->cancellation_cutoff_hours ?? $defaults['cancellation_cutoff_hours']),
             'allow_client_cancel' => (bool) ($teamLevel?->allow_client_cancel ?? $accountLevel?->allow_client_cancel ?? $defaults['allow_client_cancel']),
             'allow_client_reschedule' => (bool) ($teamLevel?->allow_client_reschedule ?? $accountLevel?->allow_client_reschedule ?? $defaults['allow_client_reschedule']),
+            'late_release_minutes' => (int) ($accountLevel?->late_release_minutes ?? $defaults['late_release_minutes']),
+            'waitlist_enabled' => (bool) ($accountLevel?->waitlist_enabled ?? $defaults['waitlist_enabled']),
+            'queue_mode_enabled' => (bool) ($accountLevel?->queue_mode_enabled ?? $defaults['queue_mode_enabled'] ?? false),
+            'queue_dispatch_mode' => (string) ($accountLevel?->queue_dispatch_mode ?? $defaults['queue_dispatch_mode'] ?? 'fifo_with_appointment_priority'),
+            'queue_grace_minutes' => max(1, min(60, (int) ($accountLevel?->queue_grace_minutes ?? $defaults['queue_grace_minutes'] ?? 5))),
+            'queue_pre_call_threshold' => max(1, min(20, (int) ($accountLevel?->queue_pre_call_threshold ?? $defaults['queue_pre_call_threshold'] ?? 2))),
+            'queue_no_show_on_grace_expiry' => (bool) ($accountLevel?->queue_no_show_on_grace_expiry ?? $defaults['queue_no_show_on_grace_expiry'] ?? false),
+            'deposit_required' => (bool) ($accountLevel?->deposit_required ?? $defaults['deposit_required'] ?? false),
+            'deposit_amount' => max(0, round((float) ($accountLevel?->deposit_amount ?? $defaults['deposit_amount'] ?? 0), 2)),
+            'no_show_fee_enabled' => (bool) ($accountLevel?->no_show_fee_enabled ?? $defaults['no_show_fee_enabled'] ?? false),
+            'no_show_fee_amount' => max(0, round((float) ($accountLevel?->no_show_fee_amount ?? $defaults['no_show_fee_amount'] ?? 0), 2)),
         ];
     }
 
@@ -109,7 +124,9 @@ class ReservationAvailabilityService
         Carbon $rangeStartUtc,
         Carbon $rangeEndUtc,
         int $durationMinutes,
-        ?int $teamMemberId = null
+        ?int $teamMemberId = null,
+        ?int $partySize = null,
+        ?array $resourceFilters = null
     ): array {
         $account = User::query()->find($accountId);
         if (!$account) {
@@ -169,6 +186,25 @@ class ReservationAvailabilityService
             ->get()
             ->groupBy('team_member_id');
 
+        $normalizedResourceFilters = $this->normalizeResourceFilters($resourceFilters);
+        $activeResources = ReservationResource::query()
+            ->forAccount($accountId)
+            ->active()
+            ->get();
+        $resourcesByMember = $activeResources->groupBy(function (ReservationResource $resource) {
+            return $resource->team_member_id ? (string) $resource->team_member_id : 'global';
+        });
+        $resourceAllocations = $this->loadResourceAllocations(
+            $accountId,
+            $startUtc->copy()->subMinutes(self::MAX_BUFFER_MINUTES),
+            $endUtc->copy()->addMinutes(self::MAX_BUFFER_MINUTES)
+        );
+        $shouldApplyResourceCapacity = (
+            ($partySize && $partySize > 0)
+            || !empty($normalizedResourceFilters['types'])
+            || !empty($normalizedResourceFilters['resource_ids'])
+        ) && $activeResources->isNotEmpty();
+
         $slots = [];
         $nowLocal = now($timezone);
         $dates = $this->dateRange($startLocal->copy()->startOfDay(), $endLocal->copy()->startOfDay());
@@ -213,6 +249,24 @@ class ReservationAvailabilityService
                             continue;
                         }
 
+                        $selectedResource = null;
+                        if ($shouldApplyResourceCapacity) {
+                            $selectedResource = $this->pickAvailableResourceForWindow(
+                                $member->id,
+                                $slotStart->copy()->utc(),
+                                $slotEnd->copy()->utc(),
+                                $resourcesByMember,
+                                $resourceAllocations,
+                                $partySize,
+                                $normalizedResourceFilters
+                            );
+
+                            if (!$selectedResource) {
+                                $cursor->addMinutes($intervalMinutes);
+                                continue;
+                            }
+                        }
+
                         $slots[] = [
                             'team_member_id' => $member->id,
                             'team_member_name' => $member->user?->name ?? 'Member',
@@ -221,6 +275,10 @@ class ReservationAvailabilityService
                             'label' => $slotStart->format('D, M j - H:i'),
                             'date' => $slotStart->toDateString(),
                             'time' => $slotStart->format('H:i'),
+                            'resource_id' => $selectedResource?->id,
+                            'resource_name' => $selectedResource?->name,
+                            'resource_type' => $selectedResource?->type,
+                            'resource_capacity' => $selectedResource?->capacity,
                         ];
 
                         $cursor->addMinutes($intervalMinutes);
@@ -266,6 +324,10 @@ class ReservationAvailabilityService
         }
 
         $durationMinutes = $startUtc->diffInMinutes($endUtc);
+        $partySize = $this->normalizePartySize($payload['party_size'] ?? null);
+        $resourceFilters = $this->normalizeResourceFilters($payload['resource_filters'] ?? null);
+        $requestedResourceIds = $this->normalizeResourceIds($payload['resource_ids'] ?? []);
+        $baseMetadata = is_array($payload['metadata'] ?? null) ? $payload['metadata'] : [];
 
         return DB::transaction(function () use (
             $payload,
@@ -275,7 +337,11 @@ class ReservationAvailabilityService
             $timezone,
             $startUtc,
             $endUtc,
-            $durationMinutes
+            $durationMinutes,
+            $partySize,
+            $resourceFilters,
+            $requestedResourceIds,
+            $baseMetadata
         ) {
             $teamMember = TeamMember::query()
                 ->forAccount($accountId)
@@ -298,7 +364,49 @@ class ReservationAvailabilityService
             $this->assertWithinAvailability($accountId, $teamMemberId, $startUtc, $endUtc, $timezone);
             $this->assertNoDoubleBooking($accountId, $teamMemberId, $startUtc, $endUtc, $bufferMinutes, null);
 
-            return Reservation::query()->create([
+            $resourceIds = $requestedResourceIds;
+            if (
+                empty($resourceIds)
+                && $this->hasResourceConstraint($partySize, $resourceFilters)
+            ) {
+                $autoResource = $this->pickAvailableResourceForReservation(
+                    $accountId,
+                    $teamMemberId,
+                    $startUtc,
+                    $endUtc,
+                    $partySize,
+                    $resourceFilters,
+                    null
+                );
+
+                if (!$autoResource) {
+                    throw ValidationException::withMessages([
+                        'starts_at' => ['Selected slot does not have enough resource capacity.'],
+                    ]);
+                }
+
+                $resourceIds = [$autoResource->id];
+            }
+
+            $this->assertResourcesAvailable(
+                $accountId,
+                $teamMemberId,
+                $startUtc,
+                $endUtc,
+                $resourceIds,
+                $partySize,
+                null
+            );
+
+            $metadata = $this->mergeReservationMetadata(
+                $baseMetadata,
+                $partySize,
+                $resourceFilters,
+                $resourceIds,
+                $settings
+            );
+
+            $reservation = Reservation::query()->create([
                 'account_id' => $accountId,
                 'team_member_id' => $teamMemberId,
                 'client_id' => $payload['client_id'] ?? null,
@@ -314,8 +422,12 @@ class ReservationAvailabilityService
                 'buffer_minutes' => $bufferMinutes,
                 'internal_notes' => $payload['internal_notes'] ?? null,
                 'client_notes' => $payload['client_notes'] ?? null,
-                'metadata' => $payload['metadata'] ?? null,
+                'metadata' => $metadata ?: null,
             ]);
+
+            $this->syncResourceAllocations($reservation, $resourceIds);
+
+            return $reservation;
         });
     }
 
@@ -349,6 +461,18 @@ class ReservationAvailabilityService
         }
 
         $durationMinutes = $startUtc->diffInMinutes($endUtc);
+        $resourceIdsProvided = array_key_exists('resource_ids', $payload);
+        $resourceFiltersProvided = array_key_exists('resource_filters', $payload);
+        $partySizeProvided = array_key_exists('party_size', $payload);
+        $requestedResourceIds = $resourceIdsProvided
+            ? $this->normalizeResourceIds($payload['resource_ids'] ?? [])
+            : [];
+        $requestedResourceFilters = $resourceFiltersProvided
+            ? $this->normalizeResourceFilters($payload['resource_filters'] ?? null)
+            : null;
+        $requestedPartySize = $partySizeProvided
+            ? $this->normalizePartySize($payload['party_size'] ?? null)
+            : null;
 
         return DB::transaction(function () use (
             $reservation,
@@ -359,7 +483,13 @@ class ReservationAvailabilityService
             $timezone,
             $startUtc,
             $endUtc,
-            $durationMinutes
+            $durationMinutes,
+            $resourceIdsProvided,
+            $resourceFiltersProvided,
+            $partySizeProvided,
+            $requestedResourceIds,
+            $requestedResourceFilters,
+            $requestedPartySize
         ) {
             $teamMember = TeamMember::query()
                 ->forAccount($accountId)
@@ -382,6 +512,67 @@ class ReservationAvailabilityService
             $this->assertWithinAvailability($accountId, $newTeamMemberId, $startUtc, $endUtc, $timezone);
             $this->assertNoDoubleBooking($accountId, $newTeamMemberId, $startUtc, $endUtc, $bufferMinutes, $reservation->id);
 
+            $existingMetadata = is_array($reservation->metadata) ? $reservation->metadata : [];
+            $currentResourceIds = ReservationResourceAllocation::query()
+                ->forAccount($accountId)
+                ->where('reservation_id', $reservation->id)
+                ->pluck('reservation_resource_id')
+                ->map(fn ($value) => (int) $value)
+                ->values()
+                ->all();
+
+            $effectivePartySize = $partySizeProvided
+                ? $requestedPartySize
+                : $this->normalizePartySize($existingMetadata['party_size'] ?? null);
+            $effectiveResourceFilters = $resourceFiltersProvided
+                ? ($requestedResourceFilters ?? $this->normalizeResourceFilters(null))
+                : $this->normalizeResourceFilters($existingMetadata['resource_filters'] ?? null);
+            $resourceIds = $resourceIdsProvided ? $requestedResourceIds : $currentResourceIds;
+
+            if (
+                empty($resourceIds)
+                && $this->hasResourceConstraint($effectivePartySize, $effectiveResourceFilters)
+            ) {
+                $autoResource = $this->pickAvailableResourceForReservation(
+                    $accountId,
+                    $newTeamMemberId,
+                    $startUtc,
+                    $endUtc,
+                    $effectivePartySize,
+                    $effectiveResourceFilters,
+                    $reservation->id
+                );
+
+                if (!$autoResource) {
+                    throw ValidationException::withMessages([
+                        'starts_at' => ['Selected slot does not have enough resource capacity.'],
+                    ]);
+                }
+
+                $resourceIds = [$autoResource->id];
+            }
+
+            $this->assertResourcesAvailable(
+                $accountId,
+                $newTeamMemberId,
+                $startUtc,
+                $endUtc,
+                $resourceIds,
+                $effectivePartySize,
+                $reservation->id
+            );
+
+            $baseMetadata = array_key_exists('metadata', $payload)
+                ? (is_array($payload['metadata']) ? $payload['metadata'] : [])
+                : $existingMetadata;
+            $metadata = $this->mergeReservationMetadata(
+                $baseMetadata,
+                $effectivePartySize,
+                $effectiveResourceFilters,
+                $resourceIds,
+                $settings
+            );
+
             $reservation->forceFill([
                 'team_member_id' => $newTeamMemberId,
                 'service_id' => $payload['service_id'] ?? $reservation->service_id,
@@ -397,13 +588,13 @@ class ReservationAvailabilityService
                 'client_notes' => array_key_exists('client_notes', $payload)
                     ? $payload['client_notes']
                     : $reservation->client_notes,
-                'metadata' => array_key_exists('metadata', $payload)
-                    ? $payload['metadata']
-                    : $reservation->metadata,
+                'metadata' => $metadata ?: null,
                 'cancelled_at' => null,
                 'cancel_reason' => null,
                 'cancelled_by_user_id' => null,
             ])->save();
+
+            $this->syncResourceAllocations($reservation, $resourceIds);
 
             return $reservation->fresh();
         });
@@ -419,6 +610,496 @@ class ReservationAvailabilityService
 
         $cutoffAt = $reservation->starts_at->copy()->subHours($cutoffHours);
         return now('UTC')->lt($cutoffAt);
+    }
+
+    public function metadataForStatusTransition(Reservation $reservation, string $nextStatus): ?array
+    {
+        $metadata = is_array($reservation->metadata) ? $reservation->metadata : [];
+        $policy = $this->normalizePaymentPolicy($metadata['payment_policy'] ?? null);
+
+        if (
+            !$policy['deposit_required']
+            && $policy['deposit_amount'] <= 0
+            && !$policy['no_show_fee_enabled']
+            && $policy['no_show_fee_amount'] <= 0
+        ) {
+            $settings = $this->resolveSettings((int) $reservation->account_id, (int) $reservation->team_member_id);
+            $policy = $this->paymentPolicyFromSettings($settings);
+        }
+
+        $metadata['payment_policy'] = $policy;
+
+        $state = is_array($metadata['payment_state'] ?? null) ? $metadata['payment_state'] : [];
+        $state['deposit_status'] = (string) (
+            $state['deposit_status']
+            ?? ($policy['deposit_required'] ? 'required' : 'not_required')
+        );
+        $state['deposit_due_amount'] = $policy['deposit_required'] ? $policy['deposit_amount'] : 0.0;
+        $state['no_show_fee_status'] = (string) (
+            $state['no_show_fee_status']
+            ?? ($policy['no_show_fee_enabled'] ? 'not_applied' : 'not_applicable')
+        );
+        $state['no_show_fee_amount'] = $policy['no_show_fee_enabled'] ? $policy['no_show_fee_amount'] : 0.0;
+
+        if ($nextStatus === Reservation::STATUS_NO_SHOW) {
+            if ($policy['no_show_fee_enabled']) {
+                $state['no_show_fee_status'] = 'charge_required';
+                $state['no_show_fee_recorded_at'] = now('UTC')->toIso8601String();
+            }
+            if ($policy['deposit_required']) {
+                $state['deposit_status'] = 'forfeited';
+            }
+        } elseif ($nextStatus === Reservation::STATUS_COMPLETED) {
+            if ($policy['deposit_required'] && $state['deposit_status'] === 'required') {
+                $state['deposit_status'] = 'due_on_invoice';
+            }
+            if ($policy['no_show_fee_enabled']) {
+                $state['no_show_fee_status'] = 'waived';
+                unset($state['no_show_fee_recorded_at']);
+            }
+        } elseif ($nextStatus === Reservation::STATUS_CANCELLED) {
+            if ($policy['deposit_required'] && $state['deposit_status'] === 'required') {
+                $state['deposit_status'] = 'refundable';
+            }
+            if ($policy['no_show_fee_enabled'] && $state['no_show_fee_status'] === 'charge_required') {
+                $state['no_show_fee_status'] = 'waived';
+                unset($state['no_show_fee_recorded_at']);
+            }
+        } elseif ($policy['no_show_fee_enabled'] && $state['no_show_fee_status'] === 'charge_required') {
+            $state['no_show_fee_status'] = 'not_applied';
+            unset($state['no_show_fee_recorded_at']);
+        }
+
+        $metadata['payment_state'] = $state;
+
+        return $metadata ?: null;
+    }
+
+    private function normalizeMoney(mixed $value): float
+    {
+        return max(0, round((float) $value, 2));
+    }
+
+    private function normalizePaymentPolicy(mixed $value): array
+    {
+        $policy = is_array($value) ? $value : [];
+        $depositAmount = $this->normalizeMoney($policy['deposit_amount'] ?? 0);
+        $noShowFeeAmount = $this->normalizeMoney($policy['no_show_fee_amount'] ?? 0);
+
+        return [
+            'deposit_required' => (bool) ($policy['deposit_required'] ?? false) && $depositAmount > 0,
+            'deposit_amount' => $depositAmount,
+            'no_show_fee_enabled' => (bool) ($policy['no_show_fee_enabled'] ?? false) && $noShowFeeAmount > 0,
+            'no_show_fee_amount' => $noShowFeeAmount,
+            'captured_at' => $policy['captured_at'] ?? now('UTC')->toIso8601String(),
+        ];
+    }
+
+    private function paymentPolicyFromSettings(array $settings): array
+    {
+        return $this->normalizePaymentPolicy([
+            'deposit_required' => (bool) ($settings['deposit_required'] ?? false),
+            'deposit_amount' => $settings['deposit_amount'] ?? 0,
+            'no_show_fee_enabled' => (bool) ($settings['no_show_fee_enabled'] ?? false),
+            'no_show_fee_amount' => $settings['no_show_fee_amount'] ?? 0,
+            'captured_at' => now('UTC')->toIso8601String(),
+        ]);
+    }
+
+    private function mergePaymentPolicyMetadata(array $metadata, array $settings): array
+    {
+        $policy = $this->paymentPolicyFromSettings($settings);
+        $metadata['payment_policy'] = $policy;
+
+        $state = is_array($metadata['payment_state'] ?? null) ? $metadata['payment_state'] : [];
+        $state['deposit_status'] = (string) (
+            $state['deposit_status']
+            ?? ($policy['deposit_required'] ? 'required' : 'not_required')
+        );
+        $state['deposit_due_amount'] = $policy['deposit_required'] ? $policy['deposit_amount'] : 0.0;
+        $state['no_show_fee_status'] = (string) (
+            $state['no_show_fee_status']
+            ?? ($policy['no_show_fee_enabled'] ? 'not_applied' : 'not_applicable')
+        );
+        $state['no_show_fee_amount'] = $policy['no_show_fee_enabled'] ? $policy['no_show_fee_amount'] : 0.0;
+
+        $metadata['payment_state'] = $state;
+
+        return $metadata;
+    }
+
+    private function normalizePartySize(mixed $value): ?int
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        $parsed = (int) $value;
+        return $parsed > 0 ? $parsed : null;
+    }
+
+    private function normalizeResourceIds(mixed $value): array
+    {
+        if ($value === null || $value === '') {
+            return [];
+        }
+
+        $items = is_array($value) ? $value : [$value];
+
+        return collect($items)
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn ($id) => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    private function normalizeResourceFilters(?array $filters): array
+    {
+        $filters = is_array($filters) ? $filters : [];
+
+        $types = collect($filters['types'] ?? [])
+            ->map(fn ($type) => strtolower(trim((string) $type)))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        $resourceIds = $this->normalizeResourceIds($filters['resource_ids'] ?? []);
+
+        return [
+            'types' => $types,
+            'resource_ids' => $resourceIds,
+        ];
+    }
+
+    private function hasResourceConstraint(?int $partySize, array $resourceFilters): bool
+    {
+        return ($partySize && $partySize > 0)
+            || !empty($resourceFilters['types'])
+            || !empty($resourceFilters['resource_ids']);
+    }
+
+    private function availableResourcesForMember(
+        int $teamMemberId,
+        Collection $resourcesByMember,
+        array $resourceFilters,
+        ?int $partySize
+    ): Collection {
+        $globalResources = $resourcesByMember->get('global', collect());
+        $memberResources = $resourcesByMember->get((string) $teamMemberId, collect());
+        $resources = $globalResources
+            ->concat($memberResources)
+            ->unique('id')
+            ->values();
+
+        $resourceIds = $resourceFilters['resource_ids'] ?? [];
+        if (!empty($resourceIds)) {
+            $allowed = array_flip($resourceIds);
+            $resources = $resources
+                ->filter(fn (ReservationResource $resource) => isset($allowed[(int) $resource->id]))
+                ->values();
+        }
+
+        $types = $resourceFilters['types'] ?? [];
+        if (!empty($types)) {
+            $allowedTypes = array_flip($types);
+            $resources = $resources
+                ->filter(fn (ReservationResource $resource) => isset($allowedTypes[strtolower((string) $resource->type)]))
+                ->values();
+        }
+
+        if ($partySize && $partySize > 0) {
+            $resources = $resources
+                ->filter(fn (ReservationResource $resource) => (int) $resource->capacity >= $partySize)
+                ->values();
+        }
+
+        return $resources;
+    }
+
+    private function loadResourceAllocations(
+        int $accountId,
+        Carbon $startUtc,
+        Carbon $endUtc,
+        ?int $ignoreReservationId = null,
+        bool $lockForUpdate = false
+    ): Collection {
+        $query = ReservationResourceAllocation::query()
+            ->forAccount($accountId)
+            ->with(['reservation:id,starts_at,ends_at,status'])
+            ->whereHas('reservation', function ($reservationQuery) use ($startUtc, $endUtc, $ignoreReservationId) {
+                $reservationQuery
+                    ->whereIn('status', Reservation::ACTIVE_STATUSES)
+                    ->where('starts_at', '<', $endUtc)
+                    ->where('ends_at', '>', $startUtc)
+                    ->when($ignoreReservationId, function ($query) use ($ignoreReservationId) {
+                        $query->where('id', '!=', $ignoreReservationId);
+                    });
+            });
+
+        if ($lockForUpdate) {
+            $query->lockForUpdate();
+        }
+
+        return $query->get()->groupBy('reservation_resource_id');
+    }
+
+    private function calculateUsedCapacityForSlot(
+        ReservationResource $resource,
+        Carbon $slotStartUtc,
+        Carbon $slotEndUtc,
+        Collection $resourceAllocations
+    ): int {
+        $allocations = $resourceAllocations->get($resource->id, collect());
+        $usedCapacity = 0;
+
+        foreach ($allocations as $allocation) {
+            $reservation = $allocation->reservation;
+            if (!$reservation) {
+                continue;
+            }
+
+            if (
+                $reservation->starts_at
+                && $reservation->ends_at
+                && $reservation->starts_at->lt($slotEndUtc)
+                && $reservation->ends_at->gt($slotStartUtc)
+            ) {
+                $usedCapacity += max(1, (int) ($allocation->quantity ?? 1));
+            }
+        }
+
+        return $usedCapacity;
+    }
+
+    private function pickAvailableResourceForWindow(
+        int $teamMemberId,
+        Carbon $slotStartUtc,
+        Carbon $slotEndUtc,
+        Collection $resourcesByMember,
+        Collection $resourceAllocations,
+        ?int $partySize,
+        array $resourceFilters
+    ): ?ReservationResource {
+        $resources = $this->availableResourcesForMember(
+            $teamMemberId,
+            $resourcesByMember,
+            $resourceFilters,
+            $partySize
+        );
+
+        if ($resources->isEmpty()) {
+            return null;
+        }
+
+        $requiredCapacity = max(1, (int) ($partySize ?? 1));
+
+        foreach ($resources as $resource) {
+            $usedCapacity = $this->calculateUsedCapacityForSlot(
+                $resource,
+                $slotStartUtc,
+                $slotEndUtc,
+                $resourceAllocations
+            );
+
+            $capacity = max(1, (int) $resource->capacity);
+            if (($usedCapacity + $requiredCapacity) <= $capacity) {
+                return $resource;
+            }
+        }
+
+        return null;
+    }
+
+    private function pickAvailableResourceForReservation(
+        int $accountId,
+        int $teamMemberId,
+        Carbon $startUtc,
+        Carbon $endUtc,
+        ?int $partySize,
+        array $resourceFilters,
+        ?int $ignoreReservationId
+    ): ?ReservationResource {
+        $resources = ReservationResource::query()
+            ->forAccount($accountId)
+            ->active()
+            ->where(function ($query) use ($teamMemberId) {
+                $query->whereNull('team_member_id')
+                    ->orWhere('team_member_id', $teamMemberId);
+            })
+            ->lockForUpdate()
+            ->get();
+
+        if ($resources->isEmpty()) {
+            return null;
+        }
+
+        $resourcesByMember = $resources->groupBy(function (ReservationResource $resource) {
+            return $resource->team_member_id ? (string) $resource->team_member_id : 'global';
+        });
+        $allocations = $this->loadResourceAllocations(
+            $accountId,
+            $startUtc,
+            $endUtc,
+            $ignoreReservationId,
+            true
+        );
+
+        return $this->pickAvailableResourceForWindow(
+            $teamMemberId,
+            $startUtc,
+            $endUtc,
+            $resourcesByMember,
+            $allocations,
+            $partySize,
+            $resourceFilters
+        );
+    }
+
+    private function assertResourcesAvailable(
+        int $accountId,
+        int $teamMemberId,
+        Carbon $startUtc,
+        Carbon $endUtc,
+        array $resourceIds,
+        ?int $partySize,
+        ?int $ignoreReservationId
+    ): void {
+        $resourceIds = $this->normalizeResourceIds($resourceIds);
+        if (empty($resourceIds)) {
+            return;
+        }
+
+        $resources = ReservationResource::query()
+            ->forAccount($accountId)
+            ->active()
+            ->whereIn('id', $resourceIds)
+            ->where(function ($query) use ($teamMemberId) {
+                $query->whereNull('team_member_id')
+                    ->orWhere('team_member_id', $teamMemberId);
+            })
+            ->lockForUpdate()
+            ->get()
+            ->keyBy('id');
+
+        if ($resources->count() !== count($resourceIds)) {
+            throw ValidationException::withMessages([
+                'resource_ids' => ['One or more selected resources are not available for this member.'],
+            ]);
+        }
+
+        $allocations = $this->loadResourceAllocations(
+            $accountId,
+            $startUtc,
+            $endUtc,
+            $ignoreReservationId,
+            true
+        );
+
+        $requiredCapacity = ($partySize && count($resourceIds) === 1)
+            ? max(1, $partySize)
+            : 1;
+
+        foreach ($resourceIds as $resourceId) {
+            $resource = $resources->get($resourceId);
+            if (!$resource) {
+                continue;
+            }
+
+            $capacity = max(1, (int) $resource->capacity);
+            if ($requiredCapacity > $capacity) {
+                throw ValidationException::withMessages([
+                    'party_size' => ['Party size exceeds selected resource capacity.'],
+                ]);
+            }
+
+            $usedCapacity = $this->calculateUsedCapacityForSlot(
+                $resource,
+                $startUtc,
+                $endUtc,
+                $allocations
+            );
+
+            if (($usedCapacity + $requiredCapacity) > $capacity) {
+                throw ValidationException::withMessages([
+                    'resource_ids' => ['Selected resources are no longer available for this slot.'],
+                ]);
+            }
+        }
+    }
+
+    private function mergeReservationMetadata(
+        array $metadata,
+        ?int $partySize,
+        array $resourceFilters,
+        array $resourceIds,
+        array $settings = []
+    ): array {
+        if ($partySize && $partySize > 0) {
+            $metadata['party_size'] = $partySize;
+        } else {
+            unset($metadata['party_size']);
+        }
+
+        if (!empty($resourceFilters['types']) || !empty($resourceFilters['resource_ids'])) {
+            $metadata['resource_filters'] = $resourceFilters;
+        } else {
+            unset($metadata['resource_filters']);
+        }
+
+        if (!empty($resourceIds)) {
+            $metadata['resource_ids'] = array_values($resourceIds);
+        } else {
+            unset($metadata['resource_ids']);
+        }
+
+        if (!empty($settings)) {
+            $metadata = $this->mergePaymentPolicyMetadata($metadata, $settings);
+        }
+
+        return $metadata;
+    }
+
+    private function syncResourceAllocations(Reservation $reservation, array $resourceIds): void
+    {
+        $resourceIds = $this->normalizeResourceIds($resourceIds);
+
+        $baseQuery = ReservationResourceAllocation::query()
+            ->forAccount((int) $reservation->account_id)
+            ->where('reservation_id', $reservation->id);
+
+        if (empty($resourceIds)) {
+            $baseQuery->delete();
+            return;
+        }
+
+        $existing = (clone $baseQuery)
+            ->get()
+            ->keyBy(function (ReservationResourceAllocation $allocation) {
+                return (int) $allocation->reservation_resource_id;
+            });
+
+        (clone $baseQuery)
+            ->whereNotIn('reservation_resource_id', $resourceIds)
+            ->delete();
+
+        foreach ($resourceIds as $resourceId) {
+            $allocation = $existing->get($resourceId);
+            if ($allocation) {
+                if ((int) $allocation->quantity !== 1) {
+                    $allocation->update(['quantity' => 1]);
+                }
+                continue;
+            }
+
+            ReservationResourceAllocation::query()->create([
+                'account_id' => $reservation->account_id,
+                'reservation_id' => $reservation->id,
+                'reservation_resource_id' => $resourceId,
+                'quantity' => 1,
+            ]);
+        }
     }
 
     private function parseToUtc(string $value, string $timezone): Carbon

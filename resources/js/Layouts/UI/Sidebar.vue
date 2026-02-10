@@ -673,6 +673,50 @@ const isCustomerActive = computed(() => {
                                     </template>
                                 </LinkAncor>
                                 <!-- End Item -->
+                                <!-- Item -->
+                                <LinkAncor
+                                    v-if="showServices && hasFeature('invoices') && page.props.auth.account?.is_owner && !isSeller"
+                                    :label="$t('nav.tips')"
+                                    :href="'payments.tips.index'"
+                                    tone="invoices"
+                                    :active="route().current('payments.tips.*')"
+                                >
+                                    <template #icon>
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round"
+                                            class="lucide lucide-hand-coins">
+                                            <path d="M11 15h2a2 2 0 0 0 0-4h-3a2 2 0 0 1 0-4h3" />
+                                            <path d="M12 18v2" />
+                                            <path d="M12 4v2" />
+                                            <path d="M20 12v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-8" />
+                                            <path d="M2 12h20" />
+                                            <path d="M7 8a2 2 0 1 1 0-4h1a2 2 0 0 1 2 2v2" />
+                                            <path d="M17 8a2 2 0 1 0 0-4h-1a2 2 0 0 0-2 2v2" />
+                                        </svg>
+                                    </template>
+                                </LinkAncor>
+                                <!-- End Item -->
+                                <!-- Item -->
+                                <LinkAncor
+                                    v-if="showServices && hasFeature('invoices') && isTeamMember && !isClient && !isSeller"
+                                    :label="$t('nav.tips')"
+                                    :href="'my-earnings.tips.index'"
+                                    tone="invoices"
+                                    :active="route().current('my-earnings.tips.*')"
+                                >
+                                    <template #icon>
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round"
+                                            class="lucide lucide-wallet">
+                                            <path d="M19 7V4a1 1 0 0 0-1-1H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a1 1 0 0 0 1-1v-3" />
+                                            <path d="M2 7h20v10H2z" />
+                                            <circle cx="16" cy="12" r="1.5" />
+                                        </svg>
+                                    </template>
+                                </LinkAncor>
+                                <!-- End Item -->
                                 </template>
                                 <li v-if="showNotifications" class="flex justify-center">
                                     <NotificationBell

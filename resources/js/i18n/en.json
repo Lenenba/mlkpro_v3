@@ -31,7 +31,8 @@
     "jobs": "Jobs",
     "tasks": "Tasks",
     "team": "Team",
-    "invoices": "Invoices"
+    "invoices": "Invoices",
+    "tips": "Tips"
   },
   "account": {
     "default_name": "Account",
@@ -1870,7 +1871,29 @@
       "completed_on": "Completed {date}",
       "issued_on": "Issued {date}",
       "amount": "Amount",
+      "partial_payment_help": "You can pay the full balance or choose a partial amount.",
+      "pay_full_balance": "Pay full balance",
+      "pay_half": "50%",
+      "pay_quarter": "25%",
+      "amount_exceeds_due": "Amount cannot exceed {amount}.",
+      "partial_selected_remaining": "Partial payment selected. Remaining balance after payment: {amount}",
+      "remaining_after_payment": "Remaining balance after payment: {amount}",
+      "tip_prompt_title": "Add a tip? (optional)",
+      "tip_prompt_help": "The tip goes directly to the team member serving you.",
+      "tip_yes": "Yes, add a tip",
+      "tip_no": "No thanks",
+      "tip_mode_percent": "Percentage (%)",
+      "tip_mode_fixed": "Fixed amount ($)",
+      "tip_other_percent": "Other %",
+      "tip_other_amount": "Other amount",
+      "tip_max_percent": "Max: {value}%",
+      "tip_max_amount": "Max: {amount}",
+      "tip_change_before_pay": "You can change or remove tip before paying.",
+      "tip_optional": "Tip (optional)",
+      "subtotal": "Subtotal",
+      "total_charge": "Total charge",
       "paid_of": "Paid {paid} of {total}",
+      "total_to_charge": "Total charge: {total}",
       "feedback_placeholder": "Feedback (optional)",
       "summary": "Summary",
       "start_date": "Start date",
@@ -1927,6 +1950,69 @@
       },
       "file": "File (photo or video)",
       "note_optional": "Note (optional)"
+    }
+  },
+  "tips_reports": {
+    "owner": {
+      "title": "Tips dashboard",
+      "subtitle": "Track optional tips paid by customers."
+    },
+    "member": {
+      "title": "My tips",
+      "subtitle": "Track your tips for completed services."
+    },
+    "actions": {
+      "apply_filters": "Apply filters",
+      "clear_filters": "Clear filters",
+      "export_csv": "Export CSV"
+    },
+    "filters": {
+      "all_team_members": "All team members",
+      "all_services": "All services",
+      "all_statuses": "All statuses",
+      "anonymize_customers": "Anonymize customers"
+    },
+    "period": {
+      "last_7_days": "Last 7 days",
+      "last_30_days": "Last 30 days",
+      "last_90_days": "Last 90 days",
+      "this_month": "This month",
+      "custom": "Custom range"
+    },
+    "kpi": {
+      "total_tips": "Total tips",
+      "average_tip_per_reservation": "Average tip per reservation",
+      "top_members": "Top 3 team members",
+      "current_month_tips": "Current month tips",
+      "period_total": "Period total",
+      "average_tip_per_service": "Average tip per service"
+    },
+    "table": {
+      "datetime": "Date and time",
+      "date": "Date",
+      "invoice": "Invoice",
+      "customer": "Customer",
+      "team_member": "Team member",
+      "mode": "Tip mode",
+      "tip_amount": "Tip amount",
+      "total_charged": "Total charged",
+      "status": "Status"
+    },
+    "mode": {
+      "percent": "Percent",
+      "fixed": "Fixed",
+      "none": "None"
+    },
+      "status": {
+        "pending": "Pending",
+        "completed": "Paid",
+        "reversed": "Partially reversed",
+        "failed": "Failed",
+        "refunded": "Reversed"
+      },
+    "empty": {
+      "rows": "No tips found for this filter.",
+      "top_members": "No team member ranking yet."
     }
   },
   "client_orders": {
@@ -2075,6 +2161,9 @@
     "sectors": {
       "service": {
         "placeholder": "Select a sector",
+        "salon": "Hair/beauty salon",
+        "restaurant": "Restaurant",
+        "service_general": "General services",
         "menuiserie": "Carpentry",
         "plomberie": "Plumbing",
         "electricite": "Electrical",
@@ -4006,6 +4095,18 @@
       "today": "Today",
       "upcoming": "Upcoming"
     },
+    "performance": {
+      "title": "Performance (last {days} days)",
+      "occupancy_rate": "Occupancy rate",
+      "no_show_rate": "No-show rate",
+      "reschedule_rate": "Reschedule rate",
+      "completion_rate": "Completion rate",
+      "avg_service_value": "Avg service value",
+      "tip_rate": "Tip rate",
+      "resource_reservation_rate": "Resource usage",
+      "table_turnover": "Table turnover",
+      "party_size_avg": "Avg party size"
+    },
     "filters": {
       "search": "Search",
       "search_placeholder": "Customer, product, contact...",
@@ -4045,6 +4146,7 @@
       "already_confirmed": "Already confirmed",
       "view": "View",
       "reschedule": "Reschedule",
+      "filters": "Filters",
       "clear_filters": "Clear filters",
       "delete_confirm": "Delete this reservation?"
     },
@@ -4077,6 +4179,100 @@
       "actions": "Actions",
       "party_size_value": "Party: {value}",
       "quantity_value": "Qty: {value}"
+    },
+    "waitlist": {
+      "title": "Waitlist",
+      "subtitle": "Track pending demand and release slots quickly.",
+      "empty": "No waitlist entries.",
+      "cards": {
+        "pending": "Pending",
+        "released": "Released",
+        "booked": "Booked"
+      },
+      "status": {
+        "pending": "Pending",
+        "released": "Released",
+        "booked": "Booked",
+        "cancelled": "Cancelled",
+        "expired": "Expired"
+      },
+      "actions": {
+        "release": "Release slot",
+        "booked": "Mark booked",
+        "updated": "Waitlist entry updated.",
+        "update_error": "Unable to update waitlist entry."
+      }
+    },
+    "queue": {
+      "title": "Hybrid queue",
+      "subtitle": "Operate walk-ins and appointments in a single queue.",
+      "empty": "No queue items right now.",
+      "cards": {
+        "waiting": "Waiting",
+        "called": "Called",
+        "in_service": "In service"
+      },
+      "columns": {
+        "ticket": "Ticket",
+        "position": "Position / ETA"
+      },
+      "types": {
+        "appointment": "Appointment",
+        "ticket": "Walk-in ticket"
+      },
+      "status": {
+        "not_arrived": "Not arrived",
+        "checked_in": "Checked-in",
+        "pre_called": "Pre-call",
+        "called": "Called",
+        "skipped": "Skipped",
+        "in_service": "In service",
+        "done": "Done",
+        "no_show": "No show",
+        "cancelled": "Cancelled",
+        "left": "Left"
+      },
+      "actions": {
+        "check_in": "Check-in",
+        "pre_call": "Pre-call",
+        "call": "Call",
+        "start": "Start",
+        "done": "Done",
+        "skip": "Skip",
+        "updated": "Queue item updated.",
+        "update_error": "Unable to update queue item."
+      },
+      "client": {
+        "title": "Walk-in queue",
+        "subtitle": "Take a ticket, track your position, and confirm presence.",
+        "estimated_duration": "Estimated duration (minutes)",
+        "notes": "Notes",
+        "create": "Take a ticket",
+        "created": "Queue ticket created.",
+        "create_error": "Unable to create queue ticket.",
+        "update_error": "Unable to update queue ticket.",
+        "cancelled": "Queue ticket cancelled.",
+        "still_here": "Still here",
+        "still_here_done": "Presence confirmed.",
+        "none": "No queue tickets."
+      },
+      "screen": {
+        "open": "Open live screen",
+        "title": "Live queue screen",
+        "subtitle": "Display now serving and waiting flow for salon or restaurant operations.",
+        "refresh": "Refresh",
+        "refresh_error": "Unable to refresh live screen data.",
+        "updated_at": "Updated",
+        "now_serving": "Now serving",
+        "up_next": "Up next",
+        "overview": "Overview",
+        "total_active": "Total active",
+        "waiting_list": "Waiting list",
+        "call_expires": "Call expires",
+        "show_names": "Show names",
+        "hide_names": "Hide names",
+        "disabled": "Hybrid queue mode is disabled. Enable it in reservation settings."
+      }
     },
     "pagination": {
       "previous": "Previous",
@@ -4117,6 +4313,12 @@
       "service": "Service",
       "product": "Product"
     },
+    "payment_policy": {
+      "title": "Payment policy snapshot",
+      "deposit": "Deposit",
+      "no_show_fee": "No-show fee",
+      "none": "None"
+    },
     "client": {
       "book": {
         "title": "Book reservation",
@@ -4130,10 +4332,13 @@
         "default_service": "Reservation",
         "no_upcoming": "No upcoming reservations.",
         "select_slot_error": "Select an available slot to continue.",
+        "deposit_notice": "Booking deposit required: {amount}",
+        "no_show_notice": "No-show fee policy: {amount}",
         "fields": {
           "team_member": "Team member",
           "service": "Service",
           "duration": "Duration (minutes)",
+          "party_size": "Party size",
           "contact_name": "Contact name",
           "contact_email": "Contact email",
           "contact_phone": "Contact phone",
@@ -4143,6 +4348,18 @@
           "submit": "Submit reservation",
           "submitting": "Submitting...",
           "submitted": "Reservation request submitted."
+        },
+        "waitlist": {
+          "title": "Join the waitlist",
+          "description": "No matching slot right now. Join the waitlist and get priority when a slot is released.",
+          "join_button": "Join waitlist",
+          "created": "Waitlist request submitted.",
+          "create_error": "Unable to create waitlist request.",
+          "cancelled": "Waitlist entry cancelled.",
+          "cancel_error": "Unable to cancel waitlist entry.",
+          "notes": "Preferred details",
+          "my_entries": "My waitlist entries",
+          "none": "No waitlist entries."
         }
       },
       "index": {
@@ -4705,7 +4922,11 @@
       },
       "payments": {
         "title": "Payments",
-        "empty": "No payments yet."
+        "empty": "No payments yet.",
+        "subtotal": "Subtotal",
+        "tip": "Tip",
+        "total_paid": "Total paid",
+        "tip_assigned_to": "Tip assigned to"
       },
       "add_payment": {
         "title": "Add payment",
@@ -4994,11 +5215,17 @@
         "timezone": "Timezone",
         "team_members": "Team members",
         "weekly_rules": "Weekly rules",
-        "exceptions": "Exceptions"
+        "exceptions": "Exceptions",
+        "resources": "Resources"
       },
       "company_rules": {
         "title": "Company booking rules",
         "description": "Default rules applied to all team members."
+      },
+      "presets": {
+        "service_general": "General services",
+        "salon": "Hair/beauty salon",
+        "restaurant": "Restaurant"
       },
       "team_settings": {
         "title": "Team member overrides",
@@ -5021,6 +5248,28 @@
           "open": "Open"
         }
       },
+      "resources": {
+        "title": "Resources and capacity",
+        "description": "Define optional resources used to enforce slot capacity.",
+        "empty": "No resources configured.",
+        "fields": {
+          "name": "Resource name",
+          "type": "Resource type",
+          "capacity": "Capacity",
+          "is_active": "Active"
+        },
+        "types": {
+          "general": "General",
+          "chair": "Chair",
+          "wash_station": "Wash station",
+          "table": "Table",
+          "zone": "Zone"
+        },
+        "status": {
+          "active": "Active",
+          "inactive": "Inactive"
+        }
+      },
       "notifications": {
         "title": "Reservation notifications",
         "description": "Configure emails, in-app alerts, reminders, and review requests.",
@@ -5035,12 +5284,22 @@
           "notify_on_reminder": "Send reminders before start",
           "notify_on_review_submitted": "Notify when a review is submitted",
           "review_request_on_completed": "Ask client for review after completion",
+          "notify_on_queue_pre_call": "Notify clients on queue pre-call",
+          "notify_on_queue_called": "Notify clients when called",
+          "notify_on_queue_grace_expired": "Notify when queue grace expires",
           "reminder_hours": "Reminder timings"
         },
         "reminders": {
           "day_before": "24 hours before",
           "two_hours": "2 hours before",
           "one_hour": "1 hour before"
+        }
+      },
+      "queue": {
+        "dispatch_modes": {
+          "fifo": "FIFO",
+          "fifo_with_appointment_priority": "FIFO + appointment priority",
+          "skill_based": "Skill based"
         }
       },
       "fields": {
@@ -5058,6 +5317,18 @@
         "min_notice_minutes": "Minimum notice (minutes)",
         "max_advance_days": "Max advance booking (days)",
         "cancellation_cutoff_hours": "Cancellation cutoff (hours)",
+        "business_preset": "Business preset",
+        "late_release_minutes": "Late release (minutes)",
+        "waitlist_enabled": "Enable waitlist",
+        "queue_mode_enabled": "Enable hybrid queue mode",
+        "queue_dispatch_mode": "Queue dispatch mode",
+        "queue_grace_minutes": "Call grace period (minutes)",
+        "queue_pre_call_threshold": "Pre-call threshold (people ahead)",
+        "queue_no_show_on_grace_expiry": "Mark no-show when grace expires",
+        "deposit_required": "Require booking deposit",
+        "deposit_amount": "Deposit amount",
+        "no_show_fee_enabled": "Enable no-show fee",
+        "no_show_fee_amount": "No-show fee amount",
         "allow_client_cancel": "Allow client cancellation",
         "allow_client_reschedule": "Allow client reschedule"
       },
@@ -5563,6 +5834,20 @@
         "update_card": "Update card",
         "summary_active": "Active subscription: {plan} (Status: {status})",
         "summary_none": "No active subscription at the moment."
+      },
+      "tips": {
+        "title": "Tips settings",
+        "subtitle": "Configure limits, split strategy, and partial refund behavior.",
+        "save": "Save tips settings",
+        "max_percent": "Maximum tip percent (%)",
+        "max_fixed_amount": "Maximum fixed tip amount ($)",
+        "default_percent": "Default tip percent (%)",
+        "allocation_strategy": "Allocation strategy",
+        "allocation_primary": "Primary assignee",
+        "allocation_split": "Split across assigned members",
+        "partial_refund_rule": "Partial refund rule",
+        "refund_prorata": "Pro-rata split",
+        "refund_manual": "Manual split"
       },
       "connect": {
         "title": "Stripe Connect",

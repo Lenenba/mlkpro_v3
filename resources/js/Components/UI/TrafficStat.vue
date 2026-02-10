@@ -15,7 +15,7 @@
                 <!-- Download Dropdown -->
                 <div class="hs-dropdown [--auto-close:inside] [--placement:bottom-right] relative inline-flex">
                     <button id="hs-pro-dbrrtchdd" type="button"
-                        class="size-[34px] inline-flex justify-center items-center gap-x-2 rounded-sm border border-transparent text-stone-500 hover:bg-stone-100 focus:outline-none focus:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none dark:text-neutral-400 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700"
+                        class="inline-flex h-[34px] w-[34px] justify-center items-center gap-x-2 rounded-sm border border-transparent text-stone-500 hover:bg-stone-100 focus:outline-none focus:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none dark:text-neutral-400 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700"
                         aria-haspopup="menu" aria-expanded="false" aria-label="Dropdown">
                         <svg class="shrink-0 size-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
                             viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
@@ -190,7 +190,7 @@
                 <!-- Download Dropdown -->
                 <div class="hs-dropdown [--auto-close:inside] [--placement:bottom-right] relative inline-flex">
                     <button id="hs-pro-dbrrtchmd" type="button"
-                        class="size-[34px] inline-flex justify-center items-center gap-x-2 rounded-sm border border-transparent text-stone-500 hover:bg-stone-100 focus:outline-none focus:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none dark:text-neutral-400 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700"
+                        class="inline-flex h-[34px] w-[34px] justify-center items-center gap-x-2 rounded-sm border border-transparent text-stone-500 hover:bg-stone-100 focus:outline-none focus:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none dark:text-neutral-400 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700"
                         aria-haspopup="menu" aria-expanded="false" aria-label="Dropdown">
                         <svg class="shrink-0 size-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
                             viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
@@ -377,7 +377,7 @@
                 <!-- Avatar Group -->
                 <div class="flex items-center -space-x-2">
                     <div class="hs-tooltip hover:z-10">
-                        <img class="shrink-0 size-7 lg:size-[38px] border-2 border-white rounded-full dark:border-neutral-700"
+                        <img class="shrink-0 size-7 lg:h-[38px] lg:w-[38px] border-2 border-white rounded-full dark:border-neutral-700"
                             src="https://images.unsplash.com/photo-1659482633369-9fe69af50bfb?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=facearea&facepad=2.5&w=320&h=320&q=80"
                             alt="Avatar">
                         <span
@@ -388,7 +388,7 @@
                     </div>
                     <div class="hs-tooltip hover:z-10">
                         <span
-                            class="flex shrink-0 justify-center items-center size-7 lg:size-[38px] bg-white border border-stone-200 text-stone-700 text-xs lg:text-sm font-medium uppercase rounded-full dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300">
+                            class="flex shrink-0 justify-center items-center size-7 lg:h-[38px] lg:w-[38px] bg-white border border-stone-200 text-stone-700 text-xs lg:text-sm font-medium uppercase rounded-full dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300">
                             E
                         </span>
                         <span
@@ -398,7 +398,7 @@
                         </span>
                     </div>
                     <div class="hs-tooltip hover:z-10">
-                        <img class="shrink-0 size-7 lg:size-[38px] border-2 border-white rounded-full dark:border-neutral-700"
+                        <img class="shrink-0 size-7 lg:h-[38px] lg:w-[38px] border-2 border-white rounded-full dark:border-neutral-700"
                             src="https://images.unsplash.com/photo-1601935111741-ae98b2b230b0?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=facearea&facepad=2.5&w=320&h=320&q=80"
                             alt="Avatar">
                         <span
@@ -408,7 +408,7 @@
                         </span>
                     </div>
                     <div class="hs-tooltip hover:z-10">
-                        <img class="shrink-0 size-7 lg:size-[38px] border-2 border-white rounded-full dark:border-neutral-700"
+                        <img class="shrink-0 size-7 lg:h-[38px] lg:w-[38px] border-2 border-white rounded-full dark:border-neutral-700"
                             src="https://images.unsplash.com/photo-1541101767792-f9b2b1c4f127?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=facearea&facepad=2.5&w=320&h=320&q=80"
                             alt="Avatar">
                         <span
@@ -418,7 +418,7 @@
                         </span>
                     </div>
                     <div class="hs-tooltip hover:z-10">
-                        <img class="shrink-0 size-7 lg:size-[38px] border-2 border-white rounded-full dark:border-neutral-700"
+                        <img class="shrink-0 size-7 lg:h-[38px] lg:w-[38px] border-2 border-white rounded-full dark:border-neutral-700"
                             src="https://images.unsplash.com/photo-1568048689711-5e0325cea8c0?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=facearea&facepad=2.5&w=320&h=320&q=80"
                             alt="Avatar">
                         <span
@@ -429,7 +429,7 @@
                     </div>
                     <div class="hs-tooltip hover:z-10">
                         <span
-                            class="flex shrink-0 justify-center items-center size-7 lg:size-[38px] bg-white border border-stone-200 text-stone-700 text-xs lg:text-sm font-medium uppercase rounded-full dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300">
+                            class="flex shrink-0 justify-center items-center size-7 lg:h-[38px] lg:w-[38px] bg-white border border-stone-200 text-stone-700 text-xs lg:text-sm font-medium uppercase rounded-full dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300">
                             O
                         </span>
                         <span

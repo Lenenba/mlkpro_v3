@@ -19,6 +19,10 @@ const props = defineProps({
         type: Array,
         default: () => [],
     },
+    tipSettings: {
+        type: Object,
+        default: () => ({}),
+    },
     plans: {
         type: Array,
         default: () => [],
@@ -69,6 +73,13 @@ const { t } = useI18n();
 
 const form = useForm({
     payment_methods: Array.isArray(props.paymentMethods) ? props.paymentMethods : [],
+    tips: {
+        max_percent: Number(props.tipSettings?.max_percent ?? 30),
+        max_fixed_amount: Number(props.tipSettings?.max_fixed_amount ?? 200),
+        default_percent: Number(props.tipSettings?.default_percent ?? 10),
+        allocation_strategy: props.tipSettings?.allocation_strategy || 'primary',
+        partial_refund_rule: props.tipSettings?.partial_refund_rule || 'prorata',
+    },
 });
 
 const paddleUiError = ref('');
@@ -892,6 +903,91 @@ watch(
                         <p v-else>
                             {{ $t('settings.billing.payment.summary_none') }}
                         </p>
+                    </div>
+
+                    <div class="rounded-sm border border-stone-200 bg-white px-4 py-4 dark:border-neutral-700 dark:bg-neutral-900">
+                        <div class="flex flex-wrap items-start justify-between gap-3">
+                            <div>
+                                <h3 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                                    {{ $t('settings.billing.tips.title') }}
+                                </h3>
+                                <p class="text-xs text-stone-500 dark:text-neutral-400">
+                                    {{ $t('settings.billing.tips.subtitle') }}
+                                </p>
+                            </div>
+                            <button
+                                type="button"
+                                @click="submit"
+                                :disabled="form.processing"
+                                class="rounded-sm border border-stone-200 bg-white px-3 py-2 text-xs font-semibold text-stone-700 hover:bg-stone-50 disabled:opacity-60 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200 dark:hover:bg-neutral-700"
+                            >
+                                {{ $t('settings.billing.tips.save') }}
+                            </button>
+                        </div>
+
+                        <div class="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
+                            <label class="space-y-1 text-xs text-stone-600 dark:text-neutral-300">
+                                <span>{{ $t('settings.billing.tips.max_percent') }}</span>
+                                <input
+                                    v-model.number="form.tips.max_percent"
+                                    type="number"
+                                    min="1"
+                                    max="100"
+                                    step="0.01"
+                                    class="w-full rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm text-stone-700 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200"
+                                />
+                                <p v-if="form.errors['tips.max_percent']" class="text-xs text-rose-600">{{ form.errors['tips.max_percent'] }}</p>
+                            </label>
+
+                            <label class="space-y-1 text-xs text-stone-600 dark:text-neutral-300">
+                                <span>{{ $t('settings.billing.tips.max_fixed_amount') }}</span>
+                                <input
+                                    v-model.number="form.tips.max_fixed_amount"
+                                    type="number"
+                                    min="1"
+                                    step="0.01"
+                                    class="w-full rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm text-stone-700 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200"
+                                />
+                                <p v-if="form.errors['tips.max_fixed_amount']" class="text-xs text-rose-600">{{ form.errors['tips.max_fixed_amount'] }}</p>
+                            </label>
+
+                            <label class="space-y-1 text-xs text-stone-600 dark:text-neutral-300">
+                                <span>{{ $t('settings.billing.tips.default_percent') }}</span>
+                                <input
+                                    v-model.number="form.tips.default_percent"
+                                    type="number"
+                                    min="0"
+                                    max="100"
+                                    step="0.01"
+                                    class="w-full rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm text-stone-700 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200"
+                                />
+                                <p v-if="form.errors['tips.default_percent']" class="text-xs text-rose-600">{{ form.errors['tips.default_percent'] }}</p>
+                            </label>
+
+                            <label class="space-y-1 text-xs text-stone-600 dark:text-neutral-300">
+                                <span>{{ $t('settings.billing.tips.allocation_strategy') }}</span>
+                                <select
+                                    v-model="form.tips.allocation_strategy"
+                                    class="w-full rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm text-stone-700 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200"
+                                >
+                                    <option value="primary">{{ $t('settings.billing.tips.allocation_primary') }}</option>
+                                    <option value="split">{{ $t('settings.billing.tips.allocation_split') }}</option>
+                                </select>
+                                <p v-if="form.errors['tips.allocation_strategy']" class="text-xs text-rose-600">{{ form.errors['tips.allocation_strategy'] }}</p>
+                            </label>
+
+                            <label class="space-y-1 text-xs text-stone-600 dark:text-neutral-300">
+                                <span>{{ $t('settings.billing.tips.partial_refund_rule') }}</span>
+                                <select
+                                    v-model="form.tips.partial_refund_rule"
+                                    class="w-full rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm text-stone-700 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200"
+                                >
+                                    <option value="prorata">{{ $t('settings.billing.tips.refund_prorata') }}</option>
+                                    <option value="manual">{{ $t('settings.billing.tips.refund_manual') }}</option>
+                                </select>
+                                <p v-if="form.errors['tips.partial_refund_rule']" class="text-xs text-rose-600">{{ form.errors['tips.partial_refund_rule'] }}</p>
+                            </label>
+                        </div>
                     </div>
 
                     <div v-if="stripeConnectEnabled"

@@ -2,6 +2,9 @@
 
 return [
     'sector_labels' => [
+        'salon' => 'Salon',
+        'restaurant' => 'Restaurant',
+        'service_general' => 'Service business',
         'menuiserie' => 'Carpentry',
         'plomberie' => 'Plumbing',
         'electricite' => 'Electrical',
@@ -20,6 +23,12 @@ return [
         'invoice_note' => "Thank you for your business.\nPayment is due within 14 days.",
     ],
     'sector_overrides' => [
+        'salon' => [
+            'quote_notes' => "Scope: Hair/beauty services as listed.\nTiming: Appointment duration includes setup and cleanup buffer.\nPayment: Deposit may be required for long sessions.\nCare: Follow aftercare recommendations for best results.",
+        ],
+        'restaurant' => [
+            'quote_notes' => "Scope: Restaurant services as listed.\nCapacity: Booking is subject to table and party-size availability.\nPayment: Deposit may be required for groups.\nArrival: Late arrivals may shorten table time depending on policy.",
+        ],
         'menuiserie' => [
             'quote_notes' => "Scope: Custom carpentry and installation as listed.\nMaterials: Wood species and finishes confirmed before production.\nPayment: 30% deposit to start, balance due on completion.\nSchedule: Lead time includes fabrication and on-site install.",
         ],

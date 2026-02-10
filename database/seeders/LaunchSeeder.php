@@ -23,8 +23,13 @@ use App\Models\Quote;
 use App\Models\QuoteProduct;
 use App\Models\QuoteRating;
 use App\Models\Reservation;
+use App\Models\ReservationCheckIn;
+use App\Models\ReservationQueueItem;
+use App\Models\ReservationResource;
+use App\Models\ReservationResourceAllocation;
 use App\Models\ReservationReview;
 use App\Models\ReservationSetting;
+use App\Models\ReservationWaitlist;
 use App\Models\Request as LeadRequest;
 use App\Models\Role;
 use App\Models\Sale;
@@ -44,6 +49,7 @@ use App\Models\WorkChecklistItem;
 use App\Models\WorkMedia;
 use App\Models\WorkRating;
 use App\Services\InventoryService;
+use App\Services\TipAllocationService;
 use App\Services\WorkBillingService;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
@@ -273,6 +279,100 @@ class LaunchSeeder extends Seeder
         $productOwner->update([
             'company_features' => $productOwnerFeatures,
         ]);
+
+        $salonOwner = User::updateOrCreate(
+            ['email' => 'owner.salon@example.com'],
+            [
+                'name' => 'Salon Owner',
+                'password' => Hash::make('password'),
+                'role_id' => $ownerRoleId,
+                'email_verified_at' => $now,
+                'phone_number' => '+15145550050',
+                'company_name' => 'Salon Test Studio',
+                'company_description' => 'Salon business test tenant with full reservation scenarios.',
+                'company_country' => 'Canada',
+                'company_province' => 'QC',
+                'company_city' => 'Montreal',
+                'company_timezone' => 'America/Toronto',
+                'company_type' => 'services',
+                'company_sector' => 'salon',
+                'onboarding_completed_at' => $now,
+                'trial_ends_at' => $now->copy()->addMonthNoOverflow(),
+                'payment_methods' => ['cash', 'card'],
+                'company_features' => [
+                    'quotes' => true,
+                    'requests' => true,
+                    'reservations' => true,
+                    'jobs' => true,
+                    'invoices' => true,
+                ],
+                'company_notification_settings' => [
+                    'reservations' => [
+                        'enabled' => true,
+                        'email' => true,
+                        'in_app' => true,
+                        'notify_on_created' => true,
+                        'notify_on_rescheduled' => true,
+                        'notify_on_cancelled' => true,
+                        'notify_on_completed' => true,
+                        'notify_on_reminder' => true,
+                        'notify_on_review_submitted' => true,
+                        'review_request_on_completed' => true,
+                        'notify_on_queue_pre_call' => true,
+                        'notify_on_queue_called' => true,
+                        'notify_on_queue_grace_expired' => true,
+                        'reminder_hours' => [24, 2],
+                    ],
+                ],
+            ]
+        );
+
+        $restaurantOwner = User::updateOrCreate(
+            ['email' => 'owner.restaurant@example.com'],
+            [
+                'name' => 'Restaurant Owner',
+                'password' => Hash::make('password'),
+                'role_id' => $ownerRoleId,
+                'email_verified_at' => $now,
+                'phone_number' => '+14165550060',
+                'company_name' => 'Restaurant Test Kitchen',
+                'company_description' => 'Restaurant business test tenant with full reservation scenarios.',
+                'company_country' => 'Canada',
+                'company_province' => 'ON',
+                'company_city' => 'Toronto',
+                'company_timezone' => 'America/Toronto',
+                'company_type' => 'services',
+                'company_sector' => 'restaurant',
+                'onboarding_completed_at' => $now,
+                'trial_ends_at' => $now->copy()->addMonthNoOverflow(),
+                'payment_methods' => ['cash', 'card'],
+                'company_features' => [
+                    'quotes' => true,
+                    'requests' => true,
+                    'reservations' => true,
+                    'jobs' => true,
+                    'invoices' => true,
+                ],
+                'company_notification_settings' => [
+                    'reservations' => [
+                        'enabled' => true,
+                        'email' => true,
+                        'in_app' => true,
+                        'notify_on_created' => true,
+                        'notify_on_rescheduled' => true,
+                        'notify_on_cancelled' => true,
+                        'notify_on_completed' => true,
+                        'notify_on_reminder' => true,
+                        'notify_on_review_submitted' => true,
+                        'review_request_on_completed' => true,
+                        'notify_on_queue_pre_call' => true,
+                        'notify_on_queue_called' => true,
+                        'notify_on_queue_grace_expired' => true,
+                        'reminder_hours' => [24, 2],
+                    ],
+                ],
+            ]
+        );
 
         // Module coverage seed accounts.
         $serviceLiteOwner = User::updateOrCreate(
@@ -2357,13 +2457,43 @@ class LaunchSeeder extends Seeder
                 'total' => $closedWork->total,
             ]
         );
+        $paymentTipColumns = [
+            'tip_amount' => Schema::hasColumn('payments', 'tip_amount'),
+            'tip_type' => Schema::hasColumn('payments', 'tip_type'),
+            'tip_percent' => Schema::hasColumn('payments', 'tip_percent'),
+            'tip_base_amount' => Schema::hasColumn('payments', 'tip_base_amount'),
+            'charged_total' => Schema::hasColumn('payments', 'charged_total'),
+            'tip_assignee_user_id' => Schema::hasColumn('payments', 'tip_assignee_user_id'),
+            'tip_reversed_amount' => Schema::hasColumn('payments', 'tip_reversed_amount'),
+            'tip_reversed_at' => Schema::hasColumn('payments', 'tip_reversed_at'),
+            'tip_reversal_rule' => Schema::hasColumn('payments', 'tip_reversal_rule'),
+            'tip_reversal_reason' => Schema::hasColumn('payments', 'tip_reversal_reason'),
+        ];
+        $withTipData = static function (array $values, array $tipData) use ($paymentTipColumns): array {
+            foreach ($tipData as $column => $value) {
+                if (($paymentTipColumns[$column] ?? false) === true) {
+                    $values[$column] = $value;
+                }
+            }
 
-        Payment::updateOrCreate(
+            return $values;
+        };
+        $tipAllocationsEnabled = Schema::hasTable('payment_tip_allocations');
+        $syncTipAllocations = static function (?Payment $payment) use ($tipAllocationsEnabled): void {
+            if (!$tipAllocationsEnabled || !$payment) {
+                return;
+            }
+
+            app(TipAllocationService::class)->syncForPayment($payment->fresh());
+        };
+        $fullTipAmount = 15.00;
+
+        $fullTipPayment = Payment::updateOrCreate(
             [
                 'invoice_id' => $paidInvoice->id,
                 'reference' => 'SEED-PAY-PAID-001',
             ],
-            [
+            $withTipData([
                 'customer_id' => $serviceCustomerAlt->id,
                 'user_id' => $serviceOwner->id,
                 'amount' => $paidInvoice->total,
@@ -2371,29 +2501,55 @@ class LaunchSeeder extends Seeder
                 'status' => 'completed',
                 'notes' => 'Seeded full payment',
                 'paid_at' => $now->copy()->subDays(7),
-            ]
+            ], [
+                'tip_amount' => $fullTipAmount,
+                'tip_type' => 'fixed',
+                'tip_percent' => null,
+                'tip_base_amount' => (float) $paidInvoice->total,
+                'charged_total' => round((float) $paidInvoice->total + $fullTipAmount, 2),
+                'tip_assignee_user_id' => $adminUser->id,
+                'tip_reversed_amount' => 0,
+                'tip_reversed_at' => null,
+                'tip_reversal_rule' => null,
+                'tip_reversal_reason' => null,
+            ])
         );
+        $syncTipAllocations($fullTipPayment);
         $paidInvoice->refreshPaymentStatus();
 
         $billingService = app(WorkBillingService::class);
         $invoice = $billingService->createInvoiceFromWork($work);
 
         $paymentAmount = round($invoice->total * 0.5, 2);
-        Payment::updateOrCreate(
+        $partialTipPercent = 10.0;
+        $partialTipAmount = round($paymentAmount * ($partialTipPercent / 100), 2);
+        $partialTipPayment = Payment::updateOrCreate(
             [
                 'invoice_id' => $invoice->id,
                 'reference' => 'SEED-PAY-001',
             ],
-            [
+            $withTipData([
                 'customer_id' => $serviceCustomer->id,
                 'user_id' => $serviceOwner->id,
                 'amount' => $paymentAmount,
                 'method' => 'card',
-                'status' => 'completed',
+                'status' => 'reversed',
                 'notes' => 'Seeded partial payment',
                 'paid_at' => $now->copy()->subDays(1),
-            ]
+            ], [
+                'tip_amount' => $partialTipAmount,
+                'tip_type' => 'percent',
+                'tip_percent' => $partialTipPercent,
+                'tip_base_amount' => $paymentAmount,
+                'charged_total' => round($paymentAmount + $partialTipAmount, 2),
+                'tip_assignee_user_id' => $memberUser->id,
+                'tip_reversed_amount' => round($partialTipAmount * 0.5, 2),
+                'tip_reversed_at' => $now->copy()->subHours(18),
+                'tip_reversal_rule' => 'prorata',
+                'tip_reversal_reason' => 'Seeded partial tip reversal',
+            ])
         );
+        $syncTipAllocations($partialTipPayment);
         $invoice->refreshPaymentStatus();
 
         Task::updateOrCreate(
@@ -3686,22 +3842,37 @@ class LaunchSeeder extends Seeder
                     'total' => $seed['payment_total'],
                 ]
             );
+            $trendTipPercent = 8.0;
+            $trendTipAmount = round((float) $seed['payment_total'] * ($trendTipPercent / 100), 2);
+            $trendTipReversedAmount = $index === 1 ? round($trendTipAmount * 0.25, 2) : 0.0;
 
             $payment = Payment::updateOrCreate(
                 [
                     'invoice_id' => $paidInvoice->id,
                     'reference' => "SEED-PAY-TREND-{$index}",
                 ],
-                [
+                $withTipData([
                     'customer_id' => $trendCustomer->id,
                     'user_id' => $serviceOwner->id,
                     'amount' => $seed['payment_total'],
                     'method' => 'card',
-                    'status' => 'completed',
+                    'status' => $trendTipReversedAmount > 0 ? 'reversed' : 'completed',
                     'notes' => 'Seeded trend payment.',
                     'paid_at' => $monthLate,
-                ]
+                ], [
+                    'tip_amount' => $trendTipAmount,
+                    'tip_type' => 'percent',
+                    'tip_percent' => $trendTipPercent,
+                    'tip_base_amount' => (float) $seed['payment_total'],
+                    'charged_total' => round((float) $seed['payment_total'] + $trendTipAmount, 2),
+                    'tip_assignee_user_id' => $index % 2 === 0 ? $memberUser->id : $adminUser->id,
+                    'tip_reversed_amount' => $trendTipReversedAmount,
+                    'tip_reversed_at' => $trendTipReversedAmount > 0 ? $monthLate->copy()->addHours(4) : null,
+                    'tip_reversal_rule' => $trendTipReversedAmount > 0 ? 'prorata' : null,
+                    'tip_reversal_reason' => $trendTipReversedAmount > 0 ? 'Seeded trend tip reversal' : null,
+                ])
             );
+            $syncTipAllocations($payment);
             $paidInvoice->refreshPaymentStatus();
             $setTimestamps($paidInvoice, $monthLate);
             $setTimestamps($payment, $monthLate);
@@ -3743,7 +3914,7 @@ class LaunchSeeder extends Seeder
                         'invoice_id' => $extraPaidInvoice->id,
                         'reference' => "SEED-PAY-TREND-{$index}-{$i}",
                     ],
-                    [
+                    $withTipData([
                         'customer_id' => $trendCustomer->id,
                         'user_id' => $serviceOwner->id,
                         'amount' => $paidTotal,
@@ -3751,8 +3922,20 @@ class LaunchSeeder extends Seeder
                         'status' => 'completed',
                         'notes' => 'Seeded trend payment.',
                         'paid_at' => $monthBase->copy()->addDays($dayOffset),
-                    ]
+                    ], [
+                        'tip_amount' => (float) (5 + $i),
+                        'tip_type' => 'fixed',
+                        'tip_percent' => null,
+                        'tip_base_amount' => $paidTotal,
+                        'charged_total' => round($paidTotal + (5 + $i), 2),
+                        'tip_assignee_user_id' => $i % 2 === 0 ? $adminUser->id : $memberUser->id,
+                        'tip_reversed_amount' => 0,
+                        'tip_reversed_at' => null,
+                        'tip_reversal_rule' => null,
+                        'tip_reversal_reason' => null,
+                    ])
                 );
+                $syncTipAllocations($extraPayment);
                 $extraPaidInvoice->refreshPaymentStatus();
                 $setTimestamps($extraPaidInvoice, $monthBase->copy()->addDays($dayOffset));
                 $setTimestamps($extraPayment, $monthBase->copy()->addDays($dayOffset));
@@ -4240,6 +4423,8 @@ class LaunchSeeder extends Seeder
         $owners = collect([
             $serviceOwner,
             $productOwner,
+            $salonOwner,
+            $restaurantOwner,
             $serviceLiteOwner,
             $serviceNoInvoiceOwner,
             $serviceRequestsOwner,
@@ -4371,11 +4556,23 @@ class LaunchSeeder extends Seeder
                 'team_member_id' => null,
             ],
             [
+                'business_preset' => 'salon',
                 'buffer_minutes' => 15,
                 'slot_interval_minutes' => 30,
                 'min_notice_minutes' => 120,
                 'max_advance_days' => 60,
                 'cancellation_cutoff_hours' => 24,
+                'late_release_minutes' => 10,
+                'waitlist_enabled' => true,
+                'queue_mode_enabled' => true,
+                'queue_dispatch_mode' => 'fifo_with_appointment_priority',
+                'queue_grace_minutes' => 5,
+                'queue_pre_call_threshold' => 2,
+                'queue_no_show_on_grace_expiry' => true,
+                'deposit_required' => true,
+                'deposit_amount' => 20,
+                'no_show_fee_enabled' => true,
+                'no_show_fee_amount' => 15,
                 'allow_client_cancel' => true,
                 'allow_client_reschedule' => true,
             ]
@@ -4386,6 +4583,54 @@ class LaunchSeeder extends Seeder
             ->active()
             ->orderBy('id')
             ->get(['id']);
+        $primaryReservationMember = $reservationMembers->get(0);
+        $secondaryReservationMember = $reservationMembers->get(1) ?? $primaryReservationMember;
+
+        $primaryReservationResource = null;
+        $secondaryReservationResource = null;
+        $sharedReservationResource = null;
+        if ($primaryReservationMember) {
+            $primaryReservationResource = ReservationResource::query()->updateOrCreate(
+                [
+                    'account_id' => $serviceOwner->id,
+                    'name' => 'Styling chair A',
+                ],
+                [
+                    'team_member_id' => $primaryReservationMember->id,
+                    'type' => 'chair',
+                    'capacity' => 1,
+                    'is_active' => true,
+                ]
+            );
+
+            $sharedReservationResource = ReservationResource::query()->updateOrCreate(
+                [
+                    'account_id' => $serviceOwner->id,
+                    'name' => 'Wash station 1',
+                ],
+                [
+                    'team_member_id' => null,
+                    'type' => 'wash_station',
+                    'capacity' => 2,
+                    'is_active' => true,
+                ]
+            );
+        }
+
+        if ($secondaryReservationMember) {
+            $secondaryReservationResource = ReservationResource::query()->updateOrCreate(
+                [
+                    'account_id' => $serviceOwner->id,
+                    'name' => 'Styling chair B',
+                ],
+                [
+                    'team_member_id' => $secondaryReservationMember->id,
+                    'type' => 'chair',
+                    'capacity' => 1,
+                    'is_active' => true,
+                ]
+            );
+        }
 
         if ($reservationMembers->isNotEmpty()) {
             foreach ($reservationMembers->take(3) as $index => $member) {
@@ -4451,8 +4696,6 @@ class LaunchSeeder extends Seeder
             );
         }
 
-        $primaryReservationMember = $reservationMembers->get(0);
-        $secondaryReservationMember = $reservationMembers->get(1) ?? $primaryReservationMember;
         $reservationService = $serviceProducts->first();
         if ($primaryReservationMember && $secondaryReservationMember && $reservationService) {
             $reservationTimezone = $serviceOwner->company_timezone ?: config('app.timezone', 'UTC');
@@ -4461,7 +4704,7 @@ class LaunchSeeder extends Seeder
             $completedStart = $now->copy()->subDays(2)->setTime(11, 0);
             $cancelledStart = $now->copy()->addDays(6)->setTime(16, 0);
 
-            Reservation::query()->updateOrCreate(
+            $pendingReservation = Reservation::query()->updateOrCreate(
                 [
                     'account_id' => $serviceOwner->id,
                     'team_member_id' => $primaryReservationMember->id,
@@ -4481,11 +4724,12 @@ class LaunchSeeder extends Seeder
                     'client_notes' => 'Client booking seeded from launch seeder.',
                     'metadata' => [
                         'seed' => 'launch',
+                        'party_size' => 1,
                     ],
                 ]
             );
 
-            Reservation::query()->updateOrCreate(
+            $confirmedReservation = Reservation::query()->updateOrCreate(
                 [
                     'account_id' => $serviceOwner->id,
                     'team_member_id' => $secondaryReservationMember->id,
@@ -4505,6 +4749,7 @@ class LaunchSeeder extends Seeder
                     'internal_notes' => 'Confirmed staff booking seeded for calendar coverage.',
                     'metadata' => [
                         'seed' => 'launch',
+                        'party_size' => 2,
                     ],
                 ]
             );
@@ -4570,7 +4815,113 @@ class LaunchSeeder extends Seeder
                     ],
                 ]
             );
+
+            if ($primaryReservationResource) {
+                ReservationResourceAllocation::query()->updateOrCreate(
+                    [
+                        'account_id' => $serviceOwner->id,
+                        'reservation_id' => $pendingReservation->id,
+                        'reservation_resource_id' => $primaryReservationResource->id,
+                    ],
+                    [
+                        'quantity' => 1,
+                    ]
+                );
+            }
+
+            if ($secondaryReservationResource) {
+                ReservationResourceAllocation::query()->updateOrCreate(
+                    [
+                        'account_id' => $serviceOwner->id,
+                        'reservation_id' => $confirmedReservation->id,
+                        'reservation_resource_id' => $secondaryReservationResource->id,
+                    ],
+                    [
+                        'quantity' => 1,
+                    ]
+                );
+            }
+
+            if ($sharedReservationResource) {
+                ReservationResourceAllocation::query()->updateOrCreate(
+                    [
+                        'account_id' => $serviceOwner->id,
+                        'reservation_id' => $confirmedReservation->id,
+                        'reservation_resource_id' => $sharedReservationResource->id,
+                    ],
+                    [
+                        'quantity' => 2,
+                    ]
+                );
+            }
+
+            ReservationWaitlist::query()->updateOrCreate(
+                [
+                    'account_id' => $serviceOwner->id,
+                    'client_id' => $serviceCustomer->id,
+                    'client_user_id' => $servicePortalUser->id,
+                    'service_id' => $reservationService->id,
+                    'requested_start_at' => $now->copy()->addDays(5)->startOfDay()->toDateTimeString(),
+                ],
+                [
+                    'team_member_id' => $primaryReservationMember->id,
+                    'status' => ReservationWaitlist::STATUS_PENDING,
+                    'requested_end_at' => $now->copy()->addDays(7)->endOfDay()->toDateTimeString(),
+                    'duration_minutes' => 60,
+                    'party_size' => 1,
+                    'notes' => 'Client asked to be notified if a morning slot opens.',
+                    'resource_filters' => [
+                        'types' => ['chair'],
+                        'resource_ids' => [],
+                    ],
+                    'metadata' => [
+                        'seed' => 'launch',
+                    ],
+                ]
+            );
         }
+
+        $this->seedIndustryReservationTenant(
+            $salonOwner,
+            'salon',
+            'salon',
+            'salon',
+            [
+                ['name' => 'Haircut premium', 'price' => 65],
+                ['name' => 'Color treatment', 'price' => 120],
+                ['name' => 'Keratin care', 'price' => 180],
+            ],
+            [
+                ['key' => 'primary', 'name' => 'Salon chair A', 'type' => 'chair', 'capacity' => 1, 'team' => 'admin'],
+                ['key' => 'secondary', 'name' => 'Salon chair B', 'type' => 'chair', 'capacity' => 1, 'team' => 'member'],
+                ['key' => 'shared', 'name' => 'Wash station 1', 'type' => 'wash_station', 'capacity' => 2, 'team' => null],
+            ],
+            1,
+            $now,
+            $employeeRoleId,
+            $clientRoleId
+        );
+
+        $this->seedIndustryReservationTenant(
+            $restaurantOwner,
+            'restaurant',
+            'restaurant',
+            'restaurant',
+            [
+                ['name' => 'Lunch reservation', 'price' => 110],
+                ['name' => 'Dinner reservation', 'price' => 180],
+                ['name' => 'Chef tasting menu', 'price' => 260],
+            ],
+            [
+                ['key' => 'primary', 'name' => 'Table A1', 'type' => 'table', 'capacity' => 4, 'team' => null],
+                ['key' => 'secondary', 'name' => 'Table B2', 'type' => 'table', 'capacity' => 6, 'team' => null],
+                ['key' => 'shared', 'name' => 'Patio zone', 'type' => 'zone', 'capacity' => 20, 'team' => null],
+            ],
+            4,
+            $now,
+            $employeeRoleId,
+            $clientRoleId
+        );
 
         $serviceOwners = $owners->filter(fn($owner) => $owner->company_type === 'services');
         foreach ($serviceOwners as $owner) {
@@ -4591,5 +4942,1135 @@ class LaunchSeeder extends Seeder
                     $seedInvoiceItems($invoice, $invoice->work, $serviceProduct);
                 });
         }
+    }
+
+    private function seedIndustryReservationTenant(
+        User $owner,
+        string $slug,
+        string $businessPreset,
+        string $companySector,
+        array $serviceSeeds,
+        array $resourceSeeds,
+        int $partySize,
+        \Illuminate\Support\Carbon $now,
+        int $employeeRoleId,
+        int $clientRoleId
+    ): void {
+        $timezone = (string) ($owner->company_timezone ?: config('app.timezone', 'UTC'));
+        $isRestaurant = $businessPreset === 'restaurant';
+
+        $owner->update([
+            'company_type' => 'services',
+            'company_sector' => $companySector,
+            'company_features' => array_replace([
+                'quotes' => true,
+                'requests' => true,
+                'reservations' => true,
+                'jobs' => true,
+                'invoices' => true,
+            ], (array) ($owner->company_features ?? [])),
+        ]);
+
+        $adminUser = User::updateOrCreate(
+            ['email' => "{$slug}.admin@example.com"],
+            [
+                'name' => Str::title(str_replace('-', ' ', $slug)) . ' Admin',
+                'password' => Hash::make('password'),
+                'role_id' => $employeeRoleId,
+                'email_verified_at' => $now,
+            ]
+        );
+        $memberUser = User::updateOrCreate(
+            ['email' => "{$slug}.member@example.com"],
+            [
+                'name' => Str::title(str_replace('-', ' ', $slug)) . ' Member',
+                'password' => Hash::make('password'),
+                'role_id' => $employeeRoleId,
+                'email_verified_at' => $now,
+            ]
+        );
+        $portalUser = User::updateOrCreate(
+            ['email' => "{$slug}.client.portal@example.com"],
+            [
+                'name' => Str::title(str_replace('-', ' ', $slug)) . ' Portal Client',
+                'password' => Hash::make('password'),
+                'role_id' => $clientRoleId,
+                'email_verified_at' => $now,
+            ]
+        );
+
+        $adminMember = TeamMember::updateOrCreate(
+            ['account_id' => $owner->id, 'user_id' => $adminUser->id],
+            [
+                'role' => 'admin',
+                'permissions' => ['jobs.view', 'jobs.edit', 'tasks.view', 'tasks.create', 'tasks.edit', 'tasks.delete'],
+                'is_active' => true,
+            ]
+        );
+        $memberMember = TeamMember::updateOrCreate(
+            ['account_id' => $owner->id, 'user_id' => $memberUser->id],
+            [
+                'role' => 'member',
+                'permissions' => ['jobs.view', 'tasks.view', 'tasks.edit'],
+                'is_active' => true,
+            ]
+        );
+
+        $customerPrimary = Customer::updateOrCreate(
+            ['user_id' => $owner->id, 'email' => "{$slug}.client.primary@example.com"],
+            [
+                'portal_user_id' => $portalUser->id,
+                'first_name' => 'Alex',
+                'last_name' => 'Primary',
+                'company_name' => Str::title($slug) . ' Primary Client',
+                'phone' => '+15145550201',
+                'description' => '[seed] primary customer',
+                'billing_same_as_physical' => true,
+            ]
+        );
+        if ((int) ($customerPrimary->portal_user_id ?? 0) !== (int) $portalUser->id) {
+            $customerPrimary->update(['portal_user_id' => $portalUser->id]);
+        }
+
+        $customerAlt = Customer::updateOrCreate(
+            ['user_id' => $owner->id, 'email' => "{$slug}.client.alt@example.com"],
+            [
+                'portal_user_id' => null,
+                'first_name' => 'Taylor',
+                'last_name' => 'Alternate',
+                'company_name' => Str::title($slug) . ' Alternate Client',
+                'phone' => '+15145550202',
+                'description' => '[seed] alternate customer',
+                'billing_same_as_physical' => true,
+            ]
+        );
+
+        Property::updateOrCreate(
+            ['customer_id' => $customerPrimary->id, 'type' => 'physical', 'street1' => "100 {$slug} avenue"],
+            [
+                'is_default' => true,
+                'city' => $owner->company_city ?: 'Montreal',
+                'state' => $owner->company_province ?: 'QC',
+                'zip' => 'H1A1A1',
+                'country' => $owner->company_country ?: 'Canada',
+            ]
+        );
+        Property::updateOrCreate(
+            ['customer_id' => $customerAlt->id, 'type' => 'physical', 'street1' => "200 {$slug} boulevard"],
+            [
+                'is_default' => true,
+                'city' => $owner->company_city ?: 'Montreal',
+                'state' => $owner->company_province ?: 'QC',
+                'zip' => 'H2B2B2',
+                'country' => $owner->company_country ?: 'Canada',
+            ]
+        );
+
+        $serviceCategory = ProductCategory::resolveForAccount($owner->id, $owner->id, 'Services');
+        $services = collect($serviceSeeds)->map(function (array $seed) use ($owner, $serviceCategory) {
+            return Product::updateOrCreate(
+                ['user_id' => $owner->id, 'name' => (string) ($seed['name'] ?? 'Service')],
+                [
+                    'category_id' => $serviceCategory->id,
+                    'price' => (float) ($seed['price'] ?? 100),
+                    'stock' => 0,
+                    'minimum_stock' => 0,
+                    'item_type' => Product::ITEM_TYPE_SERVICE,
+                    'is_active' => true,
+                ]
+            );
+        })->values();
+
+        $mainService = $services->get(0);
+        $secondaryService = $services->get(1) ?: $mainService;
+        $thirdService = $services->get(2) ?: $mainService;
+        if (!$mainService) {
+            return;
+        }
+
+        ReservationSetting::query()->updateOrCreate(
+            ['account_id' => $owner->id, 'team_member_id' => null],
+            [
+                'business_preset' => $businessPreset,
+                'buffer_minutes' => 15,
+                'slot_interval_minutes' => 30,
+                'min_notice_minutes' => 60,
+                'max_advance_days' => 90,
+                'cancellation_cutoff_hours' => 24,
+                'late_release_minutes' => $isRestaurant ? 15 : 10,
+                'waitlist_enabled' => true,
+                'queue_mode_enabled' => true,
+                'queue_dispatch_mode' => 'fifo_with_appointment_priority',
+                'queue_grace_minutes' => 5,
+                'queue_pre_call_threshold' => 2,
+                'queue_no_show_on_grace_expiry' => !$isRestaurant,
+                'deposit_required' => true,
+                'deposit_amount' => $isRestaurant ? 40 : 25,
+                'no_show_fee_enabled' => true,
+                'no_show_fee_amount' => $isRestaurant ? 35 : 20,
+                'allow_client_cancel' => true,
+                'allow_client_reschedule' => true,
+            ]
+        );
+
+        foreach ([$adminMember, $memberMember] as $memberIndex => $member) {
+            ReservationSetting::query()->updateOrCreate(
+                ['account_id' => $owner->id, 'team_member_id' => $member->id],
+                [
+                    'buffer_minutes' => $memberIndex === 0 ? 10 : 15,
+                    'slot_interval_minutes' => 30,
+                    'min_notice_minutes' => 30,
+                    'max_advance_days' => 60,
+                    'cancellation_cutoff_hours' => 24,
+                    'allow_client_cancel' => true,
+                    'allow_client_reschedule' => true,
+                ]
+            );
+        }
+
+        $availabilityDays = $isRestaurant ? [0, 1, 2, 3, 4, 5, 6] : [1, 2, 3, 4, 5, 6];
+        $availabilityStart = $isRestaurant ? '11:00:00' : '09:00:00';
+        $availabilityEnd = $isRestaurant ? '22:00:00' : '19:00:00';
+        foreach ([$adminMember, $memberMember] as $member) {
+            foreach ($availabilityDays as $day) {
+                WeeklyAvailability::query()->updateOrCreate(
+                    [
+                        'account_id' => $owner->id,
+                        'team_member_id' => $member->id,
+                        'day_of_week' => $day,
+                        'start_time' => $availabilityStart,
+                        'end_time' => $availabilityEnd,
+                    ],
+                    ['is_active' => true]
+                );
+            }
+        }
+
+        $exceptionDate = $now->copy()->addDays(10)->toDateString();
+        AvailabilityException::query()->updateOrCreate(
+            ['account_id' => $owner->id, 'team_member_id' => null, 'date' => $exceptionDate, 'type' => AvailabilityException::TYPE_CLOSED],
+            ['start_time' => null, 'end_time' => null, 'reason' => '[seed] full day closed']
+        );
+        AvailabilityException::query()->updateOrCreate(
+            ['account_id' => $owner->id, 'team_member_id' => $adminMember->id, 'date' => $exceptionDate, 'type' => AvailabilityException::TYPE_OPEN],
+            ['start_time' => '18:00:00', 'end_time' => '20:00:00', 'reason' => '[seed] special opening']
+        );
+
+        $resourceMap = [];
+        foreach ($resourceSeeds as $seed) {
+            $teamRef = $seed['team'] ?? null;
+            $teamMemberId = $teamRef === 'admin' ? $adminMember->id : ($teamRef === 'member' ? $memberMember->id : null);
+            $resource = ReservationResource::query()->updateOrCreate(
+                ['account_id' => $owner->id, 'name' => (string) ($seed['name'] ?? 'Resource')],
+                [
+                    'team_member_id' => $teamMemberId,
+                    'type' => (string) ($seed['type'] ?? 'general'),
+                    'capacity' => max(1, (int) ($seed['capacity'] ?? 1)),
+                    'is_active' => true,
+                ]
+            );
+            if (!empty($seed['key'])) {
+                $resourceMap[(string) $seed['key']] = $resource;
+            }
+        }
+
+        $policy = [
+            'deposit_required' => true,
+            'deposit_amount' => $isRestaurant ? 40 : 25,
+            'no_show_fee_enabled' => true,
+            'no_show_fee_amount' => $isRestaurant ? 35 : 20,
+        ];
+
+        $resourceTypeFilters = collect($resourceSeeds)
+            ->map(fn(array $seed) => (string) ($seed['type'] ?? ''))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        $shortDuration = $isRestaurant ? 90 : 60;
+        $longDuration = $isRestaurant ? 120 : 90;
+        $pendingStart = $now->copy()->addDays(2)->setTime($isRestaurant ? 18 : 14, 0);
+        $confirmedStart = $now->copy()->addDays(3)->setTime($isRestaurant ? 19 : 11, 30);
+        $rescheduledFromStart = $now->copy()->addDays(4)->setTime($isRestaurant ? 17 : 10, 0);
+        $rescheduledToStart = $now->copy()->addDays(5)->setTime($isRestaurant ? 20 : 13, 30);
+        $completedStart = $now->copy()->subDays(2)->setTime($isRestaurant ? 20 : 15, 0);
+        $noShowStart = $now->copy()->subDay()->setTime($isRestaurant ? 21 : 9, 30);
+        $cancelledStart = $now->copy()->addDays(6)->setTime($isRestaurant ? 18 : 16, 30);
+
+        $pendingReservation = Reservation::query()->updateOrCreate(
+            [
+                'account_id' => $owner->id,
+                'team_member_id' => $adminMember->id,
+                'starts_at' => $pendingStart->toDateTimeString(),
+            ],
+            [
+                'client_id' => $customerPrimary->id,
+                'client_user_id' => $portalUser->id,
+                'service_id' => $mainService->id,
+                'created_by_user_id' => $portalUser->id,
+                'status' => Reservation::STATUS_PENDING,
+                'source' => Reservation::SOURCE_CLIENT,
+                'timezone' => $timezone,
+                'ends_at' => $pendingStart->copy()->addMinutes($shortDuration)->toDateTimeString(),
+                'duration_minutes' => $shortDuration,
+                'buffer_minutes' => 10,
+                'client_notes' => '[seed] pending appointment from client portal',
+                'metadata' => [
+                    'seed' => 'launch',
+                    'tenant' => $slug,
+                    'scenario' => 'pending',
+                    'party_size' => $partySize,
+                ],
+            ]
+        );
+
+        $confirmedReservation = Reservation::query()->updateOrCreate(
+            [
+                'account_id' => $owner->id,
+                'team_member_id' => $memberMember->id,
+                'starts_at' => $confirmedStart->toDateTimeString(),
+            ],
+            [
+                'client_id' => $customerAlt->id,
+                'client_user_id' => null,
+                'service_id' => $secondaryService->id,
+                'created_by_user_id' => $owner->id,
+                'status' => Reservation::STATUS_CONFIRMED,
+                'source' => Reservation::SOURCE_STAFF,
+                'timezone' => $timezone,
+                'ends_at' => $confirmedStart->copy()->addMinutes($longDuration)->toDateTimeString(),
+                'duration_minutes' => $longDuration,
+                'buffer_minutes' => 15,
+                'internal_notes' => '[seed] confirmed by staff',
+                'metadata' => [
+                    'seed' => 'launch',
+                    'tenant' => $slug,
+                    'scenario' => 'confirmed',
+                    'party_size' => max($partySize, $isRestaurant ? 4 : 1),
+                ],
+            ]
+        );
+
+        $rescheduledFromReservation = Reservation::query()->updateOrCreate(
+            [
+                'account_id' => $owner->id,
+                'team_member_id' => $adminMember->id,
+                'starts_at' => $rescheduledFromStart->toDateTimeString(),
+            ],
+            [
+                'client_id' => $customerPrimary->id,
+                'client_user_id' => $portalUser->id,
+                'service_id' => $secondaryService->id,
+                'created_by_user_id' => $portalUser->id,
+                'status' => Reservation::STATUS_RESCHEDULED,
+                'source' => Reservation::SOURCE_CLIENT,
+                'timezone' => $timezone,
+                'ends_at' => $rescheduledFromStart->copy()->addMinutes($shortDuration)->toDateTimeString(),
+                'duration_minutes' => $shortDuration,
+                'buffer_minutes' => 10,
+                'client_notes' => '[seed] original slot moved by client',
+                'metadata' => [
+                    'seed' => 'launch',
+                    'tenant' => $slug,
+                    'scenario' => 'rescheduled_from',
+                    'rescheduled_to' => $rescheduledToStart->toIso8601String(),
+                ],
+            ]
+        );
+
+        $rescheduledToReservation = Reservation::query()->updateOrCreate(
+            [
+                'account_id' => $owner->id,
+                'team_member_id' => $adminMember->id,
+                'starts_at' => $rescheduledToStart->toDateTimeString(),
+            ],
+            [
+                'client_id' => $customerPrimary->id,
+                'client_user_id' => $portalUser->id,
+                'service_id' => $thirdService->id,
+                'created_by_user_id' => $owner->id,
+                'rescheduled_from_id' => $rescheduledFromReservation->id,
+                'status' => Reservation::STATUS_CONFIRMED,
+                'source' => Reservation::SOURCE_STAFF,
+                'timezone' => $timezone,
+                'ends_at' => $rescheduledToStart->copy()->addMinutes($longDuration)->toDateTimeString(),
+                'duration_minutes' => $longDuration,
+                'buffer_minutes' => 15,
+                'internal_notes' => '[seed] new slot after reschedule',
+                'metadata' => [
+                    'seed' => 'launch',
+                    'tenant' => $slug,
+                    'scenario' => 'rescheduled_to',
+                    'from_reservation_id' => $rescheduledFromReservation->id,
+                ],
+            ]
+        );
+
+        $completedReservation = Reservation::query()->updateOrCreate(
+            [
+                'account_id' => $owner->id,
+                'team_member_id' => $memberMember->id,
+                'starts_at' => $completedStart->toDateTimeString(),
+            ],
+            [
+                'client_id' => $customerPrimary->id,
+                'client_user_id' => $portalUser->id,
+                'service_id' => $mainService->id,
+                'created_by_user_id' => $owner->id,
+                'status' => Reservation::STATUS_COMPLETED,
+                'source' => Reservation::SOURCE_STAFF,
+                'timezone' => $timezone,
+                'ends_at' => $completedStart->copy()->addMinutes($shortDuration)->toDateTimeString(),
+                'duration_minutes' => $shortDuration,
+                'buffer_minutes' => 10,
+                'internal_notes' => '[seed] completed reservation for history and analytics',
+                'metadata' => [
+                    'seed' => 'launch',
+                    'tenant' => $slug,
+                    'scenario' => 'completed',
+                    'policy' => $policy,
+                ],
+            ]
+        );
+
+        $noShowReservation = Reservation::query()->updateOrCreate(
+            [
+                'account_id' => $owner->id,
+                'team_member_id' => $adminMember->id,
+                'starts_at' => $noShowStart->toDateTimeString(),
+            ],
+            [
+                'client_id' => $customerAlt->id,
+                'client_user_id' => null,
+                'service_id' => $mainService->id,
+                'created_by_user_id' => $owner->id,
+                'status' => Reservation::STATUS_NO_SHOW,
+                'source' => Reservation::SOURCE_STAFF,
+                'timezone' => $timezone,
+                'ends_at' => $noShowStart->copy()->addMinutes($shortDuration)->toDateTimeString(),
+                'duration_minutes' => $shortDuration,
+                'buffer_minutes' => 10,
+                'internal_notes' => '[seed] no-show case',
+                'metadata' => [
+                    'seed' => 'launch',
+                    'tenant' => $slug,
+                    'scenario' => 'no_show',
+                    'policy' => $policy,
+                ],
+            ]
+        );
+
+        $cancelledReservation = Reservation::query()->updateOrCreate(
+            [
+                'account_id' => $owner->id,
+                'team_member_id' => $memberMember->id,
+                'starts_at' => $cancelledStart->toDateTimeString(),
+            ],
+            [
+                'client_id' => $customerAlt->id,
+                'client_user_id' => null,
+                'service_id' => $secondaryService->id,
+                'created_by_user_id' => $owner->id,
+                'cancelled_by_user_id' => $owner->id,
+                'status' => Reservation::STATUS_CANCELLED,
+                'source' => Reservation::SOURCE_STAFF,
+                'timezone' => $timezone,
+                'ends_at' => $cancelledStart->copy()->addMinutes($shortDuration)->toDateTimeString(),
+                'duration_minutes' => $shortDuration,
+                'buffer_minutes' => 10,
+                'cancelled_at' => $now->copy()->subHours(4),
+                'cancel_reason' => '[seed] client requested cancellation',
+                'metadata' => [
+                    'seed' => 'launch',
+                    'tenant' => $slug,
+                    'scenario' => 'cancelled',
+                ],
+            ]
+        );
+
+        ReservationReview::query()->updateOrCreate(
+            ['reservation_id' => $completedReservation->id],
+            [
+                'account_id' => $owner->id,
+                'client_id' => $customerPrimary->id,
+                'client_user_id' => $portalUser->id,
+                'rating' => $isRestaurant ? 4 : 5,
+                'feedback' => $isRestaurant
+                    ? 'Excellent service and very smooth check-in.'
+                    : 'Great stylist and clear communication.',
+                'reviewed_at' => $completedStart->copy()->addHours(2),
+            ]
+        );
+
+        $primaryResource = $resourceMap['primary'] ?? null;
+        $secondaryResource = $resourceMap['secondary'] ?? null;
+        $sharedResource = $resourceMap['shared'] ?? null;
+
+        if (Schema::hasTable('reservation_resource_allocations')) {
+            if ($primaryResource) {
+                ReservationResourceAllocation::query()->updateOrCreate(
+                    [
+                        'account_id' => $owner->id,
+                        'reservation_id' => $pendingReservation->id,
+                        'reservation_resource_id' => $primaryResource->id,
+                    ],
+                    ['quantity' => 1]
+                );
+            }
+
+            if ($secondaryResource) {
+                ReservationResourceAllocation::query()->updateOrCreate(
+                    [
+                        'account_id' => $owner->id,
+                        'reservation_id' => $confirmedReservation->id,
+                        'reservation_resource_id' => $secondaryResource->id,
+                    ],
+                    ['quantity' => 1]
+                );
+            }
+
+            if ($sharedResource) {
+                $sharedCapacity = max(1, (int) ($sharedResource->capacity ?? 1));
+                ReservationResourceAllocation::query()->updateOrCreate(
+                    [
+                        'account_id' => $owner->id,
+                        'reservation_id' => $rescheduledToReservation->id,
+                        'reservation_resource_id' => $sharedResource->id,
+                    ],
+                    ['quantity' => min(max(1, $partySize), $sharedCapacity)]
+                );
+            }
+        }
+
+        if (Schema::hasTable('reservation_waitlists')) {
+            $waitlistBase = $now->copy()->addDays(7)->startOfDay();
+
+            ReservationWaitlist::query()->updateOrCreate(
+                [
+                    'account_id' => $owner->id,
+                    'client_id' => $customerPrimary->id,
+                    'status' => ReservationWaitlist::STATUS_PENDING,
+                    'requested_start_at' => $waitlistBase->copy()->addHours(9)->toDateTimeString(),
+                ],
+                [
+                    'client_user_id' => $portalUser->id,
+                    'service_id' => $mainService->id,
+                    'team_member_id' => $adminMember->id,
+                    'requested_end_at' => $waitlistBase->copy()->addHours(12)->toDateTimeString(),
+                    'duration_minutes' => $shortDuration,
+                    'party_size' => $partySize,
+                    'notes' => '[seed] pending waitlist request',
+                    'resource_filters' => ['types' => $resourceTypeFilters, 'resource_ids' => []],
+                    'metadata' => ['seed' => 'launch', 'tenant' => $slug, 'scenario' => 'waitlist_pending'],
+                ]
+            );
+
+            ReservationWaitlist::query()->updateOrCreate(
+                [
+                    'account_id' => $owner->id,
+                    'client_id' => $customerAlt->id,
+                    'status' => ReservationWaitlist::STATUS_RELEASED,
+                    'requested_start_at' => $waitlistBase->copy()->addDay()->addHours(13)->toDateTimeString(),
+                ],
+                [
+                    'client_user_id' => null,
+                    'service_id' => $secondaryService->id,
+                    'team_member_id' => $memberMember->id,
+                    'requested_end_at' => $waitlistBase->copy()->addDay()->addHours(16)->toDateTimeString(),
+                    'duration_minutes' => $shortDuration,
+                    'party_size' => $partySize,
+                    'notes' => '[seed] released waitlist entry',
+                    'resource_filters' => ['types' => $resourceTypeFilters, 'resource_ids' => []],
+                    'metadata' => ['seed' => 'launch', 'tenant' => $slug, 'scenario' => 'waitlist_released'],
+                    'released_at' => $now->copy()->subHours(6),
+                ]
+            );
+
+            ReservationWaitlist::query()->updateOrCreate(
+                [
+                    'account_id' => $owner->id,
+                    'client_id' => $customerPrimary->id,
+                    'status' => ReservationWaitlist::STATUS_BOOKED,
+                    'requested_start_at' => $waitlistBase->copy()->addDays(2)->addHours(17)->toDateTimeString(),
+                ],
+                [
+                    'client_user_id' => $portalUser->id,
+                    'service_id' => $thirdService->id,
+                    'team_member_id' => $adminMember->id,
+                    'matched_reservation_id' => $rescheduledToReservation->id,
+                    'requested_end_at' => $waitlistBase->copy()->addDays(2)->addHours(19)->toDateTimeString(),
+                    'duration_minutes' => $longDuration,
+                    'party_size' => $partySize,
+                    'notes' => '[seed] waitlist booked into reservation',
+                    'resource_filters' => ['types' => $resourceTypeFilters, 'resource_ids' => []],
+                    'metadata' => ['seed' => 'launch', 'tenant' => $slug, 'scenario' => 'waitlist_booked'],
+                    'released_at' => $now->copy()->subDays(1),
+                    'resolved_at' => $now->copy()->subHours(3),
+                ]
+            );
+
+            ReservationWaitlist::query()->updateOrCreate(
+                [
+                    'account_id' => $owner->id,
+                    'client_id' => $customerAlt->id,
+                    'status' => ReservationWaitlist::STATUS_CANCELLED,
+                    'requested_start_at' => $waitlistBase->copy()->addDays(3)->addHours(11)->toDateTimeString(),
+                ],
+                [
+                    'client_user_id' => null,
+                    'service_id' => $mainService->id,
+                    'team_member_id' => $memberMember->id,
+                    'requested_end_at' => $waitlistBase->copy()->addDays(3)->addHours(13)->toDateTimeString(),
+                    'duration_minutes' => $shortDuration,
+                    'party_size' => $partySize,
+                    'notes' => '[seed] waitlist cancelled by client',
+                    'resource_filters' => ['types' => $resourceTypeFilters, 'resource_ids' => []],
+                    'metadata' => ['seed' => 'launch', 'tenant' => $slug, 'scenario' => 'waitlist_cancelled'],
+                    'cancelled_at' => $now->copy()->subHours(2),
+                    'resolved_at' => $now->copy()->subHours(2),
+                ]
+            );
+
+            ReservationWaitlist::query()->updateOrCreate(
+                [
+                    'account_id' => $owner->id,
+                    'client_id' => $customerPrimary->id,
+                    'status' => ReservationWaitlist::STATUS_EXPIRED,
+                    'requested_start_at' => $waitlistBase->copy()->addDays(4)->addHours(8)->toDateTimeString(),
+                ],
+                [
+                    'client_user_id' => $portalUser->id,
+                    'service_id' => $secondaryService->id,
+                    'team_member_id' => $adminMember->id,
+                    'requested_end_at' => $waitlistBase->copy()->addDays(4)->addHours(10)->toDateTimeString(),
+                    'duration_minutes' => $shortDuration,
+                    'party_size' => $partySize,
+                    'notes' => '[seed] waitlist expired without match',
+                    'resource_filters' => ['types' => $resourceTypeFilters, 'resource_ids' => []],
+                    'metadata' => ['seed' => 'launch', 'tenant' => $slug, 'scenario' => 'waitlist_expired'],
+                    'resolved_at' => $now->copy()->subHours(1),
+                ]
+            );
+        }
+
+        if (Schema::hasTable('reservation_queue_items')) {
+            $queuePrefix = Str::upper(Str::substr($slug, 0, 3));
+            $queueNow = $now->copy();
+
+            $queueSeeds = [
+                [
+                    'queue_number' => "{$queuePrefix}-A001",
+                    'reservation_id' => $pendingReservation->id,
+                    'client_id' => $customerPrimary->id,
+                    'client_user_id' => $portalUser->id,
+                    'service_id' => $mainService->id,
+                    'team_member_id' => $adminMember->id,
+                    'created_by_user_id' => $portalUser->id,
+                    'item_type' => ReservationQueueItem::TYPE_APPOINTMENT,
+                    'source' => Reservation::SOURCE_CLIENT,
+                    'status' => ReservationQueueItem::STATUS_NOT_ARRIVED,
+                    'priority' => 20,
+                    'estimated_duration_minutes' => $shortDuration,
+                    'position' => 4,
+                    'eta_minutes' => 45,
+                    'metadata' => ['seed' => 'launch', 'tenant' => $slug, 'scenario' => 'queue_not_arrived'],
+                ],
+                [
+                    'queue_number' => "{$queuePrefix}-A002",
+                    'reservation_id' => $confirmedReservation->id,
+                    'client_id' => $customerAlt->id,
+                    'client_user_id' => null,
+                    'service_id' => $secondaryService->id,
+                    'team_member_id' => $memberMember->id,
+                    'created_by_user_id' => $owner->id,
+                    'item_type' => ReservationQueueItem::TYPE_APPOINTMENT,
+                    'source' => Reservation::SOURCE_STAFF,
+                    'status' => ReservationQueueItem::STATUS_CHECKED_IN,
+                    'priority' => 15,
+                    'estimated_duration_minutes' => $longDuration,
+                    'checked_in_at' => $queueNow->copy()->subMinutes(22)->toDateTimeString(),
+                    'position' => 3,
+                    'eta_minutes' => 30,
+                    'metadata' => ['seed' => 'launch', 'tenant' => $slug, 'scenario' => 'queue_checked_in'],
+                    'check_in' => [
+                        'channel' => 'staff',
+                        'checked_in_at' => $queueNow->copy()->subMinutes(22)->toDateTimeString(),
+                        'grace_deadline_at' => $queueNow->copy()->subMinutes(12)->toDateTimeString(),
+                        'checked_in_by_user_id' => $owner->id,
+                    ],
+                ],
+                [
+                    'queue_number' => "{$queuePrefix}-A003",
+                    'reservation_id' => $rescheduledToReservation->id,
+                    'client_id' => $customerPrimary->id,
+                    'client_user_id' => $portalUser->id,
+                    'service_id' => $thirdService->id,
+                    'team_member_id' => $adminMember->id,
+                    'created_by_user_id' => $owner->id,
+                    'item_type' => ReservationQueueItem::TYPE_APPOINTMENT,
+                    'source' => Reservation::SOURCE_STAFF,
+                    'status' => ReservationQueueItem::STATUS_PRE_CALLED,
+                    'priority' => 18,
+                    'estimated_duration_minutes' => $longDuration,
+                    'checked_in_at' => $queueNow->copy()->subMinutes(18)->toDateTimeString(),
+                    'pre_called_at' => $queueNow->copy()->subMinutes(7)->toDateTimeString(),
+                    'position' => 2,
+                    'eta_minutes' => 12,
+                    'metadata' => ['seed' => 'launch', 'tenant' => $slug, 'scenario' => 'queue_pre_called'],
+                    'check_in' => [
+                        'channel' => 'self',
+                        'checked_in_at' => $queueNow->copy()->subMinutes(18)->toDateTimeString(),
+                        'grace_deadline_at' => $queueNow->copy()->subMinutes(8)->toDateTimeString(),
+                        'checked_in_by_user_id' => null,
+                    ],
+                ],
+                [
+                    'queue_number' => "{$queuePrefix}-A004",
+                    'reservation_id' => $confirmedReservation->id,
+                    'client_id' => $customerAlt->id,
+                    'client_user_id' => null,
+                    'service_id' => $secondaryService->id,
+                    'team_member_id' => $memberMember->id,
+                    'created_by_user_id' => $owner->id,
+                    'item_type' => ReservationQueueItem::TYPE_APPOINTMENT,
+                    'source' => Reservation::SOURCE_STAFF,
+                    'status' => ReservationQueueItem::STATUS_CALLED,
+                    'priority' => 25,
+                    'estimated_duration_minutes' => $longDuration,
+                    'checked_in_at' => $queueNow->copy()->subMinutes(14)->toDateTimeString(),
+                    'called_at' => $queueNow->copy()->subMinutes(4)->toDateTimeString(),
+                    'call_expires_at' => $queueNow->copy()->addMinutes(1)->toDateTimeString(),
+                    'position' => 1,
+                    'eta_minutes' => 4,
+                    'metadata' => ['seed' => 'launch', 'tenant' => $slug, 'scenario' => 'queue_called'],
+                    'check_in' => [
+                        'channel' => 'staff',
+                        'checked_in_at' => $queueNow->copy()->subMinutes(14)->toDateTimeString(),
+                        'grace_deadline_at' => $queueNow->copy()->subMinutes(4)->toDateTimeString(),
+                        'checked_in_by_user_id' => $owner->id,
+                    ],
+                ],
+                [
+                    'queue_number' => "{$queuePrefix}-T001",
+                    'reservation_id' => null,
+                    'client_id' => $customerAlt->id,
+                    'client_user_id' => null,
+                    'service_id' => $mainService->id,
+                    'team_member_id' => $memberMember->id,
+                    'created_by_user_id' => $owner->id,
+                    'item_type' => ReservationQueueItem::TYPE_TICKET,
+                    'source' => Reservation::SOURCE_CLIENT,
+                    'status' => ReservationQueueItem::STATUS_SKIPPED,
+                    'priority' => 5,
+                    'estimated_duration_minutes' => $shortDuration,
+                    'checked_in_at' => $queueNow->copy()->subMinutes(35)->toDateTimeString(),
+                    'skipped_at' => $queueNow->copy()->subMinutes(20)->toDateTimeString(),
+                    'position' => 5,
+                    'eta_minutes' => 50,
+                    'metadata' => ['seed' => 'launch', 'tenant' => $slug, 'scenario' => 'queue_skipped_ticket'],
+                    'check_in' => [
+                        'channel' => 'kiosk',
+                        'checked_in_at' => $queueNow->copy()->subMinutes(35)->toDateTimeString(),
+                        'grace_deadline_at' => $queueNow->copy()->subMinutes(25)->toDateTimeString(),
+                        'checked_in_by_user_id' => $owner->id,
+                    ],
+                ],
+                [
+                    'queue_number' => "{$queuePrefix}-T002",
+                    'reservation_id' => null,
+                    'client_id' => $customerPrimary->id,
+                    'client_user_id' => $portalUser->id,
+                    'service_id' => $thirdService->id,
+                    'team_member_id' => $adminMember->id,
+                    'created_by_user_id' => $portalUser->id,
+                    'item_type' => ReservationQueueItem::TYPE_TICKET,
+                    'source' => Reservation::SOURCE_CLIENT,
+                    'status' => ReservationQueueItem::STATUS_IN_SERVICE,
+                    'priority' => 10,
+                    'estimated_duration_minutes' => $longDuration,
+                    'checked_in_at' => $queueNow->copy()->subMinutes(16)->toDateTimeString(),
+                    'started_at' => $queueNow->copy()->subMinutes(6)->toDateTimeString(),
+                    'position' => 0,
+                    'eta_minutes' => 0,
+                    'metadata' => ['seed' => 'launch', 'tenant' => $slug, 'scenario' => 'queue_ticket_in_service'],
+                    'check_in' => [
+                        'channel' => 'self',
+                        'checked_in_at' => $queueNow->copy()->subMinutes(16)->toDateTimeString(),
+                        'grace_deadline_at' => $queueNow->copy()->subMinutes(6)->toDateTimeString(),
+                        'checked_in_by_user_id' => null,
+                    ],
+                ],
+                [
+                    'queue_number' => "{$queuePrefix}-A005",
+                    'reservation_id' => $completedReservation->id,
+                    'client_id' => $customerPrimary->id,
+                    'client_user_id' => $portalUser->id,
+                    'service_id' => $mainService->id,
+                    'team_member_id' => $memberMember->id,
+                    'created_by_user_id' => $owner->id,
+                    'item_type' => ReservationQueueItem::TYPE_APPOINTMENT,
+                    'source' => Reservation::SOURCE_STAFF,
+                    'status' => ReservationQueueItem::STATUS_DONE,
+                    'priority' => 30,
+                    'estimated_duration_minutes' => $shortDuration,
+                    'checked_in_at' => $completedStart->copy()->subMinutes(8)->toDateTimeString(),
+                    'started_at' => $completedStart->copy()->toDateTimeString(),
+                    'finished_at' => $completedStart->copy()->addMinutes($shortDuration)->toDateTimeString(),
+                    'position' => null,
+                    'eta_minutes' => null,
+                    'metadata' => ['seed' => 'launch', 'tenant' => $slug, 'scenario' => 'queue_done'],
+                    'check_in' => [
+                        'channel' => 'self',
+                        'checked_in_at' => $completedStart->copy()->subMinutes(8)->toDateTimeString(),
+                        'grace_deadline_at' => $completedStart->copy()->addMinutes(2)->toDateTimeString(),
+                        'checked_in_by_user_id' => null,
+                    ],
+                ],
+                [
+                    'queue_number' => "{$queuePrefix}-A006",
+                    'reservation_id' => $noShowReservation->id,
+                    'client_id' => $customerAlt->id,
+                    'client_user_id' => null,
+                    'service_id' => $mainService->id,
+                    'team_member_id' => $adminMember->id,
+                    'created_by_user_id' => $owner->id,
+                    'item_type' => ReservationQueueItem::TYPE_APPOINTMENT,
+                    'source' => Reservation::SOURCE_STAFF,
+                    'status' => ReservationQueueItem::STATUS_NO_SHOW,
+                    'priority' => 22,
+                    'estimated_duration_minutes' => $shortDuration,
+                    'call_expires_at' => $noShowStart->copy()->addMinutes(10)->toDateTimeString(),
+                    'position' => null,
+                    'eta_minutes' => null,
+                    'metadata' => ['seed' => 'launch', 'tenant' => $slug, 'scenario' => 'queue_no_show'],
+                ],
+                [
+                    'queue_number' => "{$queuePrefix}-A007",
+                    'reservation_id' => $cancelledReservation->id,
+                    'client_id' => $customerAlt->id,
+                    'client_user_id' => null,
+                    'service_id' => $secondaryService->id,
+                    'team_member_id' => $memberMember->id,
+                    'created_by_user_id' => $owner->id,
+                    'item_type' => ReservationQueueItem::TYPE_APPOINTMENT,
+                    'source' => Reservation::SOURCE_STAFF,
+                    'status' => ReservationQueueItem::STATUS_CANCELLED,
+                    'priority' => 18,
+                    'estimated_duration_minutes' => $shortDuration,
+                    'cancelled_at' => $now->copy()->subHours(4)->toDateTimeString(),
+                    'position' => null,
+                    'eta_minutes' => null,
+                    'metadata' => ['seed' => 'launch', 'tenant' => $slug, 'scenario' => 'queue_cancelled'],
+                ],
+                [
+                    'queue_number' => "{$queuePrefix}-T003",
+                    'reservation_id' => null,
+                    'client_id' => $customerAlt->id,
+                    'client_user_id' => null,
+                    'service_id' => $thirdService->id,
+                    'team_member_id' => $adminMember->id,
+                    'created_by_user_id' => $owner->id,
+                    'item_type' => ReservationQueueItem::TYPE_TICKET,
+                    'source' => Reservation::SOURCE_CLIENT,
+                    'status' => ReservationQueueItem::STATUS_LEFT,
+                    'priority' => 3,
+                    'estimated_duration_minutes' => $shortDuration,
+                    'checked_in_at' => $queueNow->copy()->subMinutes(28)->toDateTimeString(),
+                    'left_at' => $queueNow->copy()->subMinutes(15)->toDateTimeString(),
+                    'position' => null,
+                    'eta_minutes' => null,
+                    'metadata' => ['seed' => 'launch', 'tenant' => $slug, 'scenario' => 'queue_ticket_left'],
+                    'check_in' => [
+                        'channel' => 'kiosk',
+                        'checked_in_at' => $queueNow->copy()->subMinutes(28)->toDateTimeString(),
+                        'grace_deadline_at' => $queueNow->copy()->subMinutes(18)->toDateTimeString(),
+                        'checked_in_by_user_id' => $owner->id,
+                    ],
+                ],
+            ];
+
+            foreach ($queueSeeds as $seed) {
+                $checkInSeed = $seed['check_in'] ?? null;
+                unset($seed['check_in']);
+
+                $queueItem = ReservationQueueItem::query()->updateOrCreate(
+                    [
+                        'account_id' => $owner->id,
+                        'queue_number' => $seed['queue_number'],
+                    ],
+                    array_merge($seed, [
+                        'account_id' => $owner->id,
+                    ])
+                );
+
+                if ($checkInSeed && Schema::hasTable('reservation_check_ins')) {
+                    ReservationCheckIn::query()->updateOrCreate(
+                        [
+                            'account_id' => $owner->id,
+                            'reservation_queue_item_id' => $queueItem->id,
+                            'channel' => (string) ($checkInSeed['channel'] ?? 'self'),
+                        ],
+                        [
+                            'reservation_id' => $queueItem->reservation_id,
+                            'client_user_id' => $queueItem->client_user_id,
+                            'checked_in_by_user_id' => $checkInSeed['checked_in_by_user_id'] ?? null,
+                            'checked_in_at' => $checkInSeed['checked_in_at'],
+                            'grace_deadline_at' => $checkInSeed['grace_deadline_at'] ?? null,
+                            'metadata' => [
+                                'seed' => 'launch',
+                                'tenant' => $slug,
+                                'queue_number' => $queueItem->queue_number,
+                            ],
+                        ]
+                    );
+                }
+            }
+        }
+
+        if (!Schema::hasTable('works') || !Schema::hasTable('invoices') || !Schema::hasTable('payments')) {
+            return;
+        }
+
+        $paidTotal = $isRestaurant ? 260.00 : 180.00;
+        $partialTotal = $isRestaurant ? 320.00 : 220.00;
+        $reversedTotal = $isRestaurant ? 180.00 : 140.00;
+
+        $paidWork = Work::query()->updateOrCreate(
+            [
+                'user_id' => $owner->id,
+                'customer_id' => $customerPrimary->id,
+                'job_title' => Str::title($slug) . ' Paid invoice scenario',
+            ],
+            [
+                'instructions' => '[seed] completed work with full payment and tip',
+                'start_date' => $completedStart->toDateString(),
+                'status' => Work::STATUS_CLOSED,
+                'subtotal' => $paidTotal,
+                'total' => $paidTotal,
+            ]
+        );
+
+        $partialWork = Work::query()->updateOrCreate(
+            [
+                'user_id' => $owner->id,
+                'customer_id' => $customerAlt->id,
+                'job_title' => Str::title($slug) . ' Partial invoice scenario',
+            ],
+            [
+                'instructions' => '[seed] completed work with partial payment and percent tip',
+                'start_date' => $now->copy()->subDay()->toDateString(),
+                'status' => Work::STATUS_VALIDATED,
+                'subtotal' => $partialTotal,
+                'total' => $partialTotal,
+            ]
+        );
+
+        $reversedWork = Work::query()->updateOrCreate(
+            [
+                'user_id' => $owner->id,
+                'customer_id' => $customerAlt->id,
+                'job_title' => Str::title($slug) . ' Reversed payment scenario',
+            ],
+            [
+                'instructions' => '[seed] payment reversal and tip reversal coverage',
+                'start_date' => $now->copy()->subDays(2)->toDateString(),
+                'status' => Work::STATUS_DISPUTE,
+                'subtotal' => $reversedTotal,
+                'total' => $reversedTotal,
+            ]
+        );
+
+        $paidInvoice = Invoice::query()->updateOrCreate(
+            ['work_id' => $paidWork->id],
+            [
+                'user_id' => $owner->id,
+                'customer_id' => $customerPrimary->id,
+                'status' => 'sent',
+                'total' => $paidTotal,
+            ]
+        );
+
+        $partialInvoice = Invoice::query()->updateOrCreate(
+            ['work_id' => $partialWork->id],
+            [
+                'user_id' => $owner->id,
+                'customer_id' => $customerAlt->id,
+                'status' => 'sent',
+                'total' => $partialTotal,
+            ]
+        );
+
+        $reversedInvoice = Invoice::query()->updateOrCreate(
+            ['work_id' => $reversedWork->id],
+            [
+                'user_id' => $owner->id,
+                'customer_id' => $customerAlt->id,
+                'status' => 'sent',
+                'total' => $reversedTotal,
+            ]
+        );
+
+        if (Schema::hasTable('invoice_items')) {
+            InvoiceItem::query()->updateOrCreate(
+                ['invoice_id' => $paidInvoice->id, 'title' => $mainService->name . ' (paid scenario)'],
+                [
+                    'work_id' => $paidWork->id,
+                    'assigned_team_member_id' => $adminMember->id,
+                    'description' => '[seed] invoice item for full payment',
+                    'scheduled_date' => $paidWork->start_date,
+                    'quantity' => 1,
+                    'unit_price' => $paidTotal,
+                    'total' => $paidTotal,
+                    'meta' => ['seed' => 'launch', 'tenant' => $slug],
+                ]
+            );
+
+            InvoiceItem::query()->updateOrCreate(
+                ['invoice_id' => $partialInvoice->id, 'title' => $secondaryService->name . ' (partial scenario)'],
+                [
+                    'work_id' => $partialWork->id,
+                    'assigned_team_member_id' => $memberMember->id,
+                    'description' => '[seed] invoice item for partial payment',
+                    'scheduled_date' => $partialWork->start_date,
+                    'quantity' => 1,
+                    'unit_price' => $partialTotal,
+                    'total' => $partialTotal,
+                    'meta' => ['seed' => 'launch', 'tenant' => $slug],
+                ]
+            );
+
+            InvoiceItem::query()->updateOrCreate(
+                ['invoice_id' => $reversedInvoice->id, 'title' => $thirdService->name . ' (reversal scenario)'],
+                [
+                    'work_id' => $reversedWork->id,
+                    'assigned_team_member_id' => $adminMember->id,
+                    'description' => '[seed] invoice item for reversal',
+                    'scheduled_date' => $reversedWork->start_date,
+                    'quantity' => 1,
+                    'unit_price' => $reversedTotal,
+                    'total' => $reversedTotal,
+                    'meta' => ['seed' => 'launch', 'tenant' => $slug],
+                ]
+            );
+        }
+
+        $paymentTipColumns = [
+            'tip_amount' => Schema::hasColumn('payments', 'tip_amount'),
+            'tip_type' => Schema::hasColumn('payments', 'tip_type'),
+            'tip_percent' => Schema::hasColumn('payments', 'tip_percent'),
+            'tip_base_amount' => Schema::hasColumn('payments', 'tip_base_amount'),
+            'charged_total' => Schema::hasColumn('payments', 'charged_total'),
+            'tip_assignee_user_id' => Schema::hasColumn('payments', 'tip_assignee_user_id'),
+            'tip_reversed_amount' => Schema::hasColumn('payments', 'tip_reversed_amount'),
+            'tip_reversed_at' => Schema::hasColumn('payments', 'tip_reversed_at'),
+            'tip_reversal_rule' => Schema::hasColumn('payments', 'tip_reversal_rule'),
+            'tip_reversal_reason' => Schema::hasColumn('payments', 'tip_reversal_reason'),
+        ];
+
+        $withTipData = static function (array $values, array $tipData) use ($paymentTipColumns): array {
+            foreach ($tipData as $column => $value) {
+                if (($paymentTipColumns[$column] ?? false) === true) {
+                    $values[$column] = $value;
+                }
+            }
+
+            return $values;
+        };
+
+        $tipAllocationsEnabled = Schema::hasTable('payment_tip_allocations');
+        $syncTipAllocations = static function (?Payment $payment) use ($tipAllocationsEnabled): void {
+            if (!$tipAllocationsEnabled || !$payment) {
+                return;
+            }
+
+            app(TipAllocationService::class)->syncForPayment($payment->fresh());
+        };
+
+        $fullTipAmount = $isRestaurant ? 32.00 : 18.00;
+        $fullPayment = Payment::query()->updateOrCreate(
+            ['invoice_id' => $paidInvoice->id, 'reference' => Str::upper($slug) . '-PAY-FULL'],
+            $withTipData([
+                'customer_id' => $customerPrimary->id,
+                'user_id' => $owner->id,
+                'amount' => $paidTotal,
+                'method' => 'card',
+                'status' => 'completed',
+                'notes' => '[seed] full payment with fixed tip',
+                'paid_at' => $now->copy()->subHours(20),
+            ], [
+                'tip_amount' => $fullTipAmount,
+                'tip_type' => 'fixed',
+                'tip_percent' => null,
+                'tip_base_amount' => $paidTotal,
+                'charged_total' => round($paidTotal + $fullTipAmount, 2),
+                'tip_assignee_user_id' => $adminUser->id,
+                'tip_reversed_amount' => 0,
+                'tip_reversed_at' => null,
+                'tip_reversal_rule' => null,
+                'tip_reversal_reason' => null,
+            ])
+        );
+        $syncTipAllocations($fullPayment);
+        $paidInvoice->refreshPaymentStatus();
+
+        $partialAmount = round($partialTotal * 0.45, 2);
+        $partialTipPercent = 10.0;
+        $partialTipAmount = round($partialAmount * ($partialTipPercent / 100), 2);
+        $partialPayment = Payment::query()->updateOrCreate(
+            ['invoice_id' => $partialInvoice->id, 'reference' => Str::upper($slug) . '-PAY-PARTIAL'],
+            $withTipData([
+                'customer_id' => $customerAlt->id,
+                'user_id' => $owner->id,
+                'amount' => $partialAmount,
+                'method' => 'card',
+                'status' => 'completed',
+                'notes' => '[seed] partial payment with percent tip',
+                'paid_at' => $now->copy()->subHours(10),
+            ], [
+                'tip_amount' => $partialTipAmount,
+                'tip_type' => 'percent',
+                'tip_percent' => $partialTipPercent,
+                'tip_base_amount' => $partialAmount,
+                'charged_total' => round($partialAmount + $partialTipAmount, 2),
+                'tip_assignee_user_id' => $memberUser->id,
+                'tip_reversed_amount' => 0,
+                'tip_reversed_at' => null,
+                'tip_reversal_rule' => null,
+                'tip_reversal_reason' => null,
+            ])
+        );
+        $syncTipAllocations($partialPayment);
+        $partialInvoice->refreshPaymentStatus();
+
+        $reversedAmount = round($reversedTotal * 0.4, 2);
+        $reversedTipPercent = 12.0;
+        $reversedTipAmount = round($reversedAmount * ($reversedTipPercent / 100), 2);
+        $reversedTipPart = round($reversedTipAmount * 0.5, 2);
+        $reversedPayment = Payment::query()->updateOrCreate(
+            ['invoice_id' => $reversedInvoice->id, 'reference' => Str::upper($slug) . '-PAY-REVERSED'],
+            $withTipData([
+                'customer_id' => $customerAlt->id,
+                'user_id' => $owner->id,
+                'amount' => $reversedAmount,
+                'method' => 'card',
+                'status' => 'reversed',
+                'notes' => '[seed] reversed payment with partial tip reversal',
+                'paid_at' => $now->copy()->subHours(6),
+            ], [
+                'tip_amount' => $reversedTipAmount,
+                'tip_type' => 'percent',
+                'tip_percent' => $reversedTipPercent,
+                'tip_base_amount' => $reversedAmount,
+                'charged_total' => round($reversedAmount + $reversedTipAmount, 2),
+                'tip_assignee_user_id' => $adminUser->id,
+                'tip_reversed_amount' => $reversedTipPart,
+                'tip_reversed_at' => $now->copy()->subHours(4),
+                'tip_reversal_rule' => 'prorata',
+                'tip_reversal_reason' => '[seed] partial reversal for dispute',
+            ])
+        );
+        $syncTipAllocations($reversedPayment);
+        $reversedInvoice->refreshPaymentStatus();
     }
 }

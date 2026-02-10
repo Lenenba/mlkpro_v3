@@ -157,6 +157,21 @@ class User extends Authenticatable
         return $this->hasMany(ReservationSetting::class, 'account_id');
     }
 
+    public function reservationResources(): HasMany
+    {
+        return $this->hasMany(ReservationResource::class, 'account_id');
+    }
+
+    public function reservationResourceAllocations(): HasMany
+    {
+        return $this->hasMany(ReservationResourceAllocation::class, 'account_id');
+    }
+
+    public function reservationWaitlists(): HasMany
+    {
+        return $this->hasMany(ReservationWaitlist::class, 'account_id');
+    }
+
     public function weeklyAvailabilities(): HasMany
     {
         return $this->hasMany(WeeklyAvailability::class, 'account_id');
@@ -190,6 +205,11 @@ class User extends Authenticatable
     public function pushTokens(): HasMany
     {
         return $this->hasMany(UserPushToken::class);
+    }
+
+    public function tipAllocations(): HasMany
+    {
+        return $this->hasMany(PaymentTipAllocation::class);
     }
 
     public function platformAdmin(): HasOne

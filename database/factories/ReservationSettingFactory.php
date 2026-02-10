@@ -19,6 +19,7 @@ class ReservationSettingFactory extends Factory
         return [
             'account_id' => User::factory(),
             'team_member_id' => null,
+            'business_preset' => 'service_general',
             'buffer_minutes' => 10,
             'slot_interval_minutes' => 30,
             'min_notice_minutes' => 0,
@@ -26,6 +27,17 @@ class ReservationSettingFactory extends Factory
             'cancellation_cutoff_hours' => 12,
             'allow_client_cancel' => true,
             'allow_client_reschedule' => true,
+            'late_release_minutes' => 0,
+            'waitlist_enabled' => false,
+            'queue_mode_enabled' => false,
+            'queue_dispatch_mode' => 'fifo_with_appointment_priority',
+            'queue_grace_minutes' => 5,
+            'queue_pre_call_threshold' => 2,
+            'queue_no_show_on_grace_expiry' => false,
+            'deposit_required' => false,
+            'deposit_amount' => 0,
+            'no_show_fee_enabled' => false,
+            'no_show_fee_amount' => 0,
         ];
     }
 
@@ -42,4 +54,3 @@ class ReservationSettingFactory extends Factory
         });
     }
 }
-
