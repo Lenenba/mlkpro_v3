@@ -25,6 +25,9 @@
     "quotes": "Quotes",
     "plan_scans": "Plan scanner",
     "requests": "Requests",
+    "reservations": "Reservations",
+    "book_reservation": "Book",
+    "my_reservations": "My bookings",
     "jobs": "Jobs",
     "tasks": "Tasks",
     "team": "Team",
@@ -1351,6 +1354,7 @@
       "modules": {
         "quotes": "Quotes",
         "requests": "Requests",
+        "reservations": "Reservations",
         "plan_scans": "Plan scans",
         "invoices": "Invoices",
         "jobs": "Jobs",
@@ -3990,6 +3994,196 @@
       "description_optional": "Description (optional)"
     }
   },
+  "reservations": {
+    "title": "Reservations",
+    "subtitle": "Review, confirm, or decline reservations assigned to your team.",
+    "empty": "No reservations yet.",
+    "stats": {
+      "total": "Total",
+      "pending": "Pending",
+      "confirmed": "Confirmed",
+      "completed": "Completed",
+      "today": "Today",
+      "upcoming": "Upcoming"
+    },
+    "filters": {
+      "search": "Search",
+      "search_placeholder": "Customer, product, contact...",
+      "status": "Status",
+      "sort": "Sort",
+      "all_statuses": "All statuses",
+      "date_from": "From",
+      "date_to": "To"
+    },
+    "scope": {
+      "mine": "My reservations",
+      "all": "All reservations"
+    },
+    "quick": {
+      "pending": "Pending",
+      "today": "Today",
+      "upcoming": "Upcoming",
+      "past": "Past"
+    },
+    "sort": {
+      "date_asc": "Date (oldest first)",
+      "date_desc": "Date (newest first)",
+      "status": "Status"
+    },
+    "actions": {
+      "new": "New reservation",
+      "create": "Create",
+      "update": "Update",
+      "edit": "Edit",
+      "delete": "Delete",
+      "cancel": "Cancel",
+      "decline": "Decline",
+      "confirm": "Confirm",
+      "complete": "Mark completed",
+      "no_show": "Mark no show",
+      "set_pending": "Set pending",
+      "already_confirmed": "Already confirmed",
+      "view": "View",
+      "reschedule": "Reschedule",
+      "clear_filters": "Clear filters",
+      "delete_confirm": "Delete this reservation?"
+    },
+    "form": {
+      "create_title": "Create reservation",
+      "edit_title": "Edit reservation",
+      "customer": "Customer",
+      "item": "Product or service",
+      "status": "Status",
+      "title": "Title",
+      "starts_at": "Starts at",
+      "ends_at": "Ends at",
+      "party_size": "Party size",
+      "quantity": "Quantity",
+      "channel": "Channel",
+      "contact_name": "Contact name",
+      "contact_email": "Email",
+      "contact_phone": "Phone",
+      "notes": "Notes",
+      "internal_notes": "Internal notes",
+      "none": "None"
+    },
+    "table": {
+      "when": "Date/time",
+      "customer": "Customer",
+      "item": "Product/service",
+      "status": "Status",
+      "size_qty": "Size / Qty",
+      "contact": "Contact",
+      "actions": "Actions",
+      "party_size_value": "Party: {value}",
+      "quantity_value": "Qty: {value}"
+    },
+    "pagination": {
+      "previous": "Previous",
+      "next": "Next",
+      "showing": "{from} - {to}"
+    },
+    "view": {
+      "list": "List"
+    },
+    "status": {
+      "pending": "Pending",
+      "confirmed": "Confirmed",
+      "rescheduled": "Rescheduled",
+      "completed": "Completed",
+      "cancelled": "Cancelled",
+      "no_show": "No show"
+    },
+    "legend": {
+      "title": "Status legend",
+      "tip": "Actions depend on current status.",
+      "pending": "Waiting for confirmation. You can confirm or decline.",
+      "confirmed": "Confirmed and planned. You can complete, mark no-show, or cancel.",
+      "rescheduled": "Time was changed. You can confirm or decline.",
+      "completed": "Service finished. No further status action is required.",
+      "cancelled": "Reservation was cancelled or declined.",
+      "no_show": "Client did not attend."
+    },
+    "errors": {
+      "load_events": "Unable to load reservation events.",
+      "load_slots": "Unable to load available slots.",
+      "cancel": "Unable to cancel this reservation.",
+      "create": "Unable to create reservation.",
+      "reschedule": "Unable to reschedule this reservation.",
+      "update_status": "Unable to update reservation status.",
+      "validation": "Please correct the highlighted fields."
+    },
+    "item_type": {
+      "service": "Service",
+      "product": "Product"
+    },
+    "client": {
+      "book": {
+        "title": "Book reservation",
+        "subtitle": "Choose a slot that works best for you.",
+        "my_reservations": "My reservations",
+        "summary_title": "Booking details",
+        "selected_slot": "Selected slot",
+        "loading_slots": "Loading available slots...",
+        "no_availability": "No availability for this range. Try another week or service.",
+        "upcoming_title": "Upcoming reservations",
+        "default_service": "Reservation",
+        "no_upcoming": "No upcoming reservations.",
+        "select_slot_error": "Select an available slot to continue.",
+        "fields": {
+          "team_member": "Team member",
+          "service": "Service",
+          "duration": "Duration (minutes)",
+          "contact_name": "Contact name",
+          "contact_email": "Contact email",
+          "contact_phone": "Contact phone",
+          "client_notes": "Notes"
+        },
+        "actions": {
+          "submit": "Submit reservation",
+          "submitting": "Submitting...",
+          "submitted": "Reservation request submitted."
+        }
+      },
+      "index": {
+        "title": "My reservations",
+        "subtitle": "Track, cancel, or reschedule your bookings.",
+        "book_button": "Book a reservation",
+        "empty": "You don't have reservations yet.",
+        "details_title": "Reservation details",
+        "reschedule_title": "Reschedule reservation",
+        "reschedule_member": "Team member",
+        "reschedule_notes": "Notes",
+        "any_available": "Any available",
+        "cancel_prompt": "Optional cancellation reason:",
+        "select_slot_error": "Select a slot before submitting.",
+        "cancellation_cutoff": "Cancellation cutoff: {hours} hour(s) before start.",
+        "review": {
+          "title": "Rate your reservation",
+          "description": "Share your feedback after the service is completed.",
+          "fields": {
+            "rating": "Rating",
+            "feedback": "Feedback"
+          },
+          "actions": {
+            "leave": "Leave a review",
+            "submit": "Submit review",
+            "submitting": "Submitting..."
+          },
+          "labels": {
+            "excellent": "Excellent",
+            "good": "Good",
+            "okay": "Okay",
+            "poor": "Poor",
+            "bad": "Bad"
+          },
+          "errors": {
+            "generic": "Unable to submit reservation review."
+          }
+        }
+      }
+    }
+  },
   "quotes": {
     "title": "Quotes",
     "create_title": "Create quote",
@@ -4774,6 +4968,10 @@
         "label": "HR",
         "description": "Shift templates"
       },
+      "reservations": {
+        "label": "Reservations",
+        "description": "Booking rules and availability"
+      },
       "billing": {
         "label": "Billing",
         "description": "Plan and payments"
@@ -4787,6 +4985,87 @@
         "label": "Support",
         "description": "Incidents and help"
       }
+    },
+    "reservations": {
+      "meta_title": "Reservations",
+      "title": "Reservation settings",
+      "subtitle": "Manage booking rules, team availability, and exceptions.",
+      "summary": {
+        "timezone": "Timezone",
+        "team_members": "Team members",
+        "weekly_rules": "Weekly rules",
+        "exceptions": "Exceptions"
+      },
+      "company_rules": {
+        "title": "Company booking rules",
+        "description": "Default rules applied to all team members."
+      },
+      "team_settings": {
+        "title": "Team member overrides",
+        "description": "Optional overrides for specific team members.",
+        "select_member": "Team member",
+        "add": "Add override",
+        "empty": "No team-specific override."
+      },
+      "weekly": {
+        "title": "Weekly availability",
+        "description": "Define recurring opening hours per team member."
+      },
+      "exceptions": {
+        "title": "Availability exceptions",
+        "description": "Set one-time closures or special openings.",
+        "all_members": "All team members",
+        "all_day": "(all day)",
+        "types": {
+          "closed": "Closed",
+          "open": "Open"
+        }
+      },
+      "notifications": {
+        "title": "Reservation notifications",
+        "description": "Configure emails, in-app alerts, reminders, and review requests.",
+        "fields": {
+          "enabled": "Enable reservation notifications",
+          "email": "Send emails",
+          "in_app": "Send in-app notifications",
+          "notify_on_created": "Notify on created reservation",
+          "notify_on_rescheduled": "Notify on rescheduled reservation",
+          "notify_on_cancelled": "Notify on cancelled reservation",
+          "notify_on_completed": "Notify when reservation is completed",
+          "notify_on_reminder": "Send reminders before start",
+          "notify_on_review_submitted": "Notify when a review is submitted",
+          "review_request_on_completed": "Ask client for review after completion",
+          "reminder_hours": "Reminder timings"
+        },
+        "reminders": {
+          "day_before": "24 hours before",
+          "two_hours": "2 hours before",
+          "one_hour": "1 hour before"
+        }
+      },
+      "fields": {
+        "team_member": "Team member",
+        "day": "Day",
+        "date": "Date",
+        "start_time": "Start",
+        "end_time": "End",
+        "start_time_optional": "Start (optional)",
+        "end_time_optional": "End (optional)",
+        "type": "Type",
+        "reason": "Reason",
+        "buffer_minutes": "Buffer minutes",
+        "slot_interval_minutes": "Slot interval (minutes)",
+        "min_notice_minutes": "Minimum notice (minutes)",
+        "max_advance_days": "Max advance booking (days)",
+        "cancellation_cutoff_hours": "Cancellation cutoff (hours)",
+        "allow_client_cancel": "Allow client cancellation",
+        "allow_client_reschedule": "Allow client reschedule"
+      },
+      "member_unknown": "Unknown member",
+      "add": "Add",
+      "remove": "Remove",
+      "save": "Save settings",
+      "saving": "Saving..."
     },
     "security": {
       "meta_title": "Security",

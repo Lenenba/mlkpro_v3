@@ -4,7 +4,6 @@ import 'preline'; // Import de Preline.js
 import ApexCharts from 'apexcharts';
 import ClipboardJS from 'clipboard';
 import { createInertiaApp, router } from '@inertiajs/vue3';
-import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { createApp, h } from 'vue';
 import { ZiggyVue } from '../../vendor/tightenco/ziggy';
 import { createI18nInstance } from './i18n';
@@ -198,16 +197,33 @@ const initializePreline = () => {
 };
 
 // Configuration de l'application Inertia
+const inertiaPages = import.meta.glob([
+    './Pages/**/*.vue',
+    '!./Pages/Demo/**/*.vue',
+]);
+
+const resolveInertiaPage = (name) => {
+    const pagePath = `./Pages/${name}.vue`;
+    const directMatch = inertiaPages[pagePath];
+    if (directMatch) {
+        return directMatch();
+    }
+
+    // Fallback for inconsistent casing coming from backend component names.
+    const lowerPath = pagePath.toLowerCase();
+    const caseInsensitiveKey = Object.keys(inertiaPages).find(
+        (key) => key.toLowerCase() === lowerPath,
+    );
+    if (caseInsensitiveKey) {
+        return inertiaPages[caseInsensitiveKey]();
+    }
+
+    return Promise.reject(new Error(`Page not found: ${pagePath}`));
+};
+
 createInertiaApp({
     title: (title) => `${title} - ${appName}`,
-    resolve: (name) =>
-        resolvePageComponent(
-            `./Pages/${name}.vue`,
-            import.meta.glob([
-                './Pages/**/*.vue',
-                '!./Pages/Demo/**/*.vue',
-            ]),
-        ),
+    resolve: (name) => resolveInertiaPage(name),
     setup({ el, App, props, plugin }) {
         const initialLocale = props.initialPage?.props?.locale || 'fr';
         i18nInstance = createI18nInstance(initialLocale);

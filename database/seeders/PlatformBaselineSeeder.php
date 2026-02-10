@@ -60,6 +60,7 @@ class PlatformBaselineSeeder extends Seeder
         $moduleKeys = [
             'quotes',
             'requests',
+            'reservations',
             'plan_scans',
             'invoices',
             'jobs',

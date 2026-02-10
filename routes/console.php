@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Schedule;
+use Database\Seeders\LaunchSeeder;
 use App\Models\Role;
 use App\Models\User;
 use App\Models\Work;
@@ -23,6 +24,7 @@ use App\Services\DailyAgendaService;
 use App\Services\PlatformAdminNotifier;
 use App\Services\WorkBillingService;
 use App\Services\SaleNotificationService;
+use App\Services\ReservationNotificationService;
 use App\Services\SupportAssignmentService;
 use App\Services\SupportSettingsService;
 
@@ -568,6 +570,52 @@ Artisan::command('demo:reset {--tenant_id=}', function (
     return 0;
 })->purpose('Reset demo tenant data and tour progress');
 
+Artisan::command('reservations:notifications', function (ReservationNotificationService $notificationService): int {
+    $result = $notificationService->processScheduledNotifications();
+
+    $reminders = (int) ($result['reminders_sent'] ?? 0);
+    $reviews = (int) ($result['review_requests_sent'] ?? 0);
+
+    $this->info("Reservation notifications processed. reminders={$reminders}, reviews={$reviews}");
+
+    return 0;
+})->purpose('Send reservation reminders and review requests');
+
+Artisan::command('app:launch-reset {--force : Skip confirmation prompt}', function (): int {
+    if (!(bool) $this->option('force')) {
+        $confirmed = $this->confirm(
+            'This will run migrate:fresh, reseed LaunchSeeder, clear caches and optimize. Continue?',
+            false
+        );
+        if (!$confirmed) {
+            $this->warn('Operation cancelled.');
+            return 1;
+        }
+    }
+
+    $steps = [
+        ['migrate:fresh', ['--seed' => true, '--force' => true], 'Database refreshed and first seed...'],
+        ['db:seed', ['--class' => LaunchSeeder::class, '--force' => true], 'LaunchSeeder executed.'],
+        ['optimize:clear', [], 'Caches cleared.'],
+        ['optimize', [], 'Application optimized.'],
+    ];
+
+    foreach ($steps as [$command, $arguments, $message]) {
+        $this->line("Running: php artisan {$command}");
+        $exitCode = $this->call($command, $arguments);
+        if ($exitCode !== 0) {
+            $this->error("Failed on command: {$command}");
+            return $exitCode;
+        }
+        $this->info($message);
+    }
+
+    $this->newLine();
+    $this->info('Launch reset completed successfully.');
+
+    return 0;
+})->purpose('Reset database for launch demo data, clear caches, and optimize');
+
 Schedule::command('platform:notifications-digest --frequency=daily')->dailyAt('08:00');
 Schedule::command('platform:notifications-digest --frequency=weekly')->weeklyOn(1, '08:00');
 Schedule::command('platform:notifications-scan')->dailyAt('07:30');
@@ -575,3 +623,4 @@ Schedule::command('agenda:process')->everyFiveMinutes();
 Schedule::command('orders:deposit-reminders')->everyFourHours();
 Schedule::command('leads:follow-up-reminders --hours=24')->hourly();
 Schedule::command('support:sla-reminders')->hourly();
+Schedule::command('reservations:notifications')->everyFifteenMinutes();

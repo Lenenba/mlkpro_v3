@@ -9,6 +9,14 @@ use Illuminate\Http\Request;
 
 class BaseSuperAdminController extends Controller
 {
+    protected function authorizeSuperadmin(Request $request): void
+    {
+        $user = $request->user();
+        if (!$user || !$user->isSuperadmin()) {
+            abort(403);
+        }
+    }
+
     protected function authorizePermission(Request $request, string $permission): void
     {
         $user = $request->user();

@@ -53,6 +53,7 @@ class PlatformSettingsController extends BaseSuperAdminController
     public function update(Request $request): RedirectResponse
     {
         $this->authorizePermission($request, PlatformPermissions::SETTINGS_MANAGE);
+        $isSuperadmin = (bool) $request->user()?->isSuperadmin();
 
         $validated = $request->validate([
             'maintenance.enabled' => 'required|boolean',
@@ -101,6 +102,7 @@ class PlatformSettingsController extends BaseSuperAdminController
         $moduleKeys = [
             'quotes',
             'requests',
+            'reservations',
             'plan_scans',
             'invoices',
             'jobs',
@@ -125,17 +127,23 @@ class PlatformSettingsController extends BaseSuperAdminController
 
         PlatformSetting::setValue('plan_limits', $limitsPayload);
 
-        $modulesPayload = [];
-        $inputModules = $validated['plan_modules'] ?? [];
-        foreach (config('billing.plans', []) as $planKey => $plan) {
-            $planInput = $inputModules[$planKey] ?? [];
-            foreach ($moduleKeys as $moduleKey) {
-                $value = $planInput[$moduleKey] ?? null;
-                $modulesPayload[$planKey][$moduleKey] = $value === null ? true : (bool) $value;
-            }
+        if (array_key_exists('plan_modules', $validated) && !$isSuperadmin) {
+            abort(403);
         }
 
-        PlatformSetting::setValue('plan_modules', $modulesPayload);
+        if ($isSuperadmin && array_key_exists('plan_modules', $validated)) {
+            $modulesPayload = [];
+            $inputModules = $validated['plan_modules'] ?? [];
+            foreach (config('billing.plans', []) as $planKey => $plan) {
+                $planInput = $inputModules[$planKey] ?? [];
+                foreach ($moduleKeys as $moduleKey) {
+                    $value = $planInput[$moduleKey] ?? null;
+                    $modulesPayload[$planKey][$moduleKey] = $value === null ? true : (bool) $value;
+                }
+            }
+
+            PlatformSetting::setValue('plan_modules', $modulesPayload);
+        }
 
         $displayPayload = [];
         $inputDisplay = $validated['plan_display'] ?? [];

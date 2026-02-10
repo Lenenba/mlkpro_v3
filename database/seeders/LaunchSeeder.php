@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\ActivityLog;
+use App\Models\AvailabilityException;
 use App\Models\Customer;
 use App\Models\Invoice;
 use App\Models\InvoiceItem;
@@ -21,6 +22,9 @@ use App\Models\Property;
 use App\Models\Quote;
 use App\Models\QuoteProduct;
 use App\Models\QuoteRating;
+use App\Models\Reservation;
+use App\Models\ReservationReview;
+use App\Models\ReservationSetting;
 use App\Models\Request as LeadRequest;
 use App\Models\Role;
 use App\Models\Sale;
@@ -34,6 +38,7 @@ use App\Models\TeamMemberShift;
 use App\Models\Transaction;
 use App\Models\User;
 use App\Models\Warehouse;
+use App\Models\WeeklyAvailability;
 use App\Models\Work;
 use App\Models\WorkChecklistItem;
 use App\Models\WorkMedia;
@@ -42,6 +47,7 @@ use App\Services\InventoryService;
 use App\Services\WorkBillingService;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
 class LaunchSeeder extends Seeder
@@ -49,6 +55,8 @@ class LaunchSeeder extends Seeder
     public function run(): void
     {
         $now = now();
+
+        $this->call(PlatformBaselineSeeder::class);
 
         $roles = [
             'superadmin' => 'Superadmin role',
@@ -215,6 +223,13 @@ class LaunchSeeder extends Seeder
                 'payment_methods' => ['cash', 'card'],
             ]
         );
+        $serviceOwnerFeatures = (array) ($serviceOwner->company_features ?? []);
+        if (!array_key_exists('reservations', $serviceOwnerFeatures)) {
+            $serviceOwnerFeatures['reservations'] = true;
+        }
+        $serviceOwner->update([
+            'company_features' => $serviceOwnerFeatures,
+        ]);
 
         $productOwner = User::updateOrCreate(
             ['email' => 'owner.products@example.com'],
@@ -280,6 +295,7 @@ class LaunchSeeder extends Seeder
                 'company_features' => [
                     'quotes' => true,
                     'requests' => false,
+                    'reservations' => false,
                     'jobs' => false,
                     'invoices' => false,
                 ],
@@ -457,6 +473,7 @@ class LaunchSeeder extends Seeder
                 'company_features' => [
                     'requests' => true,
                     'quotes' => false,
+                    'reservations' => false,
                     'jobs' => false,
                     'invoices' => false,
                 ],
@@ -2653,6 +2670,7 @@ class LaunchSeeder extends Seeder
         $productSalesCatalog = $productProducts
             ->filter(fn($product) => ($product->tracking_type ?? 'none') === 'none' && (int) $product->stock > 0)
             ->values();
+        $canSeedSales = Schema::hasTable('sales') && Schema::hasTable('sale_items');
 
         $buildSalePayload = function (array $lines): array {
             $items = [];
@@ -2785,7 +2803,8 @@ class LaunchSeeder extends Seeder
         };
 
         if ($productSalesCatalog->isNotEmpty()) {
-            $createSale(
+            if ($canSeedSales) {
+                $createSale(
                 'Seeded POS sale - Mia Builds',
                 $productCustomer,
                 Sale::STATUS_PAID,
@@ -3251,6 +3270,9 @@ class LaunchSeeder extends Seeder
                         $weekSeller->id
                     );
                 }
+            }
+            } elseif ($this->command) {
+                $this->command->warn('Skipping sales seed in LaunchSeeder because sales tables are not available.');
             }
 
             $attendanceMembers = TeamMember::query()
@@ -4339,6 +4361,213 @@ class LaunchSeeder extends Seeder
                     'status' => 'todo',
                     'end_time' => '13:00:00',
                     'completed_at' => null,
+                ]
+            );
+        }
+
+        ReservationSetting::query()->updateOrCreate(
+            [
+                'account_id' => $serviceOwner->id,
+                'team_member_id' => null,
+            ],
+            [
+                'buffer_minutes' => 15,
+                'slot_interval_minutes' => 30,
+                'min_notice_minutes' => 120,
+                'max_advance_days' => 60,
+                'cancellation_cutoff_hours' => 24,
+                'allow_client_cancel' => true,
+                'allow_client_reschedule' => true,
+            ]
+        );
+
+        $reservationMembers = TeamMember::query()
+            ->forAccount($serviceOwner->id)
+            ->active()
+            ->orderBy('id')
+            ->get(['id']);
+
+        if ($reservationMembers->isNotEmpty()) {
+            foreach ($reservationMembers->take(3) as $index => $member) {
+                ReservationSetting::query()->updateOrCreate(
+                    [
+                        'account_id' => $serviceOwner->id,
+                        'team_member_id' => $member->id,
+                    ],
+                    [
+                        'buffer_minutes' => $index === 0 ? 10 : 15,
+                        'slot_interval_minutes' => 30,
+                        'min_notice_minutes' => 60,
+                        'max_advance_days' => 45,
+                        'cancellation_cutoff_hours' => 24,
+                        'allow_client_cancel' => true,
+                        'allow_client_reschedule' => true,
+                    ]
+                );
+
+                foreach ([1, 2, 3, 4, 5] as $dayOfWeek) {
+                    WeeklyAvailability::query()->updateOrCreate(
+                        [
+                            'account_id' => $serviceOwner->id,
+                            'team_member_id' => $member->id,
+                            'day_of_week' => $dayOfWeek,
+                            'start_time' => '09:00:00',
+                            'end_time' => '17:00:00',
+                        ],
+                        [
+                            'is_active' => true,
+                        ]
+                    );
+                }
+            }
+
+            $holidayDate = $now->copy()->addDays(10)->toDateString();
+            AvailabilityException::query()->updateOrCreate(
+                [
+                    'account_id' => $serviceOwner->id,
+                    'team_member_id' => null,
+                    'date' => $holidayDate,
+                    'type' => AvailabilityException::TYPE_CLOSED,
+                ],
+                [
+                    'start_time' => null,
+                    'end_time' => null,
+                    'reason' => 'Company holiday',
+                ]
+            );
+
+            AvailabilityException::query()->updateOrCreate(
+                [
+                    'account_id' => $serviceOwner->id,
+                    'team_member_id' => $reservationMembers->first()->id,
+                    'date' => $holidayDate,
+                    'type' => AvailabilityException::TYPE_OPEN,
+                ],
+                [
+                    'start_time' => '18:00:00',
+                    'end_time' => '20:00:00',
+                    'reason' => 'Evening special slots',
+                ]
+            );
+        }
+
+        $primaryReservationMember = $reservationMembers->get(0);
+        $secondaryReservationMember = $reservationMembers->get(1) ?? $primaryReservationMember;
+        $reservationService = $serviceProducts->first();
+        if ($primaryReservationMember && $secondaryReservationMember && $reservationService) {
+            $reservationTimezone = $serviceOwner->company_timezone ?: config('app.timezone', 'UTC');
+            $pendingStart = $now->copy()->addDays(3)->setTime(14, 0);
+            $confirmedStart = $now->copy()->addDays(4)->setTime(10, 0);
+            $completedStart = $now->copy()->subDays(2)->setTime(11, 0);
+            $cancelledStart = $now->copy()->addDays(6)->setTime(16, 0);
+
+            Reservation::query()->updateOrCreate(
+                [
+                    'account_id' => $serviceOwner->id,
+                    'team_member_id' => $primaryReservationMember->id,
+                    'starts_at' => $pendingStart->toDateTimeString(),
+                ],
+                [
+                    'client_id' => $serviceCustomer->id,
+                    'client_user_id' => $servicePortalUser->id,
+                    'service_id' => $reservationService->id,
+                    'created_by_user_id' => $servicePortalUser->id,
+                    'status' => Reservation::STATUS_PENDING,
+                    'source' => Reservation::SOURCE_CLIENT,
+                    'timezone' => $reservationTimezone,
+                    'ends_at' => $pendingStart->copy()->addMinutes(60),
+                    'duration_minutes' => 60,
+                    'buffer_minutes' => 10,
+                    'client_notes' => 'Client booking seeded from launch seeder.',
+                    'metadata' => [
+                        'seed' => 'launch',
+                    ],
+                ]
+            );
+
+            Reservation::query()->updateOrCreate(
+                [
+                    'account_id' => $serviceOwner->id,
+                    'team_member_id' => $secondaryReservationMember->id,
+                    'starts_at' => $confirmedStart->toDateTimeString(),
+                ],
+                [
+                    'client_id' => $serviceCustomerAlt->id,
+                    'client_user_id' => null,
+                    'service_id' => $reservationService->id,
+                    'created_by_user_id' => $serviceOwner->id,
+                    'status' => Reservation::STATUS_CONFIRMED,
+                    'source' => Reservation::SOURCE_STAFF,
+                    'timezone' => $reservationTimezone,
+                    'ends_at' => $confirmedStart->copy()->addMinutes(90),
+                    'duration_minutes' => 90,
+                    'buffer_minutes' => 15,
+                    'internal_notes' => 'Confirmed staff booking seeded for calendar coverage.',
+                    'metadata' => [
+                        'seed' => 'launch',
+                    ],
+                ]
+            );
+
+            $completedReservation = Reservation::query()->updateOrCreate(
+                [
+                    'account_id' => $serviceOwner->id,
+                    'team_member_id' => $primaryReservationMember->id,
+                    'starts_at' => $completedStart->toDateTimeString(),
+                ],
+                [
+                    'client_id' => $serviceCustomer->id,
+                    'client_user_id' => $servicePortalUser->id,
+                    'service_id' => $reservationService->id,
+                    'created_by_user_id' => $serviceOwner->id,
+                    'status' => Reservation::STATUS_COMPLETED,
+                    'source' => Reservation::SOURCE_STAFF,
+                    'timezone' => $reservationTimezone,
+                    'ends_at' => $completedStart->copy()->addMinutes(60),
+                    'duration_minutes' => 60,
+                    'buffer_minutes' => 10,
+                    'internal_notes' => 'Completed reservation seeded for history.',
+                    'metadata' => [
+                        'seed' => 'launch',
+                    ],
+                ]
+            );
+
+            ReservationReview::query()->updateOrCreate(
+                ['reservation_id' => $completedReservation->id],
+                [
+                    'account_id' => $serviceOwner->id,
+                    'client_id' => $serviceCustomer->id,
+                    'client_user_id' => $servicePortalUser->id,
+                    'rating' => 5,
+                    'feedback' => 'Great service and on-time arrival.',
+                    'reviewed_at' => $completedStart->copy()->addHours(3),
+                ]
+            );
+
+            Reservation::query()->updateOrCreate(
+                [
+                    'account_id' => $serviceOwner->id,
+                    'team_member_id' => $secondaryReservationMember->id,
+                    'starts_at' => $cancelledStart->toDateTimeString(),
+                ],
+                [
+                    'client_id' => $serviceCustomerAlt->id,
+                    'client_user_id' => null,
+                    'service_id' => $reservationService->id,
+                    'created_by_user_id' => $serviceOwner->id,
+                    'cancelled_by_user_id' => $serviceOwner->id,
+                    'status' => Reservation::STATUS_CANCELLED,
+                    'source' => Reservation::SOURCE_STAFF,
+                    'timezone' => $reservationTimezone,
+                    'ends_at' => $cancelledStart->copy()->addMinutes(60),
+                    'duration_minutes' => 60,
+                    'buffer_minutes' => 15,
+                    'cancelled_at' => $now->copy()->subDay(),
+                    'cancel_reason' => 'Customer requested cancellation.',
+                    'metadata' => [
+                        'seed' => 'launch',
+                    ],
                 ]
             );
         }

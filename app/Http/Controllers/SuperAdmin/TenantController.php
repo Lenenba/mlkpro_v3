@@ -280,7 +280,7 @@ class TenantController extends BaseSuperAdminController
 
     public function updateFeatures(Request $request, User $tenant): RedirectResponse
     {
-        $this->authorizePermission($request, PlatformPermissions::TENANTS_MANAGE);
+        $this->authorizeSuperadmin($request);
         $this->ensureOwner($tenant);
 
         $validated = $request->validate([
@@ -656,6 +656,7 @@ class TenantController extends BaseSuperAdminController
         $defaults = [
             'quotes' => 'Quotes',
             'requests' => 'Requests',
+            'reservations' => 'Reservations',
             'plan_scans' => 'Plan scans',
             'invoices' => 'Invoices',
             'jobs' => 'Jobs',

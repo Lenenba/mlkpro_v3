@@ -148,6 +148,16 @@ class Customer extends Model
         return $this->hasMany(Request::class)->orderByDesc('created_at');
     }
 
+    public function reservations(): HasMany
+    {
+        return $this->hasMany(Reservation::class, 'client_id')->orderBy('starts_at');
+    }
+
+    public function reservationReviews(): HasMany
+    {
+        return $this->hasMany(ReservationReview::class, 'client_id');
+    }
+
     public function quotes()
     {
         return $this->hasMany(Quote::class)

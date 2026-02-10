@@ -11,6 +11,13 @@ import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingTextarea from '@/Components/FloatingTextarea.vue';
 import InputError from '@/Components/InputError.vue';
 import Modal from '@/Components/UI/Modal.vue';
+import {
+    createMemberPaletteMap,
+    paletteDotClasses,
+    paletteEventClasses,
+    resolveEventPalette,
+    resolveMemberPalette,
+} from '@/utils/calendarPalette';
 
 const props = defineProps({
     teamMembers: {
@@ -319,59 +326,6 @@ const weekDayLabels = computed(() => ([
     t('planning.weekdays.su'),
 ]));
 
-const palettePool = [
-    {
-        bg: 'bg-emerald-50',
-        text: 'text-emerald-700',
-        border: 'border-emerald-500',
-        dot: 'bg-emerald-500',
-        darkBg: 'dark:bg-emerald-500/10',
-        darkText: 'dark:text-emerald-200',
-        darkBorder: 'dark:border-emerald-400',
-        darkDot: 'dark:bg-emerald-300',
-    },
-    {
-        bg: 'bg-sky-50',
-        text: 'text-sky-700',
-        border: 'border-sky-500',
-        dot: 'bg-sky-500',
-        darkBg: 'dark:bg-sky-500/10',
-        darkText: 'dark:text-sky-200',
-        darkBorder: 'dark:border-sky-400',
-        darkDot: 'dark:bg-sky-300',
-    },
-    {
-        bg: 'bg-rose-50',
-        text: 'text-rose-700',
-        border: 'border-rose-500',
-        dot: 'bg-rose-500',
-        darkBg: 'dark:bg-rose-500/10',
-        darkText: 'dark:text-rose-200',
-        darkBorder: 'dark:border-rose-400',
-        darkDot: 'dark:bg-rose-300',
-    },
-    {
-        bg: 'bg-amber-50',
-        text: 'text-amber-700',
-        border: 'border-amber-500',
-        dot: 'bg-amber-500',
-        darkBg: 'dark:bg-amber-500/10',
-        darkText: 'dark:text-amber-200',
-        darkBorder: 'dark:border-amber-400',
-        darkDot: 'dark:bg-amber-300',
-    },
-    {
-        bg: 'bg-purple-50',
-        text: 'text-purple-700',
-        border: 'border-purple-500',
-        dot: 'bg-purple-500',
-        darkBg: 'dark:bg-purple-500/10',
-        darkText: 'dark:text-purple-200',
-        darkBorder: 'dark:border-purple-400',
-        darkDot: 'dark:bg-purple-300',
-    },
-];
-
 const allMemberIds = computed(() => (props.teamMembers || []).map((member) => member.id));
 const memberFilters = ref([]);
 
@@ -382,38 +336,15 @@ const allMembersSelected = computed(() => {
     return memberFilters.value.length === allMemberIds.value.length;
 });
 
-const memberPalette = computed(() => {
-    const map = {};
-    allMemberIds.value.forEach((id, index) => {
-        map[id] = palettePool[index % palettePool.length];
-    });
-    return map;
-});
+const memberPalette = computed(() => createMemberPaletteMap(allMemberIds.value));
 
-const getPaletteForMember = (memberId) => memberPalette.value[memberId] || palettePool[0];
+const getPaletteForMember = (memberId) => resolveMemberPalette(memberPalette.value, memberId);
 
-const getPaletteForEvent = (event) => {
-    const memberId = event?.extendedProps?.team_member_id;
-    return getPaletteForMember(memberId);
-};
+const getPaletteForEvent = (event) => resolveEventPalette(memberPalette.value, event);
 
-const getMemberDotClasses = (memberId) => {
-    const palette = getPaletteForMember(memberId);
-    return [palette.dot, palette.darkDot];
-};
+const getMemberDotClasses = (memberId) => paletteDotClasses(getPaletteForMember(memberId));
 
-const getEventClasses = (event) => {
-    const palette = getPaletteForEvent(event);
-    return [
-        'rounded-md border-l-4 px-2.5 py-1.5',
-        palette.bg,
-        palette.text,
-        palette.border,
-        palette.darkBg,
-        palette.darkText,
-        palette.darkBorder,
-    ];
-};
+const getEventClasses = (event) => paletteEventClasses(getPaletteForEvent(event));
 
 const selectedDateKey = computed(() =>
     selectedDate.value ? selectedDate.value.format('YYYY-MM-DD') : ''

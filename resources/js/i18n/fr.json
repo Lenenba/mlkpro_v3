@@ -25,6 +25,9 @@
     "quotes": "Devis",
     "plan_scans": "Scan de plan",
     "requests": "Demandes",
+    "reservations": "Reservations",
+    "book_reservation": "Reserver",
+    "my_reservations": "Mes reservations",
     "jobs": "Chantiers",
     "tasks": "Tâches",
     "team": "Équipe",
@@ -1351,6 +1354,7 @@
       "modules": {
         "quotes": "Devis",
         "requests": "Demandes",
+        "reservations": "Reservations",
         "plan_scans": "Scans de plan",
         "invoices": "Factures",
         "jobs": "Chantiers",
@@ -3990,6 +3994,196 @@
       "description_optional": "Description (optionnel)"
     }
   },
+  "reservations": {
+    "title": "Reservations",
+    "subtitle": "Suivez, confirmez ou refusez les reservations assignees a votre equipe.",
+    "empty": "Aucune reservation.",
+    "stats": {
+      "total": "Total",
+      "pending": "En attente",
+      "confirmed": "Confirmees",
+      "completed": "Terminees",
+      "today": "Aujourd'hui",
+      "upcoming": "A venir"
+    },
+    "filters": {
+      "search": "Recherche",
+      "search_placeholder": "Client, produit, contact...",
+      "status": "Statut",
+      "sort": "Tri",
+      "all_statuses": "Tous les statuts",
+      "date_from": "Du",
+      "date_to": "Au"
+    },
+    "scope": {
+      "mine": "Mes reservations",
+      "all": "Toutes les reservations"
+    },
+    "quick": {
+      "pending": "En attente",
+      "today": "Aujourd'hui",
+      "upcoming": "A venir",
+      "past": "Passees"
+    },
+    "sort": {
+      "date_asc": "Date (plus anciennes d'abord)",
+      "date_desc": "Date (plus recentes d'abord)",
+      "status": "Statut"
+    },
+    "actions": {
+      "new": "Nouvelle reservation",
+      "create": "Creer",
+      "update": "Mettre a jour",
+      "edit": "Modifier",
+      "delete": "Supprimer",
+      "cancel": "Annuler",
+      "decline": "Refuser",
+      "confirm": "Confirmer",
+      "complete": "Marquer terminee",
+      "no_show": "Marquer absent",
+      "set_pending": "Mettre en attente",
+      "already_confirmed": "Deja confirmee",
+      "view": "Voir",
+      "reschedule": "Replanifier",
+      "clear_filters": "Reinitialiser",
+      "delete_confirm": "Supprimer cette reservation ?"
+    },
+    "form": {
+      "create_title": "Creer une reservation",
+      "edit_title": "Modifier la reservation",
+      "customer": "Client",
+      "item": "Produit ou service",
+      "status": "Statut",
+      "title": "Titre",
+      "starts_at": "Debut",
+      "ends_at": "Fin",
+      "party_size": "Nombre de personnes",
+      "quantity": "Quantite",
+      "channel": "Canal",
+      "contact_name": "Nom du contact",
+      "contact_email": "Email",
+      "contact_phone": "Telephone",
+      "notes": "Notes",
+      "internal_notes": "Notes internes",
+      "none": "Aucun"
+    },
+    "table": {
+      "when": "Date/heure",
+      "customer": "Client",
+      "item": "Produit/service",
+      "status": "Statut",
+      "size_qty": "Taille / Qt",
+      "contact": "Contact",
+      "actions": "Actions",
+      "party_size_value": "Personnes: {value}",
+      "quantity_value": "Quantite: {value}"
+    },
+    "pagination": {
+      "previous": "Precedent",
+      "next": "Suivant",
+      "showing": "{from} - {to}"
+    },
+    "view": {
+      "list": "Liste"
+    },
+    "status": {
+      "pending": "En attente",
+      "confirmed": "Confirmee",
+      "rescheduled": "Replanifiee",
+      "completed": "Terminee",
+      "cancelled": "Annulee",
+      "no_show": "Absence client"
+    },
+    "legend": {
+      "title": "Legende des statuts",
+      "tip": "Les actions disponibles dependent du statut actuel.",
+      "pending": "En attente de validation. Vous pouvez confirmer ou refuser.",
+      "confirmed": "Confirmee et planifiee. Vous pouvez terminer, marquer absent ou annuler.",
+      "rescheduled": "Le creneau a ete modifie. Vous pouvez confirmer ou refuser.",
+      "completed": "Service termine. Aucune action de statut supplementaire.",
+      "cancelled": "Reservation annulee ou refusee.",
+      "no_show": "Le client ne s'est pas presente."
+    },
+    "errors": {
+      "load_events": "Impossible de charger les reservations.",
+      "load_slots": "Impossible de charger les creneaux disponibles.",
+      "cancel": "Impossible d annuler cette reservation.",
+      "create": "Impossible de creer la reservation.",
+      "reschedule": "Impossible de replanifier cette reservation.",
+      "update_status": "Impossible de mettre a jour le statut de reservation.",
+      "validation": "Merci de corriger les champs en erreur."
+    },
+    "item_type": {
+      "service": "Service",
+      "product": "Produit"
+    },
+    "client": {
+      "book": {
+        "title": "Reserver",
+        "subtitle": "Choisissez un creneau disponible.",
+        "my_reservations": "Mes reservations",
+        "summary_title": "Details de la reservation",
+        "selected_slot": "Creneau selectionne",
+        "loading_slots": "Chargement des creneaux disponibles...",
+        "no_availability": "Aucune disponibilite sur cette periode. Essayez une autre semaine ou un autre service.",
+        "upcoming_title": "Reservations a venir",
+        "default_service": "Reservation",
+        "no_upcoming": "Aucune reservation a venir.",
+        "select_slot_error": "Selectionnez un creneau disponible pour continuer.",
+        "fields": {
+          "team_member": "Membre d'equipe",
+          "service": "Service",
+          "duration": "Duree (minutes)",
+          "contact_name": "Nom du contact",
+          "contact_email": "Email du contact",
+          "contact_phone": "Telephone du contact",
+          "client_notes": "Notes"
+        },
+        "actions": {
+          "submit": "Confirmer la reservation",
+          "submitting": "Envoi...",
+          "submitted": "Demande de reservation envoyee."
+        }
+      },
+      "index": {
+        "title": "Mes reservations",
+        "subtitle": "Suivez, annulez ou replanifiez vos reservations.",
+        "book_button": "Nouvelle reservation",
+        "empty": "Vous n'avez pas encore de reservation.",
+        "details_title": "Details de la reservation",
+        "reschedule_title": "Replanifier la reservation",
+        "reschedule_member": "Membre d'equipe",
+        "reschedule_notes": "Notes",
+        "any_available": "N'importe quel membre disponible",
+        "cancel_prompt": "Motif d'annulation (optionnel) :",
+        "select_slot_error": "Selectionnez un creneau avant validation.",
+        "cancellation_cutoff": "Delai d'annulation : {hours} heure(s) avant le debut.",
+        "review": {
+          "title": "Noter votre reservation",
+          "description": "Partagez votre retour apres la fin du service.",
+          "fields": {
+            "rating": "Note",
+            "feedback": "Commentaire"
+          },
+          "actions": {
+            "leave": "Laisser un avis",
+            "submit": "Envoyer l avis",
+            "submitting": "Envoi..."
+          },
+          "labels": {
+            "excellent": "Excellent",
+            "good": "Bien",
+            "okay": "Correct",
+            "poor": "Insuffisant",
+            "bad": "Mauvais"
+          },
+          "errors": {
+            "generic": "Impossible d envoyer l avis de reservation."
+          }
+        }
+      }
+    }
+  },
   "quotes": {
     "title": "Devis",
     "create_title": "Creer devis",
@@ -4774,6 +4968,10 @@
         "label": "RH",
         "description": "Modeles de shifts"
       },
+      "reservations": {
+        "label": "Reservations",
+        "description": "Regles de reservation et disponibilites"
+      },
       "billing": {
         "label": "Facturation",
         "description": "Plan, paiements et historique"
@@ -4787,6 +4985,87 @@
         "label": "Support",
         "description": "Incidents et assistance"
       }
+    },
+    "reservations": {
+      "meta_title": "Reservations",
+      "title": "Parametres reservations",
+      "subtitle": "Gerez les regles de reservation, les disponibilites d equipe et les exceptions.",
+      "summary": {
+        "timezone": "Fuseau horaire",
+        "team_members": "Membres d equipe",
+        "weekly_rules": "Regles hebdomadaires",
+        "exceptions": "Exceptions"
+      },
+      "company_rules": {
+        "title": "Regles de reservation entreprise",
+        "description": "Regles par defaut appliquees a tous les membres."
+      },
+      "team_settings": {
+        "title": "Surcharges par membre",
+        "description": "Parametres specifiques pour certains membres.",
+        "select_member": "Membre d equipe",
+        "add": "Ajouter une surcharge",
+        "empty": "Aucune surcharge specifique."
+      },
+      "weekly": {
+        "title": "Disponibilites hebdomadaires",
+        "description": "Definissez les horaires recurrents par membre."
+      },
+      "exceptions": {
+        "title": "Exceptions de disponibilite",
+        "description": "Definissez des fermetures ponctuelles ou ouvertures speciales.",
+        "all_members": "Tous les membres",
+        "all_day": "(toute la journee)",
+        "types": {
+          "closed": "Ferme",
+          "open": "Ouvert"
+        }
+      },
+      "notifications": {
+        "title": "Notifications reservations",
+        "description": "Configurez les emails, notifications in-app, rappels et demandes d avis.",
+        "fields": {
+          "enabled": "Activer les notifications reservations",
+          "email": "Envoyer des emails",
+          "in_app": "Envoyer des notifications in-app",
+          "notify_on_created": "Notifier a la creation d une reservation",
+          "notify_on_rescheduled": "Notifier a la replanification d une reservation",
+          "notify_on_cancelled": "Notifier a l annulation d une reservation",
+          "notify_on_completed": "Notifier a la fin d une reservation",
+          "notify_on_reminder": "Envoyer des rappels avant le debut",
+          "notify_on_review_submitted": "Notifier quand un avis est recu",
+          "review_request_on_completed": "Demander un avis client apres la fin",
+          "reminder_hours": "Moments des rappels"
+        },
+        "reminders": {
+          "day_before": "24 heures avant",
+          "two_hours": "2 heures avant",
+          "one_hour": "1 heure avant"
+        }
+      },
+      "fields": {
+        "team_member": "Membre d equipe",
+        "day": "Jour",
+        "date": "Date",
+        "start_time": "Debut",
+        "end_time": "Fin",
+        "start_time_optional": "Debut (optionnel)",
+        "end_time_optional": "Fin (optionnel)",
+        "type": "Type",
+        "reason": "Raison",
+        "buffer_minutes": "Minutes de buffer",
+        "slot_interval_minutes": "Intervalle des creneaux (minutes)",
+        "min_notice_minutes": "Preavis minimum (minutes)",
+        "max_advance_days": "Reservation max a l avance (jours)",
+        "cancellation_cutoff_hours": "Limite d annulation (heures)",
+        "allow_client_cancel": "Autoriser l annulation client",
+        "allow_client_reschedule": "Autoriser le deplacement client"
+      },
+      "member_unknown": "Membre inconnu",
+      "add": "Ajouter",
+      "remove": "Retirer",
+      "save": "Enregistrer",
+      "saving": "Enregistrement..."
     },
     "security": {
       "meta_title": "Securite",
