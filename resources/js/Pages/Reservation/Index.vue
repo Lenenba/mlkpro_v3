@@ -102,11 +102,17 @@ const queueRows = ref([...(props.queueItems || [])]);
 const queueActionError = ref('');
 const queueActionSuccess = ref('');
 const queueUpdatingId = ref(null);
+const queueCallingNext = ref(false);
 const canViewAll = computed(() => Boolean(props.access?.can_view_all));
 const canManage = computed(() => Boolean(props.access?.can_manage));
 const canUpdateStatus = computed(() => Boolean(props.access?.can_update_status));
 const waitlistEnabled = computed(() => Boolean(props.settings?.waitlist_enabled));
 const queueModeEnabled = computed(() => Boolean(props.settings?.queue_mode_enabled));
+const queueAssignmentMode = computed(() => (
+    ['per_staff', 'global_pull'].includes(String(props.settings?.queue_assignment_mode || ''))
+        ? String(props.settings?.queue_assignment_mode)
+        : 'per_staff'
+));
 const hasQueueTab = computed(() => queueModeEnabled.value || queueRows.value.length > 0);
 const hasWaitlistTab = computed(() => waitlistEnabled.value || waitlistRows.value.length > 0);
 const reservationTabCount = computed(() => Number(props.reservations?.total ?? props.reservations?.data?.length ?? 0));
@@ -591,6 +597,43 @@ const updateQueueStatus = async (item, action) => {
     }
 };
 
+const callNextQueueItem = async () => {
+    queueActionError.value = '';
+    queueActionSuccess.value = '';
+    queueCallingNext.value = true;
+
+    try {
+        const payload = {};
+        if (queueAssignmentMode.value === 'per_staff') {
+            if (ownTeamMemberId.value) {
+                payload.team_member_id = Number(ownTeamMemberId.value);
+            } else if (filterForm.team_member_id) {
+                payload.team_member_id = Number(filterForm.team_member_id);
+            }
+        }
+
+        const response = await axios.post(route('reservation.queue.call-next'), payload);
+        const updated = response?.data?.queue_item;
+        if (updated?.id) {
+            const hasExisting = queueRows.value.some((row) => Number(row.id) === Number(updated.id));
+            if (hasExisting) {
+                queueRows.value = queueRows.value.map((row) => (
+                    Number(row.id) === Number(updated.id) ? { ...row, ...updated } : row
+                ));
+            } else {
+                queueRows.value = [{ ...updated }, ...queueRows.value];
+            }
+        }
+
+        queueActionSuccess.value = response?.data?.message || t('reservations.queue.actions.updated');
+        refreshList();
+    } catch (error) {
+        queueActionError.value = error?.response?.data?.message || t('reservations.queue.actions.call_next_empty');
+    } finally {
+        queueCallingNext.value = false;
+    }
+};
+
 const removeReservation = (reservation) => {
     if (!canManage.value) {
         return;
@@ -732,6 +775,9 @@ const goToPage = (url) => {
                         >
                             {{ $t('reservations.queue.screen.open') }}
                         </Link>
+                        <span class="rounded-full bg-cyan-100 px-2 py-0.5 font-semibold text-cyan-700 dark:bg-cyan-500/10 dark:text-cyan-300">
+                            {{ $t(`reservations.queue.assignment_mode.${queueAssignmentMode}`) }}
+                        </span>
                         <span class="rounded-full bg-amber-100 px-2 py-0.5 font-semibold text-amber-700 dark:bg-amber-500/10 dark:text-amber-300">
                             {{ $t('reservations.queue.cards.waiting') }}: {{ queueStats.waiting || 0 }}
                         </span>
@@ -741,6 +787,14 @@ const goToPage = (url) => {
                         <span class="rounded-full bg-emerald-100 px-2 py-0.5 font-semibold text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300">
                             {{ $t('reservations.queue.cards.in_service') }}: {{ queueStats.in_service || 0 }}
                         </span>
+                        <button
+                            type="button"
+                            class="rounded-sm bg-emerald-600 px-2.5 py-1 font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
+                            :disabled="queueCallingNext"
+                            @click="callNextQueueItem"
+                        >
+                            {{ queueCallingNext ? $t('planning.filters.loading') : $t('reservations.queue.actions.call_next') }}
+                        </button>
                     </div>
                 </div>
 
@@ -771,6 +825,11 @@ const goToPage = (url) => {
                                     <th scope="col" class="min-w-52">
                                         <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
                                             {{ $t('reservations.table.customer') }}
+                                        </div>
+                                    </th>
+                                    <th scope="col" class="min-w-28">
+                                        <div class="px-5 py-2.5 text-start text-sm font-normal text-stone-500 dark:text-neutral-500">
+                                            {{ $t('reservations.queue.columns.origin') }}
                                         </div>
                                     </th>
                                     <th scope="col" class="min-w-48">
@@ -812,6 +871,16 @@ const goToPage = (url) => {
                                         </div>
                                     </td>
                                     <td class="size-px whitespace-nowrap px-4 py-2 text-sm text-stone-600 dark:text-neutral-300">{{ item.client_name || '-' }}</td>
+                                    <td class="size-px whitespace-nowrap px-4 py-2">
+                                        <span
+                                            class="inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold"
+                                            :class="item.origin === 'booking'
+                                                ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-500/10 dark:text-indigo-300'
+                                                : 'bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300'"
+                                        >
+                                            {{ $t(`reservations.queue.origins.${item.origin || (item.item_type === 'appointment' ? 'booking' : 'walk_in')}`) }}
+                                        </span>
+                                    </td>
                                     <td class="size-px whitespace-nowrap px-4 py-2 text-sm text-stone-600 dark:text-neutral-300">{{ item.service_name || '-' }}</td>
                                     <td class="size-px whitespace-nowrap px-4 py-2 text-sm text-stone-600 dark:text-neutral-300">{{ item.team_member_name || $t('reservations.client.index.any_available') }}</td>
                                     <td class="size-px whitespace-nowrap px-4 py-2 text-sm text-stone-600 dark:text-neutral-300">

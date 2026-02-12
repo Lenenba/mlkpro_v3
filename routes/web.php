@@ -27,6 +27,7 @@ use App\Http\Controllers\PlanningController;
 use App\Http\Controllers\PerformanceController;
 use App\Http\Controllers\PresenceController;
 use App\Http\Controllers\Reservation\ClientReservationController;
+use App\Http\Controllers\Reservation\PublicKioskReservationController;
 use App\Http\Controllers\Reservation\ReservationSettingsController;
 use App\Http\Controllers\Reservation\StaffReservationController;
 use App\Http\Controllers\RequestController;
@@ -142,6 +143,25 @@ Route::middleware(['signed', 'throttle:public-signed'])->group(function () {
         ->name('public.works.schedule.reject');
     Route::get('/public/works/{work}/proofs', [PublicWorkProofController::class, 'show'])->name('public.works.proofs');
     Route::post('/public/tasks/{task}/media', [PublicTaskMediaController::class, 'store'])->name('public.tasks.media.store');
+
+    Route::prefix('/kiosk/reservations')
+        ->name('public.kiosk.reservations.')
+        ->group(function () {
+            Route::get('/', [PublicKioskReservationController::class, 'show'])
+                ->name('show');
+            Route::post('/walk-in/tickets', [PublicKioskReservationController::class, 'walkInTicket'])
+                ->name('walk-in.tickets.store');
+            Route::post('/clients/lookup', [PublicKioskReservationController::class, 'lookupClient'])
+                ->name('clients.lookup');
+            Route::post('/clients/verify', [PublicKioskReservationController::class, 'verifyClient'])
+                ->name('clients.verify');
+            Route::post('/check-in', [PublicKioskReservationController::class, 'checkIn'])
+                ->name('check-in');
+            Route::post('/tickets/track', [PublicKioskReservationController::class, 'trackTicket'])
+                ->name('tickets.track.submit');
+            Route::get('/tickets/track', [PublicKioskReservationController::class, 'trackTicket'])
+                ->name('tickets.track');
+        });
 });
 // Onboarding (account setup)
 Route::get('/onboarding', [OnboardingController::class, 'index'])
@@ -282,6 +302,8 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
             ->name('reservation.queue.pre-call');
         Route::patch('/app/reservations/queue/{item}/call', [StaffReservationController::class, 'queueCall'])
             ->name('reservation.queue.call');
+        Route::post('/app/reservations/queue/call-next', [StaffReservationController::class, 'queueCallNext'])
+            ->name('reservation.queue.call-next');
         Route::patch('/app/reservations/queue/{item}/start', [StaffReservationController::class, 'queueStart'])
             ->name('reservation.queue.start');
         Route::patch('/app/reservations/queue/{item}/done', [StaffReservationController::class, 'queueDone'])

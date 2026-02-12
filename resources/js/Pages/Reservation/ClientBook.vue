@@ -69,7 +69,6 @@ const showWaitlistForm = ref(false);
 const waitlistSubmitting = ref(false);
 const waitlistError = ref('');
 const waitlistSuccess = ref('');
-const ticketSubmitting = ref(false);
 const ticketError = ref('');
 const ticketSuccess = ref('');
 
@@ -91,19 +90,11 @@ const waitlistForm = useForm({
     party_size: '',
     notes: '',
 });
-const ticketForm = useForm({
-    team_member_id: '',
-    service_id: '',
-    estimated_duration_minutes: '',
-    party_size: '',
-    notes: '',
-});
 
 if (props.services?.length) {
     const firstService = props.services[0];
     selectedServiceId.value = String(firstService.id);
     bookingForm.service_id = String(firstService.id);
-    ticketForm.service_id = String(firstService.id);
 }
 
 const teamOptions = computed(() => [
@@ -229,7 +220,6 @@ watch(
 
 watch(selectedServiceId, (value) => {
     bookingForm.service_id = value || '';
-    ticketForm.service_id = value || '';
 });
 
 const onCalendarRangeChange = (payload) => {
@@ -380,53 +370,6 @@ const cancelWaitlist = async (entry) => {
         waitlistSuccess.value = response?.data?.message || t('reservations.client.book.waitlist.cancelled');
     } catch (error) {
         waitlistError.value = error?.response?.data?.message || t('reservations.client.book.waitlist.cancel_error');
-    }
-};
-
-const submitTicket = async () => {
-    if (!queueModeEnabled.value) {
-        return;
-    }
-
-    ticketError.value = '';
-    ticketSuccess.value = '';
-    ticketForm.clearErrors();
-    ticketSubmitting.value = true;
-
-    try {
-        const response = await axios.post(route('client.reservations.tickets.store'), {
-            service_id: ticketForm.service_id ? Number(ticketForm.service_id) : (selectedServiceId.value ? Number(selectedServiceId.value) : null),
-            team_member_id: ticketForm.team_member_id ? Number(ticketForm.team_member_id) : (selectedTeamMemberId.value ? Number(selectedTeamMemberId.value) : null),
-            estimated_duration_minutes: ticketForm.estimated_duration_minutes
-                ? Number(ticketForm.estimated_duration_minutes)
-                : Number(bookingForm.duration_minutes || 60),
-            party_size: ticketForm.party_size
-                ? Number(ticketForm.party_size)
-                : (bookingForm.party_size ? Number(bookingForm.party_size) : null),
-            notes: ticketForm.notes || null,
-            source: 'client',
-        }, {
-            headers: {
-                Accept: 'application/json',
-            },
-        });
-
-        const ticket = response?.data?.ticket;
-        if (ticket) {
-            queueTickets.value = [ticket, ...queueTickets.value].slice(0, 20);
-        }
-        ticketForm.reset();
-        ticketForm.service_id = selectedServiceId.value || '';
-        ticketSuccess.value = response?.data?.message || t('reservations.queue.client.created');
-    } catch (error) {
-        if (error?.response?.status === 422) {
-            ticketForm.setError(error.response.data?.errors || {});
-            ticketError.value = t('reservations.errors.validation');
-        } else {
-            ticketError.value = error?.response?.data?.message || t('reservations.queue.client.create_error');
-        }
-    } finally {
-        ticketSubmitting.value = false;
     }
 };
 
@@ -684,24 +627,18 @@ onBeforeUnmount(() => {
                     >
                         <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ $t('reservations.queue.client.title') }}</h2>
                         <p class="mt-1 text-xs text-stone-500 dark:text-neutral-400">{{ $t('reservations.queue.client.subtitle') }}</p>
-
-                        <form class="mt-3 grid gap-3" @submit.prevent="submitTicket">
-                            <FloatingSelect v-model="ticketForm.team_member_id" :options="teamOptions" :label="$t('reservations.client.book.fields.team_member')" />
-                            <FloatingSelect v-model="ticketForm.service_id" :options="serviceOptions" :label="$t('reservations.client.book.fields.service')" />
-                            <FloatingInput v-model="ticketForm.estimated_duration_minutes" type="number" min="5" :label="$t('reservations.queue.client.estimated_duration')" />
-                            <FloatingInput v-model="ticketForm.party_size" type="number" min="1" :label="$t('reservations.client.book.fields.party_size')" />
-                            <FloatingTextarea v-model="ticketForm.notes" :label="$t('reservations.queue.client.notes')" />
-
-                            <InputError class="mt-1" :message="ticketForm.errors.service_id || ticketForm.errors.team_member_id || ticketForm.errors.estimated_duration_minutes || ticketForm.errors.party_size || ticketForm.errors.notes" />
-
-                            <button
-                                type="submit"
-                                class="rounded-sm bg-indigo-600 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50"
-                                :disabled="ticketSubmitting"
+                        <div class="mt-3 rounded-sm border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-400/40 dark:bg-amber-500/10 dark:text-amber-100">
+                            {{ $t('reservations.queue.client.kiosk_only_notice') }}
+                            <a
+                                v-if="props.settings?.kiosk_public_url"
+                                :href="props.settings.kiosk_public_url"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                class="ml-1 font-semibold underline"
                             >
-                                {{ ticketSubmitting ? $t('reservations.client.book.actions.submitting') : $t('reservations.queue.client.create') }}
-                            </button>
-                        </form>
+                                {{ $t('reservations.kiosk.open') }}
+                            </a>
+                        </div>
 
                         <div v-if="ticketError" class="mt-3 rounded-sm border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">
                             {{ ticketError }}

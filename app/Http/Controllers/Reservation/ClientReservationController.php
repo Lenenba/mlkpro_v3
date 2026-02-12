@@ -19,10 +19,14 @@ use App\Models\ReservationWaitlist;
 use App\Models\TeamMember;
 use App\Models\User;
 use App\Services\ReservationAvailabilityService;
+use App\Services\ReservationIntentGuardService;
 use App\Services\ReservationNotificationService;
 use App\Services\ReservationQueueService;
+use App\Support\ReservationPresetResolver;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
@@ -31,7 +35,8 @@ class ClientReservationController extends Controller
     public function __construct(
         private readonly ReservationAvailabilityService $availabilityService,
         private readonly ReservationNotificationService $notificationService,
-        private readonly ReservationQueueService $queueService
+        private readonly ReservationQueueService $queueService,
+        private readonly ReservationIntentGuardService $intentGuard
     ) {
     }
 
@@ -96,11 +101,13 @@ class ClientReservationController extends Controller
             'settings' => [
                 'business_preset' => (string) ($settings['business_preset'] ?? 'service_general'),
                 'waitlist_enabled' => (bool) ($settings['waitlist_enabled'] ?? false),
-                'queue_mode_enabled' => (bool) ($settings['queue_mode_enabled'] ?? false),
+                'queue_mode_enabled' => $this->queueModeEnabled($settings),
+                'queue_assignment_mode' => (string) ($settings['queue_assignment_mode'] ?? 'per_staff'),
                 'queue_dispatch_mode' => (string) ($settings['queue_dispatch_mode'] ?? 'fifo_with_appointment_priority'),
                 'queue_grace_minutes' => (int) ($settings['queue_grace_minutes'] ?? 5),
                 'queue_pre_call_threshold' => (int) ($settings['queue_pre_call_threshold'] ?? 2),
                 'queue_no_show_on_grace_expiry' => (bool) ($settings['queue_no_show_on_grace_expiry'] ?? false),
+                'kiosk_public_url' => $this->kioskPublicUrl($account->id, $settings),
                 'allow_client_cancel' => (bool) $settings['allow_client_cancel'],
                 'allow_client_reschedule' => (bool) $settings['allow_client_reschedule'],
                 'cancellation_cutoff_hours' => (int) $settings['cancellation_cutoff_hours'],
@@ -156,6 +163,9 @@ class ClientReservationController extends Controller
         $this->authorize('create', Reservation::class);
         [$account, $customer] = $this->resolveClientContext($user);
         $validated = $request->validated();
+        $settings = $this->availabilityService->resolveSettings($account->id, null);
+        $this->intentGuard->ensureCanCreateReservation($account->id, $customer->id, $user->id, $settings);
+
         $metadata = [
             'contact_name' => $validated['contact_name']
                 ?? ($customer->company_name ?: trim(($customer->first_name ?? '') . ' ' . ($customer->last_name ?? ''))),
@@ -252,11 +262,13 @@ class ClientReservationController extends Controller
             'settings' => [
                 'business_preset' => (string) ($settings['business_preset'] ?? 'service_general'),
                 'waitlist_enabled' => (bool) ($settings['waitlist_enabled'] ?? false),
-                'queue_mode_enabled' => (bool) ($settings['queue_mode_enabled'] ?? false),
+                'queue_mode_enabled' => $this->queueModeEnabled($settings),
+                'queue_assignment_mode' => (string) ($settings['queue_assignment_mode'] ?? 'per_staff'),
                 'queue_dispatch_mode' => (string) ($settings['queue_dispatch_mode'] ?? 'fifo_with_appointment_priority'),
                 'queue_grace_minutes' => (int) ($settings['queue_grace_minutes'] ?? 5),
                 'queue_pre_call_threshold' => (int) ($settings['queue_pre_call_threshold'] ?? 2),
                 'queue_no_show_on_grace_expiry' => (bool) ($settings['queue_no_show_on_grace_expiry'] ?? false),
+                'kiosk_public_url' => $this->kioskPublicUrl($account->id, $settings),
                 'allow_client_cancel' => (bool) $settings['allow_client_cancel'],
                 'allow_client_reschedule' => (bool) $settings['allow_client_reschedule'],
                 'cancellation_cutoff_hours' => (int) $settings['cancellation_cutoff_hours'],
@@ -487,11 +499,7 @@ class ClientReservationController extends Controller
         $this->authorize('create', Reservation::class);
         [$account, $customer] = $this->resolveClientContext($user);
         $settings = $this->availabilityService->resolveSettings($account->id, null);
-        if (!($settings['queue_mode_enabled'] ?? false)) {
-            throw ValidationException::withMessages([
-                'queue' => ['Queue mode is disabled for this company.'],
-            ]);
-        }
+        $this->ensureQueueModeEnabled($settings);
 
         $validated = $request->validated();
         $item = $this->queueService->createTicket($account->id, [
@@ -526,6 +534,7 @@ class ClientReservationController extends Controller
         }
 
         $settings = $this->availabilityService->resolveSettings($account->id, null);
+        $this->ensureQueueModeEnabled($settings);
         $this->queueService->transition($ticket, 'cancel', $user, $settings, [
             'by_client' => true,
         ]);
@@ -554,6 +563,7 @@ class ClientReservationController extends Controller
         }
 
         $settings = $this->availabilityService->resolveSettings($account->id, null);
+        $this->ensureQueueModeEnabled($settings);
         $this->queueService->transition($ticket, 'still_here', $user, $settings);
 
         return response()->json([
@@ -687,6 +697,45 @@ class ClientReservationController extends Controller
         }
 
         return (int) $ticket->client_id === $customerId;
+    }
+
+    private function queueFeaturesAvailable(array $settings): bool
+    {
+        return ReservationPresetResolver::queueFeaturesEnabled((string) ($settings['business_preset'] ?? null));
+    }
+
+    private function queueModeEnabled(array $settings): bool
+    {
+        return $this->queueFeaturesAvailable($settings)
+            && (bool) ($settings['queue_mode_enabled'] ?? false);
+    }
+
+    private function ensureQueueModeEnabled(array $settings): void
+    {
+        if (!$this->queueFeaturesAvailable($settings)) {
+            throw ValidationException::withMessages([
+                'queue' => ['Hybrid queue is only available for salon businesses.'],
+            ]);
+        }
+
+        if (!($settings['queue_mode_enabled'] ?? false)) {
+            throw ValidationException::withMessages([
+                'queue' => ['Queue mode is disabled for this company.'],
+            ]);
+        }
+    }
+
+    private function kioskPublicUrl(int $accountId, array $settings): ?string
+    {
+        if (!$this->queueModeEnabled($settings)) {
+            return null;
+        }
+
+        if (!Route::has('public.kiosk.reservations.show')) {
+            return null;
+        }
+
+        return URL::signedRoute('public.kiosk.reservations.show', ['account' => $accountId]);
     }
 
     private function resolveClientContext(User $user): array

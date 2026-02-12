@@ -10,9 +10,11 @@ use App\Models\ReservationSetting;
 use App\Models\ReservationWaitlist;
 use App\Models\Role;
 use App\Models\TeamMember;
+use App\Models\TeamMemberAttendance;
 use App\Models\User;
 use App\Services\ReservationAvailabilityService;
 use App\Services\ReservationQueueService;
+use App\Services\SmsNotificationService;
 use App\Models\WeeklyAvailability;
 use App\Notifications\ActionEmailNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -529,6 +531,7 @@ it('stores business preset fields on reservation settings update', function () {
                 'late_release_minutes' => 10,
                 'waitlist_enabled' => true,
                 'queue_mode_enabled' => true,
+                'queue_assignment_mode' => 'global_pull',
                 'queue_dispatch_mode' => 'fifo_with_appointment_priority',
                 'queue_grace_minutes' => 5,
                 'queue_pre_call_threshold' => 2,
@@ -555,6 +558,7 @@ it('stores business preset fields on reservation settings update', function () {
         'late_release_minutes' => 10,
         'waitlist_enabled' => 1,
         'queue_mode_enabled' => 1,
+        'queue_assignment_mode' => 'global_pull',
         'queue_dispatch_mode' => 'fifo_with_appointment_priority',
         'queue_grace_minutes' => 5,
         'queue_pre_call_threshold' => 2,
@@ -722,6 +726,8 @@ it('resolves restaurant defaults from company sector when no account settings ex
     expect($resolved['buffer_minutes'])->toBe(15);
     expect($resolved['slot_interval_minutes'])->toBe(15);
     expect($resolved['waitlist_enabled'])->toBeTrue();
+    expect($resolved['queue_mode_enabled'])->toBeFalse();
+    expect($resolved['queue_assignment_mode'])->toBe('global_pull');
 });
 
 it('allows a client to create and cancel a waitlist entry when enabled', function () {
@@ -983,6 +989,8 @@ it('computes queue position and eta per team member lane', function () {
     ]);
 
     app(ReservationQueueService::class)->refreshMetrics($owner->id, [
+        'business_preset' => 'salon',
+        'queue_mode_enabled' => true,
         'queue_dispatch_mode' => ReservationQueueService::DISPATCH_MODE_FIFO_WITH_APPOINTMENT_PRIORITY,
         'buffer_minutes' => 0,
         'queue_no_show_on_grace_expiry' => false,
@@ -1070,6 +1078,207 @@ it('allows a client to create and manage a queue ticket when queue mode is enabl
     ]);
 });
 
+it('blocks creating a second active queue ticket for the same client', function () {
+    $owner = createOwnerWithReservationsEnabled();
+    $teamMember = createTeamMemberForAccount($owner);
+    [$clientUser] = createClientForAccount($owner, 'Queue Duplicate Client', 'queue.duplicate.client@example.com');
+
+    ReservationSetting::query()->updateOrCreate(
+        [
+            'account_id' => $owner->id,
+            'team_member_id' => null,
+        ],
+        [
+            'business_preset' => 'salon',
+            'waitlist_enabled' => true,
+            'queue_mode_enabled' => true,
+            'queue_dispatch_mode' => 'fifo_with_appointment_priority',
+            'queue_grace_minutes' => 5,
+            'queue_pre_call_threshold' => 2,
+            'queue_no_show_on_grace_expiry' => true,
+        ]
+    );
+
+    $payload = [
+        'team_member_id' => $teamMember->id,
+        'estimated_duration_minutes' => 45,
+        'notes' => 'First active ticket',
+    ];
+
+    $this->actingAs($clientUser)
+        ->withSession(['two_factor_passed' => true])
+        ->postJson(route('client.reservations.tickets.store'), $payload)
+        ->assertCreated();
+
+    $this->actingAs($clientUser)
+        ->withSession(['two_factor_passed' => true])
+        ->postJson(route('client.reservations.tickets.store'), $payload)
+        ->assertStatus(422)
+        ->assertJsonValidationErrors('queue');
+});
+
+it('blocks creating a queue ticket when client already has a nearby active reservation', function () {
+    $owner = createOwnerWithReservationsEnabled();
+    $teamMember = createTeamMemberForAccount($owner);
+    [$clientUser, $customer] = createClientForAccount($owner, 'Queue Nearby Reservation', 'queue.nearby.reservation@example.com');
+
+    ReservationSetting::query()->updateOrCreate(
+        [
+            'account_id' => $owner->id,
+            'team_member_id' => null,
+        ],
+        [
+            'business_preset' => 'salon',
+            'waitlist_enabled' => true,
+            'queue_mode_enabled' => true,
+            'queue_dispatch_mode' => 'fifo_with_appointment_priority',
+            'queue_grace_minutes' => 5,
+            'queue_pre_call_threshold' => 2,
+            'queue_no_show_on_grace_expiry' => true,
+        ]
+    );
+
+    $startsAt = now('UTC')->addMinutes(40);
+    Reservation::query()->create([
+        'account_id' => $owner->id,
+        'team_member_id' => $teamMember->id,
+        'client_id' => $customer->id,
+        'client_user_id' => $clientUser->id,
+        'status' => Reservation::STATUS_CONFIRMED,
+        'source' => Reservation::SOURCE_CLIENT,
+        'timezone' => 'UTC',
+        'starts_at' => $startsAt,
+        'ends_at' => $startsAt->copy()->addHour(),
+        'duration_minutes' => 60,
+        'buffer_minutes' => 0,
+    ]);
+
+    $this->actingAs($clientUser)
+        ->withSession(['two_factor_passed' => true])
+        ->postJson(route('client.reservations.tickets.store'), [
+            'team_member_id' => $teamMember->id,
+            'estimated_duration_minutes' => 30,
+            'notes' => 'Should be blocked by nearby reservation',
+        ])
+        ->assertStatus(422)
+        ->assertJsonValidationErrors('queue');
+});
+
+it('blocks creating a reservation when client has an active queue ticket', function () {
+    $owner = createOwnerWithReservationsEnabled();
+    $teamMember = createTeamMemberForAccount($owner);
+    [$clientUser, $customer] = createClientForAccount($owner, 'Reservation With Active Ticket', 'reservation.active.ticket@example.com');
+
+    ReservationSetting::query()->updateOrCreate(
+        [
+            'account_id' => $owner->id,
+            'team_member_id' => null,
+        ],
+        [
+            'business_preset' => 'salon',
+            'waitlist_enabled' => true,
+            'queue_mode_enabled' => true,
+            'queue_dispatch_mode' => 'fifo_with_appointment_priority',
+            'queue_grace_minutes' => 5,
+            'queue_pre_call_threshold' => 2,
+            'queue_no_show_on_grace_expiry' => true,
+        ]
+    );
+
+    $startsAt = now('UTC')->addDays(3)->setTime(11, 0, 0);
+    addWeeklyAvailability($owner, $teamMember, $startsAt);
+
+    ReservationQueueItem::query()->create([
+        'account_id' => $owner->id,
+        'client_id' => $customer->id,
+        'client_user_id' => $clientUser->id,
+        'team_member_id' => $teamMember->id,
+        'item_type' => ReservationQueueItem::TYPE_TICKET,
+        'source' => 'client',
+        'queue_number' => 'T-ACTIVE-001',
+        'status' => ReservationQueueItem::STATUS_CHECKED_IN,
+        'estimated_duration_minutes' => 30,
+        'checked_in_at' => now('UTC'),
+    ]);
+
+    $this->actingAs($clientUser)
+        ->withSession(['two_factor_passed' => true])
+        ->postJson(route('client.reservations.store'), [
+            'team_member_id' => $teamMember->id,
+            'starts_at' => $startsAt->toIso8601String(),
+            'ends_at' => $startsAt->copy()->addHour()->toIso8601String(),
+            'duration_minutes' => 60,
+            'timezone' => 'UTC',
+            'contact_name' => 'Reservation Active Ticket',
+            'contact_email' => 'reservation.active.ticket@example.com',
+            'contact_phone' => '+15550004444',
+            'client_notes' => 'Must be blocked by active queue ticket.',
+        ])
+        ->assertStatus(422)
+        ->assertJsonValidationErrors('reservation');
+});
+
+it('allows reservation creation for non-salon presets even with legacy active queue tickets', function () {
+    $owner = createOwnerWithReservationsEnabled();
+    $teamMember = createTeamMemberForAccount($owner);
+    [$clientUser, $customer] = createClientForAccount($owner, 'Legacy Queue Client', 'legacy.queue.client@example.com');
+
+    ReservationSetting::query()->updateOrCreate(
+        [
+            'account_id' => $owner->id,
+            'team_member_id' => null,
+        ],
+        [
+            'business_preset' => 'restaurant',
+            'waitlist_enabled' => true,
+            'queue_mode_enabled' => true,
+            'queue_dispatch_mode' => 'fifo_with_appointment_priority',
+            'queue_grace_minutes' => 5,
+            'queue_pre_call_threshold' => 2,
+            'queue_no_show_on_grace_expiry' => true,
+        ]
+    );
+
+    $startsAt = now('UTC')->addDays(2)->setTime(14, 0, 0);
+    addWeeklyAvailability($owner, $teamMember, $startsAt);
+
+    ReservationQueueItem::query()->create([
+        'account_id' => $owner->id,
+        'client_id' => $customer->id,
+        'client_user_id' => $clientUser->id,
+        'team_member_id' => $teamMember->id,
+        'item_type' => ReservationQueueItem::TYPE_TICKET,
+        'source' => 'client',
+        'queue_number' => 'T-LEGACY-001',
+        'status' => ReservationQueueItem::STATUS_CHECKED_IN,
+        'estimated_duration_minutes' => 30,
+        'checked_in_at' => now('UTC'),
+    ]);
+
+    $this->actingAs($clientUser)
+        ->withSession(['two_factor_passed' => true])
+        ->postJson(route('client.reservations.store'), [
+            'team_member_id' => $teamMember->id,
+            'starts_at' => $startsAt->toIso8601String(),
+            'ends_at' => $startsAt->copy()->addHour()->toIso8601String(),
+            'duration_minutes' => 60,
+            'timezone' => 'UTC',
+            'contact_name' => 'Legacy Queue Client',
+            'contact_email' => 'legacy.queue.client@example.com',
+            'contact_phone' => '+15550006666',
+            'client_notes' => 'Reservation should stay available outside salon queue mode.',
+        ])
+        ->assertCreated();
+
+    $this->assertDatabaseHas('reservations', [
+        'account_id' => $owner->id,
+        'team_member_id' => $teamMember->id,
+        'client_id' => $customer->id,
+        'client_user_id' => $clientUser->id,
+        'source' => Reservation::SOURCE_CLIENT,
+    ]);
+});
+
 it('allows staff to progress queue items through operational states', function () {
     $owner = createOwnerWithReservationsEnabled();
     [$clientUser, $customer] = createClientForAccount($owner, 'Queue Ops Client', 'queue.ops.client@example.com');
@@ -1138,6 +1347,214 @@ it('allows staff to progress queue items through operational states', function (
     $this->assertDatabaseHas('reservation_queue_items', [
         'id' => $ticket->id,
         'status' => ReservationQueueItem::STATUS_DONE,
+    ]);
+});
+
+it('calls next queue item in the staff lane when assignment mode is per_staff', function () {
+    $owner = createOwnerWithReservationsEnabled();
+    $memberA = createTeamMemberForAccount($owner, [
+        'role' => 'employee',
+        'permissions' => [],
+    ]);
+    $memberB = createTeamMemberForAccount($owner, [
+        'role' => 'employee',
+        'permissions' => [],
+    ]);
+
+    ReservationSetting::query()->updateOrCreate(
+        [
+            'account_id' => $owner->id,
+            'team_member_id' => null,
+        ],
+        [
+            'business_preset' => 'salon',
+            'waitlist_enabled' => true,
+            'queue_mode_enabled' => true,
+            'queue_assignment_mode' => 'per_staff',
+            'queue_dispatch_mode' => 'fifo_with_appointment_priority',
+            'queue_grace_minutes' => 5,
+            'queue_pre_call_threshold' => 2,
+            'queue_no_show_on_grace_expiry' => false,
+        ]
+    );
+
+    $ticketA = ReservationQueueItem::query()->create([
+        'account_id' => $owner->id,
+        'team_member_id' => $memberA->id,
+        'item_type' => ReservationQueueItem::TYPE_TICKET,
+        'source' => 'staff',
+        'queue_number' => 'A-001',
+        'status' => ReservationQueueItem::STATUS_CHECKED_IN,
+        'estimated_duration_minutes' => 25,
+        'checked_in_at' => now('UTC')->subMinute(),
+    ]);
+
+    $ticketB = ReservationQueueItem::query()->create([
+        'account_id' => $owner->id,
+        'team_member_id' => $memberB->id,
+        'item_type' => ReservationQueueItem::TYPE_TICKET,
+        'source' => 'staff',
+        'queue_number' => 'B-001',
+        'status' => ReservationQueueItem::STATUS_CHECKED_IN,
+        'estimated_duration_minutes' => 25,
+        'checked_in_at' => now('UTC'),
+    ]);
+
+    $memberAUser = $memberA->user()->firstOrFail();
+
+    $response = $this->actingAs($memberAUser)
+        ->withSession(['two_factor_passed' => true])
+        ->postJson(route('reservation.queue.call-next'))
+        ->assertOk();
+
+    expect((int) ($response->json('queue_item.id') ?? 0))->toBe((int) $ticketA->id);
+
+    $this->assertDatabaseHas('reservation_queue_items', [
+        'id' => $ticketA->id,
+        'status' => ReservationQueueItem::STATUS_CALLED,
+    ]);
+    $this->assertDatabaseHas('reservation_queue_items', [
+        'id' => $ticketB->id,
+        'status' => ReservationQueueItem::STATUS_CHECKED_IN,
+    ]);
+});
+
+it('syncs queue staff availability with presence clock-in and clock-out', function () {
+    $owner = createOwnerWithReservationsEnabled();
+    $member = createTeamMemberForAccount($owner, [
+        'role' => 'employee',
+        'permissions' => [],
+    ]);
+
+    ReservationSetting::query()->updateOrCreate(
+        [
+            'account_id' => $owner->id,
+            'team_member_id' => null,
+        ],
+        [
+            'business_preset' => 'salon',
+            'waitlist_enabled' => true,
+            'queue_mode_enabled' => true,
+            'queue_assignment_mode' => 'per_staff',
+            'queue_dispatch_mode' => 'fifo_with_appointment_priority',
+            'queue_grace_minutes' => 5,
+            'queue_pre_call_threshold' => 2,
+            'queue_no_show_on_grace_expiry' => false,
+        ]
+    );
+
+    $ticket = ReservationQueueItem::query()->create([
+        'account_id' => $owner->id,
+        'team_member_id' => $member->id,
+        'item_type' => ReservationQueueItem::TYPE_TICKET,
+        'source' => 'staff',
+        'queue_number' => 'P-001',
+        'status' => ReservationQueueItem::STATUS_CHECKED_IN,
+        'estimated_duration_minutes' => 20,
+        'checked_in_at' => now('UTC')->subMinute(),
+    ]);
+
+    $memberUser = $member->user()->firstOrFail();
+
+    TeamMemberAttendance::query()->create([
+        'account_id' => $owner->id,
+        'user_id' => $memberUser->id,
+        'team_member_id' => $member->id,
+        'clock_in_at' => now('UTC')->subHour(),
+        'clock_out_at' => now('UTC')->subMinutes(5),
+        'method' => 'manual',
+        'clock_out_method' => 'manual',
+    ]);
+
+    $this->actingAs($memberUser)
+        ->withSession(['two_factor_passed' => true])
+        ->postJson(route('reservation.queue.call-next'))
+        ->assertStatus(422);
+
+    $blockedScreen = $this->actingAs($owner)
+        ->withSession(['two_factor_passed' => true])
+        ->getJson(route('reservation.screen.data', ['anonymize' => 1]))
+        ->assertOk();
+
+    expect((string) ($blockedScreen->json('queue.chairs.0.state') ?? ''))->toBe('blocked');
+
+    TeamMemberAttendance::query()->create([
+        'account_id' => $owner->id,
+        'user_id' => $memberUser->id,
+        'team_member_id' => $member->id,
+        'clock_in_at' => now('UTC')->subMinute(),
+        'clock_out_at' => null,
+        'method' => 'manual',
+    ]);
+
+    $readyScreen = $this->actingAs($owner)
+        ->withSession(['two_factor_passed' => true])
+        ->getJson(route('reservation.screen.data', ['anonymize' => 1]))
+        ->assertOk();
+
+    expect((string) ($readyScreen->json('queue.chairs.0.state') ?? ''))->toBe('available_ready');
+
+    $this->actingAs($memberUser)
+        ->withSession(['two_factor_passed' => true])
+        ->postJson(route('reservation.queue.call-next'))
+        ->assertOk();
+
+    $this->assertDatabaseHas('reservation_queue_items', [
+        'id' => $ticket->id,
+        'status' => ReservationQueueItem::STATUS_CALLED,
+        'team_member_id' => $member->id,
+    ]);
+});
+
+it('lets a team member pull next from global queue mode and assigns the ticket', function () {
+    $owner = createOwnerWithReservationsEnabled();
+    $member = createTeamMemberForAccount($owner, [
+        'role' => 'employee',
+        'permissions' => [],
+    ]);
+
+    ReservationSetting::query()->updateOrCreate(
+        [
+            'account_id' => $owner->id,
+            'team_member_id' => null,
+        ],
+        [
+            'business_preset' => 'salon',
+            'waitlist_enabled' => true,
+            'queue_mode_enabled' => true,
+            'queue_assignment_mode' => 'global_pull',
+            'queue_dispatch_mode' => 'fifo_with_appointment_priority',
+            'queue_grace_minutes' => 5,
+            'queue_pre_call_threshold' => 2,
+            'queue_no_show_on_grace_expiry' => false,
+        ]
+    );
+
+    $ticket = ReservationQueueItem::query()->create([
+        'account_id' => $owner->id,
+        'team_member_id' => null,
+        'item_type' => ReservationQueueItem::TYPE_TICKET,
+        'source' => 'staff',
+        'queue_number' => 'G-001',
+        'status' => ReservationQueueItem::STATUS_CHECKED_IN,
+        'estimated_duration_minutes' => 20,
+        'checked_in_at' => now('UTC'),
+    ]);
+
+    $memberUser = $member->user()->firstOrFail();
+
+    $response = $this->actingAs($memberUser)
+        ->withSession(['two_factor_passed' => true])
+        ->postJson(route('reservation.queue.call-next'))
+        ->assertOk();
+
+    expect((int) ($response->json('queue_item.id') ?? 0))->toBe((int) $ticket->id);
+    expect((int) ($response->json('queue_item.team_member_id') ?? 0))->toBe((int) $member->id);
+
+    $this->assertDatabaseHas('reservation_queue_items', [
+        'id' => $ticket->id,
+        'status' => ReservationQueueItem::STATUS_CALLED,
+        'team_member_id' => $member->id,
     ]);
 });
 
@@ -1233,6 +1650,83 @@ it('sends queue notifications for pre-call, call, and grace expiry', function ()
     });
 });
 
+it('sends queue sms notifications when sms channel is enabled', function () {
+    Notification::fake();
+
+    $owner = createOwnerWithReservationsEnabled();
+    $teamMember = createTeamMemberForAccount($owner);
+    [$clientUser, $customer] = createClientForAccount($owner, 'Queue Sms Client', 'queue.sms.client@example.com');
+
+    $owner->update([
+        'company_notification_settings' => [
+            'reservations' => [
+                'enabled' => true,
+                'email' => false,
+                'in_app' => false,
+                'sms' => true,
+                'notify_on_queue_pre_call' => false,
+                'notify_on_queue_called' => true,
+                'notify_on_queue_grace_expired' => false,
+            ],
+        ],
+    ]);
+
+    ReservationSetting::query()->updateOrCreate(
+        [
+            'account_id' => $owner->id,
+            'team_member_id' => null,
+        ],
+        [
+            'business_preset' => 'salon',
+            'buffer_minutes' => 10,
+            'slot_interval_minutes' => 30,
+            'min_notice_minutes' => 0,
+            'max_advance_days' => 90,
+            'cancellation_cutoff_hours' => 12,
+            'allow_client_cancel' => true,
+            'allow_client_reschedule' => true,
+            'late_release_minutes' => 10,
+            'waitlist_enabled' => true,
+            'queue_mode_enabled' => true,
+            'queue_dispatch_mode' => 'fifo_with_appointment_priority',
+            'queue_grace_minutes' => 5,
+            'queue_pre_call_threshold' => 2,
+            'queue_no_show_on_grace_expiry' => false,
+        ]
+    );
+
+    $ticket = ReservationQueueItem::query()->create([
+        'account_id' => $owner->id,
+        'client_id' => $customer->id,
+        'client_user_id' => $clientUser->id,
+        'team_member_id' => $teamMember->id,
+        'item_type' => ReservationQueueItem::TYPE_TICKET,
+        'source' => 'client',
+        'queue_number' => 'T-TEST-SMS',
+        'status' => ReservationQueueItem::STATUS_CHECKED_IN,
+        'estimated_duration_minutes' => 30,
+        'checked_in_at' => now('UTC'),
+    ]);
+
+    $smsMock = \Mockery::mock(SmsNotificationService::class);
+    $smsMock
+        ->shouldReceive('send')
+        ->once()
+        ->with(
+            '+15550001111',
+            \Mockery::on(fn (string $message) => str_contains(strtolower($message), 'turn'))
+        )
+        ->andReturn(true);
+    $this->app->instance(SmsNotificationService::class, $smsMock);
+
+    $this->actingAs($owner)
+        ->withSession(['two_factor_passed' => true])
+        ->patchJson(route('reservation.queue.call', $ticket))
+        ->assertOk();
+
+    Notification::assertNothingSent();
+});
+
 it('returns queue screen payload and supports anonymize toggle', function () {
     $owner = createOwnerWithReservationsEnabled();
     $teamMember = createTeamMemberForAccount($owner);
@@ -1244,7 +1738,7 @@ it('returns queue screen payload and supports anonymize toggle', function () {
             'team_member_id' => null,
         ],
         [
-            'business_preset' => 'restaurant',
+            'business_preset' => 'salon',
             'buffer_minutes' => 10,
             'slot_interval_minutes' => 30,
             'min_notice_minutes' => 0,
@@ -1301,4 +1795,51 @@ it('returns queue screen payload and supports anonymize toggle', function () {
     expect($anonymizedName)->not->toBe('');
     expect($plainName)->toBe($realName);
     expect($anonymizedName)->not->toBe($plainName);
+});
+
+it('hides salon queue operations for non-salon presets', function () {
+    $owner = createOwnerWithReservationsEnabled();
+    [$clientUser] = createClientForAccount($owner, 'Restaurant Client', 'restaurant.client@example.com');
+
+    ReservationSetting::query()->updateOrCreate(
+        [
+            'account_id' => $owner->id,
+            'team_member_id' => null,
+        ],
+        [
+            'business_preset' => 'restaurant',
+            'buffer_minutes' => 15,
+            'slot_interval_minutes' => 15,
+            'min_notice_minutes' => 30,
+            'max_advance_days' => 30,
+            'cancellation_cutoff_hours' => 6,
+            'allow_client_cancel' => true,
+            'allow_client_reschedule' => true,
+            'late_release_minutes' => 15,
+            'waitlist_enabled' => true,
+            'queue_mode_enabled' => true,
+            'queue_assignment_mode' => 'global_pull',
+            'queue_dispatch_mode' => 'fifo_with_appointment_priority',
+            'queue_grace_minutes' => 10,
+            'queue_pre_call_threshold' => 2,
+            'queue_no_show_on_grace_expiry' => true,
+        ]
+    );
+
+    $this->actingAs($owner)
+        ->withSession(['two_factor_passed' => true])
+        ->get(route('reservation.screen'))
+        ->assertNotFound();
+
+    $this->actingAs($owner)
+        ->withSession(['two_factor_passed' => true])
+        ->postJson(route('reservation.queue.call-next'))
+        ->assertStatus(422)
+        ->assertJsonValidationErrors('queue');
+
+    $this->actingAs($clientUser)
+        ->withSession(['two_factor_passed' => true])
+        ->postJson(route('client.reservations.tickets.store'), [])
+        ->assertStatus(422)
+        ->assertJsonValidationErrors('queue');
 });

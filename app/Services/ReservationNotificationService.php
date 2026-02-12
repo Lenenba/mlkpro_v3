@@ -11,13 +11,15 @@ use App\Notifications\ActionEmailNotification;
 use App\Notifications\ReservationDatabaseNotification;
 use App\Support\NotificationDispatcher;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Log;
 
 class ReservationNotificationService
 {
     private const REMINDER_TOLERANCE_MINUTES = 20;
 
     public function __construct(
-        private readonly ReservationNotificationPreferenceService $preferences
+        private readonly ReservationNotificationPreferenceService $preferences,
+        private readonly SmsNotificationService $smsService
     ) {
     }
 
@@ -182,13 +184,13 @@ class ReservationNotificationService
         $item->loadMissing([
             'service:id,name',
             'teamMember.user:id,name,email',
-            'client:id,first_name,last_name,company_name,email,portal_user_id',
+            'client:id,first_name,last_name,company_name,email,phone,portal_user_id',
             'client.portalUser:id,name,email',
-            'clientUser:id,name,email',
+            'clientUser:id,name,email,phone_number',
             'reservation:id,starts_at,status,team_member_id,client_id,client_user_id',
-            'reservation.client:id,first_name,last_name,company_name,email,portal_user_id',
+            'reservation.client:id,first_name,last_name,company_name,email,phone,portal_user_id',
             'reservation.client.portalUser:id,name,email',
-            'reservation.clientUser:id,name,email',
+            'reservation.clientUser:id,name,email,phone_number',
             'reservation.teamMember.user:id,name,email',
         ]);
 
@@ -248,6 +250,11 @@ class ReservationNotificationService
             ->values();
 
         $sent = 0;
+        $channelStats = [
+            'in_app' => 0,
+            'email' => 0,
+            'sms' => 0,
+        ];
         foreach ($userRecipients as $recipient) {
             $isClientRecipient = $clientUser && (int) $recipient->id === (int) $clientUser->id;
             $actionUrl = $isClientRecipient
@@ -271,6 +278,7 @@ class ReservationNotificationService
                 ]);
                 if ($dispatchOk) {
                     $sent += 1;
+                    $channelStats['in_app'] += 1;
                 }
             }
 
@@ -289,6 +297,7 @@ class ReservationNotificationService
                 ]);
                 if ($dispatchOk) {
                     $sent += 1;
+                    $channelStats['email'] += 1;
                 }
             }
         }
@@ -314,12 +323,47 @@ class ReservationNotificationService
             ]);
             if ($dispatchOk) {
                 $sent += 1;
+                $channelStats['email'] += 1;
+            }
+        }
+
+        if (!empty($settings['sms']) && !empty($config['include_client'])) {
+            $smsMessage = $this->queueSmsMessage(
+                $event,
+                $queueLabel,
+                $serviceLabel,
+                $item->status
+            );
+            $smsRecipients = $this->resolveQueueSmsRecipients($item, $client, $clientUser);
+            foreach ($smsRecipients as $phone) {
+                $dispatchOk = $this->smsService->send($phone, $smsMessage);
+                if ($dispatchOk) {
+                    $sent += 1;
+                    $channelStats['sms'] += 1;
+                    continue;
+                }
+
+                Log::warning('Reservation queue SMS dispatch failed.', [
+                    'account_id' => $account->id,
+                    'queue_item_id' => $item->id,
+                    'event' => $event,
+                    'phone_hash' => sha1($phone),
+                ]);
             }
         }
 
         if ($sent > 0) {
             $this->setQueueNotificationMeta($item, $metaKey, now('UTC')->toIso8601String());
         }
+
+        Log::info('Reservation queue notifications processed.', [
+            'account_id' => $account->id,
+            'queue_item_id' => $item->id,
+            'reservation_id' => $item->reservation_id,
+            'event' => $event,
+            'sent' => $sent,
+            'channels' => $channelStats,
+        ]);
 
         return $sent > 0;
     }
@@ -661,6 +705,57 @@ class ReservationNotificationService
         $item->forceFill([
             'metadata' => $metadata,
         ])->save();
+    }
+
+    private function resolveQueueSmsRecipients(
+        ReservationQueueItem $item,
+        ?Customer $client,
+        ?User $clientUser
+    ): array {
+        $rawCandidates = [
+            (string) data_get($item->metadata, 'guest_phone', ''),
+            (string) data_get($item->metadata, 'guest_phone_normalized', ''),
+            (string) ($client?->phone ?? ''),
+            (string) ($item->reservation?->client?->phone ?? ''),
+            (string) ($clientUser?->phone_number ?? ''),
+        ];
+
+        $normalized = collect($rawCandidates)
+            ->map(fn (string $value) => $this->normalizeSmsPhone($value))
+            ->filter(fn (?string $value) => is_string($value) && $value !== '')
+            ->unique()
+            ->values()
+            ->all();
+
+        return $normalized;
+    }
+
+    private function normalizeSmsPhone(string $value): ?string
+    {
+        $digits = preg_replace('/\D+/', '', trim($value)) ?: '';
+        if ($digits === '') {
+            return null;
+        }
+
+        if (strlen($digits) === 10) {
+            return '+1' . $digits;
+        }
+
+        if (strlen($digits) >= 11) {
+            return '+' . ltrim($digits, '+');
+        }
+
+        return null;
+    }
+
+    private function queueSmsMessage(string $event, string $queueLabel, string $serviceLabel, string $status): string
+    {
+        return match ($event) {
+            'queue_pre_call' => "[{$queueLabel}] {$serviceLabel}: you are almost next.",
+            'queue_called' => "[{$queueLabel}] {$serviceLabel}: it is your turn now.",
+            'queue_grace_expired' => "[{$queueLabel}] {$serviceLabel}: call window expired ({$status}).",
+            default => "[{$queueLabel}] {$serviceLabel}: queue update ({$status}).",
+        };
     }
 
     private function clientLabel(Reservation $reservation): string

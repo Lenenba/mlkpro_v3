@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { Head, useForm } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
 import SettingsLayout from '@/Layouts/SettingsLayout.vue';
@@ -67,6 +67,11 @@ const queueDispatchOptions = computed(() => ([
     { value: 'skill_based', label: t('settings.reservations.queue.dispatch_modes.skill_based') },
 ]));
 
+const queueAssignmentOptions = computed(() => ([
+    { value: 'per_staff', label: t('settings.reservations.queue.assignment_modes.per_staff') },
+    { value: 'global_pull', label: t('settings.reservations.queue.assignment_modes.global_pull') },
+]));
+
 const memberOptions = computed(() => (props.teamMembers || []).map((member) => ({
     value: String(member.id),
     label: member.title ? `${member.name} - ${member.title}` : member.name,
@@ -119,6 +124,7 @@ const form = useForm({
         late_release_minutes: props.accountSettings?.late_release_minutes ?? 0,
         waitlist_enabled: Boolean(props.accountSettings?.waitlist_enabled ?? false),
         queue_mode_enabled: Boolean(props.accountSettings?.queue_mode_enabled ?? false),
+        queue_assignment_mode: props.accountSettings?.queue_assignment_mode ?? 'per_staff',
         queue_dispatch_mode: props.accountSettings?.queue_dispatch_mode ?? 'fifo_with_appointment_priority',
         queue_grace_minutes: props.accountSettings?.queue_grace_minutes ?? 5,
         queue_pre_call_threshold: props.accountSettings?.queue_pre_call_threshold ?? 2,
@@ -166,6 +172,7 @@ const form = useForm({
         enabled: Boolean(props.notificationSettings?.enabled ?? true),
         email: Boolean(props.notificationSettings?.email ?? true),
         in_app: Boolean(props.notificationSettings?.in_app ?? true),
+        sms: Boolean(props.notificationSettings?.sms ?? false),
         notify_on_created: Boolean(props.notificationSettings?.notify_on_created ?? true),
         notify_on_rescheduled: Boolean(props.notificationSettings?.notify_on_rescheduled ?? true),
         notify_on_cancelled: Boolean(props.notificationSettings?.notify_on_cancelled ?? true),
@@ -181,6 +188,24 @@ const form = useForm({
             : [24, 2],
     },
 });
+
+const isSalonPreset = computed(() => String(form.account_settings?.business_preset || '') === 'salon');
+
+watch(
+    () => form.account_settings.business_preset,
+    (preset) => {
+        if (String(preset || '') === 'salon') {
+            return;
+        }
+
+        form.account_settings.queue_mode_enabled = false;
+        form.account_settings.queue_no_show_on_grace_expiry = false;
+        form.notification_settings.notify_on_queue_pre_call = false;
+        form.notification_settings.notify_on_queue_called = false;
+        form.notification_settings.notify_on_queue_grace_expired = false;
+    },
+    { immediate: true }
+);
 
 const teamSettingDraft = ref({
     team_member_id: '',
@@ -365,6 +390,8 @@ const dayLabel = (day) => dayOptions.value.find((item) => Number(item.value) ===
 const memberLabel = (teamMemberId) => memberOptions.value.find((item) => item.value === String(teamMemberId))?.label || t('settings.reservations.member_unknown');
 
 const submit = () => {
+    const queueFeatureEnabled = isSalonPreset.value;
+
     form.transform((data) => ({
         ...data,
         account_settings: {
@@ -375,11 +402,20 @@ const submit = () => {
             max_advance_days: Number(data.account_settings?.max_advance_days || 90),
             cancellation_cutoff_hours: Number(data.account_settings?.cancellation_cutoff_hours || 12),
             late_release_minutes: Number(data.account_settings?.late_release_minutes || 0),
-            queue_mode_enabled: Boolean(data.account_settings?.queue_mode_enabled),
-            queue_dispatch_mode: data.account_settings?.queue_dispatch_mode || 'fifo_with_appointment_priority',
+            queue_mode_enabled: queueFeatureEnabled
+                ? Boolean(data.account_settings?.queue_mode_enabled)
+                : false,
+            queue_assignment_mode: queueFeatureEnabled
+                ? (data.account_settings?.queue_assignment_mode || 'per_staff')
+                : 'per_staff',
+            queue_dispatch_mode: queueFeatureEnabled
+                ? (data.account_settings?.queue_dispatch_mode || 'fifo_with_appointment_priority')
+                : 'fifo_with_appointment_priority',
             queue_grace_minutes: Math.max(1, Number(data.account_settings?.queue_grace_minutes || 5)),
             queue_pre_call_threshold: Math.max(1, Number(data.account_settings?.queue_pre_call_threshold || 2)),
-            queue_no_show_on_grace_expiry: Boolean(data.account_settings?.queue_no_show_on_grace_expiry),
+            queue_no_show_on_grace_expiry: queueFeatureEnabled
+                ? Boolean(data.account_settings?.queue_no_show_on_grace_expiry)
+                : false,
             deposit_required: Boolean(data.account_settings?.deposit_required),
             deposit_amount: Math.max(0, Number(data.account_settings?.deposit_amount || 0)),
             no_show_fee_enabled: Boolean(data.account_settings?.no_show_fee_enabled),
@@ -406,6 +442,15 @@ const submit = () => {
         })),
         notification_settings: {
             ...data.notification_settings,
+            notify_on_queue_pre_call: queueFeatureEnabled
+                ? Boolean(data.notification_settings?.notify_on_queue_pre_call)
+                : false,
+            notify_on_queue_called: queueFeatureEnabled
+                ? Boolean(data.notification_settings?.notify_on_queue_called)
+                : false,
+            notify_on_queue_grace_expired: queueFeatureEnabled
+                ? Boolean(data.notification_settings?.notify_on_queue_grace_expired)
+                : false,
             reminder_hours: (data.notification_settings?.reminder_hours || [])
                 .map((value) => Number(value))
                 .filter((value) => Number.isInteger(value) && value >= 1 && value <= 168),
@@ -457,9 +502,32 @@ const submit = () => {
                         <FloatingInput v-model="form.account_settings.max_advance_days" type="number" min="1" :label="$t('settings.reservations.fields.max_advance_days')" />
                         <FloatingInput v-model="form.account_settings.cancellation_cutoff_hours" type="number" min="0" :label="$t('settings.reservations.fields.cancellation_cutoff_hours')" />
                         <FloatingInput v-model="form.account_settings.late_release_minutes" type="number" min="0" :label="$t('settings.reservations.fields.late_release_minutes')" />
-                        <FloatingSelect v-model="form.account_settings.queue_dispatch_mode" :options="queueDispatchOptions" :label="$t('settings.reservations.fields.queue_dispatch_mode')" />
-                        <FloatingInput v-model="form.account_settings.queue_grace_minutes" type="number" min="1" :label="$t('settings.reservations.fields.queue_grace_minutes')" />
-                        <FloatingInput v-model="form.account_settings.queue_pre_call_threshold" type="number" min="1" :label="$t('settings.reservations.fields.queue_pre_call_threshold')" />
+                        <FloatingSelect
+                            v-if="isSalonPreset"
+                            v-model="form.account_settings.queue_assignment_mode"
+                            :options="queueAssignmentOptions"
+                            :label="$t('settings.reservations.fields.queue_assignment_mode')"
+                        />
+                        <FloatingSelect
+                            v-if="isSalonPreset"
+                            v-model="form.account_settings.queue_dispatch_mode"
+                            :options="queueDispatchOptions"
+                            :label="$t('settings.reservations.fields.queue_dispatch_mode')"
+                        />
+                        <FloatingInput
+                            v-if="isSalonPreset"
+                            v-model="form.account_settings.queue_grace_minutes"
+                            type="number"
+                            min="1"
+                            :label="$t('settings.reservations.fields.queue_grace_minutes')"
+                        />
+                        <FloatingInput
+                            v-if="isSalonPreset"
+                            v-model="form.account_settings.queue_pre_call_threshold"
+                            type="number"
+                            min="1"
+                            :label="$t('settings.reservations.fields.queue_pre_call_threshold')"
+                        />
                         <FloatingInput v-model="form.account_settings.deposit_amount" type="number" min="0" step="0.01" :label="$t('settings.reservations.fields.deposit_amount')" />
                         <FloatingInput v-model="form.account_settings.no_show_fee_amount" type="number" min="0" step="0.01" :label="$t('settings.reservations.fields.no_show_fee_amount')" />
                     </div>
@@ -476,11 +544,11 @@ const submit = () => {
                             <input v-model="form.account_settings.waitlist_enabled" type="checkbox" class="rounded border-stone-300">
                             {{ $t('settings.reservations.fields.waitlist_enabled') }}
                         </label>
-                        <label class="inline-flex items-center gap-2">
+                        <label v-if="isSalonPreset" class="inline-flex items-center gap-2">
                             <input v-model="form.account_settings.queue_mode_enabled" type="checkbox" class="rounded border-stone-300">
                             {{ $t('settings.reservations.fields.queue_mode_enabled') }}
                         </label>
-                        <label class="inline-flex items-center gap-2">
+                        <label v-if="isSalonPreset" class="inline-flex items-center gap-2">
                             <input v-model="form.account_settings.queue_no_show_on_grace_expiry" type="checkbox" class="rounded border-stone-300">
                             {{ $t('settings.reservations.fields.queue_no_show_on_grace_expiry') }}
                         </label>
@@ -685,6 +753,10 @@ const submit = () => {
                             {{ $t('settings.reservations.notifications.fields.in_app') }}
                         </label>
                         <label class="inline-flex items-center gap-2">
+                            <input v-model="form.notification_settings.sms" type="checkbox" class="rounded border-stone-300">
+                            {{ $t('settings.reservations.notifications.fields.sms') }}
+                        </label>
+                        <label class="inline-flex items-center gap-2">
                             <input v-model="form.notification_settings.notify_on_created" type="checkbox" class="rounded border-stone-300">
                             {{ $t('settings.reservations.notifications.fields.notify_on_created') }}
                         </label>
@@ -712,15 +784,15 @@ const submit = () => {
                             <input v-model="form.notification_settings.review_request_on_completed" type="checkbox" class="rounded border-stone-300">
                             {{ $t('settings.reservations.notifications.fields.review_request_on_completed') }}
                         </label>
-                        <label class="inline-flex items-center gap-2">
+                        <label v-if="isSalonPreset" class="inline-flex items-center gap-2">
                             <input v-model="form.notification_settings.notify_on_queue_pre_call" type="checkbox" class="rounded border-stone-300">
                             {{ $t('settings.reservations.notifications.fields.notify_on_queue_pre_call') }}
                         </label>
-                        <label class="inline-flex items-center gap-2">
+                        <label v-if="isSalonPreset" class="inline-flex items-center gap-2">
                             <input v-model="form.notification_settings.notify_on_queue_called" type="checkbox" class="rounded border-stone-300">
                             {{ $t('settings.reservations.notifications.fields.notify_on_queue_called') }}
                         </label>
-                        <label class="inline-flex items-center gap-2">
+                        <label v-if="isSalonPreset" class="inline-flex items-center gap-2">
                             <input v-model="form.notification_settings.notify_on_queue_grace_expired" type="checkbox" class="rounded border-stone-300">
                             {{ $t('settings.reservations.notifications.fields.notify_on_queue_grace_expired') }}
                         </label>

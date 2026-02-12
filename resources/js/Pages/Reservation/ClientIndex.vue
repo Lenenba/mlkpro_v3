@@ -559,12 +559,19 @@ onBeforeUnmount(() => {
                         <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ $t('reservations.queue.client.title') }}</h2>
                         <p class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('reservations.queue.client.subtitle') }}</p>
                     </div>
-                    <Link
-                        :href="route('client.reservations.book')"
-                        class="rounded-sm border border-stone-200 px-3 py-2 text-xs font-semibold text-stone-700 dark:border-neutral-700 dark:text-neutral-200"
+                </div>
+
+                <div class="rounded-sm border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-400/40 dark:bg-amber-500/10 dark:text-amber-100">
+                    {{ $t('reservations.queue.client.kiosk_only_notice') }}
+                    <a
+                        v-if="settings?.kiosk_public_url"
+                        :href="settings.kiosk_public_url"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="ml-1 font-semibold underline"
                     >
-                        {{ $t('reservations.queue.client.create') }}
-                    </Link>
+                        {{ $t('reservations.kiosk.open') }}
+                    </a>
                 </div>
 
                 <div v-if="queueActionError" class="mt-3 rounded-sm border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">

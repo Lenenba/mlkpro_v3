@@ -35,6 +35,7 @@ class ReservationPresetResolver
                 'late_release_minutes' => 10,
                 'waitlist_enabled' => true,
                 'queue_mode_enabled' => true,
+                'queue_assignment_mode' => 'per_staff',
                 'queue_dispatch_mode' => 'fifo_with_appointment_priority',
                 'queue_grace_minutes' => 5,
                 'queue_pre_call_threshold' => 2,
@@ -55,7 +56,8 @@ class ReservationPresetResolver
                 'allow_client_reschedule' => true,
                 'late_release_minutes' => 15,
                 'waitlist_enabled' => true,
-                'queue_mode_enabled' => true,
+                'queue_mode_enabled' => false,
+                'queue_assignment_mode' => 'global_pull',
                 'queue_dispatch_mode' => 'fifo_with_appointment_priority',
                 'queue_grace_minutes' => 10,
                 'queue_pre_call_threshold' => 2,
@@ -77,6 +79,7 @@ class ReservationPresetResolver
                 'late_release_minutes' => 0,
                 'waitlist_enabled' => false,
                 'queue_mode_enabled' => false,
+                'queue_assignment_mode' => 'per_staff',
                 'queue_dispatch_mode' => 'fifo_with_appointment_priority',
                 'queue_grace_minutes' => 5,
                 'queue_pre_call_threshold' => 2,
@@ -98,6 +101,16 @@ class ReservationPresetResolver
         }
 
         return self::PRESET_SERVICE_GENERAL;
+    }
+
+    public static function isSalonPreset(?string $value): bool
+    {
+        return self::normalizePreset($value) === self::PRESET_SALON;
+    }
+
+    public static function queueFeaturesEnabled(?string $preset): bool
+    {
+        return self::isSalonPreset($preset);
     }
 
     public static function presetFromSector(?string $sector): string

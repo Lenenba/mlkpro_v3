@@ -287,10 +287,22 @@ class ReservationSettingsController extends Controller
             }
 
             if (array_key_exists('notification_settings', $validated)) {
+                $notificationPayload = $validated['notification_settings'] ?? [];
+                $storedPreset = ReservationSetting::query()
+                    ->forAccount($account->id)
+                    ->whereNull('team_member_id')
+                    ->value('business_preset');
+                $effectivePreset = ReservationPresetResolver::resolveForAccount($account, $storedPreset);
+                if (!ReservationPresetResolver::queueFeaturesEnabled($effectivePreset)) {
+                    $notificationPayload['notify_on_queue_pre_call'] = false;
+                    $notificationPayload['notify_on_queue_called'] = false;
+                    $notificationPayload['notify_on_queue_grace_expired'] = false;
+                }
+
                 $account->update([
                     'company_notification_settings' => $this->notificationPreferences->mergeCompanySettings(
                         $account,
-                        $validated['notification_settings'] ?? []
+                        $notificationPayload
                     ),
                 ]);
             }
@@ -339,6 +351,7 @@ class ReservationSettingsController extends Controller
         if ($teamMemberId === null) {
             $preset = ReservationPresetResolver::normalizePreset((string) ($data['business_preset'] ?? ''));
             $presetDefaults = ReservationPresetResolver::defaults($preset);
+            $queueFeaturesAvailable = ReservationPresetResolver::queueFeaturesEnabled($preset);
 
             $payload['business_preset'] = $preset;
             $payload['late_release_minutes'] = array_key_exists('late_release_minutes', $data)
@@ -347,9 +360,19 @@ class ReservationSettingsController extends Controller
             $payload['waitlist_enabled'] = array_key_exists('waitlist_enabled', $data)
                 ? (bool) $data['waitlist_enabled']
                 : (bool) $presetDefaults['waitlist_enabled'];
-            $payload['queue_mode_enabled'] = array_key_exists('queue_mode_enabled', $data)
-                ? (bool) $data['queue_mode_enabled']
-                : (bool) ($presetDefaults['queue_mode_enabled'] ?? false);
+            $payload['queue_mode_enabled'] = $queueFeaturesAvailable
+                && (
+                    array_key_exists('queue_mode_enabled', $data)
+                        ? (bool) $data['queue_mode_enabled']
+                        : (bool) ($presetDefaults['queue_mode_enabled'] ?? false)
+                );
+            $payload['queue_assignment_mode'] = array_key_exists('queue_assignment_mode', $data)
+                ? (in_array((string) $data['queue_assignment_mode'], ['per_staff', 'global_pull'], true)
+                    ? (string) $data['queue_assignment_mode']
+                    : 'per_staff')
+                : (in_array((string) ($presetDefaults['queue_assignment_mode'] ?? 'per_staff'), ['per_staff', 'global_pull'], true)
+                    ? (string) ($presetDefaults['queue_assignment_mode'] ?? 'per_staff')
+                    : 'per_staff');
             $payload['queue_dispatch_mode'] = array_key_exists('queue_dispatch_mode', $data)
                 ? (string) $data['queue_dispatch_mode']
                 : (string) ($presetDefaults['queue_dispatch_mode'] ?? 'fifo_with_appointment_priority');
@@ -395,6 +418,7 @@ class ReservationSettingsController extends Controller
         );
 
         $preset = ReservationPresetResolver::normalizePreset((string) ($setting?->business_preset ?? $resolvedDefaults['business_preset'] ?? null));
+        $queueFeaturesAvailable = ReservationPresetResolver::queueFeaturesEnabled($preset);
 
         return [
             'business_preset' => $preset,
@@ -407,7 +431,15 @@ class ReservationSettingsController extends Controller
             'allow_client_reschedule' => (bool) ($setting?->allow_client_reschedule ?? $resolvedDefaults['allow_client_reschedule'] ?? true),
             'late_release_minutes' => (int) ($setting?->late_release_minutes ?? $resolvedDefaults['late_release_minutes'] ?? 0),
             'waitlist_enabled' => (bool) ($setting?->waitlist_enabled ?? $resolvedDefaults['waitlist_enabled'] ?? false),
-            'queue_mode_enabled' => (bool) ($setting?->queue_mode_enabled ?? $resolvedDefaults['queue_mode_enabled'] ?? false),
+            'queue_mode_enabled' => $queueFeaturesAvailable
+                && (bool) ($setting?->queue_mode_enabled ?? $resolvedDefaults['queue_mode_enabled'] ?? false),
+            'queue_assignment_mode' => in_array(
+                (string) ($setting?->queue_assignment_mode ?? $resolvedDefaults['queue_assignment_mode'] ?? 'per_staff'),
+                ['per_staff', 'global_pull'],
+                true
+            )
+                ? (string) ($setting?->queue_assignment_mode ?? $resolvedDefaults['queue_assignment_mode'] ?? 'per_staff')
+                : 'per_staff',
             'queue_dispatch_mode' => (string) ($setting?->queue_dispatch_mode ?? $resolvedDefaults['queue_dispatch_mode'] ?? 'fifo_with_appointment_priority'),
             'queue_grace_minutes' => (int) ($setting?->queue_grace_minutes ?? $resolvedDefaults['queue_grace_minutes'] ?? 5),
             'queue_pre_call_threshold' => (int) ($setting?->queue_pre_call_threshold ?? $resolvedDefaults['queue_pre_call_threshold'] ?? 2),
