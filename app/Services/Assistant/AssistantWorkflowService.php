@@ -24,6 +24,7 @@ use App\Notifications\ActionEmailNotification;
 use App\Notifications\SendQuoteNotification;
 use App\Notifications\InviteUserNotification;
 use App\Support\NotificationDispatcher;
+use App\Services\CompanyFeatureService;
 use App\Services\InventoryService;
 use App\Services\TaskBillingService;
 use App\Services\TaskStatusHistoryService;
@@ -57,8 +58,29 @@ class AssistantWorkflowService
         'quotes.create',
         'quotes.edit',
         'quotes.send',
+        'reservations.view',
+        'reservations.queue',
+        'reservations.manage',
         'sales.manage',
         'sales.pos',
+    ];
+
+    private const TEAM_PERMISSION_FEATURE_MAP = [
+        'jobs.view' => 'jobs',
+        'jobs.edit' => 'jobs',
+        'tasks.view' => 'tasks',
+        'tasks.create' => 'tasks',
+        'tasks.edit' => 'tasks',
+        'tasks.delete' => 'tasks',
+        'quotes.view' => 'quotes',
+        'quotes.create' => 'quotes',
+        'quotes.edit' => 'quotes',
+        'quotes.send' => 'quotes',
+        'reservations.view' => 'reservations',
+        'reservations.queue' => 'reservations',
+        'reservations.manage' => 'reservations',
+        'sales.manage' => 'sales',
+        'sales.pos' => 'sales',
     ];
 
     public function handle(array $interpretation, User $user, array $context = []): array
@@ -436,9 +458,9 @@ class AssistantWorkflowService
         }
 
         $role = $this->normalizeTeamRole($draft['role'] ?? '');
-        $permissions = $this->resolveTeamPermissions($draft, $context);
+        $permissions = $this->resolveTeamPermissions($draft, $context, $user);
         if (!$permissions) {
-            $permissions = $this->defaultTeamPermissions($role);
+            $permissions = $this->defaultTeamPermissions($role, $user);
         }
 
         $summary = $this->buildTeamMemberSummary($draft['name'], $email, $role, $permissions);
@@ -2029,9 +2051,9 @@ class AssistantWorkflowService
         }
 
         $role = $this->normalizeTeamRole($payload['role'] ?? '');
-        $permissions = $this->filterTeamPermissions(Arr::wrap($payload['permissions'] ?? []));
+        $permissions = $this->filterTeamPermissions(Arr::wrap($payload['permissions'] ?? []), $user);
         if (!$permissions) {
-            $permissions = $this->defaultTeamPermissions($role);
+            $permissions = $this->defaultTeamPermissions($role, $user);
         }
 
         $roleId = Role::query()->where('name', 'employee')->value('id');
@@ -4687,7 +4709,7 @@ class AssistantWorkflowService
         return 'member';
     }
 
-    private function resolveTeamPermissions(array $draft, array $context): array
+    private function resolveTeamPermissions(array $draft, array $context, ?User $user = null): array
     {
         $permissions = Arr::wrap($draft['permissions'] ?? []);
         $resolved = [];
@@ -4742,10 +4764,10 @@ class AssistantWorkflowService
             }
         }
 
-        return $this->filterTeamPermissions($resolved);
+        return $this->filterTeamPermissions($resolved, $user);
     }
 
-    private function filterTeamPermissions(array $permissions): array
+    private function filterTeamPermissions(array $permissions, ?User $user = null): array
     {
         $filtered = [];
         foreach ($permissions as $permission) {
@@ -4754,12 +4776,22 @@ class AssistantWorkflowService
             }
         }
 
-        return array_values(array_unique($filtered));
+        $filtered = array_values(array_unique($filtered));
+        if (!$user) {
+            return $filtered;
+        }
+
+        $allowed = $this->allowedTeamPermissionIdsForUser($user);
+        if ($allowed === []) {
+            return [];
+        }
+
+        return array_values(array_intersect($filtered, $allowed));
     }
 
-    private function defaultTeamPermissions(string $role): array
+    private function defaultTeamPermissions(string $role, ?User $user = null): array
     {
-        return match ($role) {
+        $defaults = match ($role) {
             'admin' => [
                 'jobs.view',
                 'jobs.edit',
@@ -4771,6 +4803,9 @@ class AssistantWorkflowService
                 'quotes.create',
                 'quotes.edit',
                 'quotes.send',
+                'reservations.view',
+                'reservations.queue',
+                'reservations.manage',
                 'sales.manage',
             ],
             'seller' => [
@@ -4778,13 +4813,42 @@ class AssistantWorkflowService
             ],
             'sales_manager' => [
                 'sales.manage',
+                'reservations.view',
+                'reservations.queue',
+                'reservations.manage',
             ],
             default => [
                 'jobs.view',
                 'tasks.view',
                 'tasks.edit',
+                'reservations.view',
+                'reservations.queue',
             ],
         };
+
+        return $this->filterTeamPermissions($defaults, $user);
+    }
+
+    private function allowedTeamPermissionIdsForUser(User $user): array
+    {
+        $ownerId = $user->accountOwnerId() ?: $user->id;
+        $accountOwner = $ownerId === $user->id
+            ? $user
+            : User::query()->find($ownerId);
+
+        if (!$accountOwner) {
+            return [];
+        }
+
+        $featureService = app(CompanyFeatureService::class);
+        return array_values(array_filter(self::TEAM_PERMISSION_KEYS, function (string $permissionId) use ($accountOwner, $featureService): bool {
+            $feature = self::TEAM_PERMISSION_FEATURE_MAP[$permissionId] ?? null;
+            if (!$feature) {
+                return true;
+            }
+
+            return $featureService->hasFeature($accountOwner, $feature);
+        }));
     }
 
     private function needsConfirmation(string $summary, array $pendingAction): array

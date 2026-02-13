@@ -98,7 +98,7 @@ const createForm = useForm({
     role: 'member',
     title: '',
     phone: '',
-    permissions: ['jobs.view', 'tasks.view', 'tasks.edit'],
+    permissions: [],
     planning_rules: {
         break_minutes: '',
         min_hours_day: '',
@@ -141,6 +141,7 @@ const submitCreate = () => {
             onSuccess: () => {
                 createForm.reset('name', 'email', 'title', 'phone');
                 createForm.role = 'member';
+                createForm.permissions = [];
                 createForm.profile_picture = null;
                 createForm.avatar_icon = defaultAvatarIcon;
                 createForm.planning_rules = {
@@ -184,7 +185,9 @@ const openEditMember = (member) => {
     editForm.role = member.role || 'member';
     editForm.title = member.title || '';
     editForm.phone = member.phone || '';
-    editForm.permissions = Array.isArray(member.permissions) ? member.permissions : [];
+    editForm.permissions = Array.isArray(member.permissions)
+        ? member.permissions.filter((permission) => availablePermissionIds.value.has(permission))
+        : [];
     editForm.planning_rules = {
         break_minutes: member.planning_rules?.break_minutes ?? '',
         min_hours_day: member.planning_rules?.min_hours_day ?? '',
@@ -347,8 +350,14 @@ const permissionMap = computed(() => {
     return map;
 });
 
+const availablePermissionIds = computed(() => new Set(
+    (props.availablePermissions || []).map((permission) => permission.id)
+));
+
 const permissionLabels = (member) => {
-    const permissions = Array.isArray(member?.permissions) ? member.permissions : [];
+    const permissions = Array.isArray(member?.permissions)
+        ? member.permissions.filter((permission) => availablePermissionIds.value.has(permission))
+        : [];
     return permissions.map((permission) => permissionMap.value.get(permission) || permission);
 };
 

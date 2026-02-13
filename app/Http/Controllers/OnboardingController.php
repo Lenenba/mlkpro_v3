@@ -9,6 +9,7 @@ use App\Models\ProductCategory;
 use App\Models\PlatformSetting;
 use App\Notifications\WelcomeEmailNotification;
 use App\Services\BillingSubscriptionService;
+use App\Services\CompanyFeatureService;
 use App\Services\PlatformAdminNotifier;
 use App\Services\StripeBillingService;
 use App\Support\PlanDisplay;
@@ -41,6 +42,24 @@ class OnboardingController extends Controller
         'climatisation' => ['Installation', 'Maintenance', 'Reparation', 'Nettoyage', 'Mise en service'],
         'nettoyage' => ['Residentiel', 'Commercial', 'Post-chantier', 'Desinfection', 'Vitres'],
         'autre' => ['Installation', 'Entretien', 'Reparation', 'Conseil', 'Autres'],
+    ];
+
+    private const TEAM_PERMISSION_FEATURE_MAP = [
+        'jobs.view' => 'jobs',
+        'jobs.edit' => 'jobs',
+        'tasks.view' => 'tasks',
+        'tasks.create' => 'tasks',
+        'tasks.edit' => 'tasks',
+        'tasks.delete' => 'tasks',
+        'quotes.view' => 'quotes',
+        'quotes.create' => 'quotes',
+        'quotes.edit' => 'quotes',
+        'quotes.send' => 'quotes',
+        'reservations.view' => 'reservations',
+        'reservations.queue' => 'reservations',
+        'reservations.manage' => 'reservations',
+        'sales.manage' => 'sales',
+        'sales.pos' => 'sales',
     ];
 
     public function index(Request $request)
@@ -487,6 +506,8 @@ class OnboardingController extends Controller
             ];
         }
 
+        $allowedPermissions = $this->allowedTeamPermissionIdsForAccount($accountOwner);
+
         $employeeRoleId = Role::query()->firstOrCreate(
             ['name' => 'employee'],
             ['description' => 'Employee role']
@@ -525,7 +546,7 @@ class OnboardingController extends Controller
                 'account_id' => $accountOwner->id,
                 'user_id' => $memberUser->id,
                 'role' => $role,
-                'permissions' => $this->defaultPermissionsForRole($role),
+                'permissions' => $this->defaultPermissionsForRole($role, $allowedPermissions),
                 'is_active' => true,
             ]);
 
@@ -546,9 +567,9 @@ class OnboardingController extends Controller
         return array_values(array_filter($preferred, fn (string $key) => array_key_exists($key, $plans)));
     }
 
-    private function defaultPermissionsForRole(string $role): array
+    private function defaultPermissionsForRole(string $role, ?array $allowedPermissions = null): array
     {
-        return match ($role) {
+        $defaults = match ($role) {
             'admin' => [
                 'jobs.view',
                 'jobs.edit',
@@ -560,16 +581,43 @@ class OnboardingController extends Controller
                 'quotes.create',
                 'quotes.edit',
                 'quotes.send',
+                'reservations.view',
+                'reservations.queue',
+                'reservations.manage',
+                'sales.manage',
             ],
             'member' => [
                 'jobs.view',
                 'tasks.view',
                 'tasks.edit',
+                'reservations.view',
+                'reservations.queue',
             ],
             default => [
                 'jobs.view',
             ],
         };
+
+        if (!is_array($allowedPermissions)) {
+            return $defaults;
+        }
+
+        return array_values(array_intersect($defaults, $allowedPermissions));
+    }
+
+    private function allowedTeamPermissionIdsForAccount(User $accountOwner): array
+    {
+        $featureService = app(CompanyFeatureService::class);
+        $permissionIds = array_keys(self::TEAM_PERMISSION_FEATURE_MAP);
+
+        return array_values(array_filter($permissionIds, function (string $permissionId) use ($accountOwner, $featureService): bool {
+            $feature = self::TEAM_PERMISSION_FEATURE_MAP[$permissionId] ?? null;
+            if (!$feature) {
+                return true;
+            }
+
+            return $featureService->hasFeature($accountOwner, $feature);
+        }));
     }
 
     private function planOptions(): array
