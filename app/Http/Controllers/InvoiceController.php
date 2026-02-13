@@ -5,8 +5,10 @@ namespace App\Http\Controllers;
 use App\Models\Work;
 use App\Models\Invoice;
 use App\Models\Customer;
+use App\Models\Payment;
 use App\Services\WorkBillingService;
 use App\Services\UsageLimitService;
+use App\Support\TenantPaymentMethodsResolver;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -46,7 +48,7 @@ class InvoiceController extends Controller
                 'customer',
                 'work' => fn ($query) => $query->withAvg('ratings', 'rating')->withCount('ratings'),
             ])
-            ->withSum('payments', 'amount')
+            ->withSum(['payments as payments_sum_amount' => fn($query) => $query->whereIn('status', Payment::settledStatuses())], 'amount')
             ->orderBy($sort, $direction)
             ->simplePaginate(10)
             ->withQueryString();
@@ -102,6 +104,7 @@ class InvoiceController extends Controller
 
         $payload = [
             'invoice' => $invoice,
+            'paymentMethodSettings' => TenantPaymentMethodsResolver::forAccountId((int) $invoice->user_id),
         ];
 
         if ($this->shouldReturnJson($request)) {
@@ -164,7 +167,9 @@ class InvoiceController extends Controller
         $subtotal = $isTaskBased
             ? round($taskItems->sum('total'), 2)
             : round($productItems->sum('total'), 2);
-        $totalPaid = round((float) $invoice->payments->sum('amount'), 2);
+        $totalPaid = round((float) $invoice->payments
+            ->whereIn('status', Payment::settledStatuses())
+            ->sum('amount'), 2);
 
         $pdf = Pdf::loadView('pdf.invoice', [
             'invoice' => $invoice,

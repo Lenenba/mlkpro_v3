@@ -10,6 +10,7 @@ use App\Services\BillingSubscriptionService;
 use App\Services\StripeConnectService;
 use App\Services\StripeBillingService;
 use App\Support\PlanDisplay;
+use App\Support\TenantPaymentMethodsResolver;
 use App\Support\TipSettingsResolver;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -191,6 +192,7 @@ class BillingSettingsController extends Controller
             'period_start' => $usageStart,
             'period_end' => $usageEnd,
         ];
+        $paymentMethodsResolved = TenantPaymentMethodsResolver::forUser($user);
 
         return $this->inertiaOrJson('Settings/Billing', [
             'billing' => [
@@ -202,7 +204,10 @@ class BillingSettingsController extends Controller
                 'support_phone' => config('app.support_phone'),
             ],
             'availableMethods' => self::AVAILABLE_METHODS,
-            'paymentMethods' => array_values($user->payment_methods ?? []),
+            'paymentMethods' => $paymentMethodsResolved['enabled_methods_internal'],
+            'defaultPaymentMethod' => $paymentMethodsResolved['default_method_internal'],
+            'cashAllowedContexts' => $paymentMethodsResolved['cash_allowed_contexts'],
+            'paymentMethodSettings' => $paymentMethodsResolved,
             'tipSettings' => TipSettingsResolver::forUser($user),
             'plans' => $plans,
             'subscription' => $subscriptionSummary,
@@ -471,6 +476,9 @@ class BillingSettingsController extends Controller
         $validated = $request->validate([
             'payment_methods' => 'nullable|array',
             'payment_methods.*' => ['string', Rule::in($allowed)],
+            'default_payment_method' => ['nullable', 'string', Rule::in($allowed)],
+            'cash_allowed_contexts' => 'nullable|array',
+            'cash_allowed_contexts.*' => ['string', Rule::in(TenantPaymentMethodsResolver::allowedCashContexts())],
             'tips' => 'nullable|array',
             'tips.max_percent' => 'nullable|numeric|min:1|max:100',
             'tips.max_fixed_amount' => 'nullable|numeric|min:1|max:10000',
@@ -484,17 +492,44 @@ class BillingSettingsController extends Controller
         $currentTips = is_array($storeSettings['tips'] ?? null) ? $storeSettings['tips'] : [];
         $storeSettings['tips'] = TipSettingsResolver::sanitize(array_replace($currentTips, $incomingTips));
 
-        $paymentMethods = array_values(array_unique($validated['payment_methods'] ?? ($user->payment_methods ?? [])));
+        $paymentMethods = TenantPaymentMethodsResolver::sanitizeInternalMethods(
+            $validated['payment_methods'] ?? ($user->payment_methods ?? [])
+        );
+        if (empty($paymentMethods)) {
+            $paymentMethods = TenantPaymentMethodsResolver::defaults()['enabled_methods_internal'];
+        }
+
+        $rawDefaultMethod = array_key_exists('default_payment_method', $validated)
+            ? $validated['default_payment_method']
+            : $user->default_payment_method;
+        $defaultPaymentMethod = TenantPaymentMethodsResolver::normalizeInternalMethod($rawDefaultMethod);
+        if ($defaultPaymentMethod && !in_array($defaultPaymentMethod, $paymentMethods, true)) {
+            $defaultPaymentMethod = null;
+        }
+
+        $cashAllowedContexts = $user->cash_allowed_contexts;
+        if (array_key_exists('cash_allowed_contexts', $validated)) {
+            $incoming = $validated['cash_allowed_contexts'];
+            $cashAllowedContexts = is_array($incoming)
+                ? TenantPaymentMethodsResolver::sanitizeCashContexts($incoming)
+                : null;
+        }
 
         $user->update([
             'payment_methods' => $paymentMethods,
+            'default_payment_method' => $defaultPaymentMethod,
+            'cash_allowed_contexts' => $cashAllowedContexts,
             'company_store_settings' => $storeSettings,
         ]);
+        $paymentMethodsResolved = TenantPaymentMethodsResolver::forUser($user->fresh());
 
         if ($this->shouldReturnJson($request)) {
             return response()->json([
                 'message' => 'Payment settings updated.',
-                'payment_methods' => $user->payment_methods,
+                'payment_methods' => $paymentMethodsResolved['enabled_methods_internal'],
+                'default_payment_method' => $paymentMethodsResolved['default_method_internal'],
+                'cash_allowed_contexts' => $paymentMethodsResolved['cash_allowed_contexts'],
+                'payment_method_settings' => $paymentMethodsResolved,
                 'tips' => TipSettingsResolver::forUser($user),
             ]);
         }

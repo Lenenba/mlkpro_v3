@@ -1012,7 +1012,7 @@ class AssistantWorkflowService
         $invoices = Invoice::byUser($accountId)
             ->filter($filters)
             ->with('customer')
-            ->withSum('payments', 'amount')
+            ->withSum(['payments as payments_sum_amount' => fn($query) => $query->whereIn('status', Payment::settledStatuses())], 'amount')
             ->orderByDesc('created_at')
             ->limit($limit)
             ->get();
@@ -1242,7 +1242,9 @@ class AssistantWorkflowService
             $invoice->customer?->email ?? ''
         );
         $total = (float) ($invoice->total ?? 0);
-        $paid = (float) $invoice->payments->sum('amount');
+        $paid = (float) $invoice->payments
+            ->whereIn('status', Payment::settledStatuses())
+            ->sum('amount');
         $balance = max(0, round($total - $paid, 2));
 
         $lines = [];

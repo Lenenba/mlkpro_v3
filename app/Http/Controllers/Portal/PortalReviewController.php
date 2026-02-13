@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Portal;
 
 use App\Http\Controllers\Controller;
 use App\Models\OrderReview;
+use App\Models\Payment;
 use App\Models\Product;
 use App\Models\ProductReview;
 use App\Models\Sale;
@@ -39,7 +40,7 @@ class PortalReviewController extends Controller
 
     private function ensurePaid(Sale $sale): void
     {
-        $sale->loadSum(['payments as payments_sum_amount' => fn($query) => $query->where('status', 'completed')], 'amount');
+        $sale->loadSum(['payments as payments_sum_amount' => fn($query) => $query->whereIn('status', Payment::settledStatuses())], 'amount');
         if ($sale->payment_status !== Sale::STATUS_PAID) {
             throw ValidationException::withMessages([
                 'payment' => 'Vous pouvez laisser un avis uniquement apres paiement.',

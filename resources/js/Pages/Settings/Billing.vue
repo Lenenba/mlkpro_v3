@@ -19,6 +19,14 @@ const props = defineProps({
         type: Array,
         default: () => [],
     },
+    defaultPaymentMethod: {
+        type: String,
+        default: null,
+    },
+    cashAllowedContexts: {
+        type: Array,
+        default: () => [],
+    },
     tipSettings: {
         type: Object,
         default: () => ({}),
@@ -71,8 +79,86 @@ const props = defineProps({
 
 const { t } = useI18n();
 
+const ALLOWED_PAYMENT_METHOD_IDS = ['cash', 'card', 'bank_transfer', 'check'];
+const FALLBACK_PAYMENT_METHOD_OPTIONS = [
+    { id: 'cash', name: 'Cash' },
+    { id: 'card', name: 'Card' },
+    { id: 'bank_transfer', name: 'Bank transfer' },
+    { id: 'check', name: 'Check' },
+];
+const DEFAULT_CASH_CONTEXTS = ['reservation', 'invoice', 'store_order', 'tip', 'walk_in'];
+const CASH_CONTEXT_OPTIONS = [
+    { id: 'reservation', fallback: 'Reservation' },
+    { id: 'invoice', fallback: 'Invoice' },
+    { id: 'store_order', fallback: 'Store order' },
+    { id: 'tip', fallback: 'Tip' },
+    { id: 'walk_in', fallback: 'Walk-in' },
+];
+
+const normalizeId = (value) => (typeof value === 'string' ? value.trim().toLowerCase() : '');
+
+const sanitizePaymentMethods = (methods) => {
+    if (!Array.isArray(methods)) {
+        return [];
+    }
+
+    const sanitized = [];
+    methods.forEach((method) => {
+        const normalized = normalizeId(method);
+        if (!ALLOWED_PAYMENT_METHOD_IDS.includes(normalized)) {
+            return;
+        }
+        if (sanitized.includes(normalized)) {
+            return;
+        }
+        sanitized.push(normalized);
+    });
+
+    return sanitized;
+};
+
+const sanitizeCashContexts = (contexts) => {
+    if (!Array.isArray(contexts)) {
+        return [];
+    }
+
+    const sanitized = [];
+    contexts.forEach((context) => {
+        const normalized = normalizeId(context);
+        if (!DEFAULT_CASH_CONTEXTS.includes(normalized)) {
+            return;
+        }
+        if (sanitized.includes(normalized)) {
+            return;
+        }
+        sanitized.push(normalized);
+    });
+
+    return sanitized;
+};
+
+const initialPaymentMethods = (() => {
+    const selected = sanitizePaymentMethods(props.paymentMethods);
+    return selected.length ? selected : ['cash', 'card'];
+})();
+
+const initialDefaultPaymentMethod = (() => {
+    const normalized = normalizeId(props.defaultPaymentMethod);
+    if (normalized && initialPaymentMethods.includes(normalized)) {
+        return normalized;
+    }
+    return initialPaymentMethods[0] || 'cash';
+})();
+
+const initialCashContexts = (() => {
+    const selected = sanitizeCashContexts(props.cashAllowedContexts);
+    return selected.length ? selected : [...DEFAULT_CASH_CONTEXTS];
+})();
+
 const form = useForm({
-    payment_methods: Array.isArray(props.paymentMethods) ? props.paymentMethods : [],
+    payment_methods: initialPaymentMethods,
+    default_payment_method: initialDefaultPaymentMethod,
+    cash_allowed_contexts: initialCashContexts,
     tips: {
         max_percent: Number(props.tipSettings?.max_percent ?? 30),
         max_fixed_amount: Number(props.tipSettings?.max_fixed_amount ?? 200),
@@ -155,6 +241,96 @@ const supportPhoneHref = computed(() => {
     const digits = raw.replace(/[^\d+]/g, '');
     return digits ? `tel:${digits}` : '';
 });
+
+const availablePaymentMethodOptions = computed(() => {
+    const fromProps = Array.isArray(props.availableMethods) ? props.availableMethods : [];
+    const normalized = [];
+
+    fromProps.forEach((method) => {
+        const id = normalizeId(method?.id);
+        if (!ALLOWED_PAYMENT_METHOD_IDS.includes(id)) {
+            return;
+        }
+        if (normalized.some((item) => item.id === id)) {
+            return;
+        }
+        const name = typeof method?.name === 'string' && method.name.trim() ? method.name.trim() : id;
+        normalized.push({ id, name });
+    });
+
+    return normalized.length ? normalized : FALLBACK_PAYMENT_METHOD_OPTIONS;
+});
+
+const paymentMethodLabelMap = {
+    cash: {
+        label: 'settings.billing.payment_methods.methods.cash.label',
+        description: 'settings.billing.payment_methods.methods.cash.description',
+    },
+    card: {
+        label: 'settings.billing.payment_methods.methods.card.label',
+        description: 'settings.billing.payment_methods.methods.card.description',
+    },
+    bank_transfer: {
+        label: 'settings.billing.payment_methods.methods.bank_transfer.label',
+        description: 'settings.billing.payment_methods.methods.bank_transfer.description',
+    },
+    check: {
+        label: 'settings.billing.payment_methods.methods.check.label',
+        description: 'settings.billing.payment_methods.methods.check.description',
+    },
+};
+
+const resolveTranslated = (key, fallback) => {
+    const translated = t(key);
+    return translated === key ? fallback : translated;
+};
+
+const paymentMethodLabel = (method) => {
+    const id = normalizeId(method?.id);
+    const fallback = typeof method?.name === 'string' && method.name.trim()
+        ? method.name.trim()
+        : (id || 'Payment');
+    const key = paymentMethodLabelMap[id]?.label;
+    return key ? resolveTranslated(key, fallback) : fallback;
+};
+
+const paymentMethodDescription = (method) => {
+    const id = normalizeId(method?.id);
+    const key = paymentMethodLabelMap[id]?.description;
+    const fallbackMap = {
+        cash: 'Payment collected on site.',
+        card: 'Card payment using Stripe.',
+        bank_transfer: 'Manual bank transfer payment.',
+        check: 'Payment by check.',
+    };
+    return key ? resolveTranslated(key, fallbackMap[id] || '') : (fallbackMap[id] || '');
+};
+
+const selectedPaymentMethods = computed(() => sanitizePaymentMethods(form.payment_methods));
+const cashMethodEnabled = computed(() => selectedPaymentMethods.value.includes('cash'));
+const selectedPaymentMethodOptions = computed(() =>
+    availablePaymentMethodOptions.value.filter((method) => selectedPaymentMethods.value.includes(method.id))
+);
+
+const methodIsLocked = (methodId) =>
+    selectedPaymentMethods.value.length === 1 && selectedPaymentMethods.value[0] === methodId;
+
+const paymentMethodErrors = computed(() =>
+    Object.entries(form.errors)
+        .filter(([key]) => key === 'payment_methods' || key.startsWith('payment_methods.'))
+        .map(([, value]) => String(value))
+);
+
+const cashContextErrors = computed(() =>
+    Object.entries(form.errors)
+        .filter(([key]) => key === 'cash_allowed_contexts' || key.startsWith('cash_allowed_contexts.'))
+        .map(([, value]) => String(value))
+);
+
+const cashContextLabel = (contextOption) => {
+    const key = `settings.billing.payment_methods.cash_contexts.${contextOption.id}`;
+    return resolveTranslated(key, contextOption.fallback);
+};
 
 const activePlan = computed(() => {
     if (activePlanKey.value) {
@@ -602,6 +778,56 @@ onMounted(() => {
 });
 
 watch(
+    () => form.payment_methods,
+    (value) => {
+        const sanitized = sanitizePaymentMethods(value);
+        if (sanitized.length === 0) {
+            form.payment_methods = [initialPaymentMethods[0] || 'cash'];
+            return;
+        }
+
+        if (JSON.stringify(sanitized) !== JSON.stringify(value)) {
+            form.payment_methods = sanitized;
+            return;
+        }
+
+        if (!sanitized.includes(form.default_payment_method)) {
+            form.default_payment_method = sanitized[0];
+        }
+    }
+);
+
+watch(
+    () => form.default_payment_method,
+    (value) => {
+        const normalized = normalizeId(value);
+        const selected = sanitizePaymentMethods(form.payment_methods);
+        if (!selected.length) {
+            return;
+        }
+
+        if (!selected.includes(normalized)) {
+            form.default_payment_method = selected[0];
+            return;
+        }
+
+        if (normalized !== value) {
+            form.default_payment_method = normalized;
+        }
+    }
+);
+
+watch(
+    () => form.cash_allowed_contexts,
+    (value) => {
+        const sanitized = sanitizeCashContexts(value);
+        if (JSON.stringify(sanitized) !== JSON.stringify(value)) {
+            form.cash_allowed_contexts = sanitized;
+        }
+    }
+);
+
+watch(
     () => [props.paddle?.sandbox, props.paddle?.client_side_token, props.paddle?.seller_id, props.paddle?.retain_key, props.paddle?.customer_id],
     () => {
         if (isPaddleProvider.value && props.paddle?.js_enabled) {
@@ -903,6 +1129,117 @@ watch(
                         <p v-else>
                             {{ $t('settings.billing.payment.summary_none') }}
                         </p>
+                    </div>
+
+                    <div class="rounded-sm border border-stone-200 bg-white px-4 py-4 dark:border-neutral-700 dark:bg-neutral-900">
+                        <div class="flex flex-wrap items-start justify-between gap-3">
+                            <div>
+                                <h3 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                                    {{ $t('settings.billing.payment_methods.title') }}
+                                </h3>
+                                <p class="text-xs text-stone-500 dark:text-neutral-400">
+                                    {{ $t('settings.billing.payment_methods.subtitle') }}
+                                </p>
+                            </div>
+                            <button
+                                type="button"
+                                @click="submit"
+                                :disabled="form.processing"
+                                class="rounded-sm border border-stone-200 bg-white px-3 py-2 text-xs font-semibold text-stone-700 hover:bg-stone-50 disabled:opacity-60 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200 dark:hover:bg-neutral-700"
+                            >
+                                {{ $t('settings.billing.payment_methods.save') }}
+                            </button>
+                        </div>
+
+                        <div class="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
+                            <label
+                                v-for="method in availablePaymentMethodOptions"
+                                :key="method.id"
+                                class="flex items-start gap-3 rounded-sm border border-stone-200 bg-stone-50 px-3 py-3 text-sm dark:border-neutral-700 dark:bg-neutral-800/50"
+                            >
+                                <input
+                                    v-model="form.payment_methods"
+                                    type="checkbox"
+                                    :value="method.id"
+                                    :disabled="methodIsLocked(method.id)"
+                                    class="mt-0.5 h-4 w-4 rounded border-stone-300 text-emerald-600 focus:ring-emerald-500 dark:border-neutral-600 dark:bg-neutral-800"
+                                />
+                                <span class="space-y-1">
+                                    <span class="block font-medium text-stone-800 dark:text-neutral-100">
+                                        {{ paymentMethodLabel(method) }}
+                                    </span>
+                                    <span class="block text-xs text-stone-500 dark:text-neutral-400">
+                                        {{ paymentMethodDescription(method) }}
+                                    </span>
+                                </span>
+                            </label>
+                        </div>
+                        <p
+                            v-for="error in paymentMethodErrors"
+                            :key="`payment-method-error-${error}`"
+                            class="mt-2 text-xs text-rose-600"
+                        >
+                            {{ error }}
+                        </p>
+
+                        <div class="mt-4 space-y-1 text-xs text-stone-600 dark:text-neutral-300">
+                            <label for="billing-default-payment-method" class="block">
+                                {{ $t('settings.billing.payment_methods.default_label') }}
+                            </label>
+                            <select
+                                id="billing-default-payment-method"
+                                v-model="form.default_payment_method"
+                                class="w-full rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm text-stone-700 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200"
+                            >
+                                <option
+                                    v-for="method in selectedPaymentMethodOptions"
+                                    :key="`default-${method.id}`"
+                                    :value="method.id"
+                                >
+                                    {{ paymentMethodLabel(method) }}
+                                </option>
+                            </select>
+                            <p class="text-[11px] text-stone-500 dark:text-neutral-400">
+                                {{ selectedPaymentMethodOptions.length <= 1
+                                    ? $t('settings.billing.payment_methods.default_hint_single')
+                                    : $t('settings.billing.payment_methods.default_hint_multi') }}
+                            </p>
+                            <p v-if="form.errors.default_payment_method" class="text-xs text-rose-600">
+                                {{ form.errors.default_payment_method }}
+                            </p>
+                        </div>
+
+                        <div v-if="cashMethodEnabled" class="mt-4">
+                            <p class="text-xs font-semibold text-stone-700 dark:text-neutral-200">
+                                {{ $t('settings.billing.payment_methods.cash_context_title') }}
+                            </p>
+                            <p class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
+                                {{ $t('settings.billing.payment_methods.cash_context_subtitle') }}
+                            </p>
+
+                            <div class="mt-3 grid grid-cols-1 gap-2 md:grid-cols-2">
+                                <label
+                                    v-for="contextOption in CASH_CONTEXT_OPTIONS"
+                                    :key="`cash-context-${contextOption.id}`"
+                                    class="flex items-center gap-2 rounded-sm border border-stone-200 bg-stone-50 px-3 py-2 text-xs text-stone-700 dark:border-neutral-700 dark:bg-neutral-800/50 dark:text-neutral-200"
+                                >
+                                    <input
+                                        v-model="form.cash_allowed_contexts"
+                                        type="checkbox"
+                                        :value="contextOption.id"
+                                        class="h-4 w-4 rounded border-stone-300 text-emerald-600 focus:ring-emerald-500 dark:border-neutral-600 dark:bg-neutral-800"
+                                    />
+                                    <span>{{ cashContextLabel(contextOption) }}</span>
+                                </label>
+                            </div>
+                            <p
+                                v-for="error in cashContextErrors"
+                                :key="`cash-context-error-${error}`"
+                                class="mt-2 text-xs text-rose-600"
+                            >
+                                {{ error }}
+                            </p>
+                        </div>
                     </div>
 
                     <div class="rounded-sm border border-stone-200 bg-white px-4 py-4 dark:border-neutral-700 dark:bg-neutral-900">

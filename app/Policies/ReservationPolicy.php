@@ -172,11 +172,11 @@ class ReservationPolicy
             return false;
         }
 
-        if (in_array($membership->role, ['admin', 'sales_manager'], true)) {
+        if ($membership->role === 'admin') {
             return true;
         }
 
-        return $membership->hasPermission('jobs.edit') || $membership->hasPermission('tasks.edit');
+        return $membership->hasPermission('reservations.manage');
     }
 
     private function clientCustomer(User $user)

@@ -38,12 +38,30 @@ const props = defineProps({
         type: Object,
         default: () => ({}),
     },
+    paymentMethodSettings: {
+        type: Object,
+        default: () => ({}),
+    },
 });
 
 const { t } = useI18n();
 
 const order = computed(() => props.order || {});
 const stripeEnabled = computed(() => Boolean(props.stripe?.enabled));
+const ALLOWED_INTERNAL_METHODS = ['cash', 'card', 'bank_transfer', 'check'];
+const allowedPaymentMethods = computed(() => {
+    const raw = Array.isArray(props.paymentMethodSettings?.enabled_methods_internal)
+        ? props.paymentMethodSettings.enabled_methods_internal
+        : [];
+
+    const normalized = raw
+        .map((method) => (typeof method === 'string' ? method.trim().toLowerCase() : ''))
+        .filter((method, index, array) => method && array.indexOf(method) === index)
+        .filter((method) => ALLOWED_INTERNAL_METHODS.includes(method));
+
+    return normalized.length ? normalized : ['cash', 'card'];
+});
+const canUseStripeMethod = computed(() => allowedPaymentMethods.value.includes('card'));
 
 const formatCurrency = (value) =>
     `$${Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -156,12 +174,14 @@ const depositDue = computed(() => Math.max(0, depositAmount.value - amountPaid.v
 
 const canPayDeposit = computed(() =>
     stripeEnabled.value
+    && canUseStripeMethod.value
     && depositDue.value > 0
     && order.value?.status !== 'canceled'
 );
 
 const canPayBalance = computed(() =>
     stripeEnabled.value
+    && canUseStripeMethod.value
     && balanceDue.value > 0
     && order.value?.status !== 'canceled'
 );
@@ -243,30 +263,85 @@ const paymentMethodLabel = (method) => {
     if (method === 'cash') {
         return t('sales.payments.cash');
     }
-    if (method === 'card') {
+    if (method === 'card' || method === 'stripe') {
         return t('sales.payments.card');
     }
+    if (method === 'bank_transfer') {
+        return 'Bank transfer';
+    }
+    if (method === 'check') {
+        return 'Check';
+    }
     return method || '-';
+};
+
+const isSettledPayment = (payment) => {
+    const status = String(payment?.status || '').toLowerCase();
+    return status === '' || status === 'completed' || status === 'paid';
+};
+
+const isPendingCashPayment = (payment) =>
+    String(payment?.method || '').toLowerCase() === 'cash'
+    && String(payment?.status || '').toLowerCase() === 'pending';
+
+const paymentEntryStatusLabel = (payment) => {
+    if (isPendingCashPayment(payment)) {
+        return t('sales.payments.pending_cash');
+    }
+
+    const status = String(payment?.status || '').toLowerCase();
+    if (!status) {
+        return t('sales.payments.status.completed');
+    }
+
+    const key = `sales.payments.status.${status}`;
+    const translated = t(key);
+    return translated === key ? status : translated;
+};
+
+const paymentEntryStatusClass = (payment) => {
+    const status = String(payment?.status || '').toLowerCase();
+
+    if (isPendingCashPayment(payment)) {
+        return 'bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300';
+    }
+
+    if (status === 'completed' || status === 'paid' || status === '') {
+        return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300';
+    }
+
+    if (status === 'failed' || status === 'refunded' || status === 'reversed') {
+        return 'bg-red-100 text-red-700 dark:bg-red-500/10 dark:text-red-300';
+    }
+
+    return 'bg-stone-100 text-stone-700 dark:bg-neutral-800 dark:text-neutral-300';
 };
 
 const paymentTimeline = computed(() => {
     const list = Array.isArray(props.payments) ? props.payments : [];
     const sorted = [...list]
-        .filter((payment) => !payment.status || payment.status === 'completed')
-        .sort((a, b) => new Date(a.paid_at || 0) - new Date(b.paid_at || 0));
+        .sort((a, b) => new Date(a.paid_at || a.created_at || 0) - new Date(b.paid_at || b.created_at || 0));
     let running = 0;
     return sorted.map((payment) => {
         const amount = Number(payment.amount || 0);
+        const settled = isSettledPayment(payment);
         const previous = running;
-        running += amount;
-        let labelKey = 'payment';
-        if (depositAmount.value > 0) {
-            if (previous < depositAmount.value && running <= depositAmount.value) {
-                labelKey = 'deposit';
-            } else if (previous < depositAmount.value && running > depositAmount.value) {
-                labelKey = 'deposit_balance';
+        if (settled) {
+            running += amount;
+        }
+        let labelKey = 'pending';
+        if (settled) {
+            labelKey = 'payment';
+            if (depositAmount.value > 0) {
+                if (previous < depositAmount.value && running <= depositAmount.value) {
+                    labelKey = 'deposit';
+                } else if (previous < depositAmount.value && running > depositAmount.value) {
+                    labelKey = 'deposit_balance';
+                } else {
+                    labelKey = 'balance';
+                }
             } else {
-                labelKey = 'balance';
+                labelKey = 'payment';
             }
         }
         return {
@@ -787,12 +862,15 @@ const submitProductReview = (productId) => {
                                             {{ formatCurrency(payment.amount) }} - {{ paymentMethodLabel(payment.method) }}
                                         </div>
                                         <div class="text-[11px] text-stone-500 dark:text-neutral-400">
-                                            {{ payment.paid_at ? formatDateTime(payment.paid_at) : '-' }}
+                                            {{ payment.paid_at || payment.created_at ? formatDateTime(payment.paid_at || payment.created_at) : '-' }}
                                         </div>
                                     </div>
-                                    <div class="text-[11px] text-stone-500 dark:text-neutral-400">
-                                        {{ payment.status || '-' }}
-                                    </div>
+                                    <span
+                                        class="rounded-full px-2 py-0.5 text-[11px] font-medium"
+                                        :class="paymentEntryStatusClass(payment)"
+                                    >
+                                        {{ paymentEntryStatusLabel(payment) }}
+                                    </span>
                                 </div>
                             </div>
                         </div>

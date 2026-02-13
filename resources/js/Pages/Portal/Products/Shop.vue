@@ -32,6 +32,10 @@ const props = defineProps({
         type: Object,
         default: () => ({}),
     },
+    paymentMethodSettings: {
+        type: Object,
+        default: () => ({}),
+    },
     order: {
         type: Object,
         default: () => null,
@@ -118,6 +122,20 @@ const canConfirmReceipt = computed(() =>
     order.value?.fulfillment_status === 'completed' && !order.value?.delivery_confirmed_at
 );
 const stripeEnabled = computed(() => Boolean(props.stripe?.enabled));
+const ALLOWED_INTERNAL_METHODS = ['cash', 'card', 'bank_transfer', 'check'];
+const allowedPaymentMethods = computed(() => {
+    const raw = Array.isArray(props.paymentMethodSettings?.enabled_methods_internal)
+        ? props.paymentMethodSettings.enabled_methods_internal
+        : [];
+
+    const normalized = raw
+        .map((method) => (typeof method === 'string' ? method.trim().toLowerCase() : ''))
+        .filter((method, index, array) => method && array.indexOf(method) === index)
+        .filter((method) => ALLOWED_INTERNAL_METHODS.includes(method));
+
+    return normalized.length ? normalized : ['cash', 'card'];
+});
+const canUseStripeMethod = computed(() => allowedPaymentMethods.value.includes('card'));
 const amountPaid = computed(() => Number(order.value?.amount_paid || 0));
 const balanceDue = computed(() => Number(order.value?.balance_due || 0));
 const depositAmount = computed(() => {
@@ -133,11 +151,13 @@ const depositAmount = computed(() => {
 const depositDue = computed(() => Math.max(0, depositAmount.value - amountPaid.value));
 const canPayDeposit = computed(() =>
     stripeEnabled.value
+    && canUseStripeMethod.value
     && isEditing.value
     && depositDue.value > 0
 );
 const canPayBalance = computed(() =>
     stripeEnabled.value
+    && canUseStripeMethod.value
     && isEditing.value
     && balanceDue.value > 0
 );

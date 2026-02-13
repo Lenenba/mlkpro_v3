@@ -324,14 +324,16 @@ class ReservationQueueService
                     ->orWhere('finished_at', '>=', now('UTC')->subHours(2));
             });
 
-        if (
-            !($access['can_view_all'] ?? false)
-            && !empty($access['own_team_member_id'])
-            && $assignmentMode !== self::ASSIGNMENT_MODE_GLOBAL_PULL
-        ) {
+        if (!($access['can_view_all'] ?? false) && !empty($access['own_team_member_id'])) {
             $ownTeamMemberId = (int) $access['own_team_member_id'];
             $query->where(function ($builder) use ($ownTeamMemberId) {
-                $builder->where('team_member_id', $ownTeamMemberId)->orWhereNull('team_member_id');
+                $builder
+                    ->where('team_member_id', $ownTeamMemberId)
+                    ->orWhere(function ($unassigned) {
+                        $unassigned
+                            ->whereNull('team_member_id')
+                            ->where('item_type', ReservationQueueItem::TYPE_TICKET);
+                    });
             });
         }
 
@@ -363,9 +365,11 @@ class ReservationQueueService
                 $canManage = (bool) ($access['can_manage'] ?? false);
                 $canUpdateStatus = $canManage
                     || ($ownTeamMemberId > 0 && (
-                        $assignmentMode === self::ASSIGNMENT_MODE_GLOBAL_PULL
-                        || (int) ($item->team_member_id ?? 0) === $ownTeamMemberId
-                        || $item->team_member_id === null
+                        (int) ($item->team_member_id ?? 0) === $ownTeamMemberId
+                        || (
+                            $item->team_member_id === null
+                            && (string) ($item->item_type ?? '') === ReservationQueueItem::TYPE_TICKET
+                        )
                     ));
 
                 return [
@@ -452,12 +456,18 @@ class ReservationQueueService
                 $assignedTeamMemberId = (int) ($item->team_member_id ?? 0);
                 $recommendedTeamMemberId = (int) ($metric['recommended_team_member_id'] ?? 0);
                 $effectiveTarget = $targetTeamMemberId > 0 ? $targetTeamMemberId : $ownTeamMemberId;
+                $isUnassignedTicket = $assignedTeamMemberId === 0
+                    && (string) ($item->item_type ?? '') === ReservationQueueItem::TYPE_TICKET;
 
-                if ($assignmentMode === self::ASSIGNMENT_MODE_GLOBAL_PULL) {
-                    if (!$canManage && $ownTeamMemberId <= 0) {
+                if (!$canManage) {
+                    if ($ownTeamMemberId <= 0) {
                         return false;
                     }
 
+                    return $assignedTeamMemberId === $ownTeamMemberId || $isUnassignedTicket;
+                }
+
+                if ($assignmentMode === self::ASSIGNMENT_MODE_GLOBAL_PULL) {
                     if ($effectiveTarget > 0) {
                         return $assignedTeamMemberId === 0 || $assignedTeamMemberId === $effectiveTarget;
                     }

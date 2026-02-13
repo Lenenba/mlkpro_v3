@@ -2626,26 +2626,38 @@
       "partial": "Partial",
       "paid": "Paid"
     },
-    "payments": {
-      "title": "Payments",
-      "history_title": "Payment history",
-      "deposit_required": "Deposit required",
-      "paid": "Paid",
-      "balance_due": "Balance due",
-      "amount_label": "Amount",
-      "method_label": "Method",
-      "cash": "Cash",
-      "card": "Card",
-      "record": "Record payment",
-      "recording": "Recording...",
-      "empty": "No payments recorded.",
-      "timeline": {
-        "deposit": "Deposit",
-        "balance": "Balance",
-        "payment": "Payment",
-        "deposit_balance": "Deposit + balance"
-      }
-    },
+      "payments": {
+        "title": "Payments",
+        "history_title": "Payment history",
+        "deposit_required": "Deposit required",
+        "paid": "Paid",
+        "balance_due": "Balance due",
+        "amount_label": "Amount",
+        "method_label": "Method",
+        "cash": "Cash",
+        "card": "Card",
+        "record": "Record payment",
+        "recording": "Recording...",
+        "mark_paid": "Mark paid",
+        "marking_paid": "Marking...",
+        "pending_cash": "Payment pending (cash)",
+        "empty": "No payments recorded.",
+        "status": {
+          "pending": "Pending",
+          "completed": "Paid",
+          "paid": "Paid",
+          "failed": "Failed",
+          "refunded": "Refunded",
+          "reversed": "Reversed"
+        },
+        "timeline": {
+          "deposit": "Deposit",
+          "balance": "Balance",
+          "payment": "Payment",
+          "deposit_balance": "Deposit + balance",
+          "pending": "Pending collection"
+        }
+      },
     "fulfillment": {
       "pending": "Order received",
       "preparing": "Preparing",
@@ -5021,7 +5033,18 @@
         "subtotal": "Subtotal",
         "tip": "Tip",
         "total_paid": "Total paid",
-        "tip_assigned_to": "Tip assigned to"
+        "tip_assigned_to": "Tip assigned to",
+        "pending_cash": "Payment pending (cash)",
+        "mark_paid": "Mark paid",
+        "marking_paid": "Marking...",
+        "status": {
+          "pending": "Pending",
+          "completed": "Paid",
+          "paid": "Paid",
+          "failed": "Failed",
+          "refunded": "Refunded",
+          "reversed": "Reversed"
+        }
       },
       "add_payment": {
         "title": "Add payment",
@@ -5935,6 +5958,41 @@
         "update_card": "Update card",
         "summary_active": "Active subscription: {plan} (Status: {status})",
         "summary_none": "No active subscription at the moment."
+      },
+      "payment_methods": {
+        "title": "Accepted payment methods",
+        "subtitle": "Choose which methods clients can use for this business.",
+        "save": "Save payment settings",
+        "default_label": "Default payment method",
+        "default_hint_single": "Only one method is enabled, so this method is used automatically.",
+        "default_hint_multi": "When no method is pre-selected, this default is used.",
+        "cash_context_title": "Cash allowed contexts",
+        "cash_context_subtitle": "Restrict where cash can be selected when cash is enabled.",
+        "methods": {
+          "cash": {
+            "label": "Cash",
+            "description": "Collected in person and marked as pending until received."
+          },
+          "card": {
+            "label": "Card (Stripe)",
+            "description": "Online card payment processed through Stripe."
+          },
+          "bank_transfer": {
+            "label": "Bank transfer",
+            "description": "Manual transfer outside of card checkout."
+          },
+          "check": {
+            "label": "Check",
+            "description": "Payment collected by paper check."
+          }
+        },
+        "cash_contexts": {
+          "reservation": "Reservation",
+          "invoice": "Invoice",
+          "store_order": "Store order",
+          "tip": "Tip / extra",
+          "walk_in": "Walk-in / ticket"
+        }
       },
       "tips": {
         "title": "Tips settings",

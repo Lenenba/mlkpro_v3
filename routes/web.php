@@ -496,6 +496,7 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
 
 // Payment Management
 Route::post('/invoice/{invoice}/payments', [PaymentController::class, 'store'])->name('payment.store');
+Route::patch('/payments/{payment}/mark-paid', [PaymentController::class, 'markAsPaid'])->name('payment.mark-paid');
 Route::post('/sales/{sale}/payments', [SalePaymentController::class, 'store'])->name('sales.payments.store');
 });
 

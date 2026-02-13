@@ -45,7 +45,17 @@ class TeamModuleSeeder extends Seeder
                 'role' => 'admin',
                 'title' => 'Technician',
                 'phone' => '+15145550100',
-                'permissions' => ['jobs.view', 'jobs.edit', 'tasks.view', 'tasks.create', 'tasks.edit', 'tasks.delete'],
+                'permissions' => [
+                    'jobs.view',
+                    'jobs.edit',
+                    'tasks.view',
+                    'tasks.create',
+                    'tasks.edit',
+                    'tasks.delete',
+                    'reservations.view',
+                    'reservations.queue',
+                    'reservations.manage',
+                ],
             ],
             [
                 'name' => 'Jamie Helper',
@@ -53,7 +63,13 @@ class TeamModuleSeeder extends Seeder
                 'role' => 'member',
                 'title' => 'Helper',
                 'phone' => '+15145550101',
-                'permissions' => ['jobs.view', 'tasks.view', 'tasks.edit'],
+                'permissions' => [
+                    'jobs.view',
+                    'tasks.view',
+                    'tasks.edit',
+                    'reservations.view',
+                    'reservations.queue',
+                ],
             ],
         ];
 

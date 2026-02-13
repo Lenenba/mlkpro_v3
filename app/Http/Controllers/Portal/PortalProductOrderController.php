@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Portal;
 use App\Http\Controllers\Controller;
 use App\Models\Customer;
 use App\Models\OrderReview;
+use App\Models\Payment;
 use App\Models\Product;
 use App\Models\ProductCategory;
 use App\Models\ProductReview;
@@ -16,6 +17,8 @@ use App\Services\InventoryService;
 use App\Services\NotificationPreferenceService;
 use App\Services\SaleTimelineService;
 use App\Services\StripeSaleService;
+use App\Services\TenantPaymentMethodGuardService;
+use App\Support\TenantPaymentMethodsResolver;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -385,6 +388,7 @@ class PortalProductOrderController extends Controller
             'stripe' => [
                 'enabled' => app(StripeSaleService::class)->isConfigured(),
             ],
+            'paymentMethodSettings' => TenantPaymentMethodsResolver::forAccountId((int) $owner->id),
         ]);
     }
 
@@ -422,7 +426,7 @@ class PortalProductOrderController extends Controller
                 'delivery_confirmed_at',
             ])
             ->withCount('items')
-            ->withSum(['payments as payments_sum_amount' => fn($query) => $query->where('status', 'completed')], 'amount')
+            ->withSum(['payments as payments_sum_amount' => fn($query) => $query->whereIn('status', Payment::settledStatuses())], 'amount')
             ->simplePaginate(12);
 
         $orders->through(fn(Sale $sale) => $this->formatOrderSummary($sale));
@@ -448,7 +452,7 @@ class PortalProductOrderController extends Controller
         $timeline = app(SaleTimelineService::class)->buildTimeline($sale);
 
         $sale->load(['items.product:id,name,sku,barcode,unit,image,price']);
-        $sale->loadSum(['payments as payments_sum_amount' => fn($query) => $query->where('status', 'completed')], 'amount');
+        $sale->loadSum(['payments as payments_sum_amount' => fn($query) => $query->whereIn('status', Payment::settledStatuses())], 'amount');
 
         $defaultAddress = $customer->defaultProperty?->street1
             ? collect([
@@ -482,6 +486,7 @@ class PortalProductOrderController extends Controller
             'stripe' => [
                 'enabled' => app(StripeSaleService::class)->isConfigured(),
             ],
+            'paymentMethodSettings' => TenantPaymentMethodsResolver::forAccountId((int) $owner->id),
         ]);
     }
 
@@ -498,7 +503,7 @@ class PortalProductOrderController extends Controller
             'items.product:id,name,sku,barcode,unit,image,price',
             'payments' => fn($query) => $query->latest()->limit(10),
         ]);
-        $sale->loadSum(['payments as payments_sum_amount' => fn($query) => $query->where('status', 'completed')], 'amount');
+        $sale->loadSum(['payments as payments_sum_amount' => fn($query) => $query->whereIn('status', Payment::settledStatuses())], 'amount');
 
         $reviewsPayload = $this->buildReviewPayload($customer, $sale);
 
@@ -524,11 +529,13 @@ class PortalProductOrderController extends Controller
                 'method' => $payment->method,
                 'status' => $payment->status,
                 'paid_at' => $payment->paid_at?->toIso8601String(),
+                'created_at' => $payment->created_at?->toIso8601String(),
             ])->values(),
             'timeline' => $timeline,
             'stripe' => [
                 'enabled' => app(StripeSaleService::class)->isConfigured(),
             ],
+            'paymentMethodSettings' => TenantPaymentMethodsResolver::forAccountId((int) $owner->id),
         ]);
     }
 
@@ -541,7 +548,7 @@ class PortalProductOrderController extends Controller
             'payments',
         ]);
 
-        $sale->loadSum(['payments as payments_sum_amount' => fn($query) => $query->where('status', 'completed')], 'amount');
+        $sale->loadSum(['payments as payments_sum_amount' => fn($query) => $query->whereIn('status', Payment::settledStatuses())], 'amount');
 
         $items = $sale->items->map(function ($item) {
             return [
@@ -740,7 +747,7 @@ class PortalProductOrderController extends Controller
             ])->filter()->implode(', ')
             : null;
 
-        $sale->loadSum(['payments as payments_sum_amount' => fn($query) => $query->where('status', 'completed')], 'amount');
+        $sale->loadSum(['payments as payments_sum_amount' => fn($query) => $query->whereIn('status', Payment::settledStatuses())], 'amount');
 
         $categories = ProductCategory::forAccount($owner->id)
             ->active()
@@ -794,6 +801,7 @@ class PortalProductOrderController extends Controller
             'stripe' => [
                 'enabled' => app(StripeSaleService::class)->isConfigured(),
             ],
+            'paymentMethodSettings' => TenantPaymentMethodsResolver::forAccountId((int) $owner->id),
         ]);
     }
 
@@ -967,6 +975,18 @@ class PortalProductOrderController extends Controller
             'type' => ['nullable', Rule::in(['deposit', 'balance'])],
         ]);
 
+        $methodDecision = app(TenantPaymentMethodGuardService::class)->evaluate(
+            (int) $owner->id,
+            'stripe',
+            'portal_order_pay'
+        );
+        if (!$methodDecision['allowed']) {
+            throw ValidationException::withMessages([
+                'payment' => TenantPaymentMethodGuardService::ERROR_MESSAGE,
+                'code' => TenantPaymentMethodGuardService::ERROR_CODE,
+            ]);
+        }
+
         $paymentType = $validated['type'] ?? 'deposit';
         $stripeService = app(StripeSaleService::class);
         if (!$stripeService->isConfigured()) {
@@ -975,7 +995,7 @@ class PortalProductOrderController extends Controller
             ]);
         }
 
-        $sale->loadSum(['payments as payments_sum_amount' => fn($query) => $query->where('status', 'completed')], 'amount');
+        $sale->loadSum(['payments as payments_sum_amount' => fn($query) => $query->whereIn('status', Payment::settledStatuses())], 'amount');
 
         $depositAmount = (float) ($sale->deposit_amount ?? 0);
         $amountPaid = $sale->amount_paid;

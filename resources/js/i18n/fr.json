@@ -2638,12 +2638,24 @@
       "card": "Carte",
       "record": "Enregistrer le paiement",
       "recording": "Enregistrement...",
+      "mark_paid": "Marquer comme paye",
+      "marking_paid": "Mise a jour...",
+      "pending_cash": "Paiement en attente (cash)",
       "empty": "Aucun paiement enregistre.",
+      "status": {
+        "pending": "En attente",
+        "completed": "Paye",
+        "paid": "Paye",
+        "failed": "Echoue",
+        "refunded": "Rembourse",
+        "reversed": "Inverse"
+      },
       "timeline": {
         "deposit": "Acompte",
         "balance": "Solde",
         "payment": "Paiement",
-        "deposit_balance": "Acompte + solde"
+        "deposit_balance": "Acompte + solde",
+        "pending": "A encaisser"
       }
     },
     "fulfillment": {
@@ -5021,7 +5033,18 @@
         "subtotal": "Sous-total",
         "tip": "Pourboire",
         "total_paid": "Total paye",
-        "tip_assigned_to": "Pourboire attribue a"
+        "tip_assigned_to": "Pourboire attribue a",
+        "pending_cash": "Paiement en attente (cash)",
+        "mark_paid": "Marquer comme paye",
+        "marking_paid": "Mise a jour...",
+        "status": {
+          "pending": "En attente",
+          "completed": "Paye",
+          "paid": "Paye",
+          "failed": "Echoue",
+          "refunded": "Rembourse",
+          "reversed": "Inverse"
+        }
       },
       "add_payment": {
         "title": "Ajouter un paiement",
@@ -5935,6 +5958,41 @@
         "update_card": "Mettre a jour la carte",
         "summary_active": "Abonnement actif: {plan} (Statut: {status})",
         "summary_none": "Aucun abonnement actif pour le moment."
+      },
+      "payment_methods": {
+        "title": "Modes de paiement acceptes",
+        "subtitle": "Choisissez les moyens de paiement autorises pour cette entreprise.",
+        "save": "Enregistrer les paiements",
+        "default_label": "Mode de paiement par defaut",
+        "default_hint_single": "Une seule methode est active, elle sera appliquee automatiquement.",
+        "default_hint_multi": "Si aucun mode n est preselectionne, ce mode par defaut est utilise.",
+        "cash_context_title": "Contextes autorises pour le cash",
+        "cash_context_subtitle": "Limitez les ecrans ou le cash peut etre selectionne.",
+        "methods": {
+          "cash": {
+            "label": "Cash",
+            "description": "Encaissement sur place, marque en attente jusqu a reception."
+          },
+          "card": {
+            "label": "Carte (Stripe)",
+            "description": "Paiement carte en ligne via Stripe."
+          },
+          "bank_transfer": {
+            "label": "Virement bancaire",
+            "description": "Paiement manuel par virement hors checkout carte."
+          },
+          "check": {
+            "label": "Cheque",
+            "description": "Paiement collecte par cheque papier."
+          }
+        },
+        "cash_contexts": {
+          "reservation": "Reservation",
+          "invoice": "Facture",
+          "store_order": "Commande store",
+          "tip": "Pourboire / extra",
+          "walk_in": "Walk-in / ticket"
+        }
       },
       "tips": {
         "title": "Parametres pourboires",

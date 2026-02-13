@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { Head, useForm, router } from '@inertiajs/vue3';
 import GuestLayout from '@/Layouts/GuestLayout.vue';
 import { humanizeDate } from '@/utils/date';
@@ -15,6 +15,10 @@ const props = defineProps({
         type: Object,
         default: () => ({}),
     },
+    paymentMethodSettings: {
+        type: Object,
+        default: () => ({}),
+    },
 });
 
 const form = useForm({
@@ -27,6 +31,49 @@ const form = useForm({
     reference: '',
     notes: '',
 });
+
+const ALLOWED_INTERNAL_METHODS = ['cash', 'card', 'bank_transfer', 'check'];
+
+const allowedPaymentMethods = computed(() => {
+    const raw = Array.isArray(props.paymentMethodSettings?.enabled_methods_internal)
+        ? props.paymentMethodSettings.enabled_methods_internal
+        : [];
+
+    const normalized = raw
+        .map((method) => (typeof method === 'string' ? method.trim().toLowerCase() : ''))
+        .filter((method, index, array) => method && array.indexOf(method) === index)
+        .filter((method) => ALLOWED_INTERNAL_METHODS.includes(method));
+
+    return normalized.length ? normalized : ['cash', 'card'];
+});
+
+const defaultPaymentMethod = computed(() => {
+    const configured = typeof props.paymentMethodSettings?.default_method_internal === 'string'
+        ? props.paymentMethodSettings.default_method_internal.trim().toLowerCase()
+        : '';
+
+    if (configured && allowedPaymentMethods.value.includes(configured)) {
+        return configured;
+    }
+
+    return allowedPaymentMethods.value[0] || 'cash';
+});
+
+const hasMultiplePaymentMethods = computed(() => allowedPaymentMethods.value.length > 1);
+const singlePaymentMethod = computed(() => (hasMultiplePaymentMethods.value ? null : defaultPaymentMethod.value));
+const canUseStripe = computed(() =>
+    Boolean(props.stripeCheckoutUrl) && allowedPaymentMethods.value.includes('card')
+);
+
+watch(
+    () => [allowedPaymentMethods.value, defaultPaymentMethod.value],
+    () => {
+        if (!allowedPaymentMethods.value.includes(form.method)) {
+            form.method = defaultPaymentMethod.value;
+        }
+    },
+    { immediate: true }
+);
 
 const stripeProcessing = ref(false);
 const tipEnabled = ref(false);
@@ -121,8 +168,24 @@ const setPaymentAmount = (value) => {
     form.amount = normalized > 0 ? normalized.toFixed(2) : '';
 };
 
+const paymentMethodLabel = (method) => {
+    if (method === 'cash') {
+        return 'Cash';
+    }
+    if (method === 'card') {
+        return 'Card (Stripe)';
+    }
+    if (method === 'bank_transfer') {
+        return 'Bank transfer';
+    }
+    if (method === 'check') {
+        return 'Check';
+    }
+    return method || '-';
+};
+
 const startStripeCheckout = () => {
-    if (!canSubmitPayment.value || !props.stripeCheckoutUrl || stripeProcessing.value) {
+    if (!canSubmitPayment.value || !canUseStripe.value || stripeProcessing.value) {
         return;
     }
 
@@ -448,7 +511,7 @@ const paymentChargedTotal = (payment) => {
                             Pay invoice
                         </button>
                         <button
-                            v-if="stripeCheckoutUrl"
+                            v-if="canUseStripe"
                             type="button"
                             :disabled="!canSubmitPayment || stripeProcessing"
                             class="inline-flex w-full items-center justify-center rounded-sm border border-transparent bg-slate-900 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
@@ -463,13 +526,28 @@ const paymentChargedTotal = (payment) => {
                             Payment details (optional)
                         </summary>
                         <div class="mt-3 space-y-2">
-                            <input
-                                v-model="form.method"
-                                type="text"
-                                :disabled="!allowPayment"
-                                class="w-full rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm text-stone-700 disabled:opacity-60"
-                                placeholder="Method (card, transfer)"
-                            />
+                            <div v-if="hasMultiplePaymentMethods">
+                                <select
+                                    v-model="form.method"
+                                    :disabled="!allowPayment"
+                                    class="w-full rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm text-stone-700 disabled:opacity-60"
+                                >
+                                    <option
+                                        v-for="method in allowedPaymentMethods"
+                                        :key="`public-invoice-method-${method}`"
+                                        :value="method"
+                                    >
+                                        {{ paymentMethodLabel(method) }}
+                                    </option>
+                                </select>
+                            </div>
+                            <div v-else class="rounded-sm border border-stone-200 bg-stone-50 px-3 py-2 text-xs text-stone-600">
+                                Payment method:
+                                <span class="font-semibold text-stone-700">
+                                    {{ paymentMethodLabel(singlePaymentMethod) }}
+                                </span>
+                            </div>
+                            <div v-if="form.errors.method" class="text-xs text-red-600">{{ form.errors.method }}</div>
                             <input
                                 v-model="form.reference"
                                 type="text"

@@ -2,11 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Payment;
 use App\Models\Sale;
 use App\Models\User;
 use App\Services\SalePaymentService;
+use App\Services\TenantPaymentMethodGuardService;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 class SalePaymentController extends Controller
@@ -41,10 +42,22 @@ class SalePaymentController extends Controller
 
         $validated = $request->validate([
             'amount' => 'required|numeric|min:0.01',
-            'method' => ['nullable', Rule::in(['cash', 'card'])],
+            'method' => 'nullable|string|max:50',
         ]);
 
-        $sale->loadSum(['payments as payments_sum_amount' => fn($query) => $query->where('status', 'completed')], 'amount');
+        $methodDecision = app(TenantPaymentMethodGuardService::class)->evaluate(
+            (int) $accountId,
+            $validated['method'] ?? null,
+            'sale_manual'
+        );
+        if (!$methodDecision['allowed']) {
+            throw ValidationException::withMessages([
+                'method' => TenantPaymentMethodGuardService::ERROR_MESSAGE,
+                'code' => TenantPaymentMethodGuardService::ERROR_CODE,
+            ]);
+        }
+
+        $sale->loadSum(['payments as payments_sum_amount' => fn($query) => $query->whereIn('status', Payment::settledStatuses())], 'amount');
         $balanceDue = $sale->balance_due;
         $amount = (float) $validated['amount'];
         if ($amount > $balanceDue) {
@@ -58,19 +71,22 @@ class SalePaymentController extends Controller
             ]);
         }
 
-        $method = $validated['method'] ?? 'cash';
+        $method = $methodDecision['canonical_method'] ?? 'cash';
         $updatedSale = app(SalePaymentService::class)->recordManualPayment($sale, $amount, $method, $user);
+        $message = $method === 'cash'
+            ? 'Paiement cash en attente d encaissement.'
+            : 'Paiement enregistre.';
 
         if ($this->shouldReturnJson($request)) {
             return response()->json([
-                'message' => 'Paiement enregistre.',
+                'message' => $message,
                 'sale' => $updatedSale,
             ]);
         }
 
         return redirect()
             ->back()
-            ->with('success', 'Paiement enregistre.');
+            ->with('success', $message);
     }
 
     private function resolveSalesAccess(User $user): array

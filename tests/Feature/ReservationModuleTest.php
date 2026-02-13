@@ -520,6 +520,103 @@ it('allows assigned team members to update only their reservation status', funct
         ->assertForbidden();
 });
 
+it('allows reservation-managers to access reservations settings and all reservations without jobs/tasks edit permissions', function () {
+    $owner = createOwnerWithReservationsEnabled();
+    $reservationManager = createTeamMemberForAccount($owner, [
+        'role' => 'member',
+        'permissions' => ['reservations.manage'],
+    ]);
+
+    $startsAt = Carbon::now('UTC')->addDay()->setTime(10, 0);
+    Reservation::query()->create([
+        'account_id' => $owner->id,
+        'team_member_id' => $reservationManager->id,
+        'status' => Reservation::STATUS_PENDING,
+        'source' => Reservation::SOURCE_STAFF,
+        'timezone' => 'UTC',
+        'starts_at' => $startsAt,
+        'ends_at' => $startsAt->copy()->addHour(),
+        'duration_minutes' => 60,
+        'buffer_minutes' => 0,
+    ]);
+
+    $managerUser = $reservationManager->user()->firstOrFail();
+
+    $this->actingAs($managerUser)
+        ->withSession(['two_factor_passed' => true])
+        ->get(route('settings.reservations.edit'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Settings/Reservations')
+        );
+
+    $this->actingAs($managerUser)
+        ->withSession(['two_factor_passed' => true])
+        ->get(route('reservation.index', ['scope' => 'all']))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Reservation/Index')
+            ->where('filters.scope', 'all')
+            ->has('reservations.data', 1)
+        );
+});
+
+it('does not grant reservation management from jobs/tasks permissions alone', function () {
+    $owner = createOwnerWithReservationsEnabled();
+    $jobsTasksEditor = createTeamMemberForAccount($owner, [
+        'role' => 'member',
+        'permissions' => ['jobs.edit', 'tasks.edit'],
+    ]);
+    $otherMember = createTeamMemberForAccount($owner, [
+        'role' => 'member',
+        'permissions' => ['jobs.edit', 'tasks.edit'],
+    ]);
+
+    $startsAt = Carbon::now('UTC')->addDay()->setTime(10, 0);
+    Reservation::query()->create([
+        'account_id' => $owner->id,
+        'team_member_id' => $jobsTasksEditor->id,
+        'status' => Reservation::STATUS_PENDING,
+        'source' => Reservation::SOURCE_STAFF,
+        'timezone' => 'UTC',
+        'starts_at' => $startsAt,
+        'ends_at' => $startsAt->copy()->addHour(),
+        'duration_minutes' => 60,
+        'buffer_minutes' => 0,
+    ]);
+    Reservation::query()->create([
+        'account_id' => $owner->id,
+        'team_member_id' => $otherMember->id,
+        'status' => Reservation::STATUS_PENDING,
+        'source' => Reservation::SOURCE_STAFF,
+        'timezone' => 'UTC',
+        'starts_at' => $startsAt->copy()->addHours(2),
+        'ends_at' => $startsAt->copy()->addHours(3),
+        'duration_minutes' => 60,
+        'buffer_minutes' => 0,
+    ]);
+
+    $memberUser = $jobsTasksEditor->user()->firstOrFail();
+
+    $this->actingAs($memberUser)
+        ->withSession(['two_factor_passed' => true])
+        ->get(route('reservation.index', ['scope' => 'all']))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Reservation/Index')
+            ->where('access.can_view_all', false)
+            ->where('access.can_manage', false)
+            ->where('filters.scope', 'mine')
+            ->has('reservations.data', 1)
+            ->where('reservations.data.0.team_member_id', $jobsTasksEditor->id)
+        );
+
+    $this->actingAs($memberUser)
+        ->withSession(['two_factor_passed' => true])
+        ->getJson(route('settings.reservations.edit'))
+        ->assertForbidden();
+});
+
 it('stores business preset fields on reservation settings update', function () {
     $owner = createOwnerWithReservationsEnabled();
 
@@ -1556,6 +1653,97 @@ it('lets a team member pull next from global queue mode and assigns the ticket',
         'status' => ReservationQueueItem::STATUS_CALLED,
         'team_member_id' => $member->id,
     ]);
+});
+
+it('limits non-manager queue visibility to own lane and unassigned walk-in tickets', function () {
+    $owner = createOwnerWithReservationsEnabled();
+    $memberA = createTeamMemberForAccount($owner, [
+        'role' => 'employee',
+        'permissions' => [],
+    ]);
+    $memberB = createTeamMemberForAccount($owner, [
+        'role' => 'employee',
+        'permissions' => [],
+    ]);
+
+    ReservationSetting::query()->updateOrCreate(
+        [
+            'account_id' => $owner->id,
+            'team_member_id' => null,
+        ],
+        [
+            'business_preset' => 'salon',
+            'waitlist_enabled' => true,
+            'queue_mode_enabled' => true,
+            'queue_assignment_mode' => 'global_pull',
+            'queue_dispatch_mode' => 'fifo_with_appointment_priority',
+            'queue_grace_minutes' => 5,
+            'queue_pre_call_threshold' => 2,
+            'queue_no_show_on_grace_expiry' => false,
+        ]
+    );
+
+    $ownedTicket = ReservationQueueItem::query()->create([
+        'account_id' => $owner->id,
+        'team_member_id' => $memberA->id,
+        'item_type' => ReservationQueueItem::TYPE_TICKET,
+        'source' => 'staff',
+        'queue_number' => 'QA-OWN-001',
+        'status' => ReservationQueueItem::STATUS_CHECKED_IN,
+        'estimated_duration_minutes' => 20,
+        'checked_in_at' => now('UTC')->subMinutes(2),
+    ]);
+
+    $otherAppointment = ReservationQueueItem::query()->create([
+        'account_id' => $owner->id,
+        'team_member_id' => $memberB->id,
+        'item_type' => ReservationQueueItem::TYPE_APPOINTMENT,
+        'source' => Reservation::SOURCE_STAFF,
+        'queue_number' => 'QA-APPT-001',
+        'status' => ReservationQueueItem::STATUS_CHECKED_IN,
+        'estimated_duration_minutes' => 20,
+        'checked_in_at' => now('UTC')->subMinutes(1),
+    ]);
+
+    $unassignedAppointment = ReservationQueueItem::query()->create([
+        'account_id' => $owner->id,
+        'team_member_id' => null,
+        'item_type' => ReservationQueueItem::TYPE_APPOINTMENT,
+        'source' => Reservation::SOURCE_STAFF,
+        'queue_number' => 'QA-APPT-NULL',
+        'status' => ReservationQueueItem::STATUS_CHECKED_IN,
+        'estimated_duration_minutes' => 20,
+        'checked_in_at' => now('UTC'),
+    ]);
+
+    $unassignedTicket = ReservationQueueItem::query()->create([
+        'account_id' => $owner->id,
+        'team_member_id' => null,
+        'item_type' => ReservationQueueItem::TYPE_TICKET,
+        'source' => 'staff',
+        'queue_number' => 'QA-TICKET-NULL',
+        'status' => ReservationQueueItem::STATUS_CHECKED_IN,
+        'estimated_duration_minutes' => 20,
+        'checked_in_at' => now('UTC'),
+    ]);
+
+    $memberAUser = $memberA->user()->firstOrFail();
+
+    $response = $this->actingAs($memberAUser)
+        ->withSession(['two_factor_passed' => true])
+        ->getJson(route('reservation.screen.data', ['anonymize' => 1]))
+        ->assertOk();
+
+    $visibleIds = collect($response->json('queue.items') ?? [])
+        ->pluck('id')
+        ->map(fn ($id) => (int) $id)
+        ->values()
+        ->all();
+
+    expect($visibleIds)->toContain((int) $ownedTicket->id);
+    expect($visibleIds)->toContain((int) $unassignedTicket->id);
+    expect($visibleIds)->not->toContain((int) $otherAppointment->id);
+    expect($visibleIds)->not->toContain((int) $unassignedAppointment->id);
 });
 
 it('sends queue notifications for pre-call, call, and grace expiry', function () {

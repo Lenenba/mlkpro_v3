@@ -17,6 +17,10 @@ class SalePaymentService
             return null;
         }
 
+        $status = $this->isCashMethod($method)
+            ? Payment::STATUS_PENDING
+            : Payment::STATUS_COMPLETED;
+
         $payment = Payment::create([
             'sale_id' => $sale->id,
             'invoice_id' => null,
@@ -24,11 +28,23 @@ class SalePaymentService
             'user_id' => $actor?->id,
             'amount' => $amount,
             'method' => $method,
-            'status' => 'completed',
-            'paid_at' => now(),
+            'status' => $status,
+            'paid_at' => $status === Payment::STATUS_PENDING ? null : now(),
         ]);
 
         return $this->refreshAfterPayment($sale, $payment, $method, null, null, $actor);
+    }
+
+    public function refreshAfterManualPaymentSettlement(Sale $sale, Payment $payment, ?User $actor = null): Sale
+    {
+        return $this->refreshAfterPayment(
+            $sale,
+            $payment,
+            (string) ($payment->method ?? 'cash'),
+            null,
+            null,
+            $actor
+        );
     }
 
     public function recordStripePayment(
@@ -87,7 +103,7 @@ class SalePaymentService
         }
 
         $amountPaid = (float) $sale->payments()
-            ->where('status', 'completed')
+            ->whereIn('status', Payment::settledStatuses())
             ->sum('amount');
         $total = (float) $sale->total;
 
@@ -359,5 +375,10 @@ class SalePaymentService
     private function isFulfillmentComplete(?string $status): bool
     {
         return in_array($status, [Sale::FULFILLMENT_COMPLETED, Sale::FULFILLMENT_CONFIRMED], true);
+    }
+
+    private function isCashMethod(string $method): bool
+    {
+        return strtolower(trim($method)) === 'cash';
     }
 }

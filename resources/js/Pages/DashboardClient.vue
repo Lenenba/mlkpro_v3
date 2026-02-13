@@ -75,6 +75,10 @@ const props = defineProps({
         type: Object,
         default: () => ({}),
     },
+    paymentMethodSettings: {
+        type: Object,
+        default: () => ({}),
+    },
 });
 
 const page = usePage();
@@ -85,6 +89,51 @@ const autoValidation = computed(() => ({
     invoices: Boolean(props.autoValidation?.invoices),
 }));
 const stripeEnabled = computed(() => Boolean(props.stripe?.enabled));
+const ALLOWED_INTERNAL_METHODS = ['cash', 'card', 'bank_transfer', 'check'];
+const allowedPaymentMethods = computed(() => {
+    const raw = Array.isArray(props.paymentMethodSettings?.enabled_methods_internal)
+        ? props.paymentMethodSettings.enabled_methods_internal
+        : [];
+
+    const normalized = raw
+        .map((method) => (typeof method === 'string' ? method.trim().toLowerCase() : ''))
+        .filter((method, index, array) => method && array.indexOf(method) === index)
+        .filter((method) => ALLOWED_INTERNAL_METHODS.includes(method));
+
+    return normalized.length ? normalized : ['cash', 'card'];
+});
+const defaultPaymentMethod = computed(() => {
+    const configured = typeof props.paymentMethodSettings?.default_method_internal === 'string'
+        ? props.paymentMethodSettings.default_method_internal.trim().toLowerCase()
+        : '';
+
+    if (configured && allowedPaymentMethods.value.includes(configured)) {
+        return configured;
+    }
+
+    return allowedPaymentMethods.value[0] || 'cash';
+});
+const hasMultiplePaymentMethods = computed(() => allowedPaymentMethods.value.length > 1);
+const canUseStripeMethod = computed(() =>
+    stripeEnabled.value && allowedPaymentMethods.value.includes('card')
+);
+
+const paymentMethodLabel = (method) => {
+    if (method === 'cash') {
+        return t('sales.payments.cash');
+    }
+    if (method === 'card') {
+        return t('sales.payments.card');
+    }
+    if (method === 'bank_transfer') {
+        return 'Bank transfer';
+    }
+    if (method === 'check') {
+        return 'Check';
+    }
+    return method || '-';
+};
+
 const maxTipPercent = computed(() => Number(props.tips?.max_percent ?? 30));
 const maxTipFixedAmount = computed(() => Number(props.tips?.max_fixed_amount ?? 200));
 const quickTipPercents = computed(() => {
@@ -254,6 +303,7 @@ const proofTypeOptions = computed(() => ([
 ]));
 
 const paymentAmounts = reactive({});
+const paymentMethods = reactive({});
 const paymentTipEnabled = reactive({});
 const paymentTipModes = reactive({});
 const paymentTipPercents = reactive({});
@@ -358,6 +408,12 @@ watchEffect(() => {
     props.invoicesDue?.forEach((invoice) => {
         if (paymentAmounts[invoice.id] === undefined) {
             paymentAmounts[invoice.id] = invoice.balance_due || 0;
+        }
+        if (
+            paymentMethods[invoice.id] === undefined
+            || !allowedPaymentMethods.value.includes(paymentMethods[invoice.id])
+        ) {
+            paymentMethods[invoice.id] = defaultPaymentMethod.value;
         }
         if (paymentTipEnabled[invoice.id] === undefined) {
             paymentTipEnabled[invoice.id] = false;
@@ -607,14 +663,22 @@ const submitPayment = (invoice) => {
         route('portal.invoices.payments.store', invoice.id),
         {
             amount,
+            method: paymentMethods[invoice.id] || defaultPaymentMethod.value,
             ...tipPayload(invoice.id),
         },
         { preserveScroll: true }
     );
 };
 
+const canUseStripeForInvoice = (invoice) => {
+    if (!invoice) {
+        return false;
+    }
+    return canUseStripeMethod.value && canSubmitInvoicePayment(invoice);
+};
+
 const startStripePayment = (invoice) => {
-    if (!invoice || !stripeEnabled.value || !canSubmitInvoicePayment(invoice)) {
+    if (!canUseStripeForInvoice(invoice)) {
         return;
     }
     if (stripeProcessing[invoice.id]) {
@@ -987,6 +1051,30 @@ const submitWorkRating = (workId) => {
                                             {{ $t('client_dashboard.labels.pay_quarter') }}
                                         </button>
                                     </div>
+
+                                    <div v-if="hasMultiplePaymentMethods" class="pt-1">
+                                        <label class="block text-[11px] text-stone-500 dark:text-neutral-400">
+                                            {{ $t('sales.payments.method_label') }}
+                                        </label>
+                                        <select
+                                            v-model="paymentMethods[invoice.id]"
+                                            class="mt-1 w-40 rounded-sm border border-stone-200 bg-white py-2 px-3 text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
+                                        >
+                                            <option
+                                                v-for="method in allowedPaymentMethods"
+                                                :key="`dashboard-invoice-method-${invoice.id}-${method}`"
+                                                :value="method"
+                                            >
+                                                {{ paymentMethodLabel(method) }}
+                                            </option>
+                                        </select>
+                                    </div>
+                                    <div v-else class="rounded-sm border border-stone-200 bg-stone-50 px-3 py-2 text-xs text-stone-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300">
+                                        Payment method:
+                                        <span class="font-semibold text-stone-700 dark:text-neutral-200">
+                                            {{ paymentMethodLabel(paymentMethods[invoice.id]) }}
+                                        </span>
+                                    </div>
                                 </div>
 
                                 <div class="rounded-sm border border-stone-200 bg-stone-50 p-3 dark:border-neutral-700 dark:bg-neutral-900">
@@ -1127,21 +1215,20 @@ const submitWorkRating = (workId) => {
 
                                 <div class="space-y-2 pt-1">
                                     <button
-                                        v-if="stripeEnabled"
-                                        type="button"
-                                        :disabled="stripeProcessing[invoice.id] || !canSubmitInvoicePayment(invoice)"
-                                        class="w-full py-2 px-3 inline-flex items-center justify-center gap-x-2 text-xs font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-800 disabled:opacity-50"
-                                        @click="startStripePayment(invoice)"
-                                    >
-                                        {{ $t('client_dashboard.actions.pay_with_stripe') }}
-                                    </button>
-                                    <button
-                                        v-else
                                         type="submit"
                                         :disabled="!canSubmitInvoicePayment(invoice)"
                                         class="w-full py-2 px-3 inline-flex items-center justify-center gap-x-2 text-xs font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50"
                                     >
                                         {{ $t('client_dashboard.actions.pay_now') }}
+                                    </button>
+                                    <button
+                                        v-if="canUseStripeMethod"
+                                        type="button"
+                                        :disabled="stripeProcessing[invoice.id] || !canUseStripeForInvoice(invoice)"
+                                        class="w-full py-2 px-3 inline-flex items-center justify-center gap-x-2 text-xs font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-800 disabled:opacity-50"
+                                        @click="startStripePayment(invoice)"
+                                    >
+                                        {{ $t('client_dashboard.actions.pay_with_stripe') }}
                                     </button>
                                 </div>
 

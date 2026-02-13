@@ -790,11 +790,11 @@ class StaffReservationController extends Controller
             return false;
         }
 
-        if (in_array($teamMember->role, ['admin', 'sales_manager'], true)) {
+        if ($teamMember->role === 'admin') {
             return true;
         }
 
-        return $teamMember->hasPermission('jobs.edit') || $teamMember->hasPermission('tasks.edit');
+        return $teamMember->hasPermission('reservations.manage');
     }
 
     private function normalizeFilters(Request $request, array $access): array
@@ -1011,7 +1011,7 @@ class StaffReservationController extends Controller
 
         $paymentWindowQuery = Payment::query()
             ->where('user_id', $account->id)
-            ->where('status', 'completed')
+            ->whereIn('status', Payment::settledStatuses())
             ->where(function ($query) use ($windowStart) {
                 $query->where('paid_at', '>=', $windowStart)
                     ->orWhere(function ($nested) use ($windowStart) {
@@ -1211,12 +1211,12 @@ class StaffReservationController extends Controller
             return false;
         }
 
-        $assignmentMode = strtolower(trim((string) ($settings['queue_assignment_mode'] ?? 'per_staff')));
-        if ($assignmentMode === ReservationQueueService::ASSIGNMENT_MODE_GLOBAL_PULL) {
+        if ((int) ($item->team_member_id ?? 0) === $ownTeamMemberId) {
             return true;
         }
 
-        return (int) ($item->team_member_id ?? 0) === $ownTeamMemberId || $item->team_member_id === null;
+        return $item->team_member_id === null
+            && (string) ($item->item_type ?? '') === ReservationQueueItem::TYPE_TICKET;
     }
 
     private function queueFeaturesAvailable(array $settings): bool

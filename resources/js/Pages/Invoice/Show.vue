@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue';
+import { computed, watch } from 'vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import StarRating from '@/Components/UI/StarRating.vue';
 import DatePicker from '@/Components/DatePicker.vue';
@@ -9,6 +9,10 @@ import { useI18n } from 'vue-i18n';
 
 const props = defineProps({
     invoice: Object,
+    paymentMethodSettings: {
+        type: Object,
+        default: () => ({}),
+    },
 });
 
 const page = usePage();
@@ -23,6 +27,7 @@ const form = useForm({
     paid_at: '',
     notes: '',
 });
+const markPaidForm = useForm({});
 const balanceDue = computed(() => {
     const value = Number(props.invoice?.balance_due || 0);
     return Number.isFinite(value) ? Math.max(0, value) : 0;
@@ -176,6 +181,109 @@ const statusLabel = computed(() => {
     const translated = t(key);
     return translated === key ? status : translated;
 });
+
+const ALLOWED_INTERNAL_METHODS = ['cash', 'card', 'bank_transfer', 'check'];
+
+const allowedPaymentMethods = computed(() => {
+    const raw = Array.isArray(props.paymentMethodSettings?.enabled_methods_internal)
+        ? props.paymentMethodSettings.enabled_methods_internal
+        : [];
+
+    const normalized = raw
+        .map((method) => (typeof method === 'string' ? method.trim().toLowerCase() : ''))
+        .filter((method, index, array) => method && array.indexOf(method) === index)
+        .filter((method) => ALLOWED_INTERNAL_METHODS.includes(method));
+
+    return normalized.length ? normalized : ['cash', 'card'];
+});
+
+const defaultPaymentMethod = computed(() => {
+    const configured = typeof props.paymentMethodSettings?.default_method_internal === 'string'
+        ? props.paymentMethodSettings.default_method_internal.trim().toLowerCase()
+        : '';
+
+    if (configured && allowedPaymentMethods.value.includes(configured)) {
+        return configured;
+    }
+
+    return allowedPaymentMethods.value[0] || 'cash';
+});
+
+const hasMultiplePaymentMethods = computed(() => allowedPaymentMethods.value.length > 1);
+const singlePaymentMethod = computed(() => (hasMultiplePaymentMethods.value ? null : defaultPaymentMethod.value));
+
+const paymentMethodLabel = (method) => {
+    if (method === 'cash') {
+        return t('sales.payments.cash');
+    }
+    if (method === 'card' || method === 'stripe') {
+        return t('sales.payments.card');
+    }
+    if (method === 'bank_transfer') {
+        return 'Bank transfer';
+    }
+    if (method === 'check') {
+        return 'Check';
+    }
+    return method || '-';
+};
+
+const isPendingCashPayment = (payment) =>
+    String(payment?.method || '').toLowerCase() === 'cash'
+    && String(payment?.status || '').toLowerCase() === 'pending';
+
+const paymentStatusLabel = (payment) => {
+    if (isPendingCashPayment(payment)) {
+        return t('invoices.show.payments.pending_cash');
+    }
+
+    const status = String(payment?.status || '').toLowerCase();
+    if (!status) {
+        return '-';
+    }
+
+    const key = `invoices.show.payments.status.${status}`;
+    const translated = t(key);
+    return translated === key ? status : translated;
+};
+
+const paymentStatusClass = (payment) => {
+    const status = String(payment?.status || '').toLowerCase();
+
+    if (isPendingCashPayment(payment)) {
+        return 'bg-amber-100 text-amber-800 dark:bg-amber-500/10 dark:text-amber-300';
+    }
+
+    if (status === 'completed' || status === 'paid') {
+        return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-300';
+    }
+
+    if (status === 'failed' || status === 'refunded' || status === 'reversed') {
+        return 'bg-rose-100 text-rose-800 dark:bg-rose-500/10 dark:text-rose-300';
+    }
+
+    return 'bg-stone-100 text-stone-700 dark:bg-neutral-800 dark:text-neutral-300';
+};
+
+const markCashPaymentAsPaid = (paymentId) => {
+    if (!paymentId || markPaidForm.processing) {
+        return;
+    }
+
+    markPaidForm.patch(route('payment.mark-paid', paymentId), {
+        preserveScroll: true,
+    });
+};
+
+watch(
+    () => [allowedPaymentMethods.value, defaultPaymentMethod.value],
+    () => {
+        if (!allowedPaymentMethods.value.includes(form.method)) {
+            form.method = defaultPaymentMethod.value;
+        }
+    },
+    { immediate: true }
+);
 </script>
 
 <template>
@@ -387,7 +495,7 @@ const statusLabel = computed(() => {
                             class="flex items-center justify-between p-2 rounded-sm bg-stone-50 dark:bg-neutral-900">
                             <div>
                                 <p class="text-sm text-stone-700 dark:text-neutral-200">
-                                    {{ formatCurrency(payment.amount) }} - {{ payment.method || $t('invoices.labels.method_fallback') }}
+                                    {{ formatCurrency(payment.amount) }} - {{ paymentMethodLabel(payment.method) }}
                                 </p>
                                 <div class="mt-1 space-y-0.5 text-xs text-stone-500 dark:text-neutral-400">
                                     <div>{{ $t('invoices.show.payments.subtotal') }}: {{ formatCurrency(payment.amount) }}</div>
@@ -400,10 +508,26 @@ const statusLabel = computed(() => {
                                     </div>
                                 </div>
                                 <p class="text-xs text-stone-500 dark:text-neutral-400">
-                                    {{ formatDate(payment.paid_at) }}
+                                    {{ formatDate(payment.paid_at || payment.created_at) }}
                                 </p>
                             </div>
-                            <span class="text-xs text-stone-500 dark:text-neutral-400">{{ payment.status }}</span>
+                            <div class="flex flex-col items-end gap-2">
+                                <span
+                                    class="rounded-full px-2 py-0.5 text-[11px] font-medium"
+                                    :class="paymentStatusClass(payment)"
+                                >
+                                    {{ paymentStatusLabel(payment) }}
+                                </span>
+                                <button
+                                    v-if="isPendingCashPayment(payment)"
+                                    type="button"
+                                    class="rounded-sm border border-stone-200 bg-white px-2 py-1 text-[11px] font-medium text-stone-700 hover:bg-stone-50 disabled:opacity-60 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
+                                    :disabled="markPaidForm.processing"
+                                    @click="markCashPaymentAsPaid(payment.id)"
+                                >
+                                    {{ markPaidForm.processing ? $t('invoices.show.payments.marking_paid') : $t('invoices.show.payments.mark_paid') }}
+                                </button>
+                            </div>
                         </div>
                     </div>
                     <p v-else class="text-sm text-stone-500 dark:text-neutral-400">{{ $t('invoices.show.payments.empty') }}</p>
@@ -452,9 +576,27 @@ const statusLabel = computed(() => {
                                 <span class="font-semibold text-stone-700 dark:text-neutral-200">{{ formatCurrency(remainingAfterPayment) }}</span>
                             </template>
                         </p>
-                        <input v-model="form.method" type="text"
-                            class="w-full py-2 px-3 bg-stone-100 border-transparent rounded-sm text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-700 dark:text-neutral-200"
-                            :placeholder="$t('invoices.show.add_payment.method')">
+                        <div v-if="hasMultiplePaymentMethods">
+                            <select
+                                v-model="form.method"
+                                class="w-full py-2 px-3 bg-stone-100 border-transparent rounded-sm text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-700 dark:text-neutral-200"
+                            >
+                                <option
+                                    v-for="method in allowedPaymentMethods"
+                                    :key="`invoice-method-${method}`"
+                                    :value="method"
+                                >
+                                    {{ paymentMethodLabel(method) }}
+                                </option>
+                            </select>
+                        </div>
+                        <div v-else class="rounded-sm border border-stone-200 bg-stone-50 px-3 py-2 text-xs text-stone-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300">
+                            Payment method:
+                            <span class="font-semibold text-stone-700 dark:text-neutral-200">
+                                {{ paymentMethodLabel(singlePaymentMethod) }}
+                            </span>
+                        </div>
+                        <div v-if="form.errors.method" class="text-xs text-red-600">{{ form.errors.method }}</div>
                         <input v-model="form.reference" type="text"
                             class="w-full py-2 px-3 bg-stone-100 border-transparent rounded-sm text-sm text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-700 dark:text-neutral-200"
                             :placeholder="$t('invoices.show.add_payment.reference')">
