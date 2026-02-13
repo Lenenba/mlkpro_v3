@@ -171,6 +171,21 @@ class StripeInvoiceService
             return null;
         }
 
+        $policyDecision = app(TenantPaymentMethodGuardService::class)->evaluate(
+            (int) $invoice->user_id,
+            'stripe',
+            'invoice_webhook'
+        );
+        if (!$policyDecision['allowed']) {
+            Log::warning('Stripe invoice payment policy mismatch.', [
+                'account_id' => $invoice->user_id,
+                'invoice_id' => $invoice->id,
+                'provider_reference' => $paymentIntentId,
+                'event' => 'checkout.session',
+                'error_code' => TenantPaymentMethodGuardService::ERROR_CODE,
+            ]);
+        }
+
         $amountTotal = $session['amount_total'] ?? null;
         if (!$amountTotal) {
             return null;
@@ -235,6 +250,21 @@ class StripeInvoiceService
         $invoice = Invoice::query()->find($invoiceId);
         if (!$invoice || in_array($invoice->status, ['void', 'draft'], true)) {
             return null;
+        }
+
+        $policyDecision = app(TenantPaymentMethodGuardService::class)->evaluate(
+            (int) $invoice->user_id,
+            'stripe',
+            'invoice_webhook'
+        );
+        if (!$policyDecision['allowed']) {
+            Log::warning('Stripe invoice payment policy mismatch.', [
+                'account_id' => $invoice->user_id,
+                'invoice_id' => $invoice->id,
+                'provider_reference' => $paymentIntentId,
+                'event' => 'payment_intent',
+                'error_code' => TenantPaymentMethodGuardService::ERROR_CODE,
+            ]);
         }
 
         $amountTotal = $intent['amount_received'] ?? $intent['amount'] ?? null;

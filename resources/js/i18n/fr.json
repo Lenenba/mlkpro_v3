@@ -2638,12 +2638,24 @@
       "card": "Carte",
       "record": "Enregistrer le paiement",
       "recording": "Enregistrement...",
+      "mark_paid": "Marquer comme paye",
+      "marking_paid": "Mise a jour...",
+      "pending_cash": "Paiement en attente (cash)",
       "empty": "Aucun paiement enregistre.",
+      "status": {
+        "pending": "En attente",
+        "completed": "Paye",
+        "paid": "Paye",
+        "failed": "Echoue",
+        "refunded": "Rembourse",
+        "reversed": "Inverse"
+      },
       "timeline": {
         "deposit": "Acompte",
         "balance": "Solde",
         "payment": "Paiement",
-        "deposit_balance": "Acompte + solde"
+        "deposit_balance": "Acompte + solde",
+        "pending": "A encaisser"
       }
     },
     "fulfillment": {
@@ -4214,11 +4226,20 @@
       },
       "columns": {
         "ticket": "Ticket",
+        "origin": "Origine",
         "position": "Position / ETA"
       },
       "types": {
         "appointment": "Rendez-vous",
         "ticket": "Ticket walk-in"
+      },
+      "origins": {
+        "booking": "RESERVATION",
+        "walk_in": "WALK-IN"
+      },
+      "assignment_mode": {
+        "per_staff": "File par employe",
+        "global_pull": "File globale (pull)"
       },
       "status": {
         "not_arrived": "Non arrive",
@@ -4239,8 +4260,10 @@
         "start": "Demarrer",
         "done": "Terminer",
         "skip": "Ignorer",
+        "call_next": "Appeler le prochain",
         "updated": "Element de file mis a jour.",
-        "update_error": "Impossible de mettre a jour l element de file."
+        "update_error": "Impossible de mettre a jour l element de file.",
+        "call_next_empty": "Aucun element callable n est disponible pour le moment."
       },
       "client": {
         "title": "File walk-in",
@@ -4254,7 +4277,8 @@
         "cancelled": "Ticket de file annule.",
         "still_here": "Je suis toujours la",
         "still_here_done": "Presence confirmee.",
-        "none": "Aucun ticket de file."
+        "none": "Aucun ticket de file.",
+        "kiosk_only_notice": "La creation de ticket se fait maintenant sur le kiosque en salon."
       },
       "screen": {
         "open": "Ouvrir ecran live",
@@ -4263,15 +4287,98 @@
         "refresh": "Actualiser",
         "refresh_error": "Impossible d actualiser les donnees de l ecran live.",
         "updated_at": "Mis a jour",
+        "mode_tv": "Mode TV",
+        "mode_board": "Mode tableau",
         "now_serving": "En cours",
+        "current": "En cours",
+        "timer": "Timer",
         "up_next": "Prochain",
+        "no_next": "Aucun prochain client",
         "overview": "Synthese",
         "total_active": "Total actifs",
+        "no_chairs": "Aucun siege actif configure pour cet ecran.",
         "waiting_list": "File d attente",
         "call_expires": "Appel expire",
         "show_names": "Afficher noms",
         "hide_names": "Masquer noms",
+        "assignment_mode": "Mode de file",
+        "metrics": {
+          "seats_active": "Sieges actifs",
+          "occupied": "Occupes",
+          "ready": "Prets",
+          "avg_wait": "Attente moy.",
+          "next_booking": "Prochaine reservation"
+        },
+        "states": {
+          "available": "Disponible",
+          "available_ready": "Disponible - suivant pret",
+          "called": "Appele",
+          "in_service": "En service",
+          "check_in_needed": "Check-in requis",
+          "blocked": "Bloque"
+        },
         "disabled": "Le mode file hybride est desactive. Activez-le dans les parametres reservations."
+      }
+    },
+    "kiosk": {
+      "title": "Kiosque salon",
+      "subtitle": "Prenez un ticket walk-in, enregistrez-vous en tant que client existant, ou suivez votre ticket.",
+      "open": "Ouvrir le kiosque",
+      "tabs": {
+        "walk_in": "Walk-in",
+        "known_client": "Deja client",
+        "track": "Suivre ticket"
+      },
+      "fields": {
+        "phone": "Numero de telephone",
+        "guest_name": "Prenom (optionnel)",
+        "code": "Code de verification",
+        "queue_number": "Numero de ticket (optionnel)",
+        "any_service": "N importe quel service",
+        "any_team_member": "N importe quel employe"
+      },
+      "labels": {
+        "ticket": "Ticket"
+      },
+      "walk_in": {
+        "title": "Prendre un ticket walk-in",
+        "subtitle": "Entrez votre telephone, choisissez service/employe si besoin, puis recevez position/ETA.",
+        "submit": "Prendre mon ticket"
+      },
+      "known_client": {
+        "title": "Je suis deja client",
+        "subtitle": "Retrouvez votre profil par telephone et continuez avec le meilleur parcours.",
+        "lookup": "Trouver mon profil",
+        "verify_prompt": "Un code de verification est requis pour ce compte.",
+        "verify": "Verifier le telephone",
+        "debug_code": "Code debug",
+        "reservation_ready": "Vous avez une reservation proche prete pour check-in.",
+        "check_in": "Faire le check-in",
+        "create_ticket_help": "Aucune reservation proche trouvee. Vous pouvez prendre un ticket a votre nom.",
+        "create_ticket": "Prendre un ticket",
+        "active_ticket": "Vous avez deja un ticket actif."
+      },
+      "track": {
+        "title": "Suivre mon ticket",
+        "subtitle": "Verifiez position et ETA avec votre telephone et, si besoin, le numero de ticket.",
+        "submit": "Suivre le ticket"
+      },
+      "messages": {
+        "ticket_created": "Ticket de file cree.",
+        "check_in_done": "Reservation enregistree (check-in).",
+        "client_not_found": "Aucun profil client existant trouve pour ce numero.",
+        "client_found": "Profil client trouve.",
+        "code_sent": "Code de verification envoye.",
+        "phone_verified": "Telephone verifie."
+      },
+      "errors": {
+        "lookup": "Impossible de rechercher ce client.",
+        "lookup_first": "Veuillez d abord rechercher un client.",
+        "verify": "Impossible de verifier ce code.",
+        "check_in": "Impossible d effectuer le check-in de cette reservation.",
+        "create_ticket": "Impossible de creer le ticket.",
+        "track": "Impossible de suivre ce ticket.",
+        "track_not_found": "Aucun ticket trouve pour ces informations."
       }
     },
     "pagination": {
@@ -4926,7 +5033,18 @@
         "subtotal": "Sous-total",
         "tip": "Pourboire",
         "total_paid": "Total paye",
-        "tip_assigned_to": "Pourboire attribue a"
+        "tip_assigned_to": "Pourboire attribue a",
+        "pending_cash": "Paiement en attente (cash)",
+        "mark_paid": "Marquer comme paye",
+        "marking_paid": "Mise a jour...",
+        "status": {
+          "pending": "En attente",
+          "completed": "Paye",
+          "paid": "Paye",
+          "failed": "Echoue",
+          "refunded": "Rembourse",
+          "reversed": "Inverse"
+        }
       },
       "add_payment": {
         "title": "Ajouter un paiement",
@@ -5277,6 +5395,7 @@
           "enabled": "Activer les notifications reservations",
           "email": "Envoyer des emails",
           "in_app": "Envoyer des notifications in-app",
+          "sms": "Envoyer des notifications SMS",
           "notify_on_created": "Notifier a la creation d une reservation",
           "notify_on_rescheduled": "Notifier a la replanification d une reservation",
           "notify_on_cancelled": "Notifier a l annulation d une reservation",
@@ -5296,6 +5415,10 @@
         }
       },
       "queue": {
+        "assignment_modes": {
+          "per_staff": "File par employe",
+          "global_pull": "File globale (pull)"
+        },
         "dispatch_modes": {
           "fifo": "FIFO",
           "fifo_with_appointment_priority": "FIFO + priorite rendez-vous",
@@ -5321,6 +5444,7 @@
         "late_release_minutes": "Liberation retard (minutes)",
         "waitlist_enabled": "Activer la liste d attente",
         "queue_mode_enabled": "Activer le mode file hybride",
+        "queue_assignment_mode": "Mode d attribution de file",
         "queue_dispatch_mode": "Mode d ordonnancement de file",
         "queue_grace_minutes": "Delai de grace appel (minutes)",
         "queue_pre_call_threshold": "Seuil pre-appel (personnes devant)",
@@ -5834,6 +5958,41 @@
         "update_card": "Mettre a jour la carte",
         "summary_active": "Abonnement actif: {plan} (Statut: {status})",
         "summary_none": "Aucun abonnement actif pour le moment."
+      },
+      "payment_methods": {
+        "title": "Modes de paiement acceptes",
+        "subtitle": "Choisissez les moyens de paiement autorises pour cette entreprise.",
+        "save": "Enregistrer les paiements",
+        "default_label": "Mode de paiement par defaut",
+        "default_hint_single": "Une seule methode est active, elle sera appliquee automatiquement.",
+        "default_hint_multi": "Si aucun mode n est preselectionne, ce mode par defaut est utilise.",
+        "cash_context_title": "Contextes autorises pour le cash",
+        "cash_context_subtitle": "Limitez les ecrans ou le cash peut etre selectionne.",
+        "methods": {
+          "cash": {
+            "label": "Cash",
+            "description": "Encaissement sur place, marque en attente jusqu a reception."
+          },
+          "card": {
+            "label": "Carte (Stripe)",
+            "description": "Paiement carte en ligne via Stripe."
+          },
+          "bank_transfer": {
+            "label": "Virement bancaire",
+            "description": "Paiement manuel par virement hors checkout carte."
+          },
+          "check": {
+            "label": "Cheque",
+            "description": "Paiement collecte par cheque papier."
+          }
+        },
+        "cash_contexts": {
+          "reservation": "Reservation",
+          "invoice": "Facture",
+          "store_order": "Commande store",
+          "tip": "Pourboire / extra",
+          "walk_in": "Walk-in / ticket"
+        }
       },
       "tips": {
         "title": "Parametres pourboires",

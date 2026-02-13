@@ -264,7 +264,10 @@ class CustomerController extends Controller
                 'quotes' => fn($query) => $query->latest()->limit(10),
                 'works' => fn($query) => $query->with('invoice')->latest()->limit(10),
                 'requests' => fn($query) => $query->latest()->limit(10)->with('quote:id,number,status,customer_id'),
-                'invoices' => fn($query) => $query->withSum('payments', 'amount')->latest()->limit(10),
+                'invoices' => fn($query) => $query
+                    ->withSum(['payments as payments_sum_amount' => fn($paymentQuery) => $paymentQuery->whereIn('status', Payment::settledStatuses())], 'amount')
+                    ->latest()
+                    ->limit(10),
             ]);
         }
 

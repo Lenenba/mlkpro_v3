@@ -75,6 +75,7 @@ class ReservationAvailabilityService
             $accountLevel?->business_preset
         );
         $defaults = ReservationPresetResolver::defaults($resolvedPreset);
+        $queueFeaturesEnabled = ReservationPresetResolver::queueFeaturesEnabled($resolvedPreset);
 
         return [
             'business_preset' => $resolvedPreset,
@@ -87,7 +88,15 @@ class ReservationAvailabilityService
             'allow_client_reschedule' => (bool) ($teamLevel?->allow_client_reschedule ?? $accountLevel?->allow_client_reschedule ?? $defaults['allow_client_reschedule']),
             'late_release_minutes' => (int) ($accountLevel?->late_release_minutes ?? $defaults['late_release_minutes']),
             'waitlist_enabled' => (bool) ($accountLevel?->waitlist_enabled ?? $defaults['waitlist_enabled']),
-            'queue_mode_enabled' => (bool) ($accountLevel?->queue_mode_enabled ?? $defaults['queue_mode_enabled'] ?? false),
+            'queue_mode_enabled' => $queueFeaturesEnabled
+                && (bool) ($accountLevel?->queue_mode_enabled ?? $defaults['queue_mode_enabled'] ?? false),
+            'queue_assignment_mode' => in_array(
+                (string) ($accountLevel?->queue_assignment_mode ?? $defaults['queue_assignment_mode'] ?? 'per_staff'),
+                ['per_staff', 'global_pull'],
+                true
+            )
+                ? (string) ($accountLevel?->queue_assignment_mode ?? $defaults['queue_assignment_mode'] ?? 'per_staff')
+                : 'per_staff',
             'queue_dispatch_mode' => (string) ($accountLevel?->queue_dispatch_mode ?? $defaults['queue_dispatch_mode'] ?? 'fifo_with_appointment_priority'),
             'queue_grace_minutes' => max(1, min(60, (int) ($accountLevel?->queue_grace_minutes ?? $defaults['queue_grace_minutes'] ?? 5))),
             'queue_pre_call_threshold' => max(1, min(20, (int) ($accountLevel?->queue_pre_call_threshold ?? $defaults['queue_pre_call_threshold'] ?? 2))),

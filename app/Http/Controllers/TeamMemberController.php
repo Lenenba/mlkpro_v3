@@ -6,6 +6,7 @@ use App\Models\Role;
 use App\Models\TeamMember;
 use App\Models\User;
 use App\Notifications\InviteUserNotification;
+use App\Services\CompanyFeatureService;
 use App\Support\NotificationDispatcher;
 use App\Utils\FileHandler;
 use App\Services\UsageLimitService;
@@ -30,8 +31,29 @@ class TeamMemberController extends Controller
         ['id' => 'quotes.create', 'name' => 'Create quotes'],
         ['id' => 'quotes.edit', 'name' => 'Edit quotes'],
         ['id' => 'quotes.send', 'name' => 'Send quotes'],
+        ['id' => 'reservations.view', 'name' => 'View reservations'],
+        ['id' => 'reservations.queue', 'name' => 'Operate queue actions'],
+        ['id' => 'reservations.manage', 'name' => 'Manage reservations settings and updates'],
         ['id' => 'sales.manage', 'name' => 'Manage sales'],
         ['id' => 'sales.pos', 'name' => 'POS access only'],
+    ];
+
+    private const PERMISSION_FEATURE_MAP = [
+        'jobs.view' => 'jobs',
+        'jobs.edit' => 'jobs',
+        'tasks.view' => 'tasks',
+        'tasks.create' => 'tasks',
+        'tasks.edit' => 'tasks',
+        'tasks.delete' => 'tasks',
+        'quotes.view' => 'quotes',
+        'quotes.create' => 'quotes',
+        'quotes.edit' => 'quotes',
+        'quotes.send' => 'quotes',
+        'reservations.view' => 'reservations',
+        'reservations.queue' => 'reservations',
+        'reservations.manage' => 'reservations',
+        'sales.manage' => 'sales',
+        'sales.pos' => 'sales',
     ];
 
     public function index()
@@ -47,9 +69,11 @@ class TeamMemberController extends Controller
             ->orderBy('created_at')
             ->get();
 
+        $availablePermissions = $this->availablePermissionsForAccount($user);
+
         return $this->inertiaOrJson('Team/Index', [
             'teamMembers' => $teamMembers,
-            'availablePermissions' => self::AVAILABLE_PERMISSIONS,
+            'availablePermissions' => $availablePermissions,
             'stats' => [
                 'total' => $teamMembers->count(),
                 'active' => $teamMembers->where('is_active', true)->count(),
@@ -68,7 +92,7 @@ class TeamMemberController extends Controller
 
         app(UsageLimitService::class)->enforceLimit($user, 'team_members');
 
-        $allowedPermissions = collect(self::AVAILABLE_PERMISSIONS)->pluck('id')->all();
+        $allowedPermissions = $this->allowedPermissionIdsForAccount($user);
 
         $validated = $request->validate([
             'name' => 'required|string|max:255',
@@ -77,7 +101,7 @@ class TeamMemberController extends Controller
             'title' => 'nullable|string|max:255',
             'phone' => 'nullable|string|max:255',
             'permissions' => 'nullable|array',
-            'permissions.*' => ['string', 'in:' . implode(',', $allowedPermissions)],
+            'permissions.*' => ['string', Rule::in($allowedPermissions)],
             'planning_rules' => 'nullable|array',
             'planning_rules.break_minutes' => 'nullable|integer|min:0|max:240',
             'planning_rules.min_hours_day' => 'nullable|numeric|min:0|max:24',
@@ -120,7 +144,7 @@ class TeamMemberController extends Controller
 
         $permissions = array_values($validated['permissions'] ?? []);
         if (!$permissions) {
-            $permissions = $this->defaultPermissionsForRole($validated['role']);
+            $permissions = $this->defaultPermissionsForRole($validated['role'], $allowedPermissions);
         }
 
         $planningRules = $this->normalizePlanningRules($validated['planning_rules'] ?? null);
@@ -179,7 +203,7 @@ class TeamMemberController extends Controller
             abort(404);
         }
 
-        $allowedPermissions = collect(self::AVAILABLE_PERMISSIONS)->pluck('id')->all();
+        $allowedPermissions = $this->allowedPermissionIdsForAccount($user);
 
         $validated = $request->validate([
             'name' => 'nullable|string|max:255',
@@ -189,7 +213,7 @@ class TeamMemberController extends Controller
             'title' => 'nullable|string|max:255',
             'phone' => 'nullable|string|max:255',
             'permissions' => 'nullable|array',
-            'permissions.*' => ['string', 'in:' . implode(',', $allowedPermissions)],
+            'permissions.*' => ['string', Rule::in($allowedPermissions)],
             'planning_rules' => 'nullable|array',
             'planning_rules.break_minutes' => 'nullable|integer|min:0|max:240',
             'planning_rules.min_hours_day' => 'nullable|numeric|min:0|max:24',
@@ -293,34 +317,78 @@ class TeamMemberController extends Controller
         return redirect()->back()->with('success', 'Team member deactivated.');
     }
 
-    private function defaultPermissionsForRole(string $role): array
+    private function availablePermissionsForAccount(User $accountOwner): array
     {
-        return match ($role) {
+        $featureService = app(CompanyFeatureService::class);
+
+        return array_values(array_filter(
+            self::AVAILABLE_PERMISSIONS,
+            function (array $permission) use ($accountOwner, $featureService): bool {
+                $permissionId = (string) ($permission['id'] ?? '');
+                if ($permissionId === '') {
+                    return false;
+                }
+
+                $feature = self::PERMISSION_FEATURE_MAP[$permissionId] ?? null;
+                if (!$feature) {
+                    return true;
+                }
+
+                return $featureService->hasFeature($accountOwner, $feature);
+            }
+        ));
+    }
+
+    private function allowedPermissionIdsForAccount(User $accountOwner): array
+    {
+        return collect($this->availablePermissionsForAccount($accountOwner))
+            ->pluck('id')
+            ->values()
+            ->all();
+    }
+
+    private function defaultPermissionsForRole(string $role, ?array $allowedPermissions = null): array
+    {
+        $defaults = match ($role) {
             'admin' => [
                 'jobs.view',
                 'jobs.edit',
-            'tasks.view',
-            'tasks.create',
-            'tasks.edit',
-            'tasks.delete',
-            'quotes.view',
-            'quotes.create',
-            'quotes.edit',
-            'quotes.send',
-            'sales.manage',
-        ],
+                'tasks.view',
+                'tasks.create',
+                'tasks.edit',
+                'tasks.delete',
+                'quotes.view',
+                'quotes.create',
+                'quotes.edit',
+                'quotes.send',
+                'reservations.view',
+                'reservations.queue',
+                'reservations.manage',
+                'sales.manage',
+            ],
             'seller' => [
                 'sales.pos',
             ],
             'sales_manager' => [
                 'sales.manage',
+                'reservations.view',
+                'reservations.queue',
+                'reservations.manage',
             ],
             default => [
                 'jobs.view',
                 'tasks.view',
                 'tasks.edit',
+                'reservations.view',
+                'reservations.queue',
             ],
         };
+
+        if (!is_array($allowedPermissions)) {
+            return $defaults;
+        }
+
+        return array_values(array_intersect($defaults, $allowedPermissions));
     }
 
     private function normalizePlanningRules(?array $rules): ?array

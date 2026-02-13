@@ -14,6 +14,10 @@ const props = defineProps({
         type: Object,
         default: () => ({}),
     },
+    paymentMethodSettings: {
+        type: Object,
+        default: () => ({}),
+    },
 });
 
 const { t } = useI18n();
@@ -184,10 +188,41 @@ const paymentStatusClass = computed(() =>
     paymentStatusClasses[paymentStatusKey.value] || statusClasses.draft
 );
 const stripeEnabled = computed(() => Boolean(props.stripe?.enabled));
+const ALLOWED_INTERNAL_METHODS = ['cash', 'card', 'bank_transfer', 'check'];
+const allowedPaymentMethods = computed(() => {
+    const raw = Array.isArray(props.paymentMethodSettings?.enabled_methods_internal)
+        ? props.paymentMethodSettings.enabled_methods_internal
+        : [];
+
+    const normalized = raw
+        .map((method) => (typeof method === 'string' ? method.trim().toLowerCase() : ''))
+        .filter((method, index, array) => method && array.indexOf(method) === index)
+        .filter((method) => ALLOWED_INTERNAL_METHODS.includes(method));
+
+    return normalized.length ? normalized : ['cash', 'card'];
+});
+const defaultPaymentMethod = computed(() => {
+    const configured = typeof props.paymentMethodSettings?.default_method_internal === 'string'
+        ? props.paymentMethodSettings.default_method_internal.trim().toLowerCase()
+        : '';
+
+    if (configured && allowedPaymentMethods.value.includes(configured)) {
+        return configured;
+    }
+
+    return allowedPaymentMethods.value[0] || 'cash';
+});
+const hasCardMethodEnabled = computed(() => allowedPaymentMethods.value.includes('card'));
+const canUseStripeMethod = computed(() => stripeEnabled.value && hasCardMethodEnabled.value);
+const manualPaymentMethodOptions = computed(() => allowedPaymentMethods.value);
+const hasMultipleManualPaymentMethods = computed(() => manualPaymentMethodOptions.value.length > 1);
+const singleManualPaymentMethod = computed(() =>
+    hasMultipleManualPaymentMethods.value ? null : (manualPaymentMethodOptions.value[0] || defaultPaymentMethod.value)
+);
 const stripeProcessing = ref(false);
 const stripeError = ref('');
 const canStripePay = computed(() => {
-    if (!stripeEnabled.value) {
+    if (!canUseStripeMethod.value) {
         return false;
     }
     if (!['draft', 'pending'].includes(props.sale?.status)) {
@@ -233,34 +268,90 @@ const paymentMethodLabel = (method) => {
     if (method === 'cash') {
         return t('sales.payments.cash');
     }
-    if (method === 'card') {
+    if (method === 'card' || method === 'stripe') {
         return t('sales.payments.card');
     }
+    if (method === 'bank_transfer') {
+        return 'Bank transfer';
+    }
+    if (method === 'check') {
+        return 'Check';
+    }
     return method || '-';
+};
+
+const isSettledPayment = (payment) => {
+    const status = String(payment?.status || '').toLowerCase();
+    return status === '' || status === 'completed' || status === 'paid';
+};
+
+const isPendingCashPayment = (payment) =>
+    String(payment?.method || '').toLowerCase() === 'cash'
+    && String(payment?.status || '').toLowerCase() === 'pending';
+
+const paymentHistoryStatusLabel = (payment) => {
+    if (isPendingCashPayment(payment)) {
+        return t('sales.payments.pending_cash');
+    }
+
+    const status = String(payment?.status || '').toLowerCase();
+    if (!status) {
+        return t('sales.payments.status.completed');
+    }
+
+    const key = `sales.payments.status.${status}`;
+    const translated = t(key);
+    return translated === key ? status : translated;
+};
+
+const paymentHistoryStatusClass = (payment) => {
+    const status = String(payment?.status || '').toLowerCase();
+
+    if (isPendingCashPayment(payment)) {
+        return 'bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300';
+    }
+
+    if (status === 'completed' || status === 'paid' || status === '') {
+        return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300';
+    }
+
+    if (status === 'failed' || status === 'refunded' || status === 'reversed') {
+        return 'bg-red-100 text-red-700 dark:bg-red-500/10 dark:text-red-300';
+    }
+
+    return 'bg-stone-100 text-stone-700 dark:bg-neutral-800 dark:text-neutral-300';
 };
 
 const paymentTimeline = computed(() => {
     const list = Array.isArray(props.sale?.payments) ? props.sale.payments : [];
     const sorted = [...list]
-        .filter((payment) => !payment.status || payment.status === 'completed')
-        .sort((a, b) => new Date(a.paid_at || 0) - new Date(b.paid_at || 0));
+        .sort((a, b) => new Date(a.paid_at || a.created_at || 0) - new Date(b.paid_at || b.created_at || 0));
     let running = 0;
     return sorted.map((payment) => {
         const amount = Number(payment.amount || 0);
+        const settled = isSettledPayment(payment);
         const previous = running;
-        running += amount;
-        let labelKey = 'payment';
-        if (depositAmount.value > 0) {
-            if (previous < depositAmount.value && running <= depositAmount.value) {
-                labelKey = 'deposit';
-            } else if (previous < depositAmount.value && running > depositAmount.value) {
-                labelKey = 'deposit_balance';
+        if (settled) {
+            running += amount;
+        }
+        let labelKey = 'pending';
+        if (settled) {
+            labelKey = 'payment';
+            if (depositAmount.value > 0) {
+                if (previous < depositAmount.value && running <= depositAmount.value) {
+                    labelKey = 'deposit';
+                } else if (previous < depositAmount.value && running > depositAmount.value) {
+                    labelKey = 'deposit_balance';
+                } else {
+                    labelKey = 'balance';
+                }
             } else {
-                labelKey = 'balance';
+                labelKey = 'payment';
             }
         }
         return {
             ...payment,
+            is_settled: settled,
             timeline_label: t(`sales.payments.timeline.${labelKey}`),
         };
     });
@@ -268,8 +359,9 @@ const paymentTimeline = computed(() => {
 
 const paymentForm = useForm({
     amount: '',
-    method: 'cash',
+    method: '',
 });
+const markPaymentForm = useForm({});
 
 const suggestedAmount = computed(() => {
     if (!showPaymentPanel.value) {
@@ -291,6 +383,16 @@ watch(
     { immediate: true }
 );
 
+watch(
+    () => [manualPaymentMethodOptions.value, defaultPaymentMethod.value],
+    () => {
+        if (!manualPaymentMethodOptions.value.includes(paymentForm.method)) {
+            paymentForm.method = defaultPaymentMethod.value;
+        }
+    },
+    { immediate: true }
+);
+
 const submitPayment = () => {
     if (!showPaymentPanel.value || !props.sale?.id) {
         return;
@@ -300,6 +402,16 @@ const submitPayment = () => {
         onSuccess: () => {
             paymentForm.reset('amount');
         },
+    });
+};
+
+const markCashPaymentAsPaid = (paymentId) => {
+    if (!paymentId || markPaymentForm.processing) {
+        return;
+    }
+
+    markPaymentForm.patch(route('payment.mark-paid', paymentId), {
+        preserveScroll: true,
     });
 };
 </script>
@@ -614,13 +726,32 @@ const submitPayment = () => {
                                 <label class="block text-xs text-stone-500 dark:text-neutral-400">
                                     {{ $t('sales.payments.method_label') }}
                                 </label>
-                                <select
-                                    v-model="paymentForm.method"
-                                    class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
+                                <div v-if="hasMultipleManualPaymentMethods">
+                                    <select
+                                        v-model="paymentForm.method"
+                                        class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
+                                    >
+                                        <option
+                                            v-for="method in manualPaymentMethodOptions"
+                                            :key="`sale-show-payment-method-${method}`"
+                                            :value="method"
+                                        >
+                                            {{ paymentMethodLabel(method) }}
+                                        </option>
+                                    </select>
+                                </div>
+                                <div
+                                    v-else
+                                    class="mt-1 rounded-sm border border-stone-200 bg-stone-50 px-3 py-2 text-xs text-stone-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300"
                                 >
-                                    <option value="cash">{{ $t('sales.payments.cash') }}</option>
-                                    <option value="card">{{ $t('sales.payments.card') }}</option>
-                                </select>
+                                    Payment method:
+                                    <span class="font-semibold text-stone-700 dark:text-neutral-200">
+                                        {{ paymentMethodLabel(singleManualPaymentMethod) }}
+                                    </span>
+                                </div>
+                                <div v-if="paymentForm.errors.method" class="text-xs text-red-600">
+                                    {{ paymentForm.errors.method }}
+                                </div>
                             </div>
                             <div v-if="paymentForm.errors.payment" class="text-xs text-red-600">
                                 {{ paymentForm.errors.payment }}
@@ -661,11 +792,25 @@ const submitPayment = () => {
                                             {{ formatCurrency(payment.amount) }}
                                         </div>
                                         <div class="text-[11px] text-stone-500 dark:text-neutral-400">
-                                            {{ paymentMethodLabel(payment.method) }} · {{ formatDateTime(payment.paid_at) }}
+                                            {{ paymentMethodLabel(payment.method) }} · {{ formatDateTime(payment.paid_at || payment.created_at) }}
                                         </div>
                                     </div>
-                                    <div class="text-[11px] text-stone-500 dark:text-neutral-400">
-                                        {{ payment.status || '-' }}
+                                    <div class="flex flex-col items-end gap-2">
+                                        <span
+                                            class="rounded-full px-2 py-0.5 text-[11px] font-medium"
+                                            :class="paymentHistoryStatusClass(payment)"
+                                        >
+                                            {{ paymentHistoryStatusLabel(payment) }}
+                                        </span>
+                                        <button
+                                            v-if="isPendingCashPayment(payment)"
+                                            type="button"
+                                            class="rounded-sm border border-stone-200 bg-white px-2 py-1 text-[11px] font-medium text-stone-700 hover:bg-stone-50 disabled:opacity-60 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
+                                            :disabled="markPaymentForm.processing"
+                                            @click="markCashPaymentAsPaid(payment.id)"
+                                        >
+                                            {{ markPaymentForm.processing ? $t('sales.payments.marking_paid') : $t('sales.payments.mark_paid') }}
+                                        </button>
                                     </div>
                                 </div>
                             </div>

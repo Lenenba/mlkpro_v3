@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Customer;
+use App\Models\Payment;
 use App\Models\Product;
 use App\Models\ProductLot;
 use App\Models\Sale;
@@ -12,6 +13,8 @@ use App\Services\InventoryService;
 use App\Services\SaleNotificationService;
 use App\Services\SaleTimelineService;
 use App\Services\StripeSaleService;
+use App\Services\TenantPaymentMethodGuardService;
+use App\Support\TenantPaymentMethodsResolver;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -233,7 +236,7 @@ class SaleController extends Controller
         $orders = (clone $baseQuery)
             ->with('customer:id,first_name,last_name,company_name')
             ->withCount('items')
-            ->withSum(['payments as payments_sum_amount' => fn($query) => $query->where('status', 'completed')], 'amount')
+            ->withSum(['payments as payments_sum_amount' => fn($query) => $query->whereIn('status', Payment::settledStatuses())], 'amount')
             ->orderBy($sort, $direction)
             ->simplePaginate(12)
             ->withQueryString();
@@ -301,6 +304,7 @@ class SaleController extends Controller
             'stripe' => [
                 'enabled' => app(StripeSaleService::class)->isConfigured(),
             ],
+            'paymentMethodSettings' => TenantPaymentMethodsResolver::forAccountId((int) $accountId),
         ]);
     }
 
@@ -372,7 +376,7 @@ class SaleController extends Controller
                 Sale::STATUS_PAID,
                 Sale::STATUS_CANCELED,
             ])],
-            'payment_method' => ['nullable', Rule::in(['cash', 'card'])],
+            'payment_method' => ['nullable', 'string', 'max:50'],
             'pay_with_stripe' => 'nullable|boolean',
             'fulfillment_status' => ['nullable', Rule::in($this->allowedFulfillmentStatuses())],
             'notes' => 'nullable|string|max:2000',
@@ -456,8 +460,41 @@ class SaleController extends Controller
             throw ValidationException::withMessages($errors);
         }
 
-        $paymentMethod = $validated['payment_method'] ?? 'cash';
-        $payWithStripe = $paymentMethod === 'card' && $validated['status'] === Sale::STATUS_PAID;
+        $requestedPaymentMethod = $validated['payment_method'] ?? null;
+        $paymentMethod = TenantPaymentMethodsResolver::normalizeInternalMethod($requestedPaymentMethod) ?? 'cash';
+        $payWithStripe = false;
+
+        if ($validated['status'] === Sale::STATUS_PAID) {
+            $methodDecision = app(TenantPaymentMethodGuardService::class)->evaluate(
+                (int) $accountId,
+                $requestedPaymentMethod,
+                'sale_manual'
+            );
+            if (!$methodDecision['allowed']) {
+                throw ValidationException::withMessages([
+                    'payment_method' => TenantPaymentMethodGuardService::ERROR_MESSAGE,
+                    'code' => TenantPaymentMethodGuardService::ERROR_CODE,
+                ]);
+            }
+
+            $paymentMethod = $methodDecision['canonical_method'] ?? $paymentMethod;
+            $payWithStripe = $paymentMethod === 'card';
+
+            if ($payWithStripe) {
+                $stripeDecision = app(TenantPaymentMethodGuardService::class)->evaluate(
+                    (int) $accountId,
+                    'stripe',
+                    'sale_stripe'
+                );
+                if (!$stripeDecision['allowed']) {
+                    throw ValidationException::withMessages([
+                        'payment_method' => TenantPaymentMethodGuardService::ERROR_MESSAGE,
+                        'code' => TenantPaymentMethodGuardService::ERROR_CODE,
+                    ]);
+                }
+            }
+        }
+
         $stripeService = $payWithStripe ? app(StripeSaleService::class) : null;
         if ($payWithStripe && !$stripeService?->isConfigured()) {
             throw ValidationException::withMessages([
@@ -1018,7 +1055,7 @@ class SaleController extends Controller
         }
 
         $amountPaid = (float) $sale->payments()
-            ->where('status', 'completed')
+            ->whereIn('status', Payment::settledStatuses())
             ->sum('amount');
         $paymentComplete = (float) $sale->total > 0 && $amountPaid >= (float) $sale->total;
         if ($nextStatus !== Sale::STATUS_CANCELED && $paymentComplete && $this->isFulfillmentComplete($nextFulfillment)) {
@@ -1188,11 +1225,22 @@ class SaleController extends Controller
             abort(404);
         }
 
-        $respondError = function (string $message) use ($request) {
+        $respondError = function (string $message, ?string $code = null) use ($request) {
             if ($this->shouldReturnJson($request)) {
-                return response()->json(['message' => $message], 422);
+                $payload = ['message' => $message];
+                if ($code) {
+                    $payload['code'] = $code;
+                }
+
+                return response()->json($payload, 422);
             }
-            return redirect()->back()->withErrors(['status' => $message]);
+
+            $errors = ['status' => $message];
+            if ($code) {
+                $errors['code'] = $code;
+            }
+
+            return redirect()->back()->withErrors($errors);
         };
 
         if (in_array($sale->status, [Sale::STATUS_PAID, Sale::STATUS_CANCELED], true)) {
@@ -1203,7 +1251,19 @@ class SaleController extends Controller
             return $respondError('Montant invalide pour Stripe.');
         }
 
-        $sale->loadSum(['payments as payments_sum_amount' => fn($query) => $query->where('status', 'completed')], 'amount');
+        $methodDecision = app(TenantPaymentMethodGuardService::class)->evaluate(
+            (int) $sale->user_id,
+            'stripe',
+            'sale_stripe'
+        );
+        if (!$methodDecision['allowed']) {
+            return $respondError(
+                TenantPaymentMethodGuardService::ERROR_MESSAGE,
+                TenantPaymentMethodGuardService::ERROR_CODE
+            );
+        }
+
+        $sale->loadSum(['payments as payments_sum_amount' => fn($query) => $query->whereIn('status', Payment::settledStatuses())], 'amount');
         if ($sale->balance_due <= 0) {
             return $respondError('Aucun solde a payer.');
         }
@@ -1374,16 +1434,17 @@ class SaleController extends Controller
             'createdBy:id,name,email,phone_number',
             'pickupConfirmedBy:id,name,email,phone_number',
             'payments' => fn($query) => $query
-                ->select(['id', 'sale_id', 'amount', 'method', 'status', 'paid_at'])
+                ->select(['id', 'sale_id', 'amount', 'method', 'status', 'paid_at', 'created_at'])
                 ->orderByDesc('paid_at'),
         ]);
-        $sale->loadSum(['payments as payments_sum_amount' => fn($query) => $query->where('status', 'completed')], 'amount');
+        $sale->loadSum(['payments as payments_sum_amount' => fn($query) => $query->whereIn('status', Payment::settledStatuses())], 'amount');
 
         return $this->inertiaOrJson('Sales/Show', [
             'sale' => $sale,
             'stripe' => [
                 'enabled' => app(StripeSaleService::class)->isConfigured(),
             ],
+            'paymentMethodSettings' => TenantPaymentMethodsResolver::forAccountId((int) $sale->user_id),
         ]);
     }
 
@@ -1408,10 +1469,10 @@ class SaleController extends Controller
             'customer:id,first_name,last_name,company_name,email,phone',
             'items.product:id,name,sku,unit,image',
             'payments' => fn($query) => $query
-                ->select(['id', 'sale_id', 'amount', 'method', 'status', 'paid_at'])
+                ->select(['id', 'sale_id', 'amount', 'method', 'status', 'paid_at', 'created_at'])
                 ->orderByDesc('paid_at'),
         ]);
-        $sale->loadSum(['payments as payments_sum_amount' => fn($query) => $query->where('status', 'completed')], 'amount');
+        $sale->loadSum(['payments as payments_sum_amount' => fn($query) => $query->whereIn('status', Payment::settledStatuses())], 'amount');
 
         $items = $sale->items->map(function ($item) {
             return [
@@ -1480,7 +1541,7 @@ class SaleController extends Controller
             'pickupConfirmedBy:id,name,email,phone_number',
             'deliveryConfirmedBy:id,name,email,phone_number',
         ]);
-        $sale->loadSum(['payments as payments_sum_amount' => fn($query) => $query->where('status', 'completed')], 'amount');
+        $sale->loadSum(['payments as payments_sum_amount' => fn($query) => $query->whereIn('status', Payment::settledStatuses())], 'amount');
 
         return $sale;
     }

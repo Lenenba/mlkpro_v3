@@ -34,11 +34,13 @@ class UserFactory extends Factory
             'company_logo' => null,
             'company_description' => $this->faker->sentence(12),
             'company_country' => $this->faker->country(),
-            'company_province' => $this->faker->state(),
+            'company_province' => $this->faker->word(),
             'company_city' => $this->faker->city(),
             'company_type' => $this->faker->randomElement(['services', 'products']),
             'onboarding_completed_at' => now(),
             'payment_methods' => ['cash', 'card'],
+            'default_payment_method' => 'cash',
+            'cash_allowed_contexts' => ['reservation', 'invoice', 'store_order', 'tip', 'walk_in'],
         ];
     }
 

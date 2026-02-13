@@ -209,7 +209,7 @@ Rules:
 - Keep item_type only as "service" or "product".
 - For work.status use one of: to_schedule, scheduled, en_route, in_progress, tech_complete, pending_review, validated, auto_validated, dispute, closed, cancelled, completed.
 - For action intents, fill targets with any provided quote/work/invoice ids or numbers.
-- For team_member.permissions, only use permission ids: quotes.view, quotes.create, quotes.edit, quotes.send, jobs.view, jobs.edit, tasks.view, tasks.create, tasks.edit, tasks.delete, sales.manage, sales.pos.
+- For team_member.permissions, only use permission ids: quotes.view, quotes.create, quotes.edit, quotes.send, jobs.view, jobs.edit, tasks.view, tasks.create, tasks.edit, tasks.delete, reservations.view, reservations.queue, reservations.manage, sales.manage, sales.pos.
 - If intent is not clear, set intent to "unknown".
 PROMPT;
     }

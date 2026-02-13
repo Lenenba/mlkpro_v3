@@ -10,6 +10,7 @@ class ReservationNotificationPreferenceService
         'enabled' => true,
         'email' => true,
         'in_app' => true,
+        'sms' => false,
         'notify_on_created' => true,
         'notify_on_rescheduled' => true,
         'notify_on_cancelled' => true,

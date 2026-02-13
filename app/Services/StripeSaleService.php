@@ -146,6 +146,21 @@ class StripeSaleService
             return null;
         }
 
+        $policyDecision = app(TenantPaymentMethodGuardService::class)->evaluate(
+            (int) $sale->user_id,
+            'stripe',
+            'sale_webhook'
+        );
+        if (!$policyDecision['allowed']) {
+            Log::warning('Stripe sale payment policy mismatch.', [
+                'account_id' => $sale->user_id,
+                'sale_id' => $sale->id,
+                'provider_reference' => $paymentIntentId,
+                'event' => 'checkout.session',
+                'error_code' => TenantPaymentMethodGuardService::ERROR_CODE,
+            ]);
+        }
+
         $amountTotal = $session['amount_total'] ?? null;
         if (!$amountTotal) {
             return null;
@@ -176,6 +191,21 @@ class StripeSaleService
         $sale = Sale::query()->find($saleId);
         if (!$sale || in_array($sale->status, [Sale::STATUS_CANCELED], true)) {
             return null;
+        }
+
+        $policyDecision = app(TenantPaymentMethodGuardService::class)->evaluate(
+            (int) $sale->user_id,
+            'stripe',
+            'sale_webhook'
+        );
+        if (!$policyDecision['allowed']) {
+            Log::warning('Stripe sale payment policy mismatch.', [
+                'account_id' => $sale->user_id,
+                'sale_id' => $sale->id,
+                'provider_reference' => $paymentIntentId,
+                'event' => 'payment_intent',
+                'error_code' => TenantPaymentMethodGuardService::ERROR_CODE,
+            ]);
         }
 
         $amountTotal = $intent['amount_received'] ?? $intent['amount'] ?? null;

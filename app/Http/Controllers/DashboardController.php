@@ -24,6 +24,7 @@ use App\Services\StripeInvoiceService;
 use App\Services\StripeSaleService;
 use App\Services\UsageLimitService;
 use App\Support\PlanDisplay;
+use App\Support\TenantPaymentMethodsResolver;
 use App\Support\TipSettingsResolver;
 use Illuminate\Support\Carbon;
 use Illuminate\Http\Request;
@@ -88,6 +89,7 @@ class DashboardController extends Controller
                         'enabled' => app(StripeInvoiceService::class)->isConfigured(),
                     ],
                     'tips' => $this->tipSettings(),
+                    'paymentMethodSettings' => TenantPaymentMethodsResolver::defaults(),
                 ], $cacheKey);
             }
 
@@ -149,7 +151,7 @@ class DashboardController extends Controller
                         'scheduled_for',
                         'delivery_confirmed_at',
                     ])
-                    ->loadSum(['payments as payments_sum_amount' => fn($query) => $query->where('status', 'completed')], 'amount');
+                    ->loadSum(['payments as payments_sum_amount' => fn($query) => $query->whereIn('status', Payment::settledStatuses())], 'amount');
 
                 $inDeliveryOrders = (clone $salesQuery)
                     ->where('status', '!=', Sale::STATUS_CANCELED)
@@ -429,7 +431,7 @@ class DashboardController extends Controller
             $invoicesDue = $autoValidateInvoices
                 ? collect()
                 : (clone $invoicesDueQuery)
-                    ->withSum('payments', 'amount')
+                    ->withSum(['payments as payments_sum_amount' => fn($query) => $query->whereIn('status', Payment::settledStatuses())], 'amount')
                     ->orderByDesc('created_at')
                     ->limit(8)
                     ->get(['id', 'number', 'status', 'total', 'created_at'])
@@ -528,6 +530,7 @@ class DashboardController extends Controller
                     'enabled' => app(StripeInvoiceService::class)->isConfigured(),
                 ],
                 'tips' => $this->tipSettings((int) $customer->user_id),
+                'paymentMethodSettings' => TenantPaymentMethodsResolver::forAccountId((int) $customer->user_id),
             ];
 
             return $respond('DashboardClient', $props, $cacheKey);
@@ -1130,7 +1133,7 @@ class DashboardController extends Controller
 
         $outstandingInvoices = Invoice::byUser($userId)
             ->with('customer:id,company_name,first_name,last_name')
-            ->withSum('payments', 'amount')
+            ->withSum(['payments as payments_sum_amount' => fn($query) => $query->whereIn('status', Payment::settledStatuses())], 'amount')
             ->whereNotIn('status', ['paid', 'void'])
             ->orderByDesc('total')
             ->limit(5)

@@ -11,10 +11,12 @@ use App\Models\User;
 use App\Models\Work;
 use App\Notifications\ActionEmailNotification;
 use App\Support\NotificationDispatcher;
+use App\Services\TenantPaymentMethodGuardService;
 use App\Services\TipAllocationService;
 use App\Support\TipCalculator;
 use App\Support\TipAssigneeResolver;
 use App\Support\TipSettingsResolver;
+use App\Support\TenantPaymentMethodsResolver;
 use App\Services\StripeInvoiceService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\URL;
@@ -56,6 +58,7 @@ class PortalInvoiceController extends Controller
                 'name' => $owner?->company_name ?: config('app.name'),
                 'logo_url' => $owner?->company_logo_url,
             ],
+            'paymentMethodSettings' => TenantPaymentMethodsResolver::forAccountId((int) $invoice->user_id),
         ]);
     }
 
@@ -86,6 +89,25 @@ class PortalInvoiceController extends Controller
             'notes' => 'nullable|string|max:255',
         ]);
 
+        $methodDecision = app(TenantPaymentMethodGuardService::class)->evaluate(
+            (int) $invoice->user_id,
+            $validated['method'] ?? null,
+            'invoice_portal'
+        );
+        if (!$methodDecision['allowed']) {
+            if ($this->shouldReturnJson($request)) {
+                return response()->json([
+                    'code' => TenantPaymentMethodGuardService::ERROR_CODE,
+                    'message' => TenantPaymentMethodGuardService::ERROR_MESSAGE,
+                ], 422);
+            }
+
+            return redirect()->back()->withErrors([
+                'method' => TenantPaymentMethodGuardService::ERROR_MESSAGE,
+                'code' => TenantPaymentMethodGuardService::ERROR_CODE,
+            ]);
+        }
+
         $amount = (float) $validated['amount'];
         if ($amount > (float) $invoice->balance_due) {
             if ($this->shouldReturnJson($request)) {
@@ -102,6 +124,9 @@ class PortalInvoiceController extends Controller
         $tipSettings = TipSettingsResolver::forAccountId((int) $invoice->user_id);
         $tip = TipCalculator::resolve($amount, $validated, $tipSettings);
         $tipAssigneeUserId = TipAssigneeResolver::resolveForInvoice($invoice);
+        $isCashPayment = ($methodDecision['canonical_method'] ?? null) === 'cash';
+        $paymentStatus = $isCashPayment ? Payment::STATUS_PENDING : Payment::STATUS_COMPLETED;
+        $paidAt = $isCashPayment ? null : now();
 
         $payment = Payment::create([
             'invoice_id' => $invoice->id,
@@ -114,11 +139,11 @@ class PortalInvoiceController extends Controller
             'tip_base_amount' => $tip['tip_base_amount'],
             'charged_total' => $tip['charged_total'],
             'tip_assignee_user_id' => $tip['tip_amount'] > 0 ? $tipAssigneeUserId : null,
-            'method' => $validated['method'] ?? null,
-            'status' => 'completed',
+            'method' => $methodDecision['canonical_method'],
+            'status' => $paymentStatus,
             'reference' => $validated['reference'] ?? null,
             'notes' => $validated['notes'] ?? null,
-            'paid_at' => now(),
+            'paid_at' => $paidAt,
         ]);
 
         app(TipAllocationService::class)->syncForPayment($payment);
@@ -135,6 +160,7 @@ class PortalInvoiceController extends Controller
             'charged_total' => $payment->charged_total,
             'tip_assignee_user_id' => $payment->tip_assignee_user_id,
             'method' => $payment->method,
+            'status' => $payment->status,
         ], 'Payment recorded by client');
 
         if ($previousStatus !== $invoice->status) {
@@ -154,6 +180,16 @@ class PortalInvoiceController extends Controller
             $customerLabel = $customer->company_name
                 ?: trim(($customer->first_name ?? '') . ' ' . ($customer->last_name ?? ''));
             $tipAmount = (float) ($payment->tip_amount ?? 0);
+            $notificationTitle = $isCashPayment
+                ? 'Cash payment pending collection'
+                : 'Payment received from client';
+            $notificationMessage = $isCashPayment
+                ? ($customerLabel
+                    ? $customerLabel . ' recorded a cash payment pending collection.'
+                    : 'A client recorded a cash payment pending collection.')
+                : ($customerLabel
+                    ? $customerLabel . ' recorded a payment.'
+                    : 'A client recorded a payment.');
 
             $details = [
                 ['label' => 'Invoice', 'value' => $invoice->number ?? $invoice->id],
@@ -166,21 +202,25 @@ class PortalInvoiceController extends Controller
             $details[] = ['label' => 'Balance due', 'value' => '$' . number_format((float) $invoice->balance_due, 2)];
 
             NotificationDispatcher::send($owner, new ActionEmailNotification(
-                'Payment received from client',
-                $customerLabel ? $customerLabel . ' recorded a payment.' : 'A client recorded a payment.',
+                $notificationTitle,
+                $notificationMessage,
                 $details,
                 route('invoice.show', $invoice->id),
                 'View invoice',
-                'Payment received from client'
+                $notificationTitle
             ), [
                 'invoice_id' => $invoice->id,
                 'payment_id' => $payment->id,
             ]);
         }
 
+        $successMessage = $isCashPayment
+            ? 'Cash payment recorded as pending collection.'
+            : 'Payment recorded successfully.';
+
         if ($this->shouldReturnJson($request)) {
             return response()->json([
-                'message' => 'Payment recorded successfully.',
+                'message' => $successMessage,
                 'invoice' => [
                     'id' => $invoice->id,
                     'status' => $invoice->status,
@@ -197,7 +237,7 @@ class PortalInvoiceController extends Controller
             ]);
         }
 
-        return redirect()->back()->with('success', 'Payment recorded successfully.');
+        return redirect()->back()->with('success', $successMessage);
     }
 
     public function createStripeCheckout(Request $request, Invoice $invoice)
@@ -213,6 +253,25 @@ class PortalInvoiceController extends Controller
 
             return redirect()->back()->withErrors([
                 'status' => $message,
+            ]);
+        }
+
+        $methodDecision = app(TenantPaymentMethodGuardService::class)->evaluate(
+            (int) $invoice->user_id,
+            'stripe',
+            'invoice_portal'
+        );
+        if (!$methodDecision['allowed']) {
+            if ($this->shouldReturnJson($request)) {
+                return response()->json([
+                    'code' => TenantPaymentMethodGuardService::ERROR_CODE,
+                    'message' => TenantPaymentMethodGuardService::ERROR_MESSAGE,
+                ], 422);
+            }
+
+            return redirect()->back()->withErrors([
+                'method' => TenantPaymentMethodGuardService::ERROR_MESSAGE,
+                'code' => TenantPaymentMethodGuardService::ERROR_CODE,
             ]);
         }
 

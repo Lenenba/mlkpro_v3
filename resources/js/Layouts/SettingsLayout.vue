@@ -43,8 +43,7 @@ const teamPermissions = computed(() => page.props.auth?.account?.team?.permissio
 const hasFeature = (key) => isFeatureEnabled(featureFlags.value, key);
 const canManageReservations = computed(() =>
     isOwner.value
-    || teamPermissions.value.includes('jobs.edit')
-    || teamPermissions.value.includes('tasks.edit')
+    || teamPermissions.value.includes('reservations.manage')
 );
 
 const navTabs = computed(() => {

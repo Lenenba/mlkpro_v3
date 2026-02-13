@@ -44,7 +44,15 @@ class HandleInertiaRequests extends Middleware
                 : $user->customerProfile()->first();
             if ($customer) {
                 $accountOwner = User::query()
-                    ->select(['id', 'company_name', 'company_type', 'company_logo', 'onboarding_completed_at'])
+                    ->select([
+                        'id',
+                        'company_name',
+                        'company_type',
+                        'company_sector',
+                        'company_features',
+                        'company_logo',
+                        'onboarding_completed_at',
+                    ])
                     ->find($customer->user_id);
             }
         }
@@ -52,7 +60,15 @@ class HandleInertiaRequests extends Middleware
             $accountOwner = $ownerId === $user->id
                 ? $user
                 : User::query()
-                    ->select(['id', 'company_name', 'company_type', 'company_logo', 'onboarding_completed_at'])
+                    ->select([
+                        'id',
+                        'company_name',
+                        'company_type',
+                        'company_sector',
+                        'company_features',
+                        'company_logo',
+                        'onboarding_completed_at',
+                    ])
                     ->find($ownerId);
         }
         if ($user && $accountOwner) {

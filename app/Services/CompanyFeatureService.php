@@ -5,9 +5,19 @@ namespace App\Services;
 use App\Models\PlatformSetting;
 use App\Models\User;
 use App\Services\BillingSubscriptionService;
+use Illuminate\Support\Str;
 
 class CompanyFeatureService
 {
+    private const SALON_ONLY_DISABLED_MODULES = [
+        'requests',
+        'products',
+        'quotes',
+        'plan_scans',
+        'jobs',
+        'tasks',
+    ];
+
     private array $featureCache = [];
 
     public function resolveEffectiveFeatures(User $user): array
@@ -23,7 +33,9 @@ class CompanyFeatureService
 
         $planModules = PlatformSetting::getValue('plan_modules', []);
         $planKey = $this->resolvePlanKey($owner, $planModules);
-        $defaults = $planKey ? ($planModules[$planKey] ?? []) : [];
+        $planDefaults = $planKey ? ($planModules[$planKey] ?? []) : [];
+        $sectorDefaults = self::sectorFeatureDefaults((string) ($owner->company_sector ?? null));
+        $defaults = array_replace($planDefaults, $sectorDefaults);
         $overrides = $owner->company_features ?? [];
 
         $keys = array_unique(array_merge(array_keys($defaults), array_keys($overrides)));
@@ -62,6 +74,32 @@ class CompanyFeatureService
         }
 
         return (bool) $features[$feature];
+    }
+
+    /**
+     * @return array<string, bool>
+     */
+    public static function sectorFeatureDefaults(?string $sector): array
+    {
+        $normalizedSector = Str::of((string) $sector)
+            ->lower()
+            ->trim()
+            ->replace(' ', '_')
+            ->toString();
+
+        $salonLike = in_array($normalizedSector, ['salon', 'restaurant'], true);
+        $defaults = [
+            // Reservations are available by default only for salon/restaurant.
+            'reservations' => $salonLike,
+        ];
+
+        if ($salonLike) {
+            foreach (self::SALON_ONLY_DISABLED_MODULES as $module) {
+                $defaults[$module] = false;
+            }
+        }
+
+        return $defaults;
     }
 
     private function resolveOwner(User $user): ?User

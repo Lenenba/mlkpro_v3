@@ -15,6 +15,7 @@ use App\Models\TeamMember;
 use App\Models\User;
 use App\Models\Work;
 use App\Services\BillingSubscriptionService;
+use App\Services\CompanyFeatureService;
 use App\Services\StripeBillingService;
 use App\Support\PlanDisplay;
 use App\Support\PlatformPermissions;
@@ -671,13 +672,15 @@ class TenantController extends BaseSuperAdminController
         $planModules = PlatformSetting::getValue('plan_modules', []);
         $planKey = $this->resolvePlanKey($subscription?->price_id);
         $planDefaults = $planKey ? ($planModules[$planKey] ?? []) : [];
+        $sectorDefaults = CompanyFeatureService::sectorFeatureDefaults((string) ($tenant->company_sector ?? null));
+        $effectiveDefaults = array_replace($planDefaults, $sectorDefaults);
 
-        return collect($defaults)->map(function ($label, $key) use ($current, $planDefaults) {
+        return collect($defaults)->map(function ($label, $key) use ($current, $effectiveDefaults) {
             $enabled = true;
             if (array_key_exists($key, $current)) {
                 $enabled = (bool) $current[$key];
-            } elseif (array_key_exists($key, $planDefaults)) {
-                $enabled = (bool) $planDefaults[$key];
+            } elseif (array_key_exists($key, $effectiveDefaults)) {
+                $enabled = (bool) $effectiveDefaults[$key];
             }
 
             return [

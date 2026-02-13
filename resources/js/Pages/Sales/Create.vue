@@ -23,6 +23,10 @@ const props = defineProps({
         type: Object,
         default: () => ({}),
     },
+    paymentMethodSettings: {
+        type: Object,
+        default: () => ({}),
+    },
 });
 
 const { t } = useI18n();
@@ -34,20 +38,96 @@ const form = useForm({
     status: 'pending',
     notes: '',
     items: [],
-    payment_method: 'cash',
+    payment_method: '',
     pay_with_stripe: false,
 });
 
 const page = usePage();
 const lastSaleId = computed(() => page.props.flash?.last_sale_id || null);
 const stripeEnabled = computed(() => Boolean(props.stripe?.enabled));
+const ALLOWED_INTERNAL_METHODS = ['cash', 'card', 'bank_transfer', 'check'];
+
+const allowedPaymentMethods = computed(() => {
+    const raw = Array.isArray(props.paymentMethodSettings?.enabled_methods_internal)
+        ? props.paymentMethodSettings.enabled_methods_internal
+        : [];
+
+    const normalized = raw
+        .map((method) => (typeof method === 'string' ? method.trim().toLowerCase() : ''))
+        .filter((method, index, array) => method && array.indexOf(method) === index)
+        .filter((method) => ALLOWED_INTERNAL_METHODS.includes(method));
+
+    return normalized.length ? normalized : ['cash', 'card'];
+});
+
+const defaultPaymentMethod = computed(() => {
+    const configured = typeof props.paymentMethodSettings?.default_method_internal === 'string'
+        ? props.paymentMethodSettings.default_method_internal.trim().toLowerCase()
+        : '';
+
+    if (configured && allowedPaymentMethods.value.includes(configured)) {
+        return configured;
+    }
+
+    return allowedPaymentMethods.value[0] || 'cash';
+});
+
+const paymentMethodLabel = (method) => {
+    if (method === 'cash') {
+        return t('sales.form.payment_methods.cash.label');
+    }
+    if (method === 'card') {
+        return t('sales.form.payment_methods.card.label');
+    }
+    if (method === 'bank_transfer') {
+        return 'Bank transfer';
+    }
+    if (method === 'check') {
+        return 'Check';
+    }
+    return method || '-';
+};
+
+const paymentMethodDescription = (method) => {
+    if (method === 'cash') {
+        return t('sales.form.payment_methods.cash.description');
+    }
+    if (method === 'card') {
+        return t('sales.form.payment_methods.card.description');
+    }
+    if (method === 'bank_transfer') {
+        return 'Manual transfer payment.';
+    }
+    if (method === 'check') {
+        return 'Manual check payment.';
+    }
+    return '';
+};
+
 const stripeError = ref('');
 const stripeProcessing = ref(false);
 const hasChargeableTotal = computed(() => total.value > 0);
-const shouldUseStripePayment = computed(() =>
-    stripeEnabled.value && hasChargeableTotal.value && form.status === 'paid' && form.payment_method === 'card'
+const hasCardMethodEnabled = computed(() => allowedPaymentMethods.value.includes('card'));
+const canUseCardPayment = computed(() =>
+    hasCardMethodEnabled.value && stripeEnabled.value && hasChargeableTotal.value
 );
-const canUseCardPayment = computed(() => stripeEnabled.value);
+const paymentMethodOptions = computed(() => allowedPaymentMethods.value.map((method) => ({
+    value: method,
+    label: paymentMethodLabel(method),
+    description: paymentMethodDescription(method),
+    disabled: method === 'card' && !canUseCardPayment.value,
+})));
+const selectablePaymentMethods = computed(() => paymentMethodOptions.value.filter((option) => !option.disabled));
+const hasMultipleSelectablePaymentMethods = computed(() => selectablePaymentMethods.value.length > 1);
+const singleSelectablePaymentMethod = computed(() =>
+    hasMultipleSelectablePaymentMethods.value ? null : (selectablePaymentMethods.value[0]?.value || null)
+);
+const hasAvailablePaymentMethod = computed(() => selectablePaymentMethods.value.length > 0);
+
+const shouldUseStripePayment = computed(() =>
+    form.status === 'paid' && form.payment_method === 'card' && canUseCardPayment.value
+);
+
 const submitLabel = computed(() => {
     if (shouldUseStripePayment.value) {
         return stripeProcessing.value
@@ -56,20 +136,6 @@ const submitLabel = computed(() => {
     }
     return form.status === 'paid' ? t('sales.create.save_sale') : t('sales.create.save_order');
 });
-const paymentMethodOptions = computed(() => ([
-    {
-        value: 'cash',
-        label: t('sales.form.payment_methods.cash.label'),
-        description: t('sales.form.payment_methods.cash.description'),
-        disabled: false,
-    },
-    {
-        value: 'card',
-        label: t('sales.form.payment_methods.card.label'),
-        description: t('sales.form.payment_methods.card.description'),
-        disabled: !canUseCardPayment.value,
-    },
-].filter((option) => option.value !== 'card' || hasChargeableTotal.value)));
 
 const showQrModal = ref(false);
 const qrCheckoutUrl = ref('');
@@ -266,6 +332,7 @@ const handleCustomerCreated = (payload) => {
 
 const resetForm = () => {
     form.reset();
+    form.payment_method = selectablePaymentMethods.value[0]?.value || defaultPaymentMethod.value;
     form.clearErrors();
     searchQuery.value = '';
     scanQuery.value = '';
@@ -273,16 +340,30 @@ const resetForm = () => {
 };
 
 watch(
-    () => hasChargeableTotal.value,
-    (value) => {
-        if (!value && form.payment_method === 'card') {
-            form.payment_method = 'cash';
+    () => [paymentMethodOptions.value, defaultPaymentMethod.value],
+    () => {
+        const currentOption = paymentMethodOptions.value.find((option) => option.value === form.payment_method);
+        if (currentOption && !currentOption.disabled) {
+            return;
         }
-    }
+
+        const preferredOption = paymentMethodOptions.value.find((option) =>
+            option.value === defaultPaymentMethod.value && !option.disabled
+        );
+        form.payment_method = preferredOption?.value
+            || selectablePaymentMethods.value[0]?.value
+            || defaultPaymentMethod.value;
+    },
+    { immediate: true, deep: true }
 );
 
 const submit = () => {
     stripeError.value = '';
+    if (form.status === 'paid' && !hasAvailablePaymentMethod.value) {
+        stripeError.value = t('sales.form.payment_methods.card.disabled_hint');
+        return;
+    }
+
     form.pay_with_stripe = shouldUseStripePayment.value;
     if (shouldUseStripePayment.value) {
         if (!canStripeCheckout.value) {
@@ -532,19 +613,17 @@ const submit = () => {
                                 <label class="text-xs text-stone-500 dark:text-neutral-400">
                                     {{ $t('sales.form.payment_label') }}
                                 </label>
-                                <div class="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                                <div v-if="hasMultipleSelectablePaymentMethods" class="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
                                     <button
-                                        v-for="option in paymentMethodOptions"
+                                        v-for="option in selectablePaymentMethods"
                                         :key="option.value"
                                         type="button"
                                         class="rounded-sm border px-3 py-2 text-left transition"
-                                        :class="[
+                                        :class="
                                             form.payment_method === option.value
                                                 ? 'border-green-500 bg-green-50 text-green-700'
-                                                : 'border-stone-200 text-stone-600 hover:border-stone-300 dark:border-neutral-700 dark:text-neutral-300',
-                                            option.disabled ? 'cursor-not-allowed opacity-60' : ''
-                                        ]"
-                                        :disabled="option.disabled"
+                                                : 'border-stone-200 text-stone-600 hover:border-stone-300 dark:border-neutral-700 dark:text-neutral-300'
+                                        "
                                         @click="form.payment_method = option.value"
                                     >
                                         <div class="flex items-center gap-2 text-sm font-semibold">
@@ -571,9 +650,25 @@ const submit = () => {
                                         </p>
                                     </button>
                                 </div>
-                                <p v-if="!canUseCardPayment" class="mt-2 text-xs text-amber-600 dark:text-amber-300">
+                                <div
+                                    v-else-if="singleSelectablePaymentMethod"
+                                    class="mt-2 rounded-sm border border-stone-200 bg-stone-50 px-3 py-2 text-xs text-stone-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300"
+                                >
+                                    Payment method:
+                                    <span class="font-semibold text-stone-700 dark:text-neutral-200">
+                                        {{ paymentMethodLabel(singleSelectablePaymentMethod) }}
+                                    </span>
+                                </div>
+                                <div
+                                    v-else
+                                    class="mt-2 rounded-sm border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200"
+                                >
+                                    No payment method is currently available.
+                                </div>
+                                <p v-if="hasCardMethodEnabled && !canUseCardPayment" class="mt-2 text-xs text-amber-600 dark:text-amber-300">
                                     {{ $t('sales.form.payment_methods.card.disabled_hint') }}
                                 </p>
+                                <InputError class="mt-1" :message="form.errors.payment_method" />
                             </div>
                         </div>
                     </div>
@@ -688,7 +783,7 @@ const submit = () => {
 
                     <button
                         type="submit"
-                        :disabled="form.processing || stripeProcessing || !form.items.length"
+                        :disabled="form.processing || stripeProcessing || !form.items.length || (form.status === 'paid' && !hasAvailablePaymentMethod)"
                         class="w-full rounded-sm border border-transparent bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50"
                     >
                         {{ submitLabel }}

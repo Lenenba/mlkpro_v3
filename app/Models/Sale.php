@@ -157,11 +157,13 @@ class Sale extends Model
         }
 
         if ($this->relationLoaded('payments')) {
-            return (float) $this->payments->where('status', 'completed')->sum('amount');
+            return (float) $this->payments
+                ->whereIn('status', Payment::settledStatuses())
+                ->sum('amount');
         }
 
         return (float) $this->payments()
-            ->where('status', 'completed')
+            ->whereIn('status', Payment::settledStatuses())
             ->sum('amount');
     }
 
@@ -193,11 +195,27 @@ class Sale extends Model
             return 'partial';
         }
 
+        if ($this->hasPendingPayments()) {
+            return self::STATUS_PENDING;
+        }
+
         $deposit = (float) ($this->deposit_amount ?? 0);
         if ($deposit > 0) {
             return 'deposit_required';
         }
 
         return 'unpaid';
+    }
+
+    private function hasPendingPayments(): bool
+    {
+        if ($this->relationLoaded('payments')) {
+            return $this->payments
+                ->contains(fn($payment) => ($payment->status ?? null) === Payment::STATUS_PENDING);
+        }
+
+        return $this->payments()
+            ->where('status', Payment::STATUS_PENDING)
+            ->exists();
     }
 }

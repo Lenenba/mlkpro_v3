@@ -2626,26 +2626,38 @@
       "partial": "Partial",
       "paid": "Paid"
     },
-    "payments": {
-      "title": "Payments",
-      "history_title": "Payment history",
-      "deposit_required": "Deposit required",
-      "paid": "Paid",
-      "balance_due": "Balance due",
-      "amount_label": "Amount",
-      "method_label": "Method",
-      "cash": "Cash",
-      "card": "Card",
-      "record": "Record payment",
-      "recording": "Recording...",
-      "empty": "No payments recorded.",
-      "timeline": {
-        "deposit": "Deposit",
-        "balance": "Balance",
-        "payment": "Payment",
-        "deposit_balance": "Deposit + balance"
-      }
-    },
+      "payments": {
+        "title": "Payments",
+        "history_title": "Payment history",
+        "deposit_required": "Deposit required",
+        "paid": "Paid",
+        "balance_due": "Balance due",
+        "amount_label": "Amount",
+        "method_label": "Method",
+        "cash": "Cash",
+        "card": "Card",
+        "record": "Record payment",
+        "recording": "Recording...",
+        "mark_paid": "Mark paid",
+        "marking_paid": "Marking...",
+        "pending_cash": "Payment pending (cash)",
+        "empty": "No payments recorded.",
+        "status": {
+          "pending": "Pending",
+          "completed": "Paid",
+          "paid": "Paid",
+          "failed": "Failed",
+          "refunded": "Refunded",
+          "reversed": "Reversed"
+        },
+        "timeline": {
+          "deposit": "Deposit",
+          "balance": "Balance",
+          "payment": "Payment",
+          "deposit_balance": "Deposit + balance",
+          "pending": "Pending collection"
+        }
+      },
     "fulfillment": {
       "pending": "Order received",
       "preparing": "Preparing",
@@ -4214,11 +4226,20 @@
       },
       "columns": {
         "ticket": "Ticket",
+        "origin": "Origin",
         "position": "Position / ETA"
       },
       "types": {
         "appointment": "Appointment",
         "ticket": "Walk-in ticket"
+      },
+      "origins": {
+        "booking": "BOOKING",
+        "walk_in": "WALK-IN"
+      },
+      "assignment_mode": {
+        "per_staff": "Per staff queue",
+        "global_pull": "Global pull queue"
       },
       "status": {
         "not_arrived": "Not arrived",
@@ -4239,8 +4260,10 @@
         "start": "Start",
         "done": "Done",
         "skip": "Skip",
+        "call_next": "Call next",
         "updated": "Queue item updated.",
-        "update_error": "Unable to update queue item."
+        "update_error": "Unable to update queue item.",
+        "call_next_empty": "No callable queue item is available right now."
       },
       "client": {
         "title": "Walk-in queue",
@@ -4254,7 +4277,8 @@
         "cancelled": "Queue ticket cancelled.",
         "still_here": "Still here",
         "still_here_done": "Presence confirmed.",
-        "none": "No queue tickets."
+        "none": "No queue tickets.",
+        "kiosk_only_notice": "Ticket creation is now done on the in-salon kiosk."
       },
       "screen": {
         "open": "Open live screen",
@@ -4263,15 +4287,98 @@
         "refresh": "Refresh",
         "refresh_error": "Unable to refresh live screen data.",
         "updated_at": "Updated",
+        "mode_tv": "TV mode",
+        "mode_board": "Board mode",
         "now_serving": "Now serving",
+        "current": "Current",
+        "timer": "Timer",
         "up_next": "Up next",
+        "no_next": "No next client",
         "overview": "Overview",
         "total_active": "Total active",
+        "no_chairs": "No active chair is configured for this screen.",
         "waiting_list": "Waiting list",
         "call_expires": "Call expires",
         "show_names": "Show names",
         "hide_names": "Hide names",
+        "assignment_mode": "Queue mode",
+        "metrics": {
+          "seats_active": "Seats active",
+          "occupied": "Occupied",
+          "ready": "Ready",
+          "avg_wait": "Avg wait",
+          "next_booking": "Next booking"
+        },
+        "states": {
+          "available": "Available",
+          "available_ready": "Available - next ready",
+          "called": "Called",
+          "in_service": "In service",
+          "check_in_needed": "Check-in needed",
+          "blocked": "Blocked"
+        },
         "disabled": "Hybrid queue mode is disabled. Enable it in reservation settings."
+      }
+    },
+    "kiosk": {
+      "title": "Salon kiosk",
+      "subtitle": "Take a walk-in ticket, check in as an existing client, or track your ticket.",
+      "open": "Open kiosk",
+      "tabs": {
+        "walk_in": "Walk-in",
+        "known_client": "Already a client",
+        "track": "Track ticket"
+      },
+      "fields": {
+        "phone": "Phone number",
+        "guest_name": "First name (optional)",
+        "code": "Verification code",
+        "queue_number": "Ticket number (optional)",
+        "any_service": "Any service",
+        "any_team_member": "Any team member"
+      },
+      "labels": {
+        "ticket": "Ticket"
+      },
+      "walk_in": {
+        "title": "Take a walk-in ticket",
+        "subtitle": "Enter your phone, choose service/member if needed, and receive your position/ETA.",
+        "submit": "Take my ticket"
+      },
+      "known_client": {
+        "title": "I am already a client",
+        "subtitle": "Find your profile by phone and continue with the best path.",
+        "lookup": "Find my profile",
+        "verify_prompt": "A verification code is required for this account.",
+        "verify": "Verify phone",
+        "debug_code": "Debug code",
+        "reservation_ready": "You have a nearby reservation ready for check-in.",
+        "check_in": "Check-in now",
+        "create_ticket_help": "No nearby reservation found. You can take a ticket in your name.",
+        "create_ticket": "Take a ticket",
+        "active_ticket": "You already have an active ticket."
+      },
+      "track": {
+        "title": "Track my ticket",
+        "subtitle": "Check position and ETA using your phone and optional ticket number.",
+        "submit": "Track ticket"
+      },
+      "messages": {
+        "ticket_created": "Queue ticket created.",
+        "check_in_done": "Reservation checked in.",
+        "client_not_found": "No existing client profile found for this phone.",
+        "client_found": "Client profile found.",
+        "code_sent": "Verification code sent.",
+        "phone_verified": "Phone verified."
+      },
+      "errors": {
+        "lookup": "Unable to search this client.",
+        "lookup_first": "Please search a client first.",
+        "verify": "Unable to verify this code.",
+        "check_in": "Unable to check in this reservation.",
+        "create_ticket": "Unable to create ticket.",
+        "track": "Unable to track this ticket.",
+        "track_not_found": "No ticket found for these details."
       }
     },
     "pagination": {
@@ -4926,7 +5033,18 @@
         "subtotal": "Subtotal",
         "tip": "Tip",
         "total_paid": "Total paid",
-        "tip_assigned_to": "Tip assigned to"
+        "tip_assigned_to": "Tip assigned to",
+        "pending_cash": "Payment pending (cash)",
+        "mark_paid": "Mark paid",
+        "marking_paid": "Marking...",
+        "status": {
+          "pending": "Pending",
+          "completed": "Paid",
+          "paid": "Paid",
+          "failed": "Failed",
+          "refunded": "Refunded",
+          "reversed": "Reversed"
+        }
       },
       "add_payment": {
         "title": "Add payment",
@@ -5277,6 +5395,7 @@
           "enabled": "Enable reservation notifications",
           "email": "Send emails",
           "in_app": "Send in-app notifications",
+          "sms": "Send SMS notifications",
           "notify_on_created": "Notify on created reservation",
           "notify_on_rescheduled": "Notify on rescheduled reservation",
           "notify_on_cancelled": "Notify on cancelled reservation",
@@ -5296,6 +5415,10 @@
         }
       },
       "queue": {
+        "assignment_modes": {
+          "per_staff": "Per staff queue",
+          "global_pull": "Global pull queue"
+        },
         "dispatch_modes": {
           "fifo": "FIFO",
           "fifo_with_appointment_priority": "FIFO + appointment priority",
@@ -5321,6 +5444,7 @@
         "late_release_minutes": "Late release (minutes)",
         "waitlist_enabled": "Enable waitlist",
         "queue_mode_enabled": "Enable hybrid queue mode",
+        "queue_assignment_mode": "Queue assignment mode",
         "queue_dispatch_mode": "Queue dispatch mode",
         "queue_grace_minutes": "Call grace period (minutes)",
         "queue_pre_call_threshold": "Pre-call threshold (people ahead)",
@@ -5834,6 +5958,41 @@
         "update_card": "Update card",
         "summary_active": "Active subscription: {plan} (Status: {status})",
         "summary_none": "No active subscription at the moment."
+      },
+      "payment_methods": {
+        "title": "Accepted payment methods",
+        "subtitle": "Choose which methods clients can use for this business.",
+        "save": "Save payment settings",
+        "default_label": "Default payment method",
+        "default_hint_single": "Only one method is enabled, so this method is used automatically.",
+        "default_hint_multi": "When no method is pre-selected, this default is used.",
+        "cash_context_title": "Cash allowed contexts",
+        "cash_context_subtitle": "Restrict where cash can be selected when cash is enabled.",
+        "methods": {
+          "cash": {
+            "label": "Cash",
+            "description": "Collected in person and marked as pending until received."
+          },
+          "card": {
+            "label": "Card (Stripe)",
+            "description": "Online card payment processed through Stripe."
+          },
+          "bank_transfer": {
+            "label": "Bank transfer",
+            "description": "Manual transfer outside of card checkout."
+          },
+          "check": {
+            "label": "Check",
+            "description": "Payment collected by paper check."
+          }
+        },
+        "cash_contexts": {
+          "reservation": "Reservation",
+          "invoice": "Invoice",
+          "store_order": "Store order",
+          "tip": "Tip / extra",
+          "walk_in": "Walk-in / ticket"
+        }
       },
       "tips": {
         "title": "Tips settings",

@@ -159,10 +159,14 @@ class Invoice extends Model
         }
 
         if ($this->relationLoaded('payments')) {
-            return (float) $this->payments->sum('amount');
+            return (float) $this->payments
+                ->whereIn('status', Payment::settledStatuses())
+                ->sum('amount');
         }
 
-        return (float) $this->payments()->sum('amount');
+        return (float) $this->payments()
+            ->whereIn('status', Payment::settledStatuses())
+            ->sum('amount');
     }
 
     public function getBalanceDueAttribute(): float

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -10,6 +11,18 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 class Payment extends Model
 {
     use HasFactory;
+
+    public const STATUS_PENDING = 'pending';
+
+    public const STATUS_PAID = 'paid';
+
+    public const STATUS_COMPLETED = 'completed';
+
+    public const STATUS_FAILED = 'failed';
+
+    public const STATUS_REFUNDED = 'refunded';
+
+    public const STATUS_REVERSED = 'reversed';
 
     protected $fillable = [
         'invoice_id',
@@ -84,5 +97,18 @@ class Payment extends Model
         $reversed = (float) ($this->tip_reversed_amount ?? 0);
 
         return max(0, round($tip - $reversed, 2));
+    }
+
+    public static function settledStatuses(): array
+    {
+        return [
+            self::STATUS_COMPLETED,
+            self::STATUS_PAID,
+        ];
+    }
+
+    public function scopeSettled(Builder $query): Builder
+    {
+        return $query->whereIn('status', self::settledStatuses());
     }
 }

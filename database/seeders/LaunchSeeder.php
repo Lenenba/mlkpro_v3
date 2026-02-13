@@ -666,6 +666,9 @@ class LaunchSeeder extends Seeder
                     'tasks.create',
                     'tasks.edit',
                     'tasks.delete',
+                    'reservations.view',
+                    'reservations.queue',
+                    'reservations.manage',
                 ],
                 'is_active' => true,
             ]
@@ -682,6 +685,8 @@ class LaunchSeeder extends Seeder
                     'jobs.view',
                     'tasks.view',
                     'tasks.edit',
+                    'reservations.view',
+                    'reservations.queue',
                 ],
                 'is_active' => true,
             ]
@@ -4565,6 +4570,7 @@ class LaunchSeeder extends Seeder
                 'late_release_minutes' => 10,
                 'waitlist_enabled' => true,
                 'queue_mode_enabled' => true,
+                'queue_assignment_mode' => 'global_pull',
                 'queue_dispatch_mode' => 'fifo_with_appointment_priority',
                 'queue_grace_minutes' => 5,
                 'queue_pre_call_threshold' => 2,
@@ -5003,7 +5009,17 @@ class LaunchSeeder extends Seeder
             ['account_id' => $owner->id, 'user_id' => $adminUser->id],
             [
                 'role' => 'admin',
-                'permissions' => ['jobs.view', 'jobs.edit', 'tasks.view', 'tasks.create', 'tasks.edit', 'tasks.delete'],
+                'permissions' => [
+                    'jobs.view',
+                    'jobs.edit',
+                    'tasks.view',
+                    'tasks.create',
+                    'tasks.edit',
+                    'tasks.delete',
+                    'reservations.view',
+                    'reservations.queue',
+                    'reservations.manage',
+                ],
                 'is_active' => true,
             ]
         );
@@ -5011,7 +5027,13 @@ class LaunchSeeder extends Seeder
             ['account_id' => $owner->id, 'user_id' => $memberUser->id],
             [
                 'role' => 'member',
-                'permissions' => ['jobs.view', 'tasks.view', 'tasks.edit'],
+                'permissions' => [
+                    'jobs.view',
+                    'tasks.view',
+                    'tasks.edit',
+                    'reservations.view',
+                    'reservations.queue',
+                ],
                 'is_active' => true,
             ]
         );
@@ -5100,6 +5122,7 @@ class LaunchSeeder extends Seeder
                 'late_release_minutes' => $isRestaurant ? 15 : 10,
                 'waitlist_enabled' => true,
                 'queue_mode_enabled' => true,
+                'queue_assignment_mode' => 'global_pull',
                 'queue_dispatch_mode' => 'fifo_with_appointment_priority',
                 'queue_grace_minutes' => 5,
                 'queue_pre_call_threshold' => 2,

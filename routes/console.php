@@ -2,10 +2,13 @@
 
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Schedule;
+use Illuminate\Support\Facades\Schema;
 use Database\Seeders\LaunchSeeder;
 use App\Models\Role;
 use App\Models\User;
@@ -581,6 +584,129 @@ Artisan::command('reservations:notifications', function (ReservationNotification
     return 0;
 })->purpose('Send reservation reminders and review requests');
 
+Artisan::command('notifications:retry-failed
+    {--notification=App\\Notifications\\InviteUserNotification : Fully-qualified notification class filter}
+    {--max=25 : Maximum failed jobs to retry in one run}
+    {--within-hours=24 : Only retry jobs failed within this time window}
+    {--cooldown=30 : Cooldown (minutes) by payload fingerprint before a new retry}
+    {--all-errors : Retry even for non-transient errors}
+    {--dry-run : Show eligible jobs without retrying}', function (): int {
+    if (!Schema::hasTable('failed_jobs')) {
+        $this->warn('failed_jobs table is missing.');
+        return 0;
+    }
+
+    $notificationClass = trim((string) $this->option('notification'));
+    $max = max(1, min(200, (int) $this->option('max')));
+    $withinHours = max(1, (int) $this->option('within-hours'));
+    $cooldownMinutes = max(1, (int) $this->option('cooldown'));
+    $allErrors = (bool) $this->option('all-errors');
+    $dryRun = (bool) $this->option('dry-run');
+
+    $query = DB::table('failed_jobs')
+        ->select(['id', 'uuid', 'queue', 'payload', 'exception', 'failed_at'])
+        ->where('failed_at', '>=', now()->subHours($withinHours))
+        ->orderBy('id');
+
+    // Scan a larger candidate set, then apply in-memory filters and cap to `--max`.
+    $candidates = $query->limit($max * 6)->get();
+    $eligible = collect();
+    $transientMarkers = [
+        'timeout',
+        'timed out',
+        '421',
+        'too many connections',
+        'connection reset',
+        'temporarily unavailable',
+        'could not be established',
+        'connection refused',
+        'failed to authenticate',
+    ];
+
+    foreach ($candidates as $job) {
+        $payload = (string) $job->payload;
+        $sendQueuedRaw = 'Illuminate\\Notifications\\SendQueuedNotifications';
+        $sendQueuedEscaped = 'Illuminate\\\\Notifications\\\\SendQueuedNotifications';
+        if (!str_contains($payload, $sendQueuedRaw) && !str_contains($payload, $sendQueuedEscaped)) {
+            continue;
+        }
+
+        if ($notificationClass !== '') {
+            $rawNeedle = $notificationClass;
+            $escapedNeedle = str_replace('\\', '\\\\', $notificationClass);
+            if (!str_contains($payload, $rawNeedle) && !str_contains($payload, $escapedNeedle)) {
+                continue;
+            }
+        }
+
+        $exception = strtolower((string) $job->exception);
+        $isTransient = collect($transientMarkers)->contains(
+            fn (string $marker) => str_contains($exception, $marker)
+        );
+
+        if (!$allErrors && !$isTransient) {
+            continue;
+        }
+
+        $fingerprint = sha1((string) $job->payload);
+        $lockKey = 'notifications:failed-retry:' . $fingerprint;
+        if (Cache::has($lockKey)) {
+            continue;
+        }
+
+        $eligible->push((object) [
+            'id' => (int) $job->id,
+            'uuid' => (string) $job->uuid,
+            'failed_at' => (string) $job->failed_at,
+            'fingerprint' => $fingerprint,
+        ]);
+
+        if ($eligible->count() >= $max) {
+            break;
+        }
+    }
+
+    if ($eligible->isEmpty()) {
+        $this->info('No eligible failed notification jobs to retry.');
+        return 0;
+    }
+
+    if ($dryRun) {
+        $this->info('Dry run: ' . $eligible->count() . ' failed notification jobs are eligible for retry.');
+        foreach ($eligible as $job) {
+            $this->line("- id={$job->id} uuid={$job->uuid} failed_at={$job->failed_at}");
+        }
+        return 0;
+    }
+
+    $retried = 0;
+    $failedToRetry = 0;
+    foreach ($eligible as $job) {
+        $lockKey = 'notifications:failed-retry:' . $job->fingerprint;
+        Cache::put($lockKey, true, now()->addMinutes($cooldownMinutes));
+
+        $exitCode = Artisan::call('queue:retry', [
+            'id' => [(string) $job->id],
+        ]);
+
+        if ($exitCode === 0) {
+            $retried += 1;
+            continue;
+        }
+
+        Cache::forget($lockKey);
+        $failedToRetry += 1;
+        $this->warn("Failed to requeue failed job id={$job->id}.");
+    }
+
+    $this->info("Retried {$retried} failed notification job(s).");
+    if ($failedToRetry > 0) {
+        $this->warn("{$failedToRetry} job(s) could not be requeued.");
+    }
+
+    return 0;
+})->purpose('Retry transient failed notification jobs from failed_jobs');
+
 Artisan::command('app:launch-reset {--force : Skip confirmation prompt}', function (): int {
     if (!(bool) $this->option('force')) {
         $confirmed = $this->confirm(
@@ -624,3 +750,6 @@ Schedule::command('orders:deposit-reminders')->everyFourHours();
 Schedule::command('leads:follow-up-reminders --hours=24')->hourly();
 Schedule::command('support:sla-reminders')->hourly();
 Schedule::command('reservations:notifications')->everyFifteenMinutes();
+Schedule::command('notifications:retry-failed --notification=App\\Notifications\\InviteUserNotification --max=20 --within-hours=24 --cooldown=30')
+    ->everyTenMinutes()
+    ->withoutOverlapping();
