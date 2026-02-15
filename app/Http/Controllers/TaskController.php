@@ -9,6 +9,7 @@ use App\Models\TaskMaterial;
 use App\Models\TeamMember;
 use App\Models\Work;
 use App\Models\Request as LeadRequest;
+use App\Notifications\ActionEmailNotification;
 use App\Notifications\ShiftNoticeNotification;
 use App\Services\InventoryService;
 use App\Services\TaskStatusHistoryService;
@@ -767,6 +768,7 @@ class TaskController extends Controller
                     ?: $task->request?->service_type
                     ?: ($task->request_id ? 'Request #' . $task->request_id : '')
                 ));
+                $taskUrl = route('task.show', ['task' => $task->id]);
 
                 $message = "You have been assigned to {$taskLabel}.";
                 if ($leadLabel !== '') {
@@ -776,7 +778,7 @@ class TaskController extends Controller
                 NotificationDispatcher::send($assigneeUser, new ShiftNoticeNotification(
                     'Task assigned',
                     $message,
-                    route('task.show', ['task' => $task->id]),
+                    $taskUrl,
                     [
                         'event' => 'task_assigned',
                         'task_id' => $task->id,
@@ -787,6 +789,25 @@ class TaskController extends Controller
                     'request_id' => $task->request_id,
                     'assigned_user_id' => $assigneeUser->id,
                 ]);
+
+                if (!empty($assigneeUser->email)) {
+                    NotificationDispatcher::send($assigneeUser, new ActionEmailNotification(
+                        'Task assigned',
+                        $message,
+                        [
+                            ['label' => 'Task', 'value' => $taskLabel],
+                            ['label' => 'Lead', 'value' => $leadLabel !== '' ? $leadLabel : '-'],
+                            ['label' => 'Due date', 'value' => $task->due_date ? $task->due_date->format('Y-m-d') : '-'],
+                        ],
+                        $taskUrl,
+                        'Open task'
+                    ), [
+                        'task_id' => $task->id,
+                        'request_id' => $task->request_id,
+                        'assigned_user_id' => $assigneeUser->id,
+                        'channel' => 'mail',
+                    ]);
+                }
             }
         }
 
