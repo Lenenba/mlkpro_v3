@@ -237,7 +237,7 @@ const requestStatus = computed(() => {
     if (status === 'REQ_LOST') {
         return 'Rejected';
     }
-    if (['REQ_CONTACTED', 'REQ_QUALIFIED', 'REQ_QUOTE_SENT', 'REQ_CONVERTED'].includes(status)) {
+    if (['REQ_CALL_REQUESTED', 'REQ_CONTACTED', 'REQ_QUALIFIED', 'REQ_QUOTE_SENT', 'REQ_CONVERTED'].includes(status)) {
         return 'In progress';
     }
     return 'Created';
@@ -488,7 +488,7 @@ const globalStatusLabel = computed(() => {
     if (globalStatus.value === 'REQ_QUOTE_SENT' || globalStatus.value === 'REQ_CONVERTED') {
         return 'In progress';
     }
-    if (globalStatus.value === 'REQ_QUALIFIED' || globalStatus.value === 'REQ_CONTACTED') {
+    if (globalStatus.value === 'REQ_QUALIFIED' || globalStatus.value === 'REQ_CONTACTED' || globalStatus.value === 'REQ_CALL_REQUESTED') {
         return 'In progress';
     }
     if (globalStatus.value === 'REQ_NEW') {

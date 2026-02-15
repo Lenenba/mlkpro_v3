@@ -68,6 +68,8 @@ const statusLabel = (status) => {
     switch (status) {
         case 'REQ_NEW':
             return t('requests.status.new');
+        case 'REQ_CALL_REQUESTED':
+            return t('requests.status.call_requested');
         case 'REQ_CONTACTED':
             return t('requests.status.contacted');
         case 'REQ_QUALIFIED':
@@ -89,6 +91,8 @@ const statusClass = (status) => {
     switch (status) {
         case 'REQ_NEW':
             return 'bg-amber-100 text-amber-800 dark:bg-amber-500/10 dark:text-amber-400';
+        case 'REQ_CALL_REQUESTED':
+            return 'bg-cyan-100 text-cyan-800 dark:bg-cyan-500/10 dark:text-cyan-300';
         case 'REQ_CONTACTED':
             return 'bg-sky-100 text-sky-800 dark:bg-sky-500/10 dark:text-sky-300';
         case 'REQ_QUALIFIED':
@@ -565,19 +569,67 @@ const openQuickCreate = () => {
 const intakeModalId = 'hs-request-intake';
 const importModalId = 'hs-request-import';
 const intakeCopied = ref(false);
+let intakeCopiedTimeout;
+
+const setIntakeCopied = () => {
+    intakeCopied.value = true;
+    if (intakeCopiedTimeout) {
+        clearTimeout(intakeCopiedTimeout);
+    }
+    intakeCopiedTimeout = setTimeout(() => {
+        intakeCopied.value = false;
+    }, 2000);
+};
+
+const fallbackCopyText = (value) => {
+    if (typeof document === 'undefined' || !document.body) {
+        return false;
+    }
+    const textArea = document.createElement('textarea');
+    textArea.value = value;
+    textArea.setAttribute('readonly', '');
+    textArea.style.position = 'fixed';
+    textArea.style.top = '-9999px';
+    textArea.style.left = '-9999px';
+    textArea.style.opacity = '0';
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
+    textArea.setSelectionRange(0, textArea.value.length);
+
+    let copied = false;
+    try {
+        copied = document.execCommand('copy');
+    } catch (error) {
+        copied = false;
+    }
+
+    document.body.removeChild(textArea);
+    return copied;
+};
 
 const copyText = async (value) => {
     if (!value) {
         return;
     }
+
+    let copied = false;
+
     try {
-        await navigator.clipboard.writeText(value);
-        intakeCopied.value = true;
-        setTimeout(() => {
-            intakeCopied.value = false;
-        }, 2000);
+        if (typeof window !== 'undefined' && typeof navigator !== 'undefined' && window.isSecureContext && navigator.clipboard?.writeText) {
+            await navigator.clipboard.writeText(value);
+            copied = true;
+        }
     } catch (error) {
-        // ignore clipboard errors
+        copied = false;
+    }
+
+    if (!copied) {
+        copied = fallbackCopyText(value);
+    }
+
+    if (copied) {
+        setIntakeCopied();
     }
 };
 

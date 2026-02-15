@@ -3187,6 +3187,7 @@
         "label": "Demandes",
         "status": {
           "new": "Nouveau",
+          "call_requested": "Appel demande",
           "contacted": "Contacte",
           "qualified": "Qualifie",
           "quote_sent": "Devis envoye",
@@ -3896,12 +3897,109 @@
       "budget": "Budget estime",
       "urgency": "Urgence",
       "urgency_placeholder": "Choisir l'urgence",
+      "intent_title": "Besoins du projet",
+      "intent_hint": "Selectionnez uniquement les services proposes par cette entreprise.",
+      "intent_options": {
+        "website": "Site web / vitrine",
+        "booking": "Reservation / planning",
+        "payment": "Paiement",
+        "crm": "CRM / suivi leads",
+        "integration": "Integrations / API"
+      },
+      "suggestions_title": "Services suggeres",
+      "suggestions_hint": "Selon votre saisie, voici des services pertinents pour cadrer le besoin.",
+      "source_catalog_only": "Les suggestions proviennent uniquement du catalogue actif de l'entreprise.",
+      "detected_categories": "Categories detectees",
+      "suggestions_loading": "Analyse en cours...",
+      "suggestions_empty": "Aucun service correspondant pour le moment. Ajoutez des details.",
+      "suggestions_placeholder": "Decrivez votre besoin pour afficher des suggestions de services.",
+      "suggestions_error": "Impossible de charger les suggestions pour le moment.",
+      "category_fallback": "Service sans categorie",
+      "service_price": "Prix",
+      "pricing_preview_title": "Prix des services selectionnes",
+      "pricing_total_estimate": "Total estime (hors sur devis)",
+      "pricing_on_request_count": "{count} service(s) restent sur devis.",
+      "quote_qualification_title": "Qualification chiffrage",
+      "quote_qualification_hint": "Repondez a ces questions pour limiter les incertitudes de chiffrage.",
+      "final_summary_title": "Recapitulatif final",
+      "final_summary_hint": "Verifiez les informations manquantes et marquez les lignes qui doivent rester Sur devis.",
+      "selected_services_title": "Services selectionnes",
+      "selected_services_empty": "Aucun service selectionne pour le moment.",
+      "sur_devis_label": "Sur devis",
+      "missing_information_title": "Informations manquantes",
+      "missing_information_none": "Aucune information manquante detectee pour le chiffrage.",
+      "quote_assumptions": "Hypotheses / contexte (optionnel)",
+      "final_actions_title": "Finalisation",
+      "final_actions_hint": "Si un email valide et des services sont selectionnes, un devis est envoye automatiquement.",
+      "receive_quote": "Recevoir mon devis",
+      "request_call": "Demander un appel",
+      "receive_quote_requirements": "Sans email valide et services selectionnes, votre demande sera traitee comme une demande d'appel.",
+      "quote_questions": {
+        "business_goal": {
+          "label": "Objectif principal",
+          "hint": "Quel resultat attendez-vous de ce projet ?"
+        },
+        "desired_deadline": {
+          "label": "Echeance cible",
+          "hint": "Pour quelle date souhaitez-vous une premiere version ?"
+        },
+        "budget_range": {
+          "label": "Fourchette budget",
+          "hint": "Indiquez une enveloppe budgetaire estimee."
+        },
+        "website_pages": {
+          "label": "Nombre de pages du site",
+          "hint": "Combien de pages le site doit-il contenir ?"
+        },
+        "brand_assets_ready": {
+          "label": "Assets de marque disponibles",
+          "hint": "Avez-vous deja logo, visuels et contenus ?"
+        },
+        "booking_volume": {
+          "label": "Volume de reservations attendu",
+          "hint": "Combien de reservations par semaine/mois sont prevues ?"
+        },
+        "staff_count": {
+          "label": "Membres equipe a embarquer",
+          "hint": "Combien de membres doivent avoir acces ?"
+        },
+        "payment_flows": {
+          "label": "Flux de paiement",
+          "hint": "En ligne, sur place, acomptes, abonnements, paiements partiels ?"
+        },
+        "payment_provider": {
+          "label": "Fournisseur paiement prefere",
+          "hint": "Stripe, cash, virement, ou autre fournisseur ?"
+        },
+        "crm_contacts_volume": {
+          "label": "Volume de contacts",
+          "hint": "Volume approximatif de contacts/leads a gerer."
+        },
+        "crm_pipeline": {
+          "label": "Etapes pipeline",
+          "hint": "Quelles etapes de lead souhaitez-vous suivre ?"
+        },
+        "integration_tools": {
+          "label": "Outils a integrer",
+          "hint": "Listez les applications/plateformes a connecter."
+        },
+        "integration_api_access": {
+          "label": "Acces API disponible",
+          "hint": "Disposez-vous deja des cles API ou de la documentation technique ?"
+        }
+      },
       "address_title": "Adresse (optionnel)",
       "street1": "Adresse",
       "city": "Ville",
       "state": "Province / Etat",
       "postal_code": "Code postal",
       "country": "Pays",
+      "address_search_placeholder": "Rechercher une adresse",
+      "address_searching": "Recherche...",
+      "address_validated": "Adresse validee",
+      "address_label": "Adresse",
+      "address_error_key": "Cle Geoapify manquante. Ajoutez VITE_GEOAPIFY_KEY dans .env.",
+      "address_error_failed": "Echec de recherche. Verifiez la cle Geoapify ou utilisez la saisie manuelle.",
       "submit": "Envoyer la demande",
       "success": "Merci ! Nous vous contacterons bientot."
     },
@@ -4035,6 +4133,7 @@
     },
     "status": {
       "new": "Nouvelle",
+      "call_requested": "Appel demande",
       "contacted": "Contactee",
       "qualified": "Qualifiee",
       "quote_sent": "Devis envoye",
