@@ -337,6 +337,7 @@ Route::name('api.')->group(function () {
                 Route::get('tasks/{task}', [TaskController::class, 'show']);
                 Route::post('tasks', [TaskController::class, 'store']);
                 Route::put('tasks/{task}', [TaskController::class, 'update']);
+                Route::patch('tasks/{task}/assignee', [TaskController::class, 'assign']);
                 Route::delete('tasks/{task}', [TaskController::class, 'destroy']);
                 Route::post('tasks/{task}/media', [TaskMediaController::class, 'store']);
             });

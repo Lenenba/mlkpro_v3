@@ -2,16 +2,19 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ActivityLog;
 use App\Models\Product;
 use App\Models\Task;
 use App\Models\TaskMaterial;
 use App\Models\TeamMember;
 use App\Models\Work;
 use App\Models\Request as LeadRequest;
+use App\Notifications\ShiftNoticeNotification;
 use App\Services\InventoryService;
 use App\Services\TaskStatusHistoryService;
 use App\Services\TaskTimingService;
 use App\Services\UsageLimitService;
+use App\Support\NotificationDispatcher;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -717,6 +720,84 @@ class TaskController extends Controller
         }
 
         return redirect()->back()->with('success', 'Task updated.');
+    }
+
+    public function assign(Request $request, Task $task)
+    {
+        $this->authorize('update', $task);
+
+        $user = Auth::user();
+        $accountId = $user?->accountOwnerId() ?? Auth::id();
+
+        if ($task->account_id !== $accountId) {
+            abort(404);
+        }
+
+        $validated = $request->validate([
+            'assigned_team_member_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('team_members', 'id')->where('account_id', $accountId),
+            ],
+        ]);
+
+        $previousAssigneeId = $task->assigned_team_member_id ? (int) $task->assigned_team_member_id : null;
+        $nextAssigneeId = isset($validated['assigned_team_member_id']) && $validated['assigned_team_member_id']
+            ? (int) $validated['assigned_team_member_id']
+            : null;
+
+        $task->update([
+            'assigned_team_member_id' => $nextAssigneeId,
+        ]);
+
+        $task->loadMissing(['assignee.user:id,name', 'request:id,title,service_type']);
+
+        ActivityLog::record($user, $task, 'reassigned', [
+            'previous_assigned_team_member_id' => $previousAssigneeId,
+            'assigned_team_member_id' => $task->assigned_team_member_id,
+            'request_id' => $task->request_id,
+        ], 'Task assignee updated from lead page');
+
+        if ($nextAssigneeId && $nextAssigneeId !== $previousAssigneeId) {
+            $assigneeUser = $task->assignee?->user;
+            if ($assigneeUser && (!$user || $assigneeUser->id !== $user->id)) {
+                $taskLabel = trim((string) ($task->title ?: 'Task #' . $task->id));
+                $leadLabel = trim((string) (
+                    $task->request?->title
+                    ?: $task->request?->service_type
+                    ?: ($task->request_id ? 'Request #' . $task->request_id : '')
+                ));
+
+                $message = "You have been assigned to {$taskLabel}.";
+                if ($leadLabel !== '') {
+                    $message .= " Lead: {$leadLabel}.";
+                }
+
+                NotificationDispatcher::send($assigneeUser, new ShiftNoticeNotification(
+                    'Task assigned',
+                    $message,
+                    route('task.show', ['task' => $task->id]),
+                    [
+                        'event' => 'task_assigned',
+                        'task_id' => $task->id,
+                        'request_id' => $task->request_id,
+                    ]
+                ), [
+                    'task_id' => $task->id,
+                    'request_id' => $task->request_id,
+                    'assigned_user_id' => $assigneeUser->id,
+                ]);
+            }
+        }
+
+        if ($this->shouldReturnJson($request)) {
+            return response()->json([
+                'message' => 'Task assignee updated.',
+                'task' => $task->fresh(['assignee.user']),
+            ]);
+        }
+
+        return redirect()->back();
     }
 
     public function destroy(Task $task)

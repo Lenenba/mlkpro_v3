@@ -480,6 +480,7 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
         Route::get('/tasks/{task}', [TaskController::class, 'show'])->name('task.show');
         Route::post('/tasks', [TaskController::class, 'store'])->name('task.store');
         Route::put('/tasks/{task}', [TaskController::class, 'update'])->name('task.update');
+        Route::patch('/tasks/{task}/assignee', [TaskController::class, 'assign'])->name('task.assign');
         Route::delete('/tasks/{task}', [TaskController::class, 'destroy'])->name('task.destroy');
         Route::post('/tasks/{task}/media', [TaskMediaController::class, 'store'])->name('task.media.store');
     });
