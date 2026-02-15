@@ -103,6 +103,7 @@ class RequestController extends Controller
 
         $openStatuses = [
             LeadRequest::STATUS_NEW,
+            LeadRequest::STATUS_CALL_REQUESTED,
             LeadRequest::STATUS_CONTACTED,
             LeadRequest::STATUS_QUALIFIED,
             LeadRequest::STATUS_QUOTE_SENT,
@@ -151,6 +152,7 @@ class RequestController extends Controller
 
         $statuses = collect([
             ['id' => LeadRequest::STATUS_NEW, 'name' => 'New'],
+            ['id' => LeadRequest::STATUS_CALL_REQUESTED, 'name' => 'Call requested'],
             ['id' => LeadRequest::STATUS_CONTACTED, 'name' => 'Contacted'],
             ['id' => LeadRequest::STATUS_QUALIFIED, 'name' => 'Qualified'],
             ['id' => LeadRequest::STATUS_QUOTE_SENT, 'name' => 'Quote sent'],
@@ -403,6 +405,7 @@ class RequestController extends Controller
 
         $statuses = collect([
             ['id' => LeadRequest::STATUS_NEW, 'name' => 'New'],
+            ['id' => LeadRequest::STATUS_CALL_REQUESTED, 'name' => 'Call requested'],
             ['id' => LeadRequest::STATUS_CONTACTED, 'name' => 'Contacted'],
             ['id' => LeadRequest::STATUS_QUALIFIED, 'name' => 'Qualified'],
             ['id' => LeadRequest::STATUS_QUOTE_SENT, 'name' => 'Quote sent'],

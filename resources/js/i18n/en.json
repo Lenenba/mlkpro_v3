@@ -3187,6 +3187,7 @@
         "label": "Requests",
         "status": {
           "new": "New",
+          "call_requested": "Call requested",
           "contacted": "Contacted",
           "qualified": "Qualified",
           "quote_sent": "Quote sent",
@@ -3896,12 +3897,109 @@
       "budget": "Estimated budget",
       "urgency": "Urgency",
       "urgency_placeholder": "Select urgency",
+      "intent_title": "Project needs",
+      "intent_hint": "Select only services provided by this company.",
+      "intent_options": {
+        "website": "Website / showcase",
+        "booking": "Booking / reservations",
+        "payment": "Payments",
+        "crm": "CRM / lead follow-up",
+        "integration": "Integrations / API"
+      },
+      "suggestions_title": "Suggested services",
+      "suggestions_hint": "Based on your input, here are matching services to help scope your request.",
+      "source_catalog_only": "Suggestions come only from this company's active catalog.",
+      "detected_categories": "Detected categories",
+      "suggestions_loading": "Analyzing...",
+      "suggestions_empty": "No matching service yet. Add more details to refine suggestions.",
+      "suggestions_placeholder": "Describe your need to see relevant service suggestions.",
+      "suggestions_error": "Unable to load suggestions right now.",
+      "category_fallback": "Uncategorized service",
+      "service_price": "Price",
+      "pricing_preview_title": "Selected services pricing",
+      "pricing_total_estimate": "Estimated total (excluding quote on request)",
+      "pricing_on_request_count": "{count} service(s) remain quote on request.",
+      "quote_qualification_title": "Pricing qualification",
+      "quote_qualification_hint": "Answer these questions to reduce unknowns for pricing.",
+      "final_summary_title": "Final review",
+      "final_summary_hint": "Review missing information and mark lines that should stay quote-on-request.",
+      "selected_services_title": "Selected services",
+      "selected_services_empty": "No service selected yet.",
+      "sur_devis_label": "Quote on request",
+      "missing_information_title": "Missing information",
+      "missing_information_none": "No missing information detected for pricing.",
+      "quote_assumptions": "Assumptions / context (optional)",
+      "final_actions_title": "Finalize",
+      "final_actions_hint": "If a valid email and services are selected, a quote is sent automatically.",
+      "receive_quote": "Receive my quote",
+      "request_call": "Request a call",
+      "receive_quote_requirements": "Without a valid email and selected services, your request is handled as a call request.",
+      "quote_questions": {
+        "business_goal": {
+          "label": "Main business goal",
+          "hint": "What outcome do you expect from this project?"
+        },
+        "desired_deadline": {
+          "label": "Target deadline",
+          "hint": "When do you need the first version live?"
+        },
+        "budget_range": {
+          "label": "Budget range",
+          "hint": "Provide a budget range or expected envelope."
+        },
+        "website_pages": {
+          "label": "Number of website pages",
+          "hint": "How many pages should the website include?"
+        },
+        "brand_assets_ready": {
+          "label": "Brand assets available",
+          "hint": "Do you already have logo, visuals and content?"
+        },
+        "booking_volume": {
+          "label": "Expected booking volume",
+          "hint": "How many bookings per week/month are expected?"
+        },
+        "staff_count": {
+          "label": "Team members to onboard",
+          "hint": "How many staff members need access?"
+        },
+        "payment_flows": {
+          "label": "Payment flows",
+          "hint": "Online, on-site, deposits, subscriptions, partial payments?"
+        },
+        "payment_provider": {
+          "label": "Preferred payment provider",
+          "hint": "Stripe, cash, transfer, or another provider?"
+        },
+        "crm_contacts_volume": {
+          "label": "Contacts volume",
+          "hint": "Approximate number of contacts/leads to manage."
+        },
+        "crm_pipeline": {
+          "label": "Pipeline stages",
+          "hint": "Which lead stages should be tracked?"
+        },
+        "integration_tools": {
+          "label": "Tools to integrate",
+          "hint": "List the apps/platforms to connect."
+        },
+        "integration_api_access": {
+          "label": "API access available",
+          "hint": "Do you already have API keys or technical documentation?"
+        }
+      },
       "address_title": "Address (optional)",
       "street1": "Address line",
       "city": "City",
       "state": "State / Province",
       "postal_code": "Postal code",
       "country": "Country",
+      "address_search_placeholder": "Search for an address",
+      "address_searching": "Searching...",
+      "address_validated": "Validated address",
+      "address_label": "Address",
+      "address_error_key": "Geoapify key missing. Add VITE_GEOAPIFY_KEY to .env.",
+      "address_error_failed": "Search failed. Check the Geoapify key or use manual entry.",
       "submit": "Send request",
       "success": "Thanks! We'll contact you soon."
     },
@@ -4019,6 +4117,9 @@
       "title": "Follow-up tasks",
       "empty": "No tasks yet.",
       "create": "Create task",
+      "assign_action": "Assign",
+      "assigned_badge": "Assigned",
+      "unassigned_badge": "Unassigned",
       "title_label": "Task title",
       "description": "Notes",
       "assignee": "Assignee",
@@ -4035,6 +4136,7 @@
     },
     "status": {
       "new": "New",
+      "call_requested": "Call requested",
       "contacted": "Contacted",
       "qualified": "Qualified",
       "quote_sent": "Quote sent",

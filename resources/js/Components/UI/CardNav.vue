@@ -89,6 +89,7 @@ const filterOptions = computed(() => ({
     requests: [
         { value: 'all', label: t('customers.tabs.filters.all') },
         { value: 'REQ_NEW', label: t('customers.tabs.requests.status.new') },
+        { value: 'REQ_CALL_REQUESTED', label: t('customers.tabs.requests.status.call_requested') },
         { value: 'REQ_CONTACTED', label: t('customers.tabs.requests.status.contacted') },
         { value: 'REQ_QUALIFIED', label: t('customers.tabs.requests.status.qualified') },
         { value: 'REQ_QUOTE_SENT', label: t('customers.tabs.requests.status.quote_sent') },

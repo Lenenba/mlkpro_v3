@@ -14,6 +14,7 @@ class Request extends Model
     use HasFactory;
 
     public const STATUS_NEW = 'REQ_NEW';
+    public const STATUS_CALL_REQUESTED = 'REQ_CALL_REQUESTED';
     public const STATUS_CONTACTED = 'REQ_CONTACTED';
     public const STATUS_QUALIFIED = 'REQ_QUALIFIED';
     public const STATUS_QUOTE_SENT = 'REQ_QUOTE_SENT';
@@ -23,6 +24,7 @@ class Request extends Model
 
     public const STATUSES = [
         self::STATUS_NEW,
+        self::STATUS_CALL_REQUESTED,
         self::STATUS_CONTACTED,
         self::STATUS_QUALIFIED,
         self::STATUS_QUOTE_SENT,

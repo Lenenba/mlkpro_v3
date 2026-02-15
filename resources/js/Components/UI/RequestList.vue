@@ -42,6 +42,8 @@ const statusLabel = (status) => {
     switch (status) {
         case 'REQ_NEW':
             return t('requests.status.new');
+        case 'REQ_CALL_REQUESTED':
+            return t('requests.status.call_requested');
         case 'REQ_CONTACTED':
             return t('requests.status.contacted');
         case 'REQ_QUALIFIED':
@@ -63,6 +65,8 @@ const statusPillClass = (status) => {
     switch (status) {
         case 'REQ_NEW':
             return 'bg-amber-100 text-amber-800 dark:bg-amber-500/10 dark:text-amber-400';
+        case 'REQ_CALL_REQUESTED':
+            return 'bg-cyan-100 text-cyan-800 dark:bg-cyan-500/10 dark:text-cyan-300';
         case 'REQ_CONTACTED':
             return 'bg-sky-100 text-sky-800 dark:bg-sky-500/10 dark:text-sky-300';
         case 'REQ_QUALIFIED':

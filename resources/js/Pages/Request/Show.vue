@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import DatePicker from '@/Components/DatePicker.vue';
@@ -54,6 +54,8 @@ const statusLabel = (status) => {
     switch (status) {
         case 'REQ_NEW':
             return t('requests.status.new');
+        case 'REQ_CALL_REQUESTED':
+            return t('requests.status.call_requested');
         case 'REQ_CONTACTED':
             return t('requests.status.contacted');
         case 'REQ_QUALIFIED':
@@ -75,6 +77,8 @@ const statusClass = (status) => {
     switch (status) {
         case 'REQ_NEW':
             return 'bg-amber-100 text-amber-800 dark:bg-amber-500/10 dark:text-amber-400';
+        case 'REQ_CALL_REQUESTED':
+            return 'bg-cyan-100 text-cyan-800 dark:bg-cyan-500/10 dark:text-cyan-300';
         case 'REQ_CONTACTED':
             return 'bg-sky-100 text-sky-800 dark:bg-sky-500/10 dark:text-sky-300';
         case 'REQ_QUALIFIED':
@@ -300,6 +304,95 @@ const assigneeOptions = computed(() =>
         name: assignee.name || t('requests.labels.unassigned'),
     }))
 );
+
+const taskAssigneeState = ref({});
+const taskAssignedState = ref({});
+const assigningTaskId = ref(null);
+const assigneeNameLookup = computed(() =>
+    Object.fromEntries(
+        assigneeOptions.value.map((assignee) => [String(assignee.id), assignee.name || t('requests.labels.unassigned')])
+    )
+);
+
+const syncTaskAssigneeState = () => {
+    const nextState = {};
+    (props.lead?.tasks || []).forEach((task) => {
+        nextState[task.id] = task?.assigned_team_member_id
+            ? String(task.assigned_team_member_id)
+            : '';
+    });
+    taskAssigneeState.value = nextState;
+    taskAssignedState.value = { ...nextState };
+};
+
+syncTaskAssigneeState();
+
+watch(
+    () => props.lead?.tasks,
+    () => {
+        syncTaskAssigneeState();
+    },
+    { deep: true }
+);
+
+const isAssigningTask = (taskId) => assigningTaskId.value === taskId;
+const taskAssignedId = (task) => taskAssignedState.value[task?.id] || '';
+const taskAssigneeName = (task) => {
+    const assignedId = taskAssignedId(task);
+    if (!assignedId) {
+        return t('requests.labels.unassigned');
+    }
+
+    return assigneeNameLookup.value[assignedId]
+        || task?.assignee?.user?.name
+        || task?.assignee?.name
+        || t('requests.labels.unassigned');
+};
+const taskAssigneeBadgeClass = (task) => {
+    if (!taskAssignedId(task)) {
+        return 'bg-stone-100 text-stone-600 dark:bg-neutral-700 dark:text-neutral-300';
+    }
+
+    return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300';
+};
+const taskAssigneeBadgeLabel = (task) => (taskAssignedId(task)
+    ? t('requests.tasks.assigned_badge')
+    : t('requests.tasks.unassigned_badge'));
+
+const assignTaskAssignee = (task) => {
+    if (!task?.id || assigningTaskId.value) {
+        return;
+    }
+
+    const selected = taskAssigneeState.value[task.id] || '';
+    const previousAssigned = taskAssignedState.value[task.id] || '';
+    if (selected === previousAssigned) {
+        return;
+    }
+
+    assigningTaskId.value = task.id;
+
+    router.patch(route('task.assign', task.id), {
+        assigned_team_member_id: selected ? Number(selected) : null,
+    }, {
+        preserveScroll: true,
+        onSuccess: () => {
+            taskAssignedState.value = {
+                ...taskAssignedState.value,
+                [task.id]: selected,
+            };
+        },
+        onError: () => {
+            taskAssigneeState.value = {
+                ...taskAssigneeState.value,
+                [task.id]: previousAssigned,
+            };
+        },
+        onFinish: () => {
+            assigningTaskId.value = null;
+        },
+    });
+};
 
 const mediaLabel = (media) => media?.original_name || media?.path || t('requests.media.file');
 const isImage = (media) => media?.mime && media.mime.startsWith('image/');
@@ -631,23 +724,55 @@ const mergeDuplicate = (duplicate) => {
                             <div
                                 v-for="task in lead.tasks"
                                 :key="task.id"
-                                class="flex flex-wrap items-center justify-between gap-2 rounded-sm border border-stone-200 bg-stone-50 p-3 text-sm text-stone-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300"
+                                class="rounded-sm border border-stone-200 bg-stone-50 p-3 text-sm text-stone-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300"
                             >
-                                <div>
-                                    <Link :href="route('task.show', task.id)" class="text-sm font-semibold text-stone-800 hover:text-emerald-600 dark:text-neutral-200">
-                                        {{ task.title }}
-                                    </Link>
-                                    <div class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
-                                        {{ task.assignee?.user?.name || $t('requests.labels.unassigned') }}
+                                <div class="flex w-full flex-wrap items-start justify-between gap-2">
+                                    <div>
+                                        <Link :href="route('task.show', task.id)" class="text-sm font-semibold text-stone-800 hover:text-emerald-600 dark:text-neutral-200">
+                                            {{ task.title }}
+                                        </Link>
+                                        <div class="mt-1 flex items-center gap-2 text-xs">
+                                            <span class="rounded-full px-2 py-0.5 font-medium" :class="taskAssigneeBadgeClass(task)">
+                                                {{ taskAssigneeBadgeLabel(task) }}
+                                            </span>
+                                            <span class="text-stone-500 dark:text-neutral-400">
+                                                {{ taskAssigneeName(task) }}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div class="flex items-center gap-2 text-xs">
+                                        <span class="rounded-full px-2 py-0.5 font-medium" :class="taskStatusClass(task.status)">
+                                            {{ taskStatusLabel(task.status) }}
+                                        </span>
+                                        <span class="text-stone-500 dark:text-neutral-400">
+                                            {{ task.due_date ? formatDate(task.due_date) : $t('requests.tasks.no_due') }}
+                                        </span>
                                     </div>
                                 </div>
-                                <div class="flex items-center gap-2 text-xs">
-                                    <span class="rounded-full px-2 py-0.5 font-medium" :class="taskStatusClass(task.status)">
-                                        {{ taskStatusLabel(task.status) }}
-                                    </span>
-                                    <span class="text-stone-500 dark:text-neutral-400">
-                                        {{ task.due_date ? formatDate(task.due_date) : $t('requests.tasks.no_due') }}
-                                    </span>
+
+                                <div v-if="assigneeOptions.length" class="mt-2 flex w-full flex-wrap items-center gap-2">
+                                    <select
+                                        v-model="taskAssigneeState[task.id]"
+                                        class="block min-w-52 rounded-sm border-stone-300 text-xs focus:border-emerald-600 focus:ring-emerald-600 dark:border-neutral-600 dark:bg-neutral-900 dark:text-neutral-200"
+                                    >
+                                        <option value="">{{ $t('requests.labels.unassigned') }}</option>
+                                        <option
+                                            v-for="assignee in assigneeOptions"
+                                            :key="`task-${task.id}-assignee-${assignee.id}`"
+                                            :value="assignee.id"
+                                        >
+                                            {{ assignee.name }}
+                                        </option>
+                                    </select>
+
+                                    <button
+                                        type="button"
+                                        class="inline-flex items-center rounded-sm border border-stone-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-stone-700 hover:bg-stone-50 disabled:opacity-60 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
+                                        :disabled="isAssigningTask(task.id) || (taskAssigneeState[task.id] || '') === taskAssignedId(task)"
+                                        @click="assignTaskAssignee(task)"
+                                    >
+                                        {{ $t('requests.tasks.assign_action') }}
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -931,5 +1056,6 @@ const mergeDuplicate = (duplicate) => {
                 </div>
             </form>
         </Modal>
+
     </AuthenticatedLayout>
 </template>
