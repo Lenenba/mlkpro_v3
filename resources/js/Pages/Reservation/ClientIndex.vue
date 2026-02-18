@@ -551,7 +551,7 @@ onBeforeUnmount(() => {
             <ReservationStats :stats="stats" />
 
             <section
-                v-if="queueModeEnabled || queueTickets.length"
+                v-if="false"
                 class="p-5 space-y-4 flex flex-col border-t-4 border-t-zinc-600 bg-white border border-stone-200 shadow-sm rounded-sm dark:bg-neutral-800 dark:border-neutral-700"
             >
                 <div class="flex flex-wrap items-center justify-between gap-2">

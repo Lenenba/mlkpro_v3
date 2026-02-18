@@ -149,8 +149,8 @@ class ReservationAvailabilityService
             return ['timezone' => $timezone, 'slots' => []];
         }
 
-        $startLocal = $startUtc->copy()->setTimezone($timezone);
-        $endLocal = $endUtc->copy()->setTimezone($timezone);
+        $startLocal = $startUtc->copy()->setTimezone($timezone)->startOfDay();
+        $endLocal = $endUtc->copy()->setTimezone($timezone)->endOfDay();
 
         $memberQuery = TeamMember::query()
             ->forAccount($accountId)
@@ -213,6 +213,8 @@ class ReservationAvailabilityService
             || !empty($normalizedResourceFilters['types'])
             || !empty($normalizedResourceFilters['resource_ids'])
         ) && $activeResources->isNotEmpty();
+        $accountSettings = $this->resolveSettings($accountId, null);
+        $companyIntervalMinutes = max(5, min(240, (int) ($accountSettings['slot_interval_minutes'] ?? 60)));
 
         $slots = [];
         $nowLocal = now($timezone);
@@ -221,7 +223,7 @@ class ReservationAvailabilityService
         foreach ($members as $member) {
             $settings = $this->resolveSettings($accountId, $member->id);
             $buffer = max(0, min(self::MAX_BUFFER_MINUTES, (int) $settings['buffer_minutes']));
-            $intervalMinutes = max(5, min(120, (int) $settings['slot_interval_minutes']));
+            $intervalMinutes = $companyIntervalMinutes;
             $memberWeekly = $weekly->get($member->id, collect());
             $memberReservations = $reservations->get($member->id, collect());
 

@@ -10,6 +10,7 @@ use App\Models\Role;
 use App\Models\User;
 use App\Notifications\LeadCallRequestReceivedNotification;
 use App\Notifications\LeadFormOwnerNotification;
+use App\Notifications\LeadQuoteRequestReceivedNotification;
 use App\Notifications\SendQuoteNotification;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Support\Facades\Notification;
@@ -322,6 +323,16 @@ it('creates and sends a quote when receive_quote is selected', function () {
     expect((float) $quote->total)->toBe(1200.0);
 
     Notification::assertSentTo($quote->customer, SendQuoteNotification::class);
+    Notification::assertSentOnDemand(
+        LeadQuoteRequestReceivedNotification::class,
+        function (LeadQuoteRequestReceivedNotification $notification, array $channels, object $notifiable) use ($lead, $quote) {
+            $mail = data_get($notifiable, 'routes.mail');
+            return $notification->lead->is($lead)
+                && $notification->quote->is($quote)
+                && in_array('mail', $channels, true)
+                && $mail === 'prospect.quote@example.com';
+        }
+    );
     Notification::assertSentTo(
         $owner,
         LeadFormOwnerNotification::class,
@@ -497,7 +508,7 @@ it('schedules quote email retry when initial quote email fails', function () {
         ->ordered()
         ->andThrow(new RuntimeException('mail down'));
     Notification::shouldReceive('sendNow')
-        ->times(2)
+        ->times(3)
         ->ordered()
         ->andReturnNull();
     Notification::shouldReceive('send')
