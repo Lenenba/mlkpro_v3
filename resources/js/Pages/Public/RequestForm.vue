@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { Head, useForm } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
+import axios from 'axios';
 import GuestLayout from '@/Layouts/GuestLayout.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingTextarea from '@/Components/FloatingTextarea.vue';
@@ -13,6 +14,10 @@ const props = defineProps({
         required: true,
     },
     submit_url: {
+        type: String,
+        required: true,
+    },
+    address_search_url: {
         type: String,
         required: true,
     },
@@ -98,7 +103,6 @@ const validatedAddress = ref(null);
 const isSearchingAddress = ref(false);
 const addressError = ref('');
 let addressSearchTimeout = null;
-const geoapifyKey = import.meta.env.VITE_GEOAPIFY_KEY;
 
 const clearValidatedAddress = () => {
     validatedAddress.value = null;
@@ -113,28 +117,6 @@ const setAddressError = (message) => {
     addressError.value = message;
 };
 
-const fetchGeoapify = async (useFilter) => {
-    const url = new URL('https://api.geoapify.com/v1/geocode/autocomplete');
-    const params = {
-        text: addressQuery.value,
-        apiKey: geoapifyKey,
-        limit: '5',
-    };
-
-    if (useFilter) {
-        params.filter = 'countrycode:ca,us,fr,be,ch,ma,tn';
-    }
-
-    url.search = new URLSearchParams(params).toString();
-
-    const response = await fetch(url.toString());
-    if (!response.ok) {
-        throw new Error(`Geoapify request failed: ${response.status}`);
-    }
-
-    return response.json();
-};
-
 const searchAddress = async () => {
     if (addressQuery.value.length < 2) {
         addressSuggestions.value = [];
@@ -142,32 +124,33 @@ const searchAddress = async () => {
         return;
     }
 
-    if (!geoapifyKey) {
-        addressSuggestions.value = [];
-        setAddressError(t('requests.form.address_error_key'));
-        return;
-    }
-
     isSearchingAddress.value = true;
     setAddressError('');
 
     try {
-        const primary = await fetchGeoapify(true);
-        let features = primary.features || [];
+        const response = await axios.post(
+            props.address_search_url,
+            {
+                text: addressQuery.value,
+                limit: 5,
+            },
+            {
+                headers: {
+                    Accept: 'application/json',
+                },
+            }
+        );
 
-        if (!features.length) {
-            const fallback = await fetchGeoapify(false);
-            features = fallback.features || [];
-        }
-
-        addressSuggestions.value = features.map((feature) => ({
-            id: feature.properties?.place_id || feature.properties?.formatted || feature.properties?.name,
-            label: feature.properties?.formatted || feature.properties?.name || '',
-            details: feature.properties || {},
-        }));
+        addressSuggestions.value = Array.isArray(response?.data?.suggestions)
+            ? response.data.suggestions
+            : [];
     } catch (error) {
         addressSuggestions.value = [];
-        setAddressError(t('requests.form.address_error_failed'));
+        if (Number(error?.response?.status || 0) === 422) {
+            setAddressError(t('requests.form.address_error_key'));
+        } else {
+            setAddressError(t('requests.form.address_error_failed'));
+        }
     } finally {
         isSearchingAddress.value = false;
     }

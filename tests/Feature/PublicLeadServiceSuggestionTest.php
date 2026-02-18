@@ -13,6 +13,7 @@ use App\Notifications\LeadFormOwnerNotification;
 use App\Notifications\LeadQuoteRequestReceivedNotification;
 use App\Notifications\SendQuoteNotification;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\URL;
@@ -179,7 +180,45 @@ it('exposes suggestion metadata on public lead form page', function () {
             ->where('quote_question_catalog', fn ($catalog) => collect($catalog)->has('common')
                 && collect($catalog)->has('website'))
             ->where('suggest_url', fn ($url) => is_string($url)
-                && str_contains($url, '/public/requests/' . $owner->id . '/suggest-services')));
+                && str_contains($url, '/public/requests/' . $owner->id . '/suggest-services'))
+            ->where('address_search_url', fn ($url) => is_string($url)
+                && str_contains($url, '/public/requests/' . $owner->id . '/address-search')));
+});
+
+it('searches address suggestions through backend proxy on public lead form', function () {
+    Http::fake([
+        'https://api.geoapify.com/v1/geocode/autocomplete*' => Http::response([
+            'features' => [
+                [
+                    'properties' => [
+                        'place_id' => 'geo-1',
+                        'formatted' => '641 Rue Mil, Terrebonne, QC, Canada',
+                        'house_number' => '641',
+                        'street' => 'Rue Mil',
+                        'city' => 'Terrebonne',
+                        'state' => 'QC',
+                        'postcode' => 'J6Y 1A1',
+                        'country' => 'Canada',
+                    ],
+                ],
+            ],
+        ], 200),
+    ]);
+
+    $owner = createPublicLeadOwner();
+
+    $response = $this->postJson(
+        URL::signedRoute('public.requests.address-search', ['user' => $owner->id]),
+        [
+            'text' => '641 rue mil',
+        ]
+    );
+
+    $response->assertOk()
+        ->assertJsonPath('suggestions.0.id', 'geo-1')
+        ->assertJsonPath('suggestions.0.label', '641 Rue Mil, Terrebonne, QC, Canada');
+
+    Http::assertSent(fn ($request) => str_contains($request->url(), 'api.geoapify.com/v1/geocode/autocomplete'));
 });
 
 it('stores sanitized quote qualification payload and missing information', function () {
