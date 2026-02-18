@@ -133,6 +133,8 @@ Route::middleware(['signed', 'throttle:public-signed'])->group(function () {
     Route::post('/public/quotes/{quote}/accept', [PublicQuoteController::class, 'accept'])->name('public.quotes.accept');
     Route::post('/public/quotes/{quote}/decline', [PublicQuoteController::class, 'decline'])->name('public.quotes.decline');
     Route::get('/public/requests/{user}', [PublicRequestController::class, 'show'])->name('public.requests.form');
+    Route::post('/public/requests/{user}/address-search', [PublicRequestController::class, 'addressSearch'])
+        ->name('public.requests.address-search');
     Route::post('/public/requests/{user}/suggest-services', [PublicRequestController::class, 'suggest'])
         ->name('public.requests.suggest');
     Route::post('/public/requests/{user}', [PublicRequestController::class, 'store'])->name('public.requests.store');

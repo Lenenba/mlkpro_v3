@@ -2141,7 +2141,7 @@
       "address_manual": "Manual address",
       "address_hide": "Hide",
       "address_show": "Enter manually",
-      "address_error_key": "Geoapify key missing. Add VITE_GEOAPIFY_KEY to .env.",
+      "address_error_key": "Geoapify configuration missing. Check application configuration.",
       "address_error_failed": "Search failed. Check the Geoapify key or use manual entry."
     },
     "type": {
@@ -3998,7 +3998,7 @@
       "address_searching": "Searching...",
       "address_validated": "Validated address",
       "address_label": "Address",
-      "address_error_key": "Geoapify key missing. Add VITE_GEOAPIFY_KEY to .env.",
+      "address_error_key": "Geoapify configuration missing. Check application configuration.",
       "address_error_failed": "Search failed. Check the Geoapify key or use manual entry.",
       "submit": "Send request",
       "success": "Thanks! We'll contact you soon."

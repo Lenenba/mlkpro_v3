@@ -2141,7 +2141,7 @@
       "address_manual": "Adresse manuelle",
       "address_hide": "Masquer",
       "address_show": "Saisir manuellement",
-      "address_error_key": "Cle Geoapify manquante. Ajoutez VITE_GEOAPIFY_KEY dans .env.",
+      "address_error_key": "Configuration Geoapify manquante. Verifiez la configuration de l application.",
       "address_error_failed": "Echec de recherche. Verifiez la cle Geoapify ou utilisez la saisie manuelle."
     },
     "type": {
@@ -3998,7 +3998,7 @@
       "address_searching": "Recherche...",
       "address_validated": "Adresse validee",
       "address_label": "Adresse",
-      "address_error_key": "Cle Geoapify manquante. Ajoutez VITE_GEOAPIFY_KEY dans .env.",
+      "address_error_key": "Configuration Geoapify manquante. Verifiez la configuration de l application.",
       "address_error_failed": "Echec de recherche. Verifiez la cle Geoapify ou utilisez la saisie manuelle.",
       "submit": "Envoyer la demande",
       "success": "Merci ! Nous vous contacterons bientot."

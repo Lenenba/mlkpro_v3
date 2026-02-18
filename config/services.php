@@ -69,6 +69,10 @@ return [
         'key' => env('SERPAPI_API_KEY'),
     ],
 
+    'geoapify' => [
+        'key' => env('GEOAPIFY_API_KEY', env('VITE_GEOAPIFY_KEY')),
+    ],
+
     'twilio' => [
         'sid' => env('TWILIO_SID'),
         'token' => env('TWILIO_AUTH_TOKEN'),

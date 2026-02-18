@@ -20,6 +20,7 @@ use App\Services\TrackingService;
 use App\Services\UsageLimitService;
 use App\Support\NotificationDispatcher;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -50,10 +51,107 @@ class PublicRequestController extends Controller
             ],
             'submit_url' => URL::signedRoute('public.requests.store', ['user' => $user->id]),
             'suggest_url' => URL::signedRoute('public.requests.suggest', ['user' => $user->id]),
+            'address_search_url' => URL::signedRoute('public.requests.address-search', ['user' => $user->id]),
             'catalog_services' => $suggestionService->catalogServices($user),
             'intent_options' => $suggestionService->intentOptions(),
             'quote_question_catalog' => $suggestionService->quoteQuestionCatalog(),
         ]);
+    }
+
+    public function addressSearch(Request $request, User $user)
+    {
+        $this->assertLeadIntakeEnabled($user);
+
+        $validated = $request->validate([
+            'text' => 'required|string|min:2|max:255',
+            'limit' => 'nullable|integer|min:1|max:10',
+        ]);
+
+        $apiKey = trim((string) config('services.geoapify.key', ''));
+        if ($apiKey === '') {
+            return response()->json([
+                'message' => 'Geoapify key missing.',
+                'suggestions' => [],
+            ], 422);
+        }
+
+        $text = trim((string) ($validated['text'] ?? ''));
+        $limit = (int) ($validated['limit'] ?? 5);
+        $endpoint = 'https://api.geoapify.com/v1/geocode/autocomplete';
+
+        $attempts = [
+            [
+                'text' => $text,
+                'apiKey' => $apiKey,
+                'limit' => (string) $limit,
+                'filter' => 'countrycode:ca,us,fr,be,ch,ma,tn',
+            ],
+            [
+                'text' => $text,
+                'apiKey' => $apiKey,
+                'limit' => (string) $limit,
+            ],
+        ];
+
+        foreach ($attempts as $index => $params) {
+            try {
+                $response = Http::timeout(8)->acceptJson()->get($endpoint, $params);
+            } catch (\Throwable $exception) {
+                if ($index < count($attempts) - 1) {
+                    continue;
+                }
+
+                return response()->json([
+                    'message' => 'Geoapify lookup failed.',
+                    'suggestions' => [],
+                ], 502);
+            }
+
+            if (!$response->ok()) {
+                if ($index < count($attempts) - 1) {
+                    continue;
+                }
+
+                return response()->json([
+                    'message' => 'Geoapify lookup failed.',
+                    'status' => $response->status(),
+                    'suggestions' => [],
+                ], 502);
+            }
+
+            $features = (array) $response->json('features', []);
+            if (empty($features) && $index < count($attempts) - 1) {
+                continue;
+            }
+
+            $suggestions = collect($features)
+                ->map(function ($feature) {
+                    $details = (array) data_get($feature, 'properties', []);
+                    $label = trim((string) ($details['formatted'] ?? $details['name'] ?? ''));
+
+                    if ($label === '') {
+                        return null;
+                    }
+
+                    return [
+                        'id' => $details['place_id'] ?? $label,
+                        'label' => $label,
+                        'details' => $details,
+                    ];
+                })
+                ->filter()
+                ->values()
+                ->all();
+
+            return response()->json([
+                'suggestions' => $suggestions,
+            ]);
+        }
+
+        return response()->json([
+            'message' => 'Address lookup unavailable.',
+            'suggestions' => [],
+        ], 502);
     }
 
     public function suggest(
