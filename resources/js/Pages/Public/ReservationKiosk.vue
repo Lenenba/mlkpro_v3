@@ -326,7 +326,13 @@ const formatDateTime = (value) => (value ? dayjs(value).format('DD MMM HH:mm') :
 </script>
 
 <template>
-    <GuestLayout :card-class="'mt-6 w-full max-w-6xl rounded-sm border border-stone-200 bg-white px-6 py-6 shadow-md dark:border-neutral-700 dark:bg-neutral-900'">
+    <GuestLayout
+        :card-class="'mt-6 w-full max-w-6xl rounded-sm border border-stone-200 bg-white px-6 py-6 shadow-md dark:border-neutral-700 dark:bg-neutral-900'"
+        :logo-url="company.logo_url || ''"
+        :logo-alt="company.name || $t('reservations.kiosk.title')"
+        :logo-href="''"
+        :show-platform-logo="false"
+    >
         <Head :title="$t('reservations.kiosk.title')" />
 
         <div class="space-y-4">

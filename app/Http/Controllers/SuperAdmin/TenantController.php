@@ -24,6 +24,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -654,7 +655,7 @@ class TenantController extends BaseSuperAdminController
 
     private function buildFeatureFlags(User $tenant, ?object $subscription): array
     {
-        $defaults = [
+        $labels = [
             'quotes' => 'Quotes',
             'requests' => 'Requests',
             'reservations' => 'Reservations',
@@ -662,20 +663,32 @@ class TenantController extends BaseSuperAdminController
             'invoices' => 'Invoices',
             'jobs' => 'Jobs',
             'products' => 'Products',
+            'performance' => 'Performance',
+            'presence' => 'Presence',
+            'planning' => 'Planning',
+            'sales' => 'Sales',
             'services' => 'Services',
             'tasks' => 'Tasks',
             'team_members' => 'Team members',
             'assistant' => 'AI assistant',
         ];
 
-        $current = $tenant->company_features ?? [];
+        $current = is_array($tenant->company_features) ? $tenant->company_features : [];
         $planModules = PlatformSetting::getValue('plan_modules', []);
         $planKey = $this->resolvePlanKey($subscription?->price_id);
-        $planDefaults = $planKey ? ($planModules[$planKey] ?? []) : [];
+        $planDefaults = ($planKey && is_array($planModules[$planKey] ?? null))
+            ? $planModules[$planKey]
+            : [];
         $sectorDefaults = CompanyFeatureService::sectorFeatureDefaults((string) ($tenant->company_sector ?? null));
         $effectiveDefaults = array_replace($planDefaults, $sectorDefaults);
+        $featureKeys = array_values(array_unique(array_merge(
+            array_keys($labels),
+            array_keys($planDefaults),
+            array_keys($sectorDefaults),
+            array_keys($current),
+        )));
 
-        return collect($defaults)->map(function ($label, $key) use ($current, $effectiveDefaults) {
+        return collect($featureKeys)->map(function (string $key) use ($labels, $current, $effectiveDefaults) {
             $enabled = true;
             if (array_key_exists($key, $current)) {
                 $enabled = (bool) $current[$key];
@@ -685,7 +698,7 @@ class TenantController extends BaseSuperAdminController
 
             return [
                 'key' => $key,
-                'label' => $label,
+                'label' => $labels[$key] ?? Str::of($key)->replace('_', ' ')->title()->toString(),
                 'enabled' => $enabled,
             ];
         })->values()->all();

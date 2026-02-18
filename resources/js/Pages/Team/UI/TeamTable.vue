@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref, watch } from 'vue';
-import { Link, router, useForm } from '@inertiajs/vue3';
+import { Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
 import Modal from '@/Components/UI/Modal.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
@@ -23,6 +23,7 @@ const props = defineProps({
 });
 
 const { t } = useI18n();
+const page = usePage();
 const query = ref('');
 const isAvatarIcon = (value) => avatarIconPresets.includes(value);
 const roleOptions = [
@@ -84,7 +85,26 @@ const openEditFromDetail = () => {
     openEditMember(detailMember.value);
 };
 
+const accountFeatures = computed(() => page.props.auth?.account?.features || {});
+const accountCompanyType = computed(() => page.props.auth?.account?.company?.type || null);
+const canOpenEmployeePerformance = computed(() => {
+    const features = accountFeatures.value;
+    if (!features || !features.performance) {
+        return false;
+    }
+
+    if (accountCompanyType.value === 'products') {
+        return Boolean(features.sales);
+    }
+
+    return Boolean(features.jobs || features.tasks);
+});
+
 const memberPerformanceUrl = (member) => {
+    if (!canOpenEmployeePerformance.value) {
+        return null;
+    }
+
     const userId = member?.user?.id || member?.user_id;
     if (!userId) {
         return null;

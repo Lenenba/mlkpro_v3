@@ -107,7 +107,8 @@ class ClientReservationController extends Controller
                 'queue_grace_minutes' => (int) ($settings['queue_grace_minutes'] ?? 5),
                 'queue_pre_call_threshold' => (int) ($settings['queue_pre_call_threshold'] ?? 2),
                 'queue_no_show_on_grace_expiry' => (bool) ($settings['queue_no_show_on_grace_expiry'] ?? false),
-                'kiosk_public_url' => $this->kioskPublicUrl($account->id, $settings),
+                'slot_duration_minutes' => $this->slotDurationMinutes($account->id),
+                'kiosk_public_url' => $this->kioskEntryUrl($account->id, $settings),
                 'allow_client_cancel' => (bool) $settings['allow_client_cancel'],
                 'allow_client_reschedule' => (bool) $settings['allow_client_reschedule'],
                 'cancellation_cutoff_hours' => (int) $settings['cancellation_cutoff_hours'],
@@ -130,11 +131,7 @@ class ClientReservationController extends Controller
         [$account] = $this->resolveClientContext($user);
         $validated = $request->validated();
 
-        $durationMinutes = $this->availabilityService->resolveDurationMinutes(
-            $account->id,
-            isset($validated['service_id']) ? (int) $validated['service_id'] : null,
-            isset($validated['duration_minutes']) ? (int) $validated['duration_minutes'] : null
-        );
+        $durationMinutes = $this->slotDurationMinutes($account->id);
 
         $result = $this->availabilityService->generateSlots(
             $account->id,
@@ -165,6 +162,7 @@ class ClientReservationController extends Controller
         $validated = $request->validated();
         $settings = $this->availabilityService->resolveSettings($account->id, null);
         $this->intentGuard->ensureCanCreateReservation($account->id, $customer->id, $user->id, $settings);
+        $durationMinutes = $this->slotDurationMinutes($account->id);
 
         $metadata = [
             'contact_name' => $validated['contact_name']
@@ -184,6 +182,7 @@ class ClientReservationController extends Controller
 
         $reservation = $this->availabilityService->book([
             ...$validated,
+            'duration_minutes' => $durationMinutes,
             'account_id' => $account->id,
             'client_id' => $customer->id,
             'client_user_id' => $user->id,
@@ -268,7 +267,8 @@ class ClientReservationController extends Controller
                 'queue_grace_minutes' => (int) ($settings['queue_grace_minutes'] ?? 5),
                 'queue_pre_call_threshold' => (int) ($settings['queue_pre_call_threshold'] ?? 2),
                 'queue_no_show_on_grace_expiry' => (bool) ($settings['queue_no_show_on_grace_expiry'] ?? false),
-                'kiosk_public_url' => $this->kioskPublicUrl($account->id, $settings),
+                'slot_duration_minutes' => $this->slotDurationMinutes($account->id),
+                'kiosk_public_url' => $this->kioskEntryUrl($account->id, $settings),
                 'allow_client_cancel' => (bool) $settings['allow_client_cancel'],
                 'allow_client_reschedule' => (bool) $settings['allow_client_reschedule'],
                 'cancellation_cutoff_hours' => (int) $settings['cancellation_cutoff_hours'],
@@ -430,6 +430,7 @@ class ClientReservationController extends Controller
         }
 
         $validated = $request->validated();
+        $durationMinutes = $this->slotDurationMinutes($account->id);
         $waitlist = ReservationWaitlist::query()->create([
             'account_id' => $account->id,
             'client_id' => $customer->id,
@@ -439,7 +440,7 @@ class ClientReservationController extends Controller
             'status' => ReservationWaitlist::STATUS_PENDING,
             'requested_start_at' => Carbon::parse($validated['requested_start_at'])->utc(),
             'requested_end_at' => Carbon::parse($validated['requested_end_at'])->utc(),
-            'duration_minutes' => (int) ($validated['duration_minutes'] ?? 60),
+            'duration_minutes' => $durationMinutes,
             'party_size' => isset($validated['party_size']) ? (int) $validated['party_size'] : null,
             'notes' => $validated['notes'] ?? null,
             'resource_filters' => $validated['resource_filters'] ?? null,
@@ -622,6 +623,37 @@ class ClientReservationController extends Controller
         ], 201);
     }
 
+    public function kiosk(Request $request)
+    {
+        $user = $request->user();
+        if (!$user) {
+            abort(401);
+        }
+
+        $this->authorize('viewAny', Reservation::class);
+        [$account] = $this->resolveClientContext($user);
+        $settings = $this->availabilityService->resolveSettings($account->id, null);
+
+        if (!$this->queueModeEnabled($settings)) {
+            return redirect()->route('client.reservations.index')
+                ->with('warning', 'Kiosk is unavailable for this company.');
+        }
+
+        $kioskEnabled = (bool) data_get($account->company_notification_settings, 'reservations.kiosk_enabled', true);
+        if (!$kioskEnabled) {
+            return redirect()->route('client.reservations.index')
+                ->with('warning', 'Kiosk is disabled for this company.');
+        }
+
+        $publicUrl = $this->kioskSignedPublicUrl($account->id);
+        if (!$publicUrl) {
+            return redirect()->route('client.reservations.index')
+                ->with('warning', 'Kiosk link is unavailable right now.');
+        }
+
+        return redirect()->to($publicUrl);
+    }
+
     private function mapClientWaitlistEntries(int $accountId, int $customerId, int $clientUserId): array
     {
         return ReservationWaitlist::query()
@@ -704,6 +736,12 @@ class ClientReservationController extends Controller
         return ReservationPresetResolver::queueFeaturesEnabled((string) ($settings['business_preset'] ?? null));
     }
 
+    private function slotDurationMinutes(int $accountId): int
+    {
+        $settings = $this->availabilityService->resolveSettings($accountId, null);
+        return max(5, min(240, (int) ($settings['slot_interval_minutes'] ?? 60)));
+    }
+
     private function queueModeEnabled(array $settings): bool
     {
         return $this->queueFeaturesAvailable($settings)
@@ -725,12 +763,21 @@ class ClientReservationController extends Controller
         }
     }
 
-    private function kioskPublicUrl(int $accountId, array $settings): ?string
+    private function kioskEntryUrl(int $accountId, array $settings): ?string
     {
         if (!$this->queueModeEnabled($settings)) {
             return null;
         }
 
+        if (Route::has('client.reservations.kiosk')) {
+            return route('client.reservations.kiosk');
+        }
+
+        return $this->kioskSignedPublicUrl($accountId);
+    }
+
+    private function kioskSignedPublicUrl(int $accountId): ?string
+    {
         if (!Route::has('public.kiosk.reservations.show')) {
             return null;
         }

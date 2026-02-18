@@ -551,6 +551,7 @@ Route::middleware(['auth', EnsureClientUser::class, 'company.feature:reservation
     ->prefix('client/reservations')
     ->name('client.reservations.')
     ->group(function () {
+        Route::get('/kiosk', [ClientReservationController::class, 'kiosk'])->name('kiosk');
         Route::get('/book', [ClientReservationController::class, 'book'])->name('book');
         Route::get('/slots', [ClientReservationController::class, 'slots'])->name('slots');
         Route::post('/book', [ClientReservationController::class, 'store'])->name('store');

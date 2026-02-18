@@ -152,6 +152,10 @@ const selectedSlotLabel = computed(() => {
 const canSubmit = computed(() => Boolean(selectedSlot.value) && !submitting.value);
 const waitlistEnabled = computed(() => Boolean(props.settings?.waitlist_enabled));
 const queueModeEnabled = computed(() => Boolean(props.settings?.queue_mode_enabled));
+const slotDurationMinutes = computed(() => {
+    const value = Number(props.settings?.slot_duration_minutes || props.settings?.slot_interval_minutes || 60);
+    return Math.max(5, Math.min(240, Number.isFinite(value) ? value : 60));
+});
 const hasNoSlots = computed(() => !slotsLoading.value && (slots.value || []).length === 0);
 const hasDepositPolicy = computed(() => (
     Boolean(props.settings?.deposit_required) && Number(props.settings?.deposit_amount || 0) > 0
@@ -179,7 +183,7 @@ const loadSlots = async () => {
                 range_end: calendarRange.value.end,
                 team_member_id: selectedTeamMemberId.value || undefined,
                 service_id: selectedServiceId.value || undefined,
-                duration_minutes: bookingForm.duration_minutes || undefined,
+                duration_minutes: slotDurationMinutes.value,
                 party_size: bookingForm.party_size || undefined,
             },
         });
@@ -210,7 +214,7 @@ const queueLoadSlots = () => {
 };
 
 watch(
-    () => [selectedTeamMemberId.value, selectedServiceId.value, bookingForm.duration_minutes, bookingForm.party_size],
+    () => [selectedTeamMemberId.value, selectedServiceId.value, bookingForm.party_size],
     () => {
         successMessage.value = '';
         submitError.value = '';
@@ -262,7 +266,7 @@ const submitBooking = async () => {
             service_id: selectedServiceId.value ? Number(selectedServiceId.value) : null,
             starts_at: selectedSlot.value.starts_at,
             ends_at: selectedSlot.value.ends_at,
-            duration_minutes: Number(bookingForm.duration_minutes || 60),
+            duration_minutes: slotDurationMinutes.value,
             party_size: bookingForm.party_size ? Number(bookingForm.party_size) : null,
             timezone: bookingForm.timezone || props.timezone || 'UTC',
             contact_name: bookingForm.contact_name || null,
@@ -318,7 +322,7 @@ const submitWaitlist = async () => {
             team_member_id: selectedTeamMemberId.value ? Number(selectedTeamMemberId.value) : null,
             requested_start_at: calendarRange.value.start,
             requested_end_at: calendarRange.value.end,
-            duration_minutes: Number(bookingForm.duration_minutes || 60),
+            duration_minutes: slotDurationMinutes.value,
             party_size: waitlistForm.party_size
                 ? Number(waitlistForm.party_size)
                 : (bookingForm.party_size ? Number(bookingForm.party_size) : null),
@@ -453,13 +457,9 @@ onBeforeUnmount(() => {
             <section class="grid gap-4 xl:grid-cols-3">
                 <div class="space-y-4 xl:col-span-2">
                     <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                        <div class="grid gap-3 lg:grid-cols-4">
+                        <div class="grid gap-3 lg:grid-cols-3">
                             <FloatingSelect v-model="selectedTeamMemberId" :options="teamOptions" :label="$t('reservations.client.book.fields.team_member')" />
                             <FloatingSelect v-model="selectedServiceId" :options="serviceOptions" :label="$t('reservations.client.book.fields.service')" />
-                            <div>
-                                <FloatingInput v-model="bookingForm.duration_minutes" type="number" min="5" :label="$t('reservations.client.book.fields.duration')" />
-                                <InputError class="mt-1" :message="bookingForm.errors.duration_minutes" />
-                            </div>
                             <div>
                                 <FloatingInput v-model="bookingForm.party_size" type="number" min="1" :label="$t('reservations.client.book.fields.party_size')" />
                                 <InputError class="mt-1" :message="bookingForm.errors.party_size" />
@@ -617,80 +617,6 @@ onBeforeUnmount(() => {
                             </div>
                             <div v-if="!upcomingReservations.length" class="rounded-sm border border-dashed border-stone-300 bg-stone-50 px-3 py-3 text-sm text-stone-500 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-400">
                                 {{ $t('reservations.client.book.no_upcoming') }}
-                            </div>
-                        </div>
-                    </section>
-
-                    <section
-                        v-if="queueModeEnabled"
-                        class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900"
-                    >
-                        <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ $t('reservations.queue.client.title') }}</h2>
-                        <p class="mt-1 text-xs text-stone-500 dark:text-neutral-400">{{ $t('reservations.queue.client.subtitle') }}</p>
-                        <div class="mt-3 rounded-sm border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-400/40 dark:bg-amber-500/10 dark:text-amber-100">
-                            {{ $t('reservations.queue.client.kiosk_only_notice') }}
-                            <a
-                                v-if="props.settings?.kiosk_public_url"
-                                :href="props.settings.kiosk_public_url"
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                class="ml-1 font-semibold underline"
-                            >
-                                {{ $t('reservations.kiosk.open') }}
-                            </a>
-                        </div>
-
-                        <div v-if="ticketError" class="mt-3 rounded-sm border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">
-                            {{ ticketError }}
-                        </div>
-                        <div v-if="ticketSuccess" class="mt-3 rounded-sm border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
-                            {{ ticketSuccess }}
-                        </div>
-
-                        <div class="mt-3 space-y-2">
-                            <div
-                                v-for="ticket in queueTickets"
-                                :key="`queue-ticket-${ticket.id}`"
-                                class="rounded-sm border border-stone-200 px-3 py-2 text-sm dark:border-neutral-700"
-                            >
-                                <div class="flex items-center justify-between gap-2">
-                                    <div class="font-medium text-stone-700 dark:text-neutral-200">
-                                        {{ ticket.queue_number || `#${ticket.id}` }}
-                                    </div>
-                                    <span class="rounded-full px-2 py-0.5 text-[11px] font-semibold capitalize" :class="statusBadgeClass(ticket.status)">
-                                        {{ $t(`reservations.queue.status.${ticket.status}`) || ticket.status }}
-                                    </span>
-                                </div>
-                                <div class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
-                                    {{ ticket.service_name || $t('reservations.client.book.default_service') }}
-                                    · {{ ticket.team_member_name || $t('reservations.client.index.any_available') }}
-                                </div>
-                                <div class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
-                                    {{ $t('reservations.queue.columns.position') }}: {{ ticket.position ?? '-' }}
-                                    · ETA: {{ ticket.eta_minutes !== null && ticket.eta_minutes !== undefined ? `${ticket.eta_minutes} min` : '-' }}
-                                </div>
-                                <div class="mt-2 flex justify-end gap-3">
-                                    <button
-                                        v-if="ticket.can_still_here"
-                                        type="button"
-                                        class="text-xs text-indigo-700 underline"
-                                        @click="stillHereTicket(ticket)"
-                                    >
-                                        {{ $t('reservations.queue.client.still_here') }}
-                                    </button>
-                                    <button
-                                        v-if="ticket.can_cancel"
-                                        type="button"
-                                        class="text-xs text-rose-700 underline"
-                                        @click="cancelTicket(ticket)"
-                                    >
-                                        {{ $t('reservations.actions.cancel') }}
-                                    </button>
-                                </div>
-                            </div>
-
-                            <div v-if="!queueTickets.length" class="rounded-sm border border-dashed border-stone-300 bg-stone-50 px-3 py-3 text-sm text-stone-500 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-400">
-                                {{ $t('reservations.queue.client.none') }}
                             </div>
                         </div>
                     </section>

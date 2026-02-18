@@ -12,6 +12,7 @@ use App\Models\Task;
 use App\Models\User;
 use App\Notifications\LeadCallRequestReceivedNotification;
 use App\Notifications\LeadFormOwnerNotification;
+use App\Notifications\LeadQuoteRequestReceivedNotification;
 use App\Notifications\SendQuoteNotification;
 use App\Services\CompanyFeatureService;
 use App\Services\LeadServiceSuggestionService;
@@ -91,7 +92,7 @@ class PublicRequestController extends Controller
 
         $validated = $request->validate([
             'contact_name' => 'required|string|max:255',
-            'contact_email' => 'nullable|email|max:255',
+            'contact_email' => 'required|email|max:255',
             'contact_phone' => 'nullable|string|max:50',
             'service_type' => 'nullable|string|max:255',
             'description' => 'nullable|string|max:2000',
@@ -111,22 +112,6 @@ class PublicRequestController extends Controller
         ]);
 
         $finalAction = (string) ($validated['final_action'] ?? self::FINAL_ACTION_REQUEST_CALL);
-
-        if ($finalAction === self::FINAL_ACTION_RECEIVE_QUOTE && empty($validated['contact_email'])) {
-            throw ValidationException::withMessages([
-                'contact_email' => ['Email is required to receive a quote.'],
-            ]);
-        }
-
-        if (
-            $finalAction !== self::FINAL_ACTION_RECEIVE_QUOTE
-            && empty($validated['contact_email'])
-            && empty($validated['contact_phone'])
-        ) {
-            throw ValidationException::withMessages([
-                'contact_email' => ['Email or phone is required.'],
-            ]);
-        }
 
         if (
             $finalAction === self::FINAL_ACTION_RECEIVE_QUOTE
@@ -269,6 +254,30 @@ class PublicRequestController extends Controller
                 $this->scheduleQuoteEmailRetry($quote, $lead, 1);
             }
 
+            $prospectSummaryEmailQueued = NotificationDispatcher::sendToMail(
+                $lead->contact_email,
+                new LeadQuoteRequestReceivedNotification($user, $lead, $quote, $quoteEmailQueued),
+                [
+                    'request_id' => $lead->id,
+                    'quote_id' => $quote->id,
+                    'event' => 'lead_quote_request_received',
+                ]
+            );
+
+            if ($prospectSummaryEmailQueued) {
+                ActivityLog::record(null, $lead, 'email_sent', [
+                    'email' => $lead->contact_email,
+                    'quote_id' => $quote->id,
+                    'event' => 'lead_quote_request_received',
+                ], 'Lead quote request summary email sent');
+            } else {
+                ActivityLog::record(null, $lead, 'lead_email_failed', [
+                    'email' => $lead->contact_email,
+                    'quote_id' => $quote->id,
+                    'event' => 'lead_quote_request_received',
+                ], 'Lead quote request summary email failed');
+            }
+
             if ($quote->status === 'draft') {
                 $quote->update(['status' => 'sent']);
                 ActivityLog::record(null, $quote, 'status_changed', [
@@ -310,11 +319,19 @@ class PublicRequestController extends Controller
                 'final_action' => $finalAction,
             ]);
 
-            if (!$quoteEmailQueued) {
-                return redirect()->back()->with('warning', 'Quote created, but email delivery failed.');
+            if (!$quoteEmailQueued && !$prospectSummaryEmailQueued) {
+                return redirect()->back()->with('warning', 'Quote created, but both quote and confirmation emails failed.');
             }
 
-            return redirect()->back()->with('success', 'Quote created and sent successfully.');
+            if (!$quoteEmailQueued) {
+                return redirect()->back()->with('warning', 'Quote created. Confirmation email sent, but quote email failed.');
+            }
+
+            if (!$prospectSummaryEmailQueued) {
+                return redirect()->back()->with('warning', 'Quote created and sent, but confirmation email failed.');
+            }
+
+            return redirect()->back()->with('success', 'Quote created and confirmation sent successfully.');
         }
 
         $lead->update([
@@ -328,17 +345,14 @@ class PublicRequestController extends Controller
             'task_id' => $task?->id,
         ], 'Call requested from lead form');
 
-        $prospectEmailQueued = true;
-        if (!empty($lead->contact_email)) {
-            $prospectEmailQueued = NotificationDispatcher::sendToMail(
-                $lead->contact_email,
-                new LeadCallRequestReceivedNotification($user, $lead),
-                [
-                    'request_id' => $lead->id,
-                    'event' => 'lead_call_requested',
-                ]
-            );
-        }
+        $prospectEmailQueued = NotificationDispatcher::sendToMail(
+            $lead->contact_email,
+            new LeadCallRequestReceivedNotification($user, $lead),
+            [
+                'request_id' => $lead->id,
+                'event' => 'lead_call_requested',
+            ]
+        );
 
         if ($prospectEmailQueued) {
             ActivityLog::record(null, $lead, 'email_sent', [

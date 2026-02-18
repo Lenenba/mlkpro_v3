@@ -11,6 +11,22 @@ const props = defineProps({
         type: String,
         default: 'mt-6 w-full overflow-hidden rounded-sm border border-stone-200 bg-white px-6 py-4 shadow-md sm:max-w-md dark:border-neutral-700 dark:bg-neutral-900',
     },
+    logoUrl: {
+        type: String,
+        default: '',
+    },
+    logoAlt: {
+        type: String,
+        default: '',
+    },
+    logoHref: {
+        type: String,
+        default: '/',
+    },
+    showPlatformLogo: {
+        type: Boolean,
+        default: true,
+    },
 });
 
 const page = usePage();
@@ -23,10 +39,16 @@ const validationErrors = computed(() => page.props.errors || {});
     >
         <FlashToaster />
         <CookieBanner />
-        <div>
-            <Link href="/">
-                <ApplicationLogo class="h-14 w-44 sm:h-16 sm:w-52" />
-            </Link>
+        <div v-if="props.logoUrl || props.showPlatformLogo">
+            <component :is="props.logoHref ? Link : 'div'" v-bind="props.logoHref ? { href: props.logoHref } : {}">
+                <img
+                    v-if="props.logoUrl"
+                    :src="props.logoUrl"
+                    :alt="props.logoAlt || 'Company logo'"
+                    class="h-14 w-auto object-contain sm:h-16"
+                />
+                <ApplicationLogo v-else-if="props.showPlatformLogo" class="h-14 w-44 sm:h-16 sm:w-52" />
+            </component>
         </div>
 
         <div :class="props.cardClass">
