@@ -115,6 +115,9 @@ class ReservationSettingsRequest extends FormRequest
             'notification_settings.notify_on_queue_pre_call' => ['nullable', 'boolean'],
             'notification_settings.notify_on_queue_called' => ['nullable', 'boolean'],
             'notification_settings.notify_on_queue_grace_expired' => ['nullable', 'boolean'],
+            'notification_settings.notify_on_queue_ticket_created' => ['nullable', 'boolean'],
+            'notification_settings.notify_on_queue_eta_10m' => ['nullable', 'boolean'],
+            'notification_settings.notify_on_queue_status_changed' => ['nullable', 'boolean'],
             'notification_settings.reminder_hours' => ['nullable', 'array'],
             'notification_settings.reminder_hours.*' => ['integer', 'min:1', 'max:168'],
         ];

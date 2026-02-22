@@ -104,6 +104,15 @@ const navTabs = computed(() => {
                     ownerOnly: true,
                 },
                 {
+                    id: 'loyalty',
+                    label: t('settings.items.loyalty.label'),
+                    description: t('settings.items.loyalty.description'),
+                    route: 'settings.loyalty.edit',
+                    icon: 'badge-percent',
+                    ownerOnly: true,
+                    hidden: !hasFeature('loyalty'),
+                },
+                {
                     id: 'notifications',
                     label: t('settings.items.notifications.label'),
                     description: t('settings.items.notifications.description'),

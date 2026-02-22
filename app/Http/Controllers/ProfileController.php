@@ -34,6 +34,7 @@ class ProfileController extends Controller
         $user->fill([
             'name' => $validated['name'],
             'email' => $validated['email'],
+            'phone_number' => $validated['phone_number'] ?? null,
         ]);
 
         if ($user->isDirty('email')) {

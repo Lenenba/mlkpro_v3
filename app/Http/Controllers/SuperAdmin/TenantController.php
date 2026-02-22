@@ -671,6 +671,7 @@ class TenantController extends BaseSuperAdminController
             'tasks' => 'Tasks',
             'team_members' => 'Team members',
             'assistant' => 'AI assistant',
+            'loyalty' => 'Loyalty',
         ];
 
         $current = is_array($tenant->company_features) ? $tenant->company_features : [];

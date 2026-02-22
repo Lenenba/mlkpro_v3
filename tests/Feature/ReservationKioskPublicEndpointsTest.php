@@ -7,6 +7,7 @@ use App\Models\ReservationSetting;
 use App\Models\Role;
 use App\Models\TeamMember;
 use App\Models\User;
+use App\Services\SmsNotificationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\URL;
 
@@ -153,6 +154,46 @@ it('allows creating a public kiosk walk-in guest ticket', function () {
     expect((string) data_get($item->metadata, 'guest_phone_normalized'))->toBe('15550001111');
 });
 
+it('sends an sms confirmation when a kiosk walk-in ticket is created', function () {
+    $owner = createKioskOwner();
+    enableKioskQueue($owner);
+    $owner->update([
+        'company_notification_settings' => [
+            'reservations' => [
+                'enabled' => true,
+                'email' => false,
+                'in_app' => false,
+                'sms' => true,
+                'notify_on_queue_pre_call' => false,
+                'notify_on_queue_called' => false,
+                'notify_on_queue_grace_expired' => false,
+                'notify_on_queue_ticket_created' => true,
+                'notify_on_queue_eta_10m' => false,
+                'notify_on_queue_status_changed' => false,
+            ],
+        ],
+    ]);
+
+    $smsMock = \Mockery::mock(SmsNotificationService::class);
+    $smsMock
+        ->shouldReceive('send')
+        ->once()
+        ->with(
+            '+15145429698',
+            \Mockery::on(fn (string $message) => str_contains(strtolower($message), 'ticket confirmed'))
+        )
+        ->andReturn(true);
+    $this->app->instance(SmsNotificationService::class, $smsMock);
+
+    $this->postJson(
+        kioskSignedRoute('public.kiosk.reservations.walk-in.tickets.store', $owner),
+        [
+            'phone' => '5145429698',
+            'guest_name' => 'Sms Guest',
+        ]
+    )->assertCreated();
+});
+
 it('blocks duplicate kiosk guest tickets for the same phone', function () {
     $owner = createKioskOwner();
     enableKioskQueue($owner);
@@ -165,9 +206,14 @@ it('blocks duplicate kiosk guest tickets for the same phone', function () {
 
     $this->postJson($url, $payload)->assertCreated();
 
-    $this->postJson($url, $payload)
-        ->assertStatus(422)
-        ->assertJsonValidationErrors('queue');
+    $duplicate = $this->postJson($url, $payload)
+        ->assertStatus(409)
+        ->assertJsonPath('duplicate_ticket', true)
+        ->assertJsonPath('intent.next_action', 'track_ticket');
+
+    $queueNumber = (string) ($duplicate->json('ticket.queue_number') ?? '');
+    expect($queueNumber)->not->toBe('');
+    expect((int) ($duplicate->json('ticket.position') ?? 0))->toBeGreaterThan(0);
 });
 
 it('returns check-in intent for known client with nearby reservation', function () {

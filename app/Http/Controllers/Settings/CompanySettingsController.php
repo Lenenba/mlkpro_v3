@@ -168,6 +168,8 @@ class CompanySettingsController extends Controller
             'company_notification_settings.task_day.email' => 'nullable|boolean',
             'company_notification_settings.task_day.sms' => 'nullable|boolean',
             'company_notification_settings.task_day.whatsapp' => 'nullable|boolean',
+            'company_notification_settings.security' => 'nullable|array',
+            'company_notification_settings.security.two_factor_sms' => 'nullable|boolean',
             'custom_suppliers' => 'nullable|array',
             'custom_suppliers.*.key' => 'required|string|max:80',
             'custom_suppliers.*.name' => 'required|string|max:255',

@@ -27,6 +27,10 @@ const props = defineProps({
         type: Object,
         default: () => ({}),
     },
+    loyaltyProgram: {
+        type: Object,
+        default: () => ({}),
+    },
 });
 
 const { t } = useI18n();
@@ -40,10 +44,19 @@ const form = useForm({
     items: [],
     payment_method: '',
     pay_with_stripe: false,
+    loyalty_points_redeem: 0,
 });
 
 const page = usePage();
 const lastSaleId = computed(() => page.props.flash?.last_sale_id || null);
+const loyaltyFeatureEnabled = computed(() => {
+    const featureFlag = page.props.auth?.account?.features?.loyalty;
+    if (typeof featureFlag === 'boolean') {
+        return featureFlag;
+    }
+
+    return Boolean(props.loyaltyProgram?.feature_enabled ?? true);
+});
 const stripeEnabled = computed(() => Boolean(props.stripe?.enabled));
 const ALLOWED_INTERNAL_METHODS = ['cash', 'card', 'bank_transfer', 'check'];
 
@@ -308,8 +321,38 @@ const taxTotal = computed(() =>
 const discountRate = computed(() => Number(selectedCustomer.value?.discount_rate || 0));
 const discountTotal = computed(() => subtotal.value * (discountRate.value / 100));
 const discountedTaxTotal = computed(() => taxTotal.value * (1 - discountRate.value / 100));
-const total = computed(() =>
+const totalBeforeLoyalty = computed(() =>
     Math.max(0, subtotal.value - discountTotal.value) + discountedTaxTotal.value
+);
+const loyaltyEnabled = computed(() =>
+    loyaltyFeatureEnabled.value && Boolean(props.loyaltyProgram?.is_enabled)
+);
+const loyaltyRate = computed(() => {
+    const value = Number(props.loyaltyProgram?.points_per_currency_unit || 0);
+    return Number.isFinite(value) && value > 0 ? value : 0;
+});
+const loyaltyLabel = computed(() => String(props.loyaltyProgram?.points_label || 'points'));
+const customerLoyaltyBalance = computed(() => Number(selectedCustomer.value?.loyalty_points_balance || 0));
+const maxRedeemablePoints = computed(() => {
+    if (!selectedCustomer.value || !loyaltyEnabled.value || loyaltyRate.value <= 0) {
+        return 0;
+    }
+
+    const byAmount = Math.floor(Math.max(0, totalBeforeLoyalty.value) * loyaltyRate.value);
+    return Math.max(0, Math.min(customerLoyaltyBalance.value, byAmount));
+});
+const loyaltyPointsRedeem = computed(() => {
+    const requested = Math.floor(Math.max(0, parseNumber(form.loyalty_points_redeem)));
+    return Math.min(requested, maxRedeemablePoints.value);
+});
+const loyaltyDiscountTotal = computed(() => {
+    if (loyaltyRate.value <= 0) {
+        return 0;
+    }
+    return Math.min(totalBeforeLoyalty.value, loyaltyPointsRedeem.value / loyaltyRate.value);
+});
+const total = computed(() =>
+    Math.max(0, totalBeforeLoyalty.value - loyaltyDiscountTotal.value)
 );
 const canStripeCheckout = computed(() => total.value > 0);
 
@@ -357,8 +400,28 @@ watch(
     { immediate: true, deep: true }
 );
 
+watch(
+    () => [form.customer_id, maxRedeemablePoints.value],
+    () => {
+        if (!selectedCustomer.value || !loyaltyEnabled.value) {
+            form.loyalty_points_redeem = 0;
+            return;
+        }
+
+        const capped = Math.min(
+            Math.floor(Math.max(0, parseNumber(form.loyalty_points_redeem))),
+            maxRedeemablePoints.value
+        );
+        if (capped !== form.loyalty_points_redeem) {
+            form.loyalty_points_redeem = capped;
+        }
+    },
+    { immediate: true }
+);
+
 const submit = () => {
     stripeError.value = '';
+    form.loyalty_points_redeem = loyaltyPointsRedeem.value;
     if (form.status === 'paid' && !hasAvailablePaymentMethod.value) {
         stripeError.value = t('sales.form.payment_methods.card.disabled_hint');
         return;
@@ -378,6 +441,7 @@ const submit = () => {
             items: form.items,
             payment_method: form.payment_method,
             pay_with_stripe: true,
+            loyalty_points_redeem: loyaltyPointsRedeem.value,
         };
 
         axios.post(route('sales.store'), payload, { headers: { Accept: 'application/json' } })
@@ -561,6 +625,12 @@ const submit = () => {
                                         <span v-if="selectedCustomer.email">{{ selectedCustomer.email }}</span>
                                         <span v-if="selectedCustomer.phone">{{ selectedCustomer.phone }}</span>
                                     </div>
+                                    <div
+                                        v-if="loyaltyEnabled"
+                                        class="mt-2 text-[11px] text-stone-500 dark:text-neutral-400"
+                                    >
+                                        {{ $t('sales.form.loyalty.balance', { points: Number(customerLoyaltyBalance || 0).toLocaleString(), label: loyaltyLabel }) }}
+                                    </div>
                                 </div>
                             </div>
                             <div>
@@ -670,6 +740,29 @@ const submit = () => {
                                 </p>
                                 <InputError class="mt-1" :message="form.errors.payment_method" />
                             </div>
+
+                            <div v-if="selectedCustomer && loyaltyEnabled">
+                                <label class="text-xs text-stone-500 dark:text-neutral-400">
+                                    {{ $t('sales.form.loyalty.redeem_label') }}
+                                </label>
+                                <input
+                                    v-model.number="form.loyalty_points_redeem"
+                                    type="number"
+                                    min="0"
+                                    :max="maxRedeemablePoints"
+                                    step="1"
+                                    class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 disabled:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
+                                    :disabled="maxRedeemablePoints <= 0"
+                                />
+                                <p class="mt-1 text-[11px] text-stone-500 dark:text-neutral-400">
+                                    {{ $t('sales.form.loyalty.hint', {
+                                        max: Number(maxRedeemablePoints || 0).toLocaleString(),
+                                        label: loyaltyLabel,
+                                        amount: formatCurrency(loyaltyDiscountTotal),
+                                    }) }}
+                                </p>
+                                <InputError class="mt-1" :message="form.errors.loyalty_points_redeem" />
+                            </div>
                         </div>
                     </div>
 
@@ -769,6 +862,10 @@ const submit = () => {
                             <div v-if="discountRate > 0" class="flex items-center justify-between text-emerald-700">
                                 <span>{{ $t('sales.summary.discount_rate', { rate: discountRate }) }}</span>
                                 <span class="font-medium">- {{ formatCurrency(discountTotal) }}</span>
+                            </div>
+                            <div v-if="loyaltyPointsRedeem > 0" class="flex items-center justify-between text-emerald-700">
+                                <span>{{ $t('sales.summary.loyalty_redeem', { points: loyaltyPointsRedeem, label: loyaltyLabel }) }}</span>
+                                <span class="font-medium">- {{ formatCurrency(loyaltyDiscountTotal) }}</span>
                             </div>
                             <div class="flex items-center justify-between border-t border-stone-200 pt-2 dark:border-neutral-700">
                                 <span class="font-semibold">{{ $t('sales.summary.total') }}</span>

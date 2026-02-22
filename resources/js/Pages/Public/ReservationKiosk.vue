@@ -109,6 +109,47 @@ const hasActiveClientTicket = computed(() => nextAction.value === 'track_ticket'
 const hasNearbyReservation = computed(() => nextAction.value === 'check_in' && lookupResult.value?.intent?.nearby_reservation);
 
 const normalizeError = (error, fallback) => error?.response?.data?.message || fallback;
+const firstValidationError = (errors) => {
+    if (!errors || typeof errors !== 'object') {
+        return '';
+    }
+
+    for (const value of Object.values(errors)) {
+        if (Array.isArray(value) && value.length > 0 && typeof value[0] === 'string' && value[0]) {
+            return value[0];
+        }
+        if (typeof value === 'string' && value) {
+            return value;
+        }
+    }
+
+    return '';
+};
+const applyDuplicateTicketState = (payload, target) => {
+    const ticket = payload?.ticket || payload?.intent?.active_ticket || null;
+    const message = payload?.message || t('reservations.kiosk.messages.active_ticket_exists');
+
+    if (target === 'walk_in') {
+        walkInResult.value = ticket;
+        walkInSuccess.value = '';
+        walkInError.value = message;
+        trackForm.phone = walkInForm.phone;
+        trackForm.queue_number = ticket?.queue_number || '';
+        return;
+    }
+
+    checkInResult.value = ticket;
+    checkInSuccess.value = '';
+    checkInError.value = message;
+    lookupResult.value = {
+        ...(lookupResult.value || {}),
+        intent: {
+            ...(lookupResult.value?.intent || {}),
+            next_action: 'track_ticket',
+            active_ticket: ticket,
+        },
+    };
+};
 
 const submitWalkIn = async () => {
     walkInError.value = '';
@@ -135,9 +176,14 @@ const submitWalkIn = async () => {
         walkInSuccess.value = response?.data?.message || t('reservations.kiosk.messages.ticket_created');
         walkInForm.reset('guest_name', 'service_id', 'team_member_id', 'estimated_duration_minutes', 'party_size', 'notes');
     } catch (error) {
+        if (error?.response?.status === 409 && error?.response?.data?.duplicate_ticket) {
+            applyDuplicateTicketState(error.response.data, 'walk_in');
+            return;
+        }
         if (error?.response?.status === 422) {
-            walkInForm.setError(error.response.data?.errors || {});
-            walkInError.value = t('reservations.errors.validation');
+            const errors = error.response.data?.errors || {};
+            walkInForm.setError(errors);
+            walkInError.value = firstValidationError(errors) || t('reservations.errors.validation');
             return;
         }
         walkInError.value = normalizeError(error, t('reservations.kiosk.errors.create_ticket'));
@@ -255,9 +301,14 @@ const createClientTicket = async () => {
         checkInSuccess.value = response?.data?.message || t('reservations.kiosk.messages.ticket_created');
         clientTicketForm.reset();
     } catch (error) {
+        if (error?.response?.status === 409 && error?.response?.data?.duplicate_ticket) {
+            applyDuplicateTicketState(error.response.data, 'client_ticket');
+            return;
+        }
         if (error?.response?.status === 422) {
-            clientTicketForm.setError(error.response.data?.errors || {});
-            checkInError.value = t('reservations.errors.validation');
+            const errors = error.response.data?.errors || {};
+            clientTicketForm.setError(errors);
+            checkInError.value = firstValidationError(errors) || t('reservations.errors.validation');
             return;
         }
         checkInError.value = normalizeError(error, t('reservations.kiosk.errors.create_ticket'));

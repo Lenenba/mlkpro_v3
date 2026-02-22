@@ -183,6 +183,9 @@ const form = useForm({
         notify_on_queue_pre_call: Boolean(props.notificationSettings?.notify_on_queue_pre_call ?? true),
         notify_on_queue_called: Boolean(props.notificationSettings?.notify_on_queue_called ?? true),
         notify_on_queue_grace_expired: Boolean(props.notificationSettings?.notify_on_queue_grace_expired ?? true),
+        notify_on_queue_ticket_created: Boolean(props.notificationSettings?.notify_on_queue_ticket_created ?? true),
+        notify_on_queue_eta_10m: Boolean(props.notificationSettings?.notify_on_queue_eta_10m ?? true),
+        notify_on_queue_status_changed: Boolean(props.notificationSettings?.notify_on_queue_status_changed ?? false),
         reminder_hours: Array.isArray(props.notificationSettings?.reminder_hours)
             ? props.notificationSettings.reminder_hours.map((value) => Number(value)).filter((value) => Number.isInteger(value))
             : [24, 2],
@@ -203,6 +206,9 @@ watch(
         form.notification_settings.notify_on_queue_pre_call = false;
         form.notification_settings.notify_on_queue_called = false;
         form.notification_settings.notify_on_queue_grace_expired = false;
+        form.notification_settings.notify_on_queue_ticket_created = false;
+        form.notification_settings.notify_on_queue_eta_10m = false;
+        form.notification_settings.notify_on_queue_status_changed = false;
     },
     { immediate: true }
 );
@@ -450,6 +456,15 @@ const submit = () => {
                 : false,
             notify_on_queue_grace_expired: queueFeatureEnabled
                 ? Boolean(data.notification_settings?.notify_on_queue_grace_expired)
+                : false,
+            notify_on_queue_ticket_created: queueFeatureEnabled
+                ? Boolean(data.notification_settings?.notify_on_queue_ticket_created)
+                : false,
+            notify_on_queue_eta_10m: queueFeatureEnabled
+                ? Boolean(data.notification_settings?.notify_on_queue_eta_10m)
+                : false,
+            notify_on_queue_status_changed: queueFeatureEnabled
+                ? Boolean(data.notification_settings?.notify_on_queue_status_changed)
                 : false,
             reminder_hours: (data.notification_settings?.reminder_hours || [])
                 .map((value) => Number(value))
@@ -795,6 +810,18 @@ const submit = () => {
                         <label v-if="isSalonPreset" class="inline-flex items-center gap-2">
                             <input v-model="form.notification_settings.notify_on_queue_grace_expired" type="checkbox" class="rounded border-stone-300">
                             {{ $t('settings.reservations.notifications.fields.notify_on_queue_grace_expired') }}
+                        </label>
+                        <label v-if="isSalonPreset" class="inline-flex items-center gap-2">
+                            <input v-model="form.notification_settings.notify_on_queue_ticket_created" type="checkbox" class="rounded border-stone-300">
+                            {{ $t('settings.reservations.notifications.fields.notify_on_queue_ticket_created') }}
+                        </label>
+                        <label v-if="isSalonPreset" class="inline-flex items-center gap-2">
+                            <input v-model="form.notification_settings.notify_on_queue_eta_10m" type="checkbox" class="rounded border-stone-300">
+                            {{ $t('settings.reservations.notifications.fields.notify_on_queue_eta_10m') }}
+                        </label>
+                        <label v-if="isSalonPreset" class="inline-flex items-center gap-2">
+                            <input v-model="form.notification_settings.notify_on_queue_status_changed" type="checkbox" class="rounded border-stone-300">
+                            {{ $t('settings.reservations.notifications.fields.notify_on_queue_status_changed') }}
                         </label>
                     </div>
 

@@ -21,6 +21,9 @@ class ReservationNotificationPreferenceService
         'notify_on_queue_pre_call' => true,
         'notify_on_queue_called' => true,
         'notify_on_queue_grace_expired' => true,
+        'notify_on_queue_ticket_created' => true,
+        'notify_on_queue_eta_10m' => true,
+        'notify_on_queue_status_changed' => false,
         'reminder_hours' => [24, 2],
     ];
 

@@ -52,8 +52,10 @@ use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\AssistantController;
 use App\Http\Controllers\AiImageController;
 use App\Http\Controllers\GlobalSearchController;
+use App\Http\Controllers\LoyaltyController;
 use App\Http\Controllers\Settings\CompanySettingsController;
 use App\Http\Controllers\Settings\BillingSettingsController;
+use App\Http\Controllers\Settings\LoyaltySettingsController;
 use App\Http\Controllers\Settings\ProductCategoryController;
 use App\Http\Controllers\Settings\SubscriptionController;
 use App\Http\Controllers\Settings\HrSettingsController;
@@ -78,6 +80,7 @@ use App\Http\Controllers\SuperAdmin\SupportTicketMessageController as SuperAdmin
 use App\Http\Controllers\SuperAdmin\AnnouncementController as SuperAdminAnnouncementController;
 use App\Http\Controllers\CustomerPropertyController;
 use App\Http\Controllers\Portal\PortalInvoiceController;
+use App\Http\Controllers\Portal\PortalLoyaltyController;
 use App\Http\Controllers\Portal\PortalProductOrderController;
 use App\Http\Controllers\Portal\PortalQuoteController;
 use App\Http\Controllers\Portal\PortalRatingController;
@@ -222,6 +225,8 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
             ->name('settings.security.2fa.app.cancel');
         Route::post('/settings/security/2fa/email', [SecuritySettingsController::class, 'switchToEmail'])
             ->name('settings.security.2fa.email');
+        Route::post('/settings/security/2fa/sms', [SecuritySettingsController::class, 'switchToSms'])
+            ->name('settings.security.2fa.sms');
 
         // Settings (owner only)
         Route::get('/settings/company', [CompanySettingsController::class, 'edit'])->name('settings.company.edit');
@@ -258,6 +263,12 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
             ->name('settings.billing.assistant-addon');
         Route::post('/settings/billing/assistant-credits', [BillingSettingsController::class, 'createAssistantCreditCheckout'])
             ->name('settings.billing.assistant-credits');
+        Route::get('/settings/loyalty', [LoyaltySettingsController::class, 'edit'])
+            ->middleware('company.feature:loyalty')
+            ->name('settings.loyalty.edit');
+        Route::put('/settings/loyalty', [LoyaltySettingsController::class, 'update'])
+            ->middleware('company.feature:loyalty')
+            ->name('settings.loyalty.update');
         Route::get('/settings/notifications', [NotificationSettingsController::class, 'edit'])
             ->name('settings.notifications.edit');
         Route::put('/settings/notifications', [NotificationSettingsController::class, 'update'])
@@ -412,6 +423,10 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
             ->name('planning.shifts.status');
     });
 
+    Route::middleware('company.feature:loyalty')->group(function () {
+        Route::get('/loyalty', [LoyaltyController::class, 'index'])->name('loyalty.index');
+    });
+
     // Sales Management (products)
     Route::middleware('company.feature:sales')->group(function () {
         Route::get('/orders', [SaleController::class, 'ordersIndex'])->name('orders.index');
@@ -533,6 +548,9 @@ Route::middleware(['auth', EnsureClientUser::class])
         Route::post('/orders/{sale}/reviews', [PortalReviewController::class, 'storeOrder'])->name('orders.reviews.store');
         Route::post('/orders/{sale}/products/{product}/reviews', [PortalReviewController::class, 'storeProduct'])
             ->name('orders.products.reviews.store');
+        Route::get('/loyalty', [PortalLoyaltyController::class, 'index'])
+            ->middleware('company.feature:loyalty')
+            ->name('loyalty.index');
         Route::post('/quotes/{quote}/accept', [PortalQuoteController::class, 'accept'])->name('quotes.accept');
         Route::post('/quotes/{quote}/decline', [PortalQuoteController::class, 'decline'])->name('quotes.decline');
         Route::post('/works/{work}/validate', [PortalWorkController::class, 'validateWork'])->name('works.validate');

@@ -141,23 +141,47 @@ class ReservationNotificationService
         $event = strtolower(trim($event));
 
         $config = match ($event) {
+            'queue_ticket_created' => [
+                'title' => 'Queue ticket created',
+                'message' => 'Your queue ticket is confirmed.',
+                'include_client' => true,
+                'include_internal' => false,
+                'dedupe' => true,
+            ],
+            'queue_eta_10m' => [
+                'title' => 'Queue alert',
+                'message' => 'Your turn is expected in about 10 minutes.',
+                'include_client' => true,
+                'include_internal' => false,
+                'dedupe' => true,
+            ],
             'queue_pre_call' => [
                 'title' => 'Queue pre-call',
                 'message' => 'You are almost next. Please be ready.',
                 'include_client' => true,
                 'include_internal' => false,
+                'dedupe' => true,
             ],
             'queue_called' => [
                 'title' => 'Queue called',
                 'message' => 'It is your turn now. Please come to the service point.',
                 'include_client' => true,
                 'include_internal' => true,
+                'dedupe' => true,
             ],
             'queue_grace_expired' => [
                 'title' => 'Queue grace expired',
-                'message' => 'A called queue item reached the grace limit and was moved forward.',
+                'message' => 'The call window expired and the ticket was marked as missed.',
                 'include_client' => true,
                 'include_internal' => true,
+                'dedupe' => true,
+            ],
+            'queue_status_changed' => [
+                'title' => 'Queue status changed',
+                'message' => 'Your queue status was updated.',
+                'include_client' => true,
+                'include_internal' => false,
+                'dedupe' => false,
             ],
             default => null,
         };
@@ -176,8 +200,9 @@ class ReservationNotificationService
             return false;
         }
 
+        $shouldDedupe = (bool) ($config['dedupe'] ?? true);
         $metaKey = (string) ($context['meta_key'] ?? ($event . '_sent_at'));
-        if (empty($context['force']) && $this->hasQueueNotificationMeta($item, $metaKey)) {
+        if ($shouldDedupe && empty($context['force']) && $this->hasQueueNotificationMeta($item, $metaKey)) {
             return false;
         }
 
@@ -209,15 +234,29 @@ class ReservationNotificationService
 
         $serviceLabel = $item->service?->name ?: 'Service';
         $queueLabel = $item->queue_number ?: ('#' . $item->id);
+        $fromStatus = is_string($context['from_status'] ?? null)
+            ? trim((string) $context['from_status'])
+            : null;
+        $toStatus = is_string($context['to_status'] ?? null)
+            ? trim((string) $context['to_status'])
+            : (string) $item->status;
         $details = [
             ['label' => 'Queue', 'value' => $queueLabel],
             ['label' => 'Type', 'value' => $item->item_type],
             ['label' => 'Service', 'value' => $serviceLabel],
             ['label' => 'Client', 'value' => $clientLabel],
-            ['label' => 'Status', 'value' => $item->status],
+            ['label' => 'Status', 'value' => $toStatus],
             ['label' => 'Position', 'value' => $item->position ?? '-'],
             ['label' => 'ETA', 'value' => $item->eta_minutes !== null ? ((int) $item->eta_minutes . ' min') : '-'],
         ];
+        if ($event === 'queue_status_changed') {
+            if ($fromStatus !== null && $fromStatus !== '') {
+                $details[] = ['label' => 'From status', 'value' => $fromStatus];
+            }
+            if ($toStatus !== '') {
+                $details[] = ['label' => 'To status', 'value' => $toStatus];
+            }
+        }
 
         $memberLabel = $memberUser?->name ?: 'Team member';
         $details[] = ['label' => 'Team member', 'value' => $memberLabel];
@@ -227,6 +266,19 @@ class ReservationNotificationService
                 ->setTimezone($account->company_timezone ?: config('app.timezone', 'UTC'))
                 ->format('Y-m-d H:i');
             $details[] = ['label' => 'Call expires at', 'value' => $callExpiry];
+        }
+
+        $eventMessage = (string) ($context['message'] ?? $config['message']);
+        if (
+            $event === 'queue_status_changed'
+            && $fromStatus !== null
+            && $fromStatus !== ''
+            && $toStatus !== ''
+            && $fromStatus !== $toStatus
+        ) {
+            $eventMessage = "Your queue status changed from {$fromStatus} to {$toStatus}.";
+        } elseif ($event === 'queue_eta_10m' && is_numeric($item->eta_minutes)) {
+            $eventMessage = 'Your turn is expected in about ' . max(0, (int) $item->eta_minutes) . ' minutes.';
         }
 
         $internalUsers = collect([$account, $memberUser])
@@ -264,7 +316,7 @@ class ReservationNotificationService
             if (!empty($settings['in_app'])) {
                 $dispatchOk = NotificationDispatcher::send($recipient, new ReservationDatabaseNotification([
                     'title' => (string) $config['title'],
-                    'message' => (string) $config['message'],
+                    'message' => $eventMessage,
                     'event' => $event,
                     'action_url' => $actionUrl,
                     'reservation_id' => $item->reservation_id,
@@ -285,7 +337,7 @@ class ReservationNotificationService
             if (!empty($settings['email']) && !empty($recipient->email)) {
                 $dispatchOk = NotificationDispatcher::send($recipient, new ActionEmailNotification(
                     (string) $config['title'],
-                    (string) $config['message'],
+                    $eventMessage,
                     $details,
                     $actionUrl,
                     'Open reservations',
@@ -311,7 +363,7 @@ class ReservationNotificationService
         ) {
             $dispatchOk = NotificationDispatcher::send($client, new ActionEmailNotification(
                 (string) $config['title'],
-                (string) $config['message'],
+                $eventMessage,
                 $details,
                 route('client.reservations.book'),
                 'Open reservations',
@@ -332,7 +384,16 @@ class ReservationNotificationService
                 $event,
                 $queueLabel,
                 $serviceLabel,
-                $item->status
+                $toStatus,
+                [
+                    'eta_minutes' => $item->eta_minutes,
+                    'from_status' => $fromStatus,
+                    'to_status' => $toStatus,
+                    'position' => is_numeric($item->position) ? (int) $item->position : null,
+                    'company_name' => (string) ($account->company_name ?: $account->name ?: 'Your service team'),
+                    'client_name' => $this->queueClientName($item, $client, $clientUser),
+                    'team_member_name' => (string) ($memberUser?->name ?? ''),
+                ]
             );
             $smsRecipients = $this->resolveQueueSmsRecipients($item, $client, $clientUser);
             foreach ($smsRecipients as $phone) {
@@ -352,7 +413,7 @@ class ReservationNotificationService
             }
         }
 
-        if ($sent > 0) {
+        if ($sent > 0 && $shouldDedupe) {
             $this->setQueueNotificationMeta($item, $metaKey, now('UTC')->toIso8601String());
         }
 
@@ -663,6 +724,9 @@ class ReservationNotificationService
             'queue_pre_call' => (bool) ($settings['notify_on_queue_pre_call'] ?? true),
             'queue_called' => (bool) ($settings['notify_on_queue_called'] ?? true),
             'queue_grace_expired' => (bool) ($settings['notify_on_queue_grace_expired'] ?? true),
+            'queue_ticket_created' => (bool) ($settings['notify_on_queue_ticket_created'] ?? true),
+            'queue_eta_10m' => (bool) ($settings['notify_on_queue_eta_10m'] ?? true),
+            'queue_status_changed' => (bool) ($settings['notify_on_queue_status_changed'] ?? false),
             default => true,
         };
     }
@@ -748,14 +812,115 @@ class ReservationNotificationService
         return null;
     }
 
-    private function queueSmsMessage(string $event, string $queueLabel, string $serviceLabel, string $status): string
+    private function queueSmsMessage(
+        string $event,
+        string $queueLabel,
+        string $serviceLabel,
+        string $status,
+        array $context = []
+    ): string
     {
-        return match ($event) {
+        $companyName = $this->smsCompactLabel((string) ($context['company_name'] ?? ''), 42);
+        $clientName = $this->smsCompactLabel((string) ($context['client_name'] ?? ''), 40);
+        $teamMemberName = $this->smsCompactLabel((string) ($context['team_member_name'] ?? ''), 32);
+        $queueLabel = $this->smsCompactLabel($queueLabel, 22);
+        $serviceLabel = $this->smsCompactLabel($serviceLabel, 42);
+
+        $etaMinutes = is_numeric($context['eta_minutes'] ?? null)
+            ? max(0, (int) $context['eta_minutes'])
+            : null;
+        $position = is_numeric($context['position'] ?? null)
+            ? max(1, (int) $context['position'])
+            : null;
+        $fromStatus = is_string($context['from_status'] ?? null)
+            ? trim((string) $context['from_status'])
+            : null;
+        $toStatus = is_string($context['to_status'] ?? null)
+            ? trim((string) $context['to_status'])
+            : $status;
+
+        $headline = $companyName !== '' ? $companyName : 'Reservation update';
+        $main = match ($event) {
+            'queue_ticket_created' => "[{$queueLabel}] {$serviceLabel}: ticket confirmed. Keep this number for tracking.",
+            'queue_eta_10m' => $etaMinutes !== null
+                ? "[{$queueLabel}] {$serviceLabel}: your turn is in about {$etaMinutes} min."
+                : "[{$queueLabel}] {$serviceLabel}: your turn is in about 10 min.",
             'queue_pre_call' => "[{$queueLabel}] {$serviceLabel}: you are almost next.",
             'queue_called' => "[{$queueLabel}] {$serviceLabel}: it is your turn now.",
-            'queue_grace_expired' => "[{$queueLabel}] {$serviceLabel}: call window expired ({$status}).",
-            default => "[{$queueLabel}] {$serviceLabel}: queue update ({$status}).",
+            'queue_grace_expired' => "[{$queueLabel}] {$serviceLabel}: your turn was missed. Please rejoin at reception.",
+            'queue_status_changed' => ($fromStatus && $toStatus && $fromStatus !== $toStatus)
+                ? "[{$queueLabel}] {$serviceLabel}: status changed {$fromStatus} -> {$toStatus}."
+                : "[{$queueLabel}] {$serviceLabel}: queue status updated ({$toStatus}).",
+            default => "[{$queueLabel}] {$serviceLabel}: queue update ({$toStatus}).",
         };
+
+        $lines = [$headline, $main];
+
+        if ($clientName !== '' && strtolower($clientName) !== 'client') {
+            $lines[] = "Name: {$clientName}";
+        }
+
+        if ($position !== null) {
+            $lines[] = "Position: {$position}";
+        }
+
+        if ($etaMinutes !== null) {
+            $lines[] = "ETA: {$etaMinutes} min";
+        }
+
+        if ($teamMemberName !== '') {
+            $lines[] = "Staff: {$teamMemberName}";
+        }
+
+        if ($event === 'queue_ticket_created') {
+            $lines[] = "Please keep ticket {$queueLabel} to track your place.";
+        }
+
+        return implode("\n", $lines);
+    }
+
+    private function queueClientName(
+        ReservationQueueItem $item,
+        ?Customer $client,
+        ?User $clientUser
+    ): string {
+        $candidates = [
+            (string) data_get($item->metadata, 'guest_name', ''),
+            trim((string) (($client?->first_name ?? '') . ' ' . ($client?->last_name ?? ''))),
+            (string) ($clientUser?->name ?? ''),
+            (string) ($client?->company_name ?? ''),
+        ];
+
+        foreach ($candidates as $candidate) {
+            $cleaned = trim($candidate);
+            if ($cleaned !== '') {
+                return $cleaned;
+            }
+        }
+
+        return '';
+    }
+
+    private function smsCompactLabel(?string $value, int $maxLength): string
+    {
+        $cleaned = preg_replace('/\s+/', ' ', trim((string) $value)) ?: '';
+        if ($cleaned === '' || $maxLength < 4) {
+            return $cleaned;
+        }
+
+        if (function_exists('mb_strlen') && function_exists('mb_substr')) {
+            if (mb_strlen($cleaned) <= $maxLength) {
+                return $cleaned;
+            }
+
+            return mb_substr($cleaned, 0, $maxLength - 3) . '...';
+        }
+
+        if (strlen($cleaned) <= $maxLength) {
+            return $cleaned;
+        }
+
+        return substr($cleaned, 0, $maxLength - 3) . '...';
     }
 
     private function clientLabel(Reservation $reservation): string

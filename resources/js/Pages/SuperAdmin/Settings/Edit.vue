@@ -67,6 +67,7 @@ const moduleKeys = computed(() => [
     { key: 'tasks', label: t('super_admin.settings.modules.tasks') },
     { key: 'team_members', label: t('super_admin.settings.modules.team_members') },
     { key: 'assistant', label: t('super_admin.settings.modules.assistant') },
+    { key: 'loyalty', label: t('super_admin.settings.modules.loyalty') },
 ]);
 
 const form = useForm({

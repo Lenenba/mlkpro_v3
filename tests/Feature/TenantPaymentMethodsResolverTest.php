@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\EnsureTwoFactorVerified;
+use App\Models\LoyaltyProgram;
 use App\Models\User;
 use App\Support\TenantPaymentMethodsResolver;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
@@ -66,6 +67,13 @@ test('billing settings update persists phase1 payment fields', function () {
             'payment_methods' => ['cash', 'card', 'bank_transfer'],
             'default_payment_method' => 'card',
             'cash_allowed_contexts' => ['invoice', 'walk_in'],
+            'loyalty' => [
+                'is_enabled' => true,
+                'points_per_currency_unit' => 2.5,
+                'minimum_spend' => 20,
+                'rounding_mode' => 'round',
+                'points_label' => 'pts',
+            ],
         ]);
 
     $response
@@ -77,4 +85,13 @@ test('billing settings update persists phase1 payment fields', function () {
     expect($owner->payment_methods)->toBe(['cash', 'card', 'bank_transfer'])
         ->and($owner->default_payment_method)->toBe('card')
         ->and($owner->cash_allowed_contexts)->toBe(['invoice', 'walk_in']);
+
+    $program = LoyaltyProgram::query()->where('user_id', $owner->id)->first();
+
+    expect($program)->not->toBeNull()
+        ->and((bool) $program->is_enabled)->toBeTrue()
+        ->and((float) $program->points_per_currency_unit)->toBe(2.5)
+        ->and((float) $program->minimum_spend)->toBe(20.0)
+        ->and((string) $program->rounding_mode)->toBe('round')
+        ->and((string) $program->points_label)->toBe('pts');
 });

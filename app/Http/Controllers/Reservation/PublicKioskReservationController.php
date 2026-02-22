@@ -122,8 +122,16 @@ class PublicKioskReservationController extends Controller
         $clientId = $customer ? (int) $customer->id : null;
         $clientUserId = $customer && $customer->portal_user_id ? (int) $customer->portal_user_id : null;
         if ($clientId || $clientUserId) {
+            $activeTicket = $this->intentGuard->findActiveTicket($account->id, $clientId, $clientUserId);
+            if ($activeTicket) {
+                return $this->duplicateTicketResponse($account, $settings, $activeTicket);
+            }
             $this->intentGuard->ensureCanCreateTicket($account->id, $clientId, $clientUserId, $settings);
         } else {
+            $activeTicket = $this->intentGuard->findActiveTicketByGuestPhone($account->id, $phoneNormalized);
+            if ($activeTicket) {
+                return $this->duplicateTicketResponse($account, $settings, $activeTicket);
+            }
             $this->intentGuard->ensureCanCreateGuestTicket($account->id, $phoneNormalized, $settings);
         }
 
@@ -757,6 +765,32 @@ class PublicKioskReservationController extends Controller
             ?: $this->normalizePhone((string) data_get($ticket->metadata, 'guest_phone'));
 
         return $guestPhone === $phoneNormalized;
+    }
+
+    private function duplicateTicketResponse(User $account, array $settings, ReservationQueueItem $ticket)
+    {
+        $this->queueService->refreshMetrics((int) $account->id, $settings);
+
+        $freshTicket = $ticket->fresh([
+            'service:id,name',
+            'teamMember.user:id,name',
+            'client:id,first_name,last_name,company_name,email',
+        ]) ?: $ticket;
+        $mapped = $this->mapQueueItem($freshTicket);
+
+        $queueNumber = (string) ($mapped['queue_number'] ?? ('#' . $freshTicket->id));
+        $position = $mapped['position'] ?? null;
+        $positionLabel = $position !== null ? (string) $position : 'pending assignment';
+
+        return response()->json([
+            'message' => "An active queue ticket already exists for this phone number. Ticket {$queueNumber} is currently at position {$positionLabel}.",
+            'duplicate_ticket' => true,
+            'ticket' => $mapped,
+            'intent' => [
+                'next_action' => 'track_ticket',
+                'active_ticket' => $mapped,
+            ],
+        ], 409);
     }
 
     private function mapQueueItem(ReservationQueueItem $item): array

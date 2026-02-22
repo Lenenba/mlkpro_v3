@@ -6,6 +6,8 @@ use App\Models\Work;
 use App\Models\Quote;
 use App\Models\Task;
 use App\Models\Invoice;
+use App\Models\LoyaltyPointLedger;
+use App\Models\LoyaltyProgram;
 use App\Models\Payment;
 use App\Models\Sale;
 use App\Models\SaleItem;
@@ -25,6 +27,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
 use App\Http\Requests\CustomerRequest;
+use App\Services\CompanyFeatureService;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 
 class CustomerController extends Controller
@@ -275,6 +278,62 @@ class CustomerController extends Controller
         $salesSummary = null;
         $salesInsights = null;
         $topProducts = collect();
+        $featureMap = $accountOwner
+            ? app(CompanyFeatureService::class)->resolveEffectiveFeatures($accountOwner)
+            : [];
+        $loyaltyFeatureEnabled = array_key_exists('loyalty', $featureMap)
+            ? (bool) $featureMap['loyalty']
+            : true;
+        $loyalty = [
+            'feature_enabled' => $loyaltyFeatureEnabled,
+            'enabled' => false,
+            'label' => 'points',
+            'balance' => (int) ($customer->loyalty_points_balance ?? 0),
+            'rate' => 1.0,
+            'minimum_spend' => 0.0,
+            'rounding_mode' => 'floor',
+            'recent' => [],
+        ];
+
+        if ($loyaltyFeatureEnabled) {
+            $loyaltyProgram = LoyaltyProgram::query()
+                ->where('user_id', $accountId)
+                ->first();
+
+            if ($loyaltyProgram) {
+                $loyalty['enabled'] = (bool) $loyaltyProgram->is_enabled;
+                $loyalty['label'] = (string) ($loyaltyProgram->points_label ?: 'points');
+                $loyalty['rate'] = (float) $loyaltyProgram->points_per_currency_unit;
+                $loyalty['minimum_spend'] = (float) $loyaltyProgram->minimum_spend;
+                $loyalty['rounding_mode'] = (string) $loyaltyProgram->rounding_mode;
+            }
+
+            $loyalty['recent'] = LoyaltyPointLedger::query()
+                ->where('customer_id', $customer->id)
+                ->where('user_id', $accountId)
+                ->latest('processed_at')
+                ->latest('id')
+                ->limit(8)
+                ->get([
+                    'id',
+                    'payment_id',
+                    'event',
+                    'points',
+                    'amount',
+                    'processed_at',
+                    'created_at',
+                ])
+                ->map(fn($entry) => [
+                    'id' => $entry->id,
+                    'payment_id' => $entry->payment_id,
+                    'event' => $entry->event,
+                    'points' => (int) $entry->points,
+                    'amount' => (float) $entry->amount,
+                    'processed_at' => $entry->processed_at ?: $entry->created_at,
+                ])
+                ->values();
+        }
+
         if ($accountOwner && $accountOwner->company_type === 'products') {
             $salesQuery = Sale::query()
                 ->where('user_id', $accountId)
@@ -675,6 +734,7 @@ class CustomerController extends Controller
                 'summary' => $billing,
                 'recentPayments' => $recentPayments,
             ],
+            'loyalty' => $loyalty,
             'activity' => $activity,
             'lastInteraction' => $activity->first(),
         ]);

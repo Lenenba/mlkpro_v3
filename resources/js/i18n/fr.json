@@ -16,6 +16,7 @@
     "customers": "Clients",
     "products": "Produits",
     "sales": "Ventes",
+    "loyalty": "Fidelite",
     "performance": "Performance",
     "presence": "Presence",
     "planning": "Planning",
@@ -62,6 +63,7 @@
   "two_factor": {
     "title": "Verification en deux etapes",
     "sent": "Nous avons envoye un code a {email}.",
+    "sms_sent": "Nous avons envoye un code a {phone}.",
     "app_prompt": "Entrez le code de votre application d'authentification.",
     "expires": "Ce code expire dans {minutes} minutes.",
     "code_label": "Code de verification",
@@ -1366,7 +1368,8 @@
         "services": "Services",
         "tasks": "Taches",
         "team_members": "Membres equipe",
-        "assistant": "Assistant IA"
+        "assistant": "Assistant IA",
+        "loyalty": "Fidelite"
       }
     },
     "welcome_builder": {
@@ -2727,6 +2730,11 @@
           "disabled_hint": "Stripe n est pas configure pour les paiements par carte."
         }
       },
+      "loyalty": {
+        "balance": "Solde fidelite : {points} {label}",
+        "redeem_label": "Utiliser des points",
+        "hint": "Maximum : {max} {label} ({amount} de reduction)"
+      },
       "status_label": "Statut",
       "invoice_title": "Facture",
       "lines": "{count} lignes",
@@ -2742,6 +2750,7 @@
       "subtotal": "Sous-total",
       "taxes": "Taxes",
       "discount_rate": "Remise ({rate}%)",
+      "loyalty_redeem": "Fidelite ({points} {label})",
       "delivery": "Livraison",
       "total": "Total",
       "lines": "Lignes",
@@ -3070,6 +3079,29 @@
         "payment_fallback": "Paiement",
         "paid_on": "Paye le",
         "empty": "Aucun paiement."
+      },
+      "loyalty": {
+        "title": "Points fidelite",
+        "balance": "Solde",
+        "earn_rate": "Taux d'accumulation",
+        "rate_value": "{rate} pts par 1$ depense",
+        "minimum_spend": "Achat minimum",
+        "rounding": "Arrondi: {mode}",
+        "enabled": "Programme actif",
+        "disabled": "Programme inactif",
+        "recent_activity": "Activite recente des points",
+        "event_accrual": "Points gagnes",
+        "event_refund": "Points retires (remboursement)",
+        "event_redemption": "Points utilises",
+        "event_redemption_reversal": "Points restitues",
+        "payment_amount": "Base sur un paiement de {amount}",
+        "empty": "Aucune activite fidelite.",
+        "points_unit": "points",
+        "rounding_modes": {
+          "floor": "Inferieur",
+          "round": "Plus proche",
+          "ceil": "Superieur"
+        }
       },
       "notes": {
         "title": "Notes internes",
@@ -4471,7 +4503,8 @@
         "client_not_found": "Aucun profil client existant trouve pour ce numero.",
         "client_found": "Profil client trouve.",
         "code_sent": "Code de verification envoye.",
-        "phone_verified": "Telephone verifie."
+        "phone_verified": "Telephone verifie.",
+        "active_ticket_exists": "Vous avez deja un ticket actif pour ce numero."
       },
       "errors": {
         "lookup": "Impossible de rechercher ce client.",
@@ -5417,6 +5450,10 @@
         "label": "Facturation",
         "description": "Plan, paiements et historique"
       },
+      "loyalty": {
+        "label": "Fidelite",
+        "description": "Configuration du programme de points"
+      },
       "notifications": {
         "label": "Alertes",
         "description": "Emails, alertes et préférences",
@@ -5508,6 +5545,9 @@
           "notify_on_queue_pre_call": "Notifier le client au pre-appel file",
           "notify_on_queue_called": "Notifier le client quand il est appele",
           "notify_on_queue_grace_expired": "Notifier quand le delai de grace file expire",
+          "notify_on_queue_ticket_created": "Envoyer un SMS quand le ticket file est cree",
+          "notify_on_queue_eta_10m": "Envoyer une alerte a environ 10 minutes du tour",
+          "notify_on_queue_status_changed": "Notifier les changements de statut file (optionnel)",
           "reminder_hours": "Moments des rappels"
         },
         "reminders": {
@@ -5591,7 +5631,9 @@
         "method_title": "Methode 2FA preferee",
         "method_email": "Code email",
         "method_app": "Application d authentification",
+        "method_sms": "Code SMS",
         "method_ready": "Application configuree",
+        "sms_phone": "Numero utilise: {phone}",
         "app_start": "Configurer l application",
         "app_setup_hint": "Scannez le QR code ou saisissez la cle dans votre application, puis validez le code a 6 chiffres.",
         "app_secret_label": "Cle de configuration",
@@ -5599,7 +5641,11 @@
         "app_confirm": "Valider l application",
         "app_cancel": "Annuler",
         "app_qr_alt": "QR d authentification",
-        "switch_email": "Passer aux codes email"
+        "switch_email": "Passer aux codes email",
+        "switch_sms": "Passer aux codes SMS",
+        "sms_disabled_company": "Le 2FA SMS doit etre active dans les parametres entreprise.",
+        "sms_missing_phone": "Ajoutez un numero de telephone sur votre profil pour activer le 2FA SMS.",
+        "sms_missing_twilio": "Le service SMS n est pas configure."
       },
       "password": {
         "title": "Mot de passe",
@@ -5786,7 +5832,9 @@
         "description": "Choisissez comment informer le client le jour de la tache.",
         "email": "Email",
         "sms": "SMS",
-        "whatsapp": "WhatsApp"
+        "whatsapp": "WhatsApp",
+        "two_factor_sms": "Autoriser le 2FA par SMS",
+        "two_factor_sms_hint": "Si active, le proprietaire peut choisir SMS comme methode 2FA dans Securite."
       },
       "presence": {
         "title": "Presence & pointage",
@@ -6110,6 +6158,21 @@
         "refund_prorata": "Repartition au prorata",
         "refund_manual": "Repartition manuelle"
       },
+      "loyalty": {
+        "title": "Parametres fidelite",
+        "subtitle": "Configurez l accumulation et l utilisation des points en POS.",
+        "save": "Enregistrer la fidelite",
+        "enabled": "Activer le programme fidelite",
+        "points_per_currency_unit": "Points gagnes par 1$ depense",
+        "minimum_spend": "Montant minimum avant gains de points ($)",
+        "rounding_mode": "Mode d arrondi",
+        "points_label": "Libelle des points",
+        "rounding_modes": {
+          "floor": "Arrondi inferieur",
+          "round": "Arrondi au plus proche",
+          "ceil": "Arrondi superieur"
+        }
+      },
       "connect": {
         "title": "Stripe Connect",
         "subtitle": "Connectez votre compte bancaire pour recevoir les paiements client directement.",
@@ -6127,7 +6190,131 @@
         "error_start": "Impossible de demarrer l'onboarding Stripe Connect."
       }
     },
+    "loyalty": {
+      "meta_title": "Parametres fidelite",
+      "title": "Configuration du module fidelite",
+      "subtitle": "Definissez les regles de gains, d utilisation et le libelle des points.",
+      "save": "Enregistrer la configuration",
+      "fields": {
+        "enabled": "Activer le programme fidelite",
+        "points_per_currency_unit": "Points gagnes par 1$ depense",
+        "minimum_spend": "Montant minimum avant gain de points ($)",
+        "rounding_mode": "Mode d arrondi",
+        "points_label": "Libelle des points"
+      },
+      "status": {
+        "enabled": "Programme active",
+        "disabled": "Programme desactive"
+      },
+      "rounding_modes": {
+        "floor": "Arrondi inferieur",
+        "round": "Arrondi au plus proche",
+        "ceil": "Arrondi superieur"
+      },
+      "preview": "Apercu du libelle: {label}",
+      "preview_title": "Apercu rapide"
+    },
     "_label": "Parametres"
+  },
+  "client_loyalty": {
+    "title": "Mes points fidelite",
+    "subtitle": "Consultez votre solde et l historique des mouvements de points.",
+    "kpi": {
+      "balance": "Solde disponible",
+      "earned_period": "Points gagnes (periode)",
+      "spent_period": "Points utilises (periode)",
+      "movements": "Mouvements (periode)",
+      "earned_lifetime": "Total gagne",
+      "spent_lifetime": "Total utilise",
+      "movements_lifetime": "Total mouvements"
+    },
+    "program": {
+      "title": "Regles du programme",
+      "status": "Statut",
+      "rate": "Taux de gain (pts / $1)",
+      "minimum_spend": "Montant minimum",
+      "label": "Libelle"
+    },
+    "ledger": {
+      "title": "Historique des points"
+    }
+  },
+  "loyalty_module": {
+    "title": "Gestion fidelite",
+    "subtitle": "Suivez l evolution des points et les soldes clients en temps reel.",
+    "default_points_label": "points",
+    "actions": {
+      "configure": "Configurer le module",
+      "apply_filters": "Appliquer les filtres",
+      "clear_filters": "Effacer les filtres",
+      "show_advanced": "Afficher avance",
+      "hide_advanced": "Masquer avance"
+    },
+    "filters": {
+      "search_placeholder": "Rechercher par client, evenement, paiement ou reference...",
+      "period": "Periode",
+      "customer": "Client",
+      "event": "Evenement",
+      "per_page": "Lignes / page",
+      "from": "Du",
+      "to": "Au",
+      "all_customers": "Tous les clients",
+      "all_events": "Tous les evenements"
+    },
+    "period": {
+      "last_7_days": "7 derniers jours",
+      "last_30_days": "30 derniers jours",
+      "last_90_days": "90 derniers jours",
+      "this_month": "Ce mois-ci",
+      "custom": "Periode personnalisee"
+    },
+    "kpi": {
+      "total_balance": "Solde total des points",
+      "active_customers": "Clients avec points",
+      "points_earned": "Points gagnes",
+      "points_spent": "Points utilises"
+    },
+    "program": {
+      "title": "Etat du programme",
+      "status": "Statut",
+      "enabled": "Actif",
+      "disabled": "Desactive",
+      "rate": "Taux de gain (pts / $1)",
+      "minimum_spend": "Montant minimum",
+      "rounding_mode": "Mode d arrondi"
+    },
+    "customer_stats": {
+      "title": "Suivi points clients",
+      "customer": "Client",
+      "balance": "Solde",
+      "earned": "Gagnes",
+      "spent": "Utilises",
+      "empty": "Aucune donnee client a afficher."
+    },
+    "ledger": {
+      "title": "Evolution des points",
+      "date": "Date et heure",
+      "customer": "Client",
+      "event": "Evenement",
+      "reference": "Reference",
+      "points": "Points",
+      "amount": "Montant",
+      "results": "resultats",
+      "result_count": "{count} resultats",
+      "page_indicator": "Page {current} / {total}",
+      "empty": "Aucun mouvement trouve."
+    },
+    "events": {
+      "accrual": "Points credites",
+      "refund": "Ajustement remboursement",
+      "redemption": "Points utilises",
+      "redemption_reversal": "Annulation d utilisation"
+    },
+    "references": {
+      "payment": "Paiement #{id}",
+      "sale": "Vente {number}",
+      "sale_id": "Vente #{id}"
+    }
   },
   "welcome": {
     "meta": {

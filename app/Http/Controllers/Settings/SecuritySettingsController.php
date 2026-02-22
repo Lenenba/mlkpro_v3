@@ -7,6 +7,7 @@ use App\Models\ActivityLog;
 use App\Models\TeamMember;
 use App\Models\User;
 use App\Services\TotpService;
+use App\Services\TwoFactorService;
 use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
 
@@ -97,6 +98,9 @@ class SecuritySettingsController extends Controller
             ];
         }
 
+        $twoFactorService = app(TwoFactorService::class);
+        $smsCapability = $twoFactorService->smsCapability($user);
+
         return $this->inertiaOrJson('Settings/Security', [
             'two_factor' => [
                 'required' => $user->requiresTwoFactor(),
@@ -106,7 +110,9 @@ class SecuritySettingsController extends Controller
                 'can_configure' => $user->isAccountOwner() && !$user->isSuperadmin() && !$user->isPlatformAdmin(),
                 'app_setup' => $twoFactorSetup,
                 'email' => $user->email,
+                'phone_hint' => $smsCapability['phone_hint'] ?? null,
                 'last_sent_at' => $user->two_factor_last_sent_at?->toIso8601String(),
+                'sms' => $smsCapability,
             ],
             'rate_limit' => config('services.rate_limits.api_per_user'),
             'can_view_team' => $canViewTeam,
@@ -189,5 +195,41 @@ class SecuritySettingsController extends Controller
         $request->session()->forget('two_factor_app_setup_secret');
 
         return redirect()->back()->with('success', '2FA par email active.');
+    }
+
+    public function switchToSms(Request $request): RedirectResponse
+    {
+        $user = $request->user();
+        if (!$user || !$user->isAccountOwner() || $user->isSuperadmin() || $user->isPlatformAdmin()) {
+            abort(403);
+        }
+
+        $smsCapability = app(TwoFactorService::class)->smsCapability($user);
+        if (empty($smsCapability['available'])) {
+            $error = '2FA SMS indisponible.';
+            if (empty($smsCapability['company_enabled'])) {
+                $error = 'Activez d abord le 2FA SMS dans Parametres > Entreprise.';
+            } elseif (empty($smsCapability['has_phone'])) {
+                $error = 'Ajoutez d abord un numero de telephone au profil.';
+            } elseif (empty($smsCapability['twilio_configured'])) {
+                $error = 'Configuration SMS non disponible. Contactez le support.';
+            }
+
+            return redirect()->back()->withErrors([
+                'two_factor_method' => $error,
+            ]);
+        }
+
+        $user->forceFill([
+            'two_factor_method' => 'sms',
+            'two_factor_secret' => null,
+            'two_factor_code' => null,
+            'two_factor_expires_at' => null,
+            'two_factor_last_sent_at' => null,
+        ])->save();
+
+        $request->session()->forget('two_factor_app_setup_secret');
+
+        return redirect()->back()->with('success', '2FA par SMS active.');
     }
 }

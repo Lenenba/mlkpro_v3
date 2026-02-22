@@ -28,6 +28,7 @@ const initialAvatarPreview = initialAvatarIcon ? '' : initialAvatarPath;
 const form = useForm({
     name: user.name,
     email: user.email,
+    phone_number: user.phone_number || '',
     profile_picture: initialAvatarPreview || null,
     avatar_icon: initialAvatarIcon || '',
 });
@@ -144,6 +145,21 @@ watch(() => form.profile_picture, (value) => {
                     />
 
                     <InputError class="mt-2" :message="form.errors.email" />
+                </div>
+
+                <div>
+                    <InputLabel for="phone_number" value="Phone" />
+
+                    <TextInput
+                        id="phone_number"
+                        type="tel"
+                        class="mt-1 block w-full"
+                        v-model="form.phone_number"
+                        autocomplete="tel"
+                        placeholder="+15145550000"
+                    />
+
+                    <InputError class="mt-2" :message="form.errors.phone_number" />
                 </div>
             </div>
 

@@ -17,6 +17,7 @@ use App\Models\Sale;
 use App\Models\ActivityLog;
 use App\Models\PlatformSupportTicket;
 use App\Models\Request as LeadRequest;
+use App\Models\ReservationSetting;
 use App\Notifications\ActionEmailNotification;
 use App\Notifications\LeadFollowUpNotification;
 use App\Support\NotificationDispatcher;
@@ -28,7 +29,9 @@ use App\Services\PlatformAdminNotifier;
 use App\Services\SmsNotificationService;
 use App\Services\WorkBillingService;
 use App\Services\SaleNotificationService;
+use App\Services\ReservationAvailabilityService;
 use App\Services\ReservationNotificationService;
+use App\Services\ReservationQueueService;
 use App\Services\SupportAssignmentService;
 use App\Services\SupportSettingsService;
 
@@ -652,6 +655,36 @@ Artisan::command('reservations:notifications', function (ReservationNotification
     return 0;
 })->purpose('Send reservation reminders and review requests');
 
+Artisan::command('reservations:queue-alerts', function (
+    ReservationQueueService $queueService,
+    ReservationAvailabilityService $availabilityService
+): int {
+    $accountIds = ReservationSetting::query()
+        ->whereNull('team_member_id')
+        ->where('business_preset', 'salon')
+        ->where('queue_mode_enabled', true)
+        ->pluck('account_id')
+        ->map(fn ($id) => (int) $id)
+        ->filter(fn (int $id) => $id > 0)
+        ->unique()
+        ->values();
+
+    $processed = 0;
+    foreach ($accountIds as $accountId) {
+        $settings = $availabilityService->resolveSettings((int) $accountId, null);
+        if (!($settings['queue_mode_enabled'] ?? false)) {
+            continue;
+        }
+
+        $queueService->refreshMetrics((int) $accountId, $settings);
+        $processed += 1;
+    }
+
+    $this->info("Queue alerts processed for {$processed} account(s).");
+
+    return 0;
+})->purpose('Refresh queue metrics and dispatch queue ETA alerts');
+
 Artisan::command('notifications:retry-failed
     {--notification=App\\Notifications\\InviteUserNotification : Fully-qualified notification class filter}
     {--max=25 : Maximum failed jobs to retry in one run}
@@ -818,6 +851,7 @@ Schedule::command('orders:deposit-reminders')->everyFourHours();
 Schedule::command('leads:follow-up-reminders --hours=24')->hourly();
 Schedule::command('support:sla-reminders')->hourly();
 Schedule::command('reservations:notifications')->everyFifteenMinutes();
+Schedule::command('reservations:queue-alerts')->everyFiveMinutes()->withoutOverlapping();
 Schedule::command('notifications:retry-failed --notification=App\\Notifications\\InviteUserNotification --max=20 --within-hours=24 --cooldown=30')
     ->everyTenMinutes()
     ->withoutOverlapping();

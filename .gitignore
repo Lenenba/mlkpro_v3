@@ -6,6 +6,7 @@
 /storage/*.key
 /MlkMobileApp
 /storage/pail
+/storage/backups
 /vendor
 .env
 .env.backup
