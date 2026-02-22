@@ -162,20 +162,23 @@ class AuthController extends Controller
 
         if ($user->requiresTwoFactor()) {
             $user->loadMissing(['role', 'platformAdmin', 'teamMembership']);
-            $method = $user->twoFactorMethod();
-            $effectiveMethod = $method === 'app' && empty($user->two_factor_secret) ? 'email' : $method;
+            $twoFactorService = app(TwoFactorService::class);
+            $effectiveMethod = $twoFactorService->resolveEffectiveMethod($user);
             $expiresAt = null;
             $retryAfter = 0;
 
-            if ($effectiveMethod === 'email') {
-                if (!$user->two_factor_expires_at || now()->greaterThan($user->two_factor_expires_at)) {
-                    $result = app(TwoFactorService::class)->sendCode($user, true);
-                    $user->refresh();
-                    $expiresAt = $result['expires_at']?->toIso8601String();
-                    $retryAfter = $result['retry_after'] ?? 0;
-                } else {
-                    $expiresAt = $user->two_factor_expires_at?->toIso8601String();
+            if ($effectiveMethod !== TwoFactorService::METHOD_APP) {
+                $result = $twoFactorService->sendCode($user, true, $effectiveMethod);
+                if (!($result['sent'] ?? false)) {
+                    return response()->json([
+                        'message' => 'Unable to deliver the two-factor code.',
+                    ], 422);
                 }
+
+                $effectiveMethod = (string) ($result['method'] ?? $effectiveMethod);
+                $user->refresh();
+                $expiresAt = $result['expires_at']?->toIso8601String();
+                $retryAfter = $result['retry_after'] ?? 0;
             }
 
             $challengeToken = Str::random(64);
@@ -192,6 +195,9 @@ class AuthController extends Controller
                     'method' => $effectiveMethod,
                     'expires_at' => $expiresAt,
                     'retry_after' => $retryAfter,
+                    'phone_hint' => $effectiveMethod === TwoFactorService::METHOD_SMS
+                        ? $twoFactorService->maskedPhoneNumber($user->phone_number)
+                        : null,
                 ],
                 'user' => $user,
             ]);

@@ -297,6 +297,9 @@ class ReservationSettingsController extends Controller
                     $notificationPayload['notify_on_queue_pre_call'] = false;
                     $notificationPayload['notify_on_queue_called'] = false;
                     $notificationPayload['notify_on_queue_grace_expired'] = false;
+                    $notificationPayload['notify_on_queue_ticket_created'] = false;
+                    $notificationPayload['notify_on_queue_eta_10m'] = false;
+                    $notificationPayload['notify_on_queue_status_changed'] = false;
                 }
 
                 $account->update([

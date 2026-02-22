@@ -9,6 +9,7 @@ use App\Services\TwoFactorService;
 use App\Services\TotpService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\RateLimiter;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -22,20 +23,39 @@ class TwoFactorController extends Controller
             return redirect()->route('dashboard');
         }
 
-        $method = $user->twoFactorMethod();
-        $effectiveMethod = $method === 'app' && empty($user->two_factor_secret) ? 'email' : $method;
+        $service = app(TwoFactorService::class);
+        $sessionMethod = $request->session()->get('two_factor_delivery_method');
+        $effectiveMethod = $service->resolveEffectiveMethod(
+            $user,
+            is_string($sessionMethod) ? $sessionMethod : null
+        );
 
-        if ($effectiveMethod === 'email') {
-            $service = app(TwoFactorService::class);
+        if ($effectiveMethod !== TwoFactorService::METHOD_APP) {
             if (!$user->two_factor_expires_at || now()->greaterThan($user->two_factor_expires_at)) {
-                $service->sendCode($user, true);
+                $result = $service->sendCode($user, true, $effectiveMethod);
+                if (!($result['sent'] ?? false)) {
+                    Auth::guard('web')->logout();
+                    $request->session()->invalidate();
+                    $request->session()->regenerateToken();
+
+                    return redirect()->route('login')->withErrors([
+                        'email' => 'Unable to deliver a verification code. Please try again.',
+                    ]);
+                }
+
+                $effectiveMethod = (string) ($result['method'] ?? $effectiveMethod);
                 $user->refresh();
             }
+
+            $request->session()->put('two_factor_delivery_method', $effectiveMethod);
         }
 
         return Inertia::render('Auth/TwoFactorChallenge', [
             'email' => $user->email,
-            'expires_at' => $effectiveMethod === 'email' ? $user->two_factor_expires_at?->toIso8601String() : null,
+            'phone_hint' => $service->maskedPhoneNumber($user->phone_number),
+            'expires_at' => $effectiveMethod !== TwoFactorService::METHOD_APP
+                ? $user->two_factor_expires_at?->toIso8601String()
+                : null,
             'method' => $effectiveMethod,
             'status' => session('status'),
         ]);
@@ -60,15 +80,18 @@ class TwoFactorController extends Controller
             ]);
         }
 
-        $method = $user->twoFactorMethod();
-        $effectiveMethod = $method === 'app' && empty($user->two_factor_secret) ? 'email' : $method;
+        $service = app(TwoFactorService::class);
+        $sessionMethod = $request->session()->get('two_factor_delivery_method');
+        $effectiveMethod = $service->resolveEffectiveMethod(
+            $user,
+            is_string($sessionMethod) ? $sessionMethod : null
+        );
         $code = trim($validated['code']);
 
         $verified = false;
-        if ($effectiveMethod === 'app' && !empty($user->two_factor_secret)) {
+        if ($effectiveMethod === TwoFactorService::METHOD_APP && !empty($user->two_factor_secret)) {
             $verified = app(TotpService::class)->verifyCode($user->two_factor_secret, $code);
         } else {
-            $service = app(TwoFactorService::class);
             $verified = $service->verifyCode($user, $code);
         }
 
@@ -79,7 +102,7 @@ class TwoFactorController extends Controller
             ]);
         }
 
-        if ($effectiveMethod === 'app' && !$user->two_factor_enabled) {
+        if ($effectiveMethod === TwoFactorService::METHOD_APP && !$user->two_factor_enabled) {
             $user->forceFill([
                 'two_factor_enabled' => true,
             ])->save();
@@ -87,7 +110,7 @@ class TwoFactorController extends Controller
 
         RateLimiter::clear($limiterKey);
         $request->session()->put('two_factor_passed', true);
-        $request->session()->forget('two_factor_pending');
+        $request->session()->forget(['two_factor_pending', 'two_factor_delivery_method']);
 
         app(SecurityEventService::class)->record($user, 'auth.login', $request, [
             'two_factor' => true,
@@ -123,26 +146,38 @@ class TwoFactorController extends Controller
             ]);
         }
 
-        $method = $user->twoFactorMethod();
-        $effectiveMethod = $method === 'app' && empty($user->two_factor_secret) ? 'email' : $method;
-        if ($effectiveMethod !== 'email') {
+        $service = app(TwoFactorService::class);
+        $sessionMethod = $request->session()->get('two_factor_delivery_method');
+        $effectiveMethod = $service->resolveEffectiveMethod(
+            $user,
+            is_string($sessionMethod) ? $sessionMethod : null
+        );
+
+        if ($effectiveMethod === TwoFactorService::METHOD_APP) {
             return back()->withErrors([
                 'code' => 'Les codes applicatifs ne peuvent pas etre renvoyes.',
             ]);
         }
 
-        $service = app(TwoFactorService::class);
-        $result = $service->sendCode($user);
+        $result = $service->sendCode($user, false, $effectiveMethod);
         if (!$result['sent']) {
+            if (($result['reason'] ?? null) === 'cooldown') {
+                return back()->withErrors([
+                    'code' => "Veuillez patienter {$result['retry_after']} secondes avant de demander un nouveau code.",
+                ]);
+            }
+
             return back()->withErrors([
-                'code' => "Veuillez patienter {$result['retry_after']} secondes avant de demander un nouveau code.",
+                'code' => 'Impossible d envoyer un nouveau code pour le moment.',
             ]);
         }
 
+        $request->session()->put('two_factor_delivery_method', $result['method'] ?? $effectiveMethod);
         RateLimiter::hit($limiterKey);
 
         app(SecurityEventService::class)->record($user, 'auth.2fa.resend', $request, [
             'reason' => 'resend',
+            'method' => $result['method'] ?? $effectiveMethod,
         ]);
 
         return back()->with('status', 'Nouveau code envoye.');

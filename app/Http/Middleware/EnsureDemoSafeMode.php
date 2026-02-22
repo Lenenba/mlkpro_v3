@@ -57,6 +57,7 @@ class EnsureDemoSafeMode
             'profile.destroy',
             'password.update',
             'settings.billing.*',
+            'settings.loyalty.*',
             'settings.api-tokens.*',
             'product.export',
             'product.import',

@@ -1915,6 +1915,274 @@ it('sends queue sms notifications when sms channel is enabled', function () {
     Notification::assertNothingSent();
 });
 
+it('sends one queue eta sms alert when eta enters the 10 minute window', function () {
+    Notification::fake();
+
+    $owner = createOwnerWithReservationsEnabled();
+    $teamMember = createTeamMemberForAccount($owner);
+    [$clientUser, $customer] = createClientForAccount($owner, 'Queue Eta Client', 'queue.eta.client@example.com');
+
+    $owner->update([
+        'company_notification_settings' => [
+            'reservations' => [
+                'enabled' => true,
+                'email' => false,
+                'in_app' => false,
+                'sms' => true,
+                'notify_on_queue_pre_call' => false,
+                'notify_on_queue_called' => false,
+                'notify_on_queue_grace_expired' => false,
+                'notify_on_queue_ticket_created' => false,
+                'notify_on_queue_eta_10m' => true,
+                'notify_on_queue_status_changed' => false,
+            ],
+        ],
+    ]);
+
+    ReservationSetting::query()->updateOrCreate(
+        [
+            'account_id' => $owner->id,
+            'team_member_id' => null,
+        ],
+        [
+            'business_preset' => 'salon',
+            'buffer_minutes' => 10,
+            'slot_interval_minutes' => 30,
+            'min_notice_minutes' => 0,
+            'max_advance_days' => 90,
+            'cancellation_cutoff_hours' => 12,
+            'allow_client_cancel' => true,
+            'allow_client_reschedule' => true,
+            'late_release_minutes' => 10,
+            'waitlist_enabled' => true,
+            'queue_mode_enabled' => true,
+            'queue_dispatch_mode' => 'fifo_with_appointment_priority',
+            'queue_grace_minutes' => 5,
+            'queue_pre_call_threshold' => 2,
+            'queue_no_show_on_grace_expiry' => false,
+        ]
+    );
+
+    $inService = ReservationQueueItem::query()->create([
+        'account_id' => $owner->id,
+        'team_member_id' => $teamMember->id,
+        'item_type' => ReservationQueueItem::TYPE_TICKET,
+        'source' => 'staff',
+        'queue_number' => 'ETA-001',
+        'status' => ReservationQueueItem::STATUS_IN_SERVICE,
+        'estimated_duration_minutes' => 20,
+        'started_at' => now('UTC')->subMinutes(3),
+    ]);
+
+    $waiting = ReservationQueueItem::query()->create([
+        'account_id' => $owner->id,
+        'client_id' => $customer->id,
+        'client_user_id' => $clientUser->id,
+        'team_member_id' => $teamMember->id,
+        'item_type' => ReservationQueueItem::TYPE_TICKET,
+        'source' => 'client',
+        'queue_number' => 'ETA-002',
+        'status' => ReservationQueueItem::STATUS_CHECKED_IN,
+        'estimated_duration_minutes' => 20,
+        'checked_in_at' => now('UTC')->subMinute(),
+    ]);
+
+    $smsMock = \Mockery::mock(SmsNotificationService::class);
+    $smsMock
+        ->shouldReceive('send')
+        ->once()
+        ->with(
+            '+15550001111',
+            \Mockery::on(fn (string $message) => str_contains(strtolower($message), 'about 5 min'))
+        )
+        ->andReturn(true);
+    $this->app->instance(SmsNotificationService::class, $smsMock);
+
+    $availabilityService = app(ReservationAvailabilityService::class);
+    $queueService = app(ReservationQueueService::class);
+    $settings = $availabilityService->resolveSettings($owner->id, null);
+
+    $queueService->refreshMetrics($owner->id, $settings);
+    $inService->update(['estimated_duration_minutes' => 5]);
+    $queueService->refreshMetrics($owner->id, $settings);
+    $queueService->refreshMetrics($owner->id, $settings);
+
+    $waiting->refresh();
+    expect((int) ($waiting->eta_minutes ?? 0))->toBe(5);
+    Notification::assertNothingSent();
+});
+
+it('sends queue missed-turn sms when grace expires', function () {
+    Notification::fake();
+
+    $owner = createOwnerWithReservationsEnabled();
+    $teamMember = createTeamMemberForAccount($owner);
+    [$clientUser, $customer] = createClientForAccount($owner, 'Queue Missed Client', 'queue.missed.client@example.com');
+
+    $owner->update([
+        'company_notification_settings' => [
+            'reservations' => [
+                'enabled' => true,
+                'email' => false,
+                'in_app' => false,
+                'sms' => true,
+                'notify_on_queue_pre_call' => false,
+                'notify_on_queue_called' => false,
+                'notify_on_queue_grace_expired' => true,
+                'notify_on_queue_ticket_created' => false,
+                'notify_on_queue_eta_10m' => false,
+                'notify_on_queue_status_changed' => false,
+            ],
+        ],
+    ]);
+
+    ReservationSetting::query()->updateOrCreate(
+        [
+            'account_id' => $owner->id,
+            'team_member_id' => null,
+        ],
+        [
+            'business_preset' => 'salon',
+            'buffer_minutes' => 10,
+            'slot_interval_minutes' => 30,
+            'min_notice_minutes' => 0,
+            'max_advance_days' => 90,
+            'cancellation_cutoff_hours' => 12,
+            'allow_client_cancel' => true,
+            'allow_client_reschedule' => true,
+            'late_release_minutes' => 10,
+            'waitlist_enabled' => true,
+            'queue_mode_enabled' => true,
+            'queue_dispatch_mode' => 'fifo_with_appointment_priority',
+            'queue_grace_minutes' => 5,
+            'queue_pre_call_threshold' => 2,
+            'queue_no_show_on_grace_expiry' => false,
+        ]
+    );
+
+    $ticket = ReservationQueueItem::query()->create([
+        'account_id' => $owner->id,
+        'client_id' => $customer->id,
+        'client_user_id' => $clientUser->id,
+        'team_member_id' => $teamMember->id,
+        'item_type' => ReservationQueueItem::TYPE_TICKET,
+        'source' => 'client',
+        'queue_number' => 'MISS-001',
+        'status' => ReservationQueueItem::STATUS_CALLED,
+        'estimated_duration_minutes' => 30,
+        'called_at' => now('UTC')->subMinutes(7),
+        'call_expires_at' => now('UTC')->subMinute(),
+    ]);
+
+    $smsMock = \Mockery::mock(SmsNotificationService::class);
+    $smsMock
+        ->shouldReceive('send')
+        ->once()
+        ->with(
+            '+15550001111',
+            \Mockery::on(fn (string $message) => str_contains(strtolower($message), 'turn was missed'))
+        )
+        ->andReturn(true);
+    $this->app->instance(SmsNotificationService::class, $smsMock);
+
+    $availabilityService = app(ReservationAvailabilityService::class);
+    $queueService = app(ReservationQueueService::class);
+    $settings = $availabilityService->resolveSettings($owner->id, null);
+
+    $queueService->refreshMetrics($owner->id, $settings);
+
+    $this->assertDatabaseHas('reservation_queue_items', [
+        'id' => $ticket->id,
+        'status' => ReservationQueueItem::STATUS_SKIPPED,
+    ]);
+    Notification::assertNothingSent();
+});
+
+it('sends queue status change sms when status-change notifications are enabled', function () {
+    Notification::fake();
+
+    $owner = createOwnerWithReservationsEnabled();
+    $teamMember = createTeamMemberForAccount($owner);
+    [$clientUser, $customer] = createClientForAccount($owner, 'Queue Status Client', 'queue.status.client@example.com');
+
+    $owner->update([
+        'company_notification_settings' => [
+            'reservations' => [
+                'enabled' => true,
+                'email' => false,
+                'in_app' => false,
+                'sms' => true,
+                'notify_on_queue_pre_call' => false,
+                'notify_on_queue_called' => false,
+                'notify_on_queue_grace_expired' => false,
+                'notify_on_queue_ticket_created' => false,
+                'notify_on_queue_eta_10m' => false,
+                'notify_on_queue_status_changed' => true,
+            ],
+        ],
+    ]);
+
+    ReservationSetting::query()->updateOrCreate(
+        [
+            'account_id' => $owner->id,
+            'team_member_id' => null,
+        ],
+        [
+            'business_preset' => 'salon',
+            'buffer_minutes' => 10,
+            'slot_interval_minutes' => 30,
+            'min_notice_minutes' => 0,
+            'max_advance_days' => 90,
+            'cancellation_cutoff_hours' => 12,
+            'allow_client_cancel' => true,
+            'allow_client_reschedule' => true,
+            'late_release_minutes' => 10,
+            'waitlist_enabled' => true,
+            'queue_mode_enabled' => true,
+            'queue_dispatch_mode' => 'fifo_with_appointment_priority',
+            'queue_grace_minutes' => 5,
+            'queue_pre_call_threshold' => 2,
+            'queue_no_show_on_grace_expiry' => false,
+        ]
+    );
+
+    $ticket = ReservationQueueItem::query()->create([
+        'account_id' => $owner->id,
+        'client_id' => $customer->id,
+        'client_user_id' => $clientUser->id,
+        'team_member_id' => $teamMember->id,
+        'item_type' => ReservationQueueItem::TYPE_TICKET,
+        'source' => 'client',
+        'queue_number' => 'STATUS-001',
+        'status' => ReservationQueueItem::STATUS_CHECKED_IN,
+        'estimated_duration_minutes' => 25,
+        'checked_in_at' => now('UTC')->subMinute(),
+    ]);
+
+    $smsMock = \Mockery::mock(SmsNotificationService::class);
+    $smsMock
+        ->shouldReceive('send')
+        ->once()
+        ->with(
+            '+15550001111',
+            \Mockery::on(fn (string $message) => str_contains(strtolower($message), 'status changed'))
+        )
+        ->andReturn(true);
+    $this->app->instance(SmsNotificationService::class, $smsMock);
+
+    $availabilityService = app(ReservationAvailabilityService::class);
+    $queueService = app(ReservationQueueService::class);
+    $settings = $availabilityService->resolveSettings($owner->id, null);
+
+    $queueService->transition($ticket, 'skip', $owner, $settings);
+
+    $this->assertDatabaseHas('reservation_queue_items', [
+        'id' => $ticket->id,
+        'status' => ReservationQueueItem::STATUS_SKIPPED,
+    ]);
+    Notification::assertNothingSent();
+});
+
 it('returns queue screen payload and supports anonymize toggle', function () {
     $owner = createOwnerWithReservationsEnabled();
     $teamMember = createTeamMemberForAccount($owner);

@@ -7,33 +7,26 @@ use App\Models\User;
 class CompanyNotificationPreferenceService
 {
     public const CATEGORY_TASK_DAY = 'task_day';
+    public const CATEGORY_SECURITY = 'security';
 
     public const CHANNEL_EMAIL = 'email';
     public const CHANNEL_SMS = 'sms';
     public const CHANNEL_WHATSAPP = 'whatsapp';
+    public const CHANNEL_TWO_FACTOR_SMS = 'two_factor_sms';
 
     public function resolveFor(User $user): array
     {
-        $defaults = [
-            self::CATEGORY_TASK_DAY => [
-                self::CHANNEL_EMAIL => true,
-                self::CHANNEL_SMS => false,
-                self::CHANNEL_WHATSAPP => false,
-            ],
-        ];
-
         $stored = is_array($user->company_notification_settings) ? $user->company_notification_settings : [];
-        $merged = array_replace_recursive($defaults, $stored);
 
-        return $this->normalize($merged, $defaults);
+        return $this->normalize($stored, $this->defaults());
     }
 
     public function mergeSettings(User $user, array $payload): array
     {
-        $current = $this->resolveFor($user);
+        $current = is_array($user->company_notification_settings) ? $user->company_notification_settings : [];
         $next = array_replace_recursive($current, $payload);
 
-        return $this->normalize($next, $current);
+        return $this->normalize($next, $this->defaults());
     }
 
     public function taskDayChannels(User $user): array
@@ -48,13 +41,37 @@ class CompanyNotificationPreferenceService
         ];
     }
 
+    public function twoFactorSmsEnabled(User $user): bool
+    {
+        $settings = $this->resolveFor($user);
+        $security = $settings[self::CATEGORY_SECURITY] ?? [];
+
+        return (bool) ($security[self::CHANNEL_TWO_FACTOR_SMS] ?? false);
+    }
+
+    private function defaults(): array
+    {
+        return [
+            self::CATEGORY_TASK_DAY => [
+                self::CHANNEL_EMAIL => true,
+                self::CHANNEL_SMS => false,
+                self::CHANNEL_WHATSAPP => false,
+            ],
+            self::CATEGORY_SECURITY => [
+                self::CHANNEL_TWO_FACTOR_SMS => false,
+            ],
+        ];
+    }
+
     private function normalize(array $settings, array $defaults): array
     {
-        $normalized = [];
+        $normalized = $settings;
+
         foreach ($defaults as $category => $channels) {
-            $normalized[$category] = [];
+            $categorySettings = is_array($settings[$category] ?? null) ? $settings[$category] : [];
+            $normalized[$category] = $categorySettings;
             foreach ($channels as $channel => $default) {
-                $normalized[$category][$channel] = (bool) ($settings[$category][$channel] ?? $default);
+                $normalized[$category][$channel] = (bool) ($categorySettings[$channel] ?? $default);
             }
         }
 

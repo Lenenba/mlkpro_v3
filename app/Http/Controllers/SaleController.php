@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Customer;
+use App\Models\LoyaltyProgram;
 use App\Models\Payment;
 use App\Models\Product;
 use App\Models\ProductLot;
@@ -10,6 +11,8 @@ use App\Models\Sale;
 use App\Models\User;
 use App\Models\Warehouse;
 use App\Services\InventoryService;
+use App\Services\CompanyFeatureService;
+use App\Services\LoyaltyPointService;
 use App\Services\SaleNotificationService;
 use App\Services\SaleTimelineService;
 use App\Services\StripeSaleService;
@@ -17,6 +20,7 @@ use App\Services\TenantPaymentMethodGuardService;
 use App\Support\TenantPaymentMethodsResolver;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
@@ -274,11 +278,15 @@ class SaleController extends Controller
         }
         [$accountOwner] = $this->resolveSalesAccess($user);
         $accountId = $accountOwner->id;
+        $featureMap = app(CompanyFeatureService::class)->resolveEffectiveFeatures($accountOwner);
+        $loyaltyFeatureEnabled = array_key_exists('loyalty', $featureMap)
+            ? (bool) $featureMap['loyalty']
+            : true;
 
         $customers = Customer::query()
             ->where('user_id', $accountId)
             ->orderBy('company_name')
-            ->get(['id', 'first_name', 'last_name', 'company_name', 'email', 'phone', 'discount_rate']);
+            ->get(['id', 'first_name', 'last_name', 'company_name', 'email', 'phone', 'discount_rate', 'loyalty_points_balance']);
 
         $products = Product::query()
             ->where('user_id', $accountId)
@@ -298,6 +306,10 @@ class SaleController extends Controller
                 'tracking_type',
             ]);
 
+        $loyaltyProgram = $loyaltyFeatureEnabled
+            ? app(LoyaltyPointService::class)->resolveProgramForAccount((int) $accountId, true)
+            : null;
+
         return $this->inertiaOrJson('Sales/Create', [
             'customers' => $customers,
             'products' => $products,
@@ -305,6 +317,14 @@ class SaleController extends Controller
                 'enabled' => app(StripeSaleService::class)->isConfigured(),
             ],
             'paymentMethodSettings' => TenantPaymentMethodsResolver::forAccountId((int) $accountId),
+            'loyaltyProgram' => [
+                'feature_enabled' => $loyaltyFeatureEnabled,
+                'is_enabled' => (bool) ($loyaltyFeatureEnabled && ($loyaltyProgram?->is_enabled ?? false)),
+                'points_per_currency_unit' => (float) ($loyaltyProgram?->points_per_currency_unit ?? 1),
+                'minimum_spend' => (float) ($loyaltyProgram?->minimum_spend ?? 0),
+                'rounding_mode' => (string) ($loyaltyProgram?->rounding_mode ?? LoyaltyProgram::ROUND_FLOOR),
+                'points_label' => (string) (($loyaltyProgram?->points_label) ?: 'points'),
+            ],
         ]);
     }
 
@@ -367,6 +387,10 @@ class SaleController extends Controller
         }
         [$accountOwner] = $this->resolveSalesAccess($user);
         $accountId = $accountOwner->id;
+        $featureMap = app(CompanyFeatureService::class)->resolveEffectiveFeatures($accountOwner);
+        $loyaltyFeatureEnabled = array_key_exists('loyalty', $featureMap)
+            ? (bool) $featureMap['loyalty']
+            : true;
 
         $validated = $request->validate([
             'customer_id' => 'nullable|exists:customers,id',
@@ -386,15 +410,17 @@ class SaleController extends Controller
             'items.*.quantity' => 'required|integer|min:1',
             'items.*.price' => 'required|numeric|min:0',
             'items.*.description' => 'nullable|string|max:255',
+            'loyalty_points_redeem' => 'nullable|integer|min:0',
         ]);
 
         $customerId = $validated['customer_id'] ?? null;
+        $customerRecord = null;
         if ($customerId) {
-            $customerExists = Customer::query()
+            $customerRecord = Customer::query()
                 ->where('user_id', $accountId)
                 ->whereKey($customerId)
-                ->exists();
-            if (!$customerExists) {
+                ->first(['id', 'discount_rate', 'loyalty_points_balance']);
+            if (!$customerRecord) {
                 throw ValidationException::withMessages([
                     'customer_id' => 'Client invalide pour ce compte.',
                 ]);
@@ -526,18 +552,55 @@ class SaleController extends Controller
             ];
         }
 
-        $discountRate = 0;
-        if ($customerId) {
-            $discountRate = (float) Customer::query()
-                ->where('user_id', $accountId)
-                ->whereKey($customerId)
-                ->value('discount_rate');
-        }
+        $discountRate = $customerRecord ? (float) ($customerRecord->discount_rate ?? 0) : 0;
         $discountRate = min(100, max(0, $discountRate));
         $discountTotal = round($subtotal * ($discountRate / 100), 2);
         $discountedSubtotal = max(0, $subtotal - $discountTotal);
         $discountedTaxTotal = round($taxTotal * (1 - ($discountRate / 100)), 2);
-        $total = round($discountedSubtotal + $discountedTaxTotal, 2);
+        $totalBeforeLoyalty = round($discountedSubtotal + $discountedTaxTotal, 2);
+        $requestedLoyaltyPoints = max(0, (int) ($validated['loyalty_points_redeem'] ?? 0));
+        if (!$loyaltyFeatureEnabled && $requestedLoyaltyPoints > 0) {
+            throw ValidationException::withMessages([
+                'loyalty_points_redeem' => 'Le module fidelite est desactive pour ce compte.',
+            ]);
+        }
+        $loyaltyPointsRequested = $loyaltyFeatureEnabled ? $requestedLoyaltyPoints : 0;
+        $loyaltyPointsRedeemed = 0;
+        $loyaltyDiscountTotal = 0.0;
+
+        if ($loyaltyPointsRequested > 0) {
+            if (!$customerId || !$customerRecord) {
+                throw ValidationException::withMessages([
+                    'loyalty_points_redeem' => 'Selectionnez un client pour utiliser ses points.',
+                ]);
+            }
+
+            $loyaltyService = app(LoyaltyPointService::class);
+            $loyaltyProgram = $loyaltyService->resolveProgramForAccount((int) $accountId, true);
+            if (!$loyaltyProgram || !$loyaltyProgram->is_enabled) {
+                throw ValidationException::withMessages([
+                    'loyalty_points_redeem' => 'Le programme fidelite est desactive.',
+                ]);
+            }
+
+            $maxByAmount = $loyaltyService->calculateMaxRedeemablePoints($totalBeforeLoyalty, $loyaltyProgram);
+            $availablePoints = max(0, (int) ($customerRecord->loyalty_points_balance ?? 0));
+            $allowedPoints = min($availablePoints, $maxByAmount);
+
+            if ($loyaltyPointsRequested > $allowedPoints) {
+                throw ValidationException::withMessages([
+                    'loyalty_points_redeem' => "Points insuffisants ou montant depasse. Maximum autorise: {$allowedPoints}.",
+                ]);
+            }
+
+            $loyaltyPointsRedeemed = $loyaltyPointsRequested;
+            $loyaltyDiscountTotal = min(
+                $totalBeforeLoyalty,
+                $loyaltyService->calculateRedeemAmount($loyaltyPointsRedeemed, $loyaltyProgram)
+            );
+        }
+
+        $total = round(max(0, $totalBeforeLoyalty - $loyaltyDiscountTotal), 2);
 
         if ($payWithStripe && $total <= 0) {
             throw ValidationException::withMessages([
@@ -558,27 +621,76 @@ class SaleController extends Controller
             $paymentProvider = $paymentMethod;
         }
 
-        $sale = Sale::create([
-            'user_id' => $accountId,
-            'created_by_user_id' => $user->id,
-            'customer_id' => $customerId,
-            'status' => $status,
-            'payment_provider' => $paymentProvider,
-            'subtotal' => $subtotal,
-            'tax_total' => $discountedTaxTotal,
-            'discount_rate' => $discountRate,
-            'discount_total' => $discountTotal,
-            'total' => $total,
-            'fulfillment_status' => $fulfillmentStatus,
-            'notes' => $validated['notes'] ?? null,
-            'scheduled_for' => $validated['scheduled_for'] ?? null,
-            'paid_at' => $status === Sale::STATUS_PAID ? now() : null,
-            'source' => 'pos',
-        ]);
+        $sale = DB::transaction(function () use (
+            $accountId,
+            $customerId,
+            $status,
+            $paymentProvider,
+            $subtotal,
+            $discountedTaxTotal,
+            $discountRate,
+            $discountTotal,
+            $total,
+            $fulfillmentStatus,
+            $validated,
+            $user,
+            $itemsPayload,
+            $loyaltyPointsRequested,
+            $totalBeforeLoyalty,
+            $payWithStripe
+        ) {
+            $sale = Sale::create([
+                'user_id' => $accountId,
+                'created_by_user_id' => $user->id,
+                'customer_id' => $customerId,
+                'status' => $status,
+                'payment_provider' => $paymentProvider,
+                'subtotal' => $subtotal,
+                'tax_total' => $discountedTaxTotal,
+                'discount_rate' => $discountRate,
+                'discount_total' => round($discountTotal, 2),
+                'loyalty_points_redeemed' => 0,
+                'loyalty_discount_total' => 0,
+                'total' => $total,
+                'fulfillment_status' => $fulfillmentStatus,
+                'notes' => $validated['notes'] ?? null,
+                'scheduled_for' => $validated['scheduled_for'] ?? null,
+                'paid_at' => $status === Sale::STATUS_PAID ? now() : null,
+                'source' => 'pos',
+            ]);
 
-        foreach ($itemsPayload as $payload) {
-            $sale->items()->create($payload);
-        }
+            foreach ($itemsPayload as $payload) {
+                $sale->items()->create($payload);
+            }
+
+            if ($loyaltyPointsRequested > 0) {
+                $redemption = app(LoyaltyPointService::class)->redeemForSale(
+                    $sale,
+                    $loyaltyPointsRequested,
+                    $totalBeforeLoyalty
+                );
+
+                $loyaltyPointsRedeemed = (int) ($redemption['points'] ?? 0);
+                $loyaltyDiscountTotal = round(max(0, (float) ($redemption['amount'] ?? 0)), 2);
+                $finalTotal = round(max(0, $totalBeforeLoyalty - $loyaltyDiscountTotal), 2);
+                $combinedDiscountTotal = round($discountTotal + $loyaltyDiscountTotal, 2);
+
+                $sale->forceFill([
+                    'loyalty_points_redeemed' => $loyaltyPointsRedeemed,
+                    'loyalty_discount_total' => $loyaltyDiscountTotal,
+                    'discount_total' => $combinedDiscountTotal,
+                    'total' => $finalTotal,
+                ])->save();
+            }
+
+            if ($payWithStripe && (float) $sale->total <= 0) {
+                throw ValidationException::withMessages([
+                    'status' => 'Montant invalide pour Stripe.',
+                ]);
+            }
+
+            return $sale;
+        });
 
         if (
             $sale->status === Sale::STATUS_PENDING
@@ -628,7 +740,12 @@ class SaleController extends Controller
             $successUrl .= (str_contains($successUrl, '?') ? '&' : '?') . 'session_id={CHECKOUT_SESSION_ID}';
             $cancelUrl = URL::route('sales.show', ['sale' => $sale->id, 'stripe' => 'cancel']);
 
-            $session = $stripeService->createCheckoutSession($sale, $successUrl, $cancelUrl);
+            $session = $stripeService->createCheckoutSession(
+                $sale,
+                $successUrl,
+                $cancelUrl,
+                (float) $sale->balance_due
+            );
             if (empty($session['url'])) {
                 throw ValidationException::withMessages([
                     'status' => 'Impossible de demarrer le paiement Stripe.',
@@ -728,6 +845,14 @@ class SaleController extends Controller
                 ]);
             }
         }
+        if (
+            (int) ($sale->loyalty_points_redeemed ?? 0) > 0
+            && (int) $customerId !== (int) $sale->customer_id
+        ) {
+            throw ValidationException::withMessages([
+                'customer_id' => 'Impossible de changer le client: des points fidelite sont deja appliques.',
+            ]);
+        }
 
         $productIds = collect($validated['items'])->pluck('product_id')->unique()->values();
         $products = Product::query()
@@ -814,7 +939,16 @@ class SaleController extends Controller
         $discountTotal = round($subtotal * ($discountRate / 100), 2);
         $discountedSubtotal = max(0, $subtotal - $discountTotal);
         $discountedTaxTotal = round($taxTotal * (1 - ($discountRate / 100)), 2);
-        $total = round($discountedSubtotal + $discountedTaxTotal, 2);
+        $totalBeforeLoyalty = round($discountedSubtotal + $discountedTaxTotal, 2);
+        $existingLoyaltyDiscount = round(max(0, (float) ($sale->loyalty_discount_total ?? 0)), 2);
+        if ($existingLoyaltyDiscount > 0 && $existingLoyaltyDiscount > $totalBeforeLoyalty) {
+            throw ValidationException::withMessages([
+                'items' => 'Le montant de la commande est inferieur a la reduction fidelite deja appliquee.',
+            ]);
+        }
+
+        $combinedDiscountTotal = round($discountTotal + $existingLoyaltyDiscount, 2);
+        $total = round(max(0, $totalBeforeLoyalty - $existingLoyaltyDiscount), 2);
 
         $updateData = [
             'customer_id' => $customerId,
@@ -822,7 +956,9 @@ class SaleController extends Controller
             'subtotal' => $subtotal,
             'tax_total' => $discountedTaxTotal,
             'discount_rate' => $discountRate,
-            'discount_total' => $discountTotal,
+            'discount_total' => $combinedDiscountTotal,
+            'loyalty_points_redeemed' => (int) ($sale->loyalty_points_redeemed ?? 0),
+            'loyalty_discount_total' => $existingLoyaltyDiscount,
             'total' => $total,
             'fulfillment_status' => array_key_exists('fulfillment_status', $validated)
                 ? $validated['fulfillment_status']
@@ -1159,6 +1295,13 @@ class SaleController extends Controller
             }
         }
 
+        if (
+            $nextStatus === Sale::STATUS_CANCELED
+            && (int) ($sale->loyalty_points_redeemed ?? 0) > 0
+        ) {
+            app(LoyaltyPointService::class)->releaseSaleRedemption($sale, 'sale_canceled');
+        }
+
         $timeline = app(SaleTimelineService::class);
         $changes = [];
         if ($previousStatus !== $sale->status) {
@@ -1277,7 +1420,12 @@ class SaleController extends Controller
         $successUrl .= (str_contains($successUrl, '?') ? '&' : '?') . 'session_id={CHECKOUT_SESSION_ID}';
         $cancelUrl = URL::route('sales.show', ['sale' => $sale->id, 'stripe' => 'cancel']);
 
-        $session = $stripeService->createCheckoutSession($sale, $successUrl, $cancelUrl);
+        $session = $stripeService->createCheckoutSession(
+            $sale,
+            $successUrl,
+            $cancelUrl,
+            (float) $sale->balance_due
+        );
         if (empty($session['url'])) {
             return $respondError('Impossible de demarrer le paiement Stripe.');
         }

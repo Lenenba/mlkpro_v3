@@ -68,12 +68,19 @@ const twoFactorMethod = computed(() => props.two_factor?.method || 'email');
 const twoFactorHasApp = computed(() => Boolean(props.two_factor?.has_app));
 const twoFactorCanConfigure = computed(() => Boolean(props.two_factor?.can_configure));
 const twoFactorSetup = computed(() => props.two_factor?.app_setup || null);
+const twoFactorSms = computed(() => props.two_factor?.sms || {});
+const twoFactorSmsAvailable = computed(() => Boolean(twoFactorSms.value?.available));
+const twoFactorSmsCompanyEnabled = computed(() => Boolean(twoFactorSms.value?.company_enabled));
+const twoFactorSmsHasPhone = computed(() => Boolean(twoFactorSms.value?.has_phone));
+const twoFactorSmsTwilioConfigured = computed(() => Boolean(twoFactorSms.value?.twilio_configured));
+const twoFactorPhoneHint = computed(() => props.two_factor?.phone_hint || twoFactorSms.value?.phone_hint || '');
 const twoFactorDisplayMethod = computed(() => (twoFactorSetup.value ? 'app' : twoFactorMethod.value));
 
 const startAppForm = useForm({});
 const confirmAppForm = useForm({ code: '' });
 const cancelAppForm = useForm({});
 const switchEmailForm = useForm({});
+const switchSmsForm = useForm({});
 
 const qrImageUrl = computed(() => {
     if (!twoFactorSetup.value?.otpauth_url) {
@@ -169,6 +176,10 @@ const cancelAuthenticatorSetup = () => {
 const switchToEmail = () => {
     switchEmailForm.post(route('settings.security.2fa.email'), { preserveScroll: true });
 };
+
+const switchToSms = () => {
+    switchSmsForm.post(route('settings.security.2fa.sms'), { preserveScroll: true });
+};
 </script>
 
 <template>
@@ -242,12 +253,23 @@ const switchToEmail = () => {
                                     class="rounded-full px-2 py-1 text-[11px] font-semibold"
                                     :class="twoFactorDisplayMethod === 'app'
                                         ? 'bg-purple-100 text-purple-700 dark:bg-purple-500/20 dark:text-purple-200'
-                                        : 'bg-sky-100 text-sky-700 dark:bg-sky-500/20 dark:text-sky-200'"
+                                        : twoFactorDisplayMethod === 'sms'
+                                            ? 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-200'
+                                            : 'bg-sky-100 text-sky-700 dark:bg-sky-500/20 dark:text-sky-200'"
                                 >
-                                    {{ twoFactorDisplayMethod === 'app' ? t('settings.security.two_factor.method_app') : t('settings.security.two_factor.method_email') }}
+                                    {{
+                                        twoFactorDisplayMethod === 'app'
+                                            ? t('settings.security.two_factor.method_app')
+                                            : twoFactorDisplayMethod === 'sms'
+                                                ? t('settings.security.two_factor.method_sms')
+                                                : t('settings.security.two_factor.method_email')
+                                    }}
                                 </span>
                                 <span v-if="twoFactorMethod === 'app' && twoFactorHasApp" class="text-[11px] text-emerald-600">
                                     {{ t('settings.security.two_factor.method_ready') }}
+                                </span>
+                                <span v-if="twoFactorDisplayMethod === 'sms' && twoFactorPhoneHint" class="text-[11px] text-stone-500 dark:text-neutral-400">
+                                    {{ t('settings.security.two_factor.sms_phone', { phone: twoFactorPhoneHint }) }}
                                 </span>
                             </div>
 
@@ -295,14 +317,36 @@ const switchToEmail = () => {
                                     {{ t('settings.security.two_factor.app_start') }}
                                 </button>
                                 <button
-                                    v-if="twoFactorMethod === 'app'"
+                                    v-if="twoFactorMethod !== 'email'"
                                     type="button"
                                     @click="switchToEmail"
                                     class="rounded-sm border border-stone-200 px-3 py-2 text-xs font-semibold text-stone-600 hover:bg-stone-100 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800"
                                 >
                                     {{ t('settings.security.two_factor.switch_email') }}
                                 </button>
+                                <button
+                                    v-if="twoFactorMethod !== 'sms'"
+                                    type="button"
+                                    @click="switchToSms"
+                                    :disabled="!twoFactorSmsAvailable || switchSmsForm.processing"
+                                    class="rounded-sm border border-amber-200 px-3 py-2 text-xs font-semibold text-amber-700 hover:bg-amber-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-amber-500/40 dark:text-amber-300 dark:hover:bg-amber-500/10"
+                                >
+                                    {{ t('settings.security.two_factor.switch_sms') }}
+                                </button>
                             </div>
+
+                            <div v-if="!twoFactorSmsAvailable" class="space-y-1 text-[11px] text-stone-500 dark:text-neutral-400">
+                                <p v-if="!twoFactorSmsCompanyEnabled">
+                                    {{ t('settings.security.two_factor.sms_disabled_company') }}
+                                </p>
+                                <p v-if="!twoFactorSmsHasPhone">
+                                    {{ t('settings.security.two_factor.sms_missing_phone') }}
+                                </p>
+                                <p v-if="!twoFactorSmsTwilioConfigured">
+                                    {{ t('settings.security.two_factor.sms_missing_twilio') }}
+                                </p>
+                            </div>
+                            <InputError class="mt-1" :message="switchSmsForm.errors.two_factor_method || switchEmailForm.errors.two_factor_method" />
                         </div>
                         <p v-if="!twoFactorRequired" class="text-xs text-stone-500 dark:text-neutral-400">
                             {{ t('settings.security.two_factor.required_hint') }}

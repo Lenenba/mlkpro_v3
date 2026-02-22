@@ -17,6 +17,7 @@ use App\Models\Sale;
 use App\Models\ActivityLog;
 use App\Models\PlatformSupportTicket;
 use App\Models\Request as LeadRequest;
+use App\Models\ReservationSetting;
 use App\Notifications\ActionEmailNotification;
 use App\Notifications\LeadFollowUpNotification;
 use App\Support\NotificationDispatcher;
@@ -25,9 +26,12 @@ use App\Services\Demo\DemoResetService;
 use App\Services\Demo\DemoSeedService;
 use App\Services\DailyAgendaService;
 use App\Services\PlatformAdminNotifier;
+use App\Services\SmsNotificationService;
 use App\Services\WorkBillingService;
 use App\Services\SaleNotificationService;
+use App\Services\ReservationAvailabilityService;
 use App\Services\ReservationNotificationService;
+use App\Services\ReservationQueueService;
 use App\Services\SupportAssignmentService;
 use App\Services\SupportSettingsService;
 
@@ -127,6 +131,73 @@ Artisan::command('mail:test {to} {--subject=Test} {--body=}', function (): int {
 
     return 0;
 })->purpose('Send a test email using current mailer');
+
+Artisan::command('sms:test {to} {--message=}', function (SmsNotificationService $smsService): int {
+    $to = trim((string) $this->argument('to'));
+    $message = trim((string) $this->option('message'));
+    $sid = trim((string) config('services.twilio.sid'));
+    $token = trim((string) config('services.twilio.token'));
+    $from = trim((string) config('services.twilio.from'));
+
+    if ($to === '') {
+        $this->error('Numero destinataire manquant.');
+        return 1;
+    }
+
+    if (!preg_match('/^\+[1-9]\d{7,14}$/', $to)) {
+        $this->error('Numero invalide. Utilisez le format E.164, ex: +15145551234');
+        return 1;
+    }
+
+    if ($sid === '' || $token === '' || $from === '') {
+        $this->error('Configuration Twilio incomplete. Definissez TWILIO_SID, TWILIO_AUTH_TOKEN, TWILIO_FROM.');
+        return 1;
+    }
+
+    if ($message === '') {
+        $message = implode(' | ', [
+            'Test SMS',
+            (string) config('app.name'),
+            now()->toDateTimeString(),
+        ]);
+    }
+
+    $this->line("Envoi SMS vers {$to} depuis {$from}...");
+    $result = $smsService->sendWithResult($to, $message);
+    $sent = (bool) ($result['ok'] ?? false);
+
+    if (!$sent) {
+        $reason = (string) ($result['reason'] ?? 'unknown');
+        $status = (string) ($result['status'] ?? '-');
+        $code = (string) ($result['code'] ?? '-');
+        $errorMessage = trim((string) ($result['message'] ?? $result['error'] ?? 'Unknown error'));
+        $moreInfo = trim((string) ($result['more_info'] ?? ''));
+
+        $this->error('Echec envoi SMS.');
+        $this->line("reason={$reason} status={$status} code={$code}");
+        if ($errorMessage !== '') {
+            $this->line("message={$errorMessage}");
+        }
+        if ($moreInfo !== '') {
+            $this->line("more_info={$moreInfo}");
+        }
+
+        if ($reason === 'twilio_error' && $code === '21608') {
+            $this->line('Hint: compte Twilio trial -> ajoutez/verifiez ce numero destinataire dans Twilio Verified Caller IDs.');
+        }
+        if ($reason === 'twilio_error' && $code === '21606') {
+            $this->line('Hint: TWILIO_FROM doit etre un numero Twilio actif SMS.');
+        }
+        if ($reason === 'twilio_error' && $code === '21211') {
+            $this->line('Hint: numero destinataire invalide. Utilisez le format E.164 (+1...).');
+        }
+
+        return 1;
+    }
+
+    $this->info("OK: SMS envoye a {$to}");
+    return 0;
+})->purpose('Send a test SMS using Twilio credentials');
 
 Artisan::command('mailgun:test {to}
     {--from= : Override from address}
@@ -584,6 +655,36 @@ Artisan::command('reservations:notifications', function (ReservationNotification
     return 0;
 })->purpose('Send reservation reminders and review requests');
 
+Artisan::command('reservations:queue-alerts', function (
+    ReservationQueueService $queueService,
+    ReservationAvailabilityService $availabilityService
+): int {
+    $accountIds = ReservationSetting::query()
+        ->whereNull('team_member_id')
+        ->where('business_preset', 'salon')
+        ->where('queue_mode_enabled', true)
+        ->pluck('account_id')
+        ->map(fn ($id) => (int) $id)
+        ->filter(fn (int $id) => $id > 0)
+        ->unique()
+        ->values();
+
+    $processed = 0;
+    foreach ($accountIds as $accountId) {
+        $settings = $availabilityService->resolveSettings((int) $accountId, null);
+        if (!($settings['queue_mode_enabled'] ?? false)) {
+            continue;
+        }
+
+        $queueService->refreshMetrics((int) $accountId, $settings);
+        $processed += 1;
+    }
+
+    $this->info("Queue alerts processed for {$processed} account(s).");
+
+    return 0;
+})->purpose('Refresh queue metrics and dispatch queue ETA alerts');
+
 Artisan::command('notifications:retry-failed
     {--notification=App\\Notifications\\InviteUserNotification : Fully-qualified notification class filter}
     {--max=25 : Maximum failed jobs to retry in one run}
@@ -750,6 +851,7 @@ Schedule::command('orders:deposit-reminders')->everyFourHours();
 Schedule::command('leads:follow-up-reminders --hours=24')->hourly();
 Schedule::command('support:sla-reminders')->hourly();
 Schedule::command('reservations:notifications')->everyFifteenMinutes();
+Schedule::command('reservations:queue-alerts')->everyFiveMinutes()->withoutOverlapping();
 Schedule::command('notifications:retry-failed --notification=App\\Notifications\\InviteUserNotification --max=20 --within-hours=24 --cooldown=30')
     ->everyTenMinutes()
     ->withoutOverlapping();

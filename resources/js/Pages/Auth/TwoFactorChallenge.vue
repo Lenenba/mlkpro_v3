@@ -17,6 +17,10 @@ const props = defineProps({
         type: String,
         default: 'email',
     },
+    phone_hint: {
+        type: String,
+        default: '',
+    },
     expires_at: {
         type: String,
         default: null,
@@ -36,6 +40,7 @@ const form = useForm({
 const resendForm = useForm({});
 
 const isAppMethod = computed(() => props.method === 'app');
+const isSmsMethod = computed(() => props.method === 'sms');
 
 const expiresInMinutes = computed(() => {
     if (!props.expires_at) {
@@ -70,7 +75,13 @@ const resend = () => {
                     {{ t('two_factor.title') }}
                 </h1>
                 <p class="mt-1 text-sm text-stone-600 dark:text-neutral-400">
-                    {{ isAppMethod ? t('two_factor.app_prompt') : t('two_factor.sent', { email: email || 'email' }) }}
+                    {{
+                        isAppMethod
+                            ? t('two_factor.app_prompt')
+                            : isSmsMethod
+                                ? t('two_factor.sms_sent', { phone: phone_hint || 'phone' })
+                                : t('two_factor.sent', { email: email || 'email' })
+                    }}
                 </p>
                 <p v-if="expiresInMinutes" class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
                     {{ t('two_factor.expires', { minutes: expiresInMinutes }) }}

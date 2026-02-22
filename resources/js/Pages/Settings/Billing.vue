@@ -1,7 +1,7 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue';
 import axios from 'axios';
-import { Head, router, useForm } from '@inertiajs/vue3';
+import { Head, router, useForm, usePage } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
 import SettingsLayout from '@/Layouts/SettingsLayout.vue';
 import SettingsTabs from '@/Components/SettingsTabs.vue';
@@ -28,6 +28,10 @@ const props = defineProps({
         default: () => [],
     },
     tipSettings: {
+        type: Object,
+        default: () => ({}),
+    },
+    loyaltyProgram: {
         type: Object,
         default: () => ({}),
     },
@@ -78,6 +82,7 @@ const props = defineProps({
 });
 
 const { t } = useI18n();
+const page = usePage();
 
 const ALLOWED_PAYMENT_METHOD_IDS = ['cash', 'card', 'bank_transfer', 'check'];
 const FALLBACK_PAYMENT_METHOD_OPTIONS = [
@@ -166,6 +171,13 @@ const form = useForm({
         allocation_strategy: props.tipSettings?.allocation_strategy || 'primary',
         partial_refund_rule: props.tipSettings?.partial_refund_rule || 'prorata',
     },
+    loyalty: {
+        is_enabled: Boolean(props.loyaltyProgram?.is_enabled ?? true),
+        points_per_currency_unit: Number(props.loyaltyProgram?.points_per_currency_unit ?? 1),
+        minimum_spend: Number(props.loyaltyProgram?.minimum_spend ?? 0),
+        rounding_mode: props.loyaltyProgram?.rounding_mode || 'floor',
+        points_label: props.loyaltyProgram?.points_label || 'points',
+    },
 });
 
 const paddleUiError = ref('');
@@ -219,6 +231,14 @@ const assistantAddonSubtitle = computed(() =>
         ? t('settings.billing.assistant_addon.subtitle_credit')
         : t('settings.billing.assistant_addon.subtitle')
 );
+const loyaltyFeatureEnabled = computed(() => {
+    const featureFlag = page.props.auth?.account?.features?.loyalty;
+    if (typeof featureFlag === 'boolean') {
+        return featureFlag;
+    }
+
+    return Boolean(props.loyaltyProgram?.feature_enabled ?? true);
+});
 
 const isSubscribed = computed(() => Boolean(props.subscription?.active));
 const hasSubscription = computed(() => Boolean(props.subscription?.provider_id));
@@ -454,7 +474,13 @@ watch(activeTab, (value) => {
 });
 
 const submit = () => {
-    form.put(route('settings.billing.update'), { preserveScroll: true });
+    form.transform((data) => {
+        const payload = { ...data };
+        if (!loyaltyFeatureEnabled.value) {
+            delete payload.loyalty;
+        }
+        return payload;
+    }).put(route('settings.billing.update'), { preserveScroll: true });
 };
 
 const resolveStripeError = (error, fallbackKey) => {
@@ -828,6 +854,44 @@ watch(
 );
 
 watch(
+    () => form.loyalty.points_per_currency_unit,
+    (value) => {
+        const numeric = Number(value);
+        if (!Number.isFinite(numeric)) {
+            form.loyalty.points_per_currency_unit = 1;
+            return;
+        }
+        if (numeric <= 0) {
+            form.loyalty.points_per_currency_unit = 0.0001;
+        }
+    }
+);
+
+watch(
+    () => form.loyalty.minimum_spend,
+    (value) => {
+        const numeric = Number(value);
+        if (!Number.isFinite(numeric)) {
+            form.loyalty.minimum_spend = 0;
+            return;
+        }
+        if (numeric < 0) {
+            form.loyalty.minimum_spend = 0;
+        }
+    }
+);
+
+watch(
+    () => form.loyalty.rounding_mode,
+    (value) => {
+        const allowed = ['floor', 'round', 'ceil'];
+        if (!allowed.includes(value)) {
+            form.loyalty.rounding_mode = 'floor';
+        }
+    }
+);
+
+watch(
     () => [props.paddle?.sandbox, props.paddle?.client_side_token, props.paddle?.seller_id, props.paddle?.retain_key, props.paddle?.customer_id],
     () => {
         if (isPaddleProvider.value && props.paddle?.js_enabled) {
@@ -1131,7 +1195,10 @@ watch(
                         </p>
                     </div>
 
-                    <div class="rounded-sm border border-stone-200 bg-white px-4 py-4 dark:border-neutral-700 dark:bg-neutral-900">
+                    <div
+                        v-if="loyaltyFeatureEnabled"
+                        class="rounded-sm border border-stone-200 bg-white px-4 py-4 dark:border-neutral-700 dark:bg-neutral-900"
+                    >
                         <div class="flex flex-wrap items-start justify-between gap-3">
                             <div>
                                 <h3 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
@@ -1323,6 +1390,86 @@ watch(
                                     <option value="manual">{{ $t('settings.billing.tips.refund_manual') }}</option>
                                 </select>
                                 <p v-if="form.errors['tips.partial_refund_rule']" class="text-xs text-rose-600">{{ form.errors['tips.partial_refund_rule'] }}</p>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="rounded-sm border border-stone-200 bg-white px-4 py-4 dark:border-neutral-700 dark:bg-neutral-900">
+                        <div class="flex flex-wrap items-start justify-between gap-3">
+                            <div>
+                                <h3 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                                    {{ $t('settings.billing.loyalty.title') }}
+                                </h3>
+                                <p class="text-xs text-stone-500 dark:text-neutral-400">
+                                    {{ $t('settings.billing.loyalty.subtitle') }}
+                                </p>
+                            </div>
+                            <button
+                                type="button"
+                                @click="submit"
+                                :disabled="form.processing"
+                                class="rounded-sm border border-stone-200 bg-white px-3 py-2 text-xs font-semibold text-stone-700 hover:bg-stone-50 disabled:opacity-60 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200 dark:hover:bg-neutral-700"
+                            >
+                                {{ $t('settings.billing.loyalty.save') }}
+                            </button>
+                        </div>
+
+                        <div class="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
+                            <label class="flex items-center gap-2 text-xs text-stone-600 dark:text-neutral-300">
+                                <input
+                                    v-model="form.loyalty.is_enabled"
+                                    type="checkbox"
+                                    class="h-4 w-4 rounded border-stone-300 text-emerald-600 focus:ring-emerald-500 dark:border-neutral-600 dark:bg-neutral-800"
+                                />
+                                <span>{{ $t('settings.billing.loyalty.enabled') }}</span>
+                            </label>
+
+                            <label class="space-y-1 text-xs text-stone-600 dark:text-neutral-300">
+                                <span>{{ $t('settings.billing.loyalty.points_per_currency_unit') }}</span>
+                                <input
+                                    v-model.number="form.loyalty.points_per_currency_unit"
+                                    type="number"
+                                    min="0.0001"
+                                    step="0.0001"
+                                    class="w-full rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm text-stone-700 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200"
+                                />
+                                <p v-if="form.errors['loyalty.points_per_currency_unit']" class="text-xs text-rose-600">{{ form.errors['loyalty.points_per_currency_unit'] }}</p>
+                            </label>
+
+                            <label class="space-y-1 text-xs text-stone-600 dark:text-neutral-300">
+                                <span>{{ $t('settings.billing.loyalty.minimum_spend') }}</span>
+                                <input
+                                    v-model.number="form.loyalty.minimum_spend"
+                                    type="number"
+                                    min="0"
+                                    step="0.01"
+                                    class="w-full rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm text-stone-700 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200"
+                                />
+                                <p v-if="form.errors['loyalty.minimum_spend']" class="text-xs text-rose-600">{{ form.errors['loyalty.minimum_spend'] }}</p>
+                            </label>
+
+                            <label class="space-y-1 text-xs text-stone-600 dark:text-neutral-300">
+                                <span>{{ $t('settings.billing.loyalty.rounding_mode') }}</span>
+                                <select
+                                    v-model="form.loyalty.rounding_mode"
+                                    class="w-full rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm text-stone-700 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200"
+                                >
+                                    <option value="floor">{{ $t('settings.billing.loyalty.rounding_modes.floor') }}</option>
+                                    <option value="round">{{ $t('settings.billing.loyalty.rounding_modes.round') }}</option>
+                                    <option value="ceil">{{ $t('settings.billing.loyalty.rounding_modes.ceil') }}</option>
+                                </select>
+                                <p v-if="form.errors['loyalty.rounding_mode']" class="text-xs text-rose-600">{{ form.errors['loyalty.rounding_mode'] }}</p>
+                            </label>
+
+                            <label class="space-y-1 text-xs text-stone-600 dark:text-neutral-300 md:col-span-2">
+                                <span>{{ $t('settings.billing.loyalty.points_label') }}</span>
+                                <input
+                                    v-model.trim="form.loyalty.points_label"
+                                    type="text"
+                                    maxlength="40"
+                                    class="w-full rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm text-stone-700 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200"
+                                />
+                                <p v-if="form.errors['loyalty.points_label']" class="text-xs text-rose-600">{{ form.errors['loyalty.points_label'] }}</p>
                             </label>
                         </div>
                     </div>

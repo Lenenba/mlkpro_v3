@@ -48,21 +48,32 @@ class AuthenticatedSessionController extends Controller
         }
 
         if ($user?->requiresTwoFactor()) {
-            $method = $user->twoFactorMethod();
-            $useApp = $method === 'app' && !empty($user->two_factor_secret);
+            $twoFactorService = app(TwoFactorService::class);
+            $effectiveMethod = $twoFactorService->resolveEffectiveMethod($user);
 
-            if (!$useApp) {
-                $result = app(TwoFactorService::class)->sendCode($user, true);
-                if ($result['sent'] ?? true) {
-                    app(SecurityEventService::class)->record($user, 'auth.2fa.sent', $request, [
-                        'reason' => 'login',
-                    ]);
+            if ($effectiveMethod !== TwoFactorService::METHOD_APP) {
+                $result = $twoFactorService->sendCode($user, true, $effectiveMethod);
+                if (!($result['sent'] ?? false)) {
+                    Auth::guard('web')->logout();
+                    $request->session()->invalidate();
+                    $request->session()->regenerateToken();
+
+                    return redirect()
+                        ->back()
+                        ->withErrors(['email' => 'Unable to deliver a verification code. Please try again.']);
                 }
+
+                $effectiveMethod = (string) ($result['method'] ?? $effectiveMethod);
+                app(SecurityEventService::class)->record($user, 'auth.2fa.sent', $request, [
+                    'reason' => 'login',
+                    'method' => $effectiveMethod,
+                ]);
             }
 
             $request->session()->put([
                 'two_factor_passed' => false,
                 'two_factor_pending' => true,
+                'two_factor_delivery_method' => $effectiveMethod,
             ]);
 
             return redirect()->route('two-factor.challenge');

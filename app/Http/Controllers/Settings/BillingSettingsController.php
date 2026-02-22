@@ -3,10 +3,12 @@
 namespace App\Http\Controllers\Settings;
 
 use App\Http\Controllers\Controller;
+use App\Models\LoyaltyProgram;
 use App\Services\AssistantCreditService;
 use App\Models\AssistantUsage;
 use App\Models\PlatformSetting;
 use App\Services\BillingSubscriptionService;
+use App\Services\CompanyFeatureService;
 use App\Services\StripeConnectService;
 use App\Services\StripeBillingService;
 use App\Support\PlanDisplay;
@@ -193,6 +195,23 @@ class BillingSettingsController extends Controller
             'period_end' => $usageEnd,
         ];
         $paymentMethodsResolved = TenantPaymentMethodsResolver::forUser($user);
+        $featureMap = app(CompanyFeatureService::class)->resolveEffectiveFeatures($user);
+        $loyaltyFeatureEnabled = array_key_exists('loyalty', $featureMap)
+            ? (bool) $featureMap['loyalty']
+            : true;
+        $loyaltyProgram = null;
+        if ($loyaltyFeatureEnabled) {
+            $loyaltyProgram = LoyaltyProgram::query()->firstOrCreate(
+                ['user_id' => $user->id],
+                [
+                    'is_enabled' => true,
+                    'points_per_currency_unit' => 1,
+                    'minimum_spend' => 0,
+                    'rounding_mode' => LoyaltyProgram::ROUND_FLOOR,
+                    'points_label' => 'points',
+                ]
+            );
+        }
 
         return $this->inertiaOrJson('Settings/Billing', [
             'billing' => [
@@ -209,6 +228,14 @@ class BillingSettingsController extends Controller
             'cashAllowedContexts' => $paymentMethodsResolved['cash_allowed_contexts'],
             'paymentMethodSettings' => $paymentMethodsResolved,
             'tipSettings' => TipSettingsResolver::forUser($user),
+            'loyaltyProgram' => [
+                'feature_enabled' => $loyaltyFeatureEnabled,
+                'is_enabled' => (bool) ($loyaltyProgram?->is_enabled ?? false),
+                'points_per_currency_unit' => (float) ($loyaltyProgram?->points_per_currency_unit ?? 1),
+                'minimum_spend' => (float) ($loyaltyProgram?->minimum_spend ?? 0),
+                'rounding_mode' => (string) ($loyaltyProgram?->rounding_mode ?? LoyaltyProgram::ROUND_FLOOR),
+                'points_label' => (string) (($loyaltyProgram?->points_label) ?: 'points'),
+            ],
             'plans' => $plans,
             'subscription' => $subscriptionSummary,
             'seatQuantity' => $seatQuantity,
@@ -470,6 +497,10 @@ class BillingSettingsController extends Controller
         if (!$user || !$user->isAccountOwner()) {
             abort(403);
         }
+        $featureMap = app(CompanyFeatureService::class)->resolveEffectiveFeatures($user);
+        $loyaltyFeatureEnabled = array_key_exists('loyalty', $featureMap)
+            ? (bool) $featureMap['loyalty']
+            : true;
 
         $allowed = collect(self::AVAILABLE_METHODS)->pluck('id')->all();
 
@@ -485,6 +516,16 @@ class BillingSettingsController extends Controller
             'tips.default_percent' => 'nullable|numeric|min:0|max:100',
             'tips.allocation_strategy' => ['nullable', Rule::in(['primary', 'split'])],
             'tips.partial_refund_rule' => ['nullable', Rule::in(['prorata', 'manual'])],
+            'loyalty' => 'nullable|array',
+            'loyalty.is_enabled' => 'nullable|boolean',
+            'loyalty.points_per_currency_unit' => 'nullable|numeric|min:0.0001|max:1000',
+            'loyalty.minimum_spend' => 'nullable|numeric|min:0|max:1000000',
+            'loyalty.rounding_mode' => ['nullable', Rule::in([
+                LoyaltyProgram::ROUND_FLOOR,
+                LoyaltyProgram::ROUND_ROUND,
+                LoyaltyProgram::ROUND_CEIL,
+            ])],
+            'loyalty.points_label' => 'nullable|string|max:40',
         ]);
 
         $storeSettings = is_array($user->company_store_settings) ? $user->company_store_settings : [];
@@ -515,6 +556,59 @@ class BillingSettingsController extends Controller
                 : null;
         }
 
+        $incomingLoyalty = $loyaltyFeatureEnabled && is_array($validated['loyalty'] ?? null)
+            ? $validated['loyalty']
+            : [];
+        $loyaltyProgram = null;
+        if ($loyaltyFeatureEnabled) {
+            $loyaltyProgram = LoyaltyProgram::query()->firstOrCreate(
+                ['user_id' => $user->id],
+                [
+                    'is_enabled' => true,
+                    'points_per_currency_unit' => 1,
+                    'minimum_spend' => 0,
+                    'rounding_mode' => LoyaltyProgram::ROUND_FLOOR,
+                    'points_label' => 'points',
+                ]
+            );
+
+            $loyaltyProgram->fill([
+                'is_enabled' => array_key_exists('is_enabled', $incomingLoyalty)
+                    ? (bool) $incomingLoyalty['is_enabled']
+                    : (bool) $loyaltyProgram->is_enabled,
+                'points_per_currency_unit' => array_key_exists('points_per_currency_unit', $incomingLoyalty)
+                    ? (float) $incomingLoyalty['points_per_currency_unit']
+                    : (float) $loyaltyProgram->points_per_currency_unit,
+                'minimum_spend' => array_key_exists('minimum_spend', $incomingLoyalty)
+                    ? (float) $incomingLoyalty['minimum_spend']
+                    : (float) $loyaltyProgram->minimum_spend,
+                'rounding_mode' => array_key_exists('rounding_mode', $incomingLoyalty)
+                    ? (string) $incomingLoyalty['rounding_mode']
+                    : (string) $loyaltyProgram->rounding_mode,
+                'points_label' => array_key_exists('points_label', $incomingLoyalty)
+                    ? trim((string) $incomingLoyalty['points_label'])
+                    : (string) $loyaltyProgram->points_label,
+            ]);
+
+            if (!$loyaltyProgram->points_label) {
+                $loyaltyProgram->points_label = 'points';
+            }
+            if ($loyaltyProgram->points_per_currency_unit <= 0) {
+                $loyaltyProgram->points_per_currency_unit = 1;
+            }
+            if ($loyaltyProgram->minimum_spend < 0) {
+                $loyaltyProgram->minimum_spend = 0;
+            }
+            if (!in_array($loyaltyProgram->rounding_mode, [
+                LoyaltyProgram::ROUND_FLOOR,
+                LoyaltyProgram::ROUND_ROUND,
+                LoyaltyProgram::ROUND_CEIL,
+            ], true)) {
+                $loyaltyProgram->rounding_mode = LoyaltyProgram::ROUND_FLOOR;
+            }
+            $loyaltyProgram->save();
+        }
+
         $user->update([
             'payment_methods' => $paymentMethods,
             'default_payment_method' => $defaultPaymentMethod,
@@ -531,6 +625,14 @@ class BillingSettingsController extends Controller
                 'cash_allowed_contexts' => $paymentMethodsResolved['cash_allowed_contexts'],
                 'payment_method_settings' => $paymentMethodsResolved,
                 'tips' => TipSettingsResolver::forUser($user),
+                'loyalty' => [
+                    'feature_enabled' => $loyaltyFeatureEnabled,
+                    'is_enabled' => (bool) ($loyaltyProgram?->is_enabled ?? false),
+                    'points_per_currency_unit' => (float) ($loyaltyProgram?->points_per_currency_unit ?? 1),
+                    'minimum_spend' => (float) ($loyaltyProgram?->minimum_spend ?? 0),
+                    'rounding_mode' => (string) ($loyaltyProgram?->rounding_mode ?? LoyaltyProgram::ROUND_FLOOR),
+                    'points_label' => (string) (($loyaltyProgram?->points_label) ?: 'points'),
+                ],
             ]);
         }
 

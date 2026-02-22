@@ -55,6 +55,7 @@ class TenantController extends BaseController
         'tasks',
         'team_members',
         'assistant',
+        'loyalty',
     ];
 
     public function index(Request $request)
@@ -387,6 +388,7 @@ class TenantController extends BaseController
             'tasks' => 'Tasks',
             'team_members' => 'Team members',
             'assistant' => 'AI assistant',
+            'loyalty' => 'Loyalty',
         ];
 
         $current = is_array($tenant->company_features) ? $tenant->company_features : [];

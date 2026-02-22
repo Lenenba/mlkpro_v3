@@ -67,15 +67,16 @@ class TwoFactorController extends AuthController
             ], 429);
         }
 
-        $method = $challenge['method'] ?? $user->twoFactorMethod();
-        $effectiveMethod = $method === 'app' && empty($user->two_factor_secret) ? 'email' : $method;
+        $twoFactorService = app(TwoFactorService::class);
+        $method = (string) ($challenge['method'] ?? $user->twoFactorMethod());
+        $effectiveMethod = $twoFactorService->resolveEffectiveMethod($user, $method);
         $code = trim($validated['code']);
 
         $verified = false;
-        if ($effectiveMethod === 'app' && !empty($user->two_factor_secret)) {
+        if ($effectiveMethod === TwoFactorService::METHOD_APP && !empty($user->two_factor_secret)) {
             $verified = app(TotpService::class)->verifyCode($user->two_factor_secret, $code);
         } else {
-            $verified = app(TwoFactorService::class)->verifyCode($user, $code);
+            $verified = $twoFactorService->verifyCode($user, $code);
         }
 
         if (!$verified) {
@@ -83,7 +84,7 @@ class TwoFactorController extends AuthController
             return response()->json(['message' => 'Invalid or expired code.'], 422);
         }
 
-        if ($effectiveMethod === 'app' && !$user->two_factor_enabled) {
+        if ($effectiveMethod === TwoFactorService::METHOD_APP && !$user->two_factor_enabled) {
             $user->forceFill(['two_factor_enabled' => true])->save();
         }
 
@@ -128,9 +129,10 @@ class TwoFactorController extends AuthController
             return response()->json(['message' => 'Account suspended.'], 403);
         }
 
-        $method = $challenge['method'] ?? $user->twoFactorMethod();
-        $effectiveMethod = $method === 'app' && empty($user->two_factor_secret) ? 'email' : $method;
-        if ($effectiveMethod !== 'email') {
+        $twoFactorService = app(TwoFactorService::class);
+        $method = (string) ($challenge['method'] ?? $user->twoFactorMethod());
+        $effectiveMethod = $twoFactorService->resolveEffectiveMethod($user, $method);
+        if ($effectiveMethod === TwoFactorService::METHOD_APP) {
             return response()->json(['message' => 'App-based codes cannot be resent.'], 422);
         }
 
@@ -143,9 +145,14 @@ class TwoFactorController extends AuthController
             ], 429);
         }
 
-        $service = app(TwoFactorService::class);
-        $result = $service->sendCode($user);
+        $result = $twoFactorService->sendCode($user, false, $effectiveMethod);
         if (!$result['sent']) {
+            if (($result['reason'] ?? null) !== 'cooldown') {
+                return response()->json([
+                    'message' => 'Unable to deliver a new code right now.',
+                ], 422);
+            }
+
             return response()->json([
                 'message' => "Please wait {$result['retry_after']} seconds before requesting a new code.",
                 'retry_after' => $result['retry_after'],
@@ -156,14 +163,22 @@ class TwoFactorController extends AuthController
 
         app(SecurityEventService::class)->record($user, 'auth.2fa.resend', $request, [
             'channel' => 'api',
+            'method' => $result['method'] ?? $effectiveMethod,
         ]);
 
+        $challenge['method'] = $result['method'] ?? $effectiveMethod;
+        Cache::put(self::CHALLENGE_PREFIX . $validated['challenge_token'], $challenge, now()->addMinutes(15));
+
+        $responseMethod = (string) ($challenge['method'] ?? $effectiveMethod);
         return response()->json([
             'two_factor' => [
                 'challenge_token' => $validated['challenge_token'],
-                'method' => $effectiveMethod,
+                'method' => $responseMethod,
                 'expires_at' => $result['expires_at']?->toIso8601String(),
                 'retry_after' => $result['retry_after'] ?? 0,
+                'phone_hint' => $responseMethod === TwoFactorService::METHOD_SMS
+                    ? $twoFactorService->maskedPhoneNumber($user->phone_number)
+                    : null,
             ],
         ]);
     }

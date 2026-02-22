@@ -6,6 +6,8 @@ use App\Models\Billing\PaddleCustomer;
 use App\Models\Billing\PaddleSubscription as PaddleSubscriptionModel;
 use App\Models\Billing\PaddleSubscriptionItem;
 use App\Models\Billing\PaddleTransaction as PaddleTransactionModel;
+use App\Models\Payment;
+use App\Observers\PaymentObserver;
 use App\Models\User;
 use App\Listeners\SendDatabasePushNotifications;
 use App\Listeners\SendEmailMirrorNotifications;
@@ -44,6 +46,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        Payment::observe(PaymentObserver::class);
+
         RateLimiter::for('api', function (Request $request) {
             $user = $request->user();
             $key = $user ? 'user:' . $user->id : 'ip:' . $request->ip();

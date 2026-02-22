@@ -196,7 +196,21 @@ class ReservationQueueService
 
             $this->refreshMetrics($accountId, $settings);
 
-            return $item->fresh(['teamMember.user:id,name', 'service:id,name']);
+            $freshItem = $item->fresh([
+                'teamMember.user:id,name',
+                'service:id,name',
+                'client:id,first_name,last_name,company_name,email,phone,portal_user_id',
+                'client.portalUser:id,name,email,phone_number',
+                'clientUser:id,name,email,phone_number',
+            ]) ?: $item;
+
+            $this->notificationService->handleQueueEvent(
+                $freshItem,
+                'queue_ticket_created',
+                $actor
+            );
+
+            return $freshItem;
         });
     }
 
@@ -301,7 +315,35 @@ class ReservationQueueService
 
             $this->refreshMetrics((int) $locked->account_id, $settings);
 
-            return $locked->fresh(['teamMember.user:id,name', 'service:id,name', 'reservation:id,starts_at,status']);
+            $updated = $locked->fresh([
+                'teamMember.user:id,name',
+                'service:id,name',
+                'reservation:id,starts_at,status',
+                'client:id,first_name,last_name,company_name,email,phone,portal_user_id',
+                'client.portalUser:id,name,email,phone_number',
+                'clientUser:id,name,email,phone_number',
+                'reservation.client:id,first_name,last_name,company_name,email,phone,portal_user_id',
+                'reservation.client.portalUser:id,name,email,phone_number',
+                'reservation.clientUser:id,name,email,phone_number',
+            ]) ?: $locked;
+
+            $nextStatus = (string) ($payload['status'] ?? $updated->status);
+            if (
+                $previousStatus !== $nextStatus
+                && !in_array($action, ['pre_call', 'call'], true)
+            ) {
+                $this->notificationService->handleQueueEvent(
+                    $updated,
+                    'queue_status_changed',
+                    $actor,
+                    [
+                        'from_status' => $previousStatus,
+                        'to_status' => $nextStatus,
+                    ]
+                );
+            }
+
+            return $updated;
         });
     }
 
@@ -714,8 +756,37 @@ class ReservationQueueService
         foreach ($ordered as $item) {
             $nextPosition = $metrics[$item->id]['position'] ?? null;
             $nextEta = $metrics[$item->id]['eta_minutes'] ?? null;
+            $previousEta = is_numeric($item->eta_minutes)
+                ? (int) $item->eta_minutes
+                : null;
+            $queueStatus = (string) $item->status;
+            $etaAlertWindow = is_numeric($nextEta)
+                && (int) $nextEta >= 1
+                && (int) $nextEta <= 10;
+            $etaAlertEligible = in_array($queueStatus, [
+                ReservationQueueItem::STATUS_CHECKED_IN,
+                ReservationQueueItem::STATUS_PRE_CALLED,
+                ReservationQueueItem::STATUS_SKIPPED,
+            ], true) && $etaAlertWindow;
+            $crossedEtaThreshold = $etaAlertEligible && ($previousEta === null || $previousEta > 10);
+
             if ((int) ($item->position ?? -1) !== (int) ($nextPosition ?? -1) || (int) ($item->eta_minutes ?? -1) !== (int) ($nextEta ?? -1)) {
                 $item->update(['position' => $nextPosition, 'eta_minutes' => $nextEta]);
+            }
+
+            if ($crossedEtaThreshold) {
+                $this->notificationService->handleQueueEvent($item->fresh([
+                    'service:id,name',
+                    'teamMember.user:id,name,email',
+                    'client:id,first_name,last_name,company_name,email,phone,portal_user_id',
+                    'client.portalUser:id,name,email,phone_number',
+                    'clientUser:id,name,email,phone_number',
+                    'reservation:id,starts_at,status,team_member_id,client_id,client_user_id',
+                    'reservation.client:id,first_name,last_name,company_name,email,phone,portal_user_id',
+                    'reservation.client.portalUser:id,name,email,phone_number',
+                    'reservation.clientUser:id,name,email,phone_number',
+                    'reservation.teamMember.user:id,name,email',
+                ]) ?: $item, 'queue_eta_10m');
             }
         }
 
@@ -853,6 +924,7 @@ class ReservationQueueService
             ->get();
 
         foreach ($expired as $item) {
+            $previousStatus = (string) $item->status;
             if (($settings['queue_no_show_on_grace_expiry'] ?? false) && $item->item_type === ReservationQueueItem::TYPE_APPOINTMENT) {
                 $item->update([
                     'status' => ReservationQueueItem::STATUS_NO_SHOW,
@@ -867,18 +939,29 @@ class ReservationQueueService
                 ]);
             }
 
-            $this->notificationService->handleQueueEvent($item->fresh([
+            $freshItem = $item->fresh([
                 'service:id,name',
                 'teamMember.user:id,name,email',
-                'client:id,first_name,last_name,company_name,email,portal_user_id',
-                'client.portalUser:id,name,email',
-                'clientUser:id,name,email',
+                'client:id,first_name,last_name,company_name,email,phone,portal_user_id',
+                'client.portalUser:id,name,email,phone_number',
+                'clientUser:id,name,email,phone_number',
                 'reservation:id,starts_at,status,team_member_id,client_id,client_user_id',
-                'reservation.client:id,first_name,last_name,company_name,email,portal_user_id',
-                'reservation.client.portalUser:id,name,email',
-                'reservation.clientUser:id,name,email',
+                'reservation.client:id,first_name,last_name,company_name,email,phone,portal_user_id',
+                'reservation.client.portalUser:id,name,email,phone_number',
+                'reservation.clientUser:id,name,email,phone_number',
                 'reservation.teamMember.user:id,name,email',
-            ]), 'queue_grace_expired');
+            ]) ?: $item;
+
+            $this->notificationService->handleQueueEvent($freshItem, 'queue_grace_expired');
+            $this->notificationService->handleQueueEvent(
+                $freshItem,
+                'queue_status_changed',
+                null,
+                [
+                    'from_status' => $previousStatus,
+                    'to_status' => (string) $freshItem->status,
+                ]
+            );
         }
     }
 }

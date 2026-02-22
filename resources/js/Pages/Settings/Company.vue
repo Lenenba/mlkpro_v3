@@ -289,6 +289,8 @@ const form = useForm({
     notification_task_day_email: props.company.company_notification_settings?.task_day?.email ?? true,
     notification_task_day_sms: props.company.company_notification_settings?.task_day?.sms ?? false,
     notification_task_day_whatsapp: props.company.company_notification_settings?.task_day?.whatsapp ?? false,
+    notification_security_two_factor_sms:
+        props.company.company_notification_settings?.security?.two_factor_sms ?? false,
     presence_auto_clock_in: toBool(props.company.time_settings?.auto_clock_in ?? true),
     presence_auto_clock_out: toBool(props.company.time_settings?.auto_clock_out ?? true),
     presence_manual_clock: toBool(props.company.time_settings?.manual_clock ?? true),
@@ -939,6 +941,9 @@ const submit = () => {
                     sms: Boolean(data.notification_task_day_sms),
                     whatsapp: Boolean(data.notification_task_day_whatsapp),
                 },
+                security: {
+                    two_factor_sms: Boolean(data.notification_security_two_factor_sms),
+                },
             };
 
             payload.company_time_settings = {
@@ -965,6 +970,7 @@ const submit = () => {
             delete payload.notification_task_day_email;
             delete payload.notification_task_day_sms;
             delete payload.notification_task_day_whatsapp;
+            delete payload.notification_security_two_factor_sms;
             delete payload.presence_auto_clock_in;
             delete payload.presence_auto_clock_out;
             delete payload.presence_manual_clock;
@@ -1281,7 +1287,14 @@ watch(activeTab, (value) => {
                                 <input type="checkbox" v-model="form.notification_task_day_whatsapp" />
                                 <span>{{ $t('settings.company.notifications.whatsapp') }}</span>
                             </label>
+                            <label class="flex items-center gap-2">
+                                <input type="checkbox" v-model="form.notification_security_two_factor_sms" />
+                                <span>{{ $t('settings.company.notifications.two_factor_sms') }}</span>
+                            </label>
                         </div>
+                        <p class="text-xs text-stone-500 dark:text-neutral-400">
+                            {{ $t('settings.company.notifications.two_factor_sms_hint') }}
+                        </p>
                     </div>
 
                     <div v-if="isProductCompany" class="rounded-sm border border-stone-200 bg-stone-50 p-4 space-y-3 dark:border-neutral-700 dark:bg-neutral-900">

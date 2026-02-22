@@ -57,6 +57,11 @@ const canServiceManage = computed(() =>
     || teamPermissions.value.includes('jobs.edit')
     || teamPermissions.value.includes('tasks.edit')
 );
+const canLoyaltyManage = computed(() =>
+    isOwner.value
+    || canSalesManage.value
+    || canServiceManage.value
+);
 const canReservations = computed(() =>
     isOwner.value
     || teamPermissions.value.includes('reservations.view')
@@ -369,6 +374,26 @@ const isCustomerActive = computed(() => {
 
                                 <!-- Item -->
                                 <LinkAncor
+                                    v-if="isClient && hasFeature('loyalty')"
+                                    :label="$t('nav.loyalty')"
+                                    :href="'portal.loyalty.index'"
+                                    tone="loyalty"
+                                    :active="route().current('portal.loyalty.*')"
+                                >
+                                    <template #icon>
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round"
+                                            class="lucide lucide-award">
+                                            <circle cx="12" cy="8" r="6" />
+                                            <path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11" />
+                                        </svg>
+                                    </template>
+                                </LinkAncor>
+                                <!-- End Item -->
+
+                                <!-- Item -->
+                                <LinkAncor
                                     v-if="isClient && showServices && hasFeature('reservations')"
                                     :label="$t('nav.book_reservation')"
                                     :href="'client.reservations.book'"
@@ -472,6 +497,25 @@ const isCustomerActive = computed(() => {
                                             <circle cx="8" cy="21" r="1" />
                                             <circle cx="19" cy="21" r="1" />
                                             <path d="M2.05 2.05h2l2.6 12.4a2 2 0 0 0 2 1.6h9.6a2 2 0 0 0 2-1.6l1.2-6.4H6.2" />
+                                        </svg>
+                                    </template>
+                                </LinkAncor>
+                                <!-- End Item -->
+                                <!-- Item -->
+                                <LinkAncor
+                                    v-if="canLoyaltyManage && hasFeature('loyalty') && !isClient && !isSeller"
+                                    :label="$t('nav.loyalty')"
+                                    :href="'loyalty.index'"
+                                    tone="loyalty"
+                                    :active="route().current('loyalty.*') || route().current('settings.loyalty.*')"
+                                >
+                                    <template #icon>
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round"
+                                            class="lucide lucide-award">
+                                            <circle cx="12" cy="8" r="6" />
+                                            <path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11" />
                                         </svg>
                                     </template>
                                 </LinkAncor>

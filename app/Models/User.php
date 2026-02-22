@@ -201,6 +201,16 @@ class User extends Authenticatable
         return $this->hasOne(Customer::class, 'portal_user_id');
     }
 
+    public function loyaltyProgram(): HasOne
+    {
+        return $this->hasOne(LoyaltyProgram::class);
+    }
+
+    public function loyaltyPointLedgers(): HasMany
+    {
+        return $this->hasMany(LoyaltyPointLedger::class);
+    }
+
     public function ownedTeamMembers(): HasMany
     {
         return $this->hasMany(TeamMember::class, 'account_id');
@@ -341,7 +351,7 @@ class User extends Authenticatable
     public function twoFactorMethod(): string
     {
         $method = $this->two_factor_method ?: 'email';
-        return in_array($method, ['email', 'app'], true) ? $method : 'email';
+        return in_array($method, ['email', 'app', 'sms'], true) ? $method : 'email';
     }
 
     public function getCompanyLogoUrlAttribute(): ?string

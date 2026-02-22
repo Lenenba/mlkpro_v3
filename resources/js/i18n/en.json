@@ -16,6 +16,7 @@
     "customers": "Customers",
     "products": "Products",
     "sales": "Sales",
+    "loyalty": "Loyalty",
     "performance": "Performance",
     "presence": "Presence",
     "planning": "Planning",
@@ -62,6 +63,7 @@
   "two_factor": {
     "title": "Two-factor verification",
     "sent": "We sent a verification code to {email}.",
+    "sms_sent": "We sent a verification code to {phone}.",
     "app_prompt": "Enter the code from your authenticator app.",
     "expires": "This code expires in {minutes} minutes.",
     "code_label": "Verification code",
@@ -1366,7 +1368,8 @@
         "services": "Services",
         "tasks": "Tasks",
         "team_members": "Team members",
-        "assistant": "AI assistant"
+        "assistant": "AI assistant",
+        "loyalty": "Loyalty"
       }
     },
     "welcome_builder": {
@@ -2727,6 +2730,11 @@
           "disabled_hint": "Stripe is not configured for card payments."
         }
       },
+      "loyalty": {
+        "balance": "Loyalty balance: {points} {label}",
+        "redeem_label": "Redeem points",
+        "hint": "Max: {max} {label} ({amount} off)"
+      },
       "status_label": "Status",
       "invoice_title": "Invoice",
       "lines": "{count} lines",
@@ -2742,6 +2750,7 @@
       "subtotal": "Subtotal",
       "taxes": "Taxes",
       "discount_rate": "Discount ({rate}%)",
+      "loyalty_redeem": "Loyalty ({points} {label})",
       "delivery": "Delivery",
       "total": "Total",
       "lines": "Lines",
@@ -3070,6 +3079,29 @@
         "payment_fallback": "Payment",
         "paid_on": "Paid on",
         "empty": "No payments yet."
+      },
+      "loyalty": {
+        "title": "Loyalty points",
+        "balance": "Balance",
+        "earn_rate": "Earning rate",
+        "rate_value": "{rate} pts per $1 spent",
+        "minimum_spend": "Minimum spend",
+        "rounding": "Rounding: {mode}",
+        "enabled": "Program active",
+        "disabled": "Program inactive",
+        "recent_activity": "Recent point activity",
+        "event_accrual": "Points earned",
+        "event_refund": "Points removed (refund)",
+        "event_redemption": "Points redeemed",
+        "event_redemption_reversal": "Points restored",
+        "payment_amount": "Based on payment of {amount}",
+        "empty": "No loyalty activity yet.",
+        "points_unit": "points",
+        "rounding_modes": {
+          "floor": "Floor",
+          "round": "Nearest",
+          "ceil": "Ceil"
+        }
       },
       "notes": {
         "title": "Internal notes",
@@ -4471,7 +4503,8 @@
         "client_not_found": "No existing client profile found for this phone.",
         "client_found": "Client profile found.",
         "code_sent": "Verification code sent.",
-        "phone_verified": "Phone verified."
+        "phone_verified": "Phone verified.",
+        "active_ticket_exists": "You already have an active ticket for this phone number."
       },
       "errors": {
         "lookup": "Unable to search this client.",
@@ -5417,6 +5450,10 @@
         "label": "Billing",
         "description": "Plan and payments"
       },
+      "loyalty": {
+        "label": "Loyalty",
+        "description": "Points program configuration"
+      },
       "notifications": {
         "label": "Notifications",
         "description": "Emails and alerts",
@@ -5508,6 +5545,9 @@
           "notify_on_queue_pre_call": "Notify clients on queue pre-call",
           "notify_on_queue_called": "Notify clients when called",
           "notify_on_queue_grace_expired": "Notify when queue grace expires",
+          "notify_on_queue_ticket_created": "Send SMS when queue ticket is created",
+          "notify_on_queue_eta_10m": "Send alert around 10 minutes before turn",
+          "notify_on_queue_status_changed": "Notify on queue status changes (optional)",
           "reminder_hours": "Reminder timings"
         },
         "reminders": {
@@ -5591,7 +5631,9 @@
         "method_title": "Preferred 2FA method",
         "method_email": "Email code",
         "method_app": "Authenticator app",
+        "method_sms": "SMS code",
         "method_ready": "App configured",
+        "sms_phone": "Phone used: {phone}",
         "app_start": "Set up authenticator app",
         "app_setup_hint": "Scan the QR code or enter the setup key in your authenticator app, then confirm the 6-digit code.",
         "app_secret_label": "Setup key",
@@ -5599,7 +5641,11 @@
         "app_confirm": "Confirm app",
         "app_cancel": "Cancel",
         "app_qr_alt": "Authenticator QR code",
-        "switch_email": "Switch to email codes"
+        "switch_email": "Switch to email codes",
+        "switch_sms": "Switch to SMS codes",
+        "sms_disabled_company": "SMS 2FA must be enabled in company settings.",
+        "sms_missing_phone": "Add a phone number to your profile to enable SMS 2FA.",
+        "sms_missing_twilio": "SMS provider is not configured."
       },
       "password": {
         "title": "Password",
@@ -5786,7 +5832,9 @@
         "description": "Choose how clients are notified on the day of the task.",
         "email": "Email",
         "sms": "SMS",
-        "whatsapp": "WhatsApp"
+        "whatsapp": "WhatsApp",
+        "two_factor_sms": "Allow SMS 2FA",
+        "two_factor_sms_hint": "If enabled, the account owner can choose SMS as the 2FA method in Security."
       },
       "presence": {
         "title": "Attendance & presence",
@@ -6110,6 +6158,21 @@
         "refund_prorata": "Pro-rata split",
         "refund_manual": "Manual split"
       },
+      "loyalty": {
+        "title": "Loyalty settings",
+        "subtitle": "Configure points earning and redemption for POS sales.",
+        "save": "Save loyalty settings",
+        "enabled": "Enable loyalty program",
+        "points_per_currency_unit": "Points earned per $1 spent",
+        "minimum_spend": "Minimum spend before earning points ($)",
+        "rounding_mode": "Rounding mode",
+        "points_label": "Points label",
+        "rounding_modes": {
+          "floor": "Round down",
+          "round": "Nearest",
+          "ceil": "Round up"
+        }
+      },
       "connect": {
         "title": "Stripe Connect",
         "subtitle": "Connect your bank account to receive client payments directly.",
@@ -6127,7 +6190,131 @@
         "error_start": "Unable to start Stripe Connect onboarding."
       }
     },
+    "loyalty": {
+      "meta_title": "Loyalty settings",
+      "title": "Loyalty module configuration",
+      "subtitle": "Configure point earning rules, redemption, and labels.",
+      "save": "Save loyalty settings",
+      "fields": {
+        "enabled": "Enable loyalty program",
+        "points_per_currency_unit": "Points earned per $1 spent",
+        "minimum_spend": "Minimum spend before points are earned ($)",
+        "rounding_mode": "Rounding mode",
+        "points_label": "Points label"
+      },
+      "status": {
+        "enabled": "Program enabled",
+        "disabled": "Program disabled"
+      },
+      "rounding_modes": {
+        "floor": "Round down",
+        "round": "Nearest",
+        "ceil": "Round up"
+      },
+      "preview": "Label preview: {label}",
+      "preview_title": "Quick preview"
+    },
     "_label": "Settings"
+  },
+  "client_loyalty": {
+    "title": "My loyalty points",
+    "subtitle": "Track your available balance and points activity history.",
+    "kpi": {
+      "balance": "Available balance",
+      "earned_period": "Points earned (period)",
+      "spent_period": "Points redeemed (period)",
+      "movements": "Movements (period)",
+      "earned_lifetime": "Total earned",
+      "spent_lifetime": "Total redeemed",
+      "movements_lifetime": "Total movements"
+    },
+    "program": {
+      "title": "Program rules",
+      "status": "Status",
+      "rate": "Earn rate (pts / $1)",
+      "minimum_spend": "Minimum spend",
+      "label": "Label"
+    },
+    "ledger": {
+      "title": "Points history"
+    }
+  },
+  "loyalty_module": {
+    "title": "Loyalty management",
+    "subtitle": "Track points movement and customer balances in real time.",
+    "default_points_label": "points",
+    "actions": {
+      "configure": "Configure module",
+      "apply_filters": "Apply filters",
+      "clear_filters": "Clear filters",
+      "show_advanced": "Show advanced",
+      "hide_advanced": "Hide advanced"
+    },
+    "filters": {
+      "search_placeholder": "Search by customer, event, payment or reference...",
+      "period": "Period",
+      "customer": "Customer",
+      "event": "Event",
+      "per_page": "Rows / page",
+      "from": "From",
+      "to": "To",
+      "all_customers": "All customers",
+      "all_events": "All events"
+    },
+    "period": {
+      "last_7_days": "Last 7 days",
+      "last_30_days": "Last 30 days",
+      "last_90_days": "Last 90 days",
+      "this_month": "This month",
+      "custom": "Custom range"
+    },
+    "kpi": {
+      "total_balance": "Total points balance",
+      "active_customers": "Customers with points",
+      "points_earned": "Points earned",
+      "points_spent": "Points spent"
+    },
+    "program": {
+      "title": "Program status",
+      "status": "Status",
+      "enabled": "Enabled",
+      "disabled": "Disabled",
+      "rate": "Earn rate (pts / $1)",
+      "minimum_spend": "Minimum spend",
+      "rounding_mode": "Rounding mode"
+    },
+    "customer_stats": {
+      "title": "Customer points overview",
+      "customer": "Customer",
+      "balance": "Balance",
+      "earned": "Earned",
+      "spent": "Redeemed",
+      "empty": "No customer data to display."
+    },
+    "ledger": {
+      "title": "Points evolution",
+      "date": "Date and time",
+      "customer": "Customer",
+      "event": "Event",
+      "reference": "Reference",
+      "points": "Points",
+      "amount": "Amount",
+      "results": "results",
+      "result_count": "{count} results",
+      "page_indicator": "Page {current} / {total}",
+      "empty": "No movement found."
+    },
+    "events": {
+      "accrual": "Points earned",
+      "refund": "Refund adjustment",
+      "redemption": "Points redeemed",
+      "redemption_reversal": "Redemption reversal"
+    },
+    "references": {
+      "payment": "Payment #{id}",
+      "sale": "Sale {number}",
+      "sale_id": "Sale #{id}"
+    }
   },
   "welcome": {
     "meta": {

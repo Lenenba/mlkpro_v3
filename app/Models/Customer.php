@@ -44,6 +44,7 @@ class Customer extends Model
         'billing_delay_days',
         'billing_date_rule',
         'discount_rate',
+        'loyalty_points_balance',
         'is_active',
         'auto_accept_quotes',
         'auto_validate_jobs',
@@ -71,6 +72,7 @@ class Customer extends Model
         'tags' => 'array',
         'billing_delay_days' => 'integer',
         'discount_rate' => 'decimal:2',
+        'loyalty_points_balance' => 'integer',
     ];
 
     protected $appends = [
@@ -151,6 +153,11 @@ class Customer extends Model
     public function reservations(): HasMany
     {
         return $this->hasMany(Reservation::class, 'client_id')->orderBy('starts_at');
+    }
+
+    public function loyaltyPointLedgers(): HasMany
+    {
+        return $this->hasMany(LoyaltyPointLedger::class);
     }
 
     public function reservationReviews(): HasMany

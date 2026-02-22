@@ -32,6 +32,18 @@ const props = defineProps({
         type: Object,
         default: () => ({ summary: {}, recentPayments: [] }),
     },
+    loyalty: {
+        type: Object,
+        default: () => ({
+            enabled: true,
+            label: 'points',
+            balance: 0,
+            rate: 1,
+            minimum_spend: 0,
+            rounding_mode: 'floor',
+            recent: [],
+        }),
+    },
     activity: {
         type: Array,
         default: () => [],
@@ -64,6 +76,14 @@ const page = usePage();
 const companyType = computed(() => page.props.auth?.account?.company?.type ?? null);
 const showSales = computed(() => companyType.value === 'products');
 const showServiceOps = computed(() => companyType.value !== 'products');
+const loyaltyFeatureEnabled = computed(() => {
+    const featureFlag = page.props.auth?.account?.features?.loyalty;
+    if (typeof featureFlag === 'boolean') {
+        return featureFlag;
+    }
+
+    return Boolean(props.loyalty?.feature_enabled ?? true);
+});
 
 const properties = computed(() => props.customer?.properties || []);
 const tags = computed(() => props.customer?.tags || []);
@@ -94,6 +114,31 @@ const formatStatus = (status, keyPrefix = '') => {
 };
 const hasValue = (value) => value !== null && value !== undefined;
 const topProducts = computed(() => props.topProducts || []);
+const loyalty = computed(() => props.loyalty || {});
+const loyaltyPointLabel = computed(() => loyalty.value?.label || t('customers.details.loyalty.points_unit'));
+const loyaltyRecent = computed(() => loyalty.value?.recent || []);
+const loyaltyRoundingLabel = computed(() => {
+    const mode = loyalty.value?.rounding_mode || 'floor';
+    const key = `customers.details.loyalty.rounding_modes.${mode}`;
+    const translated = t(key);
+
+    return translated && translated !== key ? translated : mode;
+});
+const formatSignedPoints = (value) => {
+    const points = Number(value || 0);
+    const prefix = points > 0 ? '+' : '';
+
+    return `${prefix}${formatNumber(points)}`;
+};
+const loyaltyEventLabel = (event) => {
+    const key = `customers.details.loyalty.event_${event || 'accrual'}`;
+    const translated = t(key);
+    if (translated && translated !== key) {
+        return translated;
+    }
+
+    return String(event || 'accrual');
+};
 const kpiMax = computed(() => {
     const values = [
         Number(props.stats?.quotes || 0),
@@ -535,7 +580,7 @@ const deleteProperty = (property) => {
                     </div>
                 </Card>
 
-                <Card class="mt-5">
+                <Card v-if="loyaltyFeatureEnabled" class="mt-5">
                     <template #title>
                         <div class="flex items-center justify-between gap-3">
                             <span>{{ $t('customers.properties.title') }}</span>
@@ -1328,6 +1373,70 @@ const deleteProperty = (property) => {
                             >
                                 {{ $t('customers.details.billing_history.empty') }}
                             </div>
+                        </div>
+                    </div>
+                </Card>
+                <Card class="mt-5">
+                    <template #title>{{ $t('customers.details.loyalty.title') }}</template>
+
+                    <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                        <div class="rounded-sm border border-stone-200 p-3 dark:border-neutral-700">
+                            <div class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('customers.details.loyalty.balance') }}</div>
+                            <div class="mt-1 text-sm font-semibold text-stone-800 dark:text-neutral-200">
+                                {{ formatNumber(loyalty?.balance || 0) }} {{ loyaltyPointLabel }}
+                            </div>
+                        </div>
+                        <div class="rounded-sm border border-stone-200 p-3 dark:border-neutral-700">
+                            <div class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('customers.details.loyalty.earn_rate') }}</div>
+                            <div class="mt-1 text-sm font-semibold text-stone-800 dark:text-neutral-200">
+                                {{ $t('customers.details.loyalty.rate_value', { rate: formatNumber(loyalty?.rate || 0, 2) }) }}
+                            </div>
+                            <div class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
+                                {{ $t('customers.details.loyalty.rounding', { mode: loyaltyRoundingLabel }) }}
+                            </div>
+                        </div>
+                        <div class="rounded-sm border border-stone-200 p-3 dark:border-neutral-700">
+                            <div class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('customers.details.loyalty.minimum_spend') }}</div>
+                            <div class="mt-1 text-sm font-semibold text-stone-800 dark:text-neutral-200">
+                                {{ formatCurrency(loyalty?.minimum_spend || 0) }}
+                            </div>
+                            <div class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
+                                {{ loyalty?.enabled ? $t('customers.details.loyalty.enabled') : $t('customers.details.loyalty.disabled') }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-5">
+                        <h3 class="text-sm font-semibold text-stone-800 dark:text-neutral-200">{{ $t('customers.details.loyalty.recent_activity') }}</h3>
+
+                        <div v-if="loyaltyRecent.length" class="mt-3 space-y-2 text-sm">
+                            <div
+                                v-for="entry in loyaltyRecent"
+                                :key="entry.id"
+                                class="flex items-start justify-between gap-3 rounded-sm border border-stone-200 px-3 py-2 dark:border-neutral-700"
+                            >
+                                <div>
+                                    <div class="font-medium text-stone-800 dark:text-neutral-200">
+                                        {{ loyaltyEventLabel(entry.event) }}
+                                    </div>
+                                    <div class="mt-0.5 text-xs text-stone-500 dark:text-neutral-400">
+                                        {{ $t('customers.details.loyalty.payment_amount', { amount: formatCurrency(entry.amount) }) }} -
+                                        {{ formatDate(entry.processed_at) }}
+                                    </div>
+                                </div>
+                                <div class="text-right">
+                                    <div
+                                        class="text-sm font-semibold"
+                                        :class="entry.points >= 0 ? 'text-green-700 dark:text-green-400' : 'text-red-600 dark:text-red-400'"
+                                    >
+                                        {{ formatSignedPoints(entry.points) }}
+                                    </div>
+                                    <div class="text-xs text-stone-500 dark:text-neutral-400">{{ loyaltyPointLabel }}</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div v-else class="mt-2 text-sm text-stone-500 dark:text-neutral-400">
+                            {{ $t('customers.details.loyalty.empty') }}
                         </div>
                     </div>
                 </Card>

@@ -91,6 +91,11 @@ class Payment extends Model
         return $this->hasMany(PaymentTipAllocation::class);
     }
 
+    public function loyaltyPointLedgers(): HasMany
+    {
+        return $this->hasMany(LoyaltyPointLedger::class);
+    }
+
     public function getTipNetAmountAttribute(): float
     {
         $tip = (float) ($this->tip_amount ?? 0);
