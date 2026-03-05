@@ -82,12 +82,20 @@ class FatigueLimiter
 
     public function isQuietHours(User $accountOwner, Carbon $at): bool
     {
-        $timezone = (string) $this->setting(
+        $configuredTimezone = $this->setting(
             $accountOwner,
             'channels.quiet_hours.timezone',
-            $accountOwner->company_timezone ?: config('app.timezone', 'UTC')
+            null
         );
-        $local = CarbonImmutable::instance($at)->setTimezone($timezone);
+        $timezone = is_string($configuredTimezone) && trim($configuredTimezone) !== ''
+            ? trim($configuredTimezone)
+            : ($accountOwner->company_timezone ?: config('app.timezone', 'UTC'));
+
+        try {
+            $local = CarbonImmutable::instance($at)->setTimezone($timezone);
+        } catch (\Throwable) {
+            $local = CarbonImmutable::instance($at)->setTimezone(config('app.timezone', 'UTC'));
+        }
 
         $start = (string) $this->setting(
             $accountOwner,

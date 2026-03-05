@@ -9,6 +9,7 @@ use App\Models\CampaignRun;
 use App\Models\Customer;
 use App\Models\CustomerConsent;
 use App\Models\Product;
+use App\Models\ProductCategory;
 use App\Models\Role;
 use App\Models\User;
 use App\Services\Campaigns\AudienceResolver;
@@ -17,6 +18,7 @@ use App\Services\Campaigns\CampaignService;
 use App\Services\Campaigns\CampaignTrackingService;
 use App\Services\Campaigns\ConsentService;
 use App\Services\Campaigns\FatigueLimiter;
+use App\Services\Campaigns\MarketingSettingsService;
 use App\Services\Campaigns\TemplateLibraryService;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -48,8 +50,15 @@ function marketingOwner(array $overrides = []): User
 
 function marketingProduct(User $owner, array $overrides = []): Product
 {
+    $categoryId = $overrides['category_id'] ?? ProductCategory::query()->create([
+        'user_id' => $owner->id,
+        'created_by_user_id' => $owner->id,
+        'name' => 'Campaign Category ' . Str::upper(Str::random(4)),
+    ])->id;
+
     return Product::query()->create(array_merge([
         'user_id' => $owner->id,
+        'category_id' => $categoryId,
         'item_type' => Product::ITEM_TYPE_PRODUCT,
         'name' => 'Offer ' . Str::upper(Str::random(6)),
         'description' => 'Campaign offer',
@@ -71,6 +80,21 @@ function marketingCustomer(User $owner, array $overrides = []): Customer
         'phone' => '+1514555' . random_int(1000, 9999),
         'is_active' => true,
     ], $overrides));
+}
+
+function disableMarketingQuietHours(User $owner): void
+{
+    /** @var MarketingSettingsService $service */
+    $service = app(MarketingSettingsService::class);
+    $service->update($owner, [
+        'channels' => [
+            'quiet_hours' => [
+                'timezone' => 'UTC',
+                'start' => '00:00',
+                'end' => '00:00',
+            ],
+        ],
+    ]);
 }
 
 beforeEach(function () {
@@ -211,6 +235,7 @@ test('template library resolves most specific default template', function () {
 
 test('consent and fatigue rules are enforced', function () {
     $owner = marketingOwner();
+    disableMarketingQuietHours($owner);
     $customer = marketingCustomer($owner, [
         'email' => 'fatigue-' . Str::lower(Str::random(10)) . '@example.com',
     ]);
@@ -245,17 +270,17 @@ test('consent and fatigue rules are enforced', function () {
         'schedule_type' => Campaign::SCHEDULE_MANUAL,
     ]);
 
-    $run = CampaignRun::query()->create([
-        'campaign_id' => $campaign->id,
-        'user_id' => $owner->id,
-        'trigger_type' => CampaignRun::TRIGGER_MANUAL,
-        'status' => CampaignRun::STATUS_COMPLETED,
-        'idempotency_key' => Str::uuid()->toString(),
-    ]);
-
     for ($index = 0; $index < 2; $index++) {
+        $priorRun = CampaignRun::query()->create([
+            'campaign_id' => $campaign->id,
+            'user_id' => $owner->id,
+            'trigger_type' => CampaignRun::TRIGGER_MANUAL,
+            'status' => CampaignRun::STATUS_COMPLETED,
+            'idempotency_key' => Str::uuid()->toString(),
+        ]);
+
         CampaignRecipient::query()->create([
-            'campaign_run_id' => $run->id,
+            'campaign_run_id' => $priorRun->id,
             'campaign_id' => $campaign->id,
             'user_id' => $owner->id,
             'customer_id' => $customer->id,
@@ -276,6 +301,7 @@ test('sending workflow queues dispatch and recipient jobs', function () {
     Queue::fake();
 
     $owner = marketingOwner();
+    disableMarketingQuietHours($owner);
     $customer = marketingCustomer($owner, [
         'email' => 'send-' . Str::lower(Str::random(10)) . '@example.com',
     ]);
@@ -331,4 +357,3 @@ test('sending workflow queues dispatch and recipient jobs', function () {
     Queue::assertPushed(SendCampaignRecipientJob::class);
     expect(CampaignRecipient::query()->where('campaign_run_id', $run->id)->count())->toBeGreaterThan(0);
 });
-

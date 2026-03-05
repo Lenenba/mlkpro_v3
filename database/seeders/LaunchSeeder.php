@@ -16,6 +16,8 @@ use App\Models\Customer;
 use App\Models\CustomerConsent;
 use App\Models\Invoice;
 use App\Models\InvoiceItem;
+use App\Models\MarketingSetting;
+use App\Models\MessageTemplate;
 use App\Models\OrderReview;
 use App\Models\Payment;
 use App\Models\PlatformAdmin;
@@ -61,6 +63,7 @@ use App\Services\InventoryService;
 use App\Services\TipAllocationService;
 use App\Services\WorkBillingService;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
@@ -2859,10 +2862,64 @@ class LaunchSeeder extends Seeder
             && Schema::hasTable('campaign_messages')
             && Schema::hasTable('campaign_events')
             && Schema::hasTable('customer_consents');
+        $canSeedCampaignFoundations = $canSeedCampaigns
+            && Schema::hasTable('marketing_settings')
+            && Schema::hasTable('message_templates')
+            && Schema::hasTable('campaign_offers');
 
         if ($canSeedCampaigns) {
             $campaignCustomers = collect([$productCustomer, $productCustomerRetail, $productCustomerWholesale])
                 ->filter();
+
+            if ($canSeedCampaignFoundations) {
+                MarketingSetting::updateOrCreate(
+                    ['user_id' => $productOwner->id],
+                    MarketingSetting::defaults()
+                );
+
+                MessageTemplate::updateOrCreate(
+                    [
+                        'user_id' => $productOwner->id,
+                        'name' => 'Promotion email default (seed)',
+                        'channel' => Campaign::CHANNEL_EMAIL,
+                        'campaign_type' => Campaign::TYPE_PROMOTION,
+                        'language' => 'FR',
+                    ],
+                    [
+                        'created_by_user_id' => $productOwner->id,
+                        'updated_by_user_id' => $productOwner->id,
+                        'is_default' => true,
+                        'content' => [
+                            'subject' => 'Promo de printemps pour {firstName}',
+                            'previewText' => 'Offre limitee sur {offerName}',
+                            'html' => 'Bonjour {firstName}, profitez de {promoCode} sur {offerName}: {ctaUrl}',
+                        ],
+                        'tags' => ['seed', 'promotion'],
+                    ]
+                );
+
+                MessageTemplate::updateOrCreate(
+                    [
+                        'user_id' => $serviceOwner->id,
+                        'name' => 'Service announcement default (seed)',
+                        'channel' => Campaign::CHANNEL_IN_APP,
+                        'campaign_type' => Campaign::TYPE_ANNOUNCEMENT,
+                        'language' => 'EN',
+                    ],
+                    [
+                        'created_by_user_id' => $serviceOwner->id,
+                        'updated_by_user_id' => $serviceOwner->id,
+                        'is_default' => true,
+                        'content' => [
+                            'title' => 'New service available',
+                            'body' => 'Book now: {offerName}',
+                            'deepLink' => '/services',
+                            'image' => null,
+                        ],
+                        'tags' => ['seed', 'services'],
+                    ]
+                );
+            }
 
             foreach ($campaignCustomers as $campaignCustomer) {
                 CustomerConsent::updateOrCreate(
@@ -2921,6 +2978,7 @@ class LaunchSeeder extends Seeder
                 [
                     'created_by_user_id' => $productOwner->id,
                     'updated_by_user_id' => $productOwner->id,
+                    'description' => 'Reusable seeded VIP audience',
                     'filters' => [
                         'operator' => 'AND',
                         'rules' => [
@@ -2932,6 +2990,9 @@ class LaunchSeeder extends Seeder
                         ],
                     ],
                     'exclusions' => null,
+                    'tags' => ['vip', 'seed'],
+                    'cached_count' => 2,
+                    'last_computed_at' => $now->copy()->subDay(),
                     'is_shared' => false,
                 ]
             );
@@ -2950,6 +3011,9 @@ class LaunchSeeder extends Seeder
                     'created_by_user_id' => $productOwner->id,
                     'updated_by_user_id' => $productOwner->id,
                     'audience_segment_id' => $vipSegment->id,
+                    'campaign_type' => Campaign::TYPE_PROMOTION,
+                    'offer_mode' => Campaign::OFFER_MODE_PRODUCTS,
+                    'language_mode' => Campaign::LANGUAGE_MODE_FR,
                     'type' => Campaign::TYPE_PROMOTION,
                     'status' => Campaign::STATUS_COMPLETED,
                     'schedule_type' => Campaign::SCHEDULE_MANUAL,
@@ -2969,6 +3033,22 @@ class LaunchSeeder extends Seeder
             );
 
             $completedCampaign->products()->sync($campaignProductIds);
+            if ($canSeedCampaignFoundations && $campaignProductIds !== []) {
+                $rows = collect($campaignProductIds)->map(fn ($productId) => [
+                    'campaign_id' => $completedCampaign->id,
+                    'offer_type' => Product::ITEM_TYPE_PRODUCT,
+                    'offer_id' => (int) $productId,
+                    'metadata' => json_encode(['seed' => true]),
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ])->all();
+
+                DB::table('campaign_offers')->upsert(
+                    $rows,
+                    ['campaign_id', 'offer_type', 'offer_id'],
+                    ['metadata', 'updated_at']
+                );
+            }
 
             CampaignChannel::updateOrCreate(
                 [
@@ -3218,6 +3298,9 @@ class LaunchSeeder extends Seeder
                     'created_by_user_id' => $productOwner->id,
                     'updated_by_user_id' => $productOwner->id,
                     'audience_segment_id' => null,
+                    'campaign_type' => Campaign::TYPE_BACK_AVAILABLE,
+                    'offer_mode' => Campaign::OFFER_MODE_PRODUCTS,
+                    'language_mode' => Campaign::LANGUAGE_MODE_EN,
                     'type' => Campaign::TYPE_BACK_IN_STOCK,
                     'status' => Campaign::STATUS_SCHEDULED,
                     'schedule_type' => Campaign::SCHEDULE_SCHEDULED,
@@ -3235,6 +3318,22 @@ class LaunchSeeder extends Seeder
             );
 
             $scheduledCampaign->products()->sync($campaignProductIds);
+            if ($canSeedCampaignFoundations && $campaignProductIds !== []) {
+                $rows = collect($campaignProductIds)->map(fn ($productId) => [
+                    'campaign_id' => $scheduledCampaign->id,
+                    'offer_type' => Product::ITEM_TYPE_PRODUCT,
+                    'offer_id' => (int) $productId,
+                    'metadata' => json_encode(['seed' => true]),
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ])->all();
+
+                DB::table('campaign_offers')->upsert(
+                    $rows,
+                    ['campaign_id', 'offer_type', 'offer_id'],
+                    ['metadata', 'updated_at']
+                );
+            }
 
             CampaignChannel::updateOrCreate(
                 [

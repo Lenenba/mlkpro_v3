@@ -202,17 +202,27 @@ const inertiaPages = import.meta.glob([
     '!./Pages/Demo/**/*.vue',
 ]);
 
+const normalizeInertiaPath = (path) => String(path || '')
+    .replace(/\\/g, '/')
+    .replace(/\/+/g, '/')
+    .toLowerCase();
+
 const resolveInertiaPage = (name) => {
-    const pagePath = `./Pages/${name}.vue`;
+    const normalizedName = String(name || '')
+        .replace(/\\/g, '/')
+        .replace(/^\/+|\/+$/g, '')
+        .replace(/\.vue$/i, '');
+
+    const pagePath = `./Pages/${normalizedName}.vue`;
     const directMatch = inertiaPages[pagePath];
     if (directMatch) {
         return directMatch();
     }
 
-    // Fallback for inconsistent casing coming from backend component names.
-    const lowerPath = pagePath.toLowerCase();
+    // Fallback for inconsistent casing and path separators coming from backend names.
+    const normalizedPath = normalizeInertiaPath(pagePath);
     const caseInsensitiveKey = Object.keys(inertiaPages).find(
-        (key) => key.toLowerCase() === lowerPath,
+        (key) => normalizeInertiaPath(key) === normalizedPath,
     );
     if (caseInsensitiveKey) {
         return inertiaPages[caseInsensitiveKey]();

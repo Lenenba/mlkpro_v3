@@ -21,7 +21,6 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class CampaignService
@@ -269,7 +268,8 @@ class CampaignService
         Campaign $campaign,
         User $actor,
         string $triggerType = CampaignRun::TRIGGER_MANUAL,
-        ?Carbon $scheduledFor = null
+        ?Carbon $scheduledFor = null,
+        ?string $idempotencyKey = null
     ): CampaignRun {
         $campaign->loadMissing('channels');
         $enabledChannels = $campaign->channels->where('is_enabled', true)->count();
@@ -279,13 +279,31 @@ class CampaignService
             ]);
         }
 
+        $effectiveIdempotencyKey = $idempotencyKey;
+        if (!$effectiveIdempotencyKey) {
+            $timePart = ($scheduledFor ?: now())->copy()->seconds(0)->format('Y-m-d H:i');
+            $effectiveIdempotencyKey = hash('sha256', implode('|', [
+                $campaign->id,
+                $campaign->user_id,
+                strtoupper($triggerType),
+                $timePart,
+            ]));
+        }
+
+        $existing = CampaignRun::query()
+            ->where('idempotency_key', $effectiveIdempotencyKey)
+            ->first();
+        if ($existing) {
+            return $existing;
+        }
+
         $run = CampaignRun::query()->create([
             'campaign_id' => $campaign->id,
             'user_id' => $campaign->user_id,
             'triggered_by_user_id' => $actor->id,
             'trigger_type' => $triggerType,
             'status' => CampaignRun::STATUS_PENDING,
-            'idempotency_key' => Str::uuid()->toString(),
+            'idempotency_key' => $effectiveIdempotencyKey,
             'scheduled_for' => $scheduledFor,
         ]);
 

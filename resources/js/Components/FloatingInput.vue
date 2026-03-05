@@ -3,8 +3,8 @@ import { computed, onMounted, ref } from 'vue';
 
 const props = defineProps({
     modelValue: {
-        type: String,
-        required: true,
+        type: [String, Number],
+        default: '',
     },
     type: {
         type: String,

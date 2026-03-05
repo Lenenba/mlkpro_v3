@@ -38,7 +38,7 @@ class OfferSearchService
         $this->applySorting($query, $sort, $search);
 
         /** @var CursorPaginator<int, Product> $paginator */
-        $paginator = $query->cursorPaginate($limit, ['products.*'], 'cursor', $cursor);
+        $paginator = $query->cursorPaginate($limit, ['*'], 'cursor', $cursor);
 
         return [
             'items' => $this->mapItems($paginator->getCollection()),
@@ -262,4 +262,3 @@ class OfferSearchService
         })->values()->all();
     }
 }
-
