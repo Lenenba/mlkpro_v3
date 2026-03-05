@@ -55,7 +55,7 @@ const loyaltyFeatureEnabled = computed(() => {
         return featureFlag;
     }
 
-    return Boolean(props.loyaltyProgram?.feature_enabled ?? true);
+    return Boolean(props.loyaltyProgram?.feature_enabled ?? false);
 });
 const stripeEnabled = computed(() => Boolean(props.stripe?.enabled));
 const ALLOWED_INTERNAL_METHODS = ['cash', 'card', 'bank_transfer', 'check'];

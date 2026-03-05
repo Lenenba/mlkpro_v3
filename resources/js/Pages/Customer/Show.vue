@@ -68,6 +68,14 @@ const props = defineProps({
         type: Array,
         default: () => [],
     },
+    vipTiers: {
+        type: Array,
+        default: () => [],
+    },
+    campaignsFeatureEnabled: {
+        type: Boolean,
+        default: false,
+    },
 });
 
 const { t } = useI18n();
@@ -82,11 +90,12 @@ const loyaltyFeatureEnabled = computed(() => {
         return featureFlag;
     }
 
-    return Boolean(props.loyalty?.feature_enabled ?? true);
+    return Boolean(props.loyalty?.feature_enabled ?? false);
 });
 
 const properties = computed(() => props.customer?.properties || []);
 const tags = computed(() => props.customer?.tags || []);
+const vipTiers = computed(() => props.vipTiers || []);
 const latestQuote = computed(() => (props.customer?.quotes || [])[0] || null);
 const latestWork = computed(() => (props.customer?.works || [])[0] || null);
 const latestInvoice = computed(() => (props.customer?.invoices || [])[0] || null);
@@ -303,6 +312,38 @@ const submitAutoValidation = () => {
 
     autoValidationForm.patch(route('customer.auto-validation.update', props.customer.id), {
         preserveScroll: true,
+    });
+};
+
+const editingVip = ref(false);
+const vipForm = useForm({
+    is_vip: Boolean(props.customer?.is_vip ?? false),
+    vip_tier_id: props.customer?.vip_tier_id || '',
+});
+
+const startEditVip = () => {
+    vipForm.is_vip = Boolean(props.customer?.is_vip ?? false);
+    vipForm.vip_tier_id = props.customer?.vip_tier_id || '';
+    vipForm.clearErrors();
+    editingVip.value = true;
+};
+
+const cancelEditVip = () => {
+    vipForm.clearErrors();
+    editingVip.value = false;
+};
+
+const submitVip = () => {
+    if (vipForm.processing) {
+        return;
+    }
+
+    vipForm.transform((data) => ({
+        ...data,
+        vip_tier_id: data.is_vip && data.vip_tier_id ? Number(data.vip_tier_id) : null,
+    })).patch(route('marketing.vip.customer.update', props.customer.id), {
+        preserveScroll: true,
+        onSuccess: () => cancelEditVip(),
     });
 };
 
@@ -1176,6 +1217,72 @@ const deleteProperty = (property) => {
                 <CardNoHeader>
                     <template #title>{{ $t('customers.details.contact.title') }}</template>
                     <DescriptionList :item="customer" />
+                </CardNoHeader>
+                <CardNoHeader v-if="campaignsFeatureEnabled" class="mt-5">
+                    <template #title>VIP</template>
+
+                    <div v-if="!editingVip" class="space-y-3">
+                        <div class="flex items-center gap-2 text-sm">
+                            <span
+                                class="rounded-full px-2 py-0.5 text-xs font-semibold"
+                                :class="customer?.is_vip ? 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-200' : 'bg-stone-100 text-stone-700 dark:bg-neutral-700 dark:text-neutral-200'"
+                            >
+                                {{ customer?.is_vip ? 'VIP' : 'Standard' }}
+                            </span>
+                            <span v-if="customer?.is_vip" class="text-stone-600 dark:text-neutral-300">
+                                {{ customer?.vip_tier?.name || customer?.vip_tier_code || '-' }}
+                            </span>
+                        </div>
+
+                        <div class="flex justify-end">
+                            <button
+                                type="button"
+                                @click="startEditVip"
+                                class="py-2 px-2.5 inline-flex items-center gap-x-2 text-xs font-semibold rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 focus:outline-none focus:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700"
+                            >
+                                {{ $t('customers.actions.edit') }}
+                            </button>
+                        </div>
+                    </div>
+
+                    <form v-else class="space-y-3" @submit.prevent="submitVip">
+                        <label class="flex items-center justify-between gap-3 text-sm text-stone-700 dark:text-neutral-200">
+                            <span>VIP customer</span>
+                            <input
+                                type="checkbox"
+                                v-model="vipForm.is_vip"
+                                class="relative w-11 h-6 p-px bg-stone-100 border-transparent text-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:ring-green-600 disabled:opacity-50 disabled:pointer-events-none checked:bg-none checked:text-green-600 checked:border-green-600 focus:checked:border-green-600 dark:bg-neutral-800 dark:border-neutral-700 dark:checked:bg-green-500 dark:checked:border-green-500 dark:focus:ring-offset-neutral-900
+
+                                before:inline-block before:size-5 before:bg-white checked:before:bg-white before:translate-x-0 checked:before:translate-x-full before:rounded-full before:shadow before:transform before:ring-0 before:transition before:ease-in-out before:duration-200 dark:before:bg-neutral-400 dark:checked:before:bg-white"
+                            />
+                        </label>
+
+                        <div v-if="vipForm.is_vip">
+                            <FloatingSelect
+                                v-model="vipForm.vip_tier_id"
+                                :label="'VIP tier'"
+                                :options="vipTiers.map((tier) => ({ id: tier.id, name: `${tier.name} (${tier.code})` }))"
+                            />
+                            <InputError class="mt-1" :message="vipForm.errors.vip_tier_id" />
+                        </div>
+
+                        <div class="flex items-center justify-end gap-2">
+                            <button
+                                type="button"
+                                @click="cancelEditVip"
+                                class="py-2 px-2.5 inline-flex items-center gap-x-2 text-xs font-semibold rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 focus:outline-none focus:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700"
+                            >
+                                {{ $t('customers.actions.cancel') }}
+                            </button>
+                            <button
+                                type="submit"
+                                :disabled="vipForm.processing"
+                                class="py-2 px-2.5 inline-flex items-center gap-x-2 text-xs font-semibold rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-green-500"
+                            >
+                                {{ $t('customers.actions.save') }}
+                            </button>
+                        </div>
+                    </form>
                 </CardNoHeader>
                 <CardNoHeader class="mt-5">
                     <template #title>{{ $t('customers.details.tags.title') }}</template>

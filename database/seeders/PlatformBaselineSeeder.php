@@ -73,6 +73,7 @@ class PlatformBaselineSeeder extends Seeder
             'tasks',
             'team_members',
             'assistant',
+            'campaigns',
         ];
 
         $planLimits = [];

@@ -116,7 +116,7 @@ function Enforce-BackupRetention {
     $toRemove = @($candidates | Select-Object -First $toRemoveCount)
     foreach ($file in $toRemove) {
         Write-Host "[safe-test] Delete old backup: $($file.FullName)"
-        Remove-Item -Path $file.FullName -Force
+        [System.IO.File]::Delete($file.FullName)
     }
 }
 

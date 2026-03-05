@@ -16,6 +16,7 @@
     "customers": "Clients",
     "products": "Produits",
     "sales": "Ventes",
+    "campaigns": "Campagnes",
     "loyalty": "Fidelite",
     "performance": "Performance",
     "presence": "Presence",
@@ -1369,7 +1370,8 @@
         "tasks": "Taches",
         "team_members": "Membres equipe",
         "assistant": "Assistant IA",
-        "loyalty": "Fidelite"
+        "loyalty": "Fidelite",
+        "campaigns": "Campagnes"
       }
     },
     "welcome_builder": {
@@ -5449,6 +5451,10 @@
       "billing": {
         "label": "Facturation",
         "description": "Plan, paiements et historique"
+      },
+      "marketing": {
+        "label": "Marketing",
+        "description": "Canaux campagnes et templates"
       },
       "loyalty": {
         "label": "Fidelite",

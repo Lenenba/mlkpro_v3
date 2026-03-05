@@ -60,6 +60,9 @@ class OnboardingController extends Controller
         'reservations.manage' => 'reservations',
         'sales.manage' => 'sales',
         'sales.pos' => 'sales',
+        'campaigns.view' => 'campaigns',
+        'campaigns.manage' => 'campaigns',
+        'campaigns.send' => 'campaigns',
     ];
 
     public function index(Request $request)
@@ -585,6 +588,8 @@ class OnboardingController extends Controller
                 'reservations.queue',
                 'reservations.manage',
                 'sales.manage',
+                'campaigns.view',
+                'campaigns.manage',
             ],
             'member' => [
                 'jobs.view',
@@ -592,6 +597,7 @@ class OnboardingController extends Controller
                 'tasks.edit',
                 'reservations.view',
                 'reservations.queue',
+                'campaigns.view',
             ],
             default => [
                 'jobs.view',

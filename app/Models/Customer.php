@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Notifications\Notifiable;
 use App\Traits\GeneratesSequentialNumber;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Support\Facades\Storage;
@@ -33,6 +34,10 @@ class Customer extends Model
         'phone',
         'description',
         'tags',
+        'is_vip',
+        'vip_tier_id',
+        'vip_tier_code',
+        'vip_since_at',
         'logo',
         'header_image',
         'refer_by',
@@ -65,11 +70,13 @@ class Customer extends Model
         'billing_same_as_physical' => 'boolean',
         'portal_access' => 'boolean',
         'is_active' => 'boolean',
+        'is_vip' => 'boolean',
         'auto_accept_quotes' => 'boolean',
         'auto_validate_jobs' => 'boolean',
         'auto_validate_tasks' => 'boolean',
         'auto_validate_invoices' => 'boolean',
         'tags' => 'array',
+        'vip_since_at' => 'datetime',
         'billing_delay_days' => 'integer',
         'discount_rate' => 'decimal:2',
         'loyalty_points_balance' => 'integer',
@@ -100,6 +107,18 @@ class Customer extends Model
     public function portalUser()
     {
         return $this->belongsTo(User::class, 'portal_user_id');
+    }
+
+    public function vipTier()
+    {
+        return $this->belongsTo(VipTier::class, 'vip_tier_id');
+    }
+
+    public function mailingLists(): BelongsToMany
+    {
+        return $this->belongsToMany(MailingList::class, 'mailing_list_customers')
+            ->withPivot(['added_by_user_id', 'added_at'])
+            ->withTimestamps();
     }
 
     public function properties()
@@ -158,6 +177,36 @@ class Customer extends Model
     public function loyaltyPointLedgers(): HasMany
     {
         return $this->hasMany(LoyaltyPointLedger::class);
+    }
+
+    public function campaignRecipients(): HasMany
+    {
+        return $this->hasMany(CampaignRecipient::class);
+    }
+
+    public function campaignEvents(): HasMany
+    {
+        return $this->hasMany(CampaignEvent::class);
+    }
+
+    public function consents(): HasMany
+    {
+        return $this->hasMany(CustomerConsent::class);
+    }
+
+    public function optOuts(): HasMany
+    {
+        return $this->hasMany(CustomerOptOut::class);
+    }
+
+    public function interestScores(): HasMany
+    {
+        return $this->hasMany(CustomerInterestScore::class);
+    }
+
+    public function behaviorEvents(): HasMany
+    {
+        return $this->hasMany(CustomerBehaviorEvent::class);
     }
 
     public function reservationReviews(): HasMany
@@ -318,6 +367,21 @@ class Customer extends Model
             ->when(
                 $filters['created_to'] ?? null,
                 fn(Builder $query, $createdTo) => $query->whereDate('created_at', '<=', $createdTo)
+            )
+            ->when(
+                array_key_exists('is_vip', $filters) && $filters['is_vip'] !== '',
+                function (Builder $query) use ($filters) {
+                    $isVip = filter_var($filters['is_vip'], FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+                    if ($isVip === null) {
+                        return;
+                    }
+
+                    $query->where('is_vip', $isVip);
+                }
+            )
+            ->when(
+                $filters['vip_tier_id'] ?? null,
+                fn(Builder $query, $vipTierId) => $query->where('vip_tier_id', (int) $vipTierId)
             );
     }
 }

@@ -278,10 +278,7 @@ class SaleController extends Controller
         }
         [$accountOwner] = $this->resolveSalesAccess($user);
         $accountId = $accountOwner->id;
-        $featureMap = app(CompanyFeatureService::class)->resolveEffectiveFeatures($accountOwner);
-        $loyaltyFeatureEnabled = array_key_exists('loyalty', $featureMap)
-            ? (bool) $featureMap['loyalty']
-            : true;
+        $loyaltyFeatureEnabled = app(CompanyFeatureService::class)->hasFeature($accountOwner, 'loyalty');
 
         $customers = Customer::query()
             ->where('user_id', $accountId)
@@ -387,10 +384,7 @@ class SaleController extends Controller
         }
         [$accountOwner] = $this->resolveSalesAccess($user);
         $accountId = $accountOwner->id;
-        $featureMap = app(CompanyFeatureService::class)->resolveEffectiveFeatures($accountOwner);
-        $loyaltyFeatureEnabled = array_key_exists('loyalty', $featureMap)
-            ? (bool) $featureMap['loyalty']
-            : true;
+        $loyaltyFeatureEnabled = app(CompanyFeatureService::class)->hasFeature($accountOwner, 'loyalty');
 
         $validated = $request->validate([
             'customer_id' => 'nullable|exists:customers,id',

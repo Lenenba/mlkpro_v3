@@ -13,6 +13,7 @@ use App\Models\Sale;
 use App\Models\SaleItem;
 use App\Models\Customer;
 use App\Models\Role;
+use App\Models\VipTier;
 use App\Models\Request as LeadRequest;
 use App\Models\User;
 use App\Notifications\InviteUserNotification;
@@ -261,7 +262,7 @@ class CustomerController extends Controller
                 ->withQueryString();
         }
 
-        $customer->load(['properties']);
+        $customer->load(['properties', 'vipTier']);
         if (!$isProductAccount) {
             $customer->load([
                 'quotes' => fn($query) => $query->latest()->limit(10),
@@ -278,12 +279,13 @@ class CustomerController extends Controller
         $salesSummary = null;
         $salesInsights = null;
         $topProducts = collect();
-        $featureMap = $accountOwner
-            ? app(CompanyFeatureService::class)->resolveEffectiveFeatures($accountOwner)
-            : [];
-        $loyaltyFeatureEnabled = array_key_exists('loyalty', $featureMap)
-            ? (bool) $featureMap['loyalty']
-            : true;
+        $featureService = app(CompanyFeatureService::class);
+        $campaignsFeatureEnabled = $accountOwner
+            ? $featureService->hasFeature($accountOwner, 'campaigns')
+            : false;
+        $loyaltyFeatureEnabled = $accountOwner
+            ? $featureService->hasFeature($accountOwner, 'loyalty')
+            : false;
         $loyalty = [
             'feature_enabled' => $loyaltyFeatureEnabled,
             'enabled' => false,
@@ -486,6 +488,14 @@ class CustomerController extends Controller
             'balance_due' => 0,
         ];
         $activity = collect();
+        $vipTiers = collect();
+        if ($campaignsFeatureEnabled) {
+            $vipTiers = VipTier::query()
+                ->where('user_id', $accountId)
+                ->where('is_active', true)
+                ->orderBy('name')
+                ->get(['id', 'code', 'name', 'perks', 'is_active']);
+        }
 
         if (!$isProductAccount) {
             $stats = [
@@ -737,6 +747,8 @@ class CustomerController extends Controller
             'loyalty' => $loyalty,
             'activity' => $activity,
             'lastInteraction' => $activity->first(),
+            'vipTiers' => $vipTiers,
+            'campaignsFeatureEnabled' => $campaignsFeatureEnabled,
         ]);
     }
 

@@ -27,6 +27,7 @@ class Product extends Model
     protected $fillable = [
         'name',
         'description',
+        'tags',
         'category_id',
         'stock',
         'minimum_stock',
@@ -73,6 +74,7 @@ class Product extends Model
         'is_active' => 'boolean',
         'promo_start_at' => 'datetime',
         'promo_end_at' => 'datetime',
+        'tags' => 'array',
     ];
 
     protected $appends = [
@@ -123,6 +125,13 @@ class Product extends Model
     {
         return $this->belongsToMany(Work::class, 'product_works')
             ->withPivot(['quantity', 'price', 'description', 'total']);
+    }
+
+    public function campaigns(): BelongsToMany
+    {
+        return $this->belongsToMany(Campaign::class, 'campaign_product')
+            ->withPivot('metadata')
+            ->withTimestamps();
     }
 
     public function images(): HasMany

@@ -117,7 +117,7 @@ watch(
                         </Link>
                         <button
                             type="button"
-                            class="inline-flex items-center rounded-sm border border-transparent bg-amber-500 px-3 py-2 text-xs font-medium text-white hover:bg-amber-600 disabled:opacity-60"
+                            class="inline-flex items-center rounded-sm border border-transparent bg-green-600 px-3 py-2 text-xs font-medium text-white hover:bg-green-700 disabled:opacity-60"
                             :disabled="form.processing"
                             @click="submit"
                         >

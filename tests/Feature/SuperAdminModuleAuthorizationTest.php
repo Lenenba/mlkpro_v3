@@ -253,3 +253,31 @@ it('allows superadmin feature overrides to supersede sector defaults', function 
     expect((bool) ($features['quotes'] ?? false))->toBeTrue();
     expect((bool) ($features['reservations'] ?? true))->toBeFalse();
 });
+
+it('treats missing module keys as disabled for strict tenant access', function () {
+    PlatformSetting::setValue('plan_modules', [
+        'free' => [
+            'quotes' => true,
+        ],
+    ]);
+
+    $tenant = User::query()->create([
+        'name' => 'Strict Modules Owner',
+        'email' => 'strict-modules-owner@example.com',
+        'password' => 'password',
+        'role_id' => superAdminModuleRoleId('owner', 'Account owner role'),
+        'company_type' => 'services',
+        'company_sector' => 'service_general',
+        'onboarding_completed_at' => now(),
+        'trial_ends_at' => now()->addDays(14),
+        'company_features' => [],
+    ]);
+
+    $service = app(CompanyFeatureService::class);
+    $enabled = $service->resolveEnabledFeatures($tenant);
+
+    expect($service->hasFeature($tenant, 'quotes'))->toBeTrue();
+    expect($service->hasFeature($tenant, 'campaigns'))->toBeFalse();
+    expect($enabled)->toHaveKey('quotes');
+    expect($enabled)->not->toHaveKey('campaigns');
+});

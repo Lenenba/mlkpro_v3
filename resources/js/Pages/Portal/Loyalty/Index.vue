@@ -194,7 +194,7 @@ onBeforeUnmount(() => {
                     >
                         {{ showAdvanced ? $t('loyalty_module.actions.hide_advanced') : $t('loyalty_module.actions.show_advanced') }}
                     </button>
-                    <button type="button" class="inline-flex items-center rounded-sm border border-transparent bg-amber-500 px-3 py-2 text-xs font-medium text-white hover:bg-amber-600" @click="applyFilters">
+                    <button type="button" class="inline-flex items-center rounded-sm border border-transparent bg-green-600 px-3 py-2 text-xs font-medium text-white hover:bg-green-700" @click="applyFilters">
                         {{ $t('loyalty_module.actions.apply_filters') }}
                     </button>
                     <button type="button" class="inline-flex items-center rounded-sm border border-stone-200 bg-white px-3 py-2 text-xs font-medium text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200 dark:hover:bg-neutral-700" @click="clearFilters">

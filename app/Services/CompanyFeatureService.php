@@ -59,21 +59,17 @@ class CompanyFeatureService
     {
         $features = $this->resolveEffectiveFeatures($user);
         if (!array_key_exists($feature, $features)) {
-            $owner = $this->resolveOwner($user);
-            if (!$owner) {
-                return false;
-            }
-
-            $planModules = PlatformSetting::getValue('plan_modules', []);
-            $planKey = $this->resolvePlanKey($owner, $planModules);
-            if (!$planKey) {
-                return false;
-            }
-
-            return true;
+            return false;
         }
 
         return (bool) $features[$feature];
+    }
+
+    public function resolveEnabledFeatures(User $user): array
+    {
+        $features = $this->resolveEffectiveFeatures($user);
+
+        return array_filter($features, static fn ($enabled): bool => (bool) $enabled);
     }
 
     /**

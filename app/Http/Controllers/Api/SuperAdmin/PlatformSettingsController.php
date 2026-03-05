@@ -39,6 +39,7 @@ class PlatformSettingsController extends BaseController
         'team_members',
         'assistant',
         'loyalty',
+        'campaigns',
     ];
 
     public function show(Request $request)
