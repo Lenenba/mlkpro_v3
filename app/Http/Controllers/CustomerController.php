@@ -283,6 +283,20 @@ class CustomerController extends Controller
         $campaignsFeatureEnabled = $accountOwner
             ? $featureService->hasFeature($accountOwner, 'campaigns')
             : false;
+        $canManageMailingLists = false;
+        if ($campaignsFeatureEnabled && $user) {
+            if ((int) $user->id === (int) ($accountOwner?->id ?? 0)) {
+                $canManageMailingLists = true;
+            } else {
+                $membership = $user->relationLoaded('teamMembership')
+                    ? $user->teamMembership
+                    : $user->teamMembership()->first();
+                $canManageMailingLists = (bool) (
+                    $membership?->hasPermission('campaigns.manage')
+                    || $membership?->hasPermission('sales.manage')
+                );
+            }
+        }
         $loyaltyFeatureEnabled = $accountOwner
             ? $featureService->hasFeature($accountOwner, 'loyalty')
             : false;
@@ -749,6 +763,7 @@ class CustomerController extends Controller
             'lastInteraction' => $activity->first(),
             'vipTiers' => $vipTiers,
             'campaignsFeatureEnabled' => $campaignsFeatureEnabled,
+            'canManageMailingLists' => $canManageMailingLists,
         ]);
     }
 

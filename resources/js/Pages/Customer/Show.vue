@@ -2,11 +2,13 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
+import axios from 'axios';
 import Header from './UI/Header.vue';
 import Card from '@/Components/UI/Card.vue';
 import CardNoHeader from '@/Components/UI/CardNoHeader.vue';
 import DescriptionList from '@/Components/UI/DescriptionList.vue';
 import CardNav from '@/Components/UI/CardNav.vue';
+import Modal from '@/Components/Modal.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
 import FloatingTextarea from '@/Components/FloatingTextarea.vue';
@@ -73,6 +75,10 @@ const props = defineProps({
         default: () => [],
     },
     campaignsFeatureEnabled: {
+        type: Boolean,
+        default: false,
+    },
+    canManageMailingLists: {
         type: Boolean,
         default: false,
     },
@@ -345,6 +351,87 @@ const submitVip = () => {
         preserveScroll: true,
         onSuccess: () => cancelEditVip(),
     });
+};
+
+const mailingListDialogOpen = ref(false);
+const mailingListRows = ref([]);
+const mailingListLoading = ref(false);
+const mailingListBusy = ref(false);
+const mailingListError = ref('');
+const mailingListInfo = ref('');
+const selectedMailingListId = ref('');
+
+const canManageMailingLists = computed(() => Boolean(props.canManageMailingLists) && Boolean(props.campaignsFeatureEnabled));
+const selectedMailingListLabel = computed(() => {
+    const id = Number(selectedMailingListId.value || 0);
+    const list = mailingListRows.value.find((row) => Number(row?.id || 0) === id);
+    return list?.name || '';
+});
+const mailingListOptions = computed(() => ([
+    { id: '', name: t('customers.details.mailing_lists.select_placeholder') },
+    ...mailingListRows.value.map((list) => ({
+        id: String(list.id),
+        name: `${list.name} (${list.customers_count || 0})`,
+    })),
+]));
+
+const loadMailingLists = async () => {
+    mailingListLoading.value = true;
+    mailingListError.value = '';
+    try {
+        const response = await axios.get(route('marketing.mailing-lists.index'));
+        mailingListRows.value = Array.isArray(response.data?.mailing_lists) ? response.data.mailing_lists : [];
+    } catch (error) {
+        mailingListError.value = error?.response?.data?.message || error?.message || t('customers.details.mailing_lists.error_load');
+    } finally {
+        mailingListLoading.value = false;
+    }
+};
+
+const openMailingListDialog = async () => {
+    if (!canManageMailingLists.value) {
+        return;
+    }
+
+    mailingListDialogOpen.value = true;
+    mailingListError.value = '';
+    await loadMailingLists();
+};
+
+const closeMailingListDialog = () => {
+    mailingListDialogOpen.value = false;
+    mailingListError.value = '';
+};
+
+const addCustomerToMailingList = async () => {
+    const listId = Number(selectedMailingListId.value || 0);
+    const customerId = Number(props.customer?.id || 0);
+    if (!listId || !customerId || mailingListBusy.value) {
+        return;
+    }
+
+    mailingListBusy.value = true;
+    mailingListError.value = '';
+    mailingListInfo.value = '';
+    try {
+        const response = await axios.post(route('marketing.mailing-lists.import', listId), {
+            customer_ids: [customerId],
+        });
+        const added = Number(response.data?.result?.added || 0);
+        const alreadyPresent = Number(response.data?.result?.already_present || 0);
+        const total = Number(response.data?.result?.total || 0);
+        mailingListInfo.value = t('customers.details.mailing_lists.info_added', {
+            list: selectedMailingListLabel.value || `#${listId}`,
+            added,
+            alreadyPresent,
+            total,
+        });
+        closeMailingListDialog();
+    } catch (error) {
+        mailingListError.value = error?.response?.data?.message || error?.message || t('customers.details.mailing_lists.error_add');
+    } finally {
+        mailingListBusy.value = false;
+    }
 };
 
 const activityHref = (log) => {
@@ -1284,6 +1371,30 @@ const deleteProperty = (property) => {
                         </div>
                     </form>
                 </CardNoHeader>
+                <CardNoHeader v-if="canManageMailingLists" class="mt-5">
+                    <template #title>{{ $t('customers.details.mailing_lists.title') }}</template>
+
+                    <p class="text-sm text-stone-600 dark:text-neutral-300">
+                        {{ $t('customers.details.mailing_lists.description') }}
+                    </p>
+
+                    <div class="mt-3 flex justify-end">
+                        <button
+                            type="button"
+                            @click="openMailingListDialog"
+                            class="py-2 px-2.5 inline-flex items-center gap-x-2 text-xs font-semibold rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-green-500"
+                        >
+                            {{ $t('customers.details.mailing_lists.add_action') }}
+                        </button>
+                    </div>
+
+                    <p v-if="mailingListInfo" class="mt-2 text-xs text-emerald-700 dark:text-emerald-300">
+                        {{ mailingListInfo }}
+                    </p>
+                    <p v-if="mailingListError" class="mt-2 text-xs text-rose-600">
+                        {{ mailingListError }}
+                    </p>
+                </CardNoHeader>
                 <CardNoHeader class="mt-5">
                     <template #title>{{ $t('customers.details.tags.title') }}</template>
 
@@ -1590,5 +1701,52 @@ const deleteProperty = (property) => {
                 </Card>
             </div>
         </div>
+
+        <Modal :show="mailingListDialogOpen" max-width="2xl" @close="closeMailingListDialog">
+            <div class="space-y-4 p-5">
+                <div>
+                    <h4 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                        {{ $t('customers.details.mailing_lists.modal_title') }}
+                    </h4>
+                    <p class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
+                        {{ $t('customers.details.mailing_lists.modal_description') }}
+                    </p>
+                </div>
+
+                <FloatingSelect
+                    v-model="selectedMailingListId"
+                    :label="$t('customers.details.mailing_lists.select_label')"
+                    :options="mailingListOptions"
+                    option-value="id"
+                    option-label="name"
+                />
+
+                <p v-if="mailingListLoading" class="text-xs text-stone-500 dark:text-neutral-400">
+                    {{ $t('customers.details.mailing_lists.loading') }}
+                </p>
+
+                <p v-if="mailingListError" class="text-xs text-rose-600">
+                    {{ mailingListError }}
+                </p>
+
+                <div class="flex items-center justify-end gap-2">
+                    <button
+                        type="button"
+                        @click="closeMailingListDialog"
+                        class="py-2 px-2.5 inline-flex items-center gap-x-2 text-xs font-semibold rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 focus:outline-none focus:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700"
+                    >
+                        {{ $t('customers.actions.cancel') }}
+                    </button>
+                    <button
+                        type="button"
+                        :disabled="mailingListBusy || !selectedMailingListId"
+                        @click="addCustomerToMailingList"
+                        class="py-2 px-2.5 inline-flex items-center gap-x-2 text-xs font-semibold rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-green-500"
+                    >
+                        {{ $t('customers.details.mailing_lists.confirm_add') }}
+                    </button>
+                </div>
+            </div>
+        </Modal>
     </AuthenticatedLayout>
 </template>

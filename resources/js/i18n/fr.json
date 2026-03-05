@@ -3055,6 +3055,20 @@
           "email": "Email"
         }
       },
+      "mailing_lists": {
+        "title": "Mailing lists",
+        "description": "Ajoutez ce client a une mailing list marketing en un clic.",
+        "add_action": "Ajouter a une mailing list",
+        "modal_title": "Ajouter a une mailing list",
+        "modal_description": "Selectionnez la mailing list cible, puis confirmez l'ajout du client.",
+        "select_label": "Mailing list",
+        "select_placeholder": "Choisir une mailing list",
+        "confirm_add": "Ajouter le client",
+        "loading": "Chargement des mailing lists...",
+        "info_added": "Ajout a {list}. Nouveaux: {added}, deja presents: {alreadyPresent}, total: {total}.",
+        "error_load": "Impossible de charger les mailing lists.",
+        "error_add": "Impossible d'ajouter ce client a la mailing list."
+      },
       "tags": {
         "title": "Tags",
         "field": "Tags (separes par virgules)",

@@ -270,6 +270,301 @@
       "error_load": "Impossible de charger les tiers VIP.",
       "error_save": "Impossible d’enregistrer le tier VIP.",
       "error_delete": "Impossible de supprimer le tier VIP."
+    },
+    "campaign_status": {
+      "draft": "Brouillon",
+      "scheduled": "Planifiée",
+      "running": "En cours",
+      "completed": "Terminée",
+      "failed": "En échec",
+      "canceled": "Annulée",
+      "active": "Actif",
+      "inactive": "Inactif"
+    },
+    "campaign_types": {
+      "new_offer": "Nouvelle offre",
+      "back_available": "Retour en stock",
+      "promotion": "Promotion",
+      "cross_sell": "Vente croisée",
+      "winback": "Réactivation",
+      "announcement": "Annonce"
+    },
+    "offer_modes": {
+      "products": "Produits",
+      "services": "Services",
+      "mixed": "Mixte"
+    },
+    "language_modes": {
+      "preferred": "Langue préférée",
+      "fr": "Français",
+      "en": "Anglais",
+      "both": "Français et anglais"
+    },
+    "source_logic": {
+      "union": "Union",
+      "intersect": "Intersection"
+    },
+    "schedule_types": {
+      "manual": "Manuel",
+      "scheduled": "Planifié",
+      "automation": "Automatique"
+    },
+    "campaign_index": {
+      "head_title": "Campagnes marketing",
+      "page_title": "Campagnes marketing",
+      "page_description": "Créez, suivez et pilotez vos campagnes marketing.",
+      "new_campaign": "Nouvelle campagne",
+      "no_campaign": "Aucune campagne trouvée.",
+      "status_all": "Tous les statuts",
+      "type_all": "Tous les types",
+      "page": "Page {page}",
+      "stats": {
+        "total": "Total",
+        "draft": "Brouillons",
+        "scheduled": "Planifiées",
+        "running": "En cours",
+        "completed": "Terminées"
+      },
+      "filters": {
+        "search": "Recherche",
+        "status": "Statut",
+        "type": "Type"
+      },
+      "table": {
+        "campaign": "Campagne",
+        "type": "Type",
+        "status": "Statut",
+        "channels": "Canaux",
+        "runs": "Exécutions",
+        "recipients": "Destinataires",
+        "updated_at": "Mise à jour",
+        "actions": "Actions"
+      },
+      "actions": {
+        "view": "Voir",
+        "edit": "Modifier"
+      }
+    },
+    "campaign_show": {
+      "head_title": "Campagne #{id}",
+      "labels": {
+        "type": "Type",
+        "updated_at": "Mise à jour"
+      },
+      "actions": {
+        "back": "Retour",
+        "edit": "Modifier",
+        "export_csv": "Exporter CSV",
+        "mark_conversion": "Marquer conversion"
+      },
+      "cards": {
+        "status": "Statut",
+        "schedule_type": "Type de planification",
+        "active_channels": "Canaux actifs",
+        "offers": "Offres",
+        "runs": "Exécutions"
+      },
+      "sections": {
+        "channels": "Canaux",
+        "events": "Événements",
+        "recent_runs": "Exécutions récentes",
+        "clicks_no_conversion": "Clics sans conversion"
+      },
+      "channel": {
+        "active": "Actif",
+        "inactive": "Inactif",
+        "subject": "Sujet",
+        "title": "Titre"
+      },
+      "empty": {
+        "events": "Aucun événement.",
+        "runs": "Aucune exécution.",
+        "pending_clicks": "Aucun clic en attente de conversion."
+      },
+      "table": {
+        "customer": "Client",
+        "channel": "Canal",
+        "destination": "Destination",
+        "clicked_at": "Cliqué le",
+        "action": "Action"
+      },
+      "prompts": {
+        "conversion_type": "Type de conversion",
+        "conversion_id": "ID de conversion"
+      },
+      "errors": {
+        "conversion": "Impossible d’enregistrer la conversion."
+      }
+    },
+    "offer_selector": {
+      "selected_offers": "Offres sélectionnées",
+      "no_offer_selected": "Aucune offre sélectionnée.",
+      "search_offers": "Rechercher une offre",
+      "offer_type": "Type d’offre",
+      "sort": "Tri",
+      "status": "Statut",
+      "availability": "Disponibilité",
+      "category_id": "ID catégorie",
+      "price_min": "Prix min",
+      "price_max": "Prix max",
+      "tags": "Tags",
+      "no_category": "Sans catégorie",
+      "no_offers_found": "Aucune offre trouvée.",
+      "loading": "Chargement...",
+      "results_count": "{count} résultat(s)",
+      "load_more": "Charger plus",
+      "snapshot_title": "Sélecteurs snapshot",
+      "snapshot_description": "Définissez des filtres persistants pour recalculer les offres au moment de l’envoi.",
+      "category_ids": "IDs catégories",
+      "tags_snapshot": "Tags snapshot",
+      "apply_snapshot": "Appliquer snapshot",
+      "error_search": "Impossible de rechercher les offres.",
+      "type_options": {
+        "all": "Tous",
+        "product": "Produits",
+        "service": "Services"
+      },
+      "sort_options": {
+        "relevance": "Pertinence",
+        "newest": "Plus récentes",
+        "best_sellers": "Meilleures ventes",
+        "alphabetical": "Alphabétique"
+      },
+      "status_options": {
+        "active": "Actif",
+        "inactive": "Inactif",
+        "all": "Tous"
+      },
+      "availability_options": {
+        "all": "Toutes",
+        "in_stock": "En stock",
+        "bookable": "Réservable"
+      }
+    },
+    "campaign_wizard": {
+      "head_edit": "Modifier campagne #{id}",
+      "head_new": "Nouvelle campagne",
+      "header_edit": "Modifier campagne #{id}",
+      "header_new": "Créer une campagne",
+      "description": "Configurez la campagne, l’audience, les messages et la stratégie d’envoi.",
+      "actions": {
+        "back": "Retour",
+        "details": "Détails",
+        "saving": "Enregistrement...",
+        "update": "Mettre à jour",
+        "create": "Créer",
+        "estimate_audience": "Estimer audience",
+        "live_preview": "Prévisualisation",
+        "test_send": "Envoi test",
+        "send_now": "Envoyer maintenant",
+        "open_results": "Ouvrir résultats"
+      },
+      "steps": {
+        "setup": "Paramètres",
+        "audience": "Audience",
+        "message": "Message",
+        "review": "Revue",
+        "results": "Résultats"
+      },
+      "fields": {
+        "campaign_name": "Nom de la campagne",
+        "campaign_type": "Type de campagne",
+        "offer_mode": "Mode d’offre",
+        "language_mode": "Mode de langue",
+        "schedule_type": "Type de planification",
+        "scheduled_at": "Planifiée le",
+        "locale": "Locale",
+        "cta_url": "URL CTA",
+        "segment": "Segment",
+        "source_logic": "Logique des sources",
+        "manual_customer_ids": "IDs clients manuels",
+        "manual_contacts": "Contacts manuels",
+        "template": "Template",
+        "subject": "Sujet",
+        "title": "Titre",
+        "body_template": "Corps du message"
+      },
+      "use_single_mailing_list": "Utiliser une seule mailing list comme audience",
+      "single_mailing_list": "Mailing list audience",
+      "no_single_mailing_list": "Choisir une mailing list",
+      "no_segment": "Aucun segment",
+      "no_template": "Aucun template",
+      "mailing_lists_title": "Mailing lists",
+      "no_mailing_list": "Aucune mailing list disponible.",
+      "include": "Inclure",
+      "exclude": "Exclure",
+      "selected_customers_title": "Clients selectionnes",
+      "search_customers": "Rechercher des clients",
+      "selected_customers_empty": "Aucun client selectionne.",
+      "selected_customers_count": "{count} client(s) selectionne(s)",
+      "customer_picker": {
+        "title": "Rechercher des clients",
+        "description": "Selectionnez un ou plusieurs clients pour les ajouter a l'audience.",
+        "search": "Rechercher par nom, email ou telephone",
+        "loading": "Chargement des clients...",
+        "no_results": "Aucun client correspondant.",
+        "select_page": "Selectionner la page",
+        "unselect_page": "Deselectionner la page"
+      },
+      "logic_summary": "Résumé",
+      "logic": {
+        "segment": "segment",
+        "builder": "builder audience",
+        "intersect_summary": "{segmentPart} + {includeCount} liste(s) incluse(s) + {manualCount} manuel(s), puis exclusion de {excludeCount} liste(s).",
+        "union_summary": "Union de {segmentPart}, {includeCount} liste(s) incluse(s) et {manualCount} manuel(s), puis exclusion de {excludeCount} liste(s)."
+      },
+      "enabled": "Activé",
+      "disabled": "Désactivé",
+      "yes": "Oui",
+      "no": "Non",
+      "default": "Défaut",
+      "ab_testing": {
+        "title": "A/B testing",
+        "enable_for": "Activer pour {channel}",
+        "split_percent": "Pourcentage variante A",
+        "variant_a": "Variante A",
+        "variant_b": "Variante B",
+        "subject_a": "Sujet A",
+        "title_a": "Titre A",
+        "body_a": "Corps A",
+        "subject_b": "Sujet B",
+        "title_b": "Titre B",
+        "body_b": "Corps B",
+        "fallback_hint": "Si un message A/B est incomplet, le template principal du canal est utilisé."
+      },
+      "review": {
+        "type": "Type",
+        "offer_mode": "Mode d’offre",
+        "offers": "Offres",
+        "enabled_channels": "Canaux activés",
+        "ab_enabled_channels": "Canaux avec A/B",
+        "holdout": "Holdout",
+        "channel_fallback": "Fallback de canal",
+        "require_explicit_consent": "Consentement explicite requis"
+      },
+      "holdout": {
+        "title": "Groupe holdout",
+        "enable": "Activer holdout",
+        "percent": "Pourcentage holdout"
+      },
+      "fallback": {
+        "title": "Fallback canal",
+        "enable": "Activer fallback",
+        "max_depth": "Profondeur max",
+        "targets": "Canaux de repli pour {source}"
+      },
+      "results_hint": "Les résultats détaillés sont disponibles sur la page de campagne.",
+      "errors": {
+        "select_offer": "Sélectionnez au moins une offre.",
+        "request_failed": "La requête a échoué.",
+        "load_customers": "Impossible de charger les clients."
+      },
+      "run_queued": "Exécution mise en file.",
+      "schedule_type_options": {
+        "manual": "Manuel",
+        "scheduled": "Planifié",
+        "automation": "Automatique"
+      }
     }
   }
 }

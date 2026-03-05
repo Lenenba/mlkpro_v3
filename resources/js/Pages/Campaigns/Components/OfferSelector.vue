@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import axios from 'axios';
+import { useI18n } from 'vue-i18n';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
@@ -28,6 +29,7 @@ const props = defineProps({
 });
 
 const emit = defineEmits(['update:modelValue', 'update:selectors']);
+const { t } = useI18n();
 
 const query = ref('');
 const typeFilter = ref('all');
@@ -52,30 +54,52 @@ const selected = computed(() => {
     return Array.isArray(props.modelValue) ? props.modelValue : [];
 });
 
-const typeOptions = [
-    { value: 'all', label: 'All types' },
-    { value: 'product', label: 'Products' },
-    { value: 'service', label: 'Services' },
-];
+const humanizeValue = (value) => String(value || '')
+    .replaceAll('_', ' ')
+    .toLowerCase()
+    .replace(/\b\w/g, (char) => char.toUpperCase());
 
-const sortOptions = [
-    { value: 'relevance', label: 'Relevance' },
-    { value: 'newest', label: 'Newest' },
-    { value: 'best_sellers', label: 'Best sellers' },
-    { value: 'alphabetical', label: 'A-Z' },
-];
+const translateWithFallback = (key, fallback) => {
+    const translated = t(key);
+    return translated === key ? fallback : translated;
+};
 
-const statusOptions = [
-    { value: 'active', label: 'Active' },
-    { value: 'inactive', label: 'Inactive' },
-    { value: 'all', label: 'All statuses' },
-];
+const offerTypeLabel = (value) => {
+    const normalized = String(value || '').toLowerCase();
+    if (!normalized) return '-';
+    return translateWithFallback(`marketing.offer_selector.type_options.${normalized}`, humanizeValue(value));
+};
 
-const availabilityOptions = [
-    { value: 'all', label: 'All availability' },
-    { value: 'in_stock', label: 'In stock' },
-    { value: 'bookable', label: 'Bookable' },
-];
+const offerStatusLabel = (value) => {
+    const normalized = String(value || '').toLowerCase();
+    if (!normalized) return '-';
+    return translateWithFallback(`marketing.offer_selector.status_options.${normalized}`, humanizeValue(value));
+};
+
+const typeOptions = computed(() => ([
+    { value: 'all', label: t('marketing.offer_selector.type_options.all') },
+    { value: 'product', label: t('marketing.offer_selector.type_options.product') },
+    { value: 'service', label: t('marketing.offer_selector.type_options.service') },
+]));
+
+const sortOptions = computed(() => ([
+    { value: 'relevance', label: t('marketing.offer_selector.sort_options.relevance') },
+    { value: 'newest', label: t('marketing.offer_selector.sort_options.newest') },
+    { value: 'best_sellers', label: t('marketing.offer_selector.sort_options.best_sellers') },
+    { value: 'alphabetical', label: t('marketing.offer_selector.sort_options.alphabetical') },
+]));
+
+const statusOptions = computed(() => ([
+    { value: 'active', label: t('marketing.offer_selector.status_options.active') },
+    { value: 'inactive', label: t('marketing.offer_selector.status_options.inactive') },
+    { value: 'all', label: t('marketing.offer_selector.status_options.all') },
+]));
+
+const availabilityOptions = computed(() => ([
+    { value: 'all', label: t('marketing.offer_selector.availability_options.all') },
+    { value: 'in_stock', label: t('marketing.offer_selector.availability_options.in_stock') },
+    { value: 'bookable', label: t('marketing.offer_selector.availability_options.bookable') },
+]));
 
 const resolvedType = computed(() => {
     if (props.offerMode === 'PRODUCTS') {
@@ -166,7 +190,7 @@ const fetchOffers = async (reset = true) => {
         nextCursor.value = payload.nextCursor || null;
         highlightIndex.value = items.value.length > 0 ? 0 : -1;
     } catch (requestError) {
-        error.value = requestError?.response?.data?.message || requestError?.message || 'Offer search failed.';
+        error.value = requestError?.response?.data?.message || requestError?.message || t('marketing.offer_selector.error_search');
     } finally {
         loading.value = false;
     }
@@ -258,10 +282,10 @@ onBeforeUnmount(() => {
                     <path d="M3 12h18" />
                     <path d="M3 18h18" />
                 </svg>
-                <span>Selected offers</span>
+                <span>{{ t('marketing.offer_selector.selected_offers') }}</span>
             </div>
             <div v-if="selected.length === 0" class="mt-2 text-xs text-stone-500 dark:text-neutral-400">
-                No offer selected yet.
+                {{ t('marketing.offer_selector.no_offer_selected') }}
             </div>
             <div v-else class="mt-2 flex flex-wrap gap-2">
                 <button
@@ -280,14 +304,14 @@ onBeforeUnmount(() => {
         <div class="grid grid-cols-1 gap-2 md:grid-cols-4">
             <FloatingInput
                 v-model="query"
-                label="Search offers"
+                :label="t('marketing.offer_selector.search_offers')"
                 :disabled="disabled"
                 @keydown="onSearchKeydown"
             />
             <FloatingSelect
                 v-if="offerMode === 'MIXED'"
                 v-model="typeFilter"
-                label="Offer type"
+                :label="t('marketing.offer_selector.offer_type')"
                 :options="typeOptions"
                 option-value="value"
                 option-label="label"
@@ -295,7 +319,7 @@ onBeforeUnmount(() => {
             />
             <FloatingSelect
                 v-model="sort"
-                label="Sort"
+                :label="t('marketing.offer_selector.sort')"
                 :options="sortOptions"
                 option-value="value"
                 option-label="label"
@@ -303,7 +327,7 @@ onBeforeUnmount(() => {
             />
             <FloatingSelect
                 v-model="status"
-                label="Status"
+                :label="t('marketing.offer_selector.status')"
                 :options="statusOptions"
                 option-value="value"
                 option-label="label"
@@ -311,7 +335,7 @@ onBeforeUnmount(() => {
             />
             <FloatingSelect
                 v-model="availability"
-                label="Availability"
+                :label="t('marketing.offer_selector.availability')"
                 :options="availabilityOptions"
                 option-value="value"
                 option-label="label"
@@ -323,24 +347,24 @@ onBeforeUnmount(() => {
             <FloatingInput
                 v-model="categoryId"
                 type="number"
-                label="Category ID"
+                :label="t('marketing.offer_selector.category_id')"
                 :disabled="disabled"
             />
             <FloatingInput
                 v-model="priceMin"
                 type="number"
-                label="Price min"
+                :label="t('marketing.offer_selector.price_min')"
                 :disabled="disabled"
             />
             <FloatingInput
                 v-model="priceMax"
                 type="number"
-                label="Price max"
+                :label="t('marketing.offer_selector.price_max')"
                 :disabled="disabled"
             />
             <FloatingInput
                 v-model="tagsInput"
-                label="Tags"
+                :label="t('marketing.offer_selector.tags')"
                 :disabled="disabled"
             />
         </div>
@@ -381,7 +405,7 @@ onBeforeUnmount(() => {
                     <div class="min-w-0 flex-1">
                         <div class="truncate font-medium text-stone-700 dark:text-neutral-200">{{ item.name }}</div>
                         <div class="truncate text-xs text-stone-500 dark:text-neutral-400">
-                            {{ item.type }} | {{ item.categoryName || 'No category' }} | {{ item.status }}
+                            {{ offerTypeLabel(item.type) }} | {{ item.categoryName || t('marketing.offer_selector.no_category') }} | {{ offerStatusLabel(item.status) }}
                         </div>
                     </div>
                     <div class="text-xs font-semibold text-stone-700 dark:text-neutral-200">
@@ -397,12 +421,12 @@ onBeforeUnmount(() => {
                     </div>
                 </button>
                 <div v-if="!loading && items.length === 0" class="px-3 py-6 text-center text-xs text-stone-500 dark:text-neutral-400">
-                    No offers found.
+                    {{ t('marketing.offer_selector.no_offers_found') }}
                 </div>
             </div>
                 <div class="flex items-center justify-between border-t border-stone-200 px-3 py-2 dark:border-neutral-700">
                 <span class="text-xs text-stone-500 dark:text-neutral-400">
-                    {{ loading ? 'Loading...' : `${items.length} result(s)` }}
+                    {{ loading ? t('marketing.offer_selector.loading') : t('marketing.offer_selector.results_count', { count: items.length }) }}
                 </span>
                 <PrimaryButton
                     v-if="nextCursor"
@@ -410,25 +434,25 @@ onBeforeUnmount(() => {
                     :disabled="loading || disabled"
                     @click="fetchOffers(false)"
                 >
-                    Load more
+                    {{ t('marketing.offer_selector.load_more') }}
                 </PrimaryButton>
             </div>
         </div>
 
         <div class="rounded-sm border border-stone-200 bg-stone-50 p-3 dark:border-neutral-700 dark:bg-neutral-800">
-            <div class="text-xs font-semibold text-stone-700 dark:text-neutral-200">Category/Tag Snapshot (MVP)</div>
+            <div class="text-xs font-semibold text-stone-700 dark:text-neutral-200">{{ t('marketing.offer_selector.snapshot_title') }}</div>
             <p class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
-                Snapshot strategy: selected category/tag IDs resolve to explicit offers when saving the campaign.
+                {{ t('marketing.offer_selector.snapshot_description') }}
             </p>
             <div class="mt-2 grid grid-cols-1 gap-2 md:grid-cols-2">
                 <FloatingInput
                     v-model="categorySnapshot"
-                    label="Category IDs"
+                    :label="t('marketing.offer_selector.category_ids')"
                     :disabled="disabled"
                 />
                 <FloatingInput
                     v-model="tagsSnapshot"
-                    label="Tags snapshot"
+                    :label="t('marketing.offer_selector.tags_snapshot')"
                     :disabled="disabled"
                 />
             </div>
@@ -438,7 +462,7 @@ onBeforeUnmount(() => {
                     :disabled="disabled"
                     @click="applySnapshotSelectors"
                 >
-                    Apply snapshot selectors
+                    {{ t('marketing.offer_selector.apply_snapshot') }}
                 </PrimaryButton>
             </div>
         </div>
