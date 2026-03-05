@@ -37,11 +37,42 @@ const scheduleTypeOptions = [
     { value: 'scheduled', label: 'scheduled' },
     { value: 'automation', label: 'automation' },
 ];
+const fallbackChannelDefaults = {
+    EMAIL: ['SMS'],
+    SMS: ['EMAIL'],
+    IN_APP: ['EMAIL'],
+};
+
+const normalizeVariantTemplates = (value = {}) => ({
+    subject_template: String(value?.subject_template || ''),
+    title_template: String(value?.title_template || ''),
+    body_template: String(value?.body_template || ''),
+});
+
+const normalizeAbTesting = (value = {}) => ({
+    enabled: Boolean(value?.enabled ?? false),
+    split_a_percent: Number(value?.split_a_percent ?? 50),
+    variant_a: normalizeVariantTemplates(value?.variant_a || {}),
+    variant_b: normalizeVariantTemplates(value?.variant_b || {}),
+});
+
+const normalizeFallbackMap = (input = {}) => {
+    return channels.reduce((acc, channel) => {
+        const source = String(channel).toUpperCase();
+        const configured = Array.isArray(input?.[source]) ? input[source] : fallbackChannelDefaults[source] || [];
+        const targets = configured
+            .map((value) => String(value).toUpperCase())
+            .filter((value) => value !== source && channels.includes(value));
+        acc[source] = Array.from(new Set(targets));
+        return acc;
+    }, {});
+};
 
 const existingChannels = Array.isArray(props.campaign?.channels) ? props.campaign.channels : [];
 const initialChannels = channels.map((channel) => {
     const existing = existingChannels.find((row) => String(row.channel).toUpperCase() === channel);
     const enabledByConfig = Boolean(props.marketingSettings?.channels?.enabled?.[channel] ?? true);
+    const abTesting = normalizeAbTesting(existing?.metadata?.ab_testing || {});
     return {
         channel,
         is_enabled: existing ? Boolean(existing.is_enabled) : enabledByConfig,
@@ -49,10 +80,12 @@ const initialChannels = channels.map((channel) => {
         subject_template: existing?.subject_template || '',
         title_template: existing?.title_template || '',
         body_template: existing?.body_template || '',
+        ab_testing: abTesting,
     };
 });
 
 const initialOffers = Array.isArray(props.selectedOffers) ? props.selectedOffers : [];
+const existingSettings = props.campaign?.settings || {};
 
 const form = useForm({
     name: props.campaign?.name || '',
@@ -75,9 +108,18 @@ const form = useForm({
     },
     channels: initialChannels,
     settings: {
-        promo_code: props.campaign?.settings?.promo_code || '',
-        promo_percent: props.campaign?.settings?.promo_percent || '',
-        promo_end_date: props.campaign?.settings?.promo_end_date || '',
+        promo_code: existingSettings?.promo_code || '',
+        promo_percent: existingSettings?.promo_percent || '',
+        promo_end_date: existingSettings?.promo_end_date || '',
+        holdout: {
+            enabled: Boolean(existingSettings?.holdout?.enabled ?? false),
+            percent: Number(existingSettings?.holdout?.percent ?? 0),
+        },
+        channel_fallback: {
+            enabled: Boolean(existingSettings?.channel_fallback?.enabled ?? false),
+            max_depth: Number(existingSettings?.channel_fallback?.max_depth ?? 1),
+            map: normalizeFallbackMap(existingSettings?.channel_fallback?.map || {}),
+        },
     },
 });
 
@@ -224,6 +266,63 @@ const applyTemplate = (channelRow) => {
     }
 };
 
+const clampPercent = (value, min = 0, max = 100) => {
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed)) {
+        return min;
+    }
+
+    return Math.min(max, Math.max(min, Math.round(parsed)));
+};
+
+const fallbackTargets = (sourceChannel) => {
+    const source = String(sourceChannel || '').toUpperCase();
+    if (!source) return [];
+    return Array.isArray(form.settings.channel_fallback.map?.[source])
+        ? form.settings.channel_fallback.map[source]
+        : [];
+};
+
+const toggleFallbackTarget = (sourceChannel, targetChannel) => {
+    const source = String(sourceChannel || '').toUpperCase();
+    const target = String(targetChannel || '').toUpperCase();
+    if (!source || !target || source === target) {
+        return;
+    }
+
+    if (!form.settings.channel_fallback.map?.[source]) {
+        form.settings.channel_fallback.map[source] = [];
+    }
+
+    const current = Array.isArray(form.settings.channel_fallback.map[source])
+        ? [...form.settings.channel_fallback.map[source]]
+        : [];
+    if (current.includes(target)) {
+        form.settings.channel_fallback.map[source] = current.filter((candidate) => candidate !== target);
+        return;
+    }
+
+    form.settings.channel_fallback.map[source] = [...current, target];
+};
+
+const normalizeChannelSettings = (channel) => {
+    const ab = channel?.ab_testing || {};
+    return {
+        enabled: Boolean(ab.enabled),
+        split_a_percent: clampPercent(ab.split_a_percent, 1, 99),
+        variant_a: {
+            subject_template: String(ab?.variant_a?.subject_template || ''),
+            title_template: String(ab?.variant_a?.title_template || ''),
+            body_template: String(ab?.variant_a?.body_template || ''),
+        },
+        variant_b: {
+            subject_template: String(ab?.variant_b?.subject_template || ''),
+            title_template: String(ab?.variant_b?.title_template || ''),
+            body_template: String(ab?.variant_b?.body_template || ''),
+        },
+    };
+};
+
 const save = () => {
     if (!canManage.value) return;
     if (offersPayload.value.length === 0) {
@@ -246,11 +345,23 @@ const save = () => {
             subject_template: channel.subject_template || null,
             title_template: channel.title_template || null,
             body_template: channel.body_template || null,
+            metadata: {
+                ab_testing: normalizeChannelSettings(channel),
+            },
         })),
         audience: audiencePayload(),
         settings: {
             ...form.settings,
             offer_selectors: form.offer_selectors,
+            holdout: {
+                enabled: Boolean(form.settings.holdout?.enabled),
+                percent: clampPercent(form.settings.holdout?.percent, 0, 100),
+            },
+            channel_fallback: {
+                enabled: Boolean(form.settings.channel_fallback?.enabled),
+                max_depth: clampPercent(form.settings.channel_fallback?.max_depth, 1, 3),
+                map: normalizeFallbackMap(form.settings.channel_fallback?.map || {}),
+            },
         },
     };
 
@@ -500,6 +611,46 @@ onMounted(async () => {
                             label="Body with {offerName}, {offerPrice}, {ctaUrl}"
                         />
                     </div>
+
+                    <div class="mt-3 rounded-sm border border-stone-200 bg-stone-50 p-3 dark:border-neutral-700 dark:bg-neutral-800">
+                        <div class="flex flex-wrap items-center justify-between gap-2">
+                            <div class="text-xs font-semibold text-stone-700 dark:text-neutral-200">A/B testing</div>
+                            <label class="inline-flex items-center gap-2 text-xs text-stone-600 dark:text-neutral-300">
+                                <input v-model="channel.ab_testing.enabled" type="checkbox" class="rounded border-stone-300 text-green-600 focus:ring-green-600">
+                                <span>Enable for {{ channel.channel }}</span>
+                            </label>
+                        </div>
+
+                        <div v-if="channel.ab_testing.enabled" class="mt-3 space-y-3">
+                            <FloatingInput
+                                v-model="channel.ab_testing.split_a_percent"
+                                type="number"
+                                label="Variant A split percent (1-99)"
+                            />
+
+                            <div class="grid grid-cols-1 gap-3 lg:grid-cols-2">
+                                <div class="rounded-sm border border-stone-200 bg-white p-2 dark:border-neutral-700 dark:bg-neutral-900">
+                                    <p class="mb-2 text-xs font-semibold text-stone-700 dark:text-neutral-200">Variant A</p>
+                                    <div class="space-y-2">
+                                        <FloatingInput v-model="channel.ab_testing.variant_a.subject_template" label="Subject A" />
+                                        <FloatingInput v-model="channel.ab_testing.variant_a.title_template" label="Title A" />
+                                        <FloatingTextarea v-model="channel.ab_testing.variant_a.body_template" label="Body A" />
+                                    </div>
+                                </div>
+                                <div class="rounded-sm border border-stone-200 bg-white p-2 dark:border-neutral-700 dark:bg-neutral-900">
+                                    <p class="mb-2 text-xs font-semibold text-stone-700 dark:text-neutral-200">Variant B</p>
+                                    <div class="space-y-2">
+                                        <FloatingInput v-model="channel.ab_testing.variant_b.subject_template" label="Subject B" />
+                                        <FloatingInput v-model="channel.ab_testing.variant_b.title_template" label="Title B" />
+                                        <FloatingTextarea v-model="channel.ab_testing.variant_b.body_template" label="Body B" />
+                                    </div>
+                                </div>
+                            </div>
+                            <p class="text-xs text-stone-500 dark:text-neutral-400">
+                                Empty variant fields fallback to the base channel template.
+                            </p>
+                        </div>
+                    </div>
                 </div>
             </section>
 
@@ -509,8 +660,72 @@ onMounted(async () => {
                     <div><strong>Offer mode:</strong> {{ form.offer_mode }}</div>
                     <div><strong>Offers:</strong> {{ offersPayload.length }}</div>
                     <div><strong>Enabled channels:</strong> {{ form.channels.filter((row) => row.is_enabled).length }}</div>
+                    <div><strong>A/B enabled channels:</strong> {{ form.channels.filter((row) => row.ab_testing?.enabled).length }}</div>
+                    <div><strong>Holdout:</strong> {{ form.settings.holdout.enabled ? `${form.settings.holdout.percent}%` : 'disabled' }}</div>
+                    <div><strong>Channel fallback:</strong> {{ form.settings.channel_fallback.enabled ? 'enabled' : 'disabled' }}</div>
                     <div><strong>Require explicit consent:</strong> {{ marketingSettings?.consent?.require_explicit ? 'yes' : 'no' }}</div>
                 </div>
+
+                <div class="grid grid-cols-1 gap-3 xl:grid-cols-2">
+                    <div class="rounded-sm border border-stone-200 bg-stone-50 p-3 dark:border-neutral-700 dark:bg-neutral-800">
+                        <div class="flex items-center justify-between">
+                            <div class="text-xs font-semibold text-stone-700 dark:text-neutral-200">Holdout group</div>
+                            <label class="inline-flex items-center gap-2 text-xs text-stone-600 dark:text-neutral-300">
+                                <input v-model="form.settings.holdout.enabled" type="checkbox" class="rounded border-stone-300 text-green-600 focus:ring-green-600">
+                                <span>Enable holdout</span>
+                            </label>
+                        </div>
+                        <div class="mt-2">
+                            <FloatingInput
+                                v-model="form.settings.holdout.percent"
+                                type="number"
+                                label="Holdout percent (0-100)"
+                            />
+                        </div>
+                    </div>
+
+                    <div class="rounded-sm border border-stone-200 bg-stone-50 p-3 dark:border-neutral-700 dark:bg-neutral-800">
+                        <div class="flex items-center justify-between">
+                            <div class="text-xs font-semibold text-stone-700 dark:text-neutral-200">Channel fallback</div>
+                            <label class="inline-flex items-center gap-2 text-xs text-stone-600 dark:text-neutral-300">
+                                <input v-model="form.settings.channel_fallback.enabled" type="checkbox" class="rounded border-stone-300 text-green-600 focus:ring-green-600">
+                                <span>Enable fallback</span>
+                            </label>
+                        </div>
+                        <div class="mt-2">
+                            <FloatingInput
+                                v-model="form.settings.channel_fallback.max_depth"
+                                type="number"
+                                label="Fallback max depth (1-3)"
+                            />
+                        </div>
+                        <div class="mt-2 space-y-2">
+                            <div
+                                v-for="source in channels"
+                                :key="`fallback-${source}`"
+                                class="rounded-sm border border-stone-200 bg-white p-2 dark:border-neutral-700 dark:bg-neutral-900"
+                            >
+                                <p class="text-xs font-semibold text-stone-700 dark:text-neutral-200">{{ source }} fallback targets</p>
+                                <div class="mt-1 flex flex-wrap gap-2">
+                                    <label
+                                        v-for="target in channels.filter((candidate) => candidate !== source)"
+                                        :key="`fallback-${source}-${target}`"
+                                        class="inline-flex items-center gap-2 rounded-sm border border-stone-200 bg-stone-50 px-2 py-1 text-xs text-stone-700 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200"
+                                    >
+                                        <input
+                                            :checked="fallbackTargets(source).includes(target)"
+                                            type="checkbox"
+                                            class="rounded border-stone-300 text-green-600 focus:ring-green-600"
+                                            @change="toggleFallbackTarget(source, target)"
+                                        >
+                                        <span>{{ target }}</span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="flex flex-wrap gap-2">
                     <SecondaryButton type="button" :disabled="requestBusy || !canManage || !isEdit" @click="previewMessages">Live preview</SecondaryButton>
                     <SecondaryButton type="button" :disabled="requestBusy || (!canManage && !canSend) || !isEdit" @click="testSend">Test send</SecondaryButton>

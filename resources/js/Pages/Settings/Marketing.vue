@@ -1,7 +1,9 @@
 <script setup>
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { Head, useForm } from '@inertiajs/vue3';
+import { useI18n } from 'vue-i18n';
 import SettingsLayout from '@/Layouts/SettingsLayout.vue';
+import Modal from '@/Components/Modal.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
@@ -20,6 +22,8 @@ const props = defineProps({
         default: () => ({}),
     },
 });
+
+const { t } = useI18n();
 
 const form = useForm({
     channels: {
@@ -91,6 +95,15 @@ const form = useForm({
             excluded_customer_ids: Array.isArray(props.marketingSettings?.vip?.automation?.excluded_customer_ids)
                 ? props.marketingSettings.vip.automation.excluded_customer_ids.join(', ')
                 : '',
+            tier_rules: Array.isArray(props.marketingSettings?.vip?.automation?.tier_rules)
+                ? props.marketingSettings.vip.automation.tier_rules.map((rule, index) => ({
+                    tier_code: String(rule?.tier_code || ''),
+                    minimum_total_spend: rule?.minimum_total_spend ?? '',
+                    minimum_paid_orders: rule?.minimum_paid_orders ?? '',
+                    evaluation_window_days: String(rule?.evaluation_window_days ?? props.marketingSettings?.vip?.automation?.evaluation_window_days ?? 365),
+                    priority: rule?.priority ?? (1000 - index),
+                }))
+                : [],
         },
     },
 });
@@ -99,19 +112,29 @@ const offerModeOptions = computed(() => {
     return Array.isArray(props.enums?.offer_modes) ? props.enums.offer_modes : ['PRODUCTS', 'SERVICES', 'MIXED'];
 });
 
-const consentBehaviorOptions = [
-    { value: 'deny_without_explicit', label: 'deny_without_explicit' },
-    { value: 'allow_without_explicit', label: 'allow_without_explicit' },
-];
+const consentBehaviorOptions = computed(() => ([
+    { value: 'deny_without_explicit', label: t('marketing.settings.consent.behaviors.deny_without_explicit') },
+    { value: 'allow_without_explicit', label: t('marketing.settings.consent.behaviors.allow_without_explicit') },
+]));
 
-const defaultSearchStatusOptions = [
-    { value: 'active', label: 'Default search status: active' },
-    { value: 'all', label: 'Default search status: all' },
-];
+const defaultSearchStatusOptions = computed(() => ([
+    { value: 'active', label: t('marketing.settings.offers.statuses.active') },
+    { value: 'all', label: t('marketing.settings.offers.statuses.all') },
+]));
 
-const selectionStrategyOptions = [
-    { value: 'snapshot_on_save', label: 'snapshot_on_save' },
-];
+const selectionStrategyOptions = computed(() => ([
+    { value: 'snapshot_on_save', label: t('marketing.settings.offers.strategies.snapshot_on_save') },
+]));
+
+const activeDialog = ref(null);
+
+const openDialog = (dialogId) => {
+    activeDialog.value = dialogId;
+};
+
+const closeDialog = () => {
+    activeDialog.value = null;
+};
 
 const toNullableNumber = (value) => {
     if (value === '' || value === null || typeof value === 'undefined') {
@@ -120,6 +143,33 @@ const toNullableNumber = (value) => {
 
     const parsed = Number(value);
     return Number.isFinite(parsed) ? parsed : null;
+};
+
+const createTierRule = (index = 0) => ({
+    tier_code: '',
+    minimum_total_spend: '',
+    minimum_paid_orders: '',
+    evaluation_window_days: String(form.vip.automation.evaluation_window_days || '365'),
+    priority: 1000 - index,
+});
+
+const addTierRule = () => {
+    if (!Array.isArray(form.vip.automation.tier_rules)) {
+        form.vip.automation.tier_rules = [];
+    }
+
+    form.vip.automation.tier_rules = [
+        ...form.vip.automation.tier_rules,
+        createTierRule(form.vip.automation.tier_rules.length),
+    ];
+};
+
+const removeTierRule = (index) => {
+    if (!Array.isArray(form.vip.automation.tier_rules)) {
+        return;
+    }
+
+    form.vip.automation.tier_rules = form.vip.automation.tier_rules.filter((_, rowIndex) => rowIndex !== index);
 };
 
 const submit = () => {
@@ -155,6 +205,27 @@ const submit = () => {
                             .split(/[,\n;]+/)
                             .map((value) => Number(value.trim()))
                             .filter((value) => Number.isFinite(value) && value > 0),
+                        tier_rules: Array.isArray(payload.vip?.automation?.tier_rules)
+                            ? payload.vip.automation.tier_rules
+                                .map((rule, index) => {
+                                    const minimumRuleSpend = toNullableNumber(rule?.minimum_total_spend);
+                                    const minimumRuleOrders = toNullableNumber(rule?.minimum_paid_orders);
+                                    const priority = toNullableNumber(rule?.priority);
+                                    const windowDays = toNullableNumber(rule?.evaluation_window_days);
+
+                                    return {
+                                        tier_code: String(rule?.tier_code || '').trim().toUpperCase(),
+                                        minimum_total_spend: minimumRuleSpend === null ? null : Math.max(0, minimumRuleSpend),
+                                        minimum_paid_orders: minimumRuleOrders === null ? null : Math.max(0, minimumRuleOrders),
+                                        evaluation_window_days: Math.max(
+                                            1,
+                                            windowDays === null ? (evaluationWindowDays === null ? 365 : evaluationWindowDays) : windowDays
+                                        ),
+                                        priority: priority === null ? 1000 - index : priority,
+                                    };
+                                })
+                                .filter((rule) => rule.tier_code !== '' && (rule.minimum_total_spend !== null || rule.minimum_paid_orders !== null))
+                            : [],
                     },
                 },
             };
@@ -173,7 +244,7 @@ const toggleAllowedMode = (mode) => {
 </script>
 
 <template>
-    <Head title="Marketing settings" />
+    <Head :title="t('marketing.settings.page_title')" />
 
     <SettingsLayout active="marketing">
         <section class="space-y-4">
@@ -187,115 +258,285 @@ const toggleAllowedMode = (mode) => {
                                 <path d="M8 13h8" />
                                 <path d="M8 17h5" />
                             </svg>
-                            <span>Marketing configuration</span>
+                            <span>{{ t('marketing.settings.header_title') }}</span>
                         </h1>
                         <p class="text-sm text-stone-500 dark:text-neutral-400">
-                            Configure channels, consent, templates, tracking, and offer strategy for campaigns.
+                            {{ t('marketing.settings.header_description') }}
                         </p>
                     </div>
                     <PrimaryButton type="button" :disabled="form.processing" @click="submit">
-                        Save configuration
+                        {{ t('marketing.common.save_configuration') }}
                     </PrimaryButton>
                 </div>
             </div>
 
             <div class="grid grid-cols-1 gap-4 xl:grid-cols-2">
                 <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                    <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">Channels settings</h2>
-                    <div class="mt-3 grid grid-cols-1 gap-2">
-                        <label class="inline-flex items-center gap-2 text-xs text-stone-600 dark:text-neutral-300">
-                            <input v-model="form.channels.enabled.EMAIL" type="checkbox" class="rounded border-stone-300 text-green-600 focus:ring-green-600">
-                            <span>Enable EMAIL</span>
-                        </label>
-                        <label class="inline-flex items-center gap-2 text-xs text-stone-600 dark:text-neutral-300">
-                            <input v-model="form.channels.enabled.SMS" type="checkbox" class="rounded border-stone-300 text-green-600 focus:ring-green-600">
-                            <span>Enable SMS</span>
-                        </label>
-                        <label class="inline-flex items-center gap-2 text-xs text-stone-600 dark:text-neutral-300">
-                            <input v-model="form.channels.enabled.IN_APP" type="checkbox" class="rounded border-stone-300 text-green-600 focus:ring-green-600">
-                            <span>Enable IN_APP</span>
-                        </label>
-                        <FloatingInput v-model="form.channels.provider.sms_provider" label="SMS provider" />
-                        <FloatingInput v-model="form.channels.provider.sender_id" label="SMS sender ID" />
-                        <FloatingInput v-model="form.channels.provider.email_from_name" label="Email from name" />
-                        <FloatingInput v-model="form.channels.quiet_hours.timezone" label="Quiet hours timezone" />
-                        <div class="grid grid-cols-2 gap-2">
-                            <FloatingInput v-model="form.channels.quiet_hours.start" type="time" label="Quiet start" />
-                            <FloatingInput v-model="form.channels.quiet_hours.end" type="time" label="Quiet end" />
-                        </div>
-                        <div class="grid grid-cols-3 gap-2">
-                            <FloatingInput v-model.number="form.channels.anti_fatigue.max_messages_per_window" type="number" label="Max messages" />
-                            <FloatingInput v-model.number="form.channels.anti_fatigue.window_days" type="number" label="Window days" />
-                            <FloatingInput v-model.number="form.channels.anti_fatigue.same_campaign_cooldown_hours" type="number" label="Cooldown h" />
-                        </div>
-                        <div class="grid grid-cols-2 gap-2">
-                            <FloatingInput v-model.number="form.channels.anti_fatigue.vip_max_messages_per_window" type="number" label="VIP max messages (optional)" />
-                            <FloatingInput v-model.number="form.channels.anti_fatigue.vip_window_days" type="number" label="VIP window days (optional)" />
-                        </div>
+                    <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ t('marketing.settings.cards.channels.title') }}</h2>
+                    <p class="mt-2 text-xs text-stone-500 dark:text-neutral-400">
+                        {{ t('marketing.settings.cards.channels.description') }}
+                    </p>
+                    <div class="mt-3">
+                        <PrimaryButton type="button" @click="openDialog('channels-config')">
+                            {{ t('marketing.settings.open_form') }}
+                        </PrimaryButton>
                     </div>
                 </div>
 
                 <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                    <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">Consent settings</h2>
-                    <div class="mt-3 grid grid-cols-1 gap-2">
+                    <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ t('marketing.settings.cards.consent.title') }}</h2>
+                    <p class="mt-2 text-xs text-stone-500 dark:text-neutral-400">
+                        {{ t('marketing.settings.cards.consent.description') }}
+                    </p>
+                    <div class="mt-3">
+                        <PrimaryButton type="button" @click="openDialog('consent-config')">
+                            {{ t('marketing.settings.open_form') }}
+                        </PrimaryButton>
+                    </div>
+                </div>
+
+                <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                    <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ t('marketing.settings.cards.tracking.title') }}</h2>
+                    <p class="mt-2 text-xs text-stone-500 dark:text-neutral-400">
+                        {{ t('marketing.settings.cards.tracking.description') }}
+                    </p>
+                    <div class="mt-3">
+                        <PrimaryButton type="button" @click="openDialog('tracking-config')">
+                            {{ t('marketing.settings.open_form') }}
+                        </PrimaryButton>
+                    </div>
+                </div>
+
+                <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                    <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ t('marketing.settings.cards.offers.title') }}</h2>
+                    <p class="mt-2 text-xs text-stone-500 dark:text-neutral-400">
+                        {{ t('marketing.settings.cards.offers.description') }}
+                    </p>
+                    <div class="mt-3">
+                        <PrimaryButton type="button" @click="openDialog('offers-config')">
+                            {{ t('marketing.settings.open_form') }}
+                        </PrimaryButton>
+                    </div>
+                </div>
+
+                <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                    <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ t('marketing.settings.cards.vip_automation.title') }}</h2>
+                    <p class="mt-2 text-xs text-stone-500 dark:text-neutral-400">
+                        {{ t('marketing.settings.cards.vip_automation.description') }}
+                    </p>
+                    <div class="mt-3">
+                        <PrimaryButton type="button" @click="openDialog('vip-automation-config')">
+                            {{ t('marketing.settings.open_form') }}
+                        </PrimaryButton>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                    <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ t('marketing.settings.cards.template_manager.title') }}</h2>
+                    <p class="mt-2 text-xs text-stone-500 dark:text-neutral-400">
+                        {{ t('marketing.settings.cards.template_manager.description') }}
+                    </p>
+                    <div class="mt-3">
+                        <PrimaryButton type="button" @click="openDialog('templates')">
+                            {{ t('marketing.settings.open_manager') }}
+                        </PrimaryButton>
+                    </div>
+                </div>
+
+                <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                    <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ t('marketing.settings.cards.segment_manager.title') }}</h2>
+                    <p class="mt-2 text-xs text-stone-500 dark:text-neutral-400">
+                        {{ t('marketing.settings.cards.segment_manager.description') }}
+                    </p>
+                    <div class="mt-3">
+                        <PrimaryButton type="button" @click="openDialog('segments')">
+                            {{ t('marketing.settings.open_manager') }}
+                        </PrimaryButton>
+                    </div>
+                </div>
+
+                <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                    <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ t('marketing.settings.cards.mailing_list_manager.title') }}</h2>
+                    <p class="mt-2 text-xs text-stone-500 dark:text-neutral-400">
+                        {{ t('marketing.settings.cards.mailing_list_manager.description') }}
+                    </p>
+                    <div class="mt-3">
+                        <PrimaryButton type="button" @click="openDialog('mailing-lists')">
+                            {{ t('marketing.settings.open_manager') }}
+                        </PrimaryButton>
+                    </div>
+                </div>
+
+                <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                    <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ t('marketing.settings.cards.vip_tiers_manager.title') }}</h2>
+                    <p class="mt-2 text-xs text-stone-500 dark:text-neutral-400">
+                        {{ t('marketing.settings.cards.vip_tiers_manager.description') }}
+                    </p>
+                    <div class="mt-3">
+                        <PrimaryButton type="button" @click="openDialog('vip-tiers')">
+                            {{ t('marketing.settings.open_manager') }}
+                        </PrimaryButton>
+                    </div>
+                </div>
+            </div>
+
+            <Modal :show="activeDialog === 'channels-config'" max-width="4xl" @close="closeDialog">
+                <div class="space-y-4 p-4">
+                    <div class="flex flex-wrap items-center justify-between gap-2">
+                        <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ t('marketing.settings.channels.title') }}</h2>
+                        <div class="flex items-center gap-2">
+                            <button
+                                type="button"
+                                class="rounded-sm border border-stone-200 bg-white px-2 py-1 text-xs text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
+                                @click="closeDialog"
+                            >
+                                {{ t('marketing.common.close') }}
+                            </button>
+                            <PrimaryButton type="button" :disabled="form.processing" @click="submit">
+                                {{ t('marketing.common.save_configuration') }}
+                            </PrimaryButton>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 gap-2">
+                        <label class="inline-flex items-center gap-2 text-xs text-stone-600 dark:text-neutral-300">
+                            <input v-model="form.channels.enabled.EMAIL" type="checkbox" class="rounded border-stone-300 text-green-600 focus:ring-green-600">
+                            <span>{{ t('marketing.settings.channels.enable_email') }}</span>
+                        </label>
+                        <label class="inline-flex items-center gap-2 text-xs text-stone-600 dark:text-neutral-300">
+                            <input v-model="form.channels.enabled.SMS" type="checkbox" class="rounded border-stone-300 text-green-600 focus:ring-green-600">
+                            <span>{{ t('marketing.settings.channels.enable_sms') }}</span>
+                        </label>
+                        <label class="inline-flex items-center gap-2 text-xs text-stone-600 dark:text-neutral-300">
+                            <input v-model="form.channels.enabled.IN_APP" type="checkbox" class="rounded border-stone-300 text-green-600 focus:ring-green-600">
+                            <span>{{ t('marketing.settings.channels.enable_in_app') }}</span>
+                        </label>
+                        <FloatingInput v-model="form.channels.provider.sms_provider" :label="t('marketing.settings.channels.sms_provider')" />
+                        <FloatingInput v-model="form.channels.provider.sender_id" :label="t('marketing.settings.channels.sms_sender_id')" />
+                        <FloatingInput v-model="form.channels.provider.email_from_name" :label="t('marketing.settings.channels.email_from_name')" />
+                        <FloatingInput v-model="form.channels.quiet_hours.timezone" :label="t('marketing.settings.channels.quiet_hours_timezone')" />
+                        <div class="grid grid-cols-2 gap-2">
+                            <FloatingInput v-model="form.channels.quiet_hours.start" type="time" :label="t('marketing.settings.channels.quiet_start')" />
+                            <FloatingInput v-model="form.channels.quiet_hours.end" type="time" :label="t('marketing.settings.channels.quiet_end')" />
+                        </div>
+                        <div class="grid grid-cols-3 gap-2">
+                            <FloatingInput v-model.number="form.channels.anti_fatigue.max_messages_per_window" type="number" :label="t('marketing.settings.channels.max_messages')" />
+                            <FloatingInput v-model.number="form.channels.anti_fatigue.window_days" type="number" :label="t('marketing.settings.channels.window_days')" />
+                            <FloatingInput v-model.number="form.channels.anti_fatigue.same_campaign_cooldown_hours" type="number" :label="t('marketing.settings.channels.cooldown_hours')" />
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <FloatingInput v-model.number="form.channels.anti_fatigue.vip_max_messages_per_window" type="number" :label="t('marketing.settings.channels.vip_max_messages_optional')" />
+                            <FloatingInput v-model.number="form.channels.anti_fatigue.vip_window_days" type="number" :label="t('marketing.settings.channels.vip_window_days_optional')" />
+                        </div>
+                    </div>
+                </div>
+            </Modal>
+
+            <Modal :show="activeDialog === 'consent-config'" max-width="3xl" @close="closeDialog">
+                <div class="space-y-4 p-4">
+                    <div class="flex flex-wrap items-center justify-between gap-2">
+                        <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ t('marketing.settings.consent.title') }}</h2>
+                        <div class="flex items-center gap-2">
+                            <button
+                                type="button"
+                                class="rounded-sm border border-stone-200 bg-white px-2 py-1 text-xs text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
+                                @click="closeDialog"
+                            >
+                                {{ t('marketing.common.close') }}
+                            </button>
+                            <PrimaryButton type="button" :disabled="form.processing" @click="submit">
+                                {{ t('marketing.common.save_configuration') }}
+                            </PrimaryButton>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 gap-2">
                         <label class="inline-flex items-center gap-2 text-xs text-stone-600 dark:text-neutral-300">
                             <input v-model="form.consent.require_explicit" type="checkbox" class="rounded border-stone-300 text-green-600 focus:ring-green-600">
-                            <span>Require explicit consent</span>
+                            <span>{{ t('marketing.settings.consent.require_explicit') }}</span>
                         </label>
                         <FloatingSelect
                             v-model="form.consent.default_behavior"
-                            label="Default behavior"
+                            :label="t('marketing.settings.consent.default_behavior')"
                             :options="consentBehaviorOptions"
                             option-value="value"
                             option-label="label"
                         />
-                        <FloatingInput v-model="form.consent.stop_keywords" label="STOP keywords (comma separated)" />
-                    </div>
-
-                    <h2 class="mt-4 text-sm font-semibold text-stone-800 dark:text-neutral-100">Audience defaults</h2>
-                    <div class="mt-2">
+                        <FloatingInput v-model="form.consent.stop_keywords" :label="t('marketing.settings.consent.stop_keywords')" />
                         <FloatingInput
                             v-model.number="form.audience.default_exclusions.exclude_contacted_last_days"
                             type="number"
-                            label="Exclude contacted last N days"
+                            :label="t('marketing.settings.consent.exclude_contacted_last_days')"
                         />
                     </div>
                 </div>
+            </Modal>
 
-                <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                    <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">Tracking settings</h2>
-                    <div class="mt-3 space-y-2">
+            <Modal :show="activeDialog === 'tracking-config'" max-width="3xl" @close="closeDialog">
+                <div class="space-y-4 p-4">
+                    <div class="flex flex-wrap items-center justify-between gap-2">
+                        <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ t('marketing.settings.tracking.title') }}</h2>
+                        <div class="flex items-center gap-2">
+                            <button
+                                type="button"
+                                class="rounded-sm border border-stone-200 bg-white px-2 py-1 text-xs text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
+                                @click="closeDialog"
+                            >
+                                {{ t('marketing.common.close') }}
+                            </button>
+                            <PrimaryButton type="button" :disabled="form.processing" @click="submit">
+                                {{ t('marketing.common.save_configuration') }}
+                            </PrimaryButton>
+                        </div>
+                    </div>
+                    <div class="space-y-2">
                         <label class="inline-flex items-center gap-2 text-xs text-stone-600 dark:text-neutral-300">
                             <input v-model="form.tracking.click_tracking_enabled" type="checkbox" class="rounded border-stone-300 text-green-600 focus:ring-green-600">
-                            <span>Enable click tracking</span>
+                            <span>{{ t('marketing.settings.tracking.enable_click_tracking') }}</span>
                         </label>
                         <label class="inline-flex items-center gap-2 text-xs text-stone-600 dark:text-neutral-300">
                             <input v-model="form.tracking.conversion_events.reservation_created" type="checkbox" class="rounded border-stone-300 text-green-600 focus:ring-green-600">
-                            <span>reservation_created</span>
+                            <span>{{ t('marketing.settings.tracking.reservation_created') }}</span>
                         </label>
                         <label class="inline-flex items-center gap-2 text-xs text-stone-600 dark:text-neutral-300">
                             <input v-model="form.tracking.conversion_events.invoice_paid" type="checkbox" class="rounded border-stone-300 text-green-600 focus:ring-green-600">
-                            <span>invoice_paid</span>
+                            <span>{{ t('marketing.settings.tracking.invoice_paid') }}</span>
                         </label>
                         <label class="inline-flex items-center gap-2 text-xs text-stone-600 dark:text-neutral-300">
                             <input v-model="form.tracking.conversion_events.quote_accepted" type="checkbox" class="rounded border-stone-300 text-green-600 focus:ring-green-600">
-                            <span>quote_accepted</span>
+                            <span>{{ t('marketing.settings.tracking.quote_accepted') }}</span>
                         </label>
                         <label class="inline-flex items-center gap-2 text-xs text-stone-600 dark:text-neutral-300">
                             <input v-model="form.tracking.conversion_events.product_purchase" type="checkbox" class="rounded border-stone-300 text-green-600 focus:ring-green-600">
-                            <span>product_purchase</span>
+                            <span>{{ t('marketing.settings.tracking.product_purchase') }}</span>
                         </label>
                     </div>
                 </div>
+            </Modal>
 
-                <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                    <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">Offer settings</h2>
-                    <div class="mt-3 space-y-2">
-                        <div class="text-xs text-stone-500 dark:text-neutral-400">Allowed offer modes</div>
+            <Modal :show="activeDialog === 'offers-config'" max-width="3xl" @close="closeDialog">
+                <div class="space-y-4 p-4">
+                    <div class="flex flex-wrap items-center justify-between gap-2">
+                        <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ t('marketing.settings.offers.title') }}</h2>
+                        <div class="flex items-center gap-2">
+                            <button
+                                type="button"
+                                class="rounded-sm border border-stone-200 bg-white px-2 py-1 text-xs text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
+                                @click="closeDialog"
+                            >
+                                {{ t('marketing.common.close') }}
+                            </button>
+                            <PrimaryButton type="button" :disabled="form.processing" @click="submit">
+                                {{ t('marketing.common.save_configuration') }}
+                            </PrimaryButton>
+                        </div>
+                    </div>
+                    <div class="space-y-2">
+                        <div class="text-xs text-stone-500 dark:text-neutral-400">{{ t('marketing.settings.offers.allowed_offer_modes') }}</div>
                         <div class="flex flex-wrap gap-2">
                             <label
                                 v-for="mode in offerModeOptions"
-                                :key="`mode-${mode}`"
+                                :key="`offer-mode-modal-${mode}`"
                                 class="inline-flex items-center gap-2 rounded-sm border border-stone-200 bg-stone-50 px-2 py-1 text-xs text-stone-700 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200"
                             >
                                 <input
@@ -309,88 +550,218 @@ const toggleAllowedMode = (mode) => {
                         </div>
                         <FloatingSelect
                             v-model="form.offers.default_search_filters.status"
-                            label="Default search status"
+                            :label="t('marketing.settings.offers.default_search_status')"
                             :options="defaultSearchStatusOptions"
                             option-value="value"
                             option-label="label"
                         />
                         <FloatingSelect
                             v-model="form.offers.selection_strategy"
-                            label="Selection strategy"
+                            :label="t('marketing.settings.offers.selection_strategy')"
                             :options="selectionStrategyOptions"
                             option-value="value"
                             option-label="label"
                         />
                         <label class="inline-flex items-center gap-2 text-xs text-stone-600 dark:text-neutral-300">
                             <input v-model="form.templates.allow_campaign_override" type="checkbox" class="rounded border-stone-300 text-green-600 focus:ring-green-600">
-                            <span>Allow campaign-level template override</span>
+                            <span>{{ t('marketing.settings.offers.allow_template_override') }}</span>
                         </label>
                     </div>
                 </div>
+            </Modal>
 
-                <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                    <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">VIP automation</h2>
-                    <div class="mt-3 grid grid-cols-1 gap-2">
+            <Modal :show="activeDialog === 'vip-automation-config'" max-width="4xl" @close="closeDialog">
+                <div class="space-y-4 p-4">
+                    <div class="flex flex-wrap items-center justify-between gap-2">
+                        <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ t('marketing.settings.vip_automation.title') }}</h2>
+                        <div class="flex items-center gap-2">
+                            <button
+                                type="button"
+                                class="rounded-sm border border-stone-200 bg-white px-2 py-1 text-xs text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
+                                @click="closeDialog"
+                            >
+                                {{ t('marketing.common.close') }}
+                            </button>
+                            <PrimaryButton type="button" :disabled="form.processing" @click="submit">
+                                {{ t('marketing.common.save_configuration') }}
+                            </PrimaryButton>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 gap-2">
                         <label class="inline-flex items-center gap-2 text-xs text-stone-600 dark:text-neutral-300">
                             <input v-model="form.vip.automation.enabled" type="checkbox" class="rounded border-stone-300 text-green-600 focus:ring-green-600">
-                            <span>Enable automatic VIP assignment from paid purchases</span>
+                            <span>{{ t('marketing.settings.vip_automation.enabled') }}</span>
                         </label>
 
                         <div class="grid grid-cols-3 gap-2">
                             <FloatingInput
                                 v-model="form.vip.automation.evaluation_window_days"
                                 type="number"
-                                label="Evaluation window (days)"
+                                :label="t('marketing.settings.vip_automation.evaluation_window_days')"
                             />
                             <FloatingInput
                                 v-model="form.vip.automation.minimum_total_spend"
                                 type="number"
-                                label="Minimum total spend"
+                                :label="t('marketing.settings.vip_automation.minimum_total_spend')"
                             />
                             <FloatingInput
                                 v-model="form.vip.automation.minimum_paid_orders"
                                 type="number"
-                                label="Minimum paid orders"
+                                :label="t('marketing.settings.vip_automation.minimum_paid_orders')"
                             />
                         </div>
 
                         <FloatingInput
                             v-model="form.vip.automation.default_tier_code"
-                            label="Default tier code (optional)"
+                            :label="t('marketing.settings.vip_automation.default_tier_code_optional')"
                         />
 
                         <label class="inline-flex items-center gap-2 text-xs text-stone-600 dark:text-neutral-300">
                             <input v-model="form.vip.automation.preserve_existing_tier" type="checkbox" class="rounded border-stone-300 text-green-600 focus:ring-green-600">
-                            <span>Preserve existing tier for customers already VIP</span>
+                            <span>{{ t('marketing.settings.vip_automation.preserve_existing_tier') }}</span>
                         </label>
                         <label class="inline-flex items-center gap-2 text-xs text-stone-600 dark:text-neutral-300">
                             <input v-model="form.vip.automation.downgrade_when_not_eligible" type="checkbox" class="rounded border-stone-300 text-green-600 focus:ring-green-600">
-                            <span>Downgrade customers when thresholds are no longer met</span>
+                            <span>{{ t('marketing.settings.vip_automation.downgrade_when_not_eligible') }}</span>
                         </label>
 
                         <FloatingInput
                             v-model="form.vip.automation.excluded_customer_ids"
-                            label="Excluded customer IDs (comma separated)"
+                            :label="t('marketing.settings.vip_automation.excluded_customer_ids')"
                         />
+
+                        <div class="rounded-sm border border-stone-200 bg-stone-50 p-3 dark:border-neutral-700 dark:bg-neutral-800">
+                            <div class="mb-2 flex items-center justify-between gap-2">
+                                <p class="text-xs font-semibold text-stone-700 dark:text-neutral-200">
+                                    {{ t('marketing.settings.vip_automation.tier_rules_title') }}
+                                </p>
+                                <button
+                                    type="button"
+                                    class="rounded-sm border border-stone-300 bg-white px-2 py-1 text-xs text-stone-700 hover:bg-stone-100 dark:border-neutral-600 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-700"
+                                    @click="addTierRule"
+                                >
+                                    {{ t('marketing.settings.vip_automation.add_tier_rule') }}
+                                </button>
+                            </div>
+                            <p class="mb-2 text-xs text-stone-500 dark:text-neutral-400">
+                                {{ t('marketing.settings.vip_automation.tier_rules_hint') }}
+                            </p>
+
+                            <div v-if="!form.vip.automation.tier_rules.length" class="rounded-sm border border-dashed border-stone-300 px-3 py-2 text-xs text-stone-500 dark:border-neutral-600 dark:text-neutral-400">
+                                {{ t('marketing.settings.vip_automation.no_tier_rules') }}
+                            </div>
+
+                            <div v-else class="space-y-2">
+                                <div
+                                    v-for="(rule, index) in form.vip.automation.tier_rules"
+                                    :key="`vip-tier-rule-${index}`"
+                                    class="rounded-sm border border-stone-200 bg-white p-2 dark:border-neutral-700 dark:bg-neutral-900"
+                                >
+                                    <div class="grid grid-cols-1 gap-2 lg:grid-cols-5">
+                                        <FloatingInput
+                                            v-model="rule.tier_code"
+                                            :label="t('marketing.settings.vip_automation.tier_code')"
+                                        />
+                                        <FloatingInput
+                                            v-model="rule.minimum_total_spend"
+                                            type="number"
+                                            :label="t('marketing.settings.vip_automation.min_spend')"
+                                        />
+                                        <FloatingInput
+                                            v-model="rule.minimum_paid_orders"
+                                            type="number"
+                                            :label="t('marketing.settings.vip_automation.min_paid_orders')"
+                                        />
+                                        <FloatingInput
+                                            v-model="rule.evaluation_window_days"
+                                            type="number"
+                                            :label="t('marketing.settings.vip_automation.window_days')"
+                                        />
+                                        <FloatingInput
+                                            v-model="rule.priority"
+                                            type="number"
+                                            :label="t('marketing.settings.vip_automation.priority')"
+                                        />
+                                    </div>
+                                    <div class="mt-2 flex justify-end">
+                                        <button
+                                            type="button"
+                                            class="rounded-sm border border-rose-200 bg-rose-50 px-2 py-1 text-xs text-rose-700 hover:bg-rose-100 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300 dark:hover:bg-rose-500/20"
+                                            @click="removeTierRule(index)"
+                                        >
+                                            {{ t('marketing.settings.vip_automation.remove_rule') }}
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
-            </div>
+            </Modal>
 
-            <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                <TemplateManager :enums="enums" />
-            </div>
+            <Modal :show="activeDialog === 'templates'" max-width="4xl" @close="closeDialog">
+                <div class="space-y-3 p-4">
+                    <div class="flex items-center justify-between gap-2">
+                        <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ t('marketing.settings.cards.template_manager.title') }}</h2>
+                        <button
+                            type="button"
+                            class="rounded-sm border border-stone-200 bg-white px-2 py-1 text-xs text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
+                            @click="closeDialog"
+                        >
+                            {{ t('marketing.common.close') }}
+                        </button>
+                    </div>
+                    <TemplateManager v-if="activeDialog === 'templates'" :enums="enums" />
+                </div>
+            </Modal>
 
-            <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                <SegmentManager :segments="[]" />
-            </div>
+            <Modal :show="activeDialog === 'segments'" max-width="4xl" @close="closeDialog">
+                <div class="space-y-3 p-4">
+                    <div class="flex items-center justify-between gap-2">
+                        <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ t('marketing.settings.cards.segment_manager.title') }}</h2>
+                        <button
+                            type="button"
+                            class="rounded-sm border border-stone-200 bg-white px-2 py-1 text-xs text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
+                            @click="closeDialog"
+                        >
+                            {{ t('marketing.common.close') }}
+                        </button>
+                    </div>
+                    <SegmentManager v-if="activeDialog === 'segments'" :segments="[]" />
+                </div>
+            </Modal>
 
-            <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                <MailingListManager />
-            </div>
+            <Modal :show="activeDialog === 'mailing-lists'" max-width="4xl" @close="closeDialog">
+                <div class="space-y-3 p-4">
+                    <div class="flex items-center justify-between gap-2">
+                        <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ t('marketing.settings.cards.mailing_list_manager.title') }}</h2>
+                        <button
+                            type="button"
+                            class="rounded-sm border border-stone-200 bg-white px-2 py-1 text-xs text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
+                            @click="closeDialog"
+                        >
+                            {{ t('marketing.common.close') }}
+                        </button>
+                    </div>
+                    <MailingListManager v-if="activeDialog === 'mailing-lists'" />
+                </div>
+            </Modal>
 
-            <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                <VipManager />
-            </div>
+            <Modal :show="activeDialog === 'vip-tiers'" max-width="4xl" @close="closeDialog">
+                <div class="space-y-3 p-4">
+                    <div class="flex items-center justify-between gap-2">
+                        <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ t('marketing.settings.cards.vip_tiers_manager.title') }}</h2>
+                        <button
+                            type="button"
+                            class="rounded-sm border border-stone-200 bg-white px-2 py-1 text-xs text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
+                            @click="closeDialog"
+                        >
+                            {{ t('marketing.common.close') }}
+                        </button>
+                    </div>
+                    <VipManager v-if="activeDialog === 'vip-tiers'" />
+                </div>
+            </Modal>
         </section>
     </SettingsLayout>
 </template>

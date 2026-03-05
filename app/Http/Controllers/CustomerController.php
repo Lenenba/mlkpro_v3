@@ -279,15 +279,13 @@ class CustomerController extends Controller
         $salesSummary = null;
         $salesInsights = null;
         $topProducts = collect();
-        $featureMap = $accountOwner
-            ? app(CompanyFeatureService::class)->resolveEffectiveFeatures($accountOwner)
-            : [];
-        $campaignsFeatureEnabled = array_key_exists('campaigns', $featureMap)
-            ? (bool) $featureMap['campaigns']
+        $featureService = app(CompanyFeatureService::class);
+        $campaignsFeatureEnabled = $accountOwner
+            ? $featureService->hasFeature($accountOwner, 'campaigns')
             : false;
-        $loyaltyFeatureEnabled = array_key_exists('loyalty', $featureMap)
-            ? (bool) $featureMap['loyalty']
-            : true;
+        $loyaltyFeatureEnabled = $accountOwner
+            ? $featureService->hasFeature($accountOwner, 'loyalty')
+            : false;
         $loyalty = [
             'feature_enabled' => $loyaltyFeatureEnabled,
             'enabled' => false,

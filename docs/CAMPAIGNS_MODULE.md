@@ -111,6 +111,17 @@ Configuration automation (tenant):
 - `preserve_existing_tier`
 - `downgrade_when_not_eligible`
 - `excluded_customer_ids`
+- `tier_rules[]` (V2):
+  - `tier_code`
+  - `minimum_total_spend`
+  - `minimum_paid_orders`
+  - `evaluation_window_days`
+  - `priority`
+
+Mode V2 tiers:
+- si `tier_rules` actifs, le moteur assigne le meilleur tier selon priorite
+- si plusieurs regles matchent, la plus prioritaire gagne
+- si aucune regle active n est definie, fallback sur les seuils globaux (`minimum_total_spend`, `minimum_paid_orders`)
 
 Execution automation:
 - manuel: `php artisan campaigns:vip-auto-sync --account_id={tenantId}`
@@ -194,9 +205,12 @@ UI/Routes:
    - estimate per channel
 3. Message:
    - templates par canal + override
+   - A/B testing par canal (`channels[*].metadata.ab_testing`) avec split deterministic au dispatch
    - unified tokens `{offerName}`, `{offerPrice}`, `{offerUrl}`, `{offerImageUrl}`, `{offerAvailability}`
 4. Review & Send:
    - compliance summary
+   - holdout group (`settings.holdout.enabled/percent`)
+   - channel fallback (`settings.channel_fallback.enabled/max_depth/map`)
    - live preview / test send / send now
 5. Results:
    - lien details campagne/run export
@@ -263,7 +277,11 @@ Migrations:
 ## 14) Sending pipeline / jobs
 - `CampaignService::queueRun` -> `DispatchCampaignRunJob`
 - `DispatchCampaignRunJob` resolve audience + queue recipients
+  - assigne variant A/B par recipient (bucket deterministic)
+  - applique holdout group avant queue send
 - `SendCampaignRecipientJob` render + provider send + tracking
+  - utilise le template variant A/B si actif
+  - en echec provider, peut lancer un fallback de canal (consent/fatigue/depth/loop-safe)
 - idempotency: `campaign_runs.idempotency_key` + dedupe recipient hashes
 - throttling/compliance: `ConsentService` + `FatigueLimiter` + quiet hours
 
@@ -282,6 +300,8 @@ Tests couverts:
 - template default resolution
 - consent + fatigue enforcement
 - queued sending workflow
+- AB assignment metadata + run summary preservation
+- channel fallback queueing on provider failure
 - mailing list CRUD/import/remove
 - VIP tier assignment + audience filtering
 - dashboard KPI endpoint

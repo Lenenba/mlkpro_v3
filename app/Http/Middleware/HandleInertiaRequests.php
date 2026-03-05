@@ -72,7 +72,7 @@ class HandleInertiaRequests extends Middleware
                     ->find($ownerId);
         }
         if ($user && $accountOwner) {
-            $accountFeatures = app(CompanyFeatureService::class)->resolveEffectiveFeatures($accountOwner);
+            $accountFeatures = app(CompanyFeatureService::class)->resolveEnabledFeatures($accountOwner);
         }
 
         $impersonatorId = $request->session()->get('impersonator_id');
@@ -143,7 +143,7 @@ class HandleInertiaRequests extends Middleware
         if (!$user) {
             $assistantEnabled = false;
         } elseif ($accountFeatures !== null) {
-            $assistantEnabled = $assistantEnabled && (bool) ($accountFeatures['assistant'] ?? true);
+            $assistantEnabled = $assistantEnabled && (bool) ($accountFeatures['assistant'] ?? false);
         }
 
         return [

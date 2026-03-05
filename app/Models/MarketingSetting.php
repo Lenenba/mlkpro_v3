@@ -103,6 +103,7 @@ class MarketingSetting extends Model
                     'preserve_existing_tier' => true,
                     'downgrade_when_not_eligible' => false,
                     'excluded_customer_ids' => [],
+                    'tier_rules' => [],
                 ],
             ],
         ];

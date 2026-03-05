@@ -39,7 +39,7 @@ class AuthController extends Controller
                 ->select(['id', 'company_name', 'company_type', 'company_logo', 'onboarding_completed_at'])
                 ->find($ownerId);
 
-        $features = $owner ? app(CompanyFeatureService::class)->resolveEffectiveFeatures($owner) : [];
+        $features = $owner ? app(CompanyFeatureService::class)->resolveEnabledFeatures($owner) : [];
 
         $teamMembership = null;
         if (!$user->isAccountOwner()) {

@@ -1,11 +1,14 @@
 <script setup>
 import { computed, ref, watch } from 'vue';
 import axios from 'axios';
+import { useI18n } from 'vue-i18n';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingTextarea from '@/Components/FloatingTextarea.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import SecondaryButton from '@/Components/SecondaryButton.vue';
+
+const { t } = useI18n();
 
 const rows = ref([]);
 const busy = ref(false);
@@ -88,7 +91,7 @@ const load = async () => {
         rows.value = Array.isArray(response.data?.vip_tiers) ? response.data.vip_tiers : [];
         vipCustomersCount.value = Number(response.data?.vip_customers_count || 0);
     } catch (requestError) {
-        error.value = requestError?.response?.data?.message || requestError?.message || 'Unable to load VIP tiers.';
+        error.value = requestError?.response?.data?.message || requestError?.message || t('marketing.vip_tier_manager.error_load');
     } finally {
         isLoadingList.value = false;
     }
@@ -119,23 +122,23 @@ const save = async () => {
 
         if (editingId.value) {
             await axios.put(route('marketing.vip.update', editingId.value), payload);
-            info.value = 'VIP tier updated.';
+            info.value = t('marketing.vip_tier_manager.info_updated');
         } else {
             await axios.post(route('marketing.vip.store'), payload);
-            info.value = 'VIP tier created.';
+            info.value = t('marketing.vip_tier_manager.info_created');
         }
 
         resetForm();
         await load();
     } catch (requestError) {
-        error.value = requestError?.response?.data?.message || requestError?.message || 'Unable to save VIP tier.';
+        error.value = requestError?.response?.data?.message || requestError?.message || t('marketing.vip_tier_manager.error_save');
     } finally {
         busy.value = false;
     }
 };
 
 const remove = async (tier) => {
-    if (!confirm(`Delete VIP tier "${tier.name}"?`)) {
+    if (!confirm(t('marketing.vip_tier_manager.confirm_delete', { name: tier.name }))) {
         return;
     }
 
@@ -144,10 +147,10 @@ const remove = async (tier) => {
     info.value = '';
     try {
         await axios.delete(route('marketing.vip.destroy', tier.id));
-        info.value = 'VIP tier deleted.';
+        info.value = t('marketing.vip_tier_manager.info_deleted');
         await load();
     } catch (requestError) {
-        error.value = requestError?.response?.data?.message || requestError?.message || 'Unable to delete VIP tier.';
+        error.value = requestError?.response?.data?.message || requestError?.message || t('marketing.vip_tier_manager.error_delete');
     } finally {
         busy.value = false;
     }
@@ -164,14 +167,14 @@ load();
                     <svg class="size-4 text-amber-500 dark:text-amber-300" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="m12 3 2.8 5.7L21 9.6l-4.5 4.4L17.5 21 12 18l-5.5 3 1-7-4.5-4.4 6.2-.9z" />
                     </svg>
-                    <span>VIP Tiers</span>
+                    <span>{{ t('marketing.vip_tier_manager.title') }}</span>
                 </h3>
                 <p class="text-xs text-stone-500 dark:text-neutral-400">
-                    VIP customers: {{ vipCustomersCount }}
+                    {{ t('marketing.vip_tier_manager.vip_customers', { count: vipCustomersCount }) }}
                 </p>
             </div>
             <SecondaryButton :disabled="busy || isLoadingList" @click="load">
-                Reload
+                {{ t('marketing.common.reload') }}
             </SecondaryButton>
         </div>
 
@@ -186,15 +189,15 @@ load();
             <div class="grid grid-cols-1 gap-2 md:grid-cols-2">
                 <FloatingInput
                     v-model="form.code"
-                    label="Tier code (GOLD)"
+                    :label="t('marketing.vip_tier_manager.tier_code')"
                 />
                 <FloatingInput
                     v-model="form.name"
-                    label="Tier name"
+                    :label="t('marketing.vip_tier_manager.tier_name')"
                 />
                 <FloatingTextarea
                     v-model="form.perks"
-                    label="Perks"
+                    :label="t('marketing.vip_tier_manager.perks')"
                     class="md:col-span-2"
                 />
                 <label class="inline-flex items-center gap-2 text-xs text-stone-600 dark:text-neutral-300">
@@ -203,25 +206,25 @@ load();
                         type="checkbox"
                         class="rounded border-stone-300 text-green-600 focus:ring-green-600"
                     >
-                    <span>Tier active</span>
+                    <span>{{ t('marketing.vip_tier_manager.tier_active') }}</span>
                 </label>
             </div>
             <div class="mt-2 flex flex-wrap items-center gap-2">
                 <PrimaryButton type="button" :disabled="busy" @click="save">
-                    {{ editingId ? 'Update tier' : 'Create tier' }}
+                    {{ editingId ? t('marketing.vip_tier_manager.update_tier') : t('marketing.vip_tier_manager.create_tier') }}
                 </PrimaryButton>
                 <SecondaryButton type="button" :disabled="busy" @click="resetForm">
-                    Reset
+                    {{ t('marketing.common.reset') }}
                 </SecondaryButton>
             </div>
         </div>
 
         <div class="space-y-3 rounded-sm border border-stone-200 bg-white p-3 dark:border-neutral-700 dark:bg-neutral-900">
             <div class="grid grid-cols-1 gap-2 md:grid-cols-3">
-                <FloatingInput v-model="listSearch" label="Search tier" />
+                <FloatingInput v-model="listSearch" :label="t('marketing.vip_tier_manager.search_tier')" />
                 <FloatingSelect
                     v-model="listPerPage"
-                    label="Rows / page"
+                    :label="t('marketing.common.rows_per_page')"
                     :options="perPageOptions.map((value) => ({ value, label: String(value) }))"
                     option-value="value"
                     option-label="label"
@@ -230,11 +233,11 @@ load();
             <table class="min-w-full divide-y divide-stone-200 text-sm dark:divide-neutral-700">
                 <thead>
                     <tr class="text-left text-xs uppercase text-stone-500 dark:text-neutral-400">
-                        <th class="px-3 py-2 font-medium">Code</th>
-                        <th class="px-3 py-2 font-medium">Name</th>
-                        <th class="px-3 py-2 font-medium">Perks</th>
-                        <th class="px-3 py-2 font-medium">Status</th>
-                        <th class="px-3 py-2 font-medium text-right">Actions</th>
+                        <th class="px-3 py-2 font-medium">{{ t('marketing.vip_tier_manager.code') }}</th>
+                        <th class="px-3 py-2 font-medium">{{ t('marketing.vip_tier_manager.name') }}</th>
+                        <th class="px-3 py-2 font-medium">{{ t('marketing.vip_tier_manager.perks') }}</th>
+                        <th class="px-3 py-2 font-medium">{{ t('marketing.vip_tier_manager.status') }}</th>
+                        <th class="px-3 py-2 font-medium text-right">{{ t('marketing.template_manager.actions') }}</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-stone-200 dark:divide-neutral-700">
@@ -247,7 +250,7 @@ load();
                     </template>
                     <tr v-else-if="pagedRows.length === 0">
                         <td colspan="5" class="px-3 py-6 text-center text-xs text-stone-500 dark:text-neutral-400">
-                            No VIP tier found.
+                            {{ t('marketing.vip_tier_manager.no_tier_found') }}
                         </td>
                     </tr>
                     <tr v-for="tier in pagedRows" :key="`vip-tier-${tier.id}`">
@@ -261,7 +264,7 @@ load();
                                 class="rounded-full px-2 py-0.5 text-xs font-semibold"
                                 :class="tier.is_active ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-200' : 'bg-stone-100 text-stone-700 dark:bg-neutral-800 dark:text-neutral-300'"
                             >
-                                {{ tier.is_active ? 'active' : 'inactive' }}
+                                {{ tier.is_active ? t('marketing.vip_tier_manager.active') : t('marketing.vip_tier_manager.inactive') }}
                             </span>
                         </td>
                         <td class="px-3 py-2">
@@ -272,7 +275,7 @@ load();
                                     :disabled="busy"
                                     @click="edit(tier)"
                                 >
-                                    Edit
+                                    {{ t('marketing.common.edit') }}
                                 </button>
                                 <button
                                     type="button"
@@ -280,7 +283,7 @@ load();
                                     :disabled="busy"
                                     @click="remove(tier)"
                                 >
-                                    Delete
+                                    {{ t('marketing.common.delete') }}
                                 </button>
                             </div>
                         </td>
@@ -289,14 +292,14 @@ load();
             </table>
 
             <div class="flex flex-wrap items-center justify-between gap-2 text-xs text-stone-500 dark:text-neutral-400">
-                <div>{{ filteredRows.length }} result(s)</div>
+                <div>{{ t('marketing.common.results_count', { count: filteredRows.length }) }}</div>
                 <div class="flex items-center gap-2">
                     <SecondaryButton type="button" :disabled="!canGoPrevious" @click="listPage -= 1">
-                        Previous
+                        {{ t('marketing.common.previous') }}
                     </SecondaryButton>
-                    <span>Page {{ listPage }} / {{ totalPages }}</span>
+                    <span>{{ t('marketing.common.page_of', { page: listPage, total: totalPages }) }}</span>
                     <SecondaryButton type="button" :disabled="!canGoNext" @click="listPage += 1">
-                        Next
+                        {{ t('marketing.common.next') }}
                     </SecondaryButton>
                 </div>
             </div>

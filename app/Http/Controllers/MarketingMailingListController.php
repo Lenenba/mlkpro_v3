@@ -3,9 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Models\Campaign;
+use App\Models\Customer;
 use App\Models\MailingList;
 use App\Models\User;
 use App\Services\Campaigns\MailingListService;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
@@ -55,14 +57,14 @@ class MarketingMailingListController extends Controller
 
         $customers = $mailingList->customers()
             ->where('customers.user_id', $owner->id)
-            ->when($search !== '', function ($query) use ($search): void {
-                $query->where(function ($nested) use ($search): void {
-                    $nested->where('customers.company_name', 'like', '%' . $search . '%')
-                        ->orWhere('customers.first_name', 'like', '%' . $search . '%')
-                        ->orWhere('customers.last_name', 'like', '%' . $search . '%')
-                        ->orWhere('customers.email', 'like', '%' . $search . '%')
-                        ->orWhere('customers.phone', 'like', '%' . $search . '%');
-                });
+            ->when($search !== '', function (Builder $query) use ($search): void {
+                $this->applyCustomerSearch($query, $search, [
+                    'customers.company_name',
+                    'customers.first_name',
+                    'customers.last_name',
+                    'customers.email',
+                    'customers.phone',
+                ]);
             })
             ->orderBy('customers.company_name')
             ->orderBy('customers.first_name')
@@ -87,6 +89,72 @@ class MarketingMailingListController extends Controller
                 'createdBy:id,name,email',
                 'updatedBy:id,name,email',
             ]),
+            'customers' => $customers,
+        ]);
+    }
+
+    public function availableCustomers(Request $request, MailingList $mailingList)
+    {
+        [$owner, , $canManage] = $this->resolveAccess($request->user());
+        if (!$canManage) {
+            abort(403);
+        }
+
+        if ((int) $mailingList->user_id !== (int) $owner->id) {
+            abort(404);
+        }
+
+        $validated = $request->validate([
+            'search' => 'nullable|string|max:120',
+            'per_page' => 'nullable|integer|min:5|max:100',
+        ]);
+
+        $perPage = (int) ($validated['per_page'] ?? 25);
+        $search = trim((string) ($validated['search'] ?? ''));
+
+        $customers = Customer::query()
+            ->where('user_id', $owner->id)
+            ->whereNotIn('id', function ($query) use ($mailingList): void {
+                $query->select('customer_id')
+                    ->from('mailing_list_customers')
+                    ->where('mailing_list_id', $mailingList->id);
+            })
+            ->when($search !== '', function (Builder $query) use ($search): void {
+                $this->applyCustomerSearch($query, $search, [
+                    'company_name',
+                    'first_name',
+                    'last_name',
+                    'email',
+                    'phone',
+                ]);
+            })
+            ->orderBy('company_name')
+            ->orderBy('first_name')
+            ->orderBy('last_name')
+            ->paginate($perPage, [
+                'id',
+                'first_name',
+                'last_name',
+                'company_name',
+                'email',
+                'phone',
+                'is_vip',
+                'vip_tier_code',
+            ])
+            ->through(function (Customer $customer) {
+                return [
+                    'id' => (int) $customer->id,
+                    'first_name' => (string) ($customer->first_name ?? ''),
+                    'last_name' => (string) ($customer->last_name ?? ''),
+                    'company_name' => (string) ($customer->company_name ?? ''),
+                    'email' => (string) ($customer->email ?? ''),
+                    'phone' => (string) ($customer->phone ?? ''),
+                    'is_vip' => (bool) ($customer->is_vip ?? false),
+                    'vip_tier_code' => $customer->vip_tier_code,
+                ];
+            });
+
+        return response()->json([
             'customers' => $customers,
         ]);
     }
@@ -310,5 +378,34 @@ class MarketingMailingListController extends Controller
             || (bool) $membership?->hasPermission('campaigns.send');
 
         return [$owner, $canView, $canManage];
+    }
+
+    /**
+     * @param array<int, string> $columns
+     */
+    private function applyCustomerSearch(Builder $query, string $search, array $columns): void
+    {
+        $terms = collect(preg_split('/[\s,;]+/', trim($search)) ?: [])
+            ->map(fn ($term) => trim((string) $term))
+            ->filter()
+            ->values();
+
+        if ($terms->isEmpty() || $columns === []) {
+            return;
+        }
+
+        $terms->each(function (string $term) use ($query, $columns): void {
+            $like = '%' . $term . '%';
+            $query->where(function (Builder $nested) use ($columns, $like): void {
+                foreach ($columns as $index => $column) {
+                    if ($index === 0) {
+                        $nested->where($column, 'like', $like);
+                        continue;
+                    }
+
+                    $nested->orWhere($column, 'like', $like);
+                }
+            });
+        });
     }
 }

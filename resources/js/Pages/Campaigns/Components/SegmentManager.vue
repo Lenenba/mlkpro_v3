@@ -1,6 +1,7 @@
 <script setup>
 import { computed, ref, watch } from 'vue';
 import axios from 'axios';
+import { useI18n } from 'vue-i18n';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingTextarea from '@/Components/FloatingTextarea.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
@@ -15,6 +16,7 @@ const props = defineProps({
 });
 
 const emit = defineEmits(['updated']);
+const { t } = useI18n();
 
 const rows = ref(Array.isArray(props.segments) ? props.segments : []);
 const busy = ref(false);
@@ -110,7 +112,7 @@ const load = async () => {
         rows.value = Array.isArray(response.data?.segments) ? response.data.segments : [];
         emit('updated', rows.value);
     } catch (requestError) {
-        error.value = requestError?.response?.data?.message || requestError?.message || 'Unable to load segments.';
+        error.value = requestError?.response?.data?.message || requestError?.message || t('marketing.segment_manager.error_load');
     } finally {
         isLoadingList.value = false;
     }
@@ -144,23 +146,23 @@ const save = async () => {
 
         if (editingId.value) {
             await axios.put(route('marketing.segments.update', editingId.value), payload);
-            info.value = 'Segment updated.';
+            info.value = t('marketing.segment_manager.info_updated');
         } else {
             await axios.post(route('marketing.segments.store'), payload);
-            info.value = 'Segment created.';
+            info.value = t('marketing.segment_manager.info_created');
         }
 
         resetForm();
         await load();
     } catch (requestError) {
-        error.value = requestError?.response?.data?.message || requestError?.message || 'Unable to save segment.';
+        error.value = requestError?.response?.data?.message || requestError?.message || t('marketing.segment_manager.error_save');
     } finally {
         busy.value = false;
     }
 };
 
 const destroySegment = async (segment) => {
-    if (!confirm(`Delete segment "${segment.name}"?`)) {
+    if (!confirm(t('marketing.segment_manager.confirm_delete', { name: segment.name }))) {
         return;
     }
 
@@ -169,10 +171,10 @@ const destroySegment = async (segment) => {
     info.value = '';
     try {
         await axios.delete(route('marketing.segments.destroy', segment.id));
-        info.value = 'Segment deleted.';
+        info.value = t('marketing.segment_manager.info_deleted');
         await load();
     } catch (requestError) {
-        error.value = requestError?.response?.data?.message || requestError?.message || 'Unable to delete segment.';
+        error.value = requestError?.response?.data?.message || requestError?.message || t('marketing.segment_manager.error_delete');
     } finally {
         busy.value = false;
     }
@@ -188,13 +190,15 @@ const previewCount = async () => {
             exclusions: parseJson(form.value.exclusions, { operator: 'AND', rules: [] }),
         });
         const total = Number(response.data?.counts?.total_eligible || 0);
-        info.value = `Eligible contacts: ${total}`;
+        info.value = t('marketing.segment_manager.info_eligible_contacts', { count: total });
     } catch (requestError) {
-        error.value = requestError?.response?.data?.message || requestError?.message || 'Unable to preview count.';
+        error.value = requestError?.response?.data?.message || requestError?.message || t('marketing.segment_manager.error_preview');
     } finally {
         busy.value = false;
     }
 };
+
+load();
 </script>
 
 <template>
@@ -207,10 +211,10 @@ const previewCount = async () => {
                     <path d="M3 14h7v7H3z" />
                     <path d="M14 14h7v7h-7z" />
                 </svg>
-                <span>Segments</span>
+                <span>{{ t('marketing.segment_manager.title') }}</span>
             </h3>
             <SecondaryButton :disabled="busy || isLoadingList" @click="load">
-                Reload
+                {{ t('marketing.common.reload') }}
             </SecondaryButton>
         </div>
 
@@ -225,47 +229,47 @@ const previewCount = async () => {
             <div class="grid grid-cols-1 gap-2 md:grid-cols-2">
                 <FloatingInput
                     v-model="form.name"
-                    label="Segment name"
+                    :label="t('marketing.segment_manager.segment_name')"
                 />
                 <FloatingInput
                     v-model="form.description"
-                    label="Description"
+                    :label="t('marketing.segment_manager.description')"
                 />
                 <FloatingTextarea
                     v-model="form.filters"
-                    label="Filters JSON"
+                    :label="t('marketing.segment_manager.filters_json')"
                     class="font-mono text-xs"
                 />
                 <FloatingTextarea
                     v-model="form.exclusions"
-                    label="Exclusions JSON"
+                    :label="t('marketing.segment_manager.exclusions_json')"
                     class="font-mono text-xs"
                 />
                 <FloatingInput
                     v-model="form.tags"
-                    label="Tags"
+                    :label="t('marketing.segment_manager.tags')"
                     class="md:col-span-2"
                 />
             </div>
             <div class="mt-2 flex flex-wrap items-center gap-2">
                 <PrimaryButton type="button" :disabled="busy" @click="save">
-                    {{ editingId ? 'Update segment' : 'Create segment' }}
+                    {{ editingId ? t('marketing.segment_manager.update_segment') : t('marketing.segment_manager.create_segment') }}
                 </PrimaryButton>
                 <SecondaryButton type="button" :disabled="busy" @click="previewCount">
-                    Preview count
+                    {{ t('marketing.segment_manager.preview_count') }}
                 </SecondaryButton>
                 <SecondaryButton type="button" :disabled="busy" @click="resetForm">
-                    Reset
+                    {{ t('marketing.common.reset') }}
                 </SecondaryButton>
             </div>
         </div>
 
         <div class="space-y-3 rounded-sm border border-stone-200 bg-white p-3 dark:border-neutral-700 dark:bg-neutral-900">
             <div class="grid grid-cols-1 gap-2 md:grid-cols-3">
-                <FloatingInput v-model="listSearch" label="Search segment" />
+                <FloatingInput v-model="listSearch" :label="t('marketing.segment_manager.search_segment')" />
                 <FloatingSelect
                     v-model="listPerPage"
-                    label="Rows / page"
+                    :label="t('marketing.common.rows_per_page')"
                     :options="perPageOptions.map((value) => ({ value, label: String(value) }))"
                     option-value="value"
                     option-label="label"
@@ -274,10 +278,10 @@ const previewCount = async () => {
             <table class="min-w-full divide-y divide-stone-200 text-sm dark:divide-neutral-700">
                 <thead>
                     <tr class="text-left text-xs uppercase text-stone-500 dark:text-neutral-400">
-                        <th class="px-3 py-2 font-medium">Name</th>
-                        <th class="px-3 py-2 font-medium">Eligible cache</th>
-                        <th class="px-3 py-2 font-medium">Updated</th>
-                        <th class="px-3 py-2 font-medium text-right">Actions</th>
+                        <th class="px-3 py-2 font-medium">{{ t('marketing.template_manager.name') }}</th>
+                        <th class="px-3 py-2 font-medium">{{ t('marketing.segment_manager.eligible_cache') }}</th>
+                        <th class="px-3 py-2 font-medium">{{ t('marketing.segment_manager.updated') }}</th>
+                        <th class="px-3 py-2 font-medium text-right">{{ t('marketing.template_manager.actions') }}</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-stone-200 dark:divide-neutral-700">
@@ -290,7 +294,7 @@ const previewCount = async () => {
                     </template>
                     <tr v-else-if="pagedRows.length === 0">
                         <td colspan="4" class="px-3 py-6 text-center text-xs text-stone-500 dark:text-neutral-400">
-                            No segment found.
+                            {{ t('marketing.segment_manager.no_segment_found') }}
                         </td>
                     </tr>
                     <tr v-for="segment in pagedRows" :key="`segment-${segment.id}`">
@@ -308,7 +312,7 @@ const previewCount = async () => {
                                     :disabled="busy"
                                     @click="edit(segment)"
                                 >
-                                    Edit
+                                    {{ t('marketing.common.edit') }}
                                 </button>
                                 <button
                                     type="button"
@@ -316,7 +320,7 @@ const previewCount = async () => {
                                     :disabled="busy"
                                     @click="destroySegment(segment)"
                                 >
-                                    Delete
+                                    {{ t('marketing.common.delete') }}
                                 </button>
                             </div>
                         </td>
@@ -325,14 +329,14 @@ const previewCount = async () => {
             </table>
 
             <div class="flex flex-wrap items-center justify-between gap-2 text-xs text-stone-500 dark:text-neutral-400">
-                <div>{{ filteredRows.length }} result(s)</div>
+                <div>{{ t('marketing.common.results_count', { count: filteredRows.length }) }}</div>
                 <div class="flex items-center gap-2">
                     <SecondaryButton type="button" :disabled="!canGoPrevious" @click="listPage -= 1">
-                        Previous
+                        {{ t('marketing.common.previous') }}
                     </SecondaryButton>
-                    <span>Page {{ listPage }} / {{ totalPages }}</span>
+                    <span>{{ t('marketing.common.page_of', { page: listPage, total: totalPages }) }}</span>
                     <SecondaryButton type="button" :disabled="!canGoNext" @click="listPage += 1">
-                        Next
+                        {{ t('marketing.common.next') }}
                     </SecondaryButton>
                 </div>
             </div>

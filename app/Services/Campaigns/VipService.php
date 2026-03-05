@@ -176,6 +176,9 @@ class VipService
             'window_days' => $automation['evaluation_window_days'],
             'minimum_total_spend' => $automation['minimum_total_spend'],
             'minimum_paid_orders' => $automation['minimum_paid_orders'],
+            'automation_mode' => null,
+            'tier_rules_configured' => count($automation['tier_rules']),
+            'tier_rules_active' => 0,
             'customers_processed' => 0,
             'customers_updated' => 0,
             'customers_promoted' => 0,
@@ -189,15 +192,25 @@ class VipService
             return $summary;
         }
 
-        $hasThreshold = $automation['minimum_total_spend'] !== null
+        $tierRules = $this->resolveTierRulesForAccount($accountOwner, $automation['tier_rules']);
+        $summary['tier_rules_active'] = count($tierRules);
+        $usesTierRules = $tierRules !== [];
+
+        if ($usesTierRules) {
+            $summary['automation_mode'] = 'tier_rules';
+        } else {
+            $summary['automation_mode'] = 'global';
+        }
+
+        $hasGlobalThreshold = $automation['minimum_total_spend'] !== null
             || $automation['minimum_paid_orders'] !== null;
-        if (!$hasThreshold) {
+        if (!$usesTierRules && !$hasGlobalThreshold) {
             $summary['skipped_reason'] = 'missing_thresholds';
             return $summary;
         }
 
         $defaultTier = null;
-        if ($automation['default_tier_code'] !== '') {
+        if (!$usesTierRules && $automation['default_tier_code'] !== '') {
             $defaultTier = VipTier::query()
                 ->forAccount($accountOwner->id)
                 ->where('is_active', true)
@@ -205,15 +218,20 @@ class VipService
                 ->first();
         }
 
-        $windowStart = now()->subDays($automation['evaluation_window_days'])->startOfDay();
+        $windowDays = $usesTierRules
+            ? collect($tierRules)
+                ->pluck('evaluation_window_days')
+                ->map(fn ($days) => (int) $days)
+                ->filter(fn ($days) => $days > 0)
+                ->unique()
+                ->values()
+                ->all()
+            : [$automation['evaluation_window_days']];
+        if ($windowDays === []) {
+            $windowDays = [max(1, (int) $automation['evaluation_window_days'])];
+        }
 
-        $salesStats = Sale::query()
-            ->selectRaw('customer_id, COUNT(*) as paid_orders, COALESCE(SUM(total), 0) as total_spend')
-            ->where('user_id', $accountOwner->id)
-            ->where('status', Sale::STATUS_PAID)
-            ->whereNotNull('customer_id')
-            ->where('created_at', '>=', $windowStart)
-            ->groupBy('customer_id');
+        $salesStats = $this->buildSalesStatsQuery($accountOwner->id, $windowDays);
 
         $excludedCustomerLookup = collect($automation['excluded_customer_ids'])
             ->map(fn ($id) => (int) $id)
@@ -222,16 +240,7 @@ class VipService
             ->all();
 
         Customer::query()
-            ->select([
-                'customers.id',
-                'customers.user_id',
-                'customers.is_vip',
-                'customers.vip_tier_id',
-                'customers.vip_tier_code',
-                'customers.vip_since_at',
-                DB::raw('COALESCE(vip_automation_stats.total_spend, 0) as auto_total_spend'),
-                DB::raw('COALESCE(vip_automation_stats.paid_orders, 0) as auto_paid_orders'),
-            ])
+            ->select($this->customerSelectFields($windowDays))
             ->leftJoinSub($salesStats, 'vip_automation_stats', function ($join): void {
                 $join->on('vip_automation_stats.customer_id', '=', 'customers.id');
             })
@@ -240,6 +249,8 @@ class VipService
             ->chunkById(200, function (Collection $customers) use (
                 &$summary,
                 $automation,
+                $tierRules,
+                $usesTierRules,
                 $defaultTier,
                 $dryRun,
                 $excludedCustomerLookup
@@ -251,39 +262,67 @@ class VipService
 
                     $summary['customers_processed'] += 1;
 
-                    $totalSpend = (float) ($customer->auto_total_spend ?? 0);
-                    $paidOrders = (int) ($customer->auto_paid_orders ?? 0);
-                    $isEligible = $this->meetsAutomationThreshold($automation, $totalSpend, $paidOrders);
-
                     $currentIsVip = (bool) $customer->is_vip;
                     $currentTierId = $customer->vip_tier_id ? (int) $customer->vip_tier_id : null;
                     $currentTierCode = $customer->vip_tier_code
                         ? strtoupper((string) $customer->vip_tier_code)
                         : null;
 
-                    if (!$isEligible && !$automation['downgrade_when_not_eligible']) {
-                        continue;
-                    }
+                    $targetIsVip = false;
+                    $targetTierId = null;
+                    $targetTierCode = null;
+                    $selectedWindowDays = max(1, (int) $automation['evaluation_window_days']);
+                    $selectedMinimumSpend = $automation['minimum_total_spend'];
+                    $selectedMinimumOrders = $automation['minimum_paid_orders'];
+                    $totalSpend = 0.0;
+                    $paidOrders = 0;
 
-                    $targetIsVip = $isEligible;
-                    $targetTierId = $currentTierId;
-                    $targetTierCode = $currentTierCode;
+                    if ($usesTierRules) {
+                        $matchedRule = $this->resolveTierRuleAssignment(
+                            $customer,
+                            $tierRules,
+                            $automation['preserve_existing_tier']
+                        );
 
-                    if ($targetIsVip) {
-                        $hasCurrentTier = $currentTierId !== null || $currentTierCode !== null;
-                        $shouldAssignDefaultTier = $defaultTier
-                            && (!$automation['preserve_existing_tier'] || !$hasCurrentTier);
+                        if ($matchedRule) {
+                            $targetIsVip = true;
+                            $targetTierId = (int) $matchedRule['tier_id'];
+                            $targetTierCode = strtoupper((string) $matchedRule['tier_code']);
+                            $selectedWindowDays = (int) $matchedRule['evaluation_window_days'];
+                            $selectedMinimumSpend = $matchedRule['minimum_total_spend'];
+                            $selectedMinimumOrders = $matchedRule['minimum_paid_orders'];
+                            $totalSpend = (float) ($matchedRule['matched_total_spend'] ?? 0);
+                            $paidOrders = (int) ($matchedRule['matched_paid_orders'] ?? 0);
+                        }
+                    } else {
+                        $metrics = $this->metricsForWindow($customer, $selectedWindowDays);
+                        $totalSpend = (float) $metrics['total_spend'];
+                        $paidOrders = (int) $metrics['paid_orders'];
+                        $targetIsVip = $this->meetsAutomationThreshold($automation, $totalSpend, $paidOrders);
 
-                        if ($shouldAssignDefaultTier) {
-                            $targetTierId = (int) $defaultTier->id;
-                            $targetTierCode = strtoupper((string) $defaultTier->code);
+                        if ($targetIsVip) {
+                            $hasCurrentTier = $currentTierId !== null || $currentTierCode !== null;
+                            $shouldAssignDefaultTier = $defaultTier
+                                && (!$automation['preserve_existing_tier'] || !$hasCurrentTier);
+
+                            if ($shouldAssignDefaultTier) {
+                                $targetTierId = (int) $defaultTier->id;
+                                $targetTierCode = strtoupper((string) $defaultTier->code);
+                            } elseif ($automation['preserve_existing_tier']) {
+                                $targetTierId = $currentTierId;
+                                $targetTierCode = $currentTierCode;
+                            } else {
+                                $targetTierId = null;
+                                $targetTierCode = null;
+                            }
                         } elseif (!$automation['preserve_existing_tier']) {
                             $targetTierId = null;
                             $targetTierCode = null;
                         }
-                    } else {
-                        $targetTierId = null;
-                        $targetTierCode = null;
+                    }
+
+                    if (!$targetIsVip && !$automation['downgrade_when_not_eligible']) {
+                        continue;
                     }
 
                     $targetVipSinceAt = $targetIsVip
@@ -329,9 +368,10 @@ class VipService
                         'vip_tier_id' => $targetTierId,
                         'previous_vip_tier_code' => $currentTierCode,
                         'vip_tier_code' => $targetTierCode,
-                        'window_days' => $automation['evaluation_window_days'],
-                        'minimum_total_spend' => $automation['minimum_total_spend'],
-                        'minimum_paid_orders' => $automation['minimum_paid_orders'],
+                        'automation_mode' => $summary['automation_mode'],
+                        'window_days' => $selectedWindowDays,
+                        'minimum_total_spend' => $selectedMinimumSpend,
+                        'minimum_paid_orders' => $selectedMinimumOrders,
                         'total_spend' => $totalSpend,
                         'paid_orders' => $paidOrders,
                     ], 'Customer VIP profile synchronized automatically');
@@ -418,6 +458,174 @@ class VipService
     }
 
     /**
+     * @param array<int, array<string, mixed>> $rules
+     * @return array<int, array<string, mixed>>
+     */
+    private function resolveTierRulesForAccount(User $accountOwner, array $rules): array
+    {
+        if ($rules === []) {
+            return [];
+        }
+
+        $activeTiersByCode = VipTier::query()
+            ->forAccount($accountOwner->id)
+            ->where('is_active', true)
+            ->get()
+            ->keyBy(fn (VipTier $tier) => strtoupper((string) $tier->code));
+
+        return collect($rules)
+            ->map(function (array $rule) use ($activeTiersByCode): ?array {
+                $code = strtoupper(trim((string) ($rule['tier_code'] ?? '')));
+                if ($code === '' || !$activeTiersByCode->has($code)) {
+                    return null;
+                }
+
+                /** @var VipTier $tier */
+                $tier = $activeTiersByCode->get($code);
+
+                return [
+                    'tier_id' => (int) $tier->id,
+                    'tier_code' => strtoupper((string) $tier->code),
+                    'evaluation_window_days' => max(1, (int) ($rule['evaluation_window_days'] ?? 365)),
+                    'minimum_total_spend' => $rule['minimum_total_spend'],
+                    'minimum_paid_orders' => $rule['minimum_paid_orders'],
+                    'priority' => isset($rule['priority']) && is_numeric($rule['priority'])
+                        ? (int) $rule['priority']
+                        : null,
+                ];
+            })
+            ->filter()
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @param array<int, array<string, mixed>> $tierRules
+     * @return array<string, mixed>|null
+     */
+    private function resolveTierRuleAssignment(
+        Customer $customer,
+        array $tierRules,
+        bool $preserveExistingTier
+    ): ?array {
+        $matchingRules = [];
+
+        foreach ($tierRules as $rule) {
+            $metrics = $this->metricsForWindow($customer, (int) $rule['evaluation_window_days']);
+            if (!$this->meetsAutomationThreshold(
+                $rule,
+                (float) $metrics['total_spend'],
+                (int) $metrics['paid_orders']
+            )) {
+                continue;
+            }
+
+            $rule['matched_total_spend'] = (float) $metrics['total_spend'];
+            $rule['matched_paid_orders'] = (int) $metrics['paid_orders'];
+            $matchingRules[] = $rule;
+        }
+
+        if ($matchingRules === []) {
+            return null;
+        }
+
+        if ($preserveExistingTier) {
+            $currentTierCode = strtoupper(trim((string) ($customer->vip_tier_code ?? '')));
+            if ($currentTierCode !== '') {
+                foreach ($matchingRules as $rule) {
+                    if (strtoupper((string) $rule['tier_code']) === $currentTierCode) {
+                        return $rule;
+                    }
+                }
+            }
+        }
+
+        return $matchingRules[0];
+    }
+
+    /**
+     * @param array<int, int> $windowDays
+     * @return \Illuminate\Database\Eloquent\Builder<\App\Models\Sale>
+     */
+    private function buildSalesStatsQuery(int $accountOwnerId, array $windowDays): Builder
+    {
+        $maxWindowDays = max($windowDays);
+        $query = Sale::query()
+            ->select('customer_id')
+            ->where('user_id', $accountOwnerId)
+            ->where('status', Sale::STATUS_PAID)
+            ->whereNotNull('customer_id')
+            ->where('created_at', '>=', now()->subDays($maxWindowDays)->startOfDay());
+
+        foreach ($windowDays as $days) {
+            $windowStart = now()->subDays($days)->startOfDay()->toDateTimeString();
+            $spendAlias = $this->spendAlias($days);
+            $ordersAlias = $this->ordersAlias($days);
+
+            $query->selectRaw(
+                "COALESCE(SUM(CASE WHEN created_at >= ? THEN total ELSE 0 END), 0) as {$spendAlias}",
+                [$windowStart]
+            );
+            $query->selectRaw(
+                "COALESCE(SUM(CASE WHEN created_at >= ? THEN 1 ELSE 0 END), 0) as {$ordersAlias}",
+                [$windowStart]
+            );
+        }
+
+        return $query->groupBy('customer_id');
+    }
+
+    /**
+     * @param array<int, int> $windowDays
+     * @return array<int, mixed>
+     */
+    private function customerSelectFields(array $windowDays): array
+    {
+        $fields = [
+            'customers.id',
+            'customers.user_id',
+            'customers.is_vip',
+            'customers.vip_tier_id',
+            'customers.vip_tier_code',
+            'customers.vip_since_at',
+        ];
+
+        foreach ($windowDays as $days) {
+            $spendAlias = $this->spendAlias($days);
+            $ordersAlias = $this->ordersAlias($days);
+
+            $fields[] = DB::raw("COALESCE(vip_automation_stats.{$spendAlias}, 0) as {$spendAlias}");
+            $fields[] = DB::raw("COALESCE(vip_automation_stats.{$ordersAlias}, 0) as {$ordersAlias}");
+        }
+
+        return $fields;
+    }
+
+    /**
+     * @return array{total_spend: float, paid_orders: int}
+     */
+    private function metricsForWindow(Customer $customer, int $windowDays): array
+    {
+        $spendAlias = $this->spendAlias($windowDays);
+        $ordersAlias = $this->ordersAlias($windowDays);
+
+        return [
+            'total_spend' => (float) ($customer->{$spendAlias} ?? 0),
+            'paid_orders' => (int) ($customer->{$ordersAlias} ?? 0),
+        ];
+    }
+
+    private function spendAlias(int $windowDays): string
+    {
+        return 'auto_total_spend_' . max(1, $windowDays);
+    }
+
+    private function ordersAlias(int $windowDays): string
+    {
+        return 'auto_paid_orders_' . max(1, $windowDays);
+    }
+
+    /**
      * @return array{
      *     enabled: bool,
      *     evaluation_window_days: int,
@@ -426,7 +634,14 @@ class VipService
      *     default_tier_code: string,
      *     preserve_existing_tier: bool,
      *     downgrade_when_not_eligible: bool,
-     *     excluded_customer_ids: array<int, int>
+     *     excluded_customer_ids: array<int, int>,
+     *     tier_rules: array<int, array{
+     *         tier_code: string,
+     *         evaluation_window_days: int,
+     *         minimum_total_spend: ?float,
+     *         minimum_paid_orders: ?int,
+     *         priority: ?int
+     *     }>
      * }
      */
     private function normalizeAutomationConfig(mixed $value): array
@@ -438,10 +653,78 @@ class VipService
         $minimumPaidOrders = isset($config['minimum_paid_orders']) && is_numeric($config['minimum_paid_orders'])
             ? max(0, (int) $config['minimum_paid_orders'])
             : null;
+        $baseWindowDays = max(1, (int) ($config['evaluation_window_days'] ?? 365));
+
+        $normalizedTierRules = collect($config['tier_rules'] ?? [])
+            ->map(function ($rule, int $index) use ($baseWindowDays): ?array {
+                if (!is_array($rule)) {
+                    return null;
+                }
+
+                $tierCode = strtoupper(trim((string) ($rule['tier_code'] ?? '')));
+                if ($tierCode === '') {
+                    return null;
+                }
+
+                $minimumTotalSpend = isset($rule['minimum_total_spend']) && is_numeric($rule['minimum_total_spend'])
+                    ? max(0.0, (float) $rule['minimum_total_spend'])
+                    : null;
+                $minimumPaidOrders = isset($rule['minimum_paid_orders']) && is_numeric($rule['minimum_paid_orders'])
+                    ? max(0, (int) $rule['minimum_paid_orders'])
+                    : null;
+
+                if ($minimumTotalSpend === null && $minimumPaidOrders === null) {
+                    return null;
+                }
+
+                $priority = isset($rule['priority']) && is_numeric($rule['priority'])
+                    ? (int) $rule['priority']
+                    : null;
+
+                return [
+                    'tier_code' => $tierCode,
+                    'evaluation_window_days' => isset($rule['evaluation_window_days']) && is_numeric($rule['evaluation_window_days'])
+                        ? max(1, (int) $rule['evaluation_window_days'])
+                        : $baseWindowDays,
+                    'minimum_total_spend' => $minimumTotalSpend,
+                    'minimum_paid_orders' => $minimumPaidOrders,
+                    'priority' => $priority,
+                    'sequence' => $index,
+                ];
+            })
+            ->filter()
+            ->sort(function (array $left, array $right): int {
+                $leftPriority = $left['priority'] ?? (1000 - (int) $left['sequence']);
+                $rightPriority = $right['priority'] ?? (1000 - (int) $right['sequence']);
+
+                if ($leftPriority !== $rightPriority) {
+                    return $rightPriority <=> $leftPriority;
+                }
+
+                $leftSpend = $left['minimum_total_spend'] ?? -1;
+                $rightSpend = $right['minimum_total_spend'] ?? -1;
+                if ($leftSpend !== $rightSpend) {
+                    return $rightSpend <=> $leftSpend;
+                }
+
+                $leftOrders = $left['minimum_paid_orders'] ?? -1;
+                $rightOrders = $right['minimum_paid_orders'] ?? -1;
+                if ($leftOrders !== $rightOrders) {
+                    return $rightOrders <=> $leftOrders;
+                }
+
+                return ((int) $left['sequence']) <=> ((int) $right['sequence']);
+            })
+            ->values()
+            ->map(function (array $rule): array {
+                unset($rule['sequence']);
+                return $rule;
+            })
+            ->all();
 
         return [
             'enabled' => (bool) ($config['enabled'] ?? false),
-            'evaluation_window_days' => max(1, (int) ($config['evaluation_window_days'] ?? 365)),
+            'evaluation_window_days' => $baseWindowDays,
             'minimum_total_spend' => $minimumTotalSpend,
             'minimum_paid_orders' => $minimumPaidOrders,
             'default_tier_code' => strtoupper(trim((string) ($config['default_tier_code'] ?? ''))),
@@ -453,6 +736,7 @@ class VipService
                 ->unique()
                 ->values()
                 ->all(),
+            'tier_rules' => $normalizedTierRules,
         ];
     }
 }

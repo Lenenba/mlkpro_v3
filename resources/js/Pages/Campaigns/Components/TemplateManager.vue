@@ -1,6 +1,7 @@
 <script setup>
 import { computed, ref, watch } from 'vue';
 import axios from 'axios';
+import { useI18n } from 'vue-i18n';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
 import FloatingTextarea from '@/Components/FloatingTextarea.vue';
@@ -13,6 +14,8 @@ const props = defineProps({
         default: () => ({}),
     },
 });
+
+const { t } = useI18n();
 
 const rows = ref([]);
 const busy = ref(false);
@@ -51,7 +54,7 @@ const channelOptions = [
     { value: 'IN_APP', label: 'IN_APP' },
 ];
 const campaignTypeOptions = computed(() => ([
-    { value: '', label: 'All campaign types' },
+    { value: '', label: t('marketing.settings.offers.campaign_type_all') },
     ...campaignTypes.value.map((type) => ({
         value: type,
         label: type,
@@ -183,7 +186,7 @@ const load = async () => {
         const response = await axios.get(route('marketing.templates.index'));
         rows.value = Array.isArray(response.data?.templates) ? response.data.templates : [];
     } catch (requestError) {
-        error.value = requestError?.response?.data?.message || requestError?.message || 'Unable to load templates.';
+        error.value = requestError?.response?.data?.message || requestError?.message || t('marketing.template_manager.error_load');
     } finally {
         isLoadingList.value = false;
     }
@@ -206,16 +209,16 @@ const save = async () => {
 
         if (editingId.value) {
             await axios.put(route('marketing.templates.update', editingId.value), payload);
-            info.value = 'Template updated.';
+            info.value = t('marketing.template_manager.info_updated');
         } else {
             await axios.post(route('marketing.templates.store'), payload);
-            info.value = 'Template created.';
+            info.value = t('marketing.template_manager.info_created');
         }
 
         resetForm();
         await load();
     } catch (requestError) {
-        error.value = requestError?.response?.data?.message || requestError?.message || 'Unable to save template.';
+        error.value = requestError?.response?.data?.message || requestError?.message || t('marketing.template_manager.error_save');
     } finally {
         busy.value = false;
     }
@@ -230,7 +233,7 @@ const edit = (template) => {
 };
 
 const destroyTemplate = async (template) => {
-    if (!confirm(`Delete template "${template.name}"?`)) {
+    if (!confirm(t('marketing.template_manager.confirm_delete', { name: template.name }))) {
         return;
     }
 
@@ -239,10 +242,10 @@ const destroyTemplate = async (template) => {
     info.value = '';
     try {
         await axios.delete(route('marketing.templates.destroy', template.id));
-        info.value = 'Template deleted.';
+        info.value = t('marketing.template_manager.info_deleted');
         await load();
     } catch (requestError) {
-        error.value = requestError?.response?.data?.message || requestError?.message || 'Unable to delete template.';
+        error.value = requestError?.response?.data?.message || requestError?.message || t('marketing.template_manager.error_delete');
     } finally {
         busy.value = false;
     }
@@ -259,7 +262,7 @@ const previewTemplate = async () => {
         });
         preview.value = response.data?.preview || null;
     } catch (requestError) {
-        error.value = requestError?.response?.data?.message || requestError?.message || 'Unable to preview template.';
+        error.value = requestError?.response?.data?.message || requestError?.message || t('marketing.template_manager.error_preview');
     } finally {
         busy.value = false;
     }
@@ -278,10 +281,10 @@ load();
                     <path d="M8 12h8" />
                     <path d="M8 16h5" />
                 </svg>
-                <span>Templates</span>
+                <span>{{ t('marketing.template_manager.title') }}</span>
             </h3>
             <SecondaryButton :disabled="busy || isLoadingList" @click="load">
-                Reload
+                {{ t('marketing.common.reload') }}
             </SecondaryButton>
         </div>
 
@@ -296,29 +299,29 @@ load();
             <div class="grid grid-cols-1 gap-2 md:grid-cols-2">
                 <FloatingInput
                     v-model="form.name"
-                    label="Template name"
+                    :label="t('marketing.template_manager.template_name')"
                 />
                 <FloatingSelect
                     v-model="form.channel"
-                    label="Channel"
+                    :label="t('marketing.template_manager.channel')"
                     :options="channelOptions"
                     option-value="value"
                     option-label="label"
                 />
                 <FloatingSelect
                     v-model="form.campaign_type"
-                    label="Campaign type"
+                    :label="t('marketing.template_manager.campaign_type')"
                     :options="campaignTypeOptions"
                     option-value="value"
                     option-label="label"
                 />
                 <FloatingInput
                     v-model="form.language"
-                    label="Language (FR/EN)"
+                    :label="t('marketing.template_manager.language')"
                 />
                 <FloatingInput
                     v-model="form.tags"
-                    label="Tags"
+                    :label="t('marketing.template_manager.tags')"
                     class="md:col-span-2"
                 />
                 <label class="md:col-span-2 inline-flex items-center gap-2 text-xs text-stone-600 dark:text-neutral-300">
@@ -327,63 +330,63 @@ load();
                         type="checkbox"
                         class="rounded border-stone-300 text-green-600 focus:ring-green-600"
                     >
-                    <span>Set as default for this channel/type/language</span>
+                    <span>{{ t('marketing.template_manager.set_default') }}</span>
                 </label>
             </div>
 
             <div v-if="form.channel === 'EMAIL'" class="mt-2 grid grid-cols-1 gap-2">
-                <FloatingInput v-model="form.subject" label="Subject" />
-                <FloatingInput v-model="form.previewText" label="Preview text" />
-                <FloatingTextarea v-model="form.html" label="HTML body" />
+                <FloatingInput v-model="form.subject" :label="t('marketing.template_manager.subject')" />
+                <FloatingInput v-model="form.previewText" :label="t('marketing.template_manager.preview_text')" />
+                <FloatingTextarea v-model="form.html" :label="t('marketing.template_manager.html_body')" />
             </div>
 
             <div v-else-if="form.channel === 'SMS'" class="mt-2 grid grid-cols-1 gap-2">
-                <FloatingTextarea v-model="form.smsText" label="SMS text" />
+                <FloatingTextarea v-model="form.smsText" :label="t('marketing.template_manager.sms_text')" />
                 <label class="inline-flex items-center gap-2 text-xs text-stone-600 dark:text-neutral-300">
                     <input
                         v-model="form.shortener"
                         type="checkbox"
                         class="rounded border-stone-300 text-green-600 focus:ring-green-600"
                     >
-                    <span>Enable URL shortener option</span>
+                    <span>{{ t('marketing.template_manager.enable_shortener') }}</span>
                 </label>
             </div>
 
             <div v-else class="mt-2 grid grid-cols-1 gap-2">
-                <FloatingInput v-model="form.title" label="In-app title" />
-                <FloatingTextarea v-model="form.body" label="In-app body" />
-                <FloatingInput v-model="form.deepLink" label="Deep link" />
-                <FloatingInput v-model="form.image" label="Image URL" />
+                <FloatingInput v-model="form.title" :label="t('marketing.template_manager.in_app_title')" />
+                <FloatingTextarea v-model="form.body" :label="t('marketing.template_manager.in_app_body')" />
+                <FloatingInput v-model="form.deepLink" :label="t('marketing.template_manager.deep_link')" />
+                <FloatingInput v-model="form.image" :label="t('marketing.template_manager.image_url')" />
             </div>
 
             <div class="mt-2 flex flex-wrap items-center gap-2">
                 <PrimaryButton type="button" :disabled="busy" @click="save">
-                    {{ editingId ? 'Update template' : 'Create template' }}
+                    {{ editingId ? t('marketing.template_manager.update_template') : t('marketing.template_manager.create_template') }}
                 </PrimaryButton>
                 <SecondaryButton type="button" :disabled="busy" @click="previewTemplate">
-                    Preview
+                    {{ t('marketing.template_manager.preview') }}
                 </SecondaryButton>
                 <SecondaryButton type="button" :disabled="busy" @click="resetForm">
-                    Reset
+                    {{ t('marketing.common.reset') }}
                 </SecondaryButton>
             </div>
 
             <div v-if="preview" class="mt-2 rounded-sm border border-stone-200 bg-white p-2 text-xs dark:border-neutral-700 dark:bg-neutral-900">
-                <div v-if="preview.subject"><span class="font-semibold">Subject:</span> {{ preview.subject }}</div>
-                <div v-if="preview.title"><span class="font-semibold">Title:</span> {{ preview.title }}</div>
-                <div class="mt-1 whitespace-pre-wrap"><span class="font-semibold">Body:</span> {{ preview.body }}</div>
+                <div v-if="preview.subject"><span class="font-semibold">{{ t('marketing.template_manager.subject_label') }}</span> {{ preview.subject }}</div>
+                <div v-if="preview.title"><span class="font-semibold">{{ t('marketing.template_manager.title_label') }}</span> {{ preview.title }}</div>
+                <div class="mt-1 whitespace-pre-wrap"><span class="font-semibold">{{ t('marketing.template_manager.body_label') }}</span> {{ preview.body }}</div>
                 <div v-if="preview.invalid_tokens?.length" class="mt-1 text-rose-600 dark:text-rose-300">
-                    Invalid tokens: {{ preview.invalid_tokens.join(', ') }}
+                    {{ t('marketing.template_manager.invalid_tokens', { tokens: preview.invalid_tokens.join(', ') }) }}
                 </div>
             </div>
         </div>
 
         <div class="space-y-3 rounded-sm border border-stone-200 bg-white p-3 dark:border-neutral-700 dark:bg-neutral-900">
             <div class="grid grid-cols-1 gap-2 md:grid-cols-3">
-                <FloatingInput v-model="listSearch" label="Search template" />
+                <FloatingInput v-model="listSearch" :label="t('marketing.template_manager.search_template')" />
                 <FloatingSelect
                     v-model="listPerPage"
-                    label="Rows / page"
+                    :label="t('marketing.common.rows_per_page')"
                     :options="perPageOptions.map((value) => ({ value, label: String(value) }))"
                     option-value="value"
                     option-label="label"
@@ -392,11 +395,11 @@ load();
             <table class="min-w-full divide-y divide-stone-200 text-sm dark:divide-neutral-700">
                 <thead>
                     <tr class="text-left text-xs uppercase text-stone-500 dark:text-neutral-400">
-                        <th class="px-3 py-2 font-medium">Name</th>
-                        <th class="px-3 py-2 font-medium">Channel</th>
-                        <th class="px-3 py-2 font-medium">Type</th>
-                        <th class="px-3 py-2 font-medium">Default</th>
-                        <th class="px-3 py-2 font-medium text-right">Actions</th>
+                        <th class="px-3 py-2 font-medium">{{ t('marketing.template_manager.name') }}</th>
+                        <th class="px-3 py-2 font-medium">{{ t('marketing.template_manager.channel') }}</th>
+                        <th class="px-3 py-2 font-medium">{{ t('marketing.template_manager.type') }}</th>
+                        <th class="px-3 py-2 font-medium">{{ t('marketing.template_manager.default') }}</th>
+                        <th class="px-3 py-2 font-medium text-right">{{ t('marketing.template_manager.actions') }}</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-stone-200 dark:divide-neutral-700">
@@ -409,7 +412,7 @@ load();
                     </template>
                     <tr v-else-if="pagedRows.length === 0">
                         <td colspan="5" class="px-3 py-6 text-center text-xs text-stone-500 dark:text-neutral-400">
-                            No template found.
+                            {{ t('marketing.template_manager.no_template_found') }}
                         </td>
                     </tr>
                     <tr v-for="template in pagedRows" :key="`template-${template.id}`">
@@ -418,8 +421,8 @@ load();
                             <div class="text-xs text-stone-500 dark:text-neutral-400">{{ template.language || '-' }}</div>
                         </td>
                         <td class="px-3 py-2 text-stone-700 dark:text-neutral-200">{{ template.channel }}</td>
-                        <td class="px-3 py-2 text-stone-700 dark:text-neutral-200">{{ template.campaign_type || 'ALL' }}</td>
-                        <td class="px-3 py-2 text-stone-700 dark:text-neutral-200">{{ template.is_default ? 'Yes' : 'No' }}</td>
+                        <td class="px-3 py-2 text-stone-700 dark:text-neutral-200">{{ template.campaign_type || t('marketing.template_manager.all') }}</td>
+                        <td class="px-3 py-2 text-stone-700 dark:text-neutral-200">{{ template.is_default ? t('marketing.template_manager.yes') : t('marketing.template_manager.no') }}</td>
                         <td class="px-3 py-2">
                             <div class="flex items-center justify-end gap-2">
                                 <button
@@ -428,7 +431,7 @@ load();
                                     :disabled="busy"
                                     @click="edit(template)"
                                 >
-                                    Edit
+                                    {{ t('marketing.common.edit') }}
                                 </button>
                                 <button
                                     type="button"
@@ -436,7 +439,7 @@ load();
                                     :disabled="busy"
                                     @click="destroyTemplate(template)"
                                 >
-                                    Delete
+                                    {{ t('marketing.common.delete') }}
                                 </button>
                             </div>
                         </td>
@@ -445,14 +448,14 @@ load();
             </table>
 
             <div class="flex flex-wrap items-center justify-between gap-2 text-xs text-stone-500 dark:text-neutral-400">
-                <div>{{ filteredRows.length }} result(s)</div>
+                <div>{{ t('marketing.common.results_count', { count: filteredRows.length }) }}</div>
                 <div class="flex items-center gap-2">
                     <SecondaryButton type="button" :disabled="!canGoPrevious" @click="listPage -= 1">
-                        Previous
+                        {{ t('marketing.common.previous') }}
                     </SecondaryButton>
-                    <span>Page {{ listPage }} / {{ totalPages }}</span>
+                    <span>{{ t('marketing.common.page_of', { page: listPage, total: totalPages }) }}</span>
                     <SecondaryButton type="button" :disabled="!canGoNext" @click="listPage += 1">
-                        Next
+                        {{ t('marketing.common.next') }}
                     </SecondaryButton>
                 </div>
             </div>

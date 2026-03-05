@@ -480,6 +480,8 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
             ->name('marketing.mailing-lists.store');
         Route::get('/marketing/mailing-lists/{mailingList}', [MarketingMailingListController::class, 'show'])
             ->name('marketing.mailing-lists.show');
+        Route::get('/marketing/mailing-lists/{mailingList}/available-customers', [MarketingMailingListController::class, 'availableCustomers'])
+            ->name('marketing.mailing-lists.available-customers');
         Route::put('/marketing/mailing-lists/{mailingList}', [MarketingMailingListController::class, 'update'])
             ->name('marketing.mailing-lists.update');
         Route::delete('/marketing/mailing-lists/{mailingList}', [MarketingMailingListController::class, 'destroy'])

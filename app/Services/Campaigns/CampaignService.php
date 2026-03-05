@@ -100,7 +100,9 @@ class CampaignService
                 'locale' => $payload['locale'] ?? null,
                 'cta_url' => $payload['cta_url'] ?? null,
                 'is_marketing' => true,
-                'settings' => is_array($payload['settings'] ?? null) ? $payload['settings'] : null,
+                'settings' => $this->normalizeCampaignSettings(
+                    is_array($payload['settings'] ?? null) ? $payload['settings'] : []
+                ),
             ]);
 
             if ($campaign->status === Campaign::STATUS_COMPLETED) {
@@ -499,6 +501,14 @@ class CampaignService
         return collect($channels)
             ->filter(fn ($channel) => is_array($channel))
             ->map(function (array $channel): array {
+                $metadata = is_array($channel['metadata'] ?? null) ? $channel['metadata'] : [];
+                $abTesting = is_array($channel['ab_testing'] ?? null)
+                    ? $channel['ab_testing']
+                    : (is_array($metadata['ab_testing'] ?? null) ? $metadata['ab_testing'] : null);
+                if ($abTesting !== null) {
+                    $metadata['ab_testing'] = $this->normalizeAbTesting($abTesting);
+                }
+
                 return [
                     'channel' => strtoupper((string) ($channel['channel'] ?? '')),
                     'is_enabled' => array_key_exists('is_enabled', $channel) ? (bool) $channel['is_enabled'] : true,
@@ -507,13 +517,77 @@ class CampaignService
                     'body_template' => $channel['body_template'] ?? null,
                     'message_template_id' => $channel['message_template_id'] ?? null,
                     'content_override' => is_array($channel['content_override'] ?? null) ? $channel['content_override'] : null,
-                    'metadata' => is_array($channel['metadata'] ?? null) ? $channel['metadata'] : null,
+                    'metadata' => $metadata !== [] ? $metadata : null,
                 ];
             })
             ->filter(fn (array $channel) => in_array($channel['channel'], Campaign::allowedChannels(), true))
             ->unique('channel')
             ->values()
             ->all();
+    }
+
+    /**
+     * @param array<string, mixed> $settings
+     * @return array<string, mixed>
+     */
+    private function normalizeCampaignSettings(array $settings): array
+    {
+        $normalized = $settings;
+        $holdout = is_array($settings['holdout'] ?? null) ? $settings['holdout'] : [];
+        $normalized['holdout'] = [
+            'enabled' => (bool) ($holdout['enabled'] ?? false),
+            'percent' => max(0, min(100, (int) ($holdout['percent'] ?? 0))),
+        ];
+
+        $fallback = is_array($settings['channel_fallback'] ?? null) ? $settings['channel_fallback'] : [];
+        $fallbackMapInput = is_array($fallback['map'] ?? null) ? $fallback['map'] : [];
+        $fallbackMap = [];
+
+        foreach (Campaign::allowedChannels() as $sourceChannel) {
+            $source = strtoupper((string) $sourceChannel);
+            $targets = collect($fallbackMapInput[$source] ?? [])
+                ->map(fn ($value) => strtoupper((string) $value))
+                ->filter(fn (string $value) => in_array($value, Campaign::allowedChannels(), true))
+                ->reject(fn (string $value) => $value === $source)
+                ->unique()
+                ->values()
+                ->all();
+
+            if ($targets !== []) {
+                $fallbackMap[$source] = $targets;
+            }
+        }
+
+        $normalized['channel_fallback'] = [
+            'enabled' => (bool) ($fallback['enabled'] ?? false),
+            'max_depth' => max(1, min(3, (int) ($fallback['max_depth'] ?? 1))),
+            'map' => $fallbackMap,
+        ];
+
+        return $normalized;
+    }
+
+    /**
+     * @param array<string, mixed> $abTesting
+     * @return array<string, mixed>
+     */
+    private function normalizeAbTesting(array $abTesting): array
+    {
+        $variant = static function (mixed $value): array {
+            $source = is_array($value) ? $value : [];
+            return [
+                'subject_template' => $source['subject_template'] ?? null,
+                'title_template' => $source['title_template'] ?? null,
+                'body_template' => $source['body_template'] ?? null,
+            ];
+        };
+
+        return [
+            'enabled' => (bool) ($abTesting['enabled'] ?? false),
+            'split_a_percent' => max(1, min(99, (int) ($abTesting['split_a_percent'] ?? 50))),
+            'variant_a' => $variant($abTesting['variant_a'] ?? []),
+            'variant_b' => $variant($abTesting['variant_b'] ?? []),
+        ];
     }
 
     /**

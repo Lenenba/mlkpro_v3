@@ -52,6 +52,11 @@ Auto-VIP par achats:
   - nombre minimal de commandes payees
   - tier par defaut optionnel (code)
   - downgrade auto optionnel
+  - regles par tier (V2):
+    - `tier_code` (SILVER/GOLD/PLATINUM...)
+    - seuils montant/commandes
+    - fenetre (jours)
+    - priorite (la plus haute gagne)
 - execution:
   - automatique via scheduler (daily)
   - manuel via `php artisan campaigns:vip-auto-sync --account_id={tenantId}`
@@ -61,6 +66,7 @@ Comportement:
 - client atteint les seuils -> devient VIP automatiquement
 - si tier par defaut renseigne -> assignation du tier (si client n en a pas deja, ou selon parametre preserve)
 - si downgrade actif -> retrait VIP quand seuils non atteints
+- en V2, si des regles tier existent, elles priment sur le mode global
 
 ## 5) Audience logic
 Par defaut:
@@ -81,7 +87,24 @@ Widgets marketing affiches si donnees disponibles:
 - VIP count
 - mailing lists count/size
 
-## 7) Provider and compliance notes
+## 7) Delivery controls (A/B, holdout, fallback)
+Dans le wizard campagne:
+- Step Message:
+  - activer A/B par canal
+  - definir split `% variant A` (variant B = complement)
+  - surcharger templates A/B (sinon fallback sur template canal de base)
+- Step Review:
+  - holdout group (% des recipients exclus volontairement)
+  - fallback de canal:
+    - map par canal source (ex: `SMS -> EMAIL`)
+    - profondeur max (anti-boucle)
+
+Comportement runtime:
+- allocation A/B deterministic par recipient (stable pour un run donne)
+- holdout applique avant envoi
+- fallback uniquement apres echec provider, avec re-check consent/fatigue
+
+## 8) Provider and compliance notes
 Channels:
 - EMAIL/SMS/IN_APP par tenant
 
@@ -92,7 +115,7 @@ Respect compliance:
 - maintenir des regles anti-fatigue (globales + VIP si necessaire)
 - utiliser test send avant envoi massif
 
-## 8) Permissions minimales
+## 9) Permissions minimales
 Owner:
 - acces complet configuration + envoi
 
@@ -101,7 +124,7 @@ Team member:
 - execution: `campaigns.send`
 - gestion: `campaigns.manage`
 
-## 9) Segments: a quoi ca sert et comment optimiser
+## 10) Segments: a quoi ca sert et comment optimiser
 Definition:
 - un segment est une audience dynamique sauvegardee
 - il stocke une logique de filtres, pas une liste figee de personnes

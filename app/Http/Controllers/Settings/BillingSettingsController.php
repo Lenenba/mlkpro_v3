@@ -195,10 +195,7 @@ class BillingSettingsController extends Controller
             'period_end' => $usageEnd,
         ];
         $paymentMethodsResolved = TenantPaymentMethodsResolver::forUser($user);
-        $featureMap = app(CompanyFeatureService::class)->resolveEffectiveFeatures($user);
-        $loyaltyFeatureEnabled = array_key_exists('loyalty', $featureMap)
-            ? (bool) $featureMap['loyalty']
-            : true;
+        $loyaltyFeatureEnabled = app(CompanyFeatureService::class)->hasFeature($user, 'loyalty');
         $loyaltyProgram = null;
         if ($loyaltyFeatureEnabled) {
             $loyaltyProgram = LoyaltyProgram::query()->firstOrCreate(
@@ -497,10 +494,7 @@ class BillingSettingsController extends Controller
         if (!$user || !$user->isAccountOwner()) {
             abort(403);
         }
-        $featureMap = app(CompanyFeatureService::class)->resolveEffectiveFeatures($user);
-        $loyaltyFeatureEnabled = array_key_exists('loyalty', $featureMap)
-            ? (bool) $featureMap['loyalty']
-            : true;
+        $loyaltyFeatureEnabled = app(CompanyFeatureService::class)->hasFeature($user, 'loyalty');
 
         $allowed = collect(self::AVAILABLE_METHODS)->pluck('id')->all();
 

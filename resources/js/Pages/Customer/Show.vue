@@ -90,7 +90,7 @@ const loyaltyFeatureEnabled = computed(() => {
         return featureFlag;
     }
 
-    return Boolean(props.loyalty?.feature_enabled ?? true);
+    return Boolean(props.loyalty?.feature_enabled ?? false);
 });
 
 const properties = computed(() => props.customer?.properties || []);

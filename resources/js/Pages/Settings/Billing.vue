@@ -237,7 +237,7 @@ const loyaltyFeatureEnabled = computed(() => {
         return featureFlag;
     }
 
-    return Boolean(props.loyaltyProgram?.feature_enabled ?? true);
+    return Boolean(props.loyaltyProgram?.feature_enabled ?? false);
 });
 
 const isSubscribed = computed(() => Boolean(props.subscription?.active));

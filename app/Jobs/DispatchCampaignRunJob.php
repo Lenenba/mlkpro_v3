@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Models\CampaignChannel;
 use App\Models\CampaignRecipient;
 use App\Models\CampaignRun;
 use App\Services\Campaigns\AudienceResolver;
@@ -54,6 +55,12 @@ class DispatchCampaignRunJob implements ShouldQueue
 
         if ($run->recipients()->doesntExist()) {
             $resolved = $audienceResolver->resolveForCampaign($run->campaign);
+            $holdoutConfig = $this->holdoutConfig($run);
+            $channels = $run->campaign->channels
+                ->keyBy(fn (CampaignChannel $channel) => strtoupper((string) $channel->channel));
+            $holdoutCount = 0;
+            $abAssignments = ['A' => 0, 'B' => 0];
+
             $run->forceFill([
                 'audience_snapshot' => [
                     'eligible' => count($resolved['eligible']),
@@ -65,21 +72,83 @@ class DispatchCampaignRunJob implements ShouldQueue
             ])->save();
 
             foreach ($resolved['eligible'] as $payload) {
+                $channel = strtoupper((string) ($payload['channel'] ?? ''));
+                $destination = (string) ($payload['destination'] ?? '');
+                $destinationHash = (string) ($payload['destination_hash'] ?? '');
+                if ($destinationHash === '') {
+                    $destinationHash = CampaignRecipient::destinationHash($destination)
+                        ?: hash('sha256', 'eligible:' . $channel . ':' . $destination);
+                }
+
+                $customerId = isset($payload['customer_id']) && is_numeric($payload['customer_id'])
+                    ? (int) $payload['customer_id']
+                    : null;
+                $baseMetadata = is_array($payload['metadata'] ?? null) ? $payload['metadata'] : [];
+
+                if ($this->isHoldoutRecipient(
+                    $holdoutConfig,
+                    $run->id,
+                    $customerId,
+                    $destinationHash
+                )) {
+                    $holdoutCount += 1;
+
+                    CampaignRecipient::query()->firstOrCreate(
+                        [
+                            'campaign_run_id' => $run->id,
+                            'channel' => $channel,
+                            'destination_hash' => $destinationHash,
+                        ],
+                        [
+                            'campaign_id' => $run->campaign_id,
+                            'user_id' => $run->user_id,
+                            'customer_id' => $customerId,
+                            'destination' => $destination !== '' ? $destination : null,
+                            'dedupe_key' => $channel . ':' . $destinationHash,
+                            'status' => CampaignRecipient::STATUS_SKIPPED,
+                            'failure_reason' => 'holdout_group',
+                            'queued_at' => now(),
+                            'metadata' => array_merge($baseMetadata, [
+                                'holdout' => [
+                                    'enabled' => true,
+                                    'percent' => $holdoutConfig['percent'],
+                                ],
+                            ]),
+                        ]
+                    );
+
+                    continue;
+                }
+
+                $abAssignment = $this->resolveAbAssignment(
+                    $channels->get($channel),
+                    $run->id,
+                    $destinationHash
+                );
+                $metadata = $baseMetadata;
+                if ($abAssignment) {
+                    $metadata['ab_test'] = $abAssignment;
+                    $variant = strtoupper((string) ($abAssignment['variant'] ?? ''));
+                    if (array_key_exists($variant, $abAssignments)) {
+                        $abAssignments[$variant] += 1;
+                    }
+                }
+
                 $recipient = CampaignRecipient::query()->firstOrCreate(
                     [
                         'campaign_run_id' => $run->id,
-                        'channel' => (string) $payload['channel'],
-                        'destination_hash' => (string) ($payload['destination_hash'] ?? ''),
+                        'channel' => $channel,
+                        'destination_hash' => $destinationHash,
                     ],
                     [
                         'campaign_id' => $run->campaign_id,
                         'user_id' => $run->user_id,
-                        'customer_id' => $payload['customer_id'] ?? null,
-                        'destination' => $payload['destination'] ?? null,
-                        'dedupe_key' => $payload['channel'] . ':' . ($payload['destination_hash'] ?? ''),
+                        'customer_id' => $customerId,
+                        'destination' => $destination !== '' ? $destination : null,
+                        'dedupe_key' => $channel . ':' . $destinationHash,
                         'status' => CampaignRecipient::STATUS_QUEUED,
                         'queued_at' => now(),
-                        'metadata' => $payload['metadata'] ?? null,
+                        'metadata' => $metadata ?: null,
                     ]
                 );
 
@@ -105,6 +174,20 @@ class DispatchCampaignRunJob implements ShouldQueue
                     ]
                 );
             }
+
+            $run->forceFill([
+                'audience_snapshot' => array_merge(
+                    is_array($run->audience_snapshot) ? $run->audience_snapshot : [],
+                    ['holdout_count' => $holdoutCount]
+                ),
+                'summary' => array_merge(
+                    is_array($run->summary) ? $run->summary : [],
+                    [
+                        'holdout_count' => $holdoutCount,
+                        'ab_assignments' => $abAssignments,
+                    ]
+                ),
+            ])->save();
         }
 
         $recipientIds = $run->recipients()
@@ -117,5 +200,74 @@ class DispatchCampaignRunJob implements ShouldQueue
         }
 
         $progressService->refresh($run);
+    }
+
+    /**
+     * @return array{enabled: bool, percent: int}
+     */
+    private function holdoutConfig(CampaignRun $run): array
+    {
+        $settings = is_array($run->campaign?->settings) ? $run->campaign->settings : [];
+        $holdout = is_array($settings['holdout'] ?? null) ? $settings['holdout'] : [];
+
+        return [
+            'enabled' => (bool) ($holdout['enabled'] ?? false),
+            'percent' => max(0, min(100, (int) ($holdout['percent'] ?? 0))),
+        ];
+    }
+
+    private function isHoldoutRecipient(
+        array $holdoutConfig,
+        int $campaignRunId,
+        ?int $customerId,
+        string $destinationHash
+    ): bool {
+        if (!($holdoutConfig['enabled'] ?? false)) {
+            return false;
+        }
+
+        $percent = (int) ($holdoutConfig['percent'] ?? 0);
+        if ($percent <= 0) {
+            return false;
+        }
+        if ($percent >= 100) {
+            return true;
+        }
+
+        $seed = $customerId
+            ? 'customer:' . $customerId
+            : 'destination:' . $destinationHash;
+        $bucket = abs(crc32($campaignRunId . '|' . $seed)) % 100;
+
+        return $bucket < $percent;
+    }
+
+    /**
+     * @return array{variant: string, split_a_percent: int, bucket: int}|null
+     */
+    private function resolveAbAssignment(
+        ?CampaignChannel $channel,
+        int $campaignRunId,
+        string $destinationHash
+    ): ?array {
+        if (!$channel) {
+            return null;
+        }
+
+        $metadata = is_array($channel->metadata) ? $channel->metadata : [];
+        $abTesting = is_array($metadata['ab_testing'] ?? null) ? $metadata['ab_testing'] : [];
+        if (!($abTesting['enabled'] ?? false)) {
+            return null;
+        }
+
+        $splitA = max(0, min(100, (int) ($abTesting['split_a_percent'] ?? 50)));
+        $bucket = abs(crc32($campaignRunId . '|' . strtoupper((string) $channel->channel) . '|' . $destinationHash)) % 100;
+        $variant = $bucket < $splitA ? 'A' : 'B';
+
+        return [
+            'variant' => $variant,
+            'split_a_percent' => $splitA,
+            'bucket' => $bucket,
+        ];
     }
 }

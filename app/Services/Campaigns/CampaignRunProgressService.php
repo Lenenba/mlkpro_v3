@@ -29,6 +29,10 @@ class CampaignRunProgressService
             'failed' => (int) ($counts[CampaignRecipient::STATUS_FAILED] ?? 0),
             'skipped' => (int) ($counts[CampaignRecipient::STATUS_SKIPPED] ?? 0),
         ];
+        $summary = array_merge(
+            is_array($run->summary) ? $run->summary : [],
+            $summary
+        );
 
         $updates = [
             'summary' => $summary,
