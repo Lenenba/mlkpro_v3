@@ -401,21 +401,29 @@ Acces:
 
 Fonctions principales:
 - Creation/edition d une campagne:
-  - type (NEW_PRODUCT, BACK_IN_STOCK, PROMOTION, CROSS_SELL, WINBACK)
+  - type (NEW_OFFER, BACK_AVAILABLE, PROMOTION, CROSS_SELL, WINBACK, ANNOUNCEMENT)
+  - offer_mode (PRODUCTS, SERVICES, MIXED)
+  - offers unifies (produits et/ou services)
   - canaux (EMAIL, SMS, IN_APP)
-  - audience (segment + contacts manuels)
-  - templates avec tokens (ex: `{firstName}`, `{promoCode}`, `{ctaUrl}`)
+  - audience (segment sauvegarde + filtres + contacts manuels)
+  - templates reutilisables avec defaults par `(campaignType+channel+language)`
+  - tokens unifies offer (ex: `{offerName}`, `{offerPrice}`, `{offerAvailability}`, `{ctaUrl}`)
 - Estimation audience et preview message.
 - Test send vers le compte courant.
 - Envoi immediat ou planifie.
 - Historique des runs et export CSV des destinataires.
+- Configuration marketing dediee (settings):
+  - channels/provider/quiet-hours/anti-fatigue
+  - consent defaults et STOP keywords
+  - tracking conversion mapping
+  - offer strategy (snapshot selectors categories/tags)
 - Tracking:
   - clic: route de tracking tokenisee
   - unsubscribe email
   - webhooks provider (email/sms)
   - enregistrement de conversion
 - Compliance:
-  - consentement explicite par canal requis par defaut (`campaigns.require_explicit_consent=true`)
+  - consentement explicite par canal configurable tenant-side
   - les audiences sans consentement sortent dans `blocked_by_reason.consent_missing`
   - opt-out + fatigue limiter appliques avant dispatch
 
