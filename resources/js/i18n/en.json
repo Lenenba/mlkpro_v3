@@ -16,6 +16,7 @@
     "customers": "Customers",
     "products": "Products",
     "sales": "Sales",
+    "campaigns": "Campaigns",
     "loyalty": "Loyalty",
     "performance": "Performance",
     "presence": "Presence",
@@ -1369,7 +1370,8 @@
         "tasks": "Tasks",
         "team_members": "Team members",
         "assistant": "AI assistant",
-        "loyalty": "Loyalty"
+        "loyalty": "Loyalty",
+        "campaigns": "Campaigns"
       }
     },
     "welcome_builder": {
@@ -5449,6 +5451,10 @@
       "billing": {
         "label": "Billing",
         "description": "Plan and payments"
+      },
+      "marketing": {
+        "label": "Marketing",
+        "description": "Campaign channels and templates"
       },
       "loyalty": {
         "label": "Loyalty",

@@ -53,9 +53,18 @@ use App\Http\Controllers\AssistantController;
 use App\Http\Controllers\AiImageController;
 use App\Http\Controllers\GlobalSearchController;
 use App\Http\Controllers\LoyaltyController;
+use App\Http\Controllers\CampaignController;
+use App\Http\Controllers\CampaignRunController;
+use App\Http\Controllers\CampaignTrackingController;
+use App\Http\Controllers\CampaignAutomationController;
+use App\Http\Controllers\OfferSearchController;
+use App\Http\Controllers\MarketingMetaController;
+use App\Http\Controllers\MarketingTemplateController;
+use App\Http\Controllers\MarketingSegmentController;
 use App\Http\Controllers\Settings\CompanySettingsController;
 use App\Http\Controllers\Settings\BillingSettingsController;
 use App\Http\Controllers\Settings\LoyaltySettingsController;
+use App\Http\Controllers\Settings\MarketingSettingsController;
 use App\Http\Controllers\Settings\ProductCategoryController;
 use App\Http\Controllers\Settings\SubscriptionController;
 use App\Http\Controllers\Settings\HrSettingsController;
@@ -105,6 +114,12 @@ Route::get('/terms', [LegalController::class, 'terms'])->name('terms');
 Route::get('/privacy', [LegalController::class, 'privacy'])->name('privacy');
 Route::get('/refund', [LegalController::class, 'refund'])->name('refund');
 Route::get('/pricing', [LegalController::class, 'pricing'])->name('pricing');
+Route::get('/t/{token}', [CampaignTrackingController::class, 'track'])->name('campaigns.track');
+Route::get('/u/{token}', [CampaignTrackingController::class, 'unsubscribe'])->name('campaigns.unsubscribe');
+Route::post('/webhooks/campaigns/sms', [CampaignTrackingController::class, 'smsWebhook'])
+    ->name('campaigns.webhooks.sms');
+Route::post('/webhooks/campaigns/email', [CampaignTrackingController::class, 'emailWebhook'])
+    ->name('campaigns.webhooks.email');
 Route::get('/pages/{slug}', [PublicPageController::class, 'show'])->name('public.pages.show');
 Route::get('/store/{slug}', [PublicStoreController::class, 'show'])->name('public.store.show');
 Route::get('/services/{slug}', [PublicShowcaseController::class, 'show'])
@@ -269,6 +284,12 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
         Route::put('/settings/loyalty', [LoyaltySettingsController::class, 'update'])
             ->middleware('company.feature:loyalty')
             ->name('settings.loyalty.update');
+        Route::get('/settings/marketing', [MarketingSettingsController::class, 'edit'])
+            ->middleware('company.feature:campaigns')
+            ->name('settings.marketing.edit');
+        Route::put('/settings/marketing', [MarketingSettingsController::class, 'update'])
+            ->middleware('company.feature:campaigns')
+            ->name('settings.marketing.update');
         Route::get('/settings/notifications', [NotificationSettingsController::class, 'edit'])
             ->name('settings.notifications.edit');
         Route::put('/settings/notifications', [NotificationSettingsController::class, 'update'])
@@ -425,6 +446,52 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
 
     Route::middleware('company.feature:loyalty')->group(function () {
         Route::get('/loyalty', [LoyaltyController::class, 'index'])->name('loyalty.index');
+    });
+
+    Route::middleware('company.feature:campaigns')->group(function () {
+        Route::get('/offers/search', [OfferSearchController::class, 'search'])->name('offers.search');
+        Route::get('/marketing/meta', MarketingMetaController::class)->name('marketing.meta');
+        Route::get('/marketing/templates', [MarketingTemplateController::class, 'index'])->name('marketing.templates.index');
+        Route::post('/marketing/templates', [MarketingTemplateController::class, 'store'])->name('marketing.templates.store');
+        Route::get('/marketing/templates/{template}', [MarketingTemplateController::class, 'show'])->name('marketing.templates.show');
+        Route::put('/marketing/templates/{template}', [MarketingTemplateController::class, 'update'])->name('marketing.templates.update');
+        Route::delete('/marketing/templates/{template}', [MarketingTemplateController::class, 'destroy'])->name('marketing.templates.destroy');
+        Route::post('/marketing/templates/preview', [MarketingTemplateController::class, 'preview'])->name('marketing.templates.preview');
+        Route::post('/marketing/templates/{template}/preview', [MarketingTemplateController::class, 'previewTemplate'])
+            ->name('marketing.templates.preview-template');
+
+        Route::get('/marketing/segments', [MarketingSegmentController::class, 'index'])->name('marketing.segments.index');
+        Route::post('/marketing/segments', [MarketingSegmentController::class, 'store'])->name('marketing.segments.store');
+        Route::get('/marketing/segments/{segment}', [MarketingSegmentController::class, 'show'])->name('marketing.segments.show');
+        Route::put('/marketing/segments/{segment}', [MarketingSegmentController::class, 'update'])->name('marketing.segments.update');
+        Route::delete('/marketing/segments/{segment}', [MarketingSegmentController::class, 'destroy'])->name('marketing.segments.destroy');
+        Route::post('/marketing/segments/preview-count', [MarketingSegmentController::class, 'previewCount'])
+            ->name('marketing.segments.preview-count');
+        Route::get('/marketing/segments/{segment}/count', [MarketingSegmentController::class, 'count'])
+            ->name('marketing.segments.count');
+
+        Route::get('/campaigns', [CampaignController::class, 'index'])->name('campaigns.index');
+        Route::get('/campaigns/create', [CampaignController::class, 'create'])->name('campaigns.create');
+        Route::post('/campaigns', [CampaignController::class, 'store'])->name('campaigns.store');
+        Route::get('/campaigns/{campaign}', [CampaignController::class, 'show'])->name('campaigns.show');
+        Route::get('/campaigns/{campaign}/edit', [CampaignController::class, 'edit'])->name('campaigns.edit');
+        Route::put('/campaigns/{campaign}', [CampaignController::class, 'update'])->name('campaigns.update');
+        Route::delete('/campaigns/{campaign}', [CampaignController::class, 'destroy'])->name('campaigns.destroy');
+
+        Route::post('/campaigns/{campaign}/estimate', [CampaignRunController::class, 'estimate'])->name('campaigns.estimate');
+        Route::post('/campaigns/{campaign}/preview', [CampaignRunController::class, 'preview'])->name('campaigns.preview');
+        Route::post('/campaigns/{campaign}/test-send', [CampaignRunController::class, 'testSend'])->name('campaigns.test-send');
+        Route::post('/campaigns/{campaign}/send', [CampaignRunController::class, 'sendNow'])->name('campaigns.send');
+        Route::post('/campaigns/{campaign}/schedule', [CampaignRunController::class, 'schedule'])->name('campaigns.schedule');
+        Route::post('/campaigns/{campaign}/conversions', [CampaignRunController::class, 'recordConversion'])
+            ->name('campaigns.conversions.store');
+        Route::get('/campaign-runs/{run}/export', [CampaignRunController::class, 'exportRecipients'])->name('campaign-runs.export');
+        Route::post('/campaigns/reconcile', [CampaignTrackingController::class, 'reconcile'])->name('campaigns.reconcile');
+
+        Route::get('/campaign-automations', [CampaignAutomationController::class, 'index'])->name('campaign-automations.index');
+        Route::post('/campaign-automations', [CampaignAutomationController::class, 'store'])->name('campaign-automations.store');
+        Route::put('/campaign-automations/{rule}', [CampaignAutomationController::class, 'update'])->name('campaign-automations.update');
+        Route::delete('/campaign-automations/{rule}', [CampaignAutomationController::class, 'destroy'])->name('campaign-automations.destroy');
     });
 
     // Sales Management (products)

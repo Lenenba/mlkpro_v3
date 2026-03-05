@@ -115,6 +115,7 @@ class PlatformSettingsController extends BaseSuperAdminController
             'team_members',
             'assistant',
             'loyalty',
+            'campaigns',
         ];
         $limitsPayload = [];
         $inputLimits = $validated['plan_limits'] ?? [];

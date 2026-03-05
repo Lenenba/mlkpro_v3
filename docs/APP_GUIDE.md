@@ -1,11 +1,11 @@
 # MLK Pro - Guide d utilisation (MVP)
 
-Derniere mise a jour: 2026-01-27
+Derniere mise a jour: 2026-03-04
 
 Ce document est vivant. Mettez le a jour a chaque changement fonctionnel.
 
 ## 1. Objectif
-MLK Pro permet a plusieurs entreprises de gerer leurs clients, devis, jobs, taches et factures avec une base scalable et simple.
+MLK Pro permet a plusieurs entreprises de gerer leurs clients, devis, jobs, taches, ventes, campagnes et factures avec une base scalable et simple.
 
 ## 2. Demarrage rapide (utilisateur final)
 1. Creez un compte utilisateur.
@@ -14,6 +14,7 @@ MLK Pro permet a plusieurs entreprises de gerer leurs clients, devis, jobs, tach
 4. Ajoutez des produits ou des services selon votre type d entreprise.
 5. Creez un devis, acceptez le, puis convertissez le en job.
 6. Suivez le job, validez, puis generez la facture.
+7. (Si module active) Creez une campagne marketing et suivez les conversions.
 
 ## 3. Roles et acces
 Chaque entreprise a un compte proprietaire (account owner). Les membres d equipe se connectent avec leur propre compte et sont lies a un proprietaire via Team Members.
@@ -33,6 +34,7 @@ Roles plateforme (admin global):
 Permissions actuelles (team):
 - jobs.view, jobs.edit
 - tasks.view, tasks.create, tasks.edit, tasks.delete
+- campaigns.view, campaigns.manage, campaigns.send
 
 Notes:
 - Les permissions sont appliquees via TeamMember et WorkPolicy/TaskPolicy.
@@ -385,3 +387,39 @@ Tests rapides:
 2. Ouvrir Seasonal maintenance quote et tester accept/decline via portail client.
 3. Login client.north@example.com, valider ou mettre en dispute "Review - Exterior refresh".
 4. Login owner.products@example.com, verifier quote "Starter supply pack".
+
+## 19. Campagnes marketing (module active)
+Module: Campaigns
+
+Acces:
+- Disponible pour toute entreprise si la feature `campaigns` est active.
+- Controle par feature flag `campaigns` (plan modules + company_features).
+- Permissions equipe:
+  - `campaigns.view`: consulter les campagnes
+  - `campaigns.manage`: creer/modifier
+  - `campaigns.send`: declencher les envois
+
+Fonctions principales:
+- Creation/edition d une campagne:
+  - type (NEW_PRODUCT, BACK_IN_STOCK, PROMOTION, CROSS_SELL, WINBACK)
+  - canaux (EMAIL, SMS, IN_APP)
+  - audience (segment + contacts manuels)
+  - templates avec tokens (ex: `{firstName}`, `{promoCode}`, `{ctaUrl}`)
+- Estimation audience et preview message.
+- Test send vers le compte courant.
+- Envoi immediat ou planifie.
+- Historique des runs et export CSV des destinataires.
+- Tracking:
+  - clic: route de tracking tokenisee
+  - unsubscribe email
+  - webhooks provider (email/sms)
+  - enregistrement de conversion
+- Compliance:
+  - consentement explicite par canal requis par defaut (`campaigns.require_explicit_consent=true`)
+  - les audiences sans consentement sortent dans `blocked_by_reason.consent_missing`
+  - opt-out + fatigue limiter appliques avant dispatch
+
+Commandes cron/maintenance:
+- `php artisan campaigns:automations`
+- `php artisan campaigns:interest-scores`
+- `php artisan campaigns:reconcile-delivery`

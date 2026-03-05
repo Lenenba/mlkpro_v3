@@ -34,6 +34,9 @@ use App\Services\ReservationNotificationService;
 use App\Services\ReservationQueueService;
 use App\Services\SupportAssignmentService;
 use App\Services\SupportSettingsService;
+use App\Services\Campaigns\CampaignAutomationService;
+use App\Jobs\ComputeInterestScoresJob;
+use App\Jobs\ReconcileDeliveryReportsJob;
 
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
@@ -587,6 +590,31 @@ Artisan::command('support:sla-reminders', function (
     return 0;
 })->purpose('Send SLA and assignment reminders for support tickets');
 
+Artisan::command('campaigns:automations {--account_id=}', function (CampaignAutomationService $automationService): int {
+    $accountId = $this->option('account_id');
+    $result = $automationService->process($accountId ? (int) $accountId : null);
+
+    $this->info('Campaign automations processed: ' . json_encode($result));
+    return 0;
+})->purpose('Process active marketing automation rules');
+
+Artisan::command('campaigns:interest-scores {--account_id=}', function (): int {
+    $accountId = $this->option('account_id');
+    ComputeInterestScoresJob::dispatch($accountId ? (int) $accountId : null)
+        ->onQueue((string) config('campaigns.queues.maintenance', 'campaigns-maintenance'));
+
+    $this->info('Customer interest score recomputation queued.');
+    return 0;
+})->purpose('Queue interest score recomputation');
+
+Artisan::command('campaigns:reconcile-delivery', function (): int {
+    ReconcileDeliveryReportsJob::dispatch()
+        ->onQueue((string) config('campaigns.queues.maintenance', 'campaigns-maintenance'));
+
+    $this->info('Campaign delivery reconciliation queued.');
+    return 0;
+})->purpose('Queue campaign delivery status reconciliation');
+
 Artisan::command('demo:seed {type=service} {--tenant_id=}', function (
     DemoAccountService $accounts,
     DemoSeedService $seeds
@@ -852,6 +880,9 @@ Schedule::command('leads:follow-up-reminders --hours=24')->hourly();
 Schedule::command('support:sla-reminders')->hourly();
 Schedule::command('reservations:notifications')->everyFifteenMinutes();
 Schedule::command('reservations:queue-alerts')->everyFiveMinutes()->withoutOverlapping();
+Schedule::command('campaigns:automations')->everyFiveMinutes()->withoutOverlapping();
+Schedule::command('campaigns:interest-scores')->dailyAt('02:15');
+Schedule::command('campaigns:reconcile-delivery')->everyTenMinutes()->withoutOverlapping();
 Schedule::command('notifications:retry-failed --notification=App\\Notifications\\InviteUserNotification --max=20 --within-hours=24 --cooldown=30')
     ->everyTenMinutes()
     ->withoutOverlapping();

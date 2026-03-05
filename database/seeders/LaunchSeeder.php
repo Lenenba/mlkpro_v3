@@ -3,8 +3,17 @@
 namespace Database\Seeders;
 
 use App\Models\ActivityLog;
+use App\Models\AudienceSegment;
 use App\Models\AvailabilityException;
+use App\Models\Campaign;
+use App\Models\CampaignAudience;
+use App\Models\CampaignChannel;
+use App\Models\CampaignEvent;
+use App\Models\CampaignMessage;
+use App\Models\CampaignRecipient;
+use App\Models\CampaignRun;
 use App\Models\Customer;
+use App\Models\CustomerConsent;
 use App\Models\Invoice;
 use App\Models\InvoiceItem;
 use App\Models\OrderReview;
@@ -233,6 +242,9 @@ class LaunchSeeder extends Seeder
         if (!array_key_exists('reservations', $serviceOwnerFeatures)) {
             $serviceOwnerFeatures['reservations'] = true;
         }
+        if (!array_key_exists('campaigns', $serviceOwnerFeatures)) {
+            $serviceOwnerFeatures['campaigns'] = true;
+        }
         $serviceOwner->update([
             'company_features' => $serviceOwnerFeatures,
         ]);
@@ -275,6 +287,9 @@ class LaunchSeeder extends Seeder
         $productOwnerFeatures = (array) ($productOwner->company_features ?? []);
         if (!array_key_exists('sales', $productOwnerFeatures)) {
             $productOwnerFeatures['sales'] = true;
+        }
+        if (!array_key_exists('campaigns', $productOwnerFeatures)) {
+            $productOwnerFeatures['campaigns'] = true;
         }
         $productOwner->update([
             'company_features' => $productOwnerFeatures,
@@ -669,6 +684,9 @@ class LaunchSeeder extends Seeder
                     'reservations.view',
                     'reservations.queue',
                     'reservations.manage',
+                    'campaigns.view',
+                    'campaigns.manage',
+                    'campaigns.send',
                 ],
                 'is_active' => true,
             ]
@@ -687,6 +705,7 @@ class LaunchSeeder extends Seeder
                     'tasks.edit',
                     'reservations.view',
                     'reservations.queue',
+                    'campaigns.view',
                 ],
                 'is_active' => true,
             ]
@@ -735,6 +754,9 @@ class LaunchSeeder extends Seeder
                 'role' => 'sales_manager',
                 'permissions' => [
                     'sales.manage',
+                    'campaigns.view',
+                    'campaigns.manage',
+                    'campaigns.send',
                 ],
                 'is_active' => true,
             ]
@@ -2827,6 +2849,438 @@ class LaunchSeeder extends Seeder
                 'country' => 'Canada',
             ]
         );
+
+        $canSeedCampaigns = Schema::hasTable('audience_segments')
+            && Schema::hasTable('campaigns')
+            && Schema::hasTable('campaign_channels')
+            && Schema::hasTable('campaign_audiences')
+            && Schema::hasTable('campaign_runs')
+            && Schema::hasTable('campaign_recipients')
+            && Schema::hasTable('campaign_messages')
+            && Schema::hasTable('campaign_events')
+            && Schema::hasTable('customer_consents');
+
+        if ($canSeedCampaigns) {
+            $campaignCustomers = collect([$productCustomer, $productCustomerRetail, $productCustomerWholesale])
+                ->filter();
+
+            foreach ($campaignCustomers as $campaignCustomer) {
+                CustomerConsent::updateOrCreate(
+                    [
+                        'user_id' => $productOwner->id,
+                        'customer_id' => $campaignCustomer->id,
+                        'channel' => Campaign::CHANNEL_EMAIL,
+                    ],
+                    [
+                        'status' => CustomerConsent::STATUS_GRANTED,
+                        'source' => 'launch_seed',
+                        'granted_at' => $now->copy()->subDays(30),
+                        'revoked_at' => null,
+                        'metadata' => ['seed' => true],
+                    ]
+                );
+
+                CustomerConsent::updateOrCreate(
+                    [
+                        'user_id' => $productOwner->id,
+                        'customer_id' => $campaignCustomer->id,
+                        'channel' => Campaign::CHANNEL_SMS,
+                    ],
+                    [
+                        'status' => CustomerConsent::STATUS_GRANTED,
+                        'source' => 'launch_seed',
+                        'granted_at' => $now->copy()->subDays(30),
+                        'revoked_at' => null,
+                        'metadata' => ['seed' => true],
+                    ]
+                );
+
+                if (!empty($campaignCustomer->portal_user_id)) {
+                    CustomerConsent::updateOrCreate(
+                        [
+                            'user_id' => $productOwner->id,
+                            'customer_id' => $campaignCustomer->id,
+                            'channel' => Campaign::CHANNEL_IN_APP,
+                        ],
+                        [
+                            'status' => CustomerConsent::STATUS_GRANTED,
+                            'source' => 'launch_seed',
+                            'granted_at' => $now->copy()->subDays(30),
+                            'revoked_at' => null,
+                            'metadata' => ['seed' => true],
+                        ]
+                    );
+                }
+            }
+
+            $vipSegment = AudienceSegment::updateOrCreate(
+                [
+                    'user_id' => $productOwner->id,
+                    'name' => 'VIP clients produits (seed)',
+                ],
+                [
+                    'created_by_user_id' => $productOwner->id,
+                    'updated_by_user_id' => $productOwner->id,
+                    'filters' => [
+                        'operator' => 'AND',
+                        'rules' => [
+                            [
+                                'field' => 'tags',
+                                'operator' => 'contains',
+                                'value' => 'vip',
+                            ],
+                        ],
+                    ],
+                    'exclusions' => null,
+                    'is_shared' => false,
+                ]
+            );
+
+            $campaignProductIds = collect([
+                $productProducts[0]->id ?? null,
+                $productProducts[1]->id ?? null,
+            ])->filter()->values()->all();
+
+            $completedCampaign = Campaign::updateOrCreate(
+                [
+                    'user_id' => $productOwner->id,
+                    'name' => 'Promo printemps (seed)',
+                ],
+                [
+                    'created_by_user_id' => $productOwner->id,
+                    'updated_by_user_id' => $productOwner->id,
+                    'audience_segment_id' => $vipSegment->id,
+                    'type' => Campaign::TYPE_PROMOTION,
+                    'status' => Campaign::STATUS_COMPLETED,
+                    'schedule_type' => Campaign::SCHEDULE_MANUAL,
+                    'scheduled_at' => null,
+                    'started_at' => $now->copy()->subDays(1)->subHours(2),
+                    'completed_at' => $now->copy()->subDay(),
+                    'locale' => 'fr',
+                    'cta_url' => 'https://example.com/offers/launch-seed',
+                    'is_marketing' => true,
+                    'last_run_at' => $now->copy()->subDay(),
+                    'settings' => [
+                        'promo_code' => 'LAUNCH15',
+                        'promo_percent' => 15,
+                        'promo_end_date' => $now->copy()->addDays(10)->toDateString(),
+                    ],
+                ]
+            );
+
+            $completedCampaign->products()->sync($campaignProductIds);
+
+            CampaignChannel::updateOrCreate(
+                [
+                    'campaign_id' => $completedCampaign->id,
+                    'channel' => Campaign::CHANNEL_EMAIL,
+                ],
+                [
+                    'is_enabled' => true,
+                    'subject_template' => 'Promo de printemps pour {firstName}',
+                    'title_template' => null,
+                    'body_template' => 'Bonjour {firstName}, utilisez {promoCode} ici: {ctaUrl}',
+                    'metadata' => ['seed' => true],
+                ]
+            );
+
+            CampaignChannel::updateOrCreate(
+                [
+                    'campaign_id' => $completedCampaign->id,
+                    'channel' => Campaign::CHANNEL_SMS,
+                ],
+                [
+                    'is_enabled' => false,
+                    'subject_template' => null,
+                    'title_template' => null,
+                    'body_template' => 'Promo {promoCode} sur {ctaUrl}',
+                    'metadata' => ['seed' => true],
+                ]
+            );
+
+            CampaignChannel::updateOrCreate(
+                [
+                    'campaign_id' => $completedCampaign->id,
+                    'channel' => Campaign::CHANNEL_IN_APP,
+                ],
+                [
+                    'is_enabled' => true,
+                    'subject_template' => null,
+                    'title_template' => 'Offre speciale',
+                    'body_template' => 'Profitez de {promoCode} avant la fin de semaine.',
+                    'metadata' => ['seed' => true],
+                ]
+            );
+
+            CampaignAudience::updateOrCreate(
+                ['campaign_id' => $completedCampaign->id],
+                [
+                    'smart_filters' => [
+                        'operator' => 'AND',
+                        'rules' => [
+                            [
+                                'field' => 'tags',
+                                'operator' => 'contains',
+                                'value' => 'vip',
+                            ],
+                        ],
+                    ],
+                    'exclusion_filters' => null,
+                    'manual_customer_ids' => array_values(array_filter([
+                        $productCustomer->id ?? null,
+                        $productCustomerRetail->id ?? null,
+                    ])),
+                    'manual_contacts' => [],
+                    'estimated_counts' => [
+                        'total_eligible' => 2,
+                        'eligible_by_channel' => ['EMAIL' => 2],
+                        'blocked_by_channel' => [],
+                        'blocked_by_reason' => [],
+                    ],
+                    'resolved_at' => $now->copy()->subDay(),
+                ]
+            );
+
+            $completedRun = CampaignRun::updateOrCreate(
+                ['idempotency_key' => 'launch-seed-campaign-run-1'],
+                [
+                    'campaign_id' => $completedCampaign->id,
+                    'user_id' => $productOwner->id,
+                    'triggered_by_user_id' => $productOwner->id,
+                    'trigger_type' => CampaignRun::TRIGGER_MANUAL,
+                    'status' => CampaignRun::STATUS_COMPLETED,
+                    'scheduled_for' => null,
+                    'started_at' => $now->copy()->subDays(1)->subHours(2),
+                    'completed_at' => $now->copy()->subDay(),
+                    'audience_snapshot' => [
+                        'eligible_count' => 2,
+                        'channels' => ['EMAIL'],
+                    ],
+                    'summary' => [
+                        'queued' => 2,
+                        'sent' => 2,
+                        'delivered' => 2,
+                        'clicked' => 2,
+                        'converted' => 1,
+                    ],
+                    'error_message' => null,
+                ]
+            );
+
+            $seededRecipients = [];
+
+            $primaryEmail = trim((string) ($productCustomer->email ?? ''));
+            $primaryHash = CampaignRecipient::destinationHash($primaryEmail);
+            if ($primaryEmail !== '' && $primaryHash) {
+                $recipientPrimary = CampaignRecipient::updateOrCreate(
+                    [
+                        'campaign_run_id' => $completedRun->id,
+                        'channel' => Campaign::CHANNEL_EMAIL,
+                        'destination_hash' => $primaryHash,
+                    ],
+                    [
+                        'campaign_id' => $completedCampaign->id,
+                        'user_id' => $productOwner->id,
+                        'customer_id' => $productCustomer->id,
+                        'destination' => $primaryEmail,
+                        'dedupe_key' => Campaign::CHANNEL_EMAIL . '|' . $primaryHash,
+                        'status' => CampaignRecipient::STATUS_CONVERTED,
+                        'provider' => 'seed',
+                        'provider_message_id' => 'seed-msg-001',
+                        'tracking_token' => 'launch-seed-track-001',
+                        'unsubscribe_token' => 'launch-seed-unsub-001',
+                        'queued_at' => $now->copy()->subDays(1)->subHours(2),
+                        'sent_at' => $now->copy()->subDays(1)->subHours(2)->addMinutes(2),
+                        'delivered_at' => $now->copy()->subDays(1)->subHours(2)->addMinutes(4),
+                        'opened_at' => $now->copy()->subDays(1)->subHours(1)->addMinutes(35),
+                        'clicked_at' => $now->copy()->subDays(1)->subHours(1)->addMinutes(20),
+                        'converted_at' => $now->copy()->subDays(1)->subHour(),
+                        'failed_at' => null,
+                        'failure_reason' => null,
+                        'metadata' => ['seed' => true],
+                    ]
+                );
+
+                CampaignMessage::updateOrCreate(
+                    ['campaign_recipient_id' => $recipientPrimary->id],
+                    [
+                        'campaign_run_id' => $completedRun->id,
+                        'channel' => Campaign::CHANNEL_EMAIL,
+                        'subject_rendered' => 'Promo de printemps pour Mia',
+                        'title_rendered' => null,
+                        'body_rendered' => 'Bonjour Mia, utilisez LAUNCH15 ici: https://example.com/offers/launch-seed',
+                        'cta_url' => 'https://example.com/offers/launch-seed',
+                        'tracked_cta_url' => 'https://example.com/t/launch-seed-track-001',
+                        'payload' => ['seed' => true],
+                    ]
+                );
+
+                $seededRecipients[] = $recipientPrimary;
+            }
+
+            $retailEmail = trim((string) ($productCustomerRetail->email ?? ''));
+            $retailHash = CampaignRecipient::destinationHash($retailEmail);
+            if ($retailEmail !== '' && $retailHash) {
+                $recipientRetail = CampaignRecipient::updateOrCreate(
+                    [
+                        'campaign_run_id' => $completedRun->id,
+                        'channel' => Campaign::CHANNEL_EMAIL,
+                        'destination_hash' => $retailHash,
+                    ],
+                    [
+                        'campaign_id' => $completedCampaign->id,
+                        'user_id' => $productOwner->id,
+                        'customer_id' => $productCustomerRetail->id,
+                        'destination' => $retailEmail,
+                        'dedupe_key' => Campaign::CHANNEL_EMAIL . '|' . $retailHash,
+                        'status' => CampaignRecipient::STATUS_CLICKED,
+                        'provider' => 'seed',
+                        'provider_message_id' => 'seed-msg-002',
+                        'tracking_token' => 'launch-seed-track-002',
+                        'unsubscribe_token' => 'launch-seed-unsub-002',
+                        'queued_at' => $now->copy()->subDays(1)->subHours(2),
+                        'sent_at' => $now->copy()->subDays(1)->subHours(2)->addMinutes(3),
+                        'delivered_at' => $now->copy()->subDays(1)->subHours(2)->addMinutes(6),
+                        'opened_at' => $now->copy()->subDays(1)->subHours(1)->addMinutes(40),
+                        'clicked_at' => $now->copy()->subDays(1)->subHours(1)->addMinutes(5),
+                        'converted_at' => null,
+                        'failed_at' => null,
+                        'failure_reason' => null,
+                        'metadata' => ['seed' => true],
+                    ]
+                );
+
+                CampaignMessage::updateOrCreate(
+                    ['campaign_recipient_id' => $recipientRetail->id],
+                    [
+                        'campaign_run_id' => $completedRun->id,
+                        'channel' => Campaign::CHANNEL_EMAIL,
+                        'subject_rendered' => 'Promo de printemps pour Lea',
+                        'title_rendered' => null,
+                        'body_rendered' => 'Bonjour Lea, utilisez LAUNCH15 ici: https://example.com/offers/launch-seed',
+                        'cta_url' => 'https://example.com/offers/launch-seed',
+                        'tracked_cta_url' => 'https://example.com/t/launch-seed-track-002',
+                        'payload' => ['seed' => true],
+                    ]
+                );
+
+                $seededRecipients[] = $recipientRetail;
+            }
+
+            foreach ($seededRecipients as $recipient) {
+                $eventBase = [
+                    'campaign_id' => $completedCampaign->id,
+                    'campaign_run_id' => $completedRun->id,
+                    'campaign_recipient_id' => $recipient->id,
+                    'user_id' => $productOwner->id,
+                    'customer_id' => $recipient->customer_id,
+                    'channel' => Campaign::CHANNEL_EMAIL,
+                    'provider_message_id' => $recipient->provider_message_id,
+                    'metadata' => ['seed' => true],
+                ];
+
+                CampaignEvent::updateOrCreate(
+                    $eventBase + ['event_type' => CampaignEvent::EVENT_SENT],
+                    ['occurred_at' => $recipient->sent_at ?: $now->copy()->subDay()]
+                );
+
+                CampaignEvent::updateOrCreate(
+                    $eventBase + ['event_type' => CampaignEvent::EVENT_DELIVERED],
+                    ['occurred_at' => $recipient->delivered_at ?: $now->copy()->subDay()]
+                );
+
+                if ($recipient->clicked_at) {
+                    CampaignEvent::updateOrCreate(
+                        $eventBase + ['event_type' => CampaignEvent::EVENT_CLICKED],
+                        ['occurred_at' => $recipient->clicked_at]
+                    );
+                }
+
+                if ($recipient->converted_at) {
+                    CampaignEvent::updateOrCreate(
+                        $eventBase + ['event_type' => CampaignEvent::EVENT_CONVERTED],
+                        [
+                            'conversion_type' => 'sale',
+                            'conversion_id' => 1,
+                            'occurred_at' => $recipient->converted_at,
+                        ]
+                    );
+                }
+            }
+
+            $scheduledAt = $now->copy()->addDays(2)->setTime(14, 30, 0);
+            $scheduledCampaign = Campaign::updateOrCreate(
+                [
+                    'user_id' => $productOwner->id,
+                    'name' => 'Back in stock - preload (seed)',
+                ],
+                [
+                    'created_by_user_id' => $productOwner->id,
+                    'updated_by_user_id' => $productOwner->id,
+                    'audience_segment_id' => null,
+                    'type' => Campaign::TYPE_BACK_IN_STOCK,
+                    'status' => Campaign::STATUS_SCHEDULED,
+                    'schedule_type' => Campaign::SCHEDULE_SCHEDULED,
+                    'scheduled_at' => $scheduledAt,
+                    'started_at' => null,
+                    'completed_at' => null,
+                    'locale' => 'en',
+                    'cta_url' => 'https://example.com/products/back-in-stock',
+                    'is_marketing' => true,
+                    'last_run_at' => null,
+                    'settings' => [
+                        'note' => 'Seeded scheduled campaign for QA.',
+                    ],
+                ]
+            );
+
+            $scheduledCampaign->products()->sync($campaignProductIds);
+
+            CampaignChannel::updateOrCreate(
+                [
+                    'campaign_id' => $scheduledCampaign->id,
+                    'channel' => Campaign::CHANNEL_EMAIL,
+                ],
+                [
+                    'is_enabled' => true,
+                    'subject_template' => 'Back in stock alert',
+                    'title_template' => null,
+                    'body_template' => 'Hi {firstName}, an item is back in stock: {ctaUrl}',
+                    'metadata' => ['seed' => true],
+                ]
+            );
+
+            CampaignAudience::updateOrCreate(
+                ['campaign_id' => $scheduledCampaign->id],
+                [
+                    'smart_filters' => null,
+                    'exclusion_filters' => null,
+                    'manual_customer_ids' => array_values(array_filter([
+                        $productCustomerWholesale->id ?? null,
+                    ])),
+                    'manual_contacts' => [],
+                    'estimated_counts' => null,
+                    'resolved_at' => null,
+                ]
+            );
+
+            CampaignRun::updateOrCreate(
+                ['idempotency_key' => 'launch-seed-campaign-run-2'],
+                [
+                    'campaign_id' => $scheduledCampaign->id,
+                    'user_id' => $productOwner->id,
+                    'triggered_by_user_id' => $productOwner->id,
+                    'trigger_type' => CampaignRun::TRIGGER_SCHEDULED,
+                    'status' => CampaignRun::STATUS_PENDING,
+                    'scheduled_for' => $scheduledAt,
+                    'started_at' => null,
+                    'completed_at' => null,
+                    'audience_snapshot' => null,
+                    'summary' => null,
+                    'error_message' => null,
+                ]
+            );
+        }
 
         $productSalesCatalog = $productProducts
             ->filter(fn($product) => ($product->tracking_type ?? 'none') === 'none' && (int) $product->stock > 0)

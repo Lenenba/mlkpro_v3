@@ -160,6 +160,36 @@ class Customer extends Model
         return $this->hasMany(LoyaltyPointLedger::class);
     }
 
+    public function campaignRecipients(): HasMany
+    {
+        return $this->hasMany(CampaignRecipient::class);
+    }
+
+    public function campaignEvents(): HasMany
+    {
+        return $this->hasMany(CampaignEvent::class);
+    }
+
+    public function consents(): HasMany
+    {
+        return $this->hasMany(CustomerConsent::class);
+    }
+
+    public function optOuts(): HasMany
+    {
+        return $this->hasMany(CustomerOptOut::class);
+    }
+
+    public function interestScores(): HasMany
+    {
+        return $this->hasMany(CustomerInterestScore::class);
+    }
+
+    public function behaviorEvents(): HasMany
+    {
+        return $this->hasMany(CustomerBehaviorEvent::class);
+    }
+
     public function reservationReviews(): HasMany
     {
         return $this->hasMany(ReservationReview::class, 'client_id');

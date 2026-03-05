@@ -62,6 +62,12 @@ const canLoyaltyManage = computed(() =>
     || canSalesManage.value
     || canServiceManage.value
 );
+const canCampaigns = computed(() =>
+    isOwner.value
+    || teamPermissions.value.includes('campaigns.view')
+    || teamPermissions.value.includes('campaigns.manage')
+    || teamPermissions.value.includes('campaigns.send')
+);
 const canReservations = computed(() =>
     isOwner.value
     || teamPermissions.value.includes('reservations.view')
@@ -497,6 +503,25 @@ const isCustomerActive = computed(() => {
                                             <circle cx="8" cy="21" r="1" />
                                             <circle cx="19" cy="21" r="1" />
                                             <path d="M2.05 2.05h2l2.6 12.4a2 2 0 0 0 2 1.6h9.6a2 2 0 0 0 2-1.6l1.2-6.4H6.2" />
+                                        </svg>
+                                    </template>
+                                </LinkAncor>
+                                <!-- End Item -->
+                                <!-- Item -->
+                                <LinkAncor
+                                    v-if="hasFeature('campaigns') && canCampaigns && !isClient && !isSeller"
+                                    :label="$t('nav.campaigns')"
+                                    :href="'campaigns.index'"
+                                    tone="campaigns"
+                                    :active="route().current('campaigns.*') || route().current('campaign-automations.*') || route().current('campaign-runs.*')"
+                                >
+                                    <template #icon>
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round"
+                                            class="lucide lucide-send-horizontal">
+                                            <path d="m3 3 3 9-3 9 19-9Z" />
+                                            <path d="M6 12h16" />
                                         </svg>
                                     </template>
                                 </LinkAncor>

@@ -104,6 +104,15 @@ const navTabs = computed(() => {
                     ownerOnly: true,
                 },
                 {
+                    id: 'marketing',
+                    label: t('settings.items.marketing.label'),
+                    description: t('settings.items.marketing.description'),
+                    route: 'settings.marketing.edit',
+                    icon: 'megaphone',
+                    ownerOnly: true,
+                    hidden: !hasFeature('campaigns'),
+                },
+                {
                     id: 'loyalty',
                     label: t('settings.items.loyalty.label'),
                     description: t('settings.items.loyalty.description'),

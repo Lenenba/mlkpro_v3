@@ -36,6 +36,9 @@ class TeamMemberController extends Controller
         ['id' => 'reservations.manage', 'name' => 'Manage reservations settings and updates'],
         ['id' => 'sales.manage', 'name' => 'Manage sales'],
         ['id' => 'sales.pos', 'name' => 'POS access only'],
+        ['id' => 'campaigns.view', 'name' => 'View campaigns'],
+        ['id' => 'campaigns.manage', 'name' => 'Create and edit campaigns'],
+        ['id' => 'campaigns.send', 'name' => 'Send campaigns'],
     ];
 
     private const PERMISSION_FEATURE_MAP = [
@@ -54,6 +57,9 @@ class TeamMemberController extends Controller
         'reservations.manage' => 'reservations',
         'sales.manage' => 'sales',
         'sales.pos' => 'sales',
+        'campaigns.view' => 'campaigns',
+        'campaigns.manage' => 'campaigns',
+        'campaigns.send' => 'campaigns',
     ];
 
     public function index()
@@ -365,6 +371,8 @@ class TeamMemberController extends Controller
                 'reservations.queue',
                 'reservations.manage',
                 'sales.manage',
+                'campaigns.view',
+                'campaigns.manage',
             ],
             'seller' => [
                 'sales.pos',
@@ -374,6 +382,8 @@ class TeamMemberController extends Controller
                 'reservations.view',
                 'reservations.queue',
                 'reservations.manage',
+                'campaigns.view',
+                'campaigns.manage',
             ],
             default => [
                 'jobs.view',

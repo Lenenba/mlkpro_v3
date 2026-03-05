@@ -196,6 +196,46 @@ class User extends Authenticatable
         return $this->hasMany(Customer::class);
     }
 
+    public function campaigns(): HasMany
+    {
+        return $this->hasMany(Campaign::class);
+    }
+
+    public function audienceSegments(): HasMany
+    {
+        return $this->hasMany(AudienceSegment::class);
+    }
+
+    public function campaignRuns(): HasMany
+    {
+        return $this->hasMany(CampaignRun::class);
+    }
+
+    public function messageTemplates(): HasMany
+    {
+        return $this->hasMany(MessageTemplate::class);
+    }
+
+    public function marketingSetting(): HasOne
+    {
+        return $this->hasOne(MarketingSetting::class);
+    }
+
+    public function customerConsents(): HasMany
+    {
+        return $this->hasMany(CustomerConsent::class);
+    }
+
+    public function customerOptOuts(): HasMany
+    {
+        return $this->hasMany(CustomerOptOut::class);
+    }
+
+    public function customerBehaviorEvents(): HasMany
+    {
+        return $this->hasMany(CustomerBehaviorEvent::class);
+    }
+
     public function customerProfile(): HasOne
     {
         return $this->hasOne(Customer::class, 'portal_user_id');

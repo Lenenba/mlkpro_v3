@@ -63,6 +63,9 @@ class AssistantWorkflowService
         'reservations.manage',
         'sales.manage',
         'sales.pos',
+        'campaigns.view',
+        'campaigns.manage',
+        'campaigns.send',
     ];
 
     private const TEAM_PERMISSION_FEATURE_MAP = [
@@ -81,6 +84,9 @@ class AssistantWorkflowService
         'reservations.manage' => 'reservations',
         'sales.manage' => 'sales',
         'sales.pos' => 'sales',
+        'campaigns.view' => 'campaigns',
+        'campaigns.manage' => 'campaigns',
+        'campaigns.send' => 'campaigns',
     ];
 
     public function handle(array $interpretation, User $user, array $context = []): array
@@ -4807,6 +4813,8 @@ class AssistantWorkflowService
                 'reservations.queue',
                 'reservations.manage',
                 'sales.manage',
+                'campaigns.view',
+                'campaigns.manage',
             ],
             'seller' => [
                 'sales.pos',
@@ -4816,6 +4824,8 @@ class AssistantWorkflowService
                 'reservations.view',
                 'reservations.queue',
                 'reservations.manage',
+                'campaigns.view',
+                'campaigns.manage',
             ],
             default => [
                 'jobs.view',
@@ -4823,6 +4833,7 @@ class AssistantWorkflowService
                 'tasks.edit',
                 'reservations.view',
                 'reservations.queue',
+                'campaigns.view',
             ],
         };
 

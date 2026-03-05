@@ -26,8 +26,82 @@
   },
   "item": [
     {
+      "name": "assistant",
+      "item": [
+        {
+          "name": "POST /api/v1/assistant/message",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/assistant/message",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "assistant",
+                "message"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\AssistantController@message",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        }
+      ]
+    },
+    {
       "name": "auth",
       "item": [
+        {
+          "name": "POST /api/v1/auth/forgot-password",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/forgot-password",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "forgot-password"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\Api\\AuthController@forgotPassword",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
         {
           "name": "POST /api/v1/auth/login",
           "request": {
@@ -120,6 +194,768 @@
               ]
             },
             "description": "Action: App\\Http\\Controllers\\Api\\AuthController@me"
+          }
+        },
+        {
+          "name": "POST /api/v1/auth/register",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "register"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\Api\\AuthController@register",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "POST /api/v1/auth/reset-password",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/reset-password",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "reset-password"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\Api\\AuthController@resetPassword",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "POST /api/v1/auth/two-factor/resend",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/two-factor/resend",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "two-factor",
+                "resend"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\Api\\TwoFactorController@resend",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "POST /api/v1/auth/two-factor/verify",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/two-factor/verify",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "two-factor",
+                "verify"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\Api\\TwoFactorController@verify",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "POST /api/v1/auth/verify/resend",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/verify/resend",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "verify",
+                "resend"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\Api\\AuthController@resendVerification",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "campaign-automations",
+      "item": [
+        {
+          "name": "GET /api/v1/campaign-automations",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/campaign-automations",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "campaign-automations"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\CampaignAutomationController@index"
+          }
+        },
+        {
+          "name": "POST /api/v1/campaign-automations",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/campaign-automations",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "campaign-automations"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\CampaignAutomationController@store",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "PUT /api/v1/campaign-automations/{rule}",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/campaign-automations/{rule}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "campaign-automations",
+                "{rule}"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\CampaignAutomationController@update",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "DELETE /api/v1/campaign-automations/{rule}",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/campaign-automations/{rule}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "campaign-automations",
+                "{rule}"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\CampaignAutomationController@destroy"
+          }
+        }
+      ]
+    },
+    {
+      "name": "campaign-runs",
+      "item": [
+        {
+          "name": "GET /api/v1/campaign-runs/{run}/export",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/campaign-runs/{run}/export",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "campaign-runs",
+                "{run}",
+                "export"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\CampaignRunController@exportRecipients"
+          }
+        }
+      ]
+    },
+    {
+      "name": "campaigns",
+      "item": [
+        {
+          "name": "GET /api/v1/campaigns",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/campaigns",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "campaigns"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\CampaignController@index"
+          }
+        },
+        {
+          "name": "POST /api/v1/campaigns",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/campaigns",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "campaigns"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\CampaignController@store",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "GET /api/v1/campaigns/create",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/campaigns/create",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "campaigns",
+                "create"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\CampaignController@create"
+          }
+        },
+        {
+          "name": "POST /api/v1/campaigns/reconcile",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/campaigns/reconcile",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "campaigns",
+                "reconcile"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\CampaignTrackingController@reconcile",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "GET /api/v1/campaigns/{campaign}",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/campaigns/{campaign}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "campaigns",
+                "{campaign}"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\CampaignController@show"
+          }
+        },
+        {
+          "name": "PUT /api/v1/campaigns/{campaign}",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/campaigns/{campaign}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "campaigns",
+                "{campaign}"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\CampaignController@update",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "DELETE /api/v1/campaigns/{campaign}",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/campaigns/{campaign}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "campaigns",
+                "{campaign}"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\CampaignController@destroy"
+          }
+        },
+        {
+          "name": "POST /api/v1/campaigns/{campaign}/conversions",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/campaigns/{campaign}/conversions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "campaigns",
+                "{campaign}",
+                "conversions"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\CampaignRunController@recordConversion",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "GET /api/v1/campaigns/{campaign}/edit",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/campaigns/{campaign}/edit",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "campaigns",
+                "{campaign}",
+                "edit"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\CampaignController@edit"
+          }
+        },
+        {
+          "name": "POST /api/v1/campaigns/{campaign}/estimate",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/campaigns/{campaign}/estimate",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "campaigns",
+                "{campaign}",
+                "estimate"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\CampaignRunController@estimate",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "POST /api/v1/campaigns/{campaign}/preview",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/campaigns/{campaign}/preview",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "campaigns",
+                "{campaign}",
+                "preview"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\CampaignRunController@preview",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "POST /api/v1/campaigns/{campaign}/schedule",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/campaigns/{campaign}/schedule",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "campaigns",
+                "{campaign}",
+                "schedule"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\CampaignRunController@schedule",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "POST /api/v1/campaigns/{campaign}/send",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/campaigns/{campaign}/send",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "campaigns",
+                "{campaign}",
+                "send"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\CampaignRunController@sendNow",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "POST /api/v1/campaigns/{campaign}/test-send",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/campaigns/{campaign}/test-send",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "campaigns",
+                "{campaign}",
+                "test-send"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\CampaignRunController@testSend",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
           }
         }
       ]
@@ -807,6 +1643,205 @@
       ]
     },
     {
+      "name": "integrations",
+      "item": [
+        {
+          "name": "GET /api/v1/integrations/alerts",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/integrations/alerts",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "integrations",
+                "alerts"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\Api\\Integration\\InventoryController@alerts"
+          }
+        },
+        {
+          "name": "GET /api/v1/integrations/movements",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/integrations/movements",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "integrations",
+                "movements"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\Api\\Integration\\InventoryController@movements"
+          }
+        },
+        {
+          "name": "GET /api/v1/integrations/products",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/integrations/products",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "integrations",
+                "products"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\Api\\Integration\\InventoryController@products"
+          }
+        },
+        {
+          "name": "GET /api/v1/integrations/products/{product}",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/integrations/products/{product}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "integrations",
+                "products",
+                "{product}"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\Api\\Integration\\InventoryController@product"
+          }
+        },
+        {
+          "name": "POST /api/v1/integrations/products/{product}/adjust",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/integrations/products/{product}/adjust",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "integrations",
+                "products",
+                "{product}",
+                "adjust"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\Api\\Integration\\InventoryController@adjust",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "POST /api/v1/integrations/requests",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/integrations/requests",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "integrations",
+                "requests"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\Api\\Integration\\RequestController@store",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "GET /api/v1/integrations/warehouses",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/integrations/warehouses",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "integrations",
+                "warehouses"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\Api\\Integration\\InventoryController@warehouses"
+          }
+        }
+      ]
+    },
+    {
       "name": "invoice",
       "item": [
         {
@@ -896,6 +1931,32 @@
             },
             "description": "Action: App\\Http\\Controllers\\InvoiceController@show"
           }
+        },
+        {
+          "name": "GET /api/v1/invoices/{invoice}/pdf",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/invoices/{invoice}/pdf",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "invoices",
+                "{invoice}",
+                "pdf"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\InvoiceController@pdf"
+          }
         }
       ]
     },
@@ -966,6 +2027,160 @@
       ]
     },
     {
+      "name": "notifications",
+      "item": [
+        {
+          "name": "GET /api/v1/notifications",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/notifications",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "notifications"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\Api\\NotificationController@index"
+          }
+        },
+        {
+          "name": "POST /api/v1/notifications/read-all",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/notifications/read-all",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "notifications",
+                "read-all"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\Api\\NotificationController@markAllRead",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "GET /api/v1/notifications/settings",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/notifications/settings",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "notifications",
+                "settings"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\Settings\\NotificationSettingsController@edit"
+          }
+        },
+        {
+          "name": "PUT /api/v1/notifications/settings",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/notifications/settings",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "notifications",
+                "settings"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\Settings\\NotificationSettingsController@update",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "POST /api/v1/notifications/{notification}/read",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/notifications/{notification}/read",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "notifications",
+                "{notification}",
+                "read"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\Api\\NotificationController@markRead",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        }
+      ]
+    },
+    {
       "name": "onboarding",
       "item": [
         {
@@ -1022,6 +2237,119 @@
               "mode": "raw",
               "raw": "{}"
             }
+          }
+        }
+      ]
+    },
+    {
+      "name": "orders",
+      "item": [
+        {
+          "name": "GET /api/v1/orders",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/orders",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "orders"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\SaleController@ordersIndex"
+          }
+        }
+      ]
+    },
+    {
+      "name": "performance",
+      "item": [
+        {
+          "name": "GET /api/v1/performance",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/performance",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "performance"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\PerformanceController@index"
+          }
+        },
+        {
+          "name": "GET /api/v1/performance/employees/{employee}",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/performance/employees/{employee}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "performance",
+                "employees",
+                "{employee}"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\PerformanceController@employee"
+          }
+        }
+      ]
+    },
+    {
+      "name": "pipeline",
+      "item": [
+        {
+          "name": "GET /api/v1/pipeline",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/pipeline",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "pipeline"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\PipelineController@data"
           }
         }
       ]
@@ -1163,6 +2491,1330 @@
               ]
             },
             "description": "Action: App\\Http\\Controllers\\PlanScanController@convert",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "planning",
+      "item": [
+        {
+          "name": "GET /api/v1/planning",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/planning",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "planning"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\PlanningController@index"
+          }
+        },
+        {
+          "name": "GET /api/v1/planning/events",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/planning/events",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "planning",
+                "events"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\PlanningController@events"
+          }
+        },
+        {
+          "name": "POST /api/v1/planning/shifts",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/planning/shifts",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "planning",
+                "shifts"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\PlanningController@store",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "PATCH /api/v1/planning/shifts/{shift}",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/planning/shifts/{shift}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "planning",
+                "shifts",
+                "{shift}"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\PlanningController@update",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "DELETE /api/v1/planning/shifts/{shift}",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/planning/shifts/{shift}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "planning",
+                "shifts",
+                "{shift}"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\PlanningController@destroy"
+          }
+        },
+        {
+          "name": "PATCH /api/v1/planning/shifts/{shift}/status",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/planning/shifts/{shift}/status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "planning",
+                "shifts",
+                "{shift}",
+                "status"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\PlanningController@updateStatus",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "portal",
+      "item": [
+        {
+          "name": "GET /api/v1/portal/dashboard",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/portal/dashboard",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "portal",
+                "dashboard"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\DashboardController@index"
+          }
+        },
+        {
+          "name": "POST /api/v1/portal/invoices/{invoice}/payments",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/portal/invoices/{invoice}/payments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "portal",
+                "invoices",
+                "{invoice}",
+                "payments"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\Portal\\PortalInvoiceController@storePayment",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "GET /api/v1/portal/notifications",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/portal/notifications",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "portal",
+                "notifications"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\Portal\\PortalNotificationController@index"
+          }
+        },
+        {
+          "name": "POST /api/v1/portal/notifications/read-all",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/portal/notifications/read-all",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "portal",
+                "notifications",
+                "read-all"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\Portal\\PortalNotificationController@markAllRead",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "POST /api/v1/portal/notifications/{notification}/read",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/portal/notifications/{notification}/read",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "portal",
+                "notifications",
+                "{notification}",
+                "read"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\Portal\\PortalNotificationController@markRead",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "GET /api/v1/portal/orders",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/portal/orders",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "portal",
+                "orders"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\Portal\\PortalProductOrderController@index"
+          }
+        },
+        {
+          "name": "POST /api/v1/portal/orders",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/portal/orders",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "portal",
+                "orders"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\Portal\\PortalProductOrderController@store",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "GET /api/v1/portal/orders/history",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/portal/orders/history",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "portal",
+                "orders",
+                "history"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\Portal\\PortalProductOrderController@history"
+          }
+        },
+        {
+          "name": "GET /api/v1/portal/orders/{sale}",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/portal/orders/{sale}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "portal",
+                "orders",
+                "{sale}"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\Portal\\PortalProductOrderController@show"
+          }
+        },
+        {
+          "name": "PUT /api/v1/portal/orders/{sale}",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/portal/orders/{sale}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "portal",
+                "orders",
+                "{sale}"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\Portal\\PortalProductOrderController@update",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "DELETE /api/v1/portal/orders/{sale}",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/portal/orders/{sale}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "portal",
+                "orders",
+                "{sale}"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\Portal\\PortalProductOrderController@destroy"
+          }
+        },
+        {
+          "name": "POST /api/v1/portal/orders/{sale}/confirm",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/portal/orders/{sale}/confirm",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "portal",
+                "orders",
+                "{sale}",
+                "confirm"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\Portal\\PortalProductOrderController@confirmReceipt",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "GET /api/v1/portal/orders/{sale}/edit",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/portal/orders/{sale}/edit",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "portal",
+                "orders",
+                "{sale}",
+                "edit"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\Portal\\PortalProductOrderController@edit"
+          }
+        },
+        {
+          "name": "POST /api/v1/portal/orders/{sale}/pay",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/portal/orders/{sale}/pay",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "portal",
+                "orders",
+                "{sale}",
+                "pay"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\Portal\\PortalProductOrderController@pay",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "POST /api/v1/portal/orders/{sale}/reorder",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/portal/orders/{sale}/reorder",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "portal",
+                "orders",
+                "{sale}",
+                "reorder"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\Portal\\PortalProductOrderController@reorder",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "POST /api/v1/portal/quotes/{quote}/accept",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/portal/quotes/{quote}/accept",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "portal",
+                "quotes",
+                "{quote}",
+                "accept"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\Portal\\PortalQuoteController@accept",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "POST /api/v1/portal/quotes/{quote}/decline",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/portal/quotes/{quote}/decline",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "portal",
+                "quotes",
+                "{quote}",
+                "decline"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\Portal\\PortalQuoteController@decline",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "POST /api/v1/portal/quotes/{quote}/ratings",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/portal/quotes/{quote}/ratings",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "portal",
+                "quotes",
+                "{quote}",
+                "ratings"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\Portal\\PortalRatingController@storeQuote",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "GET /api/v1/portal/reservations",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/portal/reservations",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "portal",
+                "reservations"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\Reservation\\ClientReservationController@index"
+          }
+        },
+        {
+          "name": "GET /api/v1/portal/reservations/book",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/portal/reservations/book",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "portal",
+                "reservations",
+                "book"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\Reservation\\ClientReservationController@book"
+          }
+        },
+        {
+          "name": "POST /api/v1/portal/reservations/book",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/portal/reservations/book",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "portal",
+                "reservations",
+                "book"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\Reservation\\ClientReservationController@store",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "GET /api/v1/portal/reservations/events",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/portal/reservations/events",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "portal",
+                "reservations",
+                "events"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\Reservation\\ClientReservationController@events"
+          }
+        },
+        {
+          "name": "GET /api/v1/portal/reservations/slots",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/portal/reservations/slots",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "portal",
+                "reservations",
+                "slots"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\Reservation\\ClientReservationController@slots"
+          }
+        },
+        {
+          "name": "PATCH /api/v1/portal/reservations/{reservation}/cancel",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/portal/reservations/{reservation}/cancel",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "portal",
+                "reservations",
+                "{reservation}",
+                "cancel"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\Reservation\\ClientReservationController@cancel",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "PATCH /api/v1/portal/reservations/{reservation}/reschedule",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/portal/reservations/{reservation}/reschedule",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "portal",
+                "reservations",
+                "{reservation}",
+                "reschedule"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\Reservation\\ClientReservationController@reschedule",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "POST /api/v1/portal/reservations/{reservation}/review",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/portal/reservations/{reservation}/review",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "portal",
+                "reservations",
+                "{reservation}",
+                "review"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\Reservation\\ClientReservationController@review",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "POST /api/v1/portal/tasks/{task}/media",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/portal/tasks/{task}/media",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "portal",
+                "tasks",
+                "{task}",
+                "media"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\Portal\\PortalTaskMediaController@store",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "POST /api/v1/portal/works/{work}/dispute",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/portal/works/{work}/dispute",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "portal",
+                "works",
+                "{work}",
+                "dispute"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\Portal\\PortalWorkController@dispute",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "GET /api/v1/portal/works/{work}/proofs",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/portal/works/{work}/proofs",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "portal",
+                "works",
+                "{work}",
+                "proofs"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\Portal\\PortalWorkProofController@show"
+          }
+        },
+        {
+          "name": "POST /api/v1/portal/works/{work}/ratings",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/portal/works/{work}/ratings",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "portal",
+                "works",
+                "{work}",
+                "ratings"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\Portal\\PortalRatingController@storeWork",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "POST /api/v1/portal/works/{work}/schedule/confirm",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/portal/works/{work}/schedule/confirm",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "portal",
+                "works",
+                "{work}",
+                "schedule",
+                "confirm"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\Portal\\PortalWorkController@confirmSchedule",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "POST /api/v1/portal/works/{work}/schedule/reject",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/portal/works/{work}/schedule/reject",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "portal",
+                "works",
+                "{work}",
+                "schedule",
+                "reject"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\Portal\\PortalWorkController@rejectSchedule",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "POST /api/v1/portal/works/{work}/validate",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/portal/works/{work}/validate",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "portal",
+                "works",
+                "{work}",
+                "validate"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\Portal\\PortalWorkController@validateWork",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "presence",
+      "item": [
+        {
+          "name": "GET /api/v1/presence",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/presence",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "presence"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\PresenceController@index"
+          }
+        },
+        {
+          "name": "POST /api/v1/presence/clock-in",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/presence/clock-in",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "presence",
+                "clock-in"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\PresenceController@clockIn",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "POST /api/v1/presence/clock-out",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/presence/clock-out",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "presence",
+                "clock-out"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\PresenceController@clockOut",
             "body": {
               "mode": "raw",
               "raw": "{}"
@@ -1557,6 +4209,40 @@
               "raw": "{}"
             }
           }
+        },
+        {
+          "name": "POST /api/v1/product/{product}/supplier-email",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/product/{product}/supplier-email",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "product",
+                "{product}",
+                "supplier-email"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\ProductController@requestSupplierStock",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
         }
       ]
     },
@@ -1737,6 +4423,43 @@
               ]
             },
             "description": "Action: App\\Http\\Controllers\\ProfileController@destroy"
+          }
+        }
+      ]
+    },
+    {
+      "name": "push-tokens",
+      "item": [
+        {
+          "name": "POST /api/v1/push-tokens",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/push-tokens",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "push-tokens"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\Api\\PushTokenController@store",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
           }
         }
       ]
@@ -1937,6 +4660,97 @@
           }
         },
         {
+          "name": "PATCH /api/v1/requests/bulk",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/requests/bulk",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "requests",
+                "bulk"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\RequestController@bulkUpdate",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "GET /api/v1/requests/{lead}",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/requests/{lead}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "requests",
+                "{lead}"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\RequestController@show"
+          }
+        },
+        {
+          "name": "PUT /api/v1/requests/{lead}",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/requests/{lead}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "requests",
+                "{lead}"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\RequestController@update",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
           "name": "DELETE /api/v1/requests/{lead}",
           "request": {
             "method": "DELETE",
@@ -1989,6 +4803,577 @@
               ]
             },
             "description": "Action: App\\Http\\Controllers\\RequestController@convert",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "POST /api/v1/requests/{lead}/media",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/requests/{lead}/media",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "requests",
+                "{lead}",
+                "media"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\RequestMediaController@store",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "DELETE /api/v1/requests/{lead}/media/{media}",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/requests/{lead}/media/{media}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "requests",
+                "{lead}",
+                "media",
+                "{media}"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\RequestMediaController@destroy"
+          }
+        },
+        {
+          "name": "POST /api/v1/requests/{lead}/merge",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/requests/{lead}/merge",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "requests",
+                "{lead}",
+                "merge"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\RequestController@merge",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "POST /api/v1/requests/{lead}/notes",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/requests/{lead}/notes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "requests",
+                "{lead}",
+                "notes"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\RequestNoteController@store",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "DELETE /api/v1/requests/{lead}/notes/{note}",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/requests/{lead}/notes/{note}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "requests",
+                "{lead}",
+                "notes",
+                "{note}"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\RequestNoteController@destroy"
+          }
+        }
+      ]
+    },
+    {
+      "name": "reservations",
+      "item": [
+        {
+          "name": "GET /api/v1/reservations",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/reservations",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "reservations"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\Reservation\\StaffReservationController@index"
+          }
+        },
+        {
+          "name": "POST /api/v1/reservations",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/reservations",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "reservations"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\Reservation\\StaffReservationController@store",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "GET /api/v1/reservations/events",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/reservations/events",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "reservations",
+                "events"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\Reservation\\StaffReservationController@events"
+          }
+        },
+        {
+          "name": "GET /api/v1/reservations/slots",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/reservations/slots",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "reservations",
+                "slots"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\Reservation\\StaffReservationController@slots"
+          }
+        },
+        {
+          "name": "PUT /api/v1/reservations/{reservation}",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/reservations/{reservation}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "reservations",
+                "{reservation}"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\Reservation\\StaffReservationController@update",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "DELETE /api/v1/reservations/{reservation}",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/reservations/{reservation}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "reservations",
+                "{reservation}"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\Reservation\\StaffReservationController@destroy"
+          }
+        },
+        {
+          "name": "PATCH /api/v1/reservations/{reservation}/status",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/reservations/{reservation}/status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "reservations",
+                "{reservation}",
+                "status"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\Reservation\\StaffReservationController@updateStatus",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "sales",
+      "item": [
+        {
+          "name": "GET /api/v1/sales",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/sales",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "sales"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\SaleController@index"
+          }
+        },
+        {
+          "name": "POST /api/v1/sales",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/sales",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "sales"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\SaleController@store",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "GET /api/v1/sales/create",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/sales/create",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "sales",
+                "create"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\SaleController@create"
+          }
+        },
+        {
+          "name": "GET /api/v1/sales/{sale}",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/sales/{sale}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "sales",
+                "{sale}"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\SaleController@show"
+          }
+        },
+        {
+          "name": "PUT /api/v1/sales/{sale}",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/sales/{sale}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "sales",
+                "{sale}"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\SaleController@update",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "POST /api/v1/sales/{sale}/pickup-confirm",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/sales/{sale}/pickup-confirm",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "sales",
+                "{sale}",
+                "pickup-confirm"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\SaleController@confirmPickup",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "PATCH /api/v1/sales/{sale}/status",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/sales/{sale}/status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "sales",
+                "{sale}",
+                "status"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\SaleController@updateStatus",
             "body": {
               "mode": "raw",
               "raw": "{}"
@@ -2259,6 +5644,108 @@
               ]
             },
             "description": "Action: App\\Http\\Controllers\\Settings\\BillingSettingsController@update",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "POST /api/v1/settings/billing/assistant-addon",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/settings/billing/assistant-addon",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "settings",
+                "billing",
+                "assistant-addon"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\Settings\\BillingSettingsController@updateAssistantAddon",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "POST /api/v1/settings/billing/checkout",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/settings/billing/checkout",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "settings",
+                "billing",
+                "checkout"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\Settings\\SubscriptionController@checkout",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "POST /api/v1/settings/billing/connect",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/settings/billing/connect",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "settings",
+                "billing",
+                "connect"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\Settings\\BillingSettingsController@connectStripe",
             "body": {
               "mode": "raw",
               "raw": "{}"
@@ -2561,6 +6048,909 @@
               "raw": "{}"
             }
           }
+        },
+        {
+          "name": "GET /api/v1/settings/reservations",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/settings/reservations",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "settings",
+                "reservations"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\Reservation\\ReservationSettingsController@edit"
+          }
+        },
+        {
+          "name": "PUT /api/v1/settings/reservations",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/settings/reservations",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "settings",
+                "reservations"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\Reservation\\ReservationSettingsController@update",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "stripe",
+      "item": [
+        {
+          "name": "POST /api/v1/stripe/webhook",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/stripe/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "stripe",
+                "webhook"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\Billing\\StripeWebhookController@handle",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "super-admin",
+      "item": [
+        {
+          "name": "GET /api/v1/super-admin/admins",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/super-admin/admins",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "super-admin",
+                "admins"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\Api\\SuperAdmin\\AdminController@index"
+          }
+        },
+        {
+          "name": "POST /api/v1/super-admin/admins",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/super-admin/admins",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "super-admin",
+                "admins"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\Api\\SuperAdmin\\AdminController@store",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "PUT /api/v1/super-admin/admins/{admin}",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/super-admin/admins/{admin}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "super-admin",
+                "admins",
+                "{admin}"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\Api\\SuperAdmin\\AdminController@update",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "GET /api/v1/super-admin/announcements",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/super-admin/announcements",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "super-admin",
+                "announcements"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\Api\\SuperAdmin\\AnnouncementController@index"
+          }
+        },
+        {
+          "name": "POST /api/v1/super-admin/announcements",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/super-admin/announcements",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "super-admin",
+                "announcements"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\Api\\SuperAdmin\\AnnouncementController@store",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "PUT /api/v1/super-admin/announcements/{announcement}",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/super-admin/announcements/{announcement}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "super-admin",
+                "announcements",
+                "{announcement}"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\Api\\SuperAdmin\\AnnouncementController@update",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "DELETE /api/v1/super-admin/announcements/{announcement}",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/super-admin/announcements/{announcement}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "super-admin",
+                "announcements",
+                "{announcement}"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\Api\\SuperAdmin\\AnnouncementController@destroy"
+          }
+        },
+        {
+          "name": "GET /api/v1/super-admin/dashboard",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/super-admin/dashboard",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "super-admin",
+                "dashboard"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\Api\\SuperAdmin\\DashboardController@index"
+          }
+        },
+        {
+          "name": "GET /api/v1/super-admin/settings",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/super-admin/settings",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "super-admin",
+                "settings"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\Api\\SuperAdmin\\PlatformSettingsController@show"
+          }
+        },
+        {
+          "name": "PUT /api/v1/super-admin/settings",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/super-admin/settings",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "super-admin",
+                "settings"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\Api\\SuperAdmin\\PlatformSettingsController@update",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "GET /api/v1/super-admin/support",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/super-admin/support",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "super-admin",
+                "support"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\Api\\SuperAdmin\\SupportController@index"
+          }
+        },
+        {
+          "name": "POST /api/v1/super-admin/support",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/super-admin/support",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "super-admin",
+                "support"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\Api\\SuperAdmin\\SupportController@store",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "PUT /api/v1/super-admin/support/{ticket}",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/super-admin/support/{ticket}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "super-admin",
+                "support",
+                "{ticket}"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\Api\\SuperAdmin\\SupportController@update",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "GET /api/v1/super-admin/tenants",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/super-admin/tenants",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "super-admin",
+                "tenants"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\Api\\SuperAdmin\\TenantController@index"
+          }
+        },
+        {
+          "name": "GET /api/v1/super-admin/tenants/{tenant}",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/super-admin/tenants/{tenant}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "super-admin",
+                "tenants",
+                "{tenant}"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\Api\\SuperAdmin\\TenantController@show"
+          }
+        },
+        {
+          "name": "PUT /api/v1/super-admin/tenants/{tenant}/features",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/super-admin/tenants/{tenant}/features",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "super-admin",
+                "tenants",
+                "{tenant}",
+                "features"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\Api\\SuperAdmin\\TenantController@updateFeatures",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "PUT /api/v1/super-admin/tenants/{tenant}/limits",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/super-admin/tenants/{tenant}/limits",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "super-admin",
+                "tenants",
+                "{tenant}",
+                "limits"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\Api\\SuperAdmin\\TenantController@updateLimits",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "PUT /api/v1/super-admin/tenants/{tenant}/plan",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/super-admin/tenants/{tenant}/plan",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "super-admin",
+                "tenants",
+                "{tenant}",
+                "plan"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\Api\\SuperAdmin\\TenantController@updatePlan",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "POST /api/v1/super-admin/tenants/{tenant}/restore",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/super-admin/tenants/{tenant}/restore",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "super-admin",
+                "tenants",
+                "{tenant}",
+                "restore"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\Api\\SuperAdmin\\TenantController@restore",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "PUT /api/v1/super-admin/tenants/{tenant}/security",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/super-admin/tenants/{tenant}/security",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "super-admin",
+                "tenants",
+                "{tenant}",
+                "security"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\Api\\SuperAdmin\\TenantController@updateSecurity",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "POST /api/v1/super-admin/tenants/{tenant}/suspend",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/super-admin/tenants/{tenant}/suspend",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "super-admin",
+                "tenants",
+                "{tenant}",
+                "suspend"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\Api\\SuperAdmin\\TenantController@suspend",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "support",
+      "item": [
+        {
+          "name": "GET /api/v1/support",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/support",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "support"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\SupportTicketController@index"
+          }
+        },
+        {
+          "name": "POST /api/v1/support",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/support",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "support"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\SupportTicketController@store",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "GET /api/v1/support/{ticket}",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/support/{ticket}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "support",
+                "{ticket}"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\SupportTicketController@show"
+          }
+        },
+        {
+          "name": "PUT /api/v1/support/{ticket}",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/support/{ticket}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "support",
+                "{ticket}"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\SupportTicketController@update",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
+        },
+        {
+          "name": "POST /api/v1/support/{ticket}/messages",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/support/{ticket}/messages",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "support",
+                "{ticket}",
+                "messages"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\SupportTicketMessageController@store",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          }
         }
       ]
     },
@@ -2624,6 +7014,31 @@
           }
         },
         {
+          "name": "GET /api/v1/tasks/{task}",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/tasks/{task}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "tasks",
+                "{task}"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\TaskController@show"
+          }
+        },
+        {
           "name": "PUT /api/v1/tasks/{task}",
           "request": {
             "method": "PUT",
@@ -2679,6 +7094,40 @@
               ]
             },
             "description": "Action: App\\Http\\Controllers\\TaskController@destroy"
+          }
+        },
+        {
+          "name": "PATCH /api/v1/tasks/{task}/assignee",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/tasks/{task}/assignee",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "tasks",
+                "{task}",
+                "assignee"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\TaskController@assign",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
           }
         },
         {
@@ -2832,6 +7281,85 @@
               ]
             },
             "description": "Action: App\\Http\\Controllers\\TeamMemberController@destroy"
+          }
+        }
+      ]
+    },
+    {
+      "name": "webhooks",
+      "item": [
+        {
+          "name": "POST /api/v1/webhooks/campaigns/email",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/webhooks/campaigns/email",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "webhooks",
+                "campaigns",
+                "email"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\CampaignTrackingController@emailWebhook",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "POST /api/v1/webhooks/campaigns/sms",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/webhooks/campaigns/sms",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "webhooks",
+                "campaigns",
+                "sms"
+              ]
+            },
+            "description": "Action: App\\Http\\Controllers\\CampaignTrackingController@smsWebhook",
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "auth": {
+              "type": "noauth"
+            }
           }
         }
       ]
