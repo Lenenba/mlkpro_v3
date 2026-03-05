@@ -245,6 +245,9 @@ const formatDateTime = (value) => {
     return date.toLocaleString();
 };
 
+const availableStock = (product) =>
+    Math.max(0, Number(product?.stock_available ?? product?.stock ?? 0));
+
 const filteredProducts = computed(() => {
     const keyword = search.value.trim().toLowerCase();
 
@@ -255,7 +258,7 @@ const filteredProducts = computed(() => {
             );
         const matchesCategory = !selectedCategoryId.value
             || String(product.category_id || '') === String(selectedCategoryId.value);
-        const productStock = Number(product.stock || 0);
+        const productStock = availableStock(product);
         const minimumStock = Number(product.minimum_stock || 0);
         const matchesStock = stockFilter.value === 'all'
             || (stockFilter.value === 'out' && productStock <= 0)
@@ -277,12 +280,12 @@ const addToCart = (product) => {
     if (isLocked.value) {
         return;
     }
-    if (!product || product.stock <= 0) {
+    if (!product || availableStock(product) <= 0) {
         return;
     }
     const existing = findCartItem(product.id);
     if (existing) {
-        if (existing.quantity < product.stock) {
+        if (existing.quantity < availableStock(product)) {
             existing.quantity += 1;
         }
         return;
@@ -303,7 +306,7 @@ const updateQuantity = (productId, delta) => {
         cart.value = cart.value.filter((entry) => entry.product.id !== productId);
         return;
     }
-    item.quantity = Math.min(next, item.product.stock);
+    item.quantity = Math.min(next, availableStock(item.product));
 };
 
 const removeItem = (productId) => {
@@ -327,7 +330,7 @@ const closeProductDetails = () => {
 };
 
 const stockMeta = (product) => {
-    const stock = Number(product?.stock ?? 0);
+    const stock = availableStock(product);
     const minimum = Number(product?.minimum_stock ?? 0);
 
     if (stock <= 0) {
@@ -475,7 +478,7 @@ watch(
                 if (!product) {
                     return null;
                 }
-                const quantity = Math.min(Number(item.quantity || 0), Number(product.stock || 0));
+                const quantity = Math.min(Number(item.quantity || 0), availableStock(product));
                 if (quantity <= 0) {
                     return null;
                 }
@@ -937,7 +940,7 @@ const startPayment = (type) => {
                             </div>
                             <div class="mt-3 flex items-center justify-between text-xs text-stone-500 dark:text-neutral-400">
                                 <span>
-                                    {{ $t('portal_shop.labels.stock', { count: product.stock }) }}
+                                    {{ $t('portal_shop.labels.stock', { count: availableStock(product) }) }}
                                     <span v-if="product.unit">- {{ product.unit }}</span>
                                 </span>
                                 <div class="flex items-center gap-2">
@@ -956,7 +959,7 @@ const startPayment = (type) => {
                                         <button
                                             type="button"
                                             class="h-7 w-7 rounded-sm border border-stone-200 text-stone-600 hover:bg-stone-50 disabled:opacity-50 dark:border-neutral-700 dark:text-neutral-200"
-                                            :disabled="isLocked || cartQuantity(product.id) >= product.stock"
+                                            :disabled="isLocked || cartQuantity(product.id) >= availableStock(product)"
                                             @click.stop="updateQuantity(product.id, 1)"
                                         >
                                             +
@@ -966,7 +969,7 @@ const startPayment = (type) => {
                                         v-else
                                         type="button"
                                         class="rounded-sm border border-stone-200 bg-white px-2 py-1 text-xs font-semibold text-stone-700 hover:bg-stone-50 disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200 dark:hover:bg-neutral-700"
-                                        :disabled="product.stock <= 0 || isLocked"
+                                        :disabled="availableStock(product) <= 0 || isLocked"
                                         @click.stop="addToCart(product)"
                                     >
                                         {{ $t('portal_shop.product.add') }}
@@ -1258,7 +1261,7 @@ const startPayment = (type) => {
                         >
                             {{ stockMeta(selectedProduct).label }}
                         </span>
-                        <span>{{ $t('portal_shop.labels.stock', { count: selectedProduct.stock }) }}</span>
+                        <span>{{ $t('portal_shop.labels.stock', { count: availableStock(selectedProduct) }) }}</span>
                         <span v-if="selectedProduct.unit">- {{ selectedProduct.unit }}</span>
                     </div>
                 </div>
@@ -1310,7 +1313,7 @@ const startPayment = (type) => {
                                 <button
                                     type="button"
                                     class="h-8 w-8 rounded-sm border border-stone-200 text-stone-600 hover:bg-stone-50 disabled:opacity-50 dark:border-neutral-700 dark:text-neutral-200"
-                                    :disabled="isLocked || cartQuantity(selectedProduct.id) >= selectedProduct.stock"
+                                    :disabled="isLocked || cartQuantity(selectedProduct.id) >= availableStock(selectedProduct)"
                                     @click="updateQuantity(selectedProduct.id, 1)"
                                 >
                                     +
@@ -1320,7 +1323,7 @@ const startPayment = (type) => {
                         <button
                             type="button"
                             class="mt-3 w-full rounded-sm bg-green-600 px-3 py-2 text-sm font-semibold text-white hover:bg-green-700 disabled:opacity-60"
-                            :disabled="isLocked || selectedProduct.stock <= 0"
+                            :disabled="isLocked || availableStock(selectedProduct) <= 0"
                             @click="addToCart(selectedProduct)"
                         >
                             {{ cartQuantity(selectedProduct.id) > 0

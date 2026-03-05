@@ -10,6 +10,7 @@ import FloatingTextarea from '@/Components/FloatingTextarea.vue';
 import Modal from '@/Components/Modal.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import SecondaryButton from '@/Components/SecondaryButton.vue';
+import EmailBodyEditor from '@/Pages/Campaigns/Components/EmailBodyEditor.vue';
 import OfferSelector from '@/Pages/Campaigns/Components/OfferSelector.vue';
 
 const props = defineProps({
@@ -63,6 +64,12 @@ const sourceLogicLabel = (value) => {
     const normalized = String(value || '').toLowerCase();
     if (!normalized) return '-';
     return translateWithFallback(`marketing.source_logic.${normalized}`, humanizeValue(value));
+};
+
+const channelLabel = (value) => {
+    const normalized = String(value || '').toLowerCase();
+    if (!normalized) return '-';
+    return translateWithFallback(`marketing.channels.${normalized}`, humanizeValue(value));
 };
 
 const channels = (props.enums?.channels || ['EMAIL', 'SMS', 'IN_APP']).map((v) => String(v).toUpperCase());
@@ -995,7 +1002,7 @@ onMounted(async () => {
             <section v-show="step === 3" class="space-y-3 rounded-sm border border-stone-200 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
                 <div v-for="channel in form.channels" :key="channel.channel" class="rounded-sm border border-stone-200 p-3 dark:border-neutral-700">
                     <div class="mb-2 flex items-center justify-between">
-                        <div class="text-sm font-semibold text-stone-700 dark:text-neutral-200">{{ channel.channel }}</div>
+                        <div class="text-sm font-semibold text-stone-700 dark:text-neutral-200">{{ channelLabel(channel.channel) }}</div>
                         <label class="inline-flex items-center gap-2 text-xs text-stone-600 dark:text-neutral-300"><input v-model="channel.is_enabled" type="checkbox" class="rounded border-stone-300 text-green-600 focus:ring-green-600"> {{ t('marketing.campaign_wizard.enabled') }}</label>
                     </div>
                     <div class="grid grid-cols-1 gap-2 md:grid-cols-2">
@@ -1015,7 +1022,14 @@ onMounted(async () => {
                         />
                         <FloatingInput v-model="channel.subject_template" :label="t('marketing.campaign_wizard.fields.subject')" />
                         <FloatingInput v-model="channel.title_template" :label="t('marketing.campaign_wizard.fields.title')" />
+                        <EmailBodyEditor
+                            v-if="channel.channel === 'EMAIL'"
+                            v-model="channel.body_template"
+                            class="md:col-span-2"
+                            :label="t('marketing.campaign_wizard.fields.body_template')"
+                        />
                         <FloatingTextarea
+                            v-else
                             v-model="channel.body_template"
                             class="md:col-span-2"
                             :label="t('marketing.campaign_wizard.fields.body_template')"
@@ -1027,7 +1041,7 @@ onMounted(async () => {
                             <div class="text-xs font-semibold text-stone-700 dark:text-neutral-200">{{ t('marketing.campaign_wizard.ab_testing.title') }}</div>
                             <label class="inline-flex items-center gap-2 text-xs text-stone-600 dark:text-neutral-300">
                                 <input v-model="channel.ab_testing.enabled" type="checkbox" class="rounded border-stone-300 text-green-600 focus:ring-green-600">
-                                <span>{{ t('marketing.campaign_wizard.ab_testing.enable_for', { channel: channel.channel }) }}</span>
+                                <span>{{ t('marketing.campaign_wizard.ab_testing.enable_for', { channel: channelLabel(channel.channel) }) }}</span>
                             </label>
                         </div>
 
@@ -1044,7 +1058,17 @@ onMounted(async () => {
                                     <div class="space-y-2">
                                         <FloatingInput v-model="channel.ab_testing.variant_a.subject_template" :label="t('marketing.campaign_wizard.ab_testing.subject_a')" />
                                         <FloatingInput v-model="channel.ab_testing.variant_a.title_template" :label="t('marketing.campaign_wizard.ab_testing.title_a')" />
-                                        <FloatingTextarea v-model="channel.ab_testing.variant_a.body_template" :label="t('marketing.campaign_wizard.ab_testing.body_a')" />
+                                        <EmailBodyEditor
+                                            v-if="channel.channel === 'EMAIL'"
+                                            v-model="channel.ab_testing.variant_a.body_template"
+                                            :label="t('marketing.campaign_wizard.ab_testing.body_a')"
+                                            compact
+                                        />
+                                        <FloatingTextarea
+                                            v-else
+                                            v-model="channel.ab_testing.variant_a.body_template"
+                                            :label="t('marketing.campaign_wizard.ab_testing.body_a')"
+                                        />
                                     </div>
                                 </div>
                                 <div class="rounded-sm border border-stone-200 bg-white p-2 dark:border-neutral-700 dark:bg-neutral-900">
@@ -1052,7 +1076,17 @@ onMounted(async () => {
                                     <div class="space-y-2">
                                         <FloatingInput v-model="channel.ab_testing.variant_b.subject_template" :label="t('marketing.campaign_wizard.ab_testing.subject_b')" />
                                         <FloatingInput v-model="channel.ab_testing.variant_b.title_template" :label="t('marketing.campaign_wizard.ab_testing.title_b')" />
-                                        <FloatingTextarea v-model="channel.ab_testing.variant_b.body_template" :label="t('marketing.campaign_wizard.ab_testing.body_b')" />
+                                        <EmailBodyEditor
+                                            v-if="channel.channel === 'EMAIL'"
+                                            v-model="channel.ab_testing.variant_b.body_template"
+                                            :label="t('marketing.campaign_wizard.ab_testing.body_b')"
+                                            compact
+                                        />
+                                        <FloatingTextarea
+                                            v-else
+                                            v-model="channel.ab_testing.variant_b.body_template"
+                                            :label="t('marketing.campaign_wizard.ab_testing.body_b')"
+                                        />
                                     </div>
                                 </div>
                             </div>

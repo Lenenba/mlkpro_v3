@@ -10,6 +10,7 @@ const props = defineProps({
     campaign: { type: Object, required: true },
     eventStats: { type: Object, default: () => ({}) },
     clickNoConversion: { type: Array, default: () => [] },
+    deliveryInsights: { type: Object, default: () => ({}) },
     access: { type: Object, default: () => ({}) },
 });
 
@@ -18,6 +19,42 @@ const runs = computed(() => props.campaign?.runs || []);
 const events = computed(() =>
     Object.entries(props.eventStats || {}).map(([key, value]) => ({ key, value: Number(value || 0) }))
 );
+const insights = computed(() => props.deliveryInsights || {});
+const abInsights = computed(() => {
+    const source = insights.value?.ab_assignments || {};
+    return {
+        a: Number(source.A || 0),
+        b: Number(source.B || 0),
+        total: Number(source.total || 0),
+        splitA: source.split_a_percent ?? null,
+        splitB: source.split_b_percent ?? null,
+    };
+});
+const fallbackInsights = computed(() => {
+    const source = insights.value?.fallback || {};
+    return {
+        count: Number(source.count || 0),
+        failedCount: Number(source.failed_count || 0),
+        rate: source.rate_percent ?? 0,
+    };
+});
+const channelInsights = computed(() => {
+    const source = insights.value?.channels || {};
+
+    return Object.entries(source)
+        .map(([channel, metrics]) => ({
+            channel: String(channel).toUpperCase(),
+            targeted: Number(metrics?.targeted || 0),
+            sent: Number(metrics?.sent || 0),
+            delivered: Number(metrics?.delivered || 0),
+            failed: Number(metrics?.failed || 0),
+            clicked: Number(metrics?.clicked || 0),
+            converted: Number(metrics?.converted || 0),
+            fallbackCount: Number(metrics?.fallback_count || 0),
+            deliveryRate: Number(metrics?.delivery_rate_percent || 0),
+        }))
+        .sort((left, right) => left.channel.localeCompare(right.channel));
+});
 const { t } = useI18n();
 
 const conversionError = ref('');
@@ -142,6 +179,86 @@ const markConverted = async (recipient) => {
                         <div class="mt-1 text-sm font-semibold text-stone-700 dark:text-neutral-200">{{ runs.length }}</div>
                     </div>
                 </div>
+            </section>
+
+            <section class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                <div class="mb-2 text-sm font-semibold text-stone-800 dark:text-neutral-100">Delivery insights (latest run)</div>
+                <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+                    <div class="rounded-sm border border-stone-200 bg-stone-50 p-3 dark:border-neutral-700 dark:bg-neutral-800">
+                        <div class="text-xs text-stone-500 dark:text-neutral-400">Latest run</div>
+                        <div class="mt-1 text-sm font-semibold text-stone-700 dark:text-neutral-200">
+                            {{ insights.latest_run_id ? `#${insights.latest_run_id}` : '-' }}
+                        </div>
+                    </div>
+                    <div class="rounded-sm border border-stone-200 bg-stone-50 p-3 dark:border-neutral-700 dark:bg-neutral-800">
+                        <div class="text-xs text-stone-500 dark:text-neutral-400">A/B split</div>
+                        <div class="mt-1 text-sm font-semibold text-stone-700 dark:text-neutral-200">
+                            A {{ abInsights.a }} / B {{ abInsights.b }}
+                        </div>
+                        <div class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
+                            <template v-if="abInsights.total > 0">
+                                A {{ abInsights.splitA }}% | B {{ abInsights.splitB }}%
+                            </template>
+                            <template v-else>
+                                No A/B data
+                            </template>
+                        </div>
+                    </div>
+                    <div class="rounded-sm border border-stone-200 bg-stone-50 p-3 dark:border-neutral-700 dark:bg-neutral-800">
+                        <div class="text-xs text-stone-500 dark:text-neutral-400">Holdout recipients</div>
+                        <div class="mt-1 text-sm font-semibold text-stone-700 dark:text-neutral-200">
+                            {{ Number(insights.holdout_count || 0) }}
+                        </div>
+                    </div>
+                    <div class="rounded-sm border border-stone-200 bg-stone-50 p-3 dark:border-neutral-700 dark:bg-neutral-800">
+                        <div class="text-xs text-stone-500 dark:text-neutral-400">Fallback usage</div>
+                        <div class="mt-1 text-sm font-semibold text-stone-700 dark:text-neutral-200">
+                            {{ fallbackInsights.count }} triggered
+                        </div>
+                        <div class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
+                            {{ fallbackInsights.rate }}% of failed ({{ fallbackInsights.failedCount }} failed)
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-4 overflow-x-auto">
+                    <table class="min-w-full divide-y divide-stone-200 text-sm dark:divide-neutral-700">
+                        <thead>
+                            <tr class="text-left text-xs uppercase text-stone-500 dark:text-neutral-400">
+                                <th class="px-3 py-2">Channel</th>
+                                <th class="px-3 py-2">Targeted</th>
+                                <th class="px-3 py-2">Sent*</th>
+                                <th class="px-3 py-2">Delivered*</th>
+                                <th class="px-3 py-2">Failed</th>
+                                <th class="px-3 py-2">Clicked</th>
+                                <th class="px-3 py-2">Converted</th>
+                                <th class="px-3 py-2">Fallback</th>
+                                <th class="px-3 py-2 text-right">Delivery %</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-stone-200 dark:divide-neutral-700">
+                            <tr v-if="channelInsights.length === 0">
+                                <td colspan="9" class="px-3 py-6 text-center text-xs text-stone-500 dark:text-neutral-400">
+                                    No channel breakdown available.
+                                </td>
+                            </tr>
+                            <tr v-for="channel in channelInsights" :key="`insight-channel-${channel.channel}`">
+                                <td class="px-3 py-2 font-semibold text-stone-700 dark:text-neutral-200">{{ channel.channel }}</td>
+                                <td class="px-3 py-2 text-stone-700 dark:text-neutral-200">{{ channel.targeted }}</td>
+                                <td class="px-3 py-2 text-stone-700 dark:text-neutral-200">{{ channel.sent }}</td>
+                                <td class="px-3 py-2 text-stone-700 dark:text-neutral-200">{{ channel.delivered }}</td>
+                                <td class="px-3 py-2 text-stone-700 dark:text-neutral-200">{{ channel.failed }}</td>
+                                <td class="px-3 py-2 text-stone-700 dark:text-neutral-200">{{ channel.clicked }}</td>
+                                <td class="px-3 py-2 text-stone-700 dark:text-neutral-200">{{ channel.converted }}</td>
+                                <td class="px-3 py-2 text-stone-700 dark:text-neutral-200">{{ channel.fallbackCount }}</td>
+                                <td class="px-3 py-2 text-right font-semibold text-stone-700 dark:text-neutral-200">{{ channel.deliveryRate }}%</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p class="mt-2 text-xs text-stone-500 dark:text-neutral-400">
+                    * `Sent` includes statuses sent/delivered/opened/clicked/converted. `Delivered` includes delivered/opened/clicked/converted.
+                </p>
             </section>
 
             <section class="grid grid-cols-1 gap-4 lg:grid-cols-2">

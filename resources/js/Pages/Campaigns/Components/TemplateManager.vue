@@ -7,6 +7,7 @@ import FloatingSelect from '@/Components/FloatingSelect.vue';
 import FloatingTextarea from '@/Components/FloatingTextarea.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import SecondaryButton from '@/Components/SecondaryButton.vue';
+import EmailBodyEditor from '@/Pages/Campaigns/Components/EmailBodyEditor.vue';
 
 const props = defineProps({
     enums: {
@@ -16,6 +17,32 @@ const props = defineProps({
 });
 
 const { t } = useI18n();
+
+const translateWithFallback = (key, fallback) => {
+    const translated = t(key);
+    return translated === key ? fallback : translated;
+};
+
+const humanizeValue = (value) => String(value || '')
+    .replaceAll('_', ' ')
+    .toLowerCase()
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+
+const channelLabel = (value) => {
+    const normalized = String(value || '').toLowerCase();
+    if (!normalized) {
+        return '-';
+    }
+    return translateWithFallback(`marketing.channels.${normalized}`, humanizeValue(value));
+};
+
+const campaignTypeLabel = (value) => {
+    const normalized = String(value || '').toLowerCase();
+    if (!normalized) {
+        return '-';
+    }
+    return translateWithFallback(`marketing.campaign_types.${normalized}`, humanizeValue(value));
+};
 
 const rows = ref([]);
 const busy = ref(false);
@@ -48,16 +75,16 @@ const form = ref({
 });
 
 const campaignTypes = computed(() => Array.isArray(props.enums?.campaign_types) ? props.enums.campaign_types : []);
-const channelOptions = [
-    { value: 'EMAIL', label: 'EMAIL' },
-    { value: 'SMS', label: 'SMS' },
-    { value: 'IN_APP', label: 'IN_APP' },
-];
+const channelOptions = computed(() => [
+    { value: 'EMAIL', label: channelLabel('EMAIL') },
+    { value: 'SMS', label: channelLabel('SMS') },
+    { value: 'IN_APP', label: channelLabel('IN_APP') },
+]);
 const campaignTypeOptions = computed(() => ([
     { value: '', label: t('marketing.settings.offers.campaign_type_all') },
     ...campaignTypes.value.map((type) => ({
         value: type,
-        label: type,
+        label: campaignTypeLabel(type),
     })),
 ]));
 
@@ -337,7 +364,7 @@ load();
             <div v-if="form.channel === 'EMAIL'" class="mt-2 grid grid-cols-1 gap-2">
                 <FloatingInput v-model="form.subject" :label="t('marketing.template_manager.subject')" />
                 <FloatingInput v-model="form.previewText" :label="t('marketing.template_manager.preview_text')" />
-                <FloatingTextarea v-model="form.html" :label="t('marketing.template_manager.html_body')" />
+                <EmailBodyEditor v-model="form.html" :label="t('marketing.template_manager.html_body')" />
             </div>
 
             <div v-else-if="form.channel === 'SMS'" class="mt-2 grid grid-cols-1 gap-2">
@@ -374,7 +401,21 @@ load();
             <div v-if="preview" class="mt-2 rounded-sm border border-stone-200 bg-white p-2 text-xs dark:border-neutral-700 dark:bg-neutral-900">
                 <div v-if="preview.subject"><span class="font-semibold">{{ t('marketing.template_manager.subject_label') }}</span> {{ preview.subject }}</div>
                 <div v-if="preview.title"><span class="font-semibold">{{ t('marketing.template_manager.title_label') }}</span> {{ preview.title }}</div>
-                <div class="mt-1 whitespace-pre-wrap"><span class="font-semibold">{{ t('marketing.template_manager.body_label') }}</span> {{ preview.body }}</div>
+                <div v-if="form.channel === 'EMAIL'" class="mt-2 space-y-2">
+                    <div class="text-[11px] font-semibold text-stone-500 dark:text-neutral-400">
+                        {{ t('marketing.template_manager.rendered_preview') }}
+                    </div>
+                    <div class="rounded-sm border border-stone-200 bg-white p-3 text-sm text-stone-700 dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-200">
+                        <div class="template-preview-html" v-html="preview.body || ''"></div>
+                    </div>
+                    <details class="rounded-sm border border-stone-200 bg-stone-50 px-3 py-2 dark:border-neutral-700 dark:bg-neutral-800">
+                        <summary class="cursor-pointer text-xs font-semibold text-stone-700 dark:text-neutral-200">
+                            {{ t('marketing.template_manager.view_html') }}
+                        </summary>
+                        <pre class="mt-2 overflow-x-auto whitespace-pre-wrap rounded-sm border border-stone-200 bg-white p-2 text-[11px] text-stone-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300">{{ preview.body || '' }}</pre>
+                    </details>
+                </div>
+                <div v-else class="mt-1 whitespace-pre-wrap"><span class="font-semibold">{{ t('marketing.template_manager.body_label') }}</span> {{ preview.body }}</div>
                 <div v-if="preview.invalid_tokens?.length" class="mt-1 text-rose-600 dark:text-rose-300">
                     {{ t('marketing.template_manager.invalid_tokens', { tokens: preview.invalid_tokens.join(', ') }) }}
                 </div>
@@ -420,8 +461,8 @@ load();
                             <div class="font-medium">{{ template.name }}</div>
                             <div class="text-xs text-stone-500 dark:text-neutral-400">{{ template.language || '-' }}</div>
                         </td>
-                        <td class="px-3 py-2 text-stone-700 dark:text-neutral-200">{{ template.channel }}</td>
-                        <td class="px-3 py-2 text-stone-700 dark:text-neutral-200">{{ template.campaign_type || t('marketing.template_manager.all') }}</td>
+                        <td class="px-3 py-2 text-stone-700 dark:text-neutral-200">{{ channelLabel(template.channel) }}</td>
+                        <td class="px-3 py-2 text-stone-700 dark:text-neutral-200">{{ template.campaign_type ? campaignTypeLabel(template.campaign_type) : t('marketing.template_manager.all') }}</td>
                         <td class="px-3 py-2 text-stone-700 dark:text-neutral-200">{{ template.is_default ? t('marketing.template_manager.yes') : t('marketing.template_manager.no') }}</td>
                         <td class="px-3 py-2">
                             <div class="flex items-center justify-end gap-2">
@@ -462,3 +503,15 @@ load();
         </div>
     </div>
 </template>
+
+<style scoped>
+.template-preview-html :deep(img) {
+    max-width: 100%;
+    height: auto;
+}
+
+.template-preview-html :deep(a) {
+    color: #166534;
+    text-decoration: underline;
+}
+</style>

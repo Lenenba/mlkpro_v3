@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, ref, watch } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 
 const props = defineProps({
     modelValue: {
@@ -62,6 +62,25 @@ const editorRef = ref(null);
 const isFocused = ref(false);
 const isGenerating = ref(false);
 const aiError = ref('');
+const resolvedLabels = computed(() => ({
+    heading2: props.labels.heading2 || 'Heading 2',
+    heading3: props.labels.heading3 || 'Heading 3',
+    bold: props.labels.bold || 'Bold',
+    italic: props.labels.italic || 'Italic',
+    underline: props.labels.underline || 'Underline',
+    unorderedList: props.labels.unorderedList || 'Unordered list',
+    orderedList: props.labels.orderedList || 'Ordered list',
+    quote: props.labels.quote || 'Quote',
+    codeBlock: props.labels.codeBlock || 'Code block',
+    horizontalRule: props.labels.horizontalRule || 'Horizontal rule',
+    link: props.labels.link || 'Link',
+    image: props.labels.image || 'Image',
+    aiImage: props.labels.aiImage || 'AI image',
+    clear: props.labels.clear || 'Clear formatting',
+    linkShort: props.labels.linkShort || 'Link',
+    imageShort: props.labels.imageShort || 'Image',
+    clearShort: props.labels.clearShort || 'Clear',
+}));
 
 const updateValue = () => {
     if (!editorRef.value) {
@@ -199,38 +218,38 @@ watch(
         </label>
         <div class="rounded-sm border border-stone-200 bg-white text-stone-700 shadow-sm dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200">
             <div class="flex flex-wrap items-center gap-1 border-b border-stone-200 bg-stone-50 p-2 dark:border-neutral-700 dark:bg-neutral-800">
-                <button type="button" class="editor-btn" :title="labels.heading2" :aria-label="labels.heading2" :disabled="disabled" @click="formatBlock('<h2>')">H2</button>
-                <button type="button" class="editor-btn" :title="labels.heading3" :aria-label="labels.heading3" :disabled="disabled" @click="formatBlock('<h3>')">H3</button>
+                <button type="button" class="editor-btn" :title="resolvedLabels.heading2" :aria-label="resolvedLabels.heading2" :disabled="disabled" @click="formatBlock('<h2>')">H2</button>
+                <button type="button" class="editor-btn" :title="resolvedLabels.heading3" :aria-label="resolvedLabels.heading3" :disabled="disabled" @click="formatBlock('<h3>')">H3</button>
                 <span class="h-4 w-px bg-stone-200 dark:bg-neutral-700"></span>
-                <button type="button" class="editor-btn" :title="labels.bold" :aria-label="labels.bold" :disabled="disabled" @click="runCommand('bold')">B</button>
-                <button type="button" class="editor-btn italic" :title="labels.italic" :aria-label="labels.italic" :disabled="disabled" @click="runCommand('italic')">I</button>
-                <button type="button" class="editor-btn underline" :title="labels.underline" :aria-label="labels.underline" :disabled="disabled" @click="runCommand('underline')">U</button>
+                <button type="button" class="editor-btn" :title="resolvedLabels.bold" :aria-label="resolvedLabels.bold" :disabled="disabled" @click="runCommand('bold')">B</button>
+                <button type="button" class="editor-btn italic" :title="resolvedLabels.italic" :aria-label="resolvedLabels.italic" :disabled="disabled" @click="runCommand('italic')">I</button>
+                <button type="button" class="editor-btn underline" :title="resolvedLabels.underline" :aria-label="resolvedLabels.underline" :disabled="disabled" @click="runCommand('underline')">U</button>
                 <span class="h-4 w-px bg-stone-200 dark:bg-neutral-700"></span>
-                <button type="button" class="editor-btn" :title="labels.unorderedList" :aria-label="labels.unorderedList" :disabled="disabled" @click="runCommand('insertUnorderedList')">
+                <button type="button" class="editor-btn" :title="resolvedLabels.unorderedList" :aria-label="resolvedLabels.unorderedList" :disabled="disabled" @click="runCommand('insertUnorderedList')">
                     UL
                 </button>
-                <button type="button" class="editor-btn" :title="labels.orderedList" :aria-label="labels.orderedList" :disabled="disabled" @click="runCommand('insertOrderedList')">
+                <button type="button" class="editor-btn" :title="resolvedLabels.orderedList" :aria-label="resolvedLabels.orderedList" :disabled="disabled" @click="runCommand('insertOrderedList')">
                     OL
                 </button>
                 <span class="h-4 w-px bg-stone-200 dark:bg-neutral-700"></span>
-                <button type="button" class="editor-btn" :title="labels.quote" :aria-label="labels.quote" :disabled="disabled" @click="formatBlock('<blockquote>')">"</button>
-                <button type="button" class="editor-btn" :title="labels.codeBlock" :aria-label="labels.codeBlock" :disabled="disabled" @click="formatBlock('<pre>')">{ }</button>
-                <button type="button" class="editor-btn" :title="labels.horizontalRule" :aria-label="labels.horizontalRule" :disabled="disabled" @click="runCommand('insertHorizontalRule')">HR</button>
+                <button type="button" class="editor-btn" :title="resolvedLabels.quote" :aria-label="resolvedLabels.quote" :disabled="disabled" @click="formatBlock('<blockquote>')">"</button>
+                <button type="button" class="editor-btn" :title="resolvedLabels.codeBlock" :aria-label="resolvedLabels.codeBlock" :disabled="disabled" @click="formatBlock('<pre>')">{ }</button>
+                <button type="button" class="editor-btn" :title="resolvedLabels.horizontalRule" :aria-label="resolvedLabels.horizontalRule" :disabled="disabled" @click="runCommand('insertHorizontalRule')">HR</button>
                 <span class="h-4 w-px bg-stone-200 dark:bg-neutral-700"></span>
-                <button type="button" class="editor-btn" :title="labels.link" :aria-label="labels.link" :disabled="disabled" @click="insertLink">Link</button>
-                <button type="button" class="editor-btn" :title="labels.image" :aria-label="labels.image" :disabled="disabled" @click="insertImage">Img</button>
+                <button type="button" class="editor-btn" :title="resolvedLabels.link" :aria-label="resolvedLabels.link" :disabled="disabled" @click="insertLink">{{ resolvedLabels.linkShort }}</button>
+                <button type="button" class="editor-btn" :title="resolvedLabels.image" :aria-label="resolvedLabels.image" :disabled="disabled" @click="insertImage">{{ resolvedLabels.imageShort }}</button>
                 <button
                     v-if="aiEnabled"
                     type="button"
                     class="editor-btn"
-                    :title="labels.aiImage || 'AI image'"
-                    :aria-label="labels.aiImage || 'AI image'"
+                    :title="resolvedLabels.aiImage"
+                    :aria-label="resolvedLabels.aiImage"
                     :disabled="disabled || isGenerating || !aiAllowed"
                     @click="generateImage"
                 >
                     {{ isGenerating ? aiBusyLabel : 'AI' }}
                 </button>
-                <button type="button" class="editor-btn" :title="labels.clear" :aria-label="labels.clear" :disabled="disabled" @click="removeFormatting">Clear</button>
+                <button type="button" class="editor-btn" :title="resolvedLabels.clear" :aria-label="resolvedLabels.clear" :disabled="disabled" @click="removeFormatting">{{ resolvedLabels.clearShort }}</button>
             </div>
             <div
                 ref="editorRef"

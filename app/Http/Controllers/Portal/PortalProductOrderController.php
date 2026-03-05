@@ -20,6 +20,7 @@ use App\Services\StripeSaleService;
 use App\Services\TenantPaymentMethodGuardService;
 use App\Support\TenantPaymentMethodsResolver;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\URL;
@@ -142,7 +143,7 @@ class PortalProductOrderController extends Controller
         return true;
     }
 
-    private function buildOrderPayload(array $lines, $products): array
+    private function buildOrderPayload(array $lines, $products, array $availableOverrides = []): array
     {
         $itemsPayload = [];
         $subtotal = 0;
@@ -163,7 +164,8 @@ class PortalProductOrderController extends Controller
                 continue;
             }
 
-            if ($quantity > (int) $product->stock) {
+            $available = max(0, (int) ($availableOverrides[$product->id] ?? $this->resolveProductAvailableStock($product)));
+            if ($quantity > $available) {
                 $errors["items.{$index}.quantity"] = 'Stock insuffisant pour ' . $product->name . '.';
                 continue;
             }
@@ -186,6 +188,32 @@ class PortalProductOrderController extends Controller
         }
 
         return [$itemsPayload, $subtotal, $taxTotal, $errors];
+    }
+
+    private function orderableProductsQuery(int $accountId): Builder
+    {
+        return Product::query()
+            ->products()
+            ->where('user_id', $accountId)
+            ->where('is_active', true)
+            ->withSum('inventories as on_hand_total', 'on_hand')
+            ->withSum('inventories as reserved_total', 'reserved');
+    }
+
+    private function resolveProductAvailableStock(Product $product): int
+    {
+        return max(0, (int) $product->stock_available);
+    }
+
+    private function hydrateSellableStock(iterable $products): void
+    {
+        foreach ($products as $product) {
+            if (!$product instanceof Product) {
+                continue;
+            }
+
+            $product->setAttribute('stock', $this->resolveProductAvailableStock($product));
+        }
     }
 
     private function resolvePromoPricing(Product $product, $now = null): array
@@ -322,10 +350,7 @@ class PortalProductOrderController extends Controller
         [$customer, $owner] = $this->resolvePortalCustomer($request);
         $fulfillment = $this->normalizeFulfillment($owner->company_fulfillment, $owner);
 
-        $products = Product::query()
-            ->products()
-            ->where('user_id', $owner->id)
-            ->where('is_active', true)
+        $products = $this->orderableProductsQuery($owner->id)
             ->orderBy('name')
             ->get([
                 'id',
@@ -346,6 +371,7 @@ class PortalProductOrderController extends Controller
                 'tracking_type',
                 'tax_rate',
             ]);
+        $this->hydrateSellableStock($products);
 
         $now = now();
         $products->each(function (Product $product) use ($now) {
@@ -620,13 +646,11 @@ class PortalProductOrderController extends Controller
         }
 
         $productIds = collect($validated['items'])->pluck('product_id')->unique()->values();
-        $products = Product::query()
-            ->products()
-            ->where('user_id', $owner->id)
-            ->where('is_active', true)
+        $products = $this->orderableProductsQuery($owner->id)
             ->whereIn('id', $productIds)
             ->get()
             ->keyBy('id');
+        $this->hydrateSellableStock($products);
 
         if ($products->count() !== $productIds->count()) {
             throw ValidationException::withMessages([
@@ -705,10 +729,7 @@ class PortalProductOrderController extends Controller
         $fulfillment = $this->normalizeFulfillment($owner->company_fulfillment, $owner);
         $timeline = app(SaleTimelineService::class)->buildTimeline($sale);
 
-        $products = Product::query()
-            ->products()
-            ->where('user_id', $owner->id)
-            ->where('is_active', true)
+        $products = $this->orderableProductsQuery($owner->id)
             ->orderBy('name')
             ->get([
                 'id',
@@ -729,6 +750,7 @@ class PortalProductOrderController extends Controller
                 'tracking_type',
                 'tax_rate',
             ]);
+        $this->hydrateSellableStock($products);
 
         $now = now();
         $products->each(function (Product $product) use ($now) {
@@ -863,13 +885,11 @@ class PortalProductOrderController extends Controller
             : [];
 
         $productIds = collect($validated['items'])->pluck('product_id')->unique()->values();
-        $products = Product::query()
-            ->products()
-            ->where('user_id', $owner->id)
-            ->where('is_active', true)
+        $products = $this->orderableProductsQuery($owner->id)
             ->whereIn('id', $productIds)
             ->get()
             ->keyBy('id');
+        $this->hydrateSellableStock($products);
 
         if ($products->count() !== $productIds->count()) {
             throw ValidationException::withMessages([
@@ -877,14 +897,17 @@ class PortalProductOrderController extends Controller
             ]);
         }
 
-        foreach ($currentMap as $productId => $quantity) {
-            $product = $products->get($productId);
-            if ($product) {
-                $product->stock = (int) $product->stock + $quantity;
-            }
+        $availableOverrides = [];
+        foreach ($products as $product) {
+            $availableOverrides[$product->id] = $this->resolveProductAvailableStock($product)
+                + (int) ($currentMap[$product->id] ?? 0);
         }
 
-        [$itemsPayload, $subtotal, $taxTotal, $errors] = $this->buildOrderPayload($validated['items'], $products);
+        [$itemsPayload, $subtotal, $taxTotal, $errors] = $this->buildOrderPayload(
+            $validated['items'],
+            $products,
+            $availableOverrides
+        );
 
         if ($errors) {
             throw ValidationException::withMessages($errors);
@@ -1178,13 +1201,11 @@ class PortalProductOrderController extends Controller
         }
 
         $productIds = $items->pluck('product_id')->unique()->values();
-        $products = Product::query()
-            ->products()
-            ->where('user_id', $owner->id)
-            ->where('is_active', true)
+        $products = $this->orderableProductsQuery($owner->id)
             ->whereIn('id', $productIds)
             ->get()
             ->keyBy('id');
+        $this->hydrateSellableStock($products);
 
         if ($products->count() !== $productIds->count()) {
             if ($this->shouldReturnJson($request)) {

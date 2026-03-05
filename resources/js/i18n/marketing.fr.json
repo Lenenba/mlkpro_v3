@@ -163,6 +163,8 @@
       "subject_label": "Sujet:",
       "title_label": "Titre:",
       "body_label": "Corps:",
+      "rendered_preview": "Aperçu rendu",
+      "view_html": "Voir le HTML rendu",
       "invalid_tokens": "Tokens invalides: {tokens}",
       "confirm_delete": "Supprimer le template \"{name}\" ?",
       "info_created": "Template créé.",
@@ -303,6 +305,41 @@
     "source_logic": {
       "union": "Union",
       "intersect": "Intersection"
+    },
+    "channels": {
+      "email": "Email",
+      "sms": "SMS",
+      "in_app": "In-app"
+    },
+    "rich_text": {
+      "modes": {
+        "visual": "Visuel",
+        "html": "HTML",
+        "preview": "Aperçu"
+      },
+      "placeholder": "Rédigez votre message email ici...",
+      "html_source": "Source HTML",
+      "empty_preview": "Aucun contenu à prévisualiser.",
+      "link_prompt": "Entrez l'URL du lien",
+      "image_prompt": "Entrez l'URL de l'image",
+      "toolbar": {
+        "heading2": "Titre niveau 2",
+        "heading3": "Titre niveau 3",
+        "bold": "Gras",
+        "italic": "Italique",
+        "underline": "Souligné",
+        "unordered_list": "Liste à puces",
+        "ordered_list": "Liste numérotée",
+        "quote": "Citation",
+        "code_block": "Bloc de code",
+        "horizontal_rule": "Séparateur horizontal",
+        "link": "Insérer un lien",
+        "image": "Insérer une image",
+        "clear": "Effacer la mise en forme",
+        "link_short": "Lien",
+        "image_short": "Image",
+        "clear_short": "Effacer"
+      }
     },
     "schedule_types": {
       "manual": "Manuel",

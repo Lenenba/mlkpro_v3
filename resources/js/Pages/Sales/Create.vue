@@ -220,10 +220,13 @@ const parseNumber = (value) => {
     return Number.isFinite(number) ? number : 0;
 };
 
-const isOutOfStock = (product) => parseNumber(product?.stock) <= 0;
+const availableStock = (product) =>
+    Math.max(0, parseNumber(product?.stock_available ?? product?.stock));
+
+const isOutOfStock = (product) => availableStock(product) <= 0;
 
 const isLowStock = (product) => {
-    const stock = parseNumber(product?.stock);
+    const stock = availableStock(product);
     const min = parseNumber(product?.minimum_stock);
     return stock > 0 && min > 0 && stock <= min;
 };
@@ -239,7 +242,8 @@ const addProduct = (product) => {
     const existingIndex = form.items.findIndex((item) => item.product_id === product.id);
     if (existingIndex >= 0) {
         scanError.value = '';
-        form.items[existingIndex].quantity = parseNumber(form.items[existingIndex].quantity) + 1;
+        const nextQuantity = parseNumber(form.items[existingIndex].quantity) + 1;
+        form.items[existingIndex].quantity = Math.min(nextQuantity, availableStock(product));
         return;
     }
     scanError.value = '';
@@ -256,8 +260,10 @@ const updateQuantity = (index, nextValue) => {
     if (!item) {
         return;
     }
+    const product = productMap.value[item.product_id];
+    const maxAllowed = availableStock(product);
     const value = Math.max(1, parseNumber(nextValue));
-    item.quantity = value;
+    item.quantity = maxAllowed > 0 ? Math.min(value, maxAllowed) : value;
 };
 
 const incrementItem = (index) => {
@@ -577,7 +583,7 @@ const submit = () => {
                                                 : (isLowStock(product) ? $t('sales.stock.low') : $t('sales.stock.available')) }}
                                         </span>
                                         <span class="text-stone-500 dark:text-neutral-400">
-                                            {{ $t('sales.labels.stock') }} {{ product.stock ?? 0 }}
+                                            {{ $t('sales.labels.stock') }} {{ availableStock(product) }}
                                         </span>
                                     </div>
                                 </div>
