@@ -44,6 +44,7 @@ class MarketingSettingsController extends Controller
             'templates' => 'nullable|array',
             'tracking' => 'nullable|array',
             'offers' => 'nullable|array',
+            'vip' => 'nullable|array',
         ]);
 
         $model = $this->marketingSettingsService->update($owner, $validated);
@@ -74,4 +75,3 @@ class MarketingSettingsController extends Controller
         return $user;
     }
 }
-

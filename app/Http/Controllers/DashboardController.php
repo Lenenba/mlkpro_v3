@@ -19,6 +19,7 @@ use App\Models\PlanScan;
 use App\Models\PlatformAnnouncement;
 use App\Models\PlatformSetting;
 use App\Models\User;
+use App\Services\Campaigns\DashboardKpiService;
 use App\Services\BillingSubscriptionService;
 use App\Services\StripeInvoiceService;
 use App\Services\StripeSaleService;
@@ -679,6 +680,7 @@ class DashboardController extends Controller
             }
 
             $performance = $this->buildProductPerformance($accountId, $now);
+            $marketingKpis = $this->resolveMarketingKpis($accountOwner);
 
             $props = [
                 'stats' => $stats,
@@ -686,6 +688,7 @@ class DashboardController extends Controller
                 'stockAlerts' => $stockAlerts,
                 'topProducts' => $topProducts,
                 'performance' => $performance,
+                'marketingKpis' => $marketingKpis,
             ];
 
             return $respond('DashboardProductsOwner', $props, $cacheKey);
@@ -1272,6 +1275,7 @@ class DashboardController extends Controller
         $usageLimits = $accountOwner
             ? app(UsageLimitService::class)->buildForUser($accountOwner)
             : ['items' => []];
+        $marketingKpis = $this->resolveMarketingKpis($accountOwner);
 
         $props = [
             'stats' => $stats,
@@ -1287,6 +1291,7 @@ class DashboardController extends Controller
             'kpiSeries' => $kpiSeries,
             'announcements' => $internalAnnouncements,
             'quickAnnouncements' => $quickAnnouncements,
+            'marketingKpis' => $marketingKpis,
             'usage_limits' => $usageLimits,
             'billing' => [
                 'plans' => $plans,
@@ -1836,6 +1841,44 @@ class DashboardController extends Controller
             })
             ->values()
             ->all();
+    }
+
+    private function resolveMarketingKpis(?User $accountOwner): ?array
+    {
+        if (!$accountOwner) {
+            return null;
+        }
+
+        if (!$accountOwner->hasCompanyFeature('campaigns')) {
+            return null;
+        }
+
+        $filters = $this->marketingKpiFiltersFromRequest();
+
+        return app(DashboardKpiService::class)->resolve($accountOwner, $filters);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function marketingKpiFiltersFromRequest(): array
+    {
+        $request = request();
+
+        $range = trim((string) $request->query('marketing_range', '30'));
+        $startDate = trim((string) $request->query('marketing_start_date', ''));
+        $endDate = trim((string) $request->query('marketing_end_date', ''));
+
+        $filters = [
+            'range' => in_array($range, ['7', '30', '90', 'custom'], true) ? $range : '30',
+        ];
+
+        if ($filters['range'] === 'custom' && $startDate !== '' && $endDate !== '') {
+            $filters['start_date'] = $startDate;
+            $filters['end_date'] = $endDate;
+        }
+
+        return $filters;
     }
 
     private function tipSettings(?int $accountId = null): array

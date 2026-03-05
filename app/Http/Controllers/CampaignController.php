@@ -4,11 +4,14 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\Campaigns\StoreCampaignRequest;
 use App\Http\Requests\Campaigns\UpdateCampaignRequest;
+use App\Enums\CampaignAudienceSourceLogic;
 use App\Models\AudienceSegment;
 use App\Models\Campaign;
 use App\Models\CampaignRecipient;
+use App\Models\MailingList;
 use App\Models\Product;
 use App\Models\User;
+use App\Models\VipTier;
 use App\Services\Campaigns\CampaignService;
 use App\Services\Campaigns\MarketingSettingsService;
 use Illuminate\Http\Request;
@@ -103,6 +106,8 @@ class CampaignController extends Controller
             'products' => [],
             'selectedOffers' => [],
             'segments' => $this->segmentsForOwner($owner->id),
+            'mailingLists' => $this->mailingListsForOwner($owner->id),
+            'vipTiers' => $this->vipTiersForOwner($owner->id),
             'enums' => $this->enums(),
             'marketingSettings' => $this->marketingSettingsService->getResolved($owner),
             'access' => [
@@ -180,6 +185,8 @@ class CampaignController extends Controller
             'products' => [],
             'selectedOffers' => $this->selectedOffersForCampaign($campaign),
             'segments' => $this->segmentsForOwner($owner->id),
+            'mailingLists' => $this->mailingListsForOwner($owner->id),
+            'vipTiers' => $this->vipTiersForOwner($owner->id),
             'enums' => $this->enums(),
             'marketingSettings' => $this->marketingSettingsService->getResolved($owner),
             'access' => [
@@ -351,6 +358,36 @@ class CampaignController extends Controller
             ]);
     }
 
+    private function mailingListsForOwner(int $ownerId)
+    {
+        return MailingList::query()
+            ->where('user_id', $ownerId)
+            ->withCount('customers')
+            ->orderBy('name')
+            ->get([
+                'id',
+                'name',
+                'description',
+                'tags',
+                'updated_at',
+            ]);
+    }
+
+    private function vipTiersForOwner(int $ownerId)
+    {
+        return VipTier::query()
+            ->where('user_id', $ownerId)
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get([
+                'id',
+                'code',
+                'name',
+                'perks',
+                'is_active',
+            ]);
+    }
+
     private function enums(): array
     {
         return [
@@ -359,6 +396,7 @@ class CampaignController extends Controller
             'offer_modes' => Campaign::allowedOfferModes(),
             'language_modes' => Campaign::allowedLanguageModes(),
             'offer_types' => ['product', 'service'],
+            'audience_source_logic' => CampaignAudienceSourceLogic::values(),
             'statuses' => [
                 Campaign::STATUS_DRAFT,
                 Campaign::STATUS_SCHEDULED,

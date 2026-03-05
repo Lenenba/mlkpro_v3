@@ -61,6 +61,9 @@ use App\Http\Controllers\OfferSearchController;
 use App\Http\Controllers\MarketingMetaController;
 use App\Http\Controllers\MarketingTemplateController;
 use App\Http\Controllers\MarketingSegmentController;
+use App\Http\Controllers\MarketingMailingListController;
+use App\Http\Controllers\MarketingVipController;
+use App\Http\Controllers\MarketingDashboardKpiController;
 use App\Http\Controllers\Settings\CompanySettingsController;
 use App\Http\Controllers\Settings\BillingSettingsController;
 use App\Http\Controllers\Settings\LoyaltySettingsController;
@@ -451,6 +454,7 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
     Route::middleware('company.feature:campaigns')->group(function () {
         Route::get('/offers/search', [OfferSearchController::class, 'search'])->name('offers.search');
         Route::get('/marketing/meta', MarketingMetaController::class)->name('marketing.meta');
+        Route::get('/marketing/dashboard/kpis', MarketingDashboardKpiController::class)->name('marketing.dashboard.kpis');
         Route::get('/marketing/templates', [MarketingTemplateController::class, 'index'])->name('marketing.templates.index');
         Route::post('/marketing/templates', [MarketingTemplateController::class, 'store'])->name('marketing.templates.store');
         Route::get('/marketing/templates/{template}', [MarketingTemplateController::class, 'show'])->name('marketing.templates.show');
@@ -469,6 +473,36 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
             ->name('marketing.segments.preview-count');
         Route::get('/marketing/segments/{segment}/count', [MarketingSegmentController::class, 'count'])
             ->name('marketing.segments.count');
+
+        Route::get('/marketing/mailing-lists', [MarketingMailingListController::class, 'index'])
+            ->name('marketing.mailing-lists.index');
+        Route::post('/marketing/mailing-lists', [MarketingMailingListController::class, 'store'])
+            ->name('marketing.mailing-lists.store');
+        Route::get('/marketing/mailing-lists/{mailingList}', [MarketingMailingListController::class, 'show'])
+            ->name('marketing.mailing-lists.show');
+        Route::put('/marketing/mailing-lists/{mailingList}', [MarketingMailingListController::class, 'update'])
+            ->name('marketing.mailing-lists.update');
+        Route::delete('/marketing/mailing-lists/{mailingList}', [MarketingMailingListController::class, 'destroy'])
+            ->name('marketing.mailing-lists.destroy');
+        Route::post('/marketing/mailing-lists/{mailingList}/import', [MarketingMailingListController::class, 'import'])
+            ->name('marketing.mailing-lists.import');
+        Route::post('/marketing/mailing-lists/{mailingList}/sync-customers', [MarketingMailingListController::class, 'syncCustomers'])
+            ->name('marketing.mailing-lists.sync-customers');
+        Route::post('/marketing/mailing-lists/{mailingList}/remove-customers', [MarketingMailingListController::class, 'removeCustomers'])
+            ->name('marketing.mailing-lists.remove-customers');
+        Route::get('/marketing/mailing-lists/{mailingList}/count', [MarketingMailingListController::class, 'count'])
+            ->name('marketing.mailing-lists.count');
+
+        Route::get('/marketing/vip-tiers', [MarketingVipController::class, 'index'])
+            ->name('marketing.vip.index');
+        Route::post('/marketing/vip-tiers', [MarketingVipController::class, 'store'])
+            ->name('marketing.vip.store');
+        Route::put('/marketing/vip-tiers/{vipTier}', [MarketingVipController::class, 'update'])
+            ->name('marketing.vip.update');
+        Route::delete('/marketing/vip-tiers/{vipTier}', [MarketingVipController::class, 'destroy'])
+            ->name('marketing.vip.destroy');
+        Route::patch('/marketing/customers/{customer}/vip', [MarketingVipController::class, 'updateCustomer'])
+            ->name('marketing.vip.customer.update');
 
         Route::get('/campaigns', [CampaignController::class, 'index'])->name('campaigns.index');
         Route::get('/campaigns/create', [CampaignController::class, 'create'])->name('campaigns.create');

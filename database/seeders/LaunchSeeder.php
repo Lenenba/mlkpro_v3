@@ -17,7 +17,6 @@ use App\Models\CustomerConsent;
 use App\Models\Invoice;
 use App\Models\InvoiceItem;
 use App\Models\MarketingSetting;
-use App\Models\MessageTemplate;
 use App\Models\OrderReview;
 use App\Models\Payment;
 use App\Models\PlatformAdmin;
@@ -60,6 +59,7 @@ use App\Models\WorkChecklistItem;
 use App\Models\WorkMedia;
 use App\Models\WorkRating;
 use App\Services\InventoryService;
+use App\Services\Campaigns\TemplateSeederService;
 use App\Services\TipAllocationService;
 use App\Services\WorkBillingService;
 use Illuminate\Database\Seeder;
@@ -1488,31 +1488,34 @@ class LaunchSeeder extends Seeder
 
         $productSeedMap = $productSeedData->keyBy('name');
 
+        // Use day boundaries to avoid invalid local times during DST transitions.
+        $promoReference = $now->copy()->startOfDay();
+
         $productPromoMap = [
             'Safety gloves' => [
                 'discount' => 12.5,
-                'start' => $now->copy()->subDays(2),
-                'end' => $now->copy()->addDays(6),
+                'start' => $promoReference->copy()->subDays(2)->startOfDay(),
+                'end' => $promoReference->copy()->addDays(6)->endOfDay(),
             ],
             'Cleaning kit' => [
                 'discount' => 18,
-                'start' => $now->copy()->subDays(1),
-                'end' => $now->copy()->addDays(4),
+                'start' => $promoReference->copy()->subDays(1)->startOfDay(),
+                'end' => $promoReference->copy()->addDays(4)->endOfDay(),
             ],
             'Sparkling water 12-pack' => [
                 'discount' => 10,
-                'start' => $now->copy()->subDays(3),
-                'end' => $now->copy()->addDays(2),
+                'start' => $promoReference->copy()->subDays(3)->startOfDay(),
+                'end' => $promoReference->copy()->addDays(2)->endOfDay(),
             ],
             'Whole bean coffee 1kg' => [
                 'discount' => 15,
-                'start' => $now->copy()->subDays(5),
-                'end' => $now->copy()->addDays(7),
+                'start' => $promoReference->copy()->subDays(5)->startOfDay(),
+                'end' => $promoReference->copy()->addDays(7)->endOfDay(),
             ],
             'Portable barcode scanner' => [
                 'discount' => 8,
-                'start' => $now->copy()->subDays(4),
-                'end' => $now->copy()->addDays(3),
+                'start' => $promoReference->copy()->subDays(4)->startOfDay(),
+                'end' => $promoReference->copy()->addDays(3)->endOfDay(),
             ],
         ];
 
@@ -2872,53 +2875,23 @@ class LaunchSeeder extends Seeder
                 ->filter();
 
             if ($canSeedCampaignFoundations) {
-                MarketingSetting::updateOrCreate(
-                    ['user_id' => $productOwner->id],
-                    MarketingSetting::defaults()
-                );
+                $templateSeeder = app(TemplateSeederService::class);
+                $campaignOwners = User::query()
+                    ->where('role_id', $ownerRoleId)
+                    ->get()
+                    ->filter(function (User $owner): bool {
+                        return (bool) data_get($owner->company_features ?? [], 'campaigns', false);
+                    })
+                    ->values();
 
-                MessageTemplate::updateOrCreate(
-                    [
-                        'user_id' => $productOwner->id,
-                        'name' => 'Promotion email default (seed)',
-                        'channel' => Campaign::CHANNEL_EMAIL,
-                        'campaign_type' => Campaign::TYPE_PROMOTION,
-                        'language' => 'FR',
-                    ],
-                    [
-                        'created_by_user_id' => $productOwner->id,
-                        'updated_by_user_id' => $productOwner->id,
-                        'is_default' => true,
-                        'content' => [
-                            'subject' => 'Promo de printemps pour {firstName}',
-                            'previewText' => 'Offre limitee sur {offerName}',
-                            'html' => 'Bonjour {firstName}, profitez de {promoCode} sur {offerName}: {ctaUrl}',
-                        ],
-                        'tags' => ['seed', 'promotion'],
-                    ]
-                );
+                foreach ($campaignOwners as $campaignOwner) {
+                    MarketingSetting::updateOrCreate(
+                        ['user_id' => $campaignOwner->id],
+                        MarketingSetting::defaults()
+                    );
 
-                MessageTemplate::updateOrCreate(
-                    [
-                        'user_id' => $serviceOwner->id,
-                        'name' => 'Service announcement default (seed)',
-                        'channel' => Campaign::CHANNEL_IN_APP,
-                        'campaign_type' => Campaign::TYPE_ANNOUNCEMENT,
-                        'language' => 'EN',
-                    ],
-                    [
-                        'created_by_user_id' => $serviceOwner->id,
-                        'updated_by_user_id' => $serviceOwner->id,
-                        'is_default' => true,
-                        'content' => [
-                            'title' => 'New service available',
-                            'body' => 'Book now: {offerName}',
-                            'deepLink' => '/services',
-                            'image' => null,
-                        ],
-                        'tags' => ['seed', 'services'],
-                    ]
-                );
+                    $templateSeeder->seedDefaultsForTenant($campaignOwner, $campaignOwner);
+                }
             }
 
             foreach ($campaignCustomers as $campaignCustomer) {

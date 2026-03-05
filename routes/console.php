@@ -35,6 +35,7 @@ use App\Services\ReservationQueueService;
 use App\Services\SupportAssignmentService;
 use App\Services\SupportSettingsService;
 use App\Services\Campaigns\CampaignAutomationService;
+use App\Services\Campaigns\VipService;
 use App\Jobs\ComputeInterestScoresJob;
 use App\Jobs\ReconcileDeliveryReportsJob;
 
@@ -598,6 +599,19 @@ Artisan::command('campaigns:automations {--account_id=}', function (CampaignAuto
     return 0;
 })->purpose('Process active marketing automation rules');
 
+Artisan::command('campaigns:vip-auto-sync {--account_id=} {--dry-run}', function (VipService $vipService): int {
+    $accountId = $this->option('account_id');
+    $dryRun = (bool) $this->option('dry-run');
+
+    $result = $vipService->runAutomationForTenants(
+        $accountId ? (int) $accountId : null,
+        $dryRun
+    );
+
+    $this->info('VIP automation processed: ' . json_encode($result));
+    return 0;
+})->purpose('Synchronize VIP status automatically from paid purchases');
+
 Artisan::command('campaigns:interest-scores {--account_id=}', function (): int {
     $accountId = $this->option('account_id');
     ComputeInterestScoresJob::dispatch($accountId ? (int) $accountId : null)
@@ -881,6 +895,7 @@ Schedule::command('support:sla-reminders')->hourly();
 Schedule::command('reservations:notifications')->everyFifteenMinutes();
 Schedule::command('reservations:queue-alerts')->everyFiveMinutes()->withoutOverlapping();
 Schedule::command('campaigns:automations')->everyFiveMinutes()->withoutOverlapping();
+Schedule::command('campaigns:vip-auto-sync')->dailyAt('02:35')->withoutOverlapping();
 Schedule::command('campaigns:interest-scores')->dailyAt('02:15');
 Schedule::command('campaigns:reconcile-delivery')->everyTenMinutes()->withoutOverlapping();
 Schedule::command('notifications:retry-failed --notification=App\\Notifications\\InviteUserNotification --max=20 --within-hours=24 --cooldown=30')

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\CampaignAudienceSourceLogic;
 use App\Enums\CampaignChannel;
 use App\Enums\CampaignLanguageMode;
 use App\Enums\CampaignOfferMode;
@@ -39,6 +40,7 @@ class MarketingMetaController extends Controller
             'offer_modes' => CampaignOfferMode::values(),
             'allowed_offer_modes' => $this->settingsService->allowedOfferModes($owner),
             'language_modes' => CampaignLanguageMode::values(),
+            'audience_source_logic' => CampaignAudienceSourceLogic::values(),
             'template_channels' => [
                 'EMAIL' => ['subject', 'previewText', 'html'],
                 'SMS' => ['text', 'shortener'],
@@ -80,4 +82,3 @@ class MarketingMetaController extends Controller
         return [$owner, $canView];
     }
 }
-

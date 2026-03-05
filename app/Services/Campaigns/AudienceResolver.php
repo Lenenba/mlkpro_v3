@@ -2,12 +2,14 @@
 
 namespace App\Services\Campaigns;
 
+use App\Enums\CampaignAudienceSourceLogic;
 use App\Models\Campaign;
 use App\Models\CampaignRecipient;
 use App\Models\Customer;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 class AudienceResolver
 {
@@ -50,7 +52,7 @@ class AudienceResolver
         }
 
         $audience = $campaign->audience;
-        $query = Customer::query()->where('user_id', $campaign->user_id);
+        $dynamicQuery = Customer::query()->where('user_id', $campaign->user_id);
 
         $segmentFilters = is_array($campaign->audienceSegment?->filters)
             ? $campaign->audienceSegment->filters
@@ -63,49 +65,61 @@ class AudienceResolver
             ? $audience->smart_filters
             : $segmentFilters;
         if ($smartFilters) {
-            $this->applyGroup($query, $smartFilters);
+            $this->applyGroup($dynamicQuery, $smartFilters);
         }
 
         $exclusions = is_array($audience?->exclusion_filters) && $audience->exclusion_filters !== []
             ? $audience->exclusion_filters
             : $segmentExclusions;
         if ($exclusions) {
-            $query->whereNot(function (Builder $builder) use ($exclusions): void {
+            $dynamicQuery->whereNot(function (Builder $builder) use ($exclusions): void {
                 $this->applyGroup($builder, $exclusions);
             });
         }
 
-        $customers = $query
-            ->with([
-                'defaultProperty:id,customer_id,city',
-                'portalUser:id,locale',
-            ])
-            ->get([
-                'id',
-                'user_id',
-                'portal_user_id',
-                'first_name',
-                'last_name',
-                'company_name',
-                'email',
-                'phone',
-                'tags',
-                'created_at',
-            ]);
-
-        $manualCustomerIds = collect($audience?->manual_customer_ids ?? [])
-            ->map(fn ($value) => is_numeric($value) ? (int) $value : null)
+        $dynamicCustomerIds = $dynamicQuery
+            ->pluck('id')
+            ->map(fn ($value) => (int) $value)
             ->filter()
             ->unique()
             ->values();
 
-        if ($manualCustomerIds->isNotEmpty()) {
-            $manualCustomers = Customer::query()
+        $manualCustomerIds = $this->normalizeCustomerIds($audience?->manual_customer_ids ?? []);
+        $includeMailingListIds = $this->normalizeCustomerIds($audience?->include_mailing_list_ids ?? []);
+        $excludeMailingListIds = $this->normalizeCustomerIds($audience?->exclude_mailing_list_ids ?? []);
+
+        $includeMailingListCustomerIds = $this->mailingListCustomerIds(
+            $campaign->user_id,
+            $includeMailingListIds->all()
+        );
+        $excludeMailingListCustomerIds = $this->mailingListCustomerIds(
+            $campaign->user_id,
+            $excludeMailingListIds->all()
+        );
+
+        $sourceLogic = CampaignAudienceSourceLogic::normalize((string) ($audience?->source_logic ?? null));
+        $resolvedCustomerIds = $this->resolveCustomerIdsBySourceLogic(
+            $sourceLogic,
+            $dynamicCustomerIds,
+            $includeMailingListCustomerIds,
+            $manualCustomerIds
+        );
+
+        if ($excludeMailingListCustomerIds->isNotEmpty()) {
+            $resolvedCustomerIds = $resolvedCustomerIds
+                ->diff($excludeMailingListCustomerIds)
+                ->values();
+        }
+
+        $customers = collect();
+        if ($resolvedCustomerIds->isNotEmpty()) {
+            $customers = Customer::query()
                 ->where('user_id', $campaign->user_id)
-                ->whereIn('id', $manualCustomerIds->all())
+                ->whereIn('id', $resolvedCustomerIds->all())
                 ->with([
                     'defaultProperty:id,customer_id,city',
                     'portalUser:id,locale',
+                    'vipTier:id,user_id,code,name,perks',
                 ])
                 ->get([
                     'id',
@@ -117,13 +131,11 @@ class AudienceResolver
                     'email',
                     'phone',
                     'tags',
+                    'is_vip',
+                    'vip_tier_id',
+                    'vip_tier_code',
                     'created_at',
                 ]);
-
-            $customers = $customers
-                ->concat($manualCustomers)
-                ->unique('id')
-                ->values();
         }
 
         $manualContacts = $this->normalizeManualContacts($audience?->manual_contacts);
@@ -275,6 +287,82 @@ class AudienceResolver
                 'blocked_by_reason' => $blockedByReason,
             ],
         ];
+    }
+
+    /**
+     * @param mixed $values
+     * @return Collection<int, int>
+     */
+    private function normalizeCustomerIds(mixed $values): Collection
+    {
+        if (!is_array($values)) {
+            return collect();
+        }
+
+        return collect($values)
+            ->map(fn ($value) => is_numeric($value) ? (int) $value : null)
+            ->filter(fn ($value) => is_int($value) && $value > 0)
+            ->unique()
+            ->values();
+    }
+
+    /**
+     * @param array<int, int> $mailingListIds
+     * @return Collection<int, int>
+     */
+    private function mailingListCustomerIds(int $accountOwnerId, array $mailingListIds): Collection
+    {
+        if ($mailingListIds === []) {
+            return collect();
+        }
+
+        if (!DB::getSchemaBuilder()->hasTable('mailing_lists') || !DB::getSchemaBuilder()->hasTable('mailing_list_customers')) {
+            return collect();
+        }
+
+        return DB::table('mailing_list_customers')
+            ->join('mailing_lists', 'mailing_lists.id', '=', 'mailing_list_customers.mailing_list_id')
+            ->where('mailing_lists.user_id', $accountOwnerId)
+            ->whereIn('mailing_lists.id', $mailingListIds)
+            ->pluck('mailing_list_customers.customer_id')
+            ->map(fn ($value) => (int) $value)
+            ->filter()
+            ->unique()
+            ->values();
+    }
+
+    /**
+     * @param Collection<int, int> $dynamicCustomerIds
+     * @param Collection<int, int> $includeMailingListCustomerIds
+     * @param Collection<int, int> $manualCustomerIds
+     * @return Collection<int, int>
+     */
+    private function resolveCustomerIdsBySourceLogic(
+        CampaignAudienceSourceLogic $sourceLogic,
+        Collection $dynamicCustomerIds,
+        Collection $includeMailingListCustomerIds,
+        Collection $manualCustomerIds
+    ): Collection {
+        if ($sourceLogic === CampaignAudienceSourceLogic::INTERSECT) {
+            $intersection = $includeMailingListCustomerIds->isNotEmpty()
+                ? (
+                    $dynamicCustomerIds->isNotEmpty()
+                        ? $dynamicCustomerIds->intersect($includeMailingListCustomerIds)->values()
+                        : $includeMailingListCustomerIds->values()
+                )
+                : $dynamicCustomerIds->values();
+
+            return $intersection
+                ->concat($manualCustomerIds)
+                ->unique()
+                ->values();
+        }
+
+        return $dynamicCustomerIds
+            ->concat($includeMailingListCustomerIds)
+            ->concat($manualCustomerIds)
+            ->unique()
+            ->values();
     }
 
     private function destinationForCustomer(string $channel, Customer $customer): ?string
@@ -442,6 +530,16 @@ class AudienceResolver
                 } else {
                     $query->whereNull('portal_user_id');
                 }
+                return;
+            case 'is_vip':
+                $this->applyVipStatusRule($query, $operator, $value);
+                return;
+            case 'vip_tier_id':
+                $this->applyVipTierIdRule($query, $operator, $value);
+                return;
+            case 'vip_tier':
+            case 'vip_tier_code':
+                $this->applyVipTierCodeRule($query, $operator, $value);
                 return;
             case 'total_spend':
                 $comparison = $this->comparisonOperator($operator);
@@ -613,6 +711,65 @@ class AudienceResolver
         $query->where(function (Builder $builder) use ($field): void {
             $builder->whereNull($field)->orWhere($field, '');
         });
+    }
+
+    private function applyVipStatusRule(Builder $query, string $operator, mixed $value): void
+    {
+        $parsed = filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+        if ($parsed === null) {
+            return;
+        }
+
+        if (in_array($operator, ['not_equals', 'not_in', 'exclude'], true)) {
+            $query->where('is_vip', '!=', (bool) $parsed);
+            return;
+        }
+
+        $query->where('is_vip', (bool) $parsed);
+    }
+
+    private function applyVipTierIdRule(Builder $query, string $operator, mixed $value): void
+    {
+        $values = collect(Arr::wrap($value))
+            ->map(fn ($item) => is_numeric($item) ? (int) $item : null)
+            ->filter(fn ($item) => is_int($item) && $item > 0)
+            ->values();
+
+        if ($values->isEmpty()) {
+            return;
+        }
+
+        if (in_array($operator, ['not_equals', 'not_in', 'exclude'], true)) {
+            $query->where(function (Builder $builder) use ($values): void {
+                $builder->whereNull('vip_tier_id')
+                    ->orWhereNotIn('vip_tier_id', $values->all());
+            });
+            return;
+        }
+
+        $query->whereIn('vip_tier_id', $values->all());
+    }
+
+    private function applyVipTierCodeRule(Builder $query, string $operator, mixed $value): void
+    {
+        $values = collect(Arr::wrap($value))
+            ->map(fn ($item) => strtoupper(trim((string) $item)))
+            ->filter()
+            ->values();
+
+        if ($values->isEmpty()) {
+            return;
+        }
+
+        if (in_array($operator, ['not_equals', 'not_in', 'exclude'], true)) {
+            $query->where(function (Builder $builder) use ($values): void {
+                $builder->whereNull('vip_tier_code')
+                    ->orWhereNotIn('vip_tier_code', $values->all());
+            });
+            return;
+        }
+
+        $query->whereIn('vip_tier_code', $values->all());
     }
 
     private function applyPurchasedProductRule(Builder $query, string $operator, mixed $value): void

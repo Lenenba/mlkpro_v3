@@ -37,11 +37,33 @@ class FatigueLimiter
             'channels.anti_fatigue.max_messages_per_window',
             config('campaigns.fatigue.max_messages_per_window', 2)
         ));
+        if ((bool) ($customer->is_vip ?? false)) {
+            $vipMaxMessages = $this->setting(
+                $accountOwner,
+                'channels.anti_fatigue.vip_max_messages_per_window',
+                null
+            );
+            if (is_numeric($vipMaxMessages) && (int) $vipMaxMessages > 0) {
+                $maxMessages = max(1, (int) $vipMaxMessages);
+            }
+        }
+
         $windowDays = max(1, (int) $this->setting(
             $accountOwner,
             'channels.anti_fatigue.window_days',
             config('campaigns.fatigue.window_days', 7)
         ));
+        if ((bool) ($customer->is_vip ?? false)) {
+            $vipWindowDays = $this->setting(
+                $accountOwner,
+                'channels.anti_fatigue.vip_window_days',
+                null
+            );
+            if (is_numeric($vipWindowDays) && (int) $vipWindowDays > 0) {
+                $windowDays = max(1, (int) $vipWindowDays);
+            }
+        }
+
         $since = $now->copy()->subDays($windowDays);
 
         $recentCount = CampaignRecipient::query()

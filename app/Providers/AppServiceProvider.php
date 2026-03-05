@@ -11,6 +11,8 @@ use App\Observers\PaymentObserver;
 use App\Models\User;
 use App\Listeners\SendDatabasePushNotifications;
 use App\Listeners\SendEmailMirrorNotifications;
+use App\Services\Campaigns\MarketingSettingsService;
+use App\Services\Campaigns\TemplateSeederService;
 use App\Services\PlatformAdminNotifier;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Cache\RateLimiting\Limit;
@@ -104,6 +106,11 @@ class AppServiceProvider extends ServiceProvider
                 'reference' => 'registration:' . $user->id,
                 'severity' => 'info',
             ]);
+
+            if ($user->hasRole('owner')) {
+                app(MarketingSettingsService::class)->getModel($user);
+                app(TemplateSeederService::class)->seedDefaultsForTenant($user, $user);
+            }
         });
 
         Event::listen(SubscriptionCreated::class, function (SubscriptionCreated $event): void {

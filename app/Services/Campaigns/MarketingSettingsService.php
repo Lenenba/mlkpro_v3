@@ -39,6 +39,7 @@ class MarketingSettingsService
             'templates' => is_array($model->templates) ? $model->templates : [],
             'tracking' => is_array($model->tracking) ? $model->tracking : [],
             'offers' => is_array($model->offers) ? $model->offers : [],
+            'vip' => is_array($model->vip) ? $model->vip : [],
         ];
 
         $resolved = $this->mergeRecursive($defaults, $stored);
@@ -55,7 +56,7 @@ class MarketingSettingsService
         $model = $this->getModel($accountOwner);
         $resolved = $this->getResolved($accountOwner);
 
-        foreach (['channels', 'consent', 'audience', 'templates', 'tracking', 'offers'] as $section) {
+        foreach (['channels', 'consent', 'audience', 'templates', 'tracking', 'offers', 'vip'] as $section) {
             if (!array_key_exists($section, $payload)) {
                 continue;
             }
@@ -74,6 +75,7 @@ class MarketingSettingsService
             'templates' => $resolved['templates'] ?? [],
             'tracking' => $resolved['tracking'] ?? [],
             'offers' => $resolved['offers'] ?? [],
+            'vip' => $resolved['vip'] ?? [],
         ]);
         $model->save();
 
@@ -135,4 +137,3 @@ class MarketingSettingsService
         return $base;
     }
 }
-

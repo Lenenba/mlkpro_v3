@@ -56,6 +56,9 @@ use App\Http\Controllers\OfferSearchController;
 use App\Http\Controllers\MarketingMetaController;
 use App\Http\Controllers\MarketingTemplateController;
 use App\Http\Controllers\MarketingSegmentController;
+use App\Http\Controllers\MarketingMailingListController;
+use App\Http\Controllers\MarketingVipController;
+use App\Http\Controllers\MarketingDashboardKpiController;
 use App\Http\Controllers\Settings\CompanySettingsController;
 use App\Http\Controllers\Settings\BillingSettingsController;
 use App\Http\Controllers\Settings\MarketingSettingsController;
@@ -317,6 +320,7 @@ Route::name('api.')->group(function () {
             Route::middleware('company.feature:campaigns')->group(function () {
                 Route::get('offers/search', [OfferSearchController::class, 'search']);
                 Route::get('marketing/meta', MarketingMetaController::class);
+                Route::get('marketing/dashboard/kpis', MarketingDashboardKpiController::class);
                 Route::get('marketing/templates', [MarketingTemplateController::class, 'index']);
                 Route::post('marketing/templates', [MarketingTemplateController::class, 'store']);
                 Route::get('marketing/templates/{template}', [MarketingTemplateController::class, 'show']);
@@ -332,6 +336,22 @@ Route::name('api.')->group(function () {
                 Route::delete('marketing/segments/{segment}', [MarketingSegmentController::class, 'destroy']);
                 Route::post('marketing/segments/preview-count', [MarketingSegmentController::class, 'previewCount']);
                 Route::get('marketing/segments/{segment}/count', [MarketingSegmentController::class, 'count']);
+
+                Route::get('marketing/mailing-lists', [MarketingMailingListController::class, 'index']);
+                Route::post('marketing/mailing-lists', [MarketingMailingListController::class, 'store']);
+                Route::get('marketing/mailing-lists/{mailingList}', [MarketingMailingListController::class, 'show']);
+                Route::put('marketing/mailing-lists/{mailingList}', [MarketingMailingListController::class, 'update']);
+                Route::delete('marketing/mailing-lists/{mailingList}', [MarketingMailingListController::class, 'destroy']);
+                Route::post('marketing/mailing-lists/{mailingList}/import', [MarketingMailingListController::class, 'import']);
+                Route::post('marketing/mailing-lists/{mailingList}/sync-customers', [MarketingMailingListController::class, 'syncCustomers']);
+                Route::post('marketing/mailing-lists/{mailingList}/remove-customers', [MarketingMailingListController::class, 'removeCustomers']);
+                Route::get('marketing/mailing-lists/{mailingList}/count', [MarketingMailingListController::class, 'count']);
+
+                Route::get('marketing/vip-tiers', [MarketingVipController::class, 'index']);
+                Route::post('marketing/vip-tiers', [MarketingVipController::class, 'store']);
+                Route::put('marketing/vip-tiers/{vipTier}', [MarketingVipController::class, 'update']);
+                Route::delete('marketing/vip-tiers/{vipTier}', [MarketingVipController::class, 'destroy']);
+                Route::patch('marketing/customers/{customer}/vip', [MarketingVipController::class, 'updateCustomer']);
 
                 Route::get('campaigns', [CampaignController::class, 'index']);
                 Route::get('campaigns/create', [CampaignController::class, 'create']);

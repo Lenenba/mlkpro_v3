@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Campaigns;
 
+use App\Enums\CampaignAudienceSourceLogic;
 use App\Models\Campaign;
 use App\Models\MessageTemplate;
 use Illuminate\Foundation\Http\FormRequest;
@@ -60,6 +61,12 @@ class StoreCampaignRequest extends FormRequest
             'audience.exclusion_filters' => ['nullable', 'array'],
             'audience.manual_customer_ids' => ['nullable', 'array'],
             'audience.manual_customer_ids.*' => ['integer'],
+            'audience.include_mailing_list_ids' => ['nullable', 'array'],
+            'audience.include_mailing_list_ids.*' => ['integer'],
+            'audience.exclude_mailing_list_ids' => ['nullable', 'array'],
+            'audience.exclude_mailing_list_ids.*' => ['integer'],
+            'audience.source_logic' => ['nullable', Rule::in(CampaignAudienceSourceLogic::values())],
+            'audience.source_summary' => ['nullable', 'array'],
             'audience.manual_contacts' => ['nullable'],
             'audience.estimated_counts' => ['nullable', 'array'],
             'settings' => ['nullable', 'array'],
@@ -105,6 +112,28 @@ class StoreCampaignRequest extends FormRequest
             'language_mode' => $this->input('language_mode')
                 ? strtoupper((string) $this->input('language_mode'))
                 : null,
+            'audience' => $this->normalizedAudience(),
         ], fn ($value) => $value !== null));
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function normalizedAudience(): ?array
+    {
+        $audience = $this->input('audience');
+        if (!is_array($audience)) {
+            return null;
+        }
+
+        if (!array_key_exists('source_logic', $audience)) {
+            return $audience;
+        }
+
+        $audience['source_logic'] = CampaignAudienceSourceLogic::normalize(
+            (string) ($audience['source_logic'] ?? '')
+        )->value;
+
+        return $audience;
     }
 }

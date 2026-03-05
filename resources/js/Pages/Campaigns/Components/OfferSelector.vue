@@ -1,6 +1,9 @@
 <script setup>
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import axios from 'axios';
+import FloatingInput from '@/Components/FloatingInput.vue';
+import FloatingSelect from '@/Components/FloatingSelect.vue';
+import PrimaryButton from '@/Components/PrimaryButton.vue';
 
 const props = defineProps({
     modelValue: {
@@ -48,6 +51,31 @@ let debounceTimer = null;
 const selected = computed(() => {
     return Array.isArray(props.modelValue) ? props.modelValue : [];
 });
+
+const typeOptions = [
+    { value: 'all', label: 'All types' },
+    { value: 'product', label: 'Products' },
+    { value: 'service', label: 'Services' },
+];
+
+const sortOptions = [
+    { value: 'relevance', label: 'Relevance' },
+    { value: 'newest', label: 'Newest' },
+    { value: 'best_sellers', label: 'Best sellers' },
+    { value: 'alphabetical', label: 'A-Z' },
+];
+
+const statusOptions = [
+    { value: 'active', label: 'Active' },
+    { value: 'inactive', label: 'Inactive' },
+    { value: 'all', label: 'All statuses' },
+];
+
+const availabilityOptions = [
+    { value: 'all', label: 'All availability' },
+    { value: 'in_stock', label: 'In stock' },
+    { value: 'bookable', label: 'Bookable' },
+];
 
 const resolvedType = computed(() => {
     if (props.offerMode === 'PRODUCTS') {
@@ -224,7 +252,14 @@ onBeforeUnmount(() => {
 <template>
     <div class="space-y-3">
         <div class="rounded-sm border border-stone-200 bg-stone-50 p-3 dark:border-neutral-700 dark:bg-neutral-800">
-            <div class="text-xs font-semibold text-stone-700 dark:text-neutral-200">Selected offers</div>
+            <div class="inline-flex items-center gap-1.5 text-xs font-semibold text-stone-700 dark:text-neutral-200">
+                <svg class="size-3.5 text-green-600 dark:text-green-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M3 6h18" />
+                    <path d="M3 12h18" />
+                    <path d="M3 18h18" />
+                </svg>
+                <span>Selected offers</span>
+            </div>
             <div v-if="selected.length === 0" class="mt-2 text-xs text-stone-500 dark:text-neutral-400">
                 No offer selected yet.
             </div>
@@ -243,88 +278,71 @@ onBeforeUnmount(() => {
         </div>
 
         <div class="grid grid-cols-1 gap-2 md:grid-cols-4">
-            <input
+            <FloatingInput
                 v-model="query"
-                type="text"
-                placeholder="Search offers..."
-                class="w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
+                label="Search offers"
                 :disabled="disabled"
                 @keydown="onSearchKeydown"
-            >
-            <select
+            />
+            <FloatingSelect
                 v-if="offerMode === 'MIXED'"
                 v-model="typeFilter"
-                class="w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
+                label="Offer type"
+                :options="typeOptions"
+                option-value="value"
+                option-label="label"
                 :disabled="disabled"
-            >
-                <option value="all">All types</option>
-                <option value="product">Products</option>
-                <option value="service">Services</option>
-            </select>
-            <select
+            />
+            <FloatingSelect
                 v-model="sort"
-                class="w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
+                label="Sort"
+                :options="sortOptions"
+                option-value="value"
+                option-label="label"
                 :disabled="disabled"
-            >
-                <option value="relevance">Relevance</option>
-                <option value="newest">Newest</option>
-                <option value="best_sellers">Best sellers</option>
-                <option value="alphabetical">A-Z</option>
-            </select>
-            <select
+            />
+            <FloatingSelect
                 v-model="status"
-                class="w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
+                label="Status"
+                :options="statusOptions"
+                option-value="value"
+                option-label="label"
                 :disabled="disabled"
-            >
-                <option value="active">Active</option>
-                <option value="inactive">Inactive</option>
-                <option value="all">All statuses</option>
-            </select>
-            <select
+            />
+            <FloatingSelect
                 v-model="availability"
-                class="w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
+                label="Availability"
+                :options="availabilityOptions"
+                option-value="value"
+                option-label="label"
                 :disabled="disabled"
-            >
-                <option value="all">All availability</option>
-                <option value="in_stock">In stock</option>
-                <option value="bookable">Bookable</option>
-            </select>
+            />
         </div>
 
         <div class="grid grid-cols-1 gap-2 md:grid-cols-4">
-            <input
+            <FloatingInput
                 v-model="categoryId"
                 type="number"
-                min="1"
-                placeholder="Category ID"
-                class="w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
+                label="Category ID"
                 :disabled="disabled"
-            >
-            <input
+            />
+            <FloatingInput
                 v-model="priceMin"
                 type="number"
-                min="0"
-                step="0.01"
-                placeholder="Price min"
-                class="w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
+                label="Price min"
                 :disabled="disabled"
-            >
-            <input
+            />
+            <FloatingInput
                 v-model="priceMax"
                 type="number"
-                min="0"
-                step="0.01"
-                placeholder="Price max"
-                class="w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
+                label="Price max"
                 :disabled="disabled"
-            >
-            <input
+            />
+            <FloatingInput
                 v-model="tagsInput"
-                type="text"
-                placeholder="Tags (comma separated)"
-                class="w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
+                label="Tags"
                 :disabled="disabled"
-            >
+            />
         </div>
 
         <div class="rounded-sm border border-stone-200 bg-white dark:border-neutral-700 dark:bg-neutral-900">
@@ -332,6 +350,16 @@ onBeforeUnmount(() => {
                 {{ error }}
             </div>
             <div class="max-h-72 overflow-y-auto">
+                <template v-if="loading && items.length === 0">
+                    <div v-for="row in 8" :key="`offer-loading-${row}`" class="flex items-center gap-3 border-b border-stone-200 px-3 py-2 dark:border-neutral-700">
+                        <div class="h-8 w-8 animate-pulse rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                        <div class="min-w-0 flex-1 space-y-1">
+                            <div class="h-3 w-2/3 animate-pulse rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                            <div class="h-2.5 w-1/2 animate-pulse rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                        </div>
+                        <div class="h-3 w-8 animate-pulse rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                    </div>
+                </template>
                 <button
                     v-for="(item, index) in items"
                     :key="`offer-${item.type}-${item.id}`"
@@ -372,19 +400,18 @@ onBeforeUnmount(() => {
                     No offers found.
                 </div>
             </div>
-            <div class="flex items-center justify-between border-t border-stone-200 px-3 py-2 dark:border-neutral-700">
+                <div class="flex items-center justify-between border-t border-stone-200 px-3 py-2 dark:border-neutral-700">
                 <span class="text-xs text-stone-500 dark:text-neutral-400">
                     {{ loading ? 'Loading...' : `${items.length} result(s)` }}
                 </span>
-                <button
+                <PrimaryButton
                     v-if="nextCursor"
                     type="button"
-                    class="rounded-sm border border-stone-200 bg-white px-2 py-1 text-xs font-semibold text-stone-700 hover:bg-stone-50 disabled:opacity-60 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
                     :disabled="loading || disabled"
                     @click="fetchOffers(false)"
                 >
                     Load more
-                </button>
+                </PrimaryButton>
             </div>
         </div>
 
@@ -394,32 +421,26 @@ onBeforeUnmount(() => {
                 Snapshot strategy: selected category/tag IDs resolve to explicit offers when saving the campaign.
             </p>
             <div class="mt-2 grid grid-cols-1 gap-2 md:grid-cols-2">
-                <input
+                <FloatingInput
                     v-model="categorySnapshot"
-                    type="text"
-                    placeholder="Category IDs: 3, 8, 21"
-                    class="w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
+                    label="Category IDs"
                     :disabled="disabled"
-                >
-                <input
+                />
+                <FloatingInput
                     v-model="tagsSnapshot"
-                    type="text"
-                    placeholder="Tags: summer, vip"
-                    class="w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
+                    label="Tags snapshot"
                     :disabled="disabled"
-                >
+                />
             </div>
             <div class="mt-2">
-                <button
+                <PrimaryButton
                     type="button"
-                    class="rounded-sm border border-transparent bg-green-600 px-2 py-1 text-xs font-semibold text-white hover:bg-green-700 disabled:opacity-60"
                     :disabled="disabled"
                     @click="applySnapshotSelectors"
                 >
                     Apply snapshot selectors
-                </button>
+                </PrimaryButton>
             </div>
         </div>
     </div>
 </template>
-

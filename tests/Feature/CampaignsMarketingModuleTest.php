@@ -8,9 +8,12 @@ use App\Models\CampaignRecipient;
 use App\Models\CampaignRun;
 use App\Models\Customer;
 use App\Models\CustomerConsent;
+use App\Models\MailingList;
+use App\Models\MessageTemplate;
 use App\Models\Product;
 use App\Models\ProductCategory;
 use App\Models\Role;
+use App\Models\Sale;
 use App\Models\User;
 use App\Services\Campaigns\AudienceResolver;
 use App\Services\Campaigns\CampaignRunProgressService;
@@ -20,8 +23,10 @@ use App\Services\Campaigns\ConsentService;
 use App\Services\Campaigns\FatigueLimiter;
 use App\Services\Campaigns\MarketingSettingsService;
 use App\Services\Campaigns\TemplateLibraryService;
+use App\Services\Campaigns\TemplateSeederService;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Str;
 
@@ -356,4 +361,278 @@ test('sending workflow queues dispatch and recipient jobs', function () {
 
     Queue::assertPushed(SendCampaignRecipientJob::class);
     expect(CampaignRecipient::query()->where('campaign_run_id', $run->id)->count())->toBeGreaterThan(0);
+});
+
+test('mailing list can be created imported and cleaned', function () {
+    $owner = marketingOwner();
+    $first = marketingCustomer($owner);
+    $second = marketingCustomer($owner);
+    $third = marketingCustomer($owner);
+
+    $create = $this->actingAs($owner)->postJson(route('marketing.mailing-lists.store'), [
+        'name' => 'VIP List',
+        'description' => 'Priority customers',
+        'tags' => ['vip'],
+        'customer_ids' => [$first->id],
+    ]);
+
+    $create->assertCreated()->assertJsonPath('mailing_list.name', 'VIP List');
+    $listId = (int) $create->json('mailing_list.id');
+
+    $show = $this->actingAs($owner)->getJson(route('marketing.mailing-lists.show', $listId));
+    $show->assertOk()->assertJsonCount(1, 'customers.data');
+
+    $import = $this->actingAs($owner)->postJson(route('marketing.mailing-lists.import', $listId), [
+        'paste' => implode("\n", [
+            (string) $second->id,
+            $third->email,
+            $third->phone,
+        ]),
+    ]);
+    $import->assertOk()->assertJsonPath('result.total', 3);
+
+    $remove = $this->actingAs($owner)->postJson(route('marketing.mailing-lists.remove-customers', $listId), [
+        'customer_ids' => [$second->id],
+    ]);
+    $remove->assertOk();
+
+    $updated = $this->actingAs($owner)->getJson(route('marketing.mailing-lists.show', $listId));
+    $updated->assertOk()->assertJsonCount(2, 'customers.data');
+});
+
+test('vip tier assignment is reflected in audience resolver filters', function () {
+    $owner = marketingOwner();
+    disableMarketingQuietHours($owner);
+
+    $vipCustomer = marketingCustomer($owner, [
+        'email' => 'vip-' . Str::lower(Str::random(8)) . '@example.com',
+    ]);
+    $regularCustomer = marketingCustomer($owner, [
+        'email' => 'regular-' . Str::lower(Str::random(8)) . '@example.com',
+    ]);
+
+    $tierResponse = $this->actingAs($owner)->postJson(route('marketing.vip.store'), [
+        'code' => 'GOLD',
+        'name' => 'Gold',
+        'perks' => ['Early access'],
+        'is_active' => true,
+    ]);
+    $tierResponse->assertCreated();
+    $tierId = (int) $tierResponse->json('vip_tier.id');
+
+    $assignResponse = $this->actingAs($owner)->patchJson(route('marketing.vip.customer.update', $vipCustomer->id), [
+        'is_vip' => true,
+        'vip_tier_id' => $tierId,
+    ]);
+    $assignResponse->assertOk()->assertJsonPath('customer.is_vip', true);
+
+    foreach ([$vipCustomer, $regularCustomer] as $customer) {
+        CustomerConsent::query()->create([
+            'user_id' => $owner->id,
+            'customer_id' => $customer->id,
+            'channel' => Campaign::CHANNEL_EMAIL,
+            'status' => CustomerConsent::STATUS_GRANTED,
+            'granted_at' => now(),
+        ]);
+    }
+
+    $campaign = Campaign::query()->create([
+        'user_id' => $owner->id,
+        'name' => 'VIP target campaign',
+        'type' => Campaign::TYPE_PROMOTION,
+        'campaign_type' => Campaign::TYPE_PROMOTION,
+        'offer_mode' => Campaign::OFFER_MODE_PRODUCTS,
+        'status' => Campaign::STATUS_DRAFT,
+        'schedule_type' => Campaign::SCHEDULE_MANUAL,
+    ]);
+
+    $campaign->channels()->create([
+        'channel' => Campaign::CHANNEL_EMAIL,
+        'is_enabled' => true,
+        'subject_template' => 'VIP hello',
+        'body_template' => 'VIP offer',
+    ]);
+
+    $campaign->audience()->create([
+        'smart_filters' => [
+            'operator' => 'AND',
+            'rules' => [
+                [
+                    'field' => 'is_vip',
+                    'operator' => 'equals',
+                    'value' => true,
+                ],
+            ],
+        ],
+        'manual_contacts' => [],
+    ]);
+
+    $resolved = app(AudienceResolver::class)->resolveForCampaign($campaign->fresh());
+    $eligibleCustomerIds = collect($resolved['eligible'])
+        ->pluck('customer_id')
+        ->filter()
+        ->unique()
+        ->values()
+        ->all();
+
+    expect($eligibleCustomerIds)->toBe([$vipCustomer->id]);
+});
+
+test('vip automation upgrades and downgrades customers from paid purchases', function () {
+    $owner = marketingOwner();
+    $service = app(\App\Services\Campaigns\VipService::class);
+    $settings = app(MarketingSettingsService::class);
+
+    $goldTier = $service->saveTier($owner, $owner, [
+        'code' => 'GOLD',
+        'name' => 'Gold',
+        'perks' => ['Priority support'],
+        'is_active' => true,
+    ]);
+
+    $eligibleCustomer = marketingCustomer($owner, [
+        'email' => 'eligible-' . Str::lower(Str::random(8)) . '@example.com',
+    ]);
+    $downgradedCustomer = marketingCustomer($owner, [
+        'email' => 'downgrade-' . Str::lower(Str::random(8)) . '@example.com',
+        'is_vip' => true,
+        'vip_tier_id' => $goldTier->id,
+        'vip_tier_code' => 'GOLD',
+        'vip_since_at' => now()->subMonths(4),
+    ]);
+    $untouchedCustomer = marketingCustomer($owner, [
+        'email' => 'untouched-' . Str::lower(Str::random(8)) . '@example.com',
+    ]);
+
+    Sale::query()->create([
+        'user_id' => $owner->id,
+        'customer_id' => $eligibleCustomer->id,
+        'status' => Sale::STATUS_PAID,
+        'subtotal' => 650,
+        'tax_total' => 0,
+        'total' => 650,
+        'paid_at' => now()->subDays(3),
+        'created_at' => now()->subDays(3),
+        'updated_at' => now()->subDays(3),
+    ]);
+
+    $settings->update($owner, [
+        'vip' => [
+            'automation' => [
+                'enabled' => true,
+                'evaluation_window_days' => 365,
+                'minimum_total_spend' => 500,
+                'minimum_paid_orders' => 1,
+                'default_tier_code' => 'GOLD',
+                'preserve_existing_tier' => true,
+                'downgrade_when_not_eligible' => true,
+            ],
+        ],
+    ]);
+
+    $result = $service->runAutomationForAccount($owner);
+
+    expect($result['automation_enabled'])->toBeTrue();
+    expect($result['customers_processed'])->toBe(3);
+    expect($result['customers_updated'])->toBe(2);
+    expect($result['customers_promoted'])->toBe(1);
+    expect($result['customers_downgraded'])->toBe(1);
+
+    $eligibleCustomer->refresh();
+    $downgradedCustomer->refresh();
+    $untouchedCustomer->refresh();
+
+    expect($eligibleCustomer->is_vip)->toBeTrue();
+    expect($eligibleCustomer->vip_tier_code)->toBe('GOLD');
+    expect($eligibleCustomer->vip_since_at)->not->toBeNull();
+
+    expect($downgradedCustomer->is_vip)->toBeFalse();
+    expect($downgradedCustomer->vip_tier_id)->toBeNull();
+    expect($downgradedCustomer->vip_tier_code)->toBeNull();
+
+    expect($untouchedCustomer->is_vip)->toBeFalse();
+});
+
+test('dashboard kpi endpoint returns aggregated marketing metrics', function () {
+    $owner = marketingOwner();
+    $customer = marketingCustomer($owner, [
+        'is_vip' => true,
+    ]);
+
+    $campaign = Campaign::query()->create([
+        'user_id' => $owner->id,
+        'name' => 'KPI campaign',
+        'type' => Campaign::TYPE_PROMOTION,
+        'campaign_type' => Campaign::TYPE_PROMOTION,
+        'offer_mode' => Campaign::OFFER_MODE_PRODUCTS,
+        'status' => Campaign::STATUS_COMPLETED,
+        'schedule_type' => Campaign::SCHEDULE_MANUAL,
+    ]);
+
+    $run = CampaignRun::query()->create([
+        'campaign_id' => $campaign->id,
+        'user_id' => $owner->id,
+        'trigger_type' => CampaignRun::TRIGGER_MANUAL,
+        'status' => CampaignRun::STATUS_COMPLETED,
+        'idempotency_key' => Str::uuid()->toString(),
+    ]);
+
+    CampaignRecipient::query()->create([
+        'campaign_run_id' => $run->id,
+        'campaign_id' => $campaign->id,
+        'user_id' => $owner->id,
+        'customer_id' => $customer->id,
+        'channel' => Campaign::CHANNEL_EMAIL,
+        'destination' => $customer->email,
+        'destination_hash' => CampaignRecipient::destinationHash($customer->email),
+        'status' => CampaignRecipient::STATUS_DELIVERED,
+        'sent_at' => now()->subMinutes(10),
+        'delivered_at' => now()->subMinutes(8),
+        'clicked_at' => now()->subMinutes(5),
+        'converted_at' => now()->subMinutes(1),
+    ]);
+
+    $mailingList = MailingList::query()->create([
+        'user_id' => $owner->id,
+        'created_by_user_id' => $owner->id,
+        'updated_by_user_id' => $owner->id,
+        'name' => 'KPI list',
+    ]);
+    $mailingList->customers()->attach($customer->id, [
+        'added_by_user_id' => $owner->id,
+        'added_at' => now(),
+    ]);
+
+    $response = $this->actingAs($owner)->getJson(route('marketing.dashboard.kpis', [
+        'range' => '30',
+    ]));
+
+    $response->assertOk()
+        ->assertJsonPath('kpis.marketing.campaigns_sent', 1)
+        ->assertJsonPath('kpis.marketing.delivery_success_rate', 100)
+        ->assertJsonPath('kpis.marketing.conversions_attributed', 1)
+        ->assertJsonPath('kpis.marketing.vip_count', 1)
+        ->assertJsonPath('kpis.marketing.mailing_lists.count', 1);
+});
+
+test('template seeder is idempotent for tenant defaults', function () {
+    $owner = marketingOwner();
+
+    /** @var TemplateSeederService $templateSeeder */
+    $templateSeeder = app(TemplateSeederService::class);
+    $templateSeeder->seedDefaultsForTenant($owner, $owner);
+    $templateSeeder->seedDefaultsForTenant($owner, $owner);
+
+    $templates = MessageTemplate::query()->where('user_id', $owner->id)->get();
+    expect($templates->count())->toBe(36);
+
+    $duplicates = DB::table('message_templates')
+        ->select(['campaign_type', 'channel', 'language'])
+        ->where('user_id', $owner->id)
+        ->where('is_default', true)
+        ->groupBy('campaign_type', 'channel', 'language')
+        ->havingRaw('COUNT(*) > 1')
+        ->count();
+
+    expect($duplicates)->toBe(0);
 });

@@ -18,6 +18,7 @@ class MarketingSetting extends Model
         'templates',
         'tracking',
         'offers',
+        'vip',
     ];
 
     protected $casts = [
@@ -27,6 +28,7 @@ class MarketingSetting extends Model
         'templates' => 'array',
         'tracking' => 'array',
         'offers' => 'array',
+        'vip' => 'array',
     ];
 
     public function user(): BelongsTo
@@ -57,6 +59,8 @@ class MarketingSetting extends Model
                     'max_messages_per_window' => 2,
                     'window_days' => 7,
                     'same_campaign_cooldown_hours' => 48,
+                    'vip_max_messages_per_window' => null,
+                    'vip_window_days' => null,
                 ],
             ],
             'consent' => [
@@ -68,6 +72,7 @@ class MarketingSetting extends Model
                 'default_exclusions' => [
                     'exclude_contacted_last_days' => 0,
                 ],
+                'source_logic_default' => 'UNION',
             ],
             'templates' => [
                 'allow_campaign_override' => true,
@@ -88,7 +93,18 @@ class MarketingSetting extends Model
                 ],
                 'selection_strategy' => 'snapshot_on_save',
             ],
+            'vip' => [
+                'automation' => [
+                    'enabled' => false,
+                    'evaluation_window_days' => 365,
+                    'minimum_total_spend' => null,
+                    'minimum_paid_orders' => null,
+                    'default_tier_code' => null,
+                    'preserve_existing_tier' => true,
+                    'downgrade_when_not_eligible' => false,
+                    'excluded_customer_ids' => [],
+                ],
+            ],
         ];
     }
 }
-

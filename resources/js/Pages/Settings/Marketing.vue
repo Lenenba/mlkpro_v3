@@ -2,8 +2,13 @@
 import { computed } from 'vue';
 import { Head, useForm } from '@inertiajs/vue3';
 import SettingsLayout from '@/Layouts/SettingsLayout.vue';
+import FloatingInput from '@/Components/FloatingInput.vue';
+import FloatingSelect from '@/Components/FloatingSelect.vue';
+import PrimaryButton from '@/Components/PrimaryButton.vue';
 import TemplateManager from '@/Pages/Campaigns/Components/TemplateManager.vue';
 import SegmentManager from '@/Pages/Campaigns/Components/SegmentManager.vue';
+import MailingListManager from '@/Pages/Campaigns/Components/MailingListManager.vue';
+import VipManager from '@/Pages/Campaigns/Components/VipManager.vue';
 
 const props = defineProps({
     marketingSettings: {
@@ -37,6 +42,8 @@ const form = useForm({
             max_messages_per_window: Number(props.marketingSettings?.channels?.anti_fatigue?.max_messages_per_window ?? 2),
             window_days: Number(props.marketingSettings?.channels?.anti_fatigue?.window_days ?? 7),
             same_campaign_cooldown_hours: Number(props.marketingSettings?.channels?.anti_fatigue?.same_campaign_cooldown_hours ?? 48),
+            vip_max_messages_per_window: props.marketingSettings?.channels?.anti_fatigue?.vip_max_messages_per_window ?? null,
+            vip_window_days: props.marketingSettings?.channels?.anti_fatigue?.vip_window_days ?? null,
         },
     },
     consent: {
@@ -72,30 +79,86 @@ const form = useForm({
         },
         selection_strategy: props.marketingSettings?.offers?.selection_strategy || 'snapshot_on_save',
     },
+    vip: {
+        automation: {
+            enabled: Boolean(props.marketingSettings?.vip?.automation?.enabled ?? false),
+            evaluation_window_days: String(props.marketingSettings?.vip?.automation?.evaluation_window_days ?? 365),
+            minimum_total_spend: props.marketingSettings?.vip?.automation?.minimum_total_spend ?? '',
+            minimum_paid_orders: props.marketingSettings?.vip?.automation?.minimum_paid_orders ?? '',
+            default_tier_code: props.marketingSettings?.vip?.automation?.default_tier_code || '',
+            preserve_existing_tier: Boolean(props.marketingSettings?.vip?.automation?.preserve_existing_tier ?? true),
+            downgrade_when_not_eligible: Boolean(props.marketingSettings?.vip?.automation?.downgrade_when_not_eligible ?? false),
+            excluded_customer_ids: Array.isArray(props.marketingSettings?.vip?.automation?.excluded_customer_ids)
+                ? props.marketingSettings.vip.automation.excluded_customer_ids.join(', ')
+                : '',
+        },
+    },
 });
 
 const offerModeOptions = computed(() => {
     return Array.isArray(props.enums?.offer_modes) ? props.enums.offer_modes : ['PRODUCTS', 'SERVICES', 'MIXED'];
 });
 
+const consentBehaviorOptions = [
+    { value: 'deny_without_explicit', label: 'deny_without_explicit' },
+    { value: 'allow_without_explicit', label: 'allow_without_explicit' },
+];
+
+const defaultSearchStatusOptions = [
+    { value: 'active', label: 'Default search status: active' },
+    { value: 'all', label: 'Default search status: all' },
+];
+
+const selectionStrategyOptions = [
+    { value: 'snapshot_on_save', label: 'snapshot_on_save' },
+];
+
+const toNullableNumber = (value) => {
+    if (value === '' || value === null || typeof value === 'undefined') {
+        return null;
+    }
+
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+};
+
 const submit = () => {
     form
-        .transform((payload) => ({
-            ...payload,
-            consent: {
-                ...payload.consent,
-                stop_keywords: String(payload.consent?.stop_keywords || '')
-                    .split(/[,\n;]+/)
-                    .map((value) => value.trim())
-                    .filter((value) => value !== ''),
-            },
-            offers: {
-                ...payload.offers,
-                allowed_modes: Array.isArray(payload.offers?.allowed_modes)
-                    ? payload.offers.allowed_modes
-                    : [],
-            },
-        }))
+        .transform((payload) => {
+            const evaluationWindowDays = toNullableNumber(payload.vip?.automation?.evaluation_window_days);
+            const minimumPaidOrders = toNullableNumber(payload.vip?.automation?.minimum_paid_orders);
+
+            return {
+                ...payload,
+                consent: {
+                    ...payload.consent,
+                    stop_keywords: String(payload.consent?.stop_keywords || '')
+                        .split(/[,\n;]+/)
+                        .map((value) => value.trim())
+                        .filter((value) => value !== ''),
+                },
+                offers: {
+                    ...payload.offers,
+                    allowed_modes: Array.isArray(payload.offers?.allowed_modes)
+                        ? payload.offers.allowed_modes
+                        : [],
+                },
+                vip: {
+                    ...payload.vip,
+                    automation: {
+                        ...payload.vip?.automation,
+                        evaluation_window_days: Math.max(1, evaluationWindowDays === null ? 365 : evaluationWindowDays),
+                        minimum_total_spend: toNullableNumber(payload.vip?.automation?.minimum_total_spend),
+                        minimum_paid_orders: minimumPaidOrders === null ? null : Math.max(0, minimumPaidOrders),
+                        default_tier_code: String(payload.vip?.automation?.default_tier_code || '').trim().toUpperCase() || null,
+                        excluded_customer_ids: String(payload.vip?.automation?.excluded_customer_ids || '')
+                            .split(/[,\n;]+/)
+                            .map((value) => Number(value.trim()))
+                            .filter((value) => Number.isFinite(value) && value > 0),
+                    },
+                },
+            };
+        })
         .put(route('settings.marketing.update'), { preserveScroll: true });
 };
 
@@ -117,19 +180,22 @@ const toggleAllowedMode = (mode) => {
             <div class="rounded-sm border border-stone-200 border-t-4 border-t-green-600 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
                 <div class="flex flex-wrap items-center justify-between gap-3">
                     <div>
-                        <h1 class="text-xl font-semibold text-stone-800 dark:text-neutral-100">Marketing configuration</h1>
+                        <h1 class="inline-flex items-center gap-2 text-xl font-semibold text-stone-800 dark:text-neutral-100">
+                            <svg class="size-5 text-green-600 dark:text-green-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M4 4h16v16H4z" />
+                                <path d="M8 9h8" />
+                                <path d="M8 13h8" />
+                                <path d="M8 17h5" />
+                            </svg>
+                            <span>Marketing configuration</span>
+                        </h1>
                         <p class="text-sm text-stone-500 dark:text-neutral-400">
                             Configure channels, consent, templates, tracking, and offer strategy for campaigns.
                         </p>
                     </div>
-                    <button
-                        type="button"
-                        class="rounded-sm border border-transparent bg-green-600 px-3 py-2 text-xs font-semibold text-white hover:bg-green-700 disabled:opacity-60"
-                        :disabled="form.processing"
-                        @click="submit"
-                    >
+                    <PrimaryButton type="button" :disabled="form.processing" @click="submit">
                         Save configuration
-                    </button>
+                    </PrimaryButton>
                 </div>
             </div>
 
@@ -149,18 +215,22 @@ const toggleAllowedMode = (mode) => {
                             <input v-model="form.channels.enabled.IN_APP" type="checkbox" class="rounded border-stone-300 text-green-600 focus:ring-green-600">
                             <span>Enable IN_APP</span>
                         </label>
-                        <input v-model="form.channels.provider.sms_provider" type="text" placeholder="SMS provider" class="w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200">
-                        <input v-model="form.channels.provider.sender_id" type="text" placeholder="SMS sender ID" class="w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200">
-                        <input v-model="form.channels.provider.email_from_name" type="text" placeholder="Email from name" class="w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200">
-                        <input v-model="form.channels.quiet_hours.timezone" type="text" placeholder="Quiet hours timezone" class="w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200">
+                        <FloatingInput v-model="form.channels.provider.sms_provider" label="SMS provider" />
+                        <FloatingInput v-model="form.channels.provider.sender_id" label="SMS sender ID" />
+                        <FloatingInput v-model="form.channels.provider.email_from_name" label="Email from name" />
+                        <FloatingInput v-model="form.channels.quiet_hours.timezone" label="Quiet hours timezone" />
                         <div class="grid grid-cols-2 gap-2">
-                            <input v-model="form.channels.quiet_hours.start" type="time" class="w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200">
-                            <input v-model="form.channels.quiet_hours.end" type="time" class="w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200">
+                            <FloatingInput v-model="form.channels.quiet_hours.start" type="time" label="Quiet start" />
+                            <FloatingInput v-model="form.channels.quiet_hours.end" type="time" label="Quiet end" />
                         </div>
                         <div class="grid grid-cols-3 gap-2">
-                            <input v-model.number="form.channels.anti_fatigue.max_messages_per_window" type="number" min="1" placeholder="Max messages" class="w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200">
-                            <input v-model.number="form.channels.anti_fatigue.window_days" type="number" min="1" placeholder="Window days" class="w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200">
-                            <input v-model.number="form.channels.anti_fatigue.same_campaign_cooldown_hours" type="number" min="0" placeholder="Cooldown h" class="w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200">
+                            <FloatingInput v-model.number="form.channels.anti_fatigue.max_messages_per_window" type="number" label="Max messages" />
+                            <FloatingInput v-model.number="form.channels.anti_fatigue.window_days" type="number" label="Window days" />
+                            <FloatingInput v-model.number="form.channels.anti_fatigue.same_campaign_cooldown_hours" type="number" label="Cooldown h" />
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <FloatingInput v-model.number="form.channels.anti_fatigue.vip_max_messages_per_window" type="number" label="VIP max messages (optional)" />
+                            <FloatingInput v-model.number="form.channels.anti_fatigue.vip_window_days" type="number" label="VIP window days (optional)" />
                         </div>
                     </div>
                 </div>
@@ -172,22 +242,23 @@ const toggleAllowedMode = (mode) => {
                             <input v-model="form.consent.require_explicit" type="checkbox" class="rounded border-stone-300 text-green-600 focus:ring-green-600">
                             <span>Require explicit consent</span>
                         </label>
-                        <select v-model="form.consent.default_behavior" class="w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200">
-                            <option value="deny_without_explicit">deny_without_explicit</option>
-                            <option value="allow_without_explicit">allow_without_explicit</option>
-                        </select>
-                        <input v-model="form.consent.stop_keywords" type="text" placeholder="STOP keywords (comma separated)" class="w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200">
+                        <FloatingSelect
+                            v-model="form.consent.default_behavior"
+                            label="Default behavior"
+                            :options="consentBehaviorOptions"
+                            option-value="value"
+                            option-label="label"
+                        />
+                        <FloatingInput v-model="form.consent.stop_keywords" label="STOP keywords (comma separated)" />
                     </div>
 
                     <h2 class="mt-4 text-sm font-semibold text-stone-800 dark:text-neutral-100">Audience defaults</h2>
                     <div class="mt-2">
-                        <input
+                        <FloatingInput
                             v-model.number="form.audience.default_exclusions.exclude_contacted_last_days"
                             type="number"
-                            min="0"
-                            placeholder="Exclude contacted last N days"
-                            class="w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200"
-                        >
+                            label="Exclude contacted last N days"
+                        />
                     </div>
                 </div>
 
@@ -236,17 +307,71 @@ const toggleAllowedMode = (mode) => {
                                 <span>{{ mode }}</span>
                             </label>
                         </div>
-                        <select v-model="form.offers.default_search_filters.status" class="w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200">
-                            <option value="active">Default search status: active</option>
-                            <option value="all">Default search status: all</option>
-                        </select>
-                        <select v-model="form.offers.selection_strategy" class="w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200">
-                            <option value="snapshot_on_save">snapshot_on_save</option>
-                        </select>
+                        <FloatingSelect
+                            v-model="form.offers.default_search_filters.status"
+                            label="Default search status"
+                            :options="defaultSearchStatusOptions"
+                            option-value="value"
+                            option-label="label"
+                        />
+                        <FloatingSelect
+                            v-model="form.offers.selection_strategy"
+                            label="Selection strategy"
+                            :options="selectionStrategyOptions"
+                            option-value="value"
+                            option-label="label"
+                        />
                         <label class="inline-flex items-center gap-2 text-xs text-stone-600 dark:text-neutral-300">
                             <input v-model="form.templates.allow_campaign_override" type="checkbox" class="rounded border-stone-300 text-green-600 focus:ring-green-600">
                             <span>Allow campaign-level template override</span>
                         </label>
+                    </div>
+                </div>
+
+                <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                    <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">VIP automation</h2>
+                    <div class="mt-3 grid grid-cols-1 gap-2">
+                        <label class="inline-flex items-center gap-2 text-xs text-stone-600 dark:text-neutral-300">
+                            <input v-model="form.vip.automation.enabled" type="checkbox" class="rounded border-stone-300 text-green-600 focus:ring-green-600">
+                            <span>Enable automatic VIP assignment from paid purchases</span>
+                        </label>
+
+                        <div class="grid grid-cols-3 gap-2">
+                            <FloatingInput
+                                v-model="form.vip.automation.evaluation_window_days"
+                                type="number"
+                                label="Evaluation window (days)"
+                            />
+                            <FloatingInput
+                                v-model="form.vip.automation.minimum_total_spend"
+                                type="number"
+                                label="Minimum total spend"
+                            />
+                            <FloatingInput
+                                v-model="form.vip.automation.minimum_paid_orders"
+                                type="number"
+                                label="Minimum paid orders"
+                            />
+                        </div>
+
+                        <FloatingInput
+                            v-model="form.vip.automation.default_tier_code"
+                            label="Default tier code (optional)"
+                        />
+
+                        <label class="inline-flex items-center gap-2 text-xs text-stone-600 dark:text-neutral-300">
+                            <input v-model="form.vip.automation.preserve_existing_tier" type="checkbox" class="rounded border-stone-300 text-green-600 focus:ring-green-600">
+                            <span>Preserve existing tier for customers already VIP</span>
+                        </label>
+                        <label class="inline-flex items-center gap-2 text-xs text-stone-600 dark:text-neutral-300">
+                            <input v-model="form.vip.automation.downgrade_when_not_eligible" type="checkbox" class="rounded border-stone-300 text-green-600 focus:ring-green-600">
+                            <span>Downgrade customers when thresholds are no longer met</span>
+                        </label>
+
+                        <FloatingInput
+                            v-model="form.vip.automation.excluded_customer_ids"
+                            label="Excluded customer IDs (comma separated)"
+                        />
                     </div>
                 </div>
             </div>
@@ -258,7 +383,14 @@ const toggleAllowedMode = (mode) => {
             <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
                 <SegmentManager :segments="[]" />
             </div>
+
+            <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                <MailingListManager />
+            </div>
+
+            <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+                <VipManager />
+            </div>
         </section>
     </SettingsLayout>
 </template>
-

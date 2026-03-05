@@ -1,7 +1,10 @@
 <script setup>
-import { computed, onBeforeUnmount, reactive, watch } from 'vue';
+import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import FloatingInput from '@/Components/FloatingInput.vue';
+import FloatingSelect from '@/Components/FloatingSelect.vue';
+import PrimaryButton from '@/Components/PrimaryButton.vue';
 import { humanizeDate } from '@/utils/date';
 
 const props = defineProps({
@@ -32,6 +35,7 @@ const filterForm = reactive({
     status: props.filters?.status || '',
     type: props.filters?.type || '',
 });
+const isFiltering = ref(false);
 
 const rows = computed(() => props.campaigns?.data || []);
 const canManage = computed(() => Boolean(props.access?.can_manage));
@@ -67,10 +71,14 @@ const applyFilters = () => {
         }
     });
 
+    isFiltering.value = true;
     router.get(route('campaigns.index'), payload, {
         preserveScroll: true,
         preserveState: true,
         replace: true,
+        onFinish: () => {
+            isFiltering.value = false;
+        },
     });
 };
 
@@ -117,19 +125,29 @@ const statusBadgeClass = (status) => {
             <section class="rounded-sm border border-stone-200 border-t-4 border-t-green-600 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
                 <div class="flex flex-wrap items-center justify-between gap-3">
                     <div class="space-y-1">
-                        <h1 class="text-xl font-semibold text-stone-800 dark:text-neutral-100">
-                            Campagnes
+                        <h1 class="inline-flex items-center gap-2 text-xl font-semibold text-stone-800 dark:text-neutral-100">
+                            <svg class="size-5 text-green-600 dark:text-green-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M3 10l9-6 9 6-9 6-9-6z" />
+                                <path d="M3 17l9 6 9-6" />
+                                <path d="M3 17V10" />
+                                <path d="M21 17V10" />
+                            </svg>
+                            <span>Campagnes</span>
                         </h1>
                         <p class="text-sm text-stone-500 dark:text-neutral-400">
                             Créez, segmentez et suivez vos campagnes marketing multicanal.
                         </p>
                     </div>
-                    <Link
-                        v-if="canManage"
-                        :href="route('campaigns.create')"
-                        class="inline-flex items-center rounded-sm border border-transparent bg-green-600 px-3 py-2 text-sm font-medium text-white hover:bg-green-700"
-                    >
-                        Nouvelle campagne
+                    <Link v-if="canManage" :href="route('campaigns.create')">
+                        <PrimaryButton>
+                            <span class="inline-flex items-center gap-1.5">
+                                <svg class="size-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M5 12h14" />
+                                    <path d="M12 5v14" />
+                                </svg>
+                                <span>Nouvelle campagne</span>
+                            </span>
+                        </PrimaryButton>
                     </Link>
                 </div>
 
@@ -159,37 +177,24 @@ const statusBadgeClass = (status) => {
 
             <section class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
                 <div class="grid grid-cols-1 gap-3 md:grid-cols-3">
-                    <div>
-                        <label class="text-xs text-stone-500 dark:text-neutral-400">Recherche</label>
-                        <input
-                            v-model="filterForm.search"
-                            type="text"
-                            placeholder="Nom de campagne..."
-                            class="mt-1 w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200"
-                        >
-                    </div>
-                    <div>
-                        <label class="text-xs text-stone-500 dark:text-neutral-400">Statut</label>
-                        <select
-                            v-model="filterForm.status"
-                            class="mt-1 w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200"
-                        >
-                            <option v-for="item in statusOptions" :key="`status-${item.value || 'all'}`" :value="item.value">
-                                {{ item.label }}
-                            </option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="text-xs text-stone-500 dark:text-neutral-400">Type</label>
-                        <select
-                            v-model="filterForm.type"
-                            class="mt-1 w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200"
-                        >
-                            <option v-for="item in typeOptions" :key="`type-${item.value || 'all'}`" :value="item.value">
-                                {{ item.label }}
-                            </option>
-                        </select>
-                    </div>
+                    <FloatingInput
+                        v-model="filterForm.search"
+                        label="Recherche"
+                    />
+                    <FloatingSelect
+                        v-model="filterForm.status"
+                        label="Statut"
+                        :options="statusOptions"
+                        option-value="value"
+                        option-label="label"
+                    />
+                    <FloatingSelect
+                        v-model="filterForm.type"
+                        label="Type"
+                        :options="typeOptions"
+                        option-value="value"
+                        option-label="label"
+                    />
                 </div>
             </section>
 
@@ -209,12 +214,19 @@ const statusBadgeClass = (status) => {
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-stone-200 dark:divide-neutral-700">
-                            <tr v-if="rows.length === 0">
+                            <template v-if="isFiltering">
+                                <tr v-for="row in 6" :key="`campaign-skeleton-${row}`">
+                                    <td v-for="col in 8" :key="`campaign-skeleton-${row}-${col}`" class="px-4 py-3">
+                                        <div class="h-3 w-full animate-pulse rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                                    </td>
+                                </tr>
+                            </template>
+                            <tr v-if="!isFiltering && rows.length === 0">
                                 <td colspan="8" class="px-4 py-8 text-center text-stone-500 dark:text-neutral-400">
                                     Aucune campagne trouvée.
                                 </td>
                             </tr>
-                            <tr v-for="campaign in rows" :key="campaign.id" class="text-stone-700 dark:text-neutral-200">
+                            <tr v-for="campaign in rows" v-show="!isFiltering" :key="campaign.id" class="text-stone-700 dark:text-neutral-200">
                                 <td class="px-4 py-3">
                                     <div class="font-semibold">{{ campaign.name }}</div>
                                     <div class="text-xs text-stone-500 dark:text-neutral-400">

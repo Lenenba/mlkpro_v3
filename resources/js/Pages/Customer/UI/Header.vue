@@ -59,9 +59,17 @@ const openRequestModal = () => {
                 </span>
 
                 <div class="grow">
-                    <p class="text-2xl md:text-3xl font-semibold text-stone-600 dark:text-white">
-                        {{ customer.company_name || `${customer.first_name} ${customer.last_name}` }}
-                    </p>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <p class="text-2xl md:text-3xl font-semibold text-stone-600 dark:text-white">
+                            {{ customer.company_name || `${customer.first_name} ${customer.last_name}` }}
+                        </p>
+                        <span
+                            v-if="customer?.is_vip"
+                            class="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-amber-700 dark:bg-amber-500/20 dark:text-amber-200"
+                        >
+                            VIP{{ customer?.vip_tier_code ? ` ${customer.vip_tier_code}` : '' }}
+                        </span>
+                    </div>
                     <p class="text-sm text-stone-500 dark:text-neutral-400">
                         {{ customer.email }} | {{ customer.phone || t('customers.labels.no_phone') }}
                     </p>

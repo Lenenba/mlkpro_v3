@@ -206,6 +206,16 @@ class User extends Authenticatable
         return $this->hasMany(AudienceSegment::class);
     }
 
+    public function mailingLists(): HasMany
+    {
+        return $this->hasMany(MailingList::class);
+    }
+
+    public function vipTiers(): HasMany
+    {
+        return $this->hasMany(VipTier::class);
+    }
+
     public function campaignRuns(): HasMany
     {
         return $this->hasMany(CampaignRun::class);

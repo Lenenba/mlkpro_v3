@@ -3,12 +3,19 @@ import { computed, onMounted, ref, watch } from 'vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import axios from 'axios';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import FloatingInput from '@/Components/FloatingInput.vue';
+import FloatingSelect from '@/Components/FloatingSelect.vue';
+import FloatingTextarea from '@/Components/FloatingTextarea.vue';
+import PrimaryButton from '@/Components/PrimaryButton.vue';
+import SecondaryButton from '@/Components/SecondaryButton.vue';
 import OfferSelector from '@/Pages/Campaigns/Components/OfferSelector.vue';
 
 const props = defineProps({
     campaign: { type: Object, default: null },
     selectedOffers: { type: Array, default: () => [] },
     segments: { type: Array, default: () => [] },
+    mailingLists: { type: Array, default: () => [] },
+    vipTiers: { type: Array, default: () => [] },
     enums: { type: Object, default: () => ({}) },
     marketingSettings: { type: Object, default: () => ({}) },
     access: { type: Object, default: () => ({}) },
@@ -24,6 +31,12 @@ const channels = (props.enums?.channels || ['EMAIL', 'SMS', 'IN_APP']).map((v) =
 const types = props.enums?.types || ['PROMOTION'];
 const offerModes = props.enums?.offer_modes || ['PRODUCTS', 'SERVICES', 'MIXED'];
 const languageModes = props.enums?.language_modes || ['PREFERRED', 'FR', 'EN', 'BOTH'];
+const audienceSourceLogicOptions = props.enums?.audience_source_logic || ['UNION', 'INTERSECT'];
+const scheduleTypeOptions = [
+    { value: 'manual', label: 'manual' },
+    { value: 'scheduled', label: 'scheduled' },
+    { value: 'automation', label: 'automation' },
+];
 
 const existingChannels = Array.isArray(props.campaign?.channels) ? props.campaign.channels : [];
 const initialChannels = channels.map((channel) => {
@@ -78,6 +91,19 @@ const manualContacts = ref(
         ? props.campaign.audience.manual_contacts.join('\n')
         : (props.campaign?.audience?.manual_contacts || '')
 );
+const includeMailingListIds = ref(
+    Array.isArray(props.campaign?.audience?.include_mailing_list_ids)
+        ? props.campaign.audience.include_mailing_list_ids.map((value) => Number(value)).filter((value) => Number.isInteger(value) && value > 0)
+        : []
+);
+const excludeMailingListIds = ref(
+    Array.isArray(props.campaign?.audience?.exclude_mailing_list_ids)
+        ? props.campaign.audience.exclude_mailing_list_ids.map((value) => Number(value)).filter((value) => Number.isInteger(value) && value > 0)
+        : []
+);
+const sourceLogic = ref(
+    String(props.campaign?.audience?.source_logic || props.marketingSettings?.audience?.source_logic_default || 'UNION').toUpperCase()
+);
 
 const templates = ref([]);
 const requestBusy = ref(false);
@@ -116,15 +142,68 @@ const productIdsPayload = computed(() => {
         .map((offer) => offer.offer_id);
 });
 
+const logicSummary = computed(() => {
+    const segmentPart = form.audience_segment_id ? 'Segment' : 'Builder';
+    const includeCount = includeMailingListIds.value.length;
+    const excludeCount = excludeMailingListIds.value.length;
+    const manualCount = manualCustomerIds.value.split(/[\s,;]+/).filter((value) => value !== '').length;
+    if (sourceLogic.value === 'INTERSECT') {
+        return `(A intersect B) union C | A=${segmentPart}, B=${includeCount} list(s), C=${manualCount} manual id(s), excluded=${excludeCount} list(s)`;
+    }
+
+    return `A union B union C | A=${segmentPart}, B=${includeCount} list(s), C=${manualCount} manual id(s), excluded=${excludeCount} list(s)`;
+});
+
 const audiencePayload = () => ({
     smart_filters: props.campaign?.audience?.smart_filters || null,
     exclusion_filters: props.campaign?.audience?.exclusion_filters || null,
     manual_customer_ids: manualCustomerIds.value.split(/[\s,;]+/).map((v) => Number(v)).filter((v) => Number.isInteger(v) && v > 0),
+    include_mailing_list_ids: includeMailingListIds.value,
+    exclude_mailing_list_ids: excludeMailingListIds.value,
+    source_logic: sourceLogic.value,
+    source_summary: {
+        logic: sourceLogic.value,
+        include_mailing_lists_count: includeMailingListIds.value.length,
+        exclude_mailing_lists_count: excludeMailingListIds.value.length,
+    },
     manual_contacts: manualContacts.value.split(/\r?\n/).map((v) => v.trim()).filter((v) => v !== ''),
 });
 
 const templatesForChannel = (channel) => {
     return templates.value.filter((row) => String(row.channel).toUpperCase() === String(channel).toUpperCase());
+};
+
+const isMailingListIncluded = (id) => includeMailingListIds.value.includes(Number(id));
+const isMailingListExcluded = (id) => excludeMailingListIds.value.includes(Number(id));
+
+const toggleIncludeMailingList = (id) => {
+    const candidate = Number(id);
+    if (!Number.isInteger(candidate) || candidate <= 0) {
+        return;
+    }
+
+    if (isMailingListIncluded(candidate)) {
+        includeMailingListIds.value = includeMailingListIds.value.filter((value) => value !== candidate);
+        return;
+    }
+
+    includeMailingListIds.value = [...includeMailingListIds.value, candidate];
+    excludeMailingListIds.value = excludeMailingListIds.value.filter((value) => value !== candidate);
+};
+
+const toggleExcludeMailingList = (id) => {
+    const candidate = Number(id);
+    if (!Number.isInteger(candidate) || candidate <= 0) {
+        return;
+    }
+
+    if (isMailingListExcluded(candidate)) {
+        excludeMailingListIds.value = excludeMailingListIds.value.filter((value) => value !== candidate);
+        return;
+    }
+
+    excludeMailingListIds.value = [...excludeMailingListIds.value, candidate];
+    includeMailingListIds.value = includeMailingListIds.value.filter((value) => value !== candidate);
 };
 
 const applyTemplate = (channelRow) => {
@@ -245,15 +324,27 @@ onMounted(async () => {
             <section class="rounded-sm border border-stone-200 border-t-4 border-t-green-600 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
                 <div class="flex flex-wrap items-center justify-between gap-3">
                     <div>
-                        <h1 class="text-xl font-semibold text-stone-800 dark:text-neutral-100">{{ isEdit ? `Edit campaign #${campaignId}` : 'Create campaign' }}</h1>
+                        <h1 class="inline-flex items-center gap-2 text-xl font-semibold text-stone-800 dark:text-neutral-100">
+                            <svg class="size-5 text-green-600 dark:text-green-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M4 4h16v16H4z" />
+                                <path d="M8 8h8" />
+                                <path d="M8 12h8" />
+                                <path d="M8 16h5" />
+                            </svg>
+                            <span>{{ isEdit ? `Edit campaign #${campaignId}` : 'Create campaign' }}</span>
+                        </h1>
                         <p class="text-sm text-stone-500 dark:text-neutral-400">Products/services campaigns with templates and segments.</p>
                     </div>
                     <div class="flex items-center gap-2">
-                        <Link :href="route('campaigns.index')" class="rounded-sm border border-stone-200 bg-white px-3 py-2 text-xs font-semibold text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200 dark:hover:bg-neutral-700">Back</Link>
-                        <Link v-if="isEdit" :href="route('campaigns.show', campaignId)" class="rounded-sm border border-stone-200 bg-white px-3 py-2 text-xs font-semibold text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200 dark:hover:bg-neutral-700">Details</Link>
-                        <button type="button" :disabled="form.processing || !canManage" class="rounded-sm border border-transparent bg-green-600 px-3 py-2 text-xs font-semibold text-white hover:bg-green-700 disabled:opacity-60" @click="save">
+                        <Link :href="route('campaigns.index')">
+                            <SecondaryButton>Back</SecondaryButton>
+                        </Link>
+                        <Link v-if="isEdit" :href="route('campaigns.show', campaignId)">
+                            <SecondaryButton>Details</SecondaryButton>
+                        </Link>
+                        <PrimaryButton type="button" :disabled="form.processing || !canManage" @click="save">
                             {{ form.processing ? 'Saving...' : (isEdit ? 'Update' : 'Create') }}
-                        </button>
+                        </PrimaryButton>
                     </div>
                 </div>
                 <div class="mt-3 flex flex-wrap gap-2">
@@ -267,27 +358,116 @@ onMounted(async () => {
 
             <section v-show="step === 1" class="space-y-4 rounded-sm border border-stone-200 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
                 <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
-                    <input v-model="form.name" type="text" placeholder="Campaign name" class="rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200">
-                    <select v-model="form.campaign_type" class="rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200"><option v-for="type in types" :key="type" :value="type">{{ type }}</option></select>
-                    <select v-model="form.offer_mode" class="rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200"><option v-for="mode in offerModes" :key="mode" :value="mode">{{ mode }}</option></select>
-                    <select v-model="form.language_mode" class="rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200"><option v-for="mode in languageModes" :key="mode" :value="mode">{{ mode }}</option></select>
-                    <select v-model="form.schedule_type" class="rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200"><option value="manual">manual</option><option value="scheduled">scheduled</option><option value="automation">automation</option></select>
-                    <input v-if="form.schedule_type === 'scheduled'" v-model="form.scheduled_at" type="datetime-local" class="rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200">
-                    <input v-model="form.locale" type="text" placeholder="Locale (fr/en)" class="rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200">
-                    <input v-model="form.cta_url" type="url" placeholder="CTA URL" class="rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200">
+                    <FloatingInput v-model="form.name" label="Campaign name" />
+                    <FloatingSelect
+                        v-model="form.campaign_type"
+                        label="Campaign type"
+                        :options="types.map((type) => ({ value: type, label: type }))"
+                        option-value="value"
+                        option-label="label"
+                    />
+                    <FloatingSelect
+                        v-model="form.offer_mode"
+                        label="Offer mode"
+                        :options="offerModes.map((mode) => ({ value: mode, label: mode }))"
+                        option-value="value"
+                        option-label="label"
+                    />
+                    <FloatingSelect
+                        v-model="form.language_mode"
+                        label="Language mode"
+                        :options="languageModes.map((mode) => ({ value: mode, label: mode }))"
+                        option-value="value"
+                        option-label="label"
+                    />
+                    <FloatingSelect
+                        v-model="form.schedule_type"
+                        label="Schedule type"
+                        :options="scheduleTypeOptions"
+                        option-value="value"
+                        option-label="label"
+                    />
+                    <FloatingInput
+                        v-if="form.schedule_type === 'scheduled'"
+                        v-model="form.scheduled_at"
+                        type="datetime-local"
+                        label="Scheduled at"
+                    />
+                    <FloatingInput v-model="form.locale" label="Locale (fr/en)" />
+                    <FloatingInput v-model="form.cta_url" type="url" label="CTA URL" />
                 </div>
                 <OfferSelector v-model="form.offers" v-model:selectors="form.offer_selectors" :offer-mode="form.offer_mode" :disabled="!canManage" />
                 <p v-if="form.errors.offers" class="text-xs text-rose-600">{{ form.errors.offers }}</p>
             </section>
 
             <section v-show="step === 2" class="space-y-3 rounded-sm border border-stone-200 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                <select v-model="form.audience_segment_id" class="w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200">
-                    <option value="">No segment</option>
-                    <option v-for="segment in segments" :key="segment.id" :value="segment.id">{{ segment.name }} ({{ segment.cached_count || 0 }})</option>
-                </select>
-                <textarea v-model="manualCustomerIds" rows="3" placeholder="Manual customer IDs" class="w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200" />
-                <textarea v-model="manualContacts" rows="3" placeholder="Manual contacts, one per line" class="w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200" />
-                <button type="button" :disabled="requestBusy || !canManage || !isEdit" class="rounded-sm border border-stone-200 bg-white px-3 py-2 text-xs font-semibold text-stone-700 hover:bg-stone-50 disabled:opacity-60 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200 dark:hover:bg-neutral-700" @click="estimateAudience">Estimate audience</button>
+                <div class="grid grid-cols-1 gap-2 md:grid-cols-2">
+                    <FloatingSelect
+                        v-model="form.audience_segment_id"
+                        label="Segment"
+                        :options="[
+                            { value: '', label: 'No segment' },
+                            ...segments.map((segment) => ({
+                                value: segment.id,
+                                label: `${segment.name} (${segment.cached_count || 0})`,
+                            })),
+                        ]"
+                        option-value="value"
+                        option-label="label"
+                    />
+                    <FloatingSelect
+                        v-model="sourceLogic"
+                        label="Source logic"
+                        :options="audienceSourceLogicOptions.map((mode) => ({ value: mode, label: mode }))"
+                        option-value="value"
+                        option-label="label"
+                    />
+                </div>
+
+                <div class="rounded-sm border border-stone-200 bg-stone-50 p-3 dark:border-neutral-700 dark:bg-neutral-800">
+                    <div class="text-xs font-semibold text-stone-700 dark:text-neutral-200">Mailing lists (static targeting)</div>
+                    <div v-if="!mailingLists.length" class="mt-2 text-xs text-stone-500 dark:text-neutral-400">
+                        No mailing list found in marketing settings.
+                    </div>
+                    <div v-else class="mt-2 space-y-2">
+                        <div v-for="list in mailingLists" :key="`audience-list-${list.id}`" class="rounded-sm border border-stone-200 bg-white px-3 py-2 dark:border-neutral-700 dark:bg-neutral-900">
+                            <div class="flex flex-wrap items-center justify-between gap-2">
+                                <div class="text-xs font-semibold text-stone-700 dark:text-neutral-200">
+                                    {{ list.name }} ({{ list.customers_count || 0 }})
+                                </div>
+                                <div class="flex items-center gap-4 text-xs">
+                                    <label class="inline-flex items-center gap-2 text-stone-600 dark:text-neutral-300">
+                                        <input
+                                            :checked="isMailingListIncluded(list.id)"
+                                            type="checkbox"
+                                            class="rounded border-stone-300 text-green-600 focus:ring-green-600"
+                                            @change="toggleIncludeMailingList(list.id)"
+                                        >
+                                        <span>Include</span>
+                                    </label>
+                                    <label class="inline-flex items-center gap-2 text-stone-600 dark:text-neutral-300">
+                                        <input
+                                            :checked="isMailingListExcluded(list.id)"
+                                            type="checkbox"
+                                            class="rounded border-stone-300 text-rose-600 focus:ring-rose-600"
+                                            @change="toggleExcludeMailingList(list.id)"
+                                        >
+                                        <span>Exclude</span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <FloatingTextarea v-model="manualCustomerIds" label="Manual customer IDs" />
+                <FloatingTextarea v-model="manualContacts" label="Manual contacts, one per line" />
+
+                <div class="rounded-sm border border-stone-200 bg-stone-50 px-3 py-2 text-xs text-stone-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300">
+                    <strong>Logic summary:</strong> {{ logicSummary }}
+                </div>
+
+                <SecondaryButton type="button" :disabled="requestBusy || !canManage || !isEdit" @click="estimateAudience">Estimate audience</SecondaryButton>
                 <pre v-if="estimate" class="overflow-x-auto rounded-sm border border-stone-200 bg-stone-50 p-2 text-xs text-stone-700 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200">{{ JSON.stringify(estimate, null, 2) }}</pre>
             </section>
 
@@ -298,13 +478,27 @@ onMounted(async () => {
                         <label class="inline-flex items-center gap-2 text-xs text-stone-600 dark:text-neutral-300"><input v-model="channel.is_enabled" type="checkbox" class="rounded border-stone-300 text-green-600 focus:ring-green-600"> enabled</label>
                     </div>
                     <div class="grid grid-cols-1 gap-2 md:grid-cols-2">
-                        <select v-model="channel.message_template_id" class="rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200" @change="applyTemplate(channel)">
-                            <option value="">No template</option>
-                            <option v-for="template in templatesForChannel(channel.channel)" :key="template.id" :value="template.id">{{ template.name }} {{ template.is_default ? '(default)' : '' }}</option>
-                        </select>
-                        <input v-model="channel.subject_template" type="text" placeholder="Subject" class="rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200">
-                        <input v-model="channel.title_template" type="text" placeholder="Title" class="rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200">
-                        <textarea v-model="channel.body_template" rows="3" placeholder="Body with {offerName}, {offerPrice}, {ctaUrl}" class="md:col-span-2 rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200" />
+                        <FloatingSelect
+                            v-model="channel.message_template_id"
+                            label="Template"
+                            :options="[
+                                { value: '', label: 'No template' },
+                                ...templatesForChannel(channel.channel).map((template) => ({
+                                    value: template.id,
+                                    label: `${template.name} ${template.is_default ? '(default)' : ''}`,
+                                })),
+                            ]"
+                            option-value="value"
+                            option-label="label"
+                            @update:modelValue="applyTemplate(channel)"
+                        />
+                        <FloatingInput v-model="channel.subject_template" label="Subject" />
+                        <FloatingInput v-model="channel.title_template" label="Title" />
+                        <FloatingTextarea
+                            v-model="channel.body_template"
+                            class="md:col-span-2"
+                            label="Body with {offerName}, {offerPrice}, {ctaUrl}"
+                        />
                     </div>
                 </div>
             </section>
@@ -318,9 +512,9 @@ onMounted(async () => {
                     <div><strong>Require explicit consent:</strong> {{ marketingSettings?.consent?.require_explicit ? 'yes' : 'no' }}</div>
                 </div>
                 <div class="flex flex-wrap gap-2">
-                    <button type="button" :disabled="requestBusy || !canManage || !isEdit" class="rounded-sm border border-stone-200 bg-white px-3 py-2 text-xs font-semibold text-stone-700 hover:bg-stone-50 disabled:opacity-60 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200 dark:hover:bg-neutral-700" @click="previewMessages">Live preview</button>
-                    <button type="button" :disabled="requestBusy || (!canManage && !canSend) || !isEdit" class="rounded-sm border border-stone-200 bg-white px-3 py-2 text-xs font-semibold text-stone-700 hover:bg-stone-50 disabled:opacity-60 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200 dark:hover:bg-neutral-700" @click="testSend">Test send</button>
-                    <button type="button" :disabled="requestBusy || !canSend || !isEdit" class="rounded-sm border border-transparent bg-green-600 px-3 py-2 text-xs font-semibold text-white hover:bg-green-700 disabled:opacity-60" @click="sendNow">Send now</button>
+                    <SecondaryButton type="button" :disabled="requestBusy || !canManage || !isEdit" @click="previewMessages">Live preview</SecondaryButton>
+                    <SecondaryButton type="button" :disabled="requestBusy || (!canManage && !canSend) || !isEdit" @click="testSend">Test send</SecondaryButton>
+                    <PrimaryButton type="button" :disabled="requestBusy || !canSend || !isEdit" @click="sendNow">Send now</PrimaryButton>
                 </div>
                 <p v-if="requestError" class="text-xs text-rose-600">{{ requestError }}</p>
                 <p v-if="runMessage" class="text-xs text-emerald-700 dark:text-emerald-300">{{ runMessage }}</p>
@@ -331,10 +525,11 @@ onMounted(async () => {
             <section v-show="step === 5" class="rounded-sm border border-stone-200 bg-white p-5 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
                 <p class="text-xs text-stone-500 dark:text-neutral-400">Open campaign details for run-level stats and export.</p>
                 <div class="mt-3">
-                    <Link v-if="isEdit" :href="route('campaigns.show', campaignId)" class="rounded-sm border border-transparent bg-green-600 px-3 py-2 text-xs font-semibold text-white hover:bg-green-700">Open results</Link>
+                    <Link v-if="isEdit" :href="route('campaigns.show', campaignId)">
+                        <PrimaryButton>Open results</PrimaryButton>
+                    </Link>
                 </div>
             </section>
         </div>
     </AuthenticatedLayout>
 </template>
-

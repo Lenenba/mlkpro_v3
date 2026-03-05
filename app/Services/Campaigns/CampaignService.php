@@ -2,6 +2,7 @@
 
 namespace App\Services\Campaigns;
 
+use App\Enums\CampaignAudienceSourceLogic;
 use App\Enums\OfferType;
 use App\Jobs\DispatchCampaignRunJob;
 use App\Models\ActivityLog;
@@ -11,6 +12,7 @@ use App\Models\CampaignChannel;
 use App\Models\CampaignOffer;
 use App\Models\CampaignRun;
 use App\Models\Customer;
+use App\Models\MailingList;
 use App\Models\MessageTemplate;
 use App\Models\Product;
 use App\Models\User;
@@ -213,12 +215,46 @@ class CampaignService
             }
 
             $audience = is_array($payload['audience'] ?? null) ? $payload['audience'] : [];
+            $manualCustomerIds = $this->normalizeIdList($audience['manual_customer_ids'] ?? []);
+            $includeMailingListIds = $this->normalizeIdList($audience['include_mailing_list_ids'] ?? []);
+            $excludeMailingListIds = $this->normalizeIdList($audience['exclude_mailing_list_ids'] ?? []);
+            $sourceLogic = CampaignAudienceSourceLogic::normalize(
+                (string) ($audience['source_logic'] ?? null)
+            )->value;
+
+            $this->assertMailingListsBelongToTenant(
+                $accountOwner,
+                $includeMailingListIds,
+                $excludeMailingListIds
+            );
+
+            $sourceSummary = is_array($audience['source_summary'] ?? null)
+                ? $audience['source_summary']
+                : [];
+            $sourceSummary = array_merge([
+                'logic' => $sourceLogic,
+                'dynamic_enabled' => (bool) (
+                    !empty($audience['smart_filters'])
+                    || !empty($campaign->audience_segment_id)
+                ),
+                'include_mailing_lists_count' => count($includeMailingListIds),
+                'exclude_mailing_lists_count' => count($excludeMailingListIds),
+                'manual_customer_ids_count' => count($manualCustomerIds),
+                'manual_contacts_count' => is_array($audience['manual_contacts'] ?? null)
+                    ? count($audience['manual_contacts'])
+                    : 0,
+            ], $sourceSummary);
+
             $campaign->audience()->updateOrCreate(
                 ['campaign_id' => $campaign->id],
                 [
                     'smart_filters' => is_array($audience['smart_filters'] ?? null) ? $audience['smart_filters'] : null,
                     'exclusion_filters' => is_array($audience['exclusion_filters'] ?? null) ? $audience['exclusion_filters'] : null,
-                    'manual_customer_ids' => is_array($audience['manual_customer_ids'] ?? null) ? $audience['manual_customer_ids'] : null,
+                    'manual_customer_ids' => $manualCustomerIds !== [] ? $manualCustomerIds : null,
+                    'include_mailing_list_ids' => $includeMailingListIds !== [] ? $includeMailingListIds : null,
+                    'exclude_mailing_list_ids' => $excludeMailingListIds !== [] ? $excludeMailingListIds : null,
+                    'source_logic' => $sourceLogic,
+                    'source_summary' => $sourceSummary,
                     'manual_contacts' => $audience['manual_contacts'] ?? null,
                     'estimated_counts' => is_array($audience['estimated_counts'] ?? null) ? $audience['estimated_counts'] : null,
                 ]
@@ -687,6 +723,51 @@ class CampaignService
             ->values()
             ->all();
         $campaign->products()->sync($legacyProductIds);
+    }
+
+    /**
+     * @param mixed $values
+     * @return array<int, int>
+     */
+    private function normalizeIdList(mixed $values): array
+    {
+        if (!is_array($values)) {
+            return [];
+        }
+
+        return collect($values)
+            ->map(fn ($value) => is_numeric($value) ? (int) $value : null)
+            ->filter(fn ($value) => is_int($value) && $value > 0)
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @param array<int, int> $includeIds
+     * @param array<int, int> $excludeIds
+     */
+    private function assertMailingListsBelongToTenant(User $accountOwner, array $includeIds, array $excludeIds): void
+    {
+        $allIds = collect($includeIds)
+            ->concat($excludeIds)
+            ->unique()
+            ->values();
+
+        if ($allIds->isEmpty()) {
+            return;
+        }
+
+        $existingCount = MailingList::query()
+            ->where('user_id', $accountOwner->id)
+            ->whereIn('id', $allIds->all())
+            ->count();
+
+        if ($existingCount !== $allIds->count()) {
+            throw ValidationException::withMessages([
+                'audience.include_mailing_list_ids' => 'One or more mailing lists are invalid for this tenant.',
+            ]);
+        }
     }
 
     private function firstNonEmpty(mixed $primary, mixed $fallback): ?string

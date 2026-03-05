@@ -1,6 +1,11 @@
 <script setup>
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import axios from 'axios';
+import FloatingInput from '@/Components/FloatingInput.vue';
+import FloatingSelect from '@/Components/FloatingSelect.vue';
+import FloatingTextarea from '@/Components/FloatingTextarea.vue';
+import PrimaryButton from '@/Components/PrimaryButton.vue';
+import SecondaryButton from '@/Components/SecondaryButton.vue';
 
 const props = defineProps({
     enums: {
@@ -11,10 +16,15 @@ const props = defineProps({
 
 const rows = ref([]);
 const busy = ref(false);
+const isLoadingList = ref(false);
 const error = ref('');
 const info = ref('');
 const preview = ref(null);
 const editingId = ref(null);
+const listSearch = ref('');
+const listPage = ref(1);
+const listPerPage = ref(10);
+const perPageOptions = [10, 25, 50];
 
 const form = ref({
     name: '',
@@ -35,6 +45,61 @@ const form = ref({
 });
 
 const campaignTypes = computed(() => Array.isArray(props.enums?.campaign_types) ? props.enums.campaign_types : []);
+const channelOptions = [
+    { value: 'EMAIL', label: 'EMAIL' },
+    { value: 'SMS', label: 'SMS' },
+    { value: 'IN_APP', label: 'IN_APP' },
+];
+const campaignTypeOptions = computed(() => ([
+    { value: '', label: 'All campaign types' },
+    ...campaignTypes.value.map((type) => ({
+        value: type,
+        label: type,
+    })),
+]));
+
+const filteredRows = computed(() => {
+    const query = String(listSearch.value || '').trim().toLowerCase();
+    if (!query) {
+        return rows.value;
+    }
+
+    return rows.value.filter((template) => {
+        const haystack = [
+            template?.name,
+            template?.channel,
+            template?.campaign_type,
+            template?.language,
+        ]
+            .map((value) => String(value || '').toLowerCase())
+            .join(' ');
+
+        return haystack.includes(query);
+    });
+});
+
+const totalPages = computed(() => {
+    const total = filteredRows.value.length;
+    return Math.max(1, Math.ceil(total / listPerPage.value));
+});
+
+const pagedRows = computed(() => {
+    const start = (listPage.value - 1) * listPerPage.value;
+    return filteredRows.value.slice(start, start + listPerPage.value);
+});
+
+const canGoPrevious = computed(() => listPage.value > 1);
+const canGoNext = computed(() => listPage.value < totalPages.value);
+
+watch([filteredRows, listPerPage], () => {
+    listPage.value = 1;
+});
+
+watch(totalPages, (value) => {
+    if (listPage.value > value) {
+        listPage.value = value;
+    }
+});
 
 const parseTags = (value) => {
     return String(value || '')
@@ -112,7 +177,7 @@ const resetForm = () => {
 };
 
 const load = async () => {
-    busy.value = true;
+    isLoadingList.value = true;
     error.value = '';
     try {
         const response = await axios.get(route('marketing.templates.index'));
@@ -120,7 +185,7 @@ const load = async () => {
     } catch (requestError) {
         error.value = requestError?.response?.data?.message || requestError?.message || 'Unable to load templates.';
     } finally {
-        busy.value = false;
+        isLoadingList.value = false;
     }
 };
 
@@ -206,15 +271,18 @@ load();
 <template>
     <div class="space-y-3">
         <div class="flex flex-wrap items-center justify-between gap-2">
-            <h3 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">Templates</h3>
-            <button
-                type="button"
-                class="rounded-sm border border-stone-200 bg-white px-2 py-1 text-xs font-semibold text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
-                :disabled="busy"
-                @click="load"
-            >
+            <h3 class="inline-flex items-center gap-1.5 text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                <svg class="size-4 text-green-600 dark:text-green-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M4 4h16v16H4z" />
+                    <path d="M8 8h8" />
+                    <path d="M8 12h8" />
+                    <path d="M8 16h5" />
+                </svg>
+                <span>Templates</span>
+            </h3>
+            <SecondaryButton :disabled="busy || isLoadingList" @click="load">
                 Reload
-            </button>
+            </SecondaryButton>
         </div>
 
         <div v-if="error" class="rounded-sm border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-300">
@@ -226,39 +294,33 @@ load();
 
         <div class="rounded-sm border border-stone-200 bg-stone-50 p-3 dark:border-neutral-700 dark:bg-neutral-800">
             <div class="grid grid-cols-1 gap-2 md:grid-cols-2">
-                <input
+                <FloatingInput
                     v-model="form.name"
-                    type="text"
-                    placeholder="Template name"
-                    class="w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
-                >
-                <select
+                    label="Template name"
+                />
+                <FloatingSelect
                     v-model="form.channel"
-                    class="w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
-                >
-                    <option value="EMAIL">EMAIL</option>
-                    <option value="SMS">SMS</option>
-                    <option value="IN_APP">IN_APP</option>
-                </select>
-                <select
+                    label="Channel"
+                    :options="channelOptions"
+                    option-value="value"
+                    option-label="label"
+                />
+                <FloatingSelect
                     v-model="form.campaign_type"
-                    class="w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
-                >
-                    <option value="">All campaign types</option>
-                    <option v-for="type in campaignTypes" :key="`tpl-type-${type}`" :value="type">{{ type }}</option>
-                </select>
-                <input
+                    label="Campaign type"
+                    :options="campaignTypeOptions"
+                    option-value="value"
+                    option-label="label"
+                />
+                <FloatingInput
                     v-model="form.language"
-                    type="text"
-                    placeholder="Language (FR/EN)"
-                    class="w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
-                >
-                <input
+                    label="Language (FR/EN)"
+                />
+                <FloatingInput
                     v-model="form.tags"
-                    type="text"
-                    placeholder="Tags: promo, vip"
-                    class="md:col-span-2 w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
-                >
+                    label="Tags"
+                    class="md:col-span-2"
+                />
                 <label class="md:col-span-2 inline-flex items-center gap-2 text-xs text-stone-600 dark:text-neutral-300">
                     <input
                         v-model="form.is_default"
@@ -270,13 +332,13 @@ load();
             </div>
 
             <div v-if="form.channel === 'EMAIL'" class="mt-2 grid grid-cols-1 gap-2">
-                <input v-model="form.subject" type="text" placeholder="Subject" class="w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200">
-                <input v-model="form.previewText" type="text" placeholder="Preview text" class="w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200">
-                <textarea v-model="form.html" rows="5" placeholder="HTML body" class="w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200" />
+                <FloatingInput v-model="form.subject" label="Subject" />
+                <FloatingInput v-model="form.previewText" label="Preview text" />
+                <FloatingTextarea v-model="form.html" label="HTML body" />
             </div>
 
             <div v-else-if="form.channel === 'SMS'" class="mt-2 grid grid-cols-1 gap-2">
-                <textarea v-model="form.smsText" rows="4" placeholder="SMS text" class="w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200" />
+                <FloatingTextarea v-model="form.smsText" label="SMS text" />
                 <label class="inline-flex items-center gap-2 text-xs text-stone-600 dark:text-neutral-300">
                     <input
                         v-model="form.shortener"
@@ -288,37 +350,22 @@ load();
             </div>
 
             <div v-else class="mt-2 grid grid-cols-1 gap-2">
-                <input v-model="form.title" type="text" placeholder="In-app title" class="w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200">
-                <textarea v-model="form.body" rows="4" placeholder="In-app body" class="w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200" />
-                <input v-model="form.deepLink" type="text" placeholder="Deep link" class="w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200">
-                <input v-model="form.image" type="text" placeholder="Image URL" class="w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200">
+                <FloatingInput v-model="form.title" label="In-app title" />
+                <FloatingTextarea v-model="form.body" label="In-app body" />
+                <FloatingInput v-model="form.deepLink" label="Deep link" />
+                <FloatingInput v-model="form.image" label="Image URL" />
             </div>
 
             <div class="mt-2 flex flex-wrap items-center gap-2">
-                <button
-                    type="button"
-                    class="rounded-sm border border-transparent bg-green-600 px-2 py-1 text-xs font-semibold text-white hover:bg-green-700 disabled:opacity-60"
-                    :disabled="busy"
-                    @click="save"
-                >
+                <PrimaryButton type="button" :disabled="busy" @click="save">
                     {{ editingId ? 'Update template' : 'Create template' }}
-                </button>
-                <button
-                    type="button"
-                    class="rounded-sm border border-stone-200 bg-white px-2 py-1 text-xs font-semibold text-stone-700 hover:bg-stone-50 disabled:opacity-60 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
-                    :disabled="busy"
-                    @click="previewTemplate"
-                >
+                </PrimaryButton>
+                <SecondaryButton type="button" :disabled="busy" @click="previewTemplate">
                     Preview
-                </button>
-                <button
-                    type="button"
-                    class="rounded-sm border border-stone-200 bg-white px-2 py-1 text-xs font-semibold text-stone-700 hover:bg-stone-50 disabled:opacity-60 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
-                    :disabled="busy"
-                    @click="resetForm"
-                >
+                </SecondaryButton>
+                <SecondaryButton type="button" :disabled="busy" @click="resetForm">
                     Reset
-                </button>
+                </SecondaryButton>
             </div>
 
             <div v-if="preview" class="mt-2 rounded-sm border border-stone-200 bg-white p-2 text-xs dark:border-neutral-700 dark:bg-neutral-900">
@@ -331,7 +378,17 @@ load();
             </div>
         </div>
 
-        <div class="rounded-sm border border-stone-200 bg-white dark:border-neutral-700 dark:bg-neutral-900">
+        <div class="space-y-3 rounded-sm border border-stone-200 bg-white p-3 dark:border-neutral-700 dark:bg-neutral-900">
+            <div class="grid grid-cols-1 gap-2 md:grid-cols-3">
+                <FloatingInput v-model="listSearch" label="Search template" />
+                <FloatingSelect
+                    v-model="listPerPage"
+                    label="Rows / page"
+                    :options="perPageOptions.map((value) => ({ value, label: String(value) }))"
+                    option-value="value"
+                    option-label="label"
+                />
+            </div>
             <table class="min-w-full divide-y divide-stone-200 text-sm dark:divide-neutral-700">
                 <thead>
                     <tr class="text-left text-xs uppercase text-stone-500 dark:text-neutral-400">
@@ -343,12 +400,19 @@ load();
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-stone-200 dark:divide-neutral-700">
-                    <tr v-if="rows.length === 0">
+                    <template v-if="isLoadingList">
+                        <tr v-for="row in 6" :key="`template-skeleton-${row}`">
+                            <td v-for="col in 5" :key="`template-skeleton-${row}-${col}`" class="px-3 py-2">
+                                <div class="h-3 w-full animate-pulse rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
+                            </td>
+                        </tr>
+                    </template>
+                    <tr v-else-if="pagedRows.length === 0">
                         <td colspan="5" class="px-3 py-6 text-center text-xs text-stone-500 dark:text-neutral-400">
                             No template found.
                         </td>
                     </tr>
-                    <tr v-for="template in rows" :key="`template-${template.id}`">
+                    <tr v-for="template in pagedRows" :key="`template-${template.id}`">
                         <td class="px-3 py-2 text-stone-700 dark:text-neutral-200">
                             <div class="font-medium">{{ template.name }}</div>
                             <div class="text-xs text-stone-500 dark:text-neutral-400">{{ template.language || '-' }}</div>
@@ -379,7 +443,19 @@ load();
                     </tr>
                 </tbody>
             </table>
+
+            <div class="flex flex-wrap items-center justify-between gap-2 text-xs text-stone-500 dark:text-neutral-400">
+                <div>{{ filteredRows.length }} result(s)</div>
+                <div class="flex items-center gap-2">
+                    <SecondaryButton type="button" :disabled="!canGoPrevious" @click="listPage -= 1">
+                        Previous
+                    </SecondaryButton>
+                    <span>Page {{ listPage }} / {{ totalPages }}</span>
+                    <SecondaryButton type="button" :disabled="!canGoNext" @click="listPage += 1">
+                        Next
+                    </SecondaryButton>
+                </div>
+            </div>
         </div>
     </div>
 </template>
-
