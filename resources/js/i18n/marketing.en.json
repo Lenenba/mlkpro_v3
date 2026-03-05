@@ -270,6 +270,301 @@
       "error_load": "Unable to load VIP tiers.",
       "error_save": "Unable to save VIP tier.",
       "error_delete": "Unable to delete VIP tier."
+    },
+    "campaign_status": {
+      "draft": "Draft",
+      "scheduled": "Scheduled",
+      "running": "Running",
+      "completed": "Completed",
+      "failed": "Failed",
+      "canceled": "Canceled",
+      "active": "Active",
+      "inactive": "Inactive"
+    },
+    "campaign_types": {
+      "new_offer": "New offer",
+      "back_available": "Back in stock",
+      "promotion": "Promotion",
+      "cross_sell": "Cross-sell",
+      "winback": "Winback",
+      "announcement": "Announcement"
+    },
+    "offer_modes": {
+      "products": "Products",
+      "services": "Services",
+      "mixed": "Mixed"
+    },
+    "language_modes": {
+      "preferred": "Preferred language",
+      "fr": "French",
+      "en": "English",
+      "both": "French and English"
+    },
+    "source_logic": {
+      "union": "Union",
+      "intersect": "Intersection"
+    },
+    "schedule_types": {
+      "manual": "Manual",
+      "scheduled": "Scheduled",
+      "automation": "Automation"
+    },
+    "campaign_index": {
+      "head_title": "Marketing campaigns",
+      "page_title": "Marketing campaigns",
+      "page_description": "Create, track, and manage your marketing campaigns.",
+      "new_campaign": "New campaign",
+      "no_campaign": "No campaign found.",
+      "status_all": "All statuses",
+      "type_all": "All types",
+      "page": "Page {page}",
+      "stats": {
+        "total": "Total",
+        "draft": "Draft",
+        "scheduled": "Scheduled",
+        "running": "Running",
+        "completed": "Completed"
+      },
+      "filters": {
+        "search": "Search",
+        "status": "Status",
+        "type": "Type"
+      },
+      "table": {
+        "campaign": "Campaign",
+        "type": "Type",
+        "status": "Status",
+        "channels": "Channels",
+        "runs": "Runs",
+        "recipients": "Recipients",
+        "updated_at": "Updated",
+        "actions": "Actions"
+      },
+      "actions": {
+        "view": "View",
+        "edit": "Edit"
+      }
+    },
+    "campaign_show": {
+      "head_title": "Campaign #{id}",
+      "labels": {
+        "type": "Type",
+        "updated_at": "Updated"
+      },
+      "actions": {
+        "back": "Back",
+        "edit": "Edit",
+        "export_csv": "Export CSV",
+        "mark_conversion": "Mark conversion"
+      },
+      "cards": {
+        "status": "Status",
+        "schedule_type": "Schedule type",
+        "active_channels": "Active channels",
+        "offers": "Offers",
+        "runs": "Runs"
+      },
+      "sections": {
+        "channels": "Channels",
+        "events": "Events",
+        "recent_runs": "Recent runs",
+        "clicks_no_conversion": "Clicks without conversion"
+      },
+      "channel": {
+        "active": "Active",
+        "inactive": "Inactive",
+        "subject": "Subject",
+        "title": "Title"
+      },
+      "empty": {
+        "events": "No events.",
+        "runs": "No runs.",
+        "pending_clicks": "No pending clicks without conversion."
+      },
+      "table": {
+        "customer": "Customer",
+        "channel": "Channel",
+        "destination": "Destination",
+        "clicked_at": "Clicked at",
+        "action": "Action"
+      },
+      "prompts": {
+        "conversion_type": "Conversion type",
+        "conversion_id": "Conversion ID"
+      },
+      "errors": {
+        "conversion": "Unable to store conversion."
+      }
+    },
+    "offer_selector": {
+      "selected_offers": "Selected offers",
+      "no_offer_selected": "No offer selected.",
+      "search_offers": "Search offers",
+      "offer_type": "Offer type",
+      "sort": "Sort",
+      "status": "Status",
+      "availability": "Availability",
+      "category_id": "Category ID",
+      "price_min": "Min price",
+      "price_max": "Max price",
+      "tags": "Tags",
+      "no_category": "No category",
+      "no_offers_found": "No offers found.",
+      "loading": "Loading...",
+      "results_count": "{count} result(s)",
+      "load_more": "Load more",
+      "snapshot_title": "Snapshot selectors",
+      "snapshot_description": "Define persistent filters to recompute offers at send time.",
+      "category_ids": "Category IDs",
+      "tags_snapshot": "Snapshot tags",
+      "apply_snapshot": "Apply snapshot",
+      "error_search": "Unable to search offers.",
+      "type_options": {
+        "all": "All",
+        "product": "Products",
+        "service": "Services"
+      },
+      "sort_options": {
+        "relevance": "Relevance",
+        "newest": "Newest",
+        "best_sellers": "Best sellers",
+        "alphabetical": "Alphabetical"
+      },
+      "status_options": {
+        "active": "Active",
+        "inactive": "Inactive",
+        "all": "All"
+      },
+      "availability_options": {
+        "all": "All",
+        "in_stock": "In stock",
+        "bookable": "Bookable"
+      }
+    },
+    "campaign_wizard": {
+      "head_edit": "Edit campaign #{id}",
+      "head_new": "New campaign",
+      "header_edit": "Edit campaign #{id}",
+      "header_new": "Create campaign",
+      "description": "Configure campaign setup, audience, messages, and send strategy.",
+      "actions": {
+        "back": "Back",
+        "details": "Details",
+        "saving": "Saving...",
+        "update": "Update",
+        "create": "Create",
+        "estimate_audience": "Estimate audience",
+        "live_preview": "Live preview",
+        "test_send": "Test send",
+        "send_now": "Send now",
+        "open_results": "Open results"
+      },
+      "steps": {
+        "setup": "Setup",
+        "audience": "Audience",
+        "message": "Message",
+        "review": "Review",
+        "results": "Results"
+      },
+      "fields": {
+        "campaign_name": "Campaign name",
+        "campaign_type": "Campaign type",
+        "offer_mode": "Offer mode",
+        "language_mode": "Language mode",
+        "schedule_type": "Schedule type",
+        "scheduled_at": "Scheduled at",
+        "locale": "Locale",
+        "cta_url": "CTA URL",
+        "segment": "Segment",
+        "source_logic": "Source logic",
+        "manual_customer_ids": "Manual customer IDs",
+        "manual_contacts": "Manual contacts",
+        "template": "Template",
+        "subject": "Subject",
+        "title": "Title",
+        "body_template": "Body template"
+      },
+      "use_single_mailing_list": "Use one mailing list as audience",
+      "single_mailing_list": "Audience mailing list",
+      "no_single_mailing_list": "Choose a mailing list",
+      "no_segment": "No segment",
+      "no_template": "No template",
+      "mailing_lists_title": "Mailing lists",
+      "no_mailing_list": "No mailing list available.",
+      "include": "Include",
+      "exclude": "Exclude",
+      "selected_customers_title": "Selected customers",
+      "search_customers": "Search customers",
+      "selected_customers_empty": "No customer selected.",
+      "selected_customers_count": "{count} customer(s) selected",
+      "customer_picker": {
+        "title": "Search customers",
+        "description": "Select one or more customers to add them to the audience.",
+        "search": "Search by name, email, or phone",
+        "loading": "Loading customers...",
+        "no_results": "No matching customer found.",
+        "select_page": "Select page",
+        "unselect_page": "Unselect page"
+      },
+      "logic_summary": "Summary",
+      "logic": {
+        "segment": "segment",
+        "builder": "audience builder",
+        "intersect_summary": "{segmentPart} + {includeCount} included list(s) + {manualCount} manual, then exclude {excludeCount} list(s).",
+        "union_summary": "Union of {segmentPart}, {includeCount} included list(s), and {manualCount} manual, then exclude {excludeCount} list(s)."
+      },
+      "enabled": "Enabled",
+      "disabled": "Disabled",
+      "yes": "Yes",
+      "no": "No",
+      "default": "Default",
+      "ab_testing": {
+        "title": "A/B testing",
+        "enable_for": "Enable for {channel}",
+        "split_percent": "Variant A percent",
+        "variant_a": "Variant A",
+        "variant_b": "Variant B",
+        "subject_a": "Subject A",
+        "title_a": "Title A",
+        "body_a": "Body A",
+        "subject_b": "Subject B",
+        "title_b": "Title B",
+        "body_b": "Body B",
+        "fallback_hint": "If A/B content is incomplete, the channel main template is used."
+      },
+      "review": {
+        "type": "Type",
+        "offer_mode": "Offer mode",
+        "offers": "Offers",
+        "enabled_channels": "Enabled channels",
+        "ab_enabled_channels": "A/B enabled channels",
+        "holdout": "Holdout",
+        "channel_fallback": "Channel fallback",
+        "require_explicit_consent": "Require explicit consent"
+      },
+      "holdout": {
+        "title": "Holdout group",
+        "enable": "Enable holdout",
+        "percent": "Holdout percent"
+      },
+      "fallback": {
+        "title": "Channel fallback",
+        "enable": "Enable fallback",
+        "max_depth": "Max depth",
+        "targets": "Fallback targets for {source}"
+      },
+      "results_hint": "Detailed results are available on the campaign page.",
+      "errors": {
+        "select_offer": "Select at least one offer.",
+        "request_failed": "Request failed.",
+        "load_customers": "Unable to load customers."
+      },
+      "run_queued": "Run queued.",
+      "schedule_type_options": {
+        "manual": "Manual",
+        "scheduled": "Scheduled",
+        "automation": "Automation"
+      }
     }
   }
 }
