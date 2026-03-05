@@ -285,10 +285,112 @@ class CampaignController extends Controller
                 'converted_at',
             ]);
 
+        $latestRun = $campaign->runs->first();
+        $latestSummary = is_array($latestRun?->summary) ? $latestRun->summary : [];
+        $abAssignments = is_array($latestSummary['ab_assignments'] ?? null)
+            ? $latestSummary['ab_assignments']
+            : [];
+        $abVariantA = (int) ($abAssignments['A'] ?? 0);
+        $abVariantB = (int) ($abAssignments['B'] ?? 0);
+        $abTotal = $abVariantA + $abVariantB;
+
+        $fallbackCount = 0;
+        $channelInsights = [];
+        if ($latestRun) {
+            $fallbackCount = CampaignRecipient::query()
+                ->where('campaign_run_id', $latestRun->id)
+                ->whereNotNull('metadata->fallback->parent_recipient_id')
+                ->count();
+
+            $statusCounts = CampaignRecipient::query()
+                ->where('campaign_run_id', $latestRun->id)
+                ->selectRaw('channel, status, COUNT(*) as total')
+                ->groupBy('channel', 'status')
+                ->get();
+
+            $fallbackByChannel = CampaignRecipient::query()
+                ->where('campaign_run_id', $latestRun->id)
+                ->whereNotNull('metadata->fallback->parent_recipient_id')
+                ->selectRaw('channel, COUNT(*) as total')
+                ->groupBy('channel')
+                ->pluck('total', 'channel');
+
+            $sentLikeStatuses = [
+                CampaignRecipient::STATUS_SENT,
+                CampaignRecipient::STATUS_DELIVERED,
+                CampaignRecipient::STATUS_OPENED,
+                CampaignRecipient::STATUS_CLICKED,
+                CampaignRecipient::STATUS_CONVERTED,
+            ];
+            $deliveredLikeStatuses = [
+                CampaignRecipient::STATUS_DELIVERED,
+                CampaignRecipient::STATUS_OPENED,
+                CampaignRecipient::STATUS_CLICKED,
+                CampaignRecipient::STATUS_CONVERTED,
+            ];
+
+            foreach ($statusCounts->groupBy('channel') as $channel => $rows) {
+                $targeted = (int) $rows->sum('total');
+                $sent = (int) $rows
+                    ->filter(fn ($row) => in_array((string) $row->status, $sentLikeStatuses, true))
+                    ->sum('total');
+                $delivered = (int) $rows
+                    ->filter(fn ($row) => in_array((string) $row->status, $deliveredLikeStatuses, true))
+                    ->sum('total');
+                $failed = (int) $rows
+                    ->filter(fn ($row) => (string) $row->status === CampaignRecipient::STATUS_FAILED)
+                    ->sum('total');
+                $clicked = (int) $rows
+                    ->filter(fn ($row) => (string) $row->status === CampaignRecipient::STATUS_CLICKED)
+                    ->sum('total');
+                $converted = (int) $rows
+                    ->filter(fn ($row) => (string) $row->status === CampaignRecipient::STATUS_CONVERTED)
+                    ->sum('total');
+                $fallbackForChannel = (int) ($fallbackByChannel[$channel] ?? 0);
+
+                $channelInsights[(string) $channel] = [
+                    'targeted' => $targeted,
+                    'sent' => $sent,
+                    'delivered' => $delivered,
+                    'failed' => $failed,
+                    'clicked' => $clicked,
+                    'converted' => $converted,
+                    'fallback_count' => $fallbackForChannel,
+                    'delivery_rate_percent' => $targeted > 0
+                        ? round(($delivered / $targeted) * 100, 2)
+                        : 0.0,
+                ];
+            }
+        }
+
+        $failedCount = (int) ($latestSummary['failed'] ?? 0);
+        $fallbackRate = $failedCount > 0
+            ? round(($fallbackCount / $failedCount) * 100, 2)
+            : 0.0;
+
+        $deliveryInsights = [
+            'latest_run_id' => $latestRun?->id,
+            'ab_assignments' => [
+                'A' => $abVariantA,
+                'B' => $abVariantB,
+                'total' => $abTotal,
+                'split_a_percent' => $abTotal > 0 ? round(($abVariantA / $abTotal) * 100, 2) : null,
+                'split_b_percent' => $abTotal > 0 ? round(($abVariantB / $abTotal) * 100, 2) : null,
+            ],
+            'holdout_count' => (int) ($latestSummary['holdout_count'] ?? 0),
+            'fallback' => [
+                'count' => $fallbackCount,
+                'failed_count' => $failedCount,
+                'rate_percent' => $fallbackRate,
+            ],
+            'channels' => $channelInsights,
+        ];
+
         return $this->inertiaOrJson('Campaigns/Show', [
             'campaign' => $campaign,
             'eventStats' => $eventsByType,
             'clickNoConversion' => $clickNoConversion,
+            'deliveryInsights' => $deliveryInsights,
             'access' => [
                 'can_view' => $canView,
                 'can_manage' => $canManage,

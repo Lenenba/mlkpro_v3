@@ -563,6 +563,82 @@ test('send job queues fallback recipient when primary provider fails', function 
     });
 });
 
+test('campaign show exposes delivery insights for ab holdout and fallback', function () {
+    $owner = marketingOwner();
+
+    $campaign = Campaign::query()->create([
+        'user_id' => $owner->id,
+        'name' => 'Insights campaign',
+        'type' => Campaign::TYPE_PROMOTION,
+        'campaign_type' => Campaign::TYPE_PROMOTION,
+        'offer_mode' => Campaign::OFFER_MODE_PRODUCTS,
+        'status' => Campaign::STATUS_COMPLETED,
+        'schedule_type' => Campaign::SCHEDULE_MANUAL,
+    ]);
+
+    $run = CampaignRun::query()->create([
+        'campaign_id' => $campaign->id,
+        'user_id' => $owner->id,
+        'triggered_by_user_id' => $owner->id,
+        'trigger_type' => CampaignRun::TRIGGER_MANUAL,
+        'status' => CampaignRun::STATUS_COMPLETED,
+        'idempotency_key' => Str::uuid()->toString(),
+        'summary' => [
+            'ab_assignments' => ['A' => 8, 'B' => 2],
+            'holdout_count' => 3,
+            'failed' => 4,
+        ],
+    ]);
+
+    $customer = marketingCustomer($owner, [
+        'email' => 'insights-' . Str::lower(Str::random(8)) . '@example.com',
+    ]);
+
+    CampaignRecipient::query()->create([
+        'campaign_run_id' => $run->id,
+        'campaign_id' => $campaign->id,
+        'user_id' => $owner->id,
+        'customer_id' => $customer->id,
+        'channel' => Campaign::CHANNEL_EMAIL,
+        'destination' => $customer->email,
+        'destination_hash' => CampaignRecipient::destinationHash($customer->email),
+        'status' => CampaignRecipient::STATUS_QUEUED,
+        'metadata' => [
+            'fallback' => [
+                'parent_recipient_id' => 999,
+            ],
+        ],
+    ]);
+
+    CampaignRecipient::query()->create([
+        'campaign_run_id' => $run->id,
+        'campaign_id' => $campaign->id,
+        'user_id' => $owner->id,
+        'customer_id' => $customer->id,
+        'channel' => Campaign::CHANNEL_SMS,
+        'destination' => $customer->phone,
+        'destination_hash' => CampaignRecipient::destinationHash($customer->phone),
+        'status' => CampaignRecipient::STATUS_FAILED,
+    ]);
+
+    $response = $this->actingAs($owner)->getJson(route('campaigns.show', $campaign));
+
+    $response->assertOk()
+        ->assertJsonPath('deliveryInsights.latest_run_id', $run->id)
+        ->assertJsonPath('deliveryInsights.ab_assignments.A', 8)
+        ->assertJsonPath('deliveryInsights.ab_assignments.B', 2)
+        ->assertJsonPath('deliveryInsights.ab_assignments.total', 10)
+        ->assertJsonPath('deliveryInsights.ab_assignments.split_a_percent', 80)
+        ->assertJsonPath('deliveryInsights.holdout_count', 3)
+        ->assertJsonPath('deliveryInsights.fallback.count', 1)
+        ->assertJsonPath('deliveryInsights.fallback.failed_count', 4)
+        ->assertJsonPath('deliveryInsights.fallback.rate_percent', 25)
+        ->assertJsonPath('deliveryInsights.channels.EMAIL.targeted', 1)
+        ->assertJsonPath('deliveryInsights.channels.EMAIL.fallback_count', 1)
+        ->assertJsonPath('deliveryInsights.channels.SMS.targeted', 1)
+        ->assertJsonPath('deliveryInsights.channels.SMS.failed', 1);
+});
+
 test('mailing list can be created imported and cleaned', function () {
     $owner = marketingOwner();
     $first = marketingCustomer($owner);

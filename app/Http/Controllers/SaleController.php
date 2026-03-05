@@ -288,6 +288,8 @@ class SaleController extends Controller
         $products = Product::query()
             ->where('user_id', $accountId)
             ->where('item_type', Product::ITEM_TYPE_PRODUCT)
+            ->withSum('inventories as on_hand_total', 'on_hand')
+            ->withSum('inventories as reserved_total', 'reserved')
             ->orderBy('name')
             ->get([
                 'id',
@@ -302,6 +304,7 @@ class SaleController extends Controller
                 'unit',
                 'tracking_type',
             ]);
+        $this->hydrateSellableStock($products);
 
         $loyaltyProgram = $loyaltyFeatureEnabled
             ? app(LoyaltyPointService::class)->resolveProgramForAccount((int) $accountId, true)
@@ -350,6 +353,8 @@ class SaleController extends Controller
         $products = Product::query()
             ->where('user_id', $accountId)
             ->where('item_type', Product::ITEM_TYPE_PRODUCT)
+            ->withSum('inventories as on_hand_total', 'on_hand')
+            ->withSum('inventories as reserved_total', 'reserved')
             ->orderBy('name')
             ->get([
                 'id',
@@ -364,6 +369,7 @@ class SaleController extends Controller
                 'unit',
                 'tracking_type',
             ]);
+        $this->hydrateSellableStock($products);
 
         $sale->load([
             'items.product:id,name,sku,unit,image',
@@ -424,23 +430,17 @@ class SaleController extends Controller
         $productIds = collect($validated['items'])->pluck('product_id')->unique()->values();
         $products = Product::query()
             ->where('user_id', $accountId)
+            ->withSum('inventories as on_hand_total', 'on_hand')
+            ->withSum('inventories as reserved_total', 'reserved')
             ->whereIn('id', $productIds)
             ->get()
             ->keyBy('id');
+        $this->hydrateSellableStock($products);
 
         if ($products->count() !== $productIds->count()) {
             throw ValidationException::withMessages([
                 'items' => 'Certains produits sont invalides pour ce compte.',
             ]);
-        }
-
-        $reservedMap = [];
-
-        foreach ($reservedMap as $productId => $quantity) {
-            $product = $products->get($productId);
-            if ($product) {
-                $product->stock = (int) $product->stock + $quantity;
-            }
         }
 
         $errors = [];
@@ -452,7 +452,7 @@ class SaleController extends Controller
             }
 
             $quantity = (int) $item['quantity'];
-            $available = (int) $product->stock;
+            $available = $this->resolveProductAvailableStock($product);
             if ($quantity > $available) {
                 $errors["items.{$index}.quantity"] = 'Stock insuffisant pour ce produit.';
             }
@@ -851,15 +851,25 @@ class SaleController extends Controller
         $productIds = collect($validated['items'])->pluck('product_id')->unique()->values();
         $products = Product::query()
             ->where('user_id', $accountId)
+            ->withSum('inventories as on_hand_total', 'on_hand')
+            ->withSum('inventories as reserved_total', 'reserved')
             ->whereIn('id', $productIds)
             ->get()
             ->keyBy('id');
+        $this->hydrateSellableStock($products);
 
         if ($products->count() !== $productIds->count()) {
             throw ValidationException::withMessages([
                 'items' => 'Certains produits sont invalides pour ce compte.',
             ]);
         }
+
+        $currentReservedMap = $sale->status === Sale::STATUS_PENDING
+            ? $previousItems
+                ->groupBy('product_id')
+                ->map(fn($rows) => (int) $rows->sum('quantity'))
+                ->toArray()
+            : [];
 
         $errors = [];
         foreach ($validated['items'] as $index => $item) {
@@ -870,7 +880,8 @@ class SaleController extends Controller
             }
 
             $quantity = (int) $item['quantity'];
-            $available = (int) $product->stock;
+            $available = $this->resolveProductAvailableStock($product)
+                + (int) ($currentReservedMap[$product->id] ?? 0);
             if ($quantity > $available) {
                 $errors["items.{$index}.quantity"] = 'Stock insuffisant pour ce produit.';
             }
@@ -1848,5 +1859,21 @@ class SaleController extends Controller
             'note' => 'Sale ' . $sale->number,
             'reference' => $sale,
         ]);
+    }
+
+    private function resolveProductAvailableStock(Product $product): int
+    {
+        return max(0, (int) $product->stock_available);
+    }
+
+    private function hydrateSellableStock(iterable $products): void
+    {
+        foreach ($products as $product) {
+            if (!$product instanceof Product) {
+                continue;
+            }
+
+            $product->setAttribute('stock', $this->resolveProductAvailableStock($product));
+        }
     }
 }

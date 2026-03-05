@@ -9,9 +9,11 @@ use App\Models\LoyaltyProgram;
 use App\Models\Payment;
 use App\Models\Product;
 use App\Models\ProductCategory;
+use App\Models\ProductInventory;
 use App\Models\Role;
 use App\Models\Sale;
 use App\Models\User;
+use App\Models\Warehouse;
 use App\Models\Work;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Support\Str;
@@ -415,4 +417,70 @@ test('canceling pending sale restores redeemed loyalty points', function () {
                 ->where('event', LoyaltyPointLedger::EVENT_REDEMPTION_REVERSAL)
                 ->exists()
         )->toBeTrue();
+});
+
+test('pos sale uses inventory available stock when product stock column is stale', function () {
+    $owner = createOwnerUser([
+        'company_type' => 'products',
+        'payment_methods' => ['cash'],
+        'default_payment_method' => 'cash',
+        'company_features' => ['sales' => true],
+    ]);
+
+    $customer = Customer::factory()->create([
+        'user_id' => $owner->id,
+    ]);
+
+    $product = createSaleProduct($owner, [
+        'price' => 25.00,
+        'stock' => 0,
+        'minimum_stock' => 0,
+    ]);
+
+    $warehouse = Warehouse::query()->create([
+        'user_id' => $owner->id,
+        'name' => 'Main warehouse',
+        'code' => 'MAIN',
+        'is_default' => true,
+        'is_active' => true,
+    ]);
+
+    ProductInventory::query()->create([
+        'product_id' => $product->id,
+        'warehouse_id' => $warehouse->id,
+        'on_hand' => 5,
+        'reserved' => 0,
+        'damaged' => 0,
+        'minimum_stock' => 0,
+        'reorder_point' => 0,
+    ]);
+
+    $this->actingAs($owner)
+        ->post(route('sales.store'), [
+            'customer_id' => $customer->id,
+            'status' => Sale::STATUS_PENDING,
+            'items' => [
+                [
+                    'product_id' => $product->id,
+                    'quantity' => 2,
+                    'price' => 25.00,
+                    'description' => 'Inventory-backed item',
+                ],
+            ],
+        ])
+        ->assertRedirect()
+        ->assertSessionHasNoErrors();
+
+    $sale = Sale::query()->latest('id')->first();
+    $product->refresh();
+
+    expect($sale)->not->toBeNull()
+        ->and((int) $sale->items()->sum('quantity'))->toBe(2)
+        ->and((int) $product->stock)->toBe(3)
+        ->and(
+            ProductInventory::query()
+                ->where('product_id', $product->id)
+                ->where('warehouse_id', $warehouse->id)
+                ->value('reserved')
+        )->toBe(2);
 });
