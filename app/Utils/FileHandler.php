@@ -2,8 +2,8 @@
 
 namespace App\Utils;
 
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 
 class FileHandler
 {
@@ -12,18 +12,15 @@ class FileHandler
     /**
      * Handle image upload or assign default image if none provided.
      *
-     * @param \Illuminate\Http\Request $request
-     * @param string|null $oldFilename
-     * @param string $fieldName
-     * @param string|null $defaultImagePath
-     * @return string
+     * @param  \Illuminate\Http\Request  $request
      */
-    public static function handleImageUpload(string $folderName, $request, string $fieldName = null, ?string $defaultImagePath = null, ?string $oldFilename = null): string
+    public static function handleImageUpload(string $folderName, $request, ?string $fieldName = null, ?string $defaultImagePath = null, ?string $oldFilename = null): ?string
     {
         if ($request->hasFile($fieldName)) {
             // Delete old file if uploading a new one
             $path = $request->file($fieldName)->store($folderName, 'public');
             self::resizeImageIfNeeded(Storage::disk('public')->path($path));
+
             return $path;
         }
 
@@ -34,20 +31,18 @@ class FileHandler
     /**
      * Handle multiple image uploads.
      *
-     * @param string $folderName
-     * @param \Illuminate\Http\Request $request
-     * @param string $fieldName
+     * @param  \Illuminate\Http\Request  $request
      * @return array<int, string>
      */
     public static function handleMultipleImageUpload(string $folderName, $request, string $fieldName): array
     {
-        if (!$request->hasFile($fieldName)) {
+        if (! $request->hasFile($fieldName)) {
             return [];
         }
 
         $paths = [];
         foreach ($request->file($fieldName) as $file) {
-            if (!$file instanceof UploadedFile) {
+            if (! $file instanceof UploadedFile) {
                 continue;
             }
 
@@ -61,10 +56,6 @@ class FileHandler
 
     /**
      * Store a file and resize if it is an image.
-     *
-     * @param string $folderName
-     * @param \Illuminate\Http\UploadedFile $file
-     * @return string
      */
     public static function storeFile(string $folderName, UploadedFile $file): string
     {
@@ -80,10 +71,6 @@ class FileHandler
 
     /**
      * Delete a file if it exists, but do not delete the default image.
-     *
-     * @param string|null $filePath
-     * @param string|null $defaultImagePath
-     * @return void
      */
     public static function deleteFile(?string $filePath, ?string $defaultImagePath): void
     {
@@ -94,12 +81,12 @@ class FileHandler
 
     private static function resizeImageIfNeeded(string $path): void
     {
-        if (!extension_loaded('gd') || !is_file($path)) {
+        if (! extension_loaded('gd') || ! is_file($path)) {
             return;
         }
 
         $info = @getimagesize($path);
-        if (!$info || $info[0] <= self::MAX_IMAGE_SIZE && $info[1] <= self::MAX_IMAGE_SIZE) {
+        if (! $info || $info[0] <= self::MAX_IMAGE_SIZE && $info[1] <= self::MAX_IMAGE_SIZE) {
             return;
         }
 
@@ -115,7 +102,7 @@ class FileHandler
             default => null,
         };
 
-        if (!$source) {
+        if (! $source) {
             return;
         }
 
@@ -139,5 +126,4 @@ class FileHandler
         imagedestroy($destination);
         imagedestroy($source);
     }
-
 }

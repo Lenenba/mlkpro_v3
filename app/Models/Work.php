@@ -2,31 +2,43 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
 use App\Traits\GeneratesSequentialNumber;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Carbon;
 
 class Work extends Model
 {
     /** @use HasFactory<\Database\Factories\WorkFactory> */
-    use HasFactory, GeneratesSequentialNumber;
+    use GeneratesSequentialNumber, HasFactory;
 
     public const STATUS_TO_SCHEDULE = 'to_schedule';
+
     public const STATUS_SCHEDULED = 'scheduled';
+
     public const STATUS_EN_ROUTE = 'en_route';
+
     public const STATUS_IN_PROGRESS = 'in_progress';
+
     public const STATUS_TECH_COMPLETE = 'tech_complete';
+
     public const STATUS_PENDING_REVIEW = 'pending_review';
+
     public const STATUS_VALIDATED = 'validated';
+
     public const STATUS_AUTO_VALIDATED = 'auto_validated';
+
     public const STATUS_DISPUTE = 'dispute';
+
     public const STATUS_CLOSED = 'closed';
+
     public const STATUS_CANCELLED = 'cancelled';
+
     public const STATUS_COMPLETED = 'completed';
 
     protected $fillable = [
@@ -105,7 +117,7 @@ class Work extends Model
         parent::boot();
 
         static::creating(function ($work) {
-            if (!$work->customer_id) {
+            if (! $work->customer_id) {
                 throw new \Exception('Customer ID is required to generate a work number.');
             }
 
@@ -116,6 +128,7 @@ class Work extends Model
             if (in_array($work->status, self::COMPLETED_STATUSES, true)) {
                 $work->is_completed = true;
                 $work->completed_at = $work->completed_at ?? now();
+
                 return;
             }
 
@@ -131,7 +144,7 @@ class Work extends Model
         return $this->belongsTo(User::class);
     }
 
-    public function invoice()
+    public function invoice(): HasOne
     {
         return $this->hasOne(Invoice::class);
     }
@@ -223,14 +236,14 @@ class Work extends Model
 
     public function getDurationInHours(): float
     {
-        if (!$this->start_time || !$this->end_time) {
+        if (! $this->start_time || ! $this->end_time) {
             return 0.0;
         }
 
         $start = Carbon::createFromFormat('H:i:s', $this->start_time);
         $end = Carbon::createFromFormat('H:i:s', $this->end_time);
 
-        if (!$start || !$end) {
+        if (! $start || ! $end) {
             return 0.0;
         }
 
@@ -241,7 +254,7 @@ class Work extends Model
 
     public function getFormattedDate(): string
     {
-        if (!$this->start_date) {
+        if (! $this->start_date) {
             return '';
         }
 
@@ -251,7 +264,7 @@ class Work extends Model
 
         $time = $this->start_time ?: '00:00:00';
 
-        return Carbon::parse($date->toDateString() . ' ' . $time)->format('d M Y, H:i');
+        return Carbon::parse($date->toDateString().' '.$time)->format('d M Y, H:i');
     }
 
     public function scopeFilter(Builder $query, array $filters): Builder
@@ -261,10 +274,10 @@ class Work extends Model
         return $query
             ->when(
                 $search,
-                fn(Builder $query, $value) => $query->where(function (Builder $sub) use ($value) {
-                    $sub->where('job_title', 'like', '%' . $value . '%')
-                        ->orWhere('instructions', 'like', '%' . $value . '%')
-                        ->orWhere('type', 'like', '%' . $value . '%');
+                fn (Builder $query, $value) => $query->where(function (Builder $sub) use ($value) {
+                    $sub->where('job_title', 'like', '%'.$value.'%')
+                        ->orWhere('instructions', 'like', '%'.$value.'%')
+                        ->orWhere('type', 'like', '%'.$value.'%');
                 })
             )
             ->when(
@@ -272,6 +285,7 @@ class Work extends Model
                 function (Builder $query, $status) {
                     if (in_array($status, self::STATUSES, true)) {
                         $query->where('status', $status);
+
                         return;
                     }
 
@@ -290,15 +304,15 @@ class Work extends Model
             )
             ->when(
                 $filters['start_from'] ?? null,
-                fn(Builder $query, $from) => $query->whereDate('start_date', '>=', $from)
+                fn (Builder $query, $from) => $query->whereDate('start_date', '>=', $from)
             )
             ->when(
                 $filters['start_to'] ?? null,
-                fn(Builder $query, $to) => $query->whereDate('start_date', '<=', $to)
+                fn (Builder $query, $to) => $query->whereDate('start_date', '<=', $to)
             )
             ->when(
                 $filters['month'] ?? null,
-                fn(Builder $query, $month) => $query->whereMonth('start_date', $month)
+                fn (Builder $query, $month) => $query->whereMonth('start_date', $month)
             );
     }
 }

@@ -2,128 +2,49 @@
 
 namespace App\Http\Controllers;
 
-use Carbon\Carbon;
-use App\Models\Work;
+use App\Actions\Works\UpdateWorkStatusAction;
+use App\Http\Requests\WorkRequest;
+use App\Http\Requests\Works\StoreExtraQuoteRequest;
+use App\Http\Requests\Works\UpdateWorkStatusRequest;
+use App\Models\ActivityLog;
+use App\Models\Customer;
 use App\Models\Product;
 use App\Models\ProductCategory;
-use App\Models\Customer;
 use App\Models\Quote;
 use App\Models\QuoteProduct;
 use App\Models\Task;
 use App\Models\Tax;
-use App\Models\ActivityLog;
 use App\Models\TeamMember;
-use App\Models\WorkChecklistItem;
 use App\Models\User;
+use App\Models\Work;
+use App\Models\WorkChecklistItem;
+use App\Queries\Works\BuildWorkIndexData;
+use App\Services\UsageLimitService;
 use App\Services\WorkBillingService;
 use App\Services\WorkScheduleService;
-use App\Services\UsageLimitService;
-use App\Services\TaskTimingService;
-use App\Notifications\ActionEmailNotification;
-use App\Support\NotificationDispatcher;
-use Illuminate\Http\Request;
-use App\Http\Requests\WorkRequest;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\URL;
-use Illuminate\Validation\Rule;
-use App\Traits\GeneratesSequentialNumber;
+use App\Support\SequentialNumber;
+use Carbon\Carbon;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
 class WorkController extends Controller
 {
-    use AuthorizesRequests, GeneratesSequentialNumber;
+    use AuthorizesRequests;
 
     /**
      * Display a listing of the works.
      */
     public function index(Request $request)
     {
-        $filters = $request->only([
-            'search',
-            'status',
-            'customer_id',
-            'start_from',
-            'start_to',
-            'sort',
-            'direction',
-        ]);
-
         $user = Auth::user();
         $accountId = $user?->accountOwnerId() ?? Auth::id();
         $isAccountOwner = ($user?->id ?? Auth::id()) === $accountId;
+        $props = app(BuildWorkIndexData::class)->execute($user, $accountId, $isAccountOwner, $request);
 
-        $baseQuery = Work::query()
-            ->filter($filters)
-            ->byUser($accountId);
-
-        if (!$isAccountOwner) {
-            $membership = $user?->teamMembership()->first();
-            if ($membership) {
-                $baseQuery->whereHas('teamMembers', fn($query) => $query->whereKey($membership->id));
-            } else {
-                $baseQuery->whereRaw('1=0');
-            }
-        }
-
-        $sort = in_array($filters['sort'] ?? null, ['start_date', 'created_at', 'status', 'total', 'job_title'], true)
-            ? $filters['sort']
-            : 'start_date';
-        $direction = ($filters['direction'] ?? 'desc') === 'asc' ? 'asc' : 'desc';
-        $today = TaskTimingService::todayForAccountId($accountId);
-
-        $works = (clone $baseQuery)
-            ->with(['customer', 'invoice'])
-            ->withAvg('ratings', 'rating')
-            ->withCount('ratings')
-            ->withCount([
-                'tasks as overdue_tasks_count' => function ($query) use ($today) {
-                    $query->whereNotNull('due_date')
-                        ->where('status', '!=', 'done')
-                        ->whereDate('due_date', '<', $today);
-                },
-            ])
-            ->orderBy($sort, $direction)
-            ->simplePaginate(10)
-            ->withQueryString();
-
-        $scheduledStatuses = [Work::STATUS_TO_SCHEDULE, Work::STATUS_SCHEDULED];
-        $inProgressStatuses = [Work::STATUS_EN_ROUTE, Work::STATUS_IN_PROGRESS];
-        $completedStatuses = [
-            Work::STATUS_TECH_COMPLETE,
-            Work::STATUS_PENDING_REVIEW,
-            Work::STATUS_VALIDATED,
-            Work::STATUS_AUTO_VALIDATED,
-            Work::STATUS_CLOSED,
-            Work::STATUS_COMPLETED,
-        ];
-
-        $stats = [
-            'total' => (clone $baseQuery)->count(),
-            'scheduled' => (clone $baseQuery)->whereIn('status', $scheduledStatuses)->count(),
-            'in_progress' => (clone $baseQuery)->whereIn('status', $inProgressStatuses)->count(),
-            'completed' => (clone $baseQuery)->whereIn('status', $completedStatuses)->count(),
-            'cancelled' => (clone $baseQuery)->where('status', Work::STATUS_CANCELLED)->count(),
-        ];
-
-        $customersQuery = Customer::byUser($accountId)->orderBy('company_name');
-        if (!$isAccountOwner) {
-            $customerIds = (clone $baseQuery)
-                ->select('customer_id')
-                ->distinct()
-                ->pluck('customer_id');
-            $customersQuery->whereIn('id', $customerIds);
-        }
-
-        $customers = $customersQuery->get(['id', 'company_name', 'first_name', 'last_name']);
-
-        return $this->inertiaOrJson('Work/Index', [
-            'works' => $works,
-            'filters' => $filters,
-            'stats' => $stats,
-            'customers' => $customers,
-        ]);
+        return $this->inertiaOrJson('Work/Index', $props);
     }
 
     /**
@@ -133,7 +54,7 @@ class WorkController extends Controller
     {
         $user = Auth::user();
         $accountId = $user?->accountOwnerId() ?? Auth::id();
-        if (!$user || $user->id !== $accountId) {
+        if (! $user || $user->id !== $accountId) {
             abort(403);
         }
 
@@ -178,7 +99,7 @@ class WorkController extends Controller
         $creatorId = $user?->id ?? $accountId;
 
         return $this->inertiaOrJson('Work/Create', [
-            'lastWorkNumber' => $this->generateNextNumber($customer->works->last()->number ?? null),
+            'lastWorkNumber' => SequentialNumber::generateNext($customer->works->last()->number ?? null),
             'tasks' => $tasks,
             'customer' => $customer->load('properties'),
             'teamMembers' => $teamMembers,
@@ -204,7 +125,7 @@ class WorkController extends Controller
         $lockedFromQuote = (bool) $work->quote_id && $work->relationLoaded('quote') && $work->quote;
 
         $work->loadMissing([
-            'checklistItems' => fn($query) => $query->orderBy('sort_order'),
+            'checklistItems' => fn ($query) => $query->orderBy('sort_order'),
             'media',
         ]);
 
@@ -247,7 +168,7 @@ class WorkController extends Controller
     {
         $user = Auth::user();
         $accountId = $user?->accountOwnerId() ?? Auth::id();
-        if (!$user || $user->id !== $accountId) {
+        if (! $user || $user->id !== $accountId) {
             abort(403);
         }
 
@@ -261,17 +182,17 @@ class WorkController extends Controller
         $customer = Customer::byUser($accountId)->with(['works'])->findOrFail($validated['customer_id']);
         $validated['instructions'] = $validated['instructions'] ?? '';
 
-        $validated['start_date'] = !empty($validated['start_date'])
+        $validated['start_date'] = ! empty($validated['start_date'])
             ? Carbon::parse($validated['start_date'])->toDateString()
             : null;
-        $validated['end_date'] = !empty($validated['end_date'])
+        $validated['end_date'] = ! empty($validated['end_date'])
             ? Carbon::parse($validated['end_date'])->toDateString()
             : null;
 
-        $validated['start_time'] = !empty($validated['start_time'])
+        $validated['start_time'] = ! empty($validated['start_time'])
             ? Carbon::parse($validated['start_time'])->format('H:i:s')
             : null;
-        $validated['end_time'] = !empty($validated['end_time'])
+        $validated['end_time'] = ! empty($validated['end_time'])
             ? Carbon::parse($validated['end_time'])->format('H:i:s')
             : null;
 
@@ -298,10 +219,11 @@ class WorkController extends Controller
         }
 
         $selectedTeamMemberIds = collect($validated['team_member_ids'] ?? [])
-            ->map(fn($id) => (int) $id)
-            ->filter(fn($id) => $id > 0)
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn ($id) => $id > 0)
             ->unique()
             ->values();
+        $creatorId = $user?->id ?? $accountId;
 
         $lines = collect();
         if (array_key_exists('products', $validated)) {
@@ -526,7 +448,7 @@ class WorkController extends Controller
         ];
 
         foreach ($billingFields as $field) {
-            if (!array_key_exists($field, $validated)) {
+            if (! array_key_exists($field, $validated)) {
                 continue;
             }
 
@@ -540,8 +462,8 @@ class WorkController extends Controller
         $allowedTeamMemberIds = collect();
         if ($shouldSyncTeamMembers) {
             $selectedTeamMemberIds = collect($validated['team_member_ids'] ?? [])
-                ->map(fn($id) => (int) $id)
-                ->filter(fn($id) => $id > 0)
+                ->map(fn ($id) => (int) $id)
+                ->filter(fn ($id) => $id > 0)
                 ->unique()
                 ->values();
 
@@ -620,126 +542,20 @@ class WorkController extends Controller
             ]);
     }
 
-    public function updateStatus(Request $request, Work $work, WorkBillingService $billingService)
+    public function updateStatus(UpdateWorkStatusRequest $request, Work $work, WorkBillingService $billingService, UpdateWorkStatusAction $updateWorkStatus)
     {
         $user = Auth::user();
         $accountId = $user?->accountOwnerId() ?? Auth::id();
-        if (!$user || $work->user_id !== $accountId) {
+        if (! $user || $work->user_id !== $accountId) {
             abort(403);
         }
 
-        $validated = $request->validate([
-            'status' => ['required', Rule::in(Work::STATUSES)],
-        ]);
-
-        $nextStatus = $validated['status'];
-        $beforeCount = $work->media()->where('type', 'before')->count();
-        $afterCount = $work->media()->where('type', 'after')->count();
-
-        if ($nextStatus === Work::STATUS_IN_PROGRESS && $beforeCount < 3) {
-            if ($this->shouldReturnJson($request)) {
-                return response()->json([
-                    'message' => 'Validation error.',
-                    'errors' => [
-                        'status' => ['Upload at least 3 before photos before starting the job.'],
-                    ],
-                ], 422);
-            }
-
-            return redirect()->back()->withErrors([
-                'status' => 'Upload at least 3 before photos before starting the job.',
-            ]);
-        }
-
-        if ($nextStatus === Work::STATUS_TECH_COMPLETE) {
-            $pendingChecklist = $work->checklistItems()->where('status', '!=', 'done')->count();
-            if ($pendingChecklist > 0) {
-                if ($this->shouldReturnJson($request)) {
-                    return response()->json([
-                        'message' => 'Validation error.',
-                        'errors' => [
-                            'status' => ['Complete all checklist items before finishing the job.'],
-                        ],
-                    ], 422);
-                }
-
-                return redirect()->back()->withErrors([
-                    'status' => 'Complete all checklist items before finishing the job.',
-                ]);
-            }
-
-            if ($afterCount < 3) {
-                if ($this->shouldReturnJson($request)) {
-                    return response()->json([
-                        'message' => 'Validation error.',
-                        'errors' => [
-                            'status' => ['Upload at least 3 after photos before finishing the job.'],
-                        ],
-                    ], 422);
-                }
-
-                return redirect()->back()->withErrors([
-                    'status' => 'Upload at least 3 after photos before finishing the job.',
-                ]);
-            }
-        }
-
-        $autoValidateJobs = (bool) ($work->customer?->auto_validate_jobs ?? false);
-        if ($autoValidateJobs && in_array($nextStatus, [Work::STATUS_TECH_COMPLETE, Work::STATUS_PENDING_REVIEW], true)) {
-            $nextStatus = Work::STATUS_AUTO_VALIDATED;
-        }
-
-        $previousStatus = $work->status;
-        $work->status = $nextStatus;
-        $work->save();
-
-        ActivityLog::record($user, $work, 'status_changed', [
-            'from' => $previousStatus,
-            'to' => $nextStatus,
-        ], 'Job status updated');
-
-        $notifyStatuses = [Work::STATUS_TECH_COMPLETE, Work::STATUS_PENDING_REVIEW];
-        if (!in_array($previousStatus, $notifyStatuses, true) && in_array($nextStatus, $notifyStatuses, true)) {
-            $customer = $work->customer;
-            if ($customer && $customer->email) {
-                $customerLabel = $customer->company_name
-                    ?: trim(($customer->first_name ?? '') . ' ' . ($customer->last_name ?? ''));
-                $usePublicLink = !(bool) ($customer->portal_access ?? true) || !$customer->portal_user_id;
-                $actionUrl = route('dashboard');
-                $actionLabel = 'Open dashboard';
-                if ($usePublicLink) {
-                    $expiresAt = now()->addDays(7);
-                    $actionUrl = URL::temporarySignedRoute(
-                        'public.works.show',
-                        $expiresAt,
-                        ['work' => $work->id]
-                    );
-                    $actionLabel = 'Review job';
-                }
-
-                NotificationDispatcher::send($customer, new ActionEmailNotification(
-                    'Job ready for validation',
-                    'A job is ready for your validation.',
-                    [
-                        ['label' => 'Job', 'value' => $work->job_title ?? $work->number ?? $work->id],
-                        ['label' => 'Status', 'value' => $nextStatus],
-                        ['label' => 'Customer', 'value' => $customerLabel ?: 'Client'],
-                    ],
-                    $actionUrl,
-                    $actionLabel,
-                    'Job ready for validation'
-                ), [
-                    'work_id' => $work->id,
-                ]);
-            }
-        }
-
-        if (in_array($nextStatus, [Work::STATUS_VALIDATED, Work::STATUS_AUTO_VALIDATED], true)) {
-            $billingResolver = app(\App\Services\TaskBillingService::class);
-            if ($billingResolver->shouldInvoiceOnWorkValidation($work)) {
-                $billingService->createInvoiceFromWork($work, $user);
-            }
-        }
+        $work = $updateWorkStatus->execute(
+            $work,
+            (string) $request->validated('status'),
+            $user,
+            $billingService
+        );
 
         if ($this->shouldReturnJson($request)) {
             return response()->json([
@@ -758,7 +574,7 @@ class WorkController extends Controller
     {
         $user = Auth::user();
         $accountId = $user?->accountOwnerId() ?? Auth::id();
-        if (!$user || $user->id !== $accountId) {
+        if (! $user || $user->id !== $accountId) {
             abort(403);
         }
 
@@ -778,11 +594,11 @@ class WorkController extends Controller
         return redirect()->back()->with('success', 'Job deleted successfully.');
     }
 
-    public function addExtraQuote(Request $request, Work $work)
+    public function addExtraQuote(StoreExtraQuoteRequest $request, Work $work)
     {
         $user = Auth::user();
         $accountId = $user?->accountOwnerId() ?? Auth::id();
-        if (!$user || $user->id !== $accountId) {
+        if (! $user || $user->id !== $accountId) {
             abort(403);
         }
 
@@ -796,25 +612,9 @@ class WorkController extends Controller
             ? Product::ITEM_TYPE_PRODUCT
             : Product::ITEM_TYPE_SERVICE;
 
-        $validated = $request->validate([
-            'job_title' => 'required|string|max:255',
-            'status' => ['nullable', Rule::in(['draft', 'sent', 'accepted', 'declined'])],
-            'product' => 'required|array|min:1',
-            'product.*.id' => [
-                'required',
-                Rule::exists('products', 'id')
-                    ->where('user_id', $accountId)
-                    ->where('item_type', $itemType),
-            ],
-            'product.*.quantity' => 'required|integer|min:1',
-            'product.*.price' => 'required|numeric|min:0',
-            'notes' => 'nullable|string',
-            'messages' => 'nullable|string',
-            'taxes' => 'nullable|array',
-            'taxes.*' => ['integer', Rule::exists('taxes', 'id')],
-        ]);
+        $validated = $request->validated();
 
-        $productIds = collect($validated['product'])->pluck('id')->map(fn($id) => (int) $id)->unique()->values();
+        $productIds = collect($validated['product'])->pluck('id')->map(fn ($id) => (int) $id)->unique()->values();
         $productMap = $productIds->isNotEmpty()
             ? Product::byUser($accountId)
                 ->where('item_type', $itemType)
@@ -827,6 +627,7 @@ class WorkController extends Controller
             $quantity = (int) $product['quantity'];
             $price = (float) $product['price'];
             $model = $productMap->get((int) $product['id']);
+
             return [
                 'id' => (int) $product['id'],
                 'quantity' => $quantity,
@@ -840,6 +641,7 @@ class WorkController extends Controller
         $selectedTaxes = Tax::whereIn('id', $validated['taxes'] ?? [])->get();
         $taxLines = $selectedTaxes->map(function ($tax) use ($subtotal) {
             $amount = round($subtotal * ((float) $tax->rate / 100), 2);
+
             return [
                 'tax_id' => $tax->id,
                 'rate' => (float) $tax->rate,
@@ -936,7 +738,7 @@ class WorkController extends Controller
             $productId = isset($line['id']) && $line['id'] !== null ? (int) $line['id'] : null;
             $lineItemType = $line['item_type'] ?? $itemType;
 
-            if (!$productId) {
+            if (! $productId) {
                 $name = trim((string) ($line['name'] ?? ''));
                 if ($name === '') {
                     return null;
@@ -944,16 +746,16 @@ class WorkController extends Controller
 
                 $product = $this->createProductFromLine($userId, $accountId, $creatorId, $lineItemType, $line, $sourceDetails);
                 $productId = $product->id;
-                if (!$description) {
+                if (! $description) {
                     $description = $product->description;
                 }
             } else {
                 $model = $productMap->get($productId);
-                if (!$model) {
+                if (! $model) {
                     return null;
                 }
                 $lineItemType = $model?->item_type ?? $lineItemType;
-                if (!$description) {
+                if (! $description) {
                     $description = $model?->description;
                 }
                 $price = $price > 0 ? $price : (float) $model->price;
@@ -971,12 +773,13 @@ class WorkController extends Controller
 
     private function normalizeSourceDetails($details): ?array
     {
-        if (!$details) {
+        if (! $details) {
             return null;
         }
 
         if (is_string($details)) {
             $decoded = json_decode($details, true);
+
             return is_array($decoded) ? $decoded : null;
         }
 
@@ -1022,7 +825,7 @@ class WorkController extends Controller
         }
 
         $description = $line['description'] ?? null;
-        if (!$description && is_array($source)) {
+        if (! $description && is_array($source)) {
             $description = $source['title'] ?? null;
         }
 
@@ -1053,12 +856,12 @@ class WorkController extends Controller
 
     private function applyQuoteSnapshotToWork(Work $work): void
     {
-        if (!$work->quote_id) {
+        if (! $work->quote_id) {
             return;
         }
 
         $work->loadMissing('quote.products');
-        if (!$work->quote) {
+        if (! $work->quote) {
             return;
         }
 
@@ -1075,7 +878,7 @@ class WorkController extends Controller
             ? $work->customer
             : Customer::query()->find($work->customer_id);
 
-        if (!$customer) {
+        if (! $customer) {
             return 0;
         }
 
@@ -1085,7 +888,7 @@ class WorkController extends Controller
 
         $scheduleService = app(WorkScheduleService::class);
         $pendingDates = $scheduleService->pendingDateStrings($work);
-        if (!$pendingDates) {
+        if (! $pendingDates) {
             return 0;
         }
 
@@ -1098,5 +901,4 @@ class WorkController extends Controller
 
         return count($conflicts);
     }
-
 }

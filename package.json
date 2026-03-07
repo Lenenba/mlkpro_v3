@@ -3,7 +3,8 @@
     "type": "module",
     "scripts": {
         "build": "node --max_old_space_size=4096 ./node_modules/vite/bin/vite.js build",
-        "dev": "vite"
+        "dev": "vite",
+        "qa:build": "npm run build"
     },
     "devDependencies": {
         "@inertiajs/vue3": "^2.0.0",

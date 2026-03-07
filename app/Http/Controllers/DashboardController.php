@@ -2,33 +2,32 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Quote;
-use App\Models\Work;
+use App\Models\ActivityLog;
+use App\Models\Customer;
 use App\Models\Invoice;
 use App\Models\Payment;
-use App\Models\Product;
-use App\Models\ProductInventory;
-use App\Models\ProductLot;
-use App\Models\Customer;
-use App\Models\ActivityLog;
-use App\Models\Task;
-use App\Models\TeamMember;
-use App\Models\Sale;
-use App\Models\SaleItem;
 use App\Models\PlanScan;
 use App\Models\PlatformAnnouncement;
 use App\Models\PlatformSetting;
+use App\Models\Product;
+use App\Models\Quote;
+use App\Models\Sale;
+use App\Models\SaleItem;
+use App\Models\Task;
+use App\Models\TeamMember;
 use App\Models\User;
-use App\Services\Campaigns\DashboardKpiService;
+use App\Models\Work;
+use App\Queries\Dashboard\DashboardProductsOverviewQuery;
 use App\Services\BillingSubscriptionService;
+use App\Services\Campaigns\DashboardKpiService;
 use App\Services\StripeInvoiceService;
 use App\Services\StripeSaleService;
 use App\Services\UsageLimitService;
 use App\Support\PlanDisplay;
 use App\Support\TenantPaymentMethodsResolver;
 use App\Support\TipSettingsResolver;
-use Illuminate\Support\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -45,26 +44,29 @@ class DashboardController extends Controller
         $cacheEnabled = empty(request()->query());
         $cacheTtl = now()->addSeconds(30);
         $fromCache = function (?string $cacheKey) use ($cacheEnabled) {
-            if (!$cacheEnabled || !$cacheKey) {
+            if (! $cacheEnabled || ! $cacheKey) {
                 return null;
             }
+
             return Cache::get($cacheKey);
         };
         $respond = function (string $component, array $props, ?string $cacheKey = null) use ($cacheEnabled, $cacheTtl) {
             if ($cacheEnabled && $cacheKey) {
                 Cache::put($cacheKey, ['component' => $component, 'props' => $props], $cacheTtl);
             }
+
             return $this->inertiaOrJson($component, $props);
         };
         $now = now();
         $today = $now->toDateString();
         if ($user && $user->isClient()) {
             $customer = $user->customerProfile;
-            if (!$customer) {
+            if (! $customer) {
                 $cacheKey = $cacheEnabled ? "dashboard:client-missing:{$user->id}" : null;
                 if ($cached = $fromCache($cacheKey)) {
                     return $this->inertiaOrJson($cached['component'], $cached['props']);
                 }
+
                 return $respond('DashboardClient', [
                     'profileMissing' => true,
                     'stats' => [
@@ -152,7 +154,7 @@ class DashboardController extends Controller
                         'scheduled_for',
                         'delivery_confirmed_at',
                     ])
-                    ->loadSum(['payments as payments_sum_amount' => fn($query) => $query->whereIn('status', Payment::settledStatuses())], 'amount');
+                    ->loadSum(['payments as payments_sum_amount' => fn ($query) => $query->whereIn('status', Payment::settledStatuses())], 'amount');
 
                 $inDeliveryOrders = (clone $salesQuery)
                     ->where('status', '!=', Sale::STATUS_CANCELED)
@@ -432,7 +434,7 @@ class DashboardController extends Controller
             $invoicesDue = $autoValidateInvoices
                 ? collect()
                 : (clone $invoicesDueQuery)
-                    ->withSum(['payments as payments_sum_amount' => fn($query) => $query->whereIn('status', Payment::settledStatuses())], 'amount')
+                    ->withSum(['payments as payments_sum_amount' => fn ($query) => $query->whereIn('status', Payment::settledStatuses())], 'amount')
                     ->orderByDesc('created_at')
                     ->limit(8)
                     ->get(['id', 'number', 'status', 'total', 'created_at'])
@@ -501,6 +503,7 @@ class DashboardController extends Controller
                 $workCount = (clone $workRatingsQuery)
                     ->whereBetween('updated_at', [$start, $end])
                     ->count();
+
                 return $quoteCount + $workCount;
             });
             $kpiSeries = [
@@ -552,7 +555,7 @@ class DashboardController extends Controller
         $isAccountOwner = ($user?->id ?? Auth::id()) === $accountId;
 
         $membership = null;
-        if (!$isAccountOwner && $user) {
+        if (! $isAccountOwner && $user) {
             $membership = TeamMember::query()
                 ->forAccount($accountId)
                 ->active()
@@ -565,128 +568,23 @@ class DashboardController extends Controller
             if ($cached = $fromCache($cacheKey)) {
                 return $this->inertiaOrJson($cached['component'], $cached['props']);
             }
-            $restrictSales = $membership
-                && !$membership->hasPermission('sales.manage')
-                && $membership->hasPermission('sales.pos');
-
-            $salesBaseQuery = Sale::query()
-                ->where('user_id', $accountId)
-                ->where('status', Sale::STATUS_PAID)
-                ->when($restrictSales, fn($query) => $query->where('created_by_user_id', $user->id));
-            $salesTodayQuery = (clone $salesBaseQuery)->whereDate('created_at', $today);
-            $salesMonthQuery = (clone $salesBaseQuery)
-                ->whereBetween('created_at', [$now->copy()->startOfMonth(), $now->copy()->endOfMonth()]);
-
-            $productsQuery = Product::query()
-                ->products()
-                ->byUser($accountId);
-
-            $stats = [
-                'sales_today' => (clone $salesTodayQuery)->count(),
-                'sales_month' => (clone $salesMonthQuery)->count(),
-                'revenue_today' => (float) (clone $salesTodayQuery)
-                    ->where('status', Sale::STATUS_PAID)
-                    ->sum('total'),
-                'revenue_month' => (float) (clone $salesMonthQuery)
-                    ->where('status', Sale::STATUS_PAID)
-                    ->sum('total'),
-                'inventory_value' => (float) (clone $productsQuery)
-                    ->select(DB::raw('COALESCE(SUM(stock * COALESCE(NULLIF(cost_price, 0), price)), 0) as value'))
-                    ->value('value'),
-                'products_total' => (clone $productsQuery)->count(),
-                'low_stock' => (clone $productsQuery)
-                    ->whereColumn('stock', '<=', 'minimum_stock')
-                    ->where('stock', '>', 0)
-                    ->count(),
-                'out_of_stock' => (clone $productsQuery)
-                    ->where('stock', '<=', 0)
-                    ->count(),
-            ];
-
-            $stats['reserved_total'] = (int) ProductInventory::query()
-                ->whereHas('product', fn($query) => $query->where('user_id', $accountId))
-                ->sum('reserved');
-            $stats['damaged_total'] = (int) ProductInventory::query()
-                ->whereHas('product', fn($query) => $query->where('user_id', $accountId))
-                ->sum('damaged');
-
-            $expiringDate = $now->copy()->addDays(30)->toDateString();
-            $stats['expired_lots'] = (int) ProductLot::query()
-                ->whereHas('product', fn($query) => $query->where('user_id', $accountId))
-                ->whereNotNull('expires_at')
-                ->whereDate('expires_at', '<', $today)
-                ->count();
-            $stats['expiring_lots'] = (int) ProductLot::query()
-                ->whereHas('product', fn($query) => $query->where('user_id', $accountId))
-                ->whereNotNull('expires_at')
-                ->whereDate('expires_at', '>=', $today)
-                ->whereDate('expires_at', '<=', $expiringDate)
-                ->count();
-
-            $recentSales = (clone $salesBaseQuery)
-                ->with('customer:id,first_name,last_name,company_name')
-                ->latest()
-                ->limit(8)
-                ->get(['id', 'number', 'status', 'total', 'created_at', 'customer_id']);
-
-            $stockAlerts = (clone $productsQuery)
-                ->where(function ($query) {
-                    $query->where('stock', '<=', 0)
-                        ->orWhereColumn('stock', '<=', 'minimum_stock');
-                })
-                ->orderBy('stock')
-                ->limit(8)
-                ->get(['id', 'name', 'stock', 'minimum_stock', 'image', 'supplier_name', 'supplier_email']);
-
-            $topSales = SaleItem::query()
-                ->select('sale_items.product_id', DB::raw('SUM(sale_items.quantity) as quantity'))
-                ->join('sales', 'sale_items.sale_id', '=', 'sales.id')
-                ->where('sales.user_id', $accountId)
-                ->where('sales.status', Sale::STATUS_PAID)
-                ->when($restrictSales, fn($query) => $query->where('sales.created_by_user_id', $user->id))
-                ->groupBy('sale_items.product_id')
-                ->orderByDesc('quantity')
-                ->limit(6)
-                ->get();
-
-            $topProducts = collect();
-            if ($topSales->isNotEmpty()) {
-                $productMap = Product::query()
-                    ->whereIn('id', $topSales->pluck('product_id'))
-                    ->get(['id', 'name', 'image'])
-                    ->keyBy('id');
-
-                $topProducts = $topSales->map(function ($row) use ($productMap) {
-                    $product = $productMap->get($row->product_id);
-
-                    return [
-                        'id' => $row->product_id,
-                        'name' => $product?->name ?? 'Product',
-                        'image_url' => $product?->image_url,
-                        'quantity' => (int) $row->quantity,
-                    ];
-                })->values();
-            }
+            $overview = app(DashboardProductsOverviewQuery::class)->execute(
+                $accountId,
+                $user,
+                $membership,
+                $now,
+                $today
+            );
 
             if ($membership) {
-                $props = [
-                    'stats' => $stats,
-                    'recentSales' => $recentSales,
-                    'stockAlerts' => $stockAlerts,
-                    'topProducts' => $topProducts,
-                ];
-
-                return $respond('DashboardProductsTeam', $props, $cacheKey);
+                return $respond('DashboardProductsTeam', $overview, $cacheKey);
             }
 
             $performance = $this->buildProductPerformance($accountId, $now);
             $marketingKpis = $this->resolveMarketingKpis($accountOwner);
 
             $props = [
-                'stats' => $stats,
-                'recentSales' => $recentSales,
-                'stockAlerts' => $stockAlerts,
-                'topProducts' => $topProducts,
+                ...$overview,
                 'performance' => $performance,
                 'marketingKpis' => $marketingKpis,
             ];
@@ -912,7 +810,7 @@ class DashboardController extends Controller
 
             $worksQuery = Work::query()
                 ->byUser($accountId)
-                ->whereHas('teamMembers', fn($query) => $query->whereKey($membership->id));
+                ->whereHas('teamMembers', fn ($query) => $query->whereKey($membership->id));
             $worksToday = $this->buildWorksToday($worksQuery, $today);
             $agendaAlerts = $this->buildAgendaAlerts($tasksQuery, $worksQuery, $today);
 
@@ -1136,7 +1034,7 @@ class DashboardController extends Controller
 
         $outstandingInvoices = Invoice::byUser($userId)
             ->with('customer:id,company_name,first_name,last_name')
-            ->withSum(['payments as payments_sum_amount' => fn($query) => $query->whereIn('status', Payment::settledStatuses())], 'amount')
+            ->withSum(['payments as payments_sum_amount' => fn ($query) => $query->whereIn('status', Payment::settledStatuses())], 'amount')
             ->whereNotIn('status', ['paid', 'void'])
             ->orderByDesc('total')
             ->limit(5)
@@ -1245,6 +1143,7 @@ class DashboardController extends Controller
         $plans = collect(config('billing.plans', []))
             ->map(function (array $plan, string $key) use ($planDisplayOverrides) {
                 $display = PlanDisplay::merge($plan, $key, $planDisplayOverrides);
+
                 return [
                     'key' => $key,
                     'name' => $display['name'],
@@ -1305,14 +1204,14 @@ class DashboardController extends Controller
     public function exportProductSellers(Request $request)
     {
         $user = Auth::user();
-        if (!$user) {
+        if (! $user) {
             abort(403);
         }
 
         $accountId = $user->accountOwnerId() ?? $user->id;
         $isAccountOwner = $user->id === $accountId;
         $membership = null;
-        if (!$isAccountOwner) {
+        if (! $isAccountOwner) {
             $membership = TeamMember::query()
                 ->forAccount($accountId)
                 ->active()
@@ -1320,13 +1219,13 @@ class DashboardController extends Controller
                 ->first();
         }
 
-        if (!$isAccountOwner && (!$membership || !$membership->hasPermission('sales.manage'))) {
+        if (! $isAccountOwner && (! $membership || ! $membership->hasPermission('sales.manage'))) {
             abort(403);
         }
 
         $period = $request->query('period', 'month');
         $allowed = ['day', 'week', 'month', 'year'];
-        if (!in_array($period, $allowed, true)) {
+        if (! in_array($period, $allowed, true)) {
             $period = 'month';
         }
 
@@ -1343,7 +1242,7 @@ class DashboardController extends Controller
         $range = $periodData['range'] ?? ['start' => '', 'end' => ''];
         $onlineLabel = 'Online store';
 
-        $filename = 'seller-performance-' . $period . '-' . now()->format('Ymd-His') . '.csv';
+        $filename = 'seller-performance-'.$period.'-'.now()->format('Ymd-His').'.csv';
 
         return response()->streamDownload(function () use ($rows, $range, $onlineLabel) {
             $handle = fopen('php://output', 'w');
@@ -1373,14 +1272,14 @@ class DashboardController extends Controller
     public function tasksCalendar()
     {
         $user = Auth::user();
-        if (!$user) {
+        if (! $user) {
             abort(403);
         }
 
         $accountId = $user->accountOwnerId() ?? $user->id;
         $isAccountOwner = $user->id === $accountId;
         $membership = null;
-        if (!$isAccountOwner) {
+        if (! $isAccountOwner) {
             $membership = TeamMember::query()
                 ->forAccount($accountId)
                 ->active()
@@ -1395,7 +1294,7 @@ class DashboardController extends Controller
 
         $worksQuery = Work::query()->byUser($accountId);
         if ($membership && $membership->role !== 'admin') {
-            $worksQuery->whereHas('teamMembers', fn($query) => $query->whereKey($membership->id));
+            $worksQuery->whereHas('teamMembers', fn ($query) => $query->whereKey($membership->id));
         }
 
         $today = now()->toDateString();
@@ -1417,11 +1316,11 @@ class DashboardController extends Controller
             ->get(['id', 'job_title', 'instructions', 'start_date', 'start_time', 'end_time']);
 
         $calendar = $this->buildAgendaCalendar($tasks, $works);
-        $filename = 'tasks-' . $today . '.ics';
+        $filename = 'tasks-'.$today.'.ics';
 
         return response($calendar, 200, [
             'Content-Type' => 'text/calendar; charset=utf-8',
-            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+            'Content-Disposition' => 'attachment; filename="'.$filename.'"',
         ]);
     }
 
@@ -1438,31 +1337,31 @@ class DashboardController extends Controller
         ];
 
         foreach ($tasks as $task) {
-            if (!$task->due_date) {
+            if (! $task->due_date) {
                 continue;
             }
 
             $summary = $this->escapeCalendarText($task->title ?: 'Task');
             $description = $task->description ? $this->escapeCalendarText($task->description) : '';
             $window = $this->buildTaskCalendarWindow($task, $timezone);
-            if (!$window) {
+            if (! $window) {
                 continue;
             }
 
             $lines[] = 'BEGIN:VEVENT';
-            $lines[] = 'UID:task-' . $task->id . '@mlkpro';
-            $lines[] = 'DTSTAMP:' . $nowUtc;
-            $lines[] = 'SUMMARY:' . $summary;
+            $lines[] = 'UID:task-'.$task->id.'@mlkpro';
+            $lines[] = 'DTSTAMP:'.$nowUtc;
+            $lines[] = 'SUMMARY:'.$summary;
             if ($description !== '') {
-                $lines[] = 'DESCRIPTION:' . $description;
+                $lines[] = 'DESCRIPTION:'.$description;
             }
 
             if ($window['all_day']) {
-                $lines[] = 'DTSTART;VALUE=DATE:' . $window['start'];
-                $lines[] = 'DTEND;VALUE=DATE:' . $window['end'];
+                $lines[] = 'DTSTART;VALUE=DATE:'.$window['start'];
+                $lines[] = 'DTEND;VALUE=DATE:'.$window['end'];
             } else {
-                $lines[] = 'DTSTART:' . $window['start'];
-                $lines[] = 'DTEND:' . $window['end'];
+                $lines[] = 'DTSTART:'.$window['start'];
+                $lines[] = 'DTEND:'.$window['end'];
             }
 
             $lines[] = 'BEGIN:VALARM';
@@ -1474,31 +1373,31 @@ class DashboardController extends Controller
         }
 
         foreach ($works as $work) {
-            if (!$work->start_date) {
+            if (! $work->start_date) {
                 continue;
             }
 
             $summary = $this->escapeCalendarText($work->job_title ?: 'Work');
             $description = $work->instructions ? $this->escapeCalendarText($work->instructions) : '';
             $window = $this->buildWorkCalendarWindow($work, $timezone);
-            if (!$window) {
+            if (! $window) {
                 continue;
             }
 
             $lines[] = 'BEGIN:VEVENT';
-            $lines[] = 'UID:work-' . $work->id . '@mlkpro';
-            $lines[] = 'DTSTAMP:' . $nowUtc;
-            $lines[] = 'SUMMARY:' . $summary;
+            $lines[] = 'UID:work-'.$work->id.'@mlkpro';
+            $lines[] = 'DTSTAMP:'.$nowUtc;
+            $lines[] = 'SUMMARY:'.$summary;
             if ($description !== '') {
-                $lines[] = 'DESCRIPTION:' . $description;
+                $lines[] = 'DESCRIPTION:'.$description;
             }
 
             if ($window['all_day']) {
-                $lines[] = 'DTSTART;VALUE=DATE:' . $window['start'];
-                $lines[] = 'DTEND;VALUE=DATE:' . $window['end'];
+                $lines[] = 'DTSTART;VALUE=DATE:'.$window['start'];
+                $lines[] = 'DTEND;VALUE=DATE:'.$window['end'];
             } else {
-                $lines[] = 'DTSTART:' . $window['start'];
-                $lines[] = 'DTEND:' . $window['end'];
+                $lines[] = 'DTSTART:'.$window['start'];
+                $lines[] = 'DTEND:'.$window['end'];
             }
 
             $lines[] = 'BEGIN:VALARM';
@@ -1511,19 +1410,19 @@ class DashboardController extends Controller
 
         $lines[] = 'END:VCALENDAR';
 
-        return implode("\r\n", $lines) . "\r\n";
+        return implode("\r\n", $lines)."\r\n";
     }
 
     private function buildTaskCalendarWindow(Task $task, string $timezone): ?array
     {
         $dueDate = $task->due_date ? Carbon::parse($task->due_date, $timezone) : null;
-        if (!$dueDate) {
+        if (! $dueDate) {
             return null;
         }
 
         $startTime = $task->start_time;
         $endTime = $task->end_time;
-        if (!$startTime && !$endTime) {
+        if (! $startTime && ! $endTime) {
             return [
                 'all_day' => true,
                 'start' => $dueDate->format('Ymd'),
@@ -1532,10 +1431,10 @@ class DashboardController extends Controller
         }
 
         $startAt = $startTime
-            ? Carbon::parse($dueDate->format('Y-m-d') . ' ' . $startTime, $timezone)
-            : Carbon::parse($dueDate->format('Y-m-d') . ' ' . $endTime, $timezone)->subHour();
+            ? Carbon::parse($dueDate->format('Y-m-d').' '.$startTime, $timezone)
+            : Carbon::parse($dueDate->format('Y-m-d').' '.$endTime, $timezone)->subHour();
         $endAt = $endTime
-            ? Carbon::parse($dueDate->format('Y-m-d') . ' ' . $endTime, $timezone)
+            ? Carbon::parse($dueDate->format('Y-m-d').' '.$endTime, $timezone)
             : $startAt->copy()->addHour();
 
         if ($endAt->lessThanOrEqualTo($startAt)) {
@@ -1552,13 +1451,13 @@ class DashboardController extends Controller
     private function buildWorkCalendarWindow(Work $work, string $timezone): ?array
     {
         $startDate = $work->start_date ? Carbon::parse($work->start_date, $timezone) : null;
-        if (!$startDate) {
+        if (! $startDate) {
             return null;
         }
 
         $startTime = $work->start_time;
         $endTime = $work->end_time;
-        if (!$startTime && !$endTime) {
+        if (! $startTime && ! $endTime) {
             return [
                 'all_day' => true,
                 'start' => $startDate->format('Ymd'),
@@ -1567,10 +1466,10 @@ class DashboardController extends Controller
         }
 
         $startAt = $startTime
-            ? Carbon::parse($startDate->format('Y-m-d') . ' ' . $startTime, $timezone)
-            : Carbon::parse($startDate->format('Y-m-d') . ' ' . $endTime, $timezone)->subHour();
+            ? Carbon::parse($startDate->format('Y-m-d').' '.$startTime, $timezone)
+            : Carbon::parse($startDate->format('Y-m-d').' '.$endTime, $timezone)->subHour();
         $endAt = $endTime
-            ? Carbon::parse($startDate->format('Y-m-d') . ' ' . $endTime, $timezone)
+            ? Carbon::parse($startDate->format('Y-m-d').' '.$endTime, $timezone)
             : $startAt->copy()->addHour();
 
         if ($endAt->lessThanOrEqualTo($startAt)) {
@@ -1611,7 +1510,7 @@ class DashboardController extends Controller
         }
 
         $sellerOfYear = collect($periodData['year']['top_sellers'] ?? [])
-            ->first(fn($seller) => ($seller['type'] ?? null) === 'user')
+            ->first(fn ($seller) => ($seller['type'] ?? null) === 'user')
             ?? ($periodData['year']['top_sellers'][0] ?? null);
 
         return [
@@ -1672,8 +1571,8 @@ class DashboardController extends Controller
         $sellerRows = $sellerRowsQuery->get();
 
         $sellerIds = $sellerRows->pluck('seller_id')
-            ->map(fn($id) => (int) $id)
-            ->filter(fn($id) => $id > 0)
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn ($id) => $id > 0)
             ->unique()
             ->values();
         $sellerMap = $sellerIds->isNotEmpty()
@@ -1845,11 +1744,11 @@ class DashboardController extends Controller
 
     private function resolveMarketingKpis(?User $accountOwner): ?array
     {
-        if (!$accountOwner) {
+        if (! $accountOwner) {
             return null;
         }
 
-        if (!$accountOwner->hasCompanyFeature('campaigns')) {
+        if (! $accountOwner->hasCompanyFeature('campaigns')) {
             return null;
         }
 
@@ -1924,11 +1823,12 @@ class DashboardController extends Controller
                     return true;
                 }
 
-                if (!$tenant?->created_at) {
+                if (! $tenant?->created_at) {
                     return false;
                 }
 
                 $days = $announcement->new_tenant_days ?: 30;
+
                 return $tenant->created_at->gte($now->copy()->subDays($days));
             })
             ->map(function (PlatformAnnouncement $announcement) {

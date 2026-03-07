@@ -38,16 +38,16 @@ class UserFactory extends Factory
             'company_city' => $this->faker->city(),
             'company_type' => $this->faker->randomElement(['services', 'products']),
             'onboarding_completed_at' => now(),
+            'trial_ends_at' => now()->addDays(14),
             'payment_methods' => ['cash', 'card'],
             'default_payment_method' => 'cash',
             'cash_allowed_contexts' => ['reservation', 'invoice', 'store_order', 'tip', 'walk_in'],
+            'two_factor_exempt' => true,
         ];
     }
 
     /**
      * Assign a specific role to the user.
-     *
-     * @param int $roleId
      */
     public function withRole(int $roleId): static
     {

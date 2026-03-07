@@ -2,26 +2,25 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\ActivityLog;
+use App\Actions\Tasks\AssignTaskAction;
+use App\Http\Requests\Tasks\AssignTaskRequest;
+use App\Http\Requests\Tasks\StoreTaskRequest;
+use App\Http\Requests\Tasks\UpdateTaskRequest;
 use App\Models\Product;
+use App\Models\Request as LeadRequest;
 use App\Models\Task;
 use App\Models\TaskMaterial;
 use App\Models\TeamMember;
 use App\Models\Work;
-use App\Models\Request as LeadRequest;
-use App\Notifications\ActionEmailNotification;
-use App\Notifications\ShiftNoticeNotification;
+use App\Queries\Tasks\BuildTaskIndexData;
 use App\Services\InventoryService;
 use App\Services\TaskStatusHistoryService;
 use App\Services\TaskTimingService;
 use App\Services\UsageLimitService;
-use App\Support\NotificationDispatcher;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Carbon;
-use Illuminate\Validation\Rule;
 
 class TaskController extends Controller
 {
@@ -31,128 +30,12 @@ class TaskController extends Controller
         $accountId = $user?->accountOwnerId() ?? Auth::id();
         $isOwner = $user && $user->id === $accountId;
 
-        $filters = $request->only([
-            'search',
-            'status',
-            'view',
-        ]);
-        $allowedViews = $isOwner ? ['board', 'schedule', 'team'] : ['board', 'schedule'];
-        $filters['view'] = in_array($filters['view'] ?? null, $allowedViews, true)
-            ? $filters['view']
-            : 'board';
-
         $this->authorize('viewAny', Task::class);
 
-        $membership = $user && $user->id !== $accountId
-            ? $user->teamMembership()->first()
-            : null;
-        $isAdminMember = $membership && $membership->role === 'admin';
+        $props = app(BuildTaskIndexData::class)->execute($user, $accountId, $isOwner, $request);
+        $props['canCreate'] = $user ? $user->can('create', Task::class) : false;
 
-        $query = Task::query()
-            ->forAccount($accountId)
-            ->with(['assignee.user:id,name', 'materials.product:id,name,unit,price'])
-            ->when(
-                $filters['search'] ?? null,
-                fn($query, $search) => $query->where(function ($sub) use ($search) {
-                    $sub->where('title', 'like', '%' . $search . '%')
-                        ->orWhere('description', 'like', '%' . $search . '%');
-                })
-            )
-            ->when(
-                $filters['status'] ?? null,
-                fn($query, $status) => in_array($status, Task::STATUSES, true)
-                    ? $query->where('status', $status)
-                    : null
-            );
-
-        if ($membership && $membership->role !== 'admin') {
-            $query->where('assigned_team_member_id', $membership->id);
-        }
-
-        $totalCount = (clone $query)->count();
-        $stats = [
-            'total' => $totalCount,
-            'todo' => (clone $query)->where('status', 'todo')->count(),
-            'in_progress' => (clone $query)->where('status', 'in_progress')->count(),
-            'done' => (clone $query)->where('status', 'done')->count(),
-        ];
-
-        $tasksQuery = $query
-            ->orderByRaw('CASE WHEN due_date IS NULL THEN 1 ELSE 0 END')
-            ->orderBy('due_date')
-            ->orderByDesc('created_at');
-
-        $view = $filters['view'];
-        $useFullList = in_array($view, ['board', 'schedule', 'team'], true);
-
-        if ($useFullList) {
-            $items = $tasksQuery->get();
-            $perPage = max($items->count(), 1);
-            $tasks = new \Illuminate\Pagination\LengthAwarePaginator(
-                $items,
-                $items->count(),
-                $perPage,
-                1,
-                [
-                    'path' => $request->url(),
-                    'query' => $request->query(),
-                ]
-            );
-        } else {
-            $tasks = $tasksQuery
-                ->simplePaginate(15)
-                ->withQueryString();
-        }
-
-        $canManage = $user
-            ? ($user->id === $accountId || ($isAdminMember && $membership->hasPermission('tasks.edit')))
-            : false;
-
-        $canEditStatus = $user
-            ? ($user->id === $accountId || ($membership && $membership->hasPermission('tasks.edit')))
-            : false;
-
-        $canDelete = $user
-            ? ($user->id === $accountId || ($isAdminMember && $membership->hasPermission('tasks.delete')))
-            : false;
-
-        $teamMembers = collect();
-        if ($user && ($user->id === $accountId || ($isAdminMember && ($membership->hasPermission('tasks.create') || $membership->hasPermission('tasks.edit'))))) {
-            $teamMembers = TeamMember::query()
-                ->forAccount($accountId)
-                ->active()
-                ->with('user:id,name')
-                ->orderBy('created_at')
-                ->get(['id', 'user_id', 'role']);
-        }
-        $materialProducts = Product::query()
-            ->products()
-            ->byUser($accountId)
-            ->orderBy('name')
-            ->get(['id', 'name', 'unit', 'price']);
-
-        $works = Work::query()
-            ->byUser($accountId)
-            ->with('customer:id,company_name,first_name,last_name')
-            ->orderByDesc('created_at')
-            ->limit(200)
-            ->get(['id', 'job_title', 'number', 'customer_id', 'status']);
-
-        return $this->inertiaOrJson('Task/Index', [
-            'tasks' => $tasks,
-            'filters' => $filters,
-            'statuses' => Task::STATUSES,
-            'teamMembers' => $teamMembers,
-            'stats' => $stats,
-            'count' => $totalCount,
-            'materialProducts' => $materialProducts,
-            'works' => $works,
-            'canCreate' => $user ? $user->can('create', Task::class) : false,
-            'canManage' => $canManage,
-            'canDelete' => $canDelete,
-            'canEditStatus' => $canEditStatus,
-            'canViewTeam' => $isOwner,
-        ]);
+        return $this->inertiaOrJson('Task/Index', $props);
     }
 
     public function show(Request $request, Task $task)
@@ -281,7 +164,7 @@ class TaskController extends Controller
         ]);
     }
 
-    public function store(Request $request)
+    public function store(StoreTaskRequest $request)
     {
         $this->authorize('create', Task::class);
 
@@ -292,64 +175,7 @@ class TaskController extends Controller
             app(UsageLimitService::class)->enforceLimit($user, 'tasks');
         }
 
-        $validated = $request->validate([
-            'title' => 'required|string|max:255',
-            'description' => 'nullable|string|max:5000',
-            'status' => ['nullable', 'string', Rule::in(Task::STATUSES)],
-            'work_id' => [
-                Rule::requiredIf(fn() => !$request->boolean('standalone')),
-                'nullable',
-                'integer',
-                Rule::exists('works', 'id')->where('user_id', $accountId),
-            ],
-            'standalone' => 'nullable|boolean',
-            'request_id' => [
-                'nullable',
-                'integer',
-                Rule::exists('requests', 'id')->where('user_id', $accountId),
-            ],
-            'due_date' => 'nullable|date',
-            'assigned_team_member_id' => [
-                'nullable',
-                'integer',
-                Rule::exists('team_members', 'id')->where('account_id', $accountId),
-            ],
-            'customer_id' => [
-                'nullable',
-                'integer',
-                Rule::exists('customers', 'id')->where('user_id', $accountId),
-            ],
-            'product_id' => [
-                'nullable',
-                'integer',
-                Rule::exists('products', 'id')->where('user_id', $accountId),
-            ],
-            'materials' => 'nullable|array',
-            'materials.*.id' => 'nullable|integer',
-            'materials.*.product_id' => [
-                'nullable',
-                'integer',
-                Rule::exists('products', 'id')->where('user_id', $accountId),
-            ],
-            'materials.*.warehouse_id' => 'nullable|integer',
-            'materials.*.lot_id' => 'nullable|integer',
-            'materials.*.label' => 'nullable|string|max:255',
-            'materials.*.description' => 'nullable|string|max:2000',
-            'materials.*.unit' => 'nullable|string|max:50',
-            'materials.*.quantity' => 'nullable|numeric|min:0',
-            'materials.*.unit_price' => 'nullable|numeric|min:0',
-            'materials.*.billable' => 'nullable|boolean',
-            'materials.*.sort_order' => 'nullable|integer|min:0',
-            'materials.*.source_service_id' => [
-                'nullable',
-                'integer',
-                Rule::exists('products', 'id')->where('user_id', $accountId),
-            ],
-            'start_time' => 'nullable|date_format:H:i',
-            'end_time' => 'nullable|date_format:H:i',
-            'completed_at' => 'nullable|date|before_or_equal:now',
-            'completion_reason' => ['nullable', 'string', Rule::in(TaskTimingService::completionReasons())],
-        ]);
+        $validated = $request->validated();
 
         $work = null;
         $workId = $validated['work_id'] ?? null;
@@ -371,7 +197,7 @@ class TaskController extends Controller
         $dueDate = $dueDateValue ? Carbon::parse($dueDateValue, $timezone)->startOfDay() : null;
         $startTime = $work?->start_time;
         $endTime = $work?->end_time;
-        if (!$work) {
+        if (! $work) {
             $startTime = $this->normalizeTime($validated['start_time'] ?? null);
             $endTime = $this->normalizeTime($validated['end_time'] ?? null);
         }
@@ -393,7 +219,7 @@ class TaskController extends Controller
         }
 
         $completedAt = TaskTimingService::normalizeCompletedAt($validated['completed_at'] ?? null, $timezone);
-        if ($status === 'done' && !$completedAt) {
+        if ($status === 'done' && ! $completedAt) {
             $completedAt = now();
         }
 
@@ -471,7 +297,7 @@ class TaskController extends Controller
         return redirect()->back()->with('success', 'Task created.');
     }
 
-    public function update(Request $request, Task $task)
+    public function update(UpdateTaskRequest $request, Task $task)
     {
         $this->authorize('update', $task);
 
@@ -493,77 +319,8 @@ class TaskController extends Controller
             ]);
         }
 
-        $membership = $user && $user->id !== $accountId
-            ? $user->teamMembership()->first()
-            : null;
-
-        $isManager = $user && ($user->id === $accountId || ($membership && $membership->role === 'admin'));
-
-        $rules = [
-            'status' => ['required', 'string', Rule::in(Task::STATUSES)],
-            'completed_at' => 'nullable|date|before_or_equal:now',
-            'completion_reason' => ['nullable', 'string', Rule::in(TaskTimingService::completionReasons())],
-        ];
-
-        if ($isManager) {
-            $rules = array_merge($rules, [
-                'title' => 'required|string|max:255',
-                'description' => 'nullable|string|max:5000',
-                'due_date' => 'nullable|date',
-                'assigned_team_member_id' => [
-                    'nullable',
-                    'integer',
-                    Rule::exists('team_members', 'id')->where('account_id', $accountId),
-                ],
-                'request_id' => [
-                    'nullable',
-                    'integer',
-                    Rule::exists('requests', 'id')->where('user_id', $accountId),
-                ],
-                'customer_id' => [
-                    'nullable',
-                    'integer',
-                    Rule::exists('customers', 'id')->where('user_id', $accountId),
-                ],
-                'product_id' => [
-                    'nullable',
-                    'integer',
-                    Rule::exists('products', 'id')->where('user_id', $accountId),
-                ],
-                'work_id' => [
-                    Rule::requiredIf(fn() => !$request->boolean('standalone')),
-                    'nullable',
-                    'integer',
-                    Rule::exists('works', 'id')->where('user_id', $accountId),
-                ],
-                'standalone' => 'nullable|boolean',
-                'materials' => 'nullable|array',
-                'materials.*.id' => 'nullable|integer',
-                'materials.*.product_id' => [
-                    'nullable',
-                    'integer',
-                    Rule::exists('products', 'id')->where('user_id', $accountId),
-                ],
-                'materials.*.warehouse_id' => 'nullable|integer',
-                'materials.*.lot_id' => 'nullable|integer',
-                'materials.*.label' => 'nullable|string|max:255',
-                'materials.*.description' => 'nullable|string|max:2000',
-                'materials.*.unit' => 'nullable|string|max:50',
-                'materials.*.quantity' => 'nullable|numeric|min:0',
-                'materials.*.unit_price' => 'nullable|numeric|min:0',
-                'materials.*.billable' => 'nullable|boolean',
-                'materials.*.sort_order' => 'nullable|integer|min:0',
-                'materials.*.source_service_id' => [
-                    'nullable',
-                    'integer',
-                    Rule::exists('products', 'id')->where('user_id', $accountId),
-                ],
-                'start_time' => 'nullable|date_format:H:i',
-                'end_time' => 'nullable|date_format:H:i',
-            ]);
-        }
-
-        $validated = $request->validate($rules);
+        $isManager = $request->isManager();
+        $validated = $request->validated();
 
         $updates = [
             'status' => $validated['status'],
@@ -650,7 +407,7 @@ class TaskController extends Controller
 
         $completionReason = $validated['completion_reason'] ?? null;
         $completedAt = TaskTimingService::normalizeCompletedAt($validated['completed_at'] ?? null, $timezone);
-        if ($isDone && !$completedAt) {
+        if ($isDone && ! $completedAt) {
             $completedAt = now();
         }
 
@@ -696,11 +453,11 @@ class TaskController extends Controller
             $this->syncTaskMaterials($task, $validated['materials'] ?? [], $accountId, $wasInProgress, $user);
         }
 
-        if (!$wasInProgress && $updates['status'] === 'in_progress') {
+        if (! $wasInProgress && $updates['status'] === 'in_progress') {
             $this->applyMaterialStock($task, $user);
         }
 
-        if (!$wasDone && $isDone) {
+        if (! $wasDone && $isDone) {
             app(\App\Services\TaskBillingService::class)
                 ->handleTaskCompleted($task, $user);
         }
@@ -723,7 +480,7 @@ class TaskController extends Controller
         return redirect()->back()->with('success', 'Task updated.');
     }
 
-    public function assign(Request $request, Task $task)
+    public function assign(AssignTaskRequest $request, Task $task, AssignTaskAction $assignTask)
     {
         $this->authorize('update', $task);
 
@@ -734,82 +491,12 @@ class TaskController extends Controller
             abort(404);
         }
 
-        $validated = $request->validate([
-            'assigned_team_member_id' => [
-                'nullable',
-                'integer',
-                Rule::exists('team_members', 'id')->where('account_id', $accountId),
-            ],
-        ]);
-
-        $previousAssigneeId = $task->assigned_team_member_id ? (int) $task->assigned_team_member_id : null;
+        $validated = $request->validated();
         $nextAssigneeId = isset($validated['assigned_team_member_id']) && $validated['assigned_team_member_id']
             ? (int) $validated['assigned_team_member_id']
             : null;
 
-        $task->update([
-            'assigned_team_member_id' => $nextAssigneeId,
-        ]);
-
-        $task->loadMissing(['assignee.user:id,name', 'request:id,title,service_type']);
-
-        ActivityLog::record($user, $task, 'reassigned', [
-            'previous_assigned_team_member_id' => $previousAssigneeId,
-            'assigned_team_member_id' => $task->assigned_team_member_id,
-            'request_id' => $task->request_id,
-        ], 'Task assignee updated from lead page');
-
-        if ($nextAssigneeId && $nextAssigneeId !== $previousAssigneeId) {
-            $assigneeUser = $task->assignee?->user;
-            if ($assigneeUser && (!$user || $assigneeUser->id !== $user->id)) {
-                $taskLabel = trim((string) ($task->title ?: 'Task #' . $task->id));
-                $leadLabel = trim((string) (
-                    $task->request?->title
-                    ?: $task->request?->service_type
-                    ?: ($task->request_id ? 'Request #' . $task->request_id : '')
-                ));
-                $taskUrl = route('task.show', ['task' => $task->id]);
-
-                $message = "You have been assigned to {$taskLabel}.";
-                if ($leadLabel !== '') {
-                    $message .= " Lead: {$leadLabel}.";
-                }
-
-                NotificationDispatcher::send($assigneeUser, new ShiftNoticeNotification(
-                    'Task assigned',
-                    $message,
-                    $taskUrl,
-                    [
-                        'event' => 'task_assigned',
-                        'task_id' => $task->id,
-                        'request_id' => $task->request_id,
-                    ]
-                ), [
-                    'task_id' => $task->id,
-                    'request_id' => $task->request_id,
-                    'assigned_user_id' => $assigneeUser->id,
-                ]);
-
-                if (!empty($assigneeUser->email)) {
-                    NotificationDispatcher::send($assigneeUser, new ActionEmailNotification(
-                        'Task assigned',
-                        $message,
-                        [
-                            ['label' => 'Task', 'value' => $taskLabel],
-                            ['label' => 'Lead', 'value' => $leadLabel !== '' ? $leadLabel : '-'],
-                            ['label' => 'Due date', 'value' => $task->due_date ? $task->due_date->format('Y-m-d') : '-'],
-                        ],
-                        $taskUrl,
-                        'Open task'
-                    ), [
-                        'task_id' => $task->id,
-                        'request_id' => $task->request_id,
-                        'assigned_user_id' => $assigneeUser->id,
-                        'channel' => 'mail',
-                    ]);
-                }
-            }
-        }
+        $task = $assignTask->execute($task, $nextAssigneeId, $user);
 
         if ($this->shouldReturnJson($request)) {
             return response()->json([
@@ -849,13 +536,13 @@ class TaskController extends Controller
         $materialProductIds = collect($materials)
             ->pluck('product_id')
             ->filter()
-            ->map(fn($id) => (int) $id)
+            ->map(fn ($id) => (int) $id)
             ->unique()
             ->values();
 
         $productIds = $stockAlreadyMoved
             ? $materialProductIds
-                ->merge($existingUsage->keys()->map(fn($id) => (int) $id))
+                ->merge($existingUsage->keys()->map(fn ($id) => (int) $id))
                 ->unique()
                 ->values()
             : $materialProductIds;
@@ -870,15 +557,15 @@ class TaskController extends Controller
             : collect();
 
         $payload = collect($materials)
-            ->map(function ($material, $index) use ($productMap, $task) {
+            ->map(function ($material, $index) use ($productMap, $stockAlreadyMoved) {
                 $productId = isset($material['product_id']) ? (int) $material['product_id'] : null;
                 $product = $productId ? $productMap->get($productId) : null;
                 $label = trim((string) ($material['label'] ?? ''));
-                if (!$label && $product) {
+                if (! $label && $product) {
                     $label = $product->name;
                 }
 
-                if (!$label) {
+                if (! $label) {
                     return null;
                 }
 
@@ -913,9 +600,9 @@ class TaskController extends Controller
             ->values();
 
         $newUsage = $payload
-            ->filter(fn($item) => !empty($item['product_id']))
+            ->filter(fn ($item) => ! empty($item['product_id']))
             ->groupBy('product_id')
-            ->map(fn($items) => (float) $items->sum('quantity'));
+            ->map(fn ($items) => (float) $items->sum('quantity'));
 
         if ($stockAlreadyMoved && ($existingUsage->isNotEmpty() || $newUsage->isNotEmpty())) {
             $this->applyMaterialStockDelta($existingUsage, $newUsage, $productMap, $actor);
@@ -935,7 +622,7 @@ class TaskController extends Controller
         $task->loadMissing('materials');
 
         $materials = $task->materials
-            ->filter(fn($material) => $material->product_id && !$material->stock_moved_at)
+            ->filter(fn ($material) => $material->product_id && ! $material->stock_moved_at)
             ->values();
 
         if ($materials->isEmpty()) {
@@ -956,7 +643,7 @@ class TaskController extends Controller
 
         foreach ($materials as $material) {
             $product = $productMap->get($material->product_id);
-            if (!$product) {
+            if (! $product) {
                 continue;
             }
 
@@ -1007,7 +694,7 @@ class TaskController extends Controller
 
         foreach ($productIds as $productId) {
             $product = $productMap->get($productId);
-            if (!$product) {
+            if (! $product) {
                 continue;
             }
 
@@ -1041,7 +728,7 @@ class TaskController extends Controller
     private function scheduleConflictResponse(Request $request, Task $conflictTask)
     {
         $conflictLabel = $conflictTask->title ?: 'another task';
-        $message = 'This team member is already assigned to ' . $conflictLabel . ' at this time.';
+        $message = 'This team member is already assigned to '.$conflictLabel.' at this time.';
 
         if ($this->shouldReturnJson($request)) {
             return response()->json([
@@ -1065,14 +752,14 @@ class TaskController extends Controller
         ?string $endTime,
         ?int $ignoreTaskId = null
     ): ?Task {
-        if (!$assignedTeamMemberId || !$dueDate || !$startTime) {
+        if (! $assignedTeamMemberId || ! $dueDate || ! $startTime) {
             return null;
         }
 
         $date = $this->normalizeDate($dueDate);
         $start = $this->normalizeTime($startTime);
         $end = $this->normalizeTime($endTime) ?: $start;
-        if (!$date || !$start) {
+        if (! $date || ! $start) {
             return null;
         }
 
@@ -1081,7 +768,7 @@ class TaskController extends Controller
             ->where('assigned_team_member_id', $assignedTeamMemberId)
             ->whereDate('due_date', $date)
             ->whereNotNull('start_time')
-            ->when($ignoreTaskId, fn($query) => $query->where('id', '!=', $ignoreTaskId))
+            ->when($ignoreTaskId, fn ($query) => $query->where('id', '!=', $ignoreTaskId))
             ->get(['id', 'title', 'start_time', 'end_time']);
 
         $newStart = $this->timeToMinutes($start);
@@ -1092,7 +779,7 @@ class TaskController extends Controller
 
         foreach ($existingTasks as $task) {
             $taskStart = $this->normalizeTime($task->start_time);
-            if (!$taskStart) {
+            if (! $taskStart) {
                 continue;
             }
             $taskEnd = $this->normalizeTime($task->end_time) ?: $taskStart;
@@ -1114,7 +801,7 @@ class TaskController extends Controller
 
     private function normalizeDate(?string $value): ?string
     {
-        if (!$value) {
+        if (! $value) {
             return null;
         }
 
@@ -1127,7 +814,7 @@ class TaskController extends Controller
 
     private function normalizeTime(?string $value): ?string
     {
-        if (!$value) {
+        if (! $value) {
             return null;
         }
 

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Reservation;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Reservation\CancelReservationRequest;
 use App\Http\Requests\Reservation\ClientBookingRequest;
 use App\Http\Requests\Reservation\ClientRescheduleRequest;
 use App\Http\Requests\Reservation\ClientTicketRequest;
@@ -37,13 +38,12 @@ class ClientReservationController extends Controller
         private readonly ReservationNotificationService $notificationService,
         private readonly ReservationQueueService $queueService,
         private readonly ReservationIntentGuardService $intentGuard
-    ) {
-    }
+    ) {}
 
     public function book(Request $request)
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             abort(401);
         }
 
@@ -91,7 +91,7 @@ class ClientReservationController extends Controller
             'client' => [
                 'id' => $customer->id,
                 'name' => $customer->company_name
-                    ?: trim(($customer->first_name ?? '') . ' ' . ($customer->last_name ?? '')),
+                    ?: trim(($customer->first_name ?? '').' '.($customer->last_name ?? '')),
                 'email' => $customer->email,
                 'phone' => $customer->phone,
             ],
@@ -123,7 +123,7 @@ class ClientReservationController extends Controller
     public function slots(SlotRequest $request)
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             abort(401);
         }
 
@@ -131,7 +131,11 @@ class ClientReservationController extends Controller
         [$account] = $this->resolveClientContext($user);
         $validated = $request->validated();
 
-        $durationMinutes = $this->slotDurationMinutes($account->id);
+        $durationMinutes = $this->availabilityService->resolveDurationMinutes(
+            $account->id,
+            isset($validated['service_id']) ? (int) $validated['service_id'] : null,
+            isset($validated['duration_minutes']) ? (int) $validated['duration_minutes'] : null
+        );
 
         $result = $this->availabilityService->generateSlots(
             $account->id,
@@ -153,7 +157,7 @@ class ClientReservationController extends Controller
     public function store(ClientBookingRequest $request)
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             abort(401);
         }
 
@@ -166,17 +170,17 @@ class ClientReservationController extends Controller
 
         $metadata = [
             'contact_name' => $validated['contact_name']
-                ?? ($customer->company_name ?: trim(($customer->first_name ?? '') . ' ' . ($customer->last_name ?? ''))),
+                ?? ($customer->company_name ?: trim(($customer->first_name ?? '').' '.($customer->last_name ?? ''))),
             'contact_email' => $validated['contact_email'] ?? $customer->email,
             'contact_phone' => $validated['contact_phone'] ?? $customer->phone,
         ];
-        if (!empty($validated['party_size'])) {
+        if (! empty($validated['party_size'])) {
             $metadata['party_size'] = (int) $validated['party_size'];
         }
-        if (!empty($validated['resource_filters']) && is_array($validated['resource_filters'])) {
+        if (! empty($validated['resource_filters']) && is_array($validated['resource_filters'])) {
             $metadata['resource_filters'] = $validated['resource_filters'];
         }
-        if (!empty($validated['resource_ids']) && is_array($validated['resource_ids'])) {
+        if (! empty($validated['resource_ids']) && is_array($validated['resource_ids'])) {
             $metadata['resource_ids'] = array_values(array_map('intval', $validated['resource_ids']));
         }
 
@@ -207,7 +211,7 @@ class ClientReservationController extends Controller
     public function index(Request $request)
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             abort(401);
         }
 
@@ -283,7 +287,7 @@ class ClientReservationController extends Controller
     public function events(Request $request)
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             abort(401);
         }
 
@@ -316,10 +320,10 @@ class ClientReservationController extends Controller
         ]);
     }
 
-    public function cancel(Request $request, Reservation $reservation)
+    public function cancel(CancelReservationRequest $request, Reservation $reservation)
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             abort(401);
         }
 
@@ -329,34 +333,30 @@ class ClientReservationController extends Controller
             abort(404);
         }
 
-        if (!$reservation->canBeCancelled()) {
+        if (! $reservation->canBeCancelled()) {
             throw ValidationException::withMessages([
                 'reservation' => ['This reservation cannot be cancelled.'],
             ]);
         }
 
         $settings = $this->availabilityService->resolveSettings($account->id, $reservation->team_member_id);
-        if (!$settings['allow_client_cancel']) {
+        if (! $settings['allow_client_cancel']) {
             throw ValidationException::withMessages([
                 'reservation' => ['Cancellation is disabled for this company.'],
             ]);
         }
 
-        if (!$this->availabilityService->canClientModify($reservation)) {
+        if (! $this->availabilityService->canClientModify($reservation)) {
             throw ValidationException::withMessages([
                 'reservation' => ['This reservation is inside the cancellation cutoff window.'],
             ]);
         }
 
-        $reason = $request->validate([
-            'reason' => ['nullable', 'string', 'max:255'],
-        ]);
-
         $reservation->update([
             'status' => Reservation::STATUS_CANCELLED,
             'cancelled_at' => now(),
             'cancelled_by_user_id' => $user->id,
-            'cancel_reason' => $reason['reason'] ?? null,
+            'cancel_reason' => $request->validated('reason'),
             'metadata' => $this->availabilityService->metadataForStatusTransition($reservation, Reservation::STATUS_CANCELLED),
         ]);
         $this->notificationService->handleCancelled($reservation->fresh(), $user);
@@ -370,7 +370,7 @@ class ClientReservationController extends Controller
     public function reschedule(ClientRescheduleRequest $request, Reservation $reservation)
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             abort(401);
         }
 
@@ -380,20 +380,20 @@ class ClientReservationController extends Controller
             abort(404);
         }
 
-        if (!$reservation->canBeCancelled()) {
+        if (! $reservation->canBeCancelled()) {
             throw ValidationException::withMessages([
                 'reservation' => ['This reservation cannot be rescheduled.'],
             ]);
         }
 
         $settings = $this->availabilityService->resolveSettings($account->id, $reservation->team_member_id);
-        if (!$settings['allow_client_reschedule']) {
+        if (! $settings['allow_client_reschedule']) {
             throw ValidationException::withMessages([
                 'reservation' => ['Rescheduling is disabled for this company.'],
             ]);
         }
 
-        if (!$this->availabilityService->canClientModify($reservation)) {
+        if (! $this->availabilityService->canClientModify($reservation)) {
             throw ValidationException::withMessages([
                 'reservation' => ['This reservation is inside the rescheduling cutoff window.'],
             ]);
@@ -416,14 +416,14 @@ class ClientReservationController extends Controller
     public function waitlistStore(ClientWaitlistRequest $request)
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             abort(401);
         }
 
         $this->authorize('create', Reservation::class);
         [$account, $customer] = $this->resolveClientContext($user);
         $settings = $this->availabilityService->resolveSettings($account->id, null);
-        if (!($settings['waitlist_enabled'] ?? false)) {
+        if (! ($settings['waitlist_enabled'] ?? false)) {
             throw ValidationException::withMessages([
                 'waitlist' => ['Waitlist is disabled for this company.'],
             ]);
@@ -461,7 +461,7 @@ class ClientReservationController extends Controller
     public function waitlistCancel(Request $request, ReservationWaitlist $waitlist)
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             abort(401);
         }
 
@@ -470,10 +470,10 @@ class ClientReservationController extends Controller
         if ((int) $waitlist->account_id !== (int) $account->id) {
             abort(404);
         }
-        if (!$this->clientOwnsWaitlist($waitlist, $customer->id, $user->id)) {
+        if (! $this->clientOwnsWaitlist($waitlist, $customer->id, $user->id)) {
             abort(403);
         }
-        if (!in_array($waitlist->status, ReservationWaitlist::OPEN_STATUSES, true)) {
+        if (! in_array($waitlist->status, ReservationWaitlist::OPEN_STATUSES, true)) {
             throw ValidationException::withMessages([
                 'waitlist' => ['This waitlist entry can no longer be cancelled.'],
             ]);
@@ -493,7 +493,7 @@ class ClientReservationController extends Controller
     public function ticketStore(ClientTicketRequest $request)
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             abort(401);
         }
 
@@ -520,7 +520,7 @@ class ClientReservationController extends Controller
     public function ticketCancel(Request $request, ReservationQueueItem $ticket)
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             abort(401);
         }
 
@@ -530,7 +530,7 @@ class ClientReservationController extends Controller
         if ((int) $ticket->account_id !== (int) $account->id || $ticket->item_type !== ReservationQueueItem::TYPE_TICKET) {
             abort(404);
         }
-        if (!$this->clientOwnsQueueTicket($ticket, $customer->id, $user->id)) {
+        if (! $this->clientOwnsQueueTicket($ticket, $customer->id, $user->id)) {
             abort(403);
         }
 
@@ -549,7 +549,7 @@ class ClientReservationController extends Controller
     public function ticketStillHere(Request $request, ReservationQueueItem $ticket)
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             abort(401);
         }
 
@@ -559,7 +559,7 @@ class ClientReservationController extends Controller
         if ((int) $ticket->account_id !== (int) $account->id || $ticket->item_type !== ReservationQueueItem::TYPE_TICKET) {
             abort(404);
         }
-        if (!$this->clientOwnsQueueTicket($ticket, $customer->id, $user->id)) {
+        if (! $this->clientOwnsQueueTicket($ticket, $customer->id, $user->id)) {
             abort(403);
         }
 
@@ -576,7 +576,7 @@ class ClientReservationController extends Controller
     public function review(ReservationReviewRequest $request, Reservation $reservation)
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             abort(401);
         }
 
@@ -586,7 +586,7 @@ class ClientReservationController extends Controller
             abort(404);
         }
 
-        if ($reservation->status !== Reservation::STATUS_COMPLETED || !$reservation->ends_at || $reservation->ends_at->isFuture()) {
+        if ($reservation->status !== Reservation::STATUS_COMPLETED || ! $reservation->ends_at || $reservation->ends_at->isFuture()) {
             throw ValidationException::withMessages([
                 'reservation' => ['A review can only be submitted after the reservation is completed.'],
             ]);
@@ -626,7 +626,7 @@ class ClientReservationController extends Controller
     public function kiosk(Request $request)
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             abort(401);
         }
 
@@ -634,19 +634,19 @@ class ClientReservationController extends Controller
         [$account] = $this->resolveClientContext($user);
         $settings = $this->availabilityService->resolveSettings($account->id, null);
 
-        if (!$this->queueModeEnabled($settings)) {
+        if (! $this->queueModeEnabled($settings)) {
             return redirect()->route('client.reservations.index')
                 ->with('warning', 'Kiosk is unavailable for this company.');
         }
 
         $kioskEnabled = (bool) data_get($account->company_notification_settings, 'reservations.kiosk_enabled', true);
-        if (!$kioskEnabled) {
+        if (! $kioskEnabled) {
             return redirect()->route('client.reservations.index')
                 ->with('warning', 'Kiosk is disabled for this company.');
         }
 
         $publicUrl = $this->kioskSignedPublicUrl($account->id);
-        if (!$publicUrl) {
+        if (! $publicUrl) {
             return redirect()->route('client.reservations.index')
                 ->with('warning', 'Kiosk link is unavailable right now.');
         }
@@ -739,6 +739,7 @@ class ClientReservationController extends Controller
     private function slotDurationMinutes(int $accountId): int
     {
         $settings = $this->availabilityService->resolveSettings($accountId, null);
+
         return max(5, min(240, (int) ($settings['slot_interval_minutes'] ?? 60)));
     }
 
@@ -750,13 +751,13 @@ class ClientReservationController extends Controller
 
     private function ensureQueueModeEnabled(array $settings): void
     {
-        if (!$this->queueFeaturesAvailable($settings)) {
+        if (! $this->queueFeaturesAvailable($settings)) {
             throw ValidationException::withMessages([
                 'queue' => ['Hybrid queue is only available for salon businesses.'],
             ]);
         }
 
-        if (!($settings['queue_mode_enabled'] ?? false)) {
+        if (! ($settings['queue_mode_enabled'] ?? false)) {
             throw ValidationException::withMessages([
                 'queue' => ['Queue mode is disabled for this company.'],
             ]);
@@ -765,7 +766,7 @@ class ClientReservationController extends Controller
 
     private function kioskEntryUrl(int $accountId, array $settings): ?string
     {
-        if (!$this->queueModeEnabled($settings)) {
+        if (! $this->queueModeEnabled($settings)) {
             return null;
         }
 
@@ -778,7 +779,7 @@ class ClientReservationController extends Controller
 
     private function kioskSignedPublicUrl(int $accountId): ?string
     {
-        if (!Route::has('public.kiosk.reservations.show')) {
+        if (! Route::has('public.kiosk.reservations.show')) {
             return null;
         }
 
@@ -790,12 +791,12 @@ class ClientReservationController extends Controller
         $customer = $user->relationLoaded('customerProfile')
             ? $user->customerProfile
             : $user->customerProfile()->first();
-        if (!$customer instanceof Customer) {
+        if (! $customer instanceof Customer) {
             abort(403);
         }
 
         $account = User::query()->find($customer->user_id);
-        if (!$account) {
+        if (! $account) {
             abort(404);
         }
 
@@ -809,10 +810,10 @@ class ClientReservationController extends Controller
 
         return [
             'id' => $reservation->id,
-            'title' => trim($serviceLabel . ' · ' . $memberLabel),
+            'title' => trim($serviceLabel.' · '.$memberLabel),
             'start' => $reservation->starts_at?->toIso8601String(),
             'end' => $reservation->ends_at?->toIso8601String(),
-            'classNames' => ['reservation-event', 'status-' . $reservation->status],
+            'classNames' => ['reservation-event', 'status-'.$reservation->status],
             'extendedProps' => [
                 'status' => $reservation->status,
                 'team_member_name' => $memberLabel,

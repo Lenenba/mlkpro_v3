@@ -1,8 +1,6 @@
 import '../css/app.css';
 import './bootstrap';
 import 'preline'; // Import de Preline.js
-import ApexCharts from 'apexcharts';
-import ClipboardJS from 'clipboard';
 import { createInertiaApp, router } from '@inertiajs/vue3';
 import { createApp, h } from 'vue';
 import { ZiggyVue } from '../../vendor/tightenco/ziggy';

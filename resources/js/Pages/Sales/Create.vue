@@ -2,6 +2,11 @@
 import { computed, ref, watch } from 'vue';
 import axios from 'axios';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import {
+    paymentMethodDescription as resolvePaymentMethodDescription,
+    paymentMethodLabel as resolvePaymentMethodLabel,
+    useTenantPaymentMethods,
+} from '@/Composables/useTenantPaymentMethods';
 import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
 import InputError from '@/Components/InputError.vue';
@@ -58,69 +63,35 @@ const loyaltyFeatureEnabled = computed(() => {
     return Boolean(props.loyaltyProgram?.feature_enabled ?? false);
 });
 const stripeEnabled = computed(() => Boolean(props.stripe?.enabled));
-const ALLOWED_INTERNAL_METHODS = ['cash', 'card', 'bank_transfer', 'check'];
-
-const allowedPaymentMethods = computed(() => {
-    const raw = Array.isArray(props.paymentMethodSettings?.enabled_methods_internal)
-        ? props.paymentMethodSettings.enabled_methods_internal
-        : [];
-
-    const normalized = raw
-        .map((method) => (typeof method === 'string' ? method.trim().toLowerCase() : ''))
-        .filter((method, index, array) => method && array.indexOf(method) === index)
-        .filter((method) => ALLOWED_INTERNAL_METHODS.includes(method));
-
-    return normalized.length ? normalized : ['cash', 'card'];
-});
-
-const defaultPaymentMethod = computed(() => {
-    const configured = typeof props.paymentMethodSettings?.default_method_internal === 'string'
-        ? props.paymentMethodSettings.default_method_internal.trim().toLowerCase()
-        : '';
-
-    if (configured && allowedPaymentMethods.value.includes(configured)) {
-        return configured;
-    }
-
-    return allowedPaymentMethods.value[0] || 'cash';
-});
+const {
+    allowedPaymentMethods,
+    defaultPaymentMethod,
+    hasMultiplePaymentMethods,
+    singlePaymentMethod,
+    hasCardMethodEnabled,
+} = useTenantPaymentMethods(computed(() => props.paymentMethodSettings));
 
 const paymentMethodLabel = (method) => {
-    if (method === 'cash') {
-        return t('sales.form.payment_methods.cash.label');
-    }
-    if (method === 'card') {
-        return t('sales.form.payment_methods.card.label');
-    }
-    if (method === 'bank_transfer') {
-        return 'Bank transfer';
-    }
-    if (method === 'check') {
-        return 'Check';
-    }
-    return method || '-';
+    return resolvePaymentMethodLabel(method, {
+        cash: t('sales.form.payment_methods.cash.label'),
+        card: t('sales.form.payment_methods.card.label'),
+        bankTransfer: 'Bank transfer',
+        check: 'Check',
+    });
 };
 
 const paymentMethodDescription = (method) => {
-    if (method === 'cash') {
-        return t('sales.form.payment_methods.cash.description');
-    }
-    if (method === 'card') {
-        return t('sales.form.payment_methods.card.description');
-    }
-    if (method === 'bank_transfer') {
-        return 'Manual transfer payment.';
-    }
-    if (method === 'check') {
-        return 'Manual check payment.';
-    }
-    return '';
+    return resolvePaymentMethodDescription(method, {
+        cash: t('sales.form.payment_methods.cash.description'),
+        card: t('sales.form.payment_methods.card.description'),
+        bankTransfer: 'Manual transfer payment.',
+        check: 'Manual check payment.',
+    });
 };
 
 const stripeError = ref('');
 const stripeProcessing = ref(false);
 const hasChargeableTotal = computed(() => total.value > 0);
-const hasCardMethodEnabled = computed(() => allowedPaymentMethods.value.includes('card'));
 const canUseCardPayment = computed(() =>
     hasCardMethodEnabled.value && stripeEnabled.value && hasChargeableTotal.value
 );
@@ -131,9 +102,13 @@ const paymentMethodOptions = computed(() => allowedPaymentMethods.value.map((met
     disabled: method === 'card' && !canUseCardPayment.value,
 })));
 const selectablePaymentMethods = computed(() => paymentMethodOptions.value.filter((option) => !option.disabled));
-const hasMultipleSelectablePaymentMethods = computed(() => selectablePaymentMethods.value.length > 1);
+const hasMultipleSelectablePaymentMethods = computed(() =>
+    hasMultiplePaymentMethods.value && selectablePaymentMethods.value.length > 1
+);
 const singleSelectablePaymentMethod = computed(() =>
-    hasMultipleSelectablePaymentMethods.value ? null : (selectablePaymentMethods.value[0]?.value || null)
+    hasMultipleSelectablePaymentMethods.value
+        ? null
+        : (selectablePaymentMethods.value[0]?.value || singlePaymentMethod.value || defaultPaymentMethod.value)
 );
 const hasAvailablePaymentMethod = computed(() => selectablePaymentMethods.value.length > 0);
 

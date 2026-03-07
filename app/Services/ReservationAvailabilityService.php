@@ -33,7 +33,7 @@ class ReservationAvailabilityService
         }
 
         $accountId = $user->accountOwnerId();
-        if (!$accountId) {
+        if (! $accountId) {
             return null;
         }
 
@@ -44,7 +44,7 @@ class ReservationAvailabilityService
 
     public function timezoneForAccount(?User $account): string
     {
-        if (!$account) {
+        if (! $account) {
             return config('app.timezone', 'UTC');
         }
 
@@ -138,7 +138,7 @@ class ReservationAvailabilityService
         ?array $resourceFilters = null
     ): array {
         $account = User::query()->find($accountId);
-        if (!$account) {
+        if (! $account) {
             return ['timezone' => config('app.timezone', 'UTC'), 'slots' => []];
         }
 
@@ -149,8 +149,10 @@ class ReservationAvailabilityService
             return ['timezone' => $timezone, 'slots' => []];
         }
 
-        $startLocal = $startUtc->copy()->setTimezone($timezone)->startOfDay();
-        $endLocal = $endUtc->copy()->setTimezone($timezone)->endOfDay();
+        $rangeStartLocal = $startUtc->copy()->setTimezone($timezone);
+        $rangeEndLocal = $endUtc->copy()->setTimezone($timezone);
+        $calendarStartLocal = $rangeStartLocal->copy()->startOfDay();
+        $calendarEndLocal = $rangeEndLocal->copy()->endOfDay();
 
         $memberQuery = TeamMember::query()
             ->forAccount($accountId)
@@ -177,8 +179,8 @@ class ReservationAvailabilityService
 
         $exceptions = AvailabilityException::query()
             ->forAccount($accountId)
-            ->whereDate('date', '>=', $startLocal->toDateString())
-            ->whereDate('date', '<=', $endLocal->toDateString())
+            ->whereDate('date', '>=', $calendarStartLocal->toDateString())
+            ->whereDate('date', '<=', $calendarEndLocal->toDateString())
             ->where(function ($query) use ($memberIds) {
                 $query->whereNull('team_member_id')
                     ->orWhereIn('team_member_id', $memberIds);
@@ -210,15 +212,15 @@ class ReservationAvailabilityService
         );
         $shouldApplyResourceCapacity = (
             ($partySize && $partySize > 0)
-            || !empty($normalizedResourceFilters['types'])
-            || !empty($normalizedResourceFilters['resource_ids'])
+            || ! empty($normalizedResourceFilters['types'])
+            || ! empty($normalizedResourceFilters['resource_ids'])
         ) && $activeResources->isNotEmpty();
         $accountSettings = $this->resolveSettings($accountId, null);
         $companyIntervalMinutes = max(5, min(240, (int) ($accountSettings['slot_interval_minutes'] ?? 60)));
 
         $slots = [];
         $nowLocal = now($timezone);
-        $dates = $this->dateRange($startLocal->copy()->startOfDay(), $endLocal->copy()->startOfDay());
+        $dates = $this->dateRange($calendarStartLocal->copy()->startOfDay(), $calendarEndLocal->copy()->startOfDay());
 
         foreach ($members as $member) {
             $settings = $this->resolveSettings($accountId, $member->id);
@@ -235,7 +237,7 @@ class ReservationAvailabilityService
                     $exceptions,
                     $timezone
                 );
-                if (!$dayIntervals) {
+                if (! $dayIntervals) {
                     continue;
                 }
 
@@ -245,18 +247,21 @@ class ReservationAvailabilityService
                         $slotStart = $cursor->copy();
                         $slotEnd = $slotStart->copy()->addMinutes($durationMinutes);
 
-                        if ($slotStart->lt($startLocal) || $slotEnd->gt($endLocal)) {
+                        if ($slotStart->lt($rangeStartLocal) || $slotEnd->gt($rangeEndLocal)) {
                             $cursor->addMinutes($intervalMinutes);
+
                             continue;
                         }
 
-                        if (!$this->passesNoticeRules($slotStart, $nowLocal, $settings)) {
+                        if (! $this->passesNoticeRules($slotStart, $nowLocal, $settings)) {
                             $cursor->addMinutes($intervalMinutes);
+
                             continue;
                         }
 
                         if ($this->hasReservationConflict($slotStart, $slotEnd, $memberReservations, $buffer, $timezone)) {
                             $cursor->addMinutes($intervalMinutes);
+
                             continue;
                         }
 
@@ -272,8 +277,9 @@ class ReservationAvailabilityService
                                 $normalizedResourceFilters
                             );
 
-                            if (!$selectedResource) {
+                            if (! $selectedResource) {
                                 $cursor->addMinutes($intervalMinutes);
+
                                 continue;
                             }
                         }
@@ -299,8 +305,9 @@ class ReservationAvailabilityService
         }
 
         usort($slots, function (array $left, array $right) {
-            $leftKey = $left['starts_at'] . ':' . $left['team_member_id'];
-            $rightKey = $right['starts_at'] . ':' . $right['team_member_id'];
+            $leftKey = $left['starts_at'].':'.$left['team_member_id'];
+            $rightKey = $right['starts_at'].':'.$right['team_member_id'];
+
             return strcmp($leftKey, $rightKey);
         });
 
@@ -324,7 +331,7 @@ class ReservationAvailabilityService
         );
 
         $startUtc = $this->parseToUtc((string) $payload['starts_at'], $payload['timezone'] ?? $timezone);
-        $endUtc = !empty($payload['ends_at'])
+        $endUtc = ! empty($payload['ends_at'])
             ? $this->parseToUtc((string) $payload['ends_at'], $payload['timezone'] ?? $timezone)
             : $startUtc->copy()->addMinutes($durationMinutes);
 
@@ -360,7 +367,7 @@ class ReservationAvailabilityService
                 ->whereKey($teamMemberId)
                 ->lockForUpdate()
                 ->first();
-            if (!$teamMember) {
+            if (! $teamMember) {
                 throw ValidationException::withMessages([
                     'team_member_id' => ['Selected team member is not available.'],
                 ]);
@@ -390,7 +397,7 @@ class ReservationAvailabilityService
                     null
                 );
 
-                if (!$autoResource) {
+                if (! $autoResource) {
                     throw ValidationException::withMessages([
                         'starts_at' => ['Selected slot does not have enough resource capacity.'],
                     ]);
@@ -461,7 +468,7 @@ class ReservationAvailabilityService
         );
 
         $startUtc = $this->parseToUtc((string) $payload['starts_at'], $payload['timezone'] ?? $timezone);
-        $endUtc = !empty($payload['ends_at'])
+        $endUtc = ! empty($payload['ends_at'])
             ? $this->parseToUtc((string) $payload['ends_at'], $payload['timezone'] ?? $timezone)
             : $startUtc->copy()->addMinutes($durationMinutes);
 
@@ -488,7 +495,6 @@ class ReservationAvailabilityService
         return DB::transaction(function () use (
             $reservation,
             $payload,
-            $actor,
             $accountId,
             $newTeamMemberId,
             $timezone,
@@ -508,7 +514,7 @@ class ReservationAvailabilityService
                 ->whereKey($newTeamMemberId)
                 ->lockForUpdate()
                 ->first();
-            if (!$teamMember) {
+            if (! $teamMember) {
                 throw ValidationException::withMessages([
                     'team_member_id' => ['Selected team member is not available.'],
                 ]);
@@ -554,7 +560,7 @@ class ReservationAvailabilityService
                     $reservation->id
                 );
 
-                if (!$autoResource) {
+                if (! $autoResource) {
                     throw ValidationException::withMessages([
                         'starts_at' => ['Selected slot does not have enough resource capacity.'],
                     ]);
@@ -620,6 +626,7 @@ class ReservationAvailabilityService
         }
 
         $cutoffAt = $reservation->starts_at->copy()->subHours($cutoffHours);
+
         return now('UTC')->lt($cutoffAt);
     }
 
@@ -629,9 +636,9 @@ class ReservationAvailabilityService
         $policy = $this->normalizePaymentPolicy($metadata['payment_policy'] ?? null);
 
         if (
-            !$policy['deposit_required']
+            ! $policy['deposit_required']
             && $policy['deposit_amount'] <= 0
-            && !$policy['no_show_fee_enabled']
+            && ! $policy['no_show_fee_enabled']
             && $policy['no_show_fee_amount'] <= 0
         ) {
             $settings = $this->resolveSettings((int) $reservation->account_id, (int) $reservation->team_member_id);
@@ -746,6 +753,7 @@ class ReservationAvailabilityService
         }
 
         $parsed = (int) $value;
+
         return $parsed > 0 ? $parsed : null;
     }
 
@@ -787,8 +795,8 @@ class ReservationAvailabilityService
     private function hasResourceConstraint(?int $partySize, array $resourceFilters): bool
     {
         return ($partySize && $partySize > 0)
-            || !empty($resourceFilters['types'])
-            || !empty($resourceFilters['resource_ids']);
+            || ! empty($resourceFilters['types'])
+            || ! empty($resourceFilters['resource_ids']);
     }
 
     private function availableResourcesForMember(
@@ -805,7 +813,7 @@ class ReservationAvailabilityService
             ->values();
 
         $resourceIds = $resourceFilters['resource_ids'] ?? [];
-        if (!empty($resourceIds)) {
+        if (! empty($resourceIds)) {
             $allowed = array_flip($resourceIds);
             $resources = $resources
                 ->filter(fn (ReservationResource $resource) => isset($allowed[(int) $resource->id]))
@@ -813,7 +821,7 @@ class ReservationAvailabilityService
         }
 
         $types = $resourceFilters['types'] ?? [];
-        if (!empty($types)) {
+        if (! empty($types)) {
             $allowedTypes = array_flip($types);
             $resources = $resources
                 ->filter(fn (ReservationResource $resource) => isset($allowedTypes[strtolower((string) $resource->type)]))
@@ -867,7 +875,7 @@ class ReservationAvailabilityService
 
         foreach ($allocations as $allocation) {
             $reservation = $allocation->reservation;
-            if (!$reservation) {
+            if (! $reservation) {
                 continue;
             }
 
@@ -1014,7 +1022,7 @@ class ReservationAvailabilityService
 
         foreach ($resourceIds as $resourceId) {
             $resource = $resources->get($resourceId);
-            if (!$resource) {
+            if (! $resource) {
                 continue;
             }
 
@@ -1053,19 +1061,19 @@ class ReservationAvailabilityService
             unset($metadata['party_size']);
         }
 
-        if (!empty($resourceFilters['types']) || !empty($resourceFilters['resource_ids'])) {
+        if (! empty($resourceFilters['types']) || ! empty($resourceFilters['resource_ids'])) {
             $metadata['resource_filters'] = $resourceFilters;
         } else {
             unset($metadata['resource_filters']);
         }
 
-        if (!empty($resourceIds)) {
+        if (! empty($resourceIds)) {
             $metadata['resource_ids'] = array_values($resourceIds);
         } else {
             unset($metadata['resource_ids']);
         }
 
-        if (!empty($settings)) {
+        if (! empty($settings)) {
             $metadata = $this->mergePaymentPolicyMetadata($metadata, $settings);
         }
 
@@ -1082,6 +1090,7 @@ class ReservationAvailabilityService
 
         if (empty($resourceIds)) {
             $baseQuery->delete();
+
             return;
         }
 
@@ -1101,6 +1110,7 @@ class ReservationAvailabilityService
                 if ((int) $allocation->quantity !== 1) {
                     $allocation->update(['quantity' => 1]);
                 }
+
                 continue;
             }
 
@@ -1161,7 +1171,7 @@ class ReservationAvailabilityService
             return $startLocal->gte($interval['start']) && $endLocal->lte($interval['end']);
         });
 
-        if (!$fits) {
+        if (! $fits) {
             throw ValidationException::withMessages([
                 'starts_at' => ['Selected slot is outside configured availability.'],
             ]);
@@ -1255,8 +1265,9 @@ class ReservationAvailabilityService
             ->filter(fn (WeeklyAvailability $row) => (int) $row->team_member_id === $teamMemberId)
             ->filter(fn (WeeklyAvailability $row) => (int) $row->day_of_week === $dayOfWeek)
             ->map(function (WeeklyAvailability $row) use ($date, $timezone) {
-                $start = Carbon::parse($date->format('Y-m-d') . ' ' . $row->start_time, $timezone);
-                $end = Carbon::parse($date->format('Y-m-d') . ' ' . $row->end_time, $timezone);
+                $start = Carbon::parse($date->format('Y-m-d').' '.$row->start_time, $timezone);
+                $end = Carbon::parse($date->format('Y-m-d').' '.$row->end_time, $timezone);
+
                 return ['start' => $start, 'end' => $end];
             })
             ->filter(fn (array $interval) => $interval['end']->gt($interval['start']))
@@ -1272,8 +1283,8 @@ class ReservationAvailabilityService
         $closedIntervals = [];
         foreach ($dayExceptions as $exception) {
             if ($exception->start_time && $exception->end_time) {
-                $start = Carbon::parse($date->format('Y-m-d') . ' ' . $exception->start_time, $timezone);
-                $end = Carbon::parse($date->format('Y-m-d') . ' ' . $exception->end_time, $timezone);
+                $start = Carbon::parse($date->format('Y-m-d').' '.$exception->start_time, $timezone);
+                $end = Carbon::parse($date->format('Y-m-d').' '.$exception->end_time, $timezone);
             } else {
                 $start = $date->copy()->startOfDay();
                 $end = $date->copy()->endOfDay();
@@ -1285,6 +1296,7 @@ class ReservationAvailabilityService
 
             if ($exception->type === AvailabilityException::TYPE_OPEN) {
                 $openIntervals[] = ['start' => $start, 'end' => $end];
+
                 continue;
             }
 
@@ -1301,7 +1313,7 @@ class ReservationAvailabilityService
 
     private function normalizeIntervals(array $intervals): array
     {
-        if (!$intervals) {
+        if (! $intervals) {
             return [];
         }
 
@@ -1309,6 +1321,7 @@ class ReservationAvailabilityService
             if ($left['start']->eq($right['start'])) {
                 return $left['end']->lt($right['end']) ? -1 : 1;
             }
+
             return $left['start']->lt($right['start']) ? -1 : 1;
         });
 
@@ -1316,6 +1329,7 @@ class ReservationAvailabilityService
         foreach ($intervals as $interval) {
             if (empty($normalized)) {
                 $normalized[] = $interval;
+
                 continue;
             }
 
@@ -1325,6 +1339,7 @@ class ReservationAvailabilityService
                 if ($interval['end']->gt($last['end'])) {
                     $normalized[$lastIndex]['end'] = $interval['end'];
                 }
+
                 continue;
             }
 
@@ -1340,6 +1355,7 @@ class ReservationAvailabilityService
         foreach ($intervals as $interval) {
             if ($closed['end']->lte($interval['start']) || $closed['start']->gte($interval['end'])) {
                 $results[] = $interval;
+
                 continue;
             }
 
@@ -1381,6 +1397,7 @@ class ReservationAvailabilityService
         for ($cursor = $from->copy(); $cursor->lte($to); $cursor->addDay()) {
             $dates[] = $cursor->copy();
         }
+
         return $dates;
     }
 }

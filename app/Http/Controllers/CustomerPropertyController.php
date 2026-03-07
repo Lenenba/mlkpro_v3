@@ -2,47 +2,24 @@
 
 namespace App\Http\Controllers;
 
+use App\Actions\Customers\UpsertCustomerPropertyAction;
+use App\Http\Requests\Customers\StoreCustomerPropertyRequest;
+use App\Http\Requests\Customers\UpdateCustomerPropertyRequest;
 use App\Models\Customer;
 use App\Models\Property;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\Rule;
 
 class CustomerPropertyController extends Controller
 {
     use AuthorizesRequests;
 
-    public function store(Request $request, Customer $customer)
+    public function store(StoreCustomerPropertyRequest $request, Customer $customer, UpsertCustomerPropertyAction $upsertCustomerProperty)
     {
         $this->authorize('update', $customer);
 
-        $validated = $request->validate([
-            'type' => ['required', Rule::in(['physical', 'billing', 'other'])],
-            'is_default' => ['sometimes', 'boolean'],
-            'street1' => ['nullable', 'string', 'max:255'],
-            'street2' => ['nullable', 'string', 'max:255'],
-            'city' => ['required', 'string', 'max:255'],
-            'state' => ['nullable', 'string', 'max:255'],
-            'zip' => ['nullable', 'string', 'max:10'],
-            'country' => ['nullable', 'string', 'max:255'],
-        ]);
-
-        $makeDefault = (bool) ($validated['is_default'] ?? false);
-        unset($validated['is_default']);
-
-        $property = null;
-        DB::transaction(function () use ($customer, $validated, $makeDefault, &$property) {
-            $hasExisting = $customer->properties()->exists();
-            $shouldBeDefault = $makeDefault || !$hasExisting;
-
-            if ($shouldBeDefault) {
-                $customer->properties()->update(['is_default' => false]);
-            }
-
-            $validated['is_default'] = $shouldBeDefault;
-            $property = $customer->properties()->create($validated);
-        });
+        $property = $upsertCustomerProperty->execute($customer, $request->validated());
 
         if ($this->shouldReturnJson($request)) {
             return response()->json([
@@ -56,21 +33,11 @@ class CustomerPropertyController extends Controller
             ->with('success', 'Property added successfully.');
     }
 
-    public function update(Request $request, Customer $customer, Property $property)
+    public function update(UpdateCustomerPropertyRequest $request, Customer $customer, Property $property, UpsertCustomerPropertyAction $upsertCustomerProperty)
     {
         $this->authorize('update', $customer);
 
-        $validated = $request->validate([
-            'type' => ['required', Rule::in(['physical', 'billing', 'other'])],
-            'street1' => ['nullable', 'string', 'max:255'],
-            'street2' => ['nullable', 'string', 'max:255'],
-            'city' => ['required', 'string', 'max:255'],
-            'state' => ['nullable', 'string', 'max:255'],
-            'zip' => ['nullable', 'string', 'max:10'],
-            'country' => ['nullable', 'string', 'max:255'],
-        ]);
-
-        $property->update($validated);
+        $property = $upsertCustomerProperty->execute($customer, $request->validated(), $property);
 
         if ($this->shouldReturnJson($request)) {
             return response()->json([
@@ -92,12 +59,12 @@ class CustomerPropertyController extends Controller
             $wasDefault = (bool) $property->is_default;
             $property->delete();
 
-            if (!$wasDefault) {
+            if (! $wasDefault) {
                 return;
             }
 
             $nextProperty = $customer->properties()->reorder('id')->first();
-            if (!$nextProperty) {
+            if (! $nextProperty) {
                 return;
             }
 

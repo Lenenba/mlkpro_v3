@@ -2,23 +2,23 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\PlatformSetting;
+use App\Models\ProductCategory;
 use App\Models\Role;
 use App\Models\TeamMember;
 use App\Models\User;
-use App\Models\ProductCategory;
-use App\Models\PlatformSetting;
 use App\Notifications\WelcomeEmailNotification;
 use App\Services\BillingSubscriptionService;
 use App\Services\CompanyFeatureService;
 use App\Services\PlatformAdminNotifier;
 use App\Services\StripeBillingService;
-use App\Support\PlanDisplay;
 use App\Support\NotificationDispatcher;
+use App\Support\PlanDisplay;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -68,7 +68,7 @@ class OnboardingController extends Controller
     public function index(Request $request)
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             return $this->inertiaOrJson('Onboarding/Index', [
                 'preset' => (object) [],
                 'plans' => $this->planOptions(),
@@ -76,7 +76,7 @@ class OnboardingController extends Controller
             ]);
         }
 
-        if (!$user->isAccountOwner()) {
+        if (! $user->isAccountOwner()) {
             return $this->inertiaOrJson('Onboarding/PendingOwner', []);
         }
 
@@ -110,11 +110,11 @@ class OnboardingController extends Controller
     public function store(Request $request)
     {
         $creator = $request->user();
-        if (!$creator) {
+        if (! $creator) {
             abort(401);
         }
 
-        if (!$creator->isAccountOwner()) {
+        if (! $creator->isAccountOwner()) {
             if ($this->shouldReturnJson($request)) {
                 return response()->json([
                     'message' => 'Only the account owner can complete onboarding.',
@@ -125,11 +125,17 @@ class OnboardingController extends Controller
         }
 
         $wasOnboarded = (bool) $creator->onboarding_completed_at;
-        $planRule = $wasOnboarded
+        $legacyDirectCompletion = ! $wasOnboarded
+            && ! $this->shouldReturnJson($request)
+            && ! $request->filled('plan_key');
+        $requiresCheckout = ! $wasOnboarded
+            && ! $legacyDirectCompletion
+            && $this->requiresCheckoutForOnboarding();
+        $planRule = ($wasOnboarded || ! $requiresCheckout)
             ? ['nullable', Rule::in($this->planKeysForOnboarding())]
             : ['required', Rule::in($this->planKeysForOnboarding())];
         $termsRule = $wasOnboarded ? ['nullable'] : ['accepted'];
-        $twoFactorRule = $wasOnboarded
+        $twoFactorRule = ($wasOnboarded || ! $requiresCheckout)
             ? ['nullable', Rule::in(['email', 'app'])]
             : ($this->shouldReturnJson($request)
                 ? ['nullable', Rule::in(['email', 'app'])]
@@ -184,7 +190,7 @@ class OnboardingController extends Controller
         ]);
 
         $twoFactorMethod = $validated['two_factor_method'] ?? null;
-        if (!$twoFactorMethod && !$wasOnboarded) {
+        if (! $twoFactorMethod && ! $wasOnboarded) {
             $twoFactorMethod = 'email';
         }
         if ($twoFactorMethod) {
@@ -207,7 +213,7 @@ class OnboardingController extends Controller
 
         if ($validated['company_type'] === 'products') {
             $features = (array) ($accountOwner->company_features ?? []);
-            if (!array_key_exists('sales', $features)) {
+            if (! array_key_exists('sales', $features)) {
                 $features['sales'] = true;
             }
             $accountOwner->update([
@@ -216,7 +222,7 @@ class OnboardingController extends Controller
         }
 
         $invites = $validated['invites'] ?? [];
-        if (!is_array($invites)) {
+        if (! is_array($invites)) {
             $invites = [];
         }
 
@@ -235,17 +241,30 @@ class OnboardingController extends Controller
 
         $request->session()->put('onboarding_invites', $invites);
 
+        if (! $requiresCheckout) {
+            $message = $this->completeOnboarding($request, $accountOwner);
+
+            if ($this->shouldReturnJson($request)) {
+                return response()->json([
+                    'message' => $message,
+                    'user' => $accountOwner->fresh(),
+                ]);
+            }
+
+            return redirect()->route('dashboard')->with('success', $message);
+        }
+
         return $this->startCheckout($request, $accountOwner, (string) $validated['plan_key']);
     }
 
     public function billing(Request $request)
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             abort(401);
         }
 
-        if (!$user->isAccountOwner()) {
+        if (! $user->isAccountOwner()) {
             if ($this->shouldReturnJson($request)) {
                 return response()->json([
                     'message' => 'Only the account owner can complete onboarding.',
@@ -316,7 +335,7 @@ class OnboardingController extends Controller
         $normalized = Str::of((string) $sector)->lower()->trim()->toString();
         $categories = self::SECTOR_CATEGORIES[$normalized] ?? null;
 
-        if (!$categories) {
+        if (! $categories) {
             $remoteCategories = $this->discoverSectorCategories((string) $sector);
             $base = self::SECTOR_CATEGORIES['autre'];
             $label = preg_replace('/\s+/', ' ', trim((string) $sector));
@@ -345,8 +364,8 @@ class OnboardingController extends Controller
         }
 
         $titles = $this->fetchWikipediaTitles($query);
-        if (!$titles) {
-            $titles = $this->fetchWikipediaTitles($query . ' services');
+        if (! $titles) {
+            $titles = $this->fetchWikipediaTitles($query.' services');
         }
 
         $categories = [];
@@ -359,6 +378,7 @@ class OnboardingController extends Controller
         }
 
         $categories = array_values(array_unique($categories));
+
         return array_slice($categories, 0, 3);
     }
 
@@ -373,14 +393,14 @@ class OnboardingController extends Controller
                 'format' => 'json',
             ]);
 
-            if (!$response->ok()) {
+            if (! $response->ok()) {
                 return [];
             }
 
             $data = $response->json();
             $titles = is_array($data) && isset($data[1]) && is_array($data[1]) ? $data[1] : [];
 
-            return array_values(array_filter($titles, fn($title) => trim((string) $title) !== ''));
+            return array_values(array_filter($titles, fn ($title) => trim((string) $title) !== ''));
         } catch (\Throwable $exception) {
             return [];
         }
@@ -389,13 +409,13 @@ class OnboardingController extends Controller
     private function startCheckout(Request $request, User $accountOwner, string $planKey)
     {
         $billingService = app(BillingSubscriptionService::class);
-        if (!$billingService->providerReady()) {
+        if (! $billingService->providerReady()) {
             throw ValidationException::withMessages([
                 'plan_key' => ['Billing is not configured yet.'],
             ]);
         }
 
-        if (!$billingService->isStripe()) {
+        if (! $billingService->isStripe()) {
             throw ValidationException::withMessages([
                 'plan_key' => ['Onboarding checkout is only available with Stripe.'],
             ]);
@@ -404,7 +424,7 @@ class OnboardingController extends Controller
         $plans = config('billing.plans', []);
         $plan = $plans[$planKey] ?? null;
         $priceId = $plan['price_id'] ?? null;
-        if (!$priceId) {
+        if (! $priceId) {
             throw ValidationException::withMessages([
                 'plan_key' => ['The selected plan is not available for checkout.'],
             ]);
@@ -413,7 +433,7 @@ class OnboardingController extends Controller
         $trialEndsAt = now()->addMonthNoOverflow();
         $seatQuantity = $billingService->resolveSeatQuantity($accountOwner);
         $successUrl = route('onboarding.billing', ['status' => 'success']);
-        $successUrl .= (str_contains($successUrl, '?') ? '&' : '?') . 'session_id={CHECKOUT_SESSION_ID}';
+        $successUrl .= (str_contains($successUrl, '?') ? '&' : '?').'session_id={CHECKOUT_SESSION_ID}';
         $cancelUrl = route('onboarding.billing', ['status' => 'cancel']);
 
         $session = app(StripeBillingService::class)->createCheckoutSession(
@@ -427,7 +447,7 @@ class OnboardingController extends Controller
         );
 
         $url = $session['url'] ?? null;
-        if (!$url) {
+        if (! $url) {
             throw ValidationException::withMessages([
                 'plan_key' => ['Unable to start checkout.'],
             ]);
@@ -451,6 +471,13 @@ class OnboardingController extends Controller
         return redirect()->away($url);
     }
 
+    private function requiresCheckoutForOnboarding(): bool
+    {
+        $billingService = app(BillingSubscriptionService::class);
+
+        return $billingService->providerReady() && $billingService->isStripe();
+    }
+
     private function completeOnboarding(Request $request, User $accountOwner): string
     {
         $invitePayload = $this->applyInvitesFromSession($request, $accountOwner);
@@ -458,22 +485,22 @@ class OnboardingController extends Controller
         $inviteCount = $invitePayload['count'];
 
         $wasOnboarded = (bool) $accountOwner->onboarding_completed_at;
-        if (!$wasOnboarded) {
+        if (! $wasOnboarded) {
             $accountOwner->forceFill(['onboarding_completed_at' => now()])->save();
         }
 
-        if (!$wasOnboarded && $accountOwner->email) {
+        if (! $wasOnboarded && $accountOwner->email) {
             NotificationDispatcher::send($accountOwner, new WelcomeEmailNotification($accountOwner), [
                 'user_id' => $accountOwner->id,
             ]);
         }
 
-        if (!$wasOnboarded) {
+        if (! $wasOnboarded) {
             try {
                 $notifier = app(PlatformAdminNotifier::class);
 
                 $notifier->notify('onboarding_completed', 'Onboarding completed', [
-                    'intro' => ($accountOwner->company_name ?: $accountOwner->email) . ' finished onboarding.',
+                    'intro' => ($accountOwner->company_name ?: $accountOwner->email).' finished onboarding.',
                     'details' => [
                         ['label' => 'Company', 'value' => $accountOwner->company_name ?: 'Not set'],
                         ['label' => 'Owner', 'value' => $accountOwner->email ?: 'Unknown'],
@@ -483,7 +510,7 @@ class OnboardingController extends Controller
                     ],
                     'actionUrl' => route('superadmin.tenants.show', $accountOwner->id),
                     'actionLabel' => 'View tenant',
-                    'reference' => 'onboarding:' . $accountOwner->id,
+                    'reference' => 'onboarding:'.$accountOwner->id,
                     'severity' => 'success',
                 ]);
             } catch (\Throwable $exception) {
@@ -493,7 +520,7 @@ class OnboardingController extends Controller
 
         $messageParts = ['Onboarding completed.'];
         if ($invitePasswords) {
-            $messageParts[] = 'Team passwords: ' . implode(', ', $invitePasswords);
+            $messageParts[] = 'Team passwords: '.implode(', ', $invitePasswords);
         }
 
         return implode(' ', $messageParts);
@@ -502,7 +529,7 @@ class OnboardingController extends Controller
     private function applyInvitesFromSession(Request $request, User $accountOwner): array
     {
         $invites = $request->session()->pull('onboarding_invites', []);
-        if (!is_array($invites) || $invites === []) {
+        if (! is_array($invites) || $invites === []) {
             return [
                 'passwords' => [],
                 'count' => 0,
@@ -532,7 +559,7 @@ class OnboardingController extends Controller
                 continue;
             }
 
-            if (!in_array($role, ['admin', 'member'], true)) {
+            if (! in_array($role, ['admin', 'member'], true)) {
                 $role = 'member';
             }
 
@@ -554,7 +581,7 @@ class OnboardingController extends Controller
             ]);
 
             $inviteCount += 1;
-            $invitePasswords[] = $email . '=' . $plainPassword;
+            $invitePasswords[] = $email.'='.$plainPassword;
         }
 
         return [
@@ -567,6 +594,7 @@ class OnboardingController extends Controller
     {
         $plans = config('billing.plans', []);
         $preferred = ['starter', 'growth', 'scale'];
+
         return array_values(array_filter($preferred, fn (string $key) => array_key_exists($key, $plans)));
     }
 
@@ -604,7 +632,7 @@ class OnboardingController extends Controller
             ],
         };
 
-        if (!is_array($allowedPermissions)) {
+        if (! is_array($allowedPermissions)) {
             return $defaults;
         }
 
@@ -618,7 +646,7 @@ class OnboardingController extends Controller
 
         return array_values(array_filter($permissionIds, function (string $permissionId) use ($accountOwner, $featureService): bool {
             $feature = self::TEAM_PERMISSION_FEATURE_MAP[$permissionId] ?? null;
-            if (!$feature) {
+            if (! $feature) {
                 return true;
             }
 
@@ -673,7 +701,7 @@ class OnboardingController extends Controller
     private function syncLatestSubscription(User $user): void
     {
         $customer = $user->customer ?: $user->createAsCustomer();
-        if (!$customer) {
+        if (! $customer) {
             return;
         }
 
@@ -689,7 +717,7 @@ class OnboardingController extends Controller
             ]),
         ])['data'][0] ?? null;
 
-        if (!$latest || empty($latest['id'])) {
+        if (! $latest || empty($latest['id'])) {
             return;
         }
 
@@ -699,15 +727,15 @@ class OnboardingController extends Controller
 
         $subscription->type = $latest['custom_data']['subscription_type'] ?? Subscription::DEFAULT_TYPE;
         $subscription->status = $latest['status'] ?? Subscription::STATUS_ACTIVE;
-        $subscription->trial_ends_at = ($subscription->status === Subscription::STATUS_TRIALING && !empty($latest['next_billed_at']))
+        $subscription->trial_ends_at = ($subscription->status === Subscription::STATUS_TRIALING && ! empty($latest['next_billed_at']))
             ? Carbon::parse($latest['next_billed_at'], 'UTC')
             : null;
 
-        $subscription->paused_at = !empty($latest['paused_at'])
+        $subscription->paused_at = ! empty($latest['paused_at'])
             ? Carbon::parse($latest['paused_at'], 'UTC')
             : null;
 
-        $subscription->ends_at = !empty($latest['canceled_at'])
+        $subscription->ends_at = ! empty($latest['canceled_at'])
             ? Carbon::parse($latest['canceled_at'], 'UTC')
             : null;
 
@@ -717,7 +745,7 @@ class OnboardingController extends Controller
         $knownPriceIds = [];
         foreach ($items as $item) {
             $priceId = $item['price']['id'] ?? null;
-            if (!$priceId) {
+            if (! $priceId) {
                 continue;
             }
 
