@@ -12,6 +12,7 @@ use App\Services\Campaigns\ConsentService;
 use App\Services\Campaigns\FatigueLimiter;
 use App\Services\Campaigns\Providers\CampaignProviderManager;
 use App\Services\Campaigns\TemplateRenderer;
+use App\Support\QueueWorkload;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -24,11 +25,15 @@ class SendCampaignRecipientJob implements ShouldQueue
 
     public int $tries = 4;
 
-    public array $backoff = [30, 120, 300, 600];
-
     public function __construct(
         public int $campaignRecipientId
     ) {
+        $this->onQueue(QueueWorkload::queue('campaigns_send'));
+    }
+
+    public function backoff(): array
+    {
+        return QueueWorkload::backoff('campaigns_send', [30, 120, 300, 600]);
     }
 
     public function handle(
@@ -48,7 +53,7 @@ class SendCampaignRecipientJob implements ShouldQueue
             ])
             ->find($this->campaignRecipientId);
 
-        if (!$recipient || !$recipient->campaign || !$recipient->run) {
+        if (! $recipient || ! $recipient->campaign || ! $recipient->run) {
             return;
         }
 
@@ -58,9 +63,10 @@ class SendCampaignRecipientJob implements ShouldQueue
 
         $channelModel = $recipient->campaign->channels
             ->first(fn ($channel) => strtoupper((string) $channel->channel) === strtoupper((string) $recipient->channel));
-        if (!$channelModel) {
+        if (! $channelModel) {
             $trackingService->markFailed($recipient, 'missing_channel_template');
             $progressService->refresh($recipient->run);
+
             return;
         }
 
@@ -83,6 +89,7 @@ class SendCampaignRecipientJob implements ShouldQueue
                 ['invalid_tokens' => $rendered['invalid_tokens']]
             );
             $progressService->refresh($recipient->run);
+
             return;
         }
 
@@ -91,6 +98,7 @@ class SendCampaignRecipientJob implements ShouldQueue
                 'segments' => $rendered['sms_segments'] ?? null,
             ]);
             $progressService->refresh($recipient->run);
+
             return;
         }
 
@@ -135,7 +143,7 @@ class SendCampaignRecipientJob implements ShouldQueue
         );
 
         $result = $providerManager->send($recipient, $message);
-        if (!($result['ok'] ?? false)) {
+        if (! ($result['ok'] ?? false)) {
             $reason = (string) ($result['reason'] ?? 'provider_error');
             $fallback = $this->queueFallbackForFailure(
                 $recipient,
@@ -154,6 +162,7 @@ class SendCampaignRecipientJob implements ShouldQueue
                 ]
             );
             $progressService->refresh($recipient->run);
+
             return;
         }
 
@@ -178,13 +187,13 @@ class SendCampaignRecipientJob implements ShouldQueue
         $recipientMetadata = is_array($recipient->metadata) ? $recipient->metadata : [];
         $assignment = is_array($recipientMetadata['ab_test'] ?? null) ? $recipientMetadata['ab_test'] : [];
         $variant = strtoupper((string) ($assignment['variant'] ?? ''));
-        if (!in_array($variant, ['A', 'B'], true)) {
+        if (! in_array($variant, ['A', 'B'], true)) {
             return ['channel' => $channelModel, 'variant' => null];
         }
 
         $channelMetadata = is_array($channelModel->metadata) ? $channelModel->metadata : [];
         $abTesting = is_array($channelMetadata['ab_testing'] ?? null) ? $channelMetadata['ab_testing'] : [];
-        if (!($abTesting['enabled'] ?? false)) {
+        if (! ($abTesting['enabled'] ?? false)) {
             return ['channel' => $channelModel, 'variant' => null];
         }
 
@@ -221,12 +230,12 @@ class SendCampaignRecipientJob implements ShouldQueue
     ): array {
         $campaign = $recipient->campaign;
         $accountOwner = $campaign?->user;
-        if (!$campaign || !$accountOwner) {
+        if (! $campaign || ! $accountOwner) {
             return ['queued' => false, 'reason' => 'missing_campaign_owner'];
         }
 
         $config = $this->fallbackConfig(is_array($campaign->settings) ? $campaign->settings : []);
-        if (!($config['enabled'] ?? false)) {
+        if (! ($config['enabled'] ?? false)) {
             return ['queued' => false, 'reason' => 'fallback_disabled'];
         }
 
@@ -244,7 +253,7 @@ class SendCampaignRecipientJob implements ShouldQueue
             ->unique()
             ->values()
             ->all();
-        if (!in_array($fromChannel, $history, true)) {
+        if (! in_array($fromChannel, $history, true)) {
             $history[] = $fromChannel;
         }
 
@@ -267,11 +276,13 @@ class SendCampaignRecipientJob implements ShouldQueue
             $target = strtoupper((string) $targetChannel);
             if (in_array($target, $history, true)) {
                 $attempts[] = ['channel' => $target, 'reason' => 'channel_already_in_history'];
+
                 continue;
             }
 
-            if (!in_array($target, $enabledChannels, true)) {
+            if (! in_array($target, $enabledChannels, true)) {
                 $attempts[] = ['channel' => $target, 'reason' => 'channel_not_enabled'];
+
                 continue;
             }
 
@@ -282,11 +293,12 @@ class SendCampaignRecipientJob implements ShouldQueue
                 $target,
                 $destinationCandidate
             );
-            if (!($consentDecision['allowed'] ?? false)) {
+            if (! ($consentDecision['allowed'] ?? false)) {
                 $attempts[] = [
                     'channel' => $target,
                     'reason' => (string) ($consentDecision['reason'] ?? 'consent_denied'),
                 ];
+
                 continue;
             }
 
@@ -297,11 +309,12 @@ class SendCampaignRecipientJob implements ShouldQueue
                     $target,
                     $campaign
                 );
-                if (!($fatigueDecision['allowed'] ?? false)) {
+                if (! ($fatigueDecision['allowed'] ?? false)) {
                     $attempts[] = [
                         'channel' => $target,
                         'reason' => (string) ($fatigueDecision['reason'] ?? 'fatigue_denied'),
                     ];
+
                     continue;
                 }
             }
@@ -309,11 +322,12 @@ class SendCampaignRecipientJob implements ShouldQueue
             $destination = (string) ($consentDecision['destination'] ?? '');
             if ($destination === '') {
                 $attempts[] = ['channel' => $target, 'reason' => 'missing_destination'];
+
                 continue;
             }
 
             $destinationHash = CampaignRecipient::destinationHash($destination)
-                ?: hash('sha256', $target . ':' . strtolower($destination));
+                ?: hash('sha256', $target.':'.strtolower($destination));
             $nextHistory = collect(array_merge($history, [$target]))
                 ->map(fn ($value) => strtoupper((string) $value))
                 ->unique()
@@ -342,15 +356,16 @@ class SendCampaignRecipientJob implements ShouldQueue
                     'user_id' => $recipient->user_id,
                     'customer_id' => $recipient->customer_id,
                     'destination' => $destination,
-                    'dedupe_key' => $target . ':' . $destinationHash,
+                    'dedupe_key' => $target.':'.$destinationHash,
                     'status' => CampaignRecipient::STATUS_QUEUED,
                     'queued_at' => now(),
                     'metadata' => $nextMetadata,
                 ]
             );
 
-            if (!$fallbackRecipient->wasRecentlyCreated) {
+            if (! $fallbackRecipient->wasRecentlyCreated) {
                 $attempts[] = ['channel' => $target, 'reason' => 'duplicate_destination'];
+
                 continue;
             }
 
@@ -375,7 +390,7 @@ class SendCampaignRecipientJob implements ShouldQueue
     }
 
     /**
-     * @param array<string, mixed> $settings
+     * @param  array<string, mixed>  $settings
      * @return array{enabled: bool, max_depth: int, map: array<string, array<int, string>>}
      */
     private function fallbackConfig(array $settings): array
@@ -432,6 +447,7 @@ class SendCampaignRecipientJob implements ShouldQueue
         }
 
         $fallbackValue = trim((string) $fallback);
+
         return $fallbackValue !== '' ? $fallbackValue : null;
     }
 }

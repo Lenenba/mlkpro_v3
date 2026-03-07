@@ -11,7 +11,7 @@ const props = defineProps({
         required: true,
     },
 });
-const emit = defineEmits(['close']);
+const emit = defineEmits(['close', 'open']);
 const close = () => {
     if (props.closeable) {
         emit('close');
@@ -28,10 +28,34 @@ const closeOnEscape = (e) => {
     }
 };
 
-onMounted(() => document.addEventListener('keydown', closeOnEscape));
+const handleOverlayOpen = () => {
+    emit('open');
+};
+
+const handleOverlayClose = () => {
+    emit('close');
+};
+
+onMounted(() => {
+    document.addEventListener('keydown', closeOnEscape);
+
+    const overlay = document.getElementById(props.id);
+    if (!overlay) {
+        return;
+    }
+
+    overlay.addEventListener('open.hs.overlay', handleOverlayOpen);
+    overlay.addEventListener('close.hs.overlay', handleOverlayClose);
+});
 
 onUnmounted(() => {
     document.removeEventListener('keydown', closeOnEscape);
+
+    const overlay = document.getElementById(props.id);
+    if (overlay) {
+        overlay.removeEventListener('open.hs.overlay', handleOverlayOpen);
+        overlay.removeEventListener('close.hs.overlay', handleOverlayClose);
+    }
 
     document.body.style.overflow = '';
 });

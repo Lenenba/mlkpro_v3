@@ -8,6 +8,7 @@ use App\Models\CampaignRun;
 use App\Services\Campaigns\AudienceResolver;
 use App\Services\Campaigns\CampaignRunProgressService;
 use App\Services\Campaigns\CampaignTrackingService;
+use App\Support\QueueWorkload;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -20,11 +21,15 @@ class DispatchCampaignRunJob implements ShouldQueue
 
     public int $tries = 3;
 
-    public array $backoff = [60, 300, 900];
-
     public function __construct(
         public int $campaignRunId
     ) {
+        $this->onQueue(QueueWorkload::queue('campaigns_dispatch'));
+    }
+
+    public function backoff(): array
+    {
+        return QueueWorkload::backoff('campaigns_dispatch', [60, 300, 900]);
     }
 
     public function handle(
@@ -38,7 +43,7 @@ class DispatchCampaignRunJob implements ShouldQueue
             ])
             ->find($this->campaignRunId);
 
-        if (!$run || !$run->campaign) {
+        if (! $run || ! $run->campaign) {
             return;
         }
 
@@ -77,7 +82,7 @@ class DispatchCampaignRunJob implements ShouldQueue
                 $destinationHash = (string) ($payload['destination_hash'] ?? '');
                 if ($destinationHash === '') {
                     $destinationHash = CampaignRecipient::destinationHash($destination)
-                        ?: hash('sha256', 'eligible:' . $channel . ':' . $destination);
+                        ?: hash('sha256', 'eligible:'.$channel.':'.$destination);
                 }
 
                 $customerId = isset($payload['customer_id']) && is_numeric($payload['customer_id'])
@@ -104,7 +109,7 @@ class DispatchCampaignRunJob implements ShouldQueue
                             'user_id' => $run->user_id,
                             'customer_id' => $customerId,
                             'destination' => $destination !== '' ? $destination : null,
-                            'dedupe_key' => $channel . ':' . $destinationHash,
+                            'dedupe_key' => $channel.':'.$destinationHash,
                             'status' => CampaignRecipient::STATUS_SKIPPED,
                             'failure_reason' => 'holdout_group',
                             'queued_at' => now(),
@@ -145,7 +150,7 @@ class DispatchCampaignRunJob implements ShouldQueue
                         'user_id' => $run->user_id,
                         'customer_id' => $customerId,
                         'destination' => $destination !== '' ? $destination : null,
-                        'dedupe_key' => $channel . ':' . $destinationHash,
+                        'dedupe_key' => $channel.':'.$destinationHash,
                         'status' => CampaignRecipient::STATUS_QUEUED,
                         'queued_at' => now(),
                         'metadata' => $metadata ?: null,
@@ -161,7 +166,7 @@ class DispatchCampaignRunJob implements ShouldQueue
                         'campaign_run_id' => $run->id,
                         'channel' => (string) ($payload['channel'] ?? ''),
                         'destination_hash' => CampaignRecipient::destinationHash((string) ($payload['destination'] ?? ''))
-                            ?: hash('sha256', 'blocked:' . ($payload['channel'] ?? '') . ':' . ($payload['destination'] ?? '')),
+                            ?: hash('sha256', 'blocked:'.($payload['channel'] ?? '').':'.($payload['destination'] ?? '')),
                     ],
                     [
                         'campaign_id' => $run->campaign_id,
@@ -222,7 +227,7 @@ class DispatchCampaignRunJob implements ShouldQueue
         ?int $customerId,
         string $destinationHash
     ): bool {
-        if (!($holdoutConfig['enabled'] ?? false)) {
+        if (! ($holdoutConfig['enabled'] ?? false)) {
             return false;
         }
 
@@ -235,9 +240,9 @@ class DispatchCampaignRunJob implements ShouldQueue
         }
 
         $seed = $customerId
-            ? 'customer:' . $customerId
-            : 'destination:' . $destinationHash;
-        $bucket = abs(crc32($campaignRunId . '|' . $seed)) % 100;
+            ? 'customer:'.$customerId
+            : 'destination:'.$destinationHash;
+        $bucket = abs(crc32($campaignRunId.'|'.$seed)) % 100;
 
         return $bucket < $percent;
     }
@@ -250,18 +255,18 @@ class DispatchCampaignRunJob implements ShouldQueue
         int $campaignRunId,
         string $destinationHash
     ): ?array {
-        if (!$channel) {
+        if (! $channel) {
             return null;
         }
 
         $metadata = is_array($channel->metadata) ? $channel->metadata : [];
         $abTesting = is_array($metadata['ab_testing'] ?? null) ? $metadata['ab_testing'] : [];
-        if (!($abTesting['enabled'] ?? false)) {
+        if (! ($abTesting['enabled'] ?? false)) {
             return null;
         }
 
         $splitA = max(0, min(100, (int) ($abTesting['split_a_percent'] ?? 50)));
-        $bucket = abs(crc32($campaignRunId . '|' . strtoupper((string) $channel->channel) . '|' . $destinationHash)) % 100;
+        $bucket = abs(crc32($campaignRunId.'|'.strtoupper((string) $channel->channel).'|'.$destinationHash)) % 100;
         $variant = $bucket < $splitA ? 'A' : 'B';
 
         return [

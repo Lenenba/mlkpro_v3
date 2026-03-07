@@ -8,6 +8,7 @@ use App\Models\Customer;
 use App\Models\Invoice;
 use App\Models\User;
 use App\Notifications\ActionEmailNotification;
+use App\Services\Portal\PortalAccessService;
 use App\Services\StripeInvoiceService;
 use App\Services\TenantPaymentMethodGuardService;
 use App\Support\NotificationDispatcher;
@@ -22,22 +23,14 @@ use Inertia\Inertia;
 
 class PortalInvoiceController extends Controller
 {
-    private function portalCustomer(Request $request): Customer
-    {
-        $customer = $request->user()?->customerProfile;
-        if (! $customer) {
-            abort(403);
-        }
-
-        return $customer;
-    }
+    public function __construct(
+        private readonly PortalAccessService $portalAccess
+    ) {}
 
     public function show(Request $request, Invoice $invoice)
     {
-        $customer = $this->portalCustomer($request);
-        if ($invoice->customer_id !== $customer->id) {
-            abort(403);
-        }
+        $customer = $this->portalAccess->customer($request);
+        $this->portalAccess->assertInvoice($customer, $invoice);
 
         $invoice->load([
             'customer.properties',
@@ -61,7 +54,7 @@ class PortalInvoiceController extends Controller
 
     public function storePayment(Request $request, Invoice $invoice)
     {
-        $customer = $this->portalCustomer($request);
+        $customer = $this->portalAccess->customer($request);
         [$canPay, $message] = $this->resolvePaymentAvailability($invoice, $customer);
         if (! $canPay) {
             if ($this->shouldReturnJson($request)) {
@@ -194,7 +187,7 @@ class PortalInvoiceController extends Controller
 
     public function createStripeCheckout(Request $request, Invoice $invoice)
     {
-        $customer = $this->portalCustomer($request);
+        $customer = $this->portalAccess->customer($request);
         [$canPay, $message] = $this->resolvePaymentAvailability($invoice, $customer);
         if (! $canPay) {
             if ($this->shouldReturnJson($request)) {
@@ -294,9 +287,7 @@ class PortalInvoiceController extends Controller
 
     private function resolvePaymentAvailability(Invoice $invoice, Customer $customer): array
     {
-        if ($invoice->customer_id !== $customer->id) {
-            abort(403);
-        }
+        $this->portalAccess->assertInvoice($customer, $invoice);
 
         if ($customer->auto_validate_invoices) {
             return [false, 'Invoice actions are handled by the company.'];

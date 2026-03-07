@@ -14,8 +14,6 @@ use App\Models\Role;
 use App\Models\TrackingEvent;
 use App\Models\User;
 use App\Models\Work;
-use App\Services\BillingSubscriptionService;
-use App\Services\UsageLimitService;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
@@ -25,213 +23,218 @@ use Laravel\Paddle\Subscription;
 
 class SuperAdminDashboardService
 {
+    public function __construct(
+        private readonly QueueHealthService $queueHealthService
+    ) {}
+
     public function getMetrics(): array
     {
         return Cache::remember('superadmin:dashboard:metrics', now()->addMinutes(5), function () {
-        $ownerRoleId = Role::query()->where('name', 'owner')->value('id');
-        $ownersQuery = $ownerRoleId
-            ? User::query()->where('role_id', $ownerRoleId)
-            : User::query()->whereRaw('0 = 1');
+            $ownerRoleId = Role::query()->where('name', 'owner')->value('id');
+            $ownersQuery = $ownerRoleId
+                ? User::query()->where('role_id', $ownerRoleId)
+                : User::query()->whereRaw('0 = 1');
 
-        $owners = (clone $ownersQuery)->get([
-            'id',
-            'created_at',
-            'company_name',
-            'email',
-            'company_limits',
-            'onboarding_completed_at',
-        ]);
-        $ownerIds = $owners->pluck('id');
+            $owners = (clone $ownersQuery)->get([
+                'id',
+                'created_at',
+                'company_name',
+                'email',
+                'company_limits',
+                'onboarding_completed_at',
+            ]);
+            $ownerIds = $owners->pluck('id');
 
-        $totalCompanies = (clone $ownersQuery)->count();
-        $onboardedCompanies = (clone $ownersQuery)->whereNotNull('onboarding_completed_at')->count();
+            $totalCompanies = (clone $ownersQuery)->count();
+            $onboardedCompanies = (clone $ownersQuery)->whereNotNull('onboarding_completed_at')->count();
 
-        $rangeStart = now()->subDays(30)->startOfDay();
-        $rangeEnd = now()->endOfDay();
-        $acquisitionSeries = $this->buildAcquisitionSeries($rangeStart, $rangeEnd, $ownersQuery);
-        $newCompanies = (clone $ownersQuery)->where('created_at', '>=', $rangeStart)->count();
+            $rangeStart = now()->subDays(30)->startOfDay();
+            $rangeEnd = now()->endOfDay();
+            $acquisitionSeries = $this->buildAcquisitionSeries($rangeStart, $rangeEnd, $ownersQuery);
+            $newCompanies = (clone $ownersQuery)->where('created_at', '>=', $rangeStart)->count();
 
-        $onboarded30 = (clone $ownersQuery)
-            ->where('created_at', '>=', $rangeStart)
-            ->whereNotNull('onboarding_completed_at')
-            ->count();
-        $total30 = (clone $ownersQuery)
-            ->where('created_at', '>=', $rangeStart)
-            ->count();
+            $onboarded30 = (clone $ownersQuery)
+                ->where('created_at', '>=', $rangeStart)
+                ->whereNotNull('onboarding_completed_at')
+                ->count();
+            $total30 = (clone $ownersQuery)
+                ->where('created_at', '>=', $rangeStart)
+                ->count();
 
-        $firstActivityMap = $this->firstActivityMap($ownerIds);
-        $activationRates = $this->activationRates($owners, $firstActivityMap);
+            $firstActivityMap = $this->firstActivityMap($ownerIds);
+            $activationRates = $this->activationRates($owners, $firstActivityMap);
 
-        $avgQuoteDays = $this->averageDaysToFirst($owners, 'quotes');
-        $avgInvoiceDays = $this->averageDaysToFirst($owners, 'invoices');
-        $avgProductDays = $this->averageDaysToFirstProductType($owners, Product::ITEM_TYPE_PRODUCT);
-        $avgServiceDays = $this->averageDaysToFirstProductType($owners, Product::ITEM_TYPE_SERVICE);
-        $avgWorkDays = $this->averageDaysToFirst($owners, 'works');
+            $avgQuoteDays = $this->averageDaysToFirst($owners, 'quotes');
+            $avgInvoiceDays = $this->averageDaysToFirst($owners, 'invoices');
+            $avgProductDays = $this->averageDaysToFirstProductType($owners, Product::ITEM_TYPE_PRODUCT);
+            $avgServiceDays = $this->averageDaysToFirstProductType($owners, Product::ITEM_TYPE_SERVICE);
+            $avgWorkDays = $this->averageDaysToFirst($owners, 'works');
 
-        $wau = $this->countActiveUsersSince($ownerIds, now()->subDays(7));
-        $mau = $this->countActiveUsersSince($ownerIds, now()->subDays(30));
+            $wau = $this->countActiveUsersSince($ownerIds, now()->subDays(7));
+            $mau = $this->countActiveUsersSince($ownerIds, now()->subDays(30));
 
-        $activityCounts = [
-            'quotes' => Quote::query()->where('created_at', '>=', $rangeStart)->count(),
-            'invoices' => Invoice::query()->where('created_at', '>=', $rangeStart)->count(),
-            'works' => Work::query()->where('created_at', '>=', $rangeStart)->count(),
-            'products' => Product::query()->where('item_type', Product::ITEM_TYPE_PRODUCT)->where('created_at', '>=', $rangeStart)->count(),
-            'services' => Product::query()->where('item_type', Product::ITEM_TYPE_SERVICE)->where('created_at', '>=', $rangeStart)->count(),
-        ];
+            $activityCounts = [
+                'quotes' => Quote::query()->where('created_at', '>=', $rangeStart)->count(),
+                'invoices' => Invoice::query()->where('created_at', '>=', $rangeStart)->count(),
+                'works' => Work::query()->where('created_at', '>=', $rangeStart)->count(),
+                'products' => Product::query()->where('item_type', Product::ITEM_TYPE_PRODUCT)->where('created_at', '>=', $rangeStart)->count(),
+                'services' => Product::query()->where('item_type', Product::ITEM_TYPE_SERVICE)->where('created_at', '>=', $rangeStart)->count(),
+            ];
 
-        $servicesTotal = Product::query()->where('item_type', Product::ITEM_TYPE_SERVICE)->count();
-        $productsTotal = Product::query()->where('item_type', Product::ITEM_TYPE_PRODUCT)->count();
+            $servicesTotal = Product::query()->where('item_type', Product::ITEM_TYPE_SERVICE)->count();
+            $productsTotal = Product::query()->where('item_type', Product::ITEM_TYPE_PRODUCT)->count();
 
-        $health = $this->healthStats();
-        $subscriptionMap = $this->subscriptionMap($ownerIds);
-        $usageStatsMap = $this->usageStatsForOwners($ownerIds);
-        $limitAlerts = $this->limitAlerts($owners, $usageStatsMap, $subscriptionMap);
-        $lastActivityMap = $this->lastActivityMap($ownerIds);
-        $riskTenants = $this->riskTenants($owners, $subscriptionMap, $lastActivityMap);
-        $usageTrends = $this->usageTrends();
-        $siteTraffic = $this->siteVisitStats();
-        $siteTrafficSeries = $this->siteVisitSeries(now()->subDays(30)->startOfDay(), now()->endOfDay());
+            $health = $this->healthStats();
+            $subscriptionMap = $this->subscriptionMap($ownerIds);
+            $usageStatsMap = $this->usageStatsForOwners($ownerIds);
+            $limitAlerts = $this->limitAlerts($owners, $usageStatsMap, $subscriptionMap);
+            $lastActivityMap = $this->lastActivityMap($ownerIds);
+            $riskTenants = $this->riskTenants($owners, $subscriptionMap, $lastActivityMap);
+            $usageTrends = $this->usageTrends();
+            $siteTraffic = $this->siteVisitStats();
+            $siteTrafficSeries = $this->siteVisitSeries(now()->subDays(30)->startOfDay(), now()->endOfDay());
 
-        return [
-            'companies_total' => $totalCompanies,
-            'companies_onboarded' => $onboardedCompanies,
-            'companies_recent_30d' => $newCompanies,
-            'acquisition_series' => $acquisitionSeries,
-            'onboarding_conversion' => $totalCompanies > 0
-                ? round(($onboardedCompanies / $totalCompanies) * 100, 1)
-                : 0,
-            'onboarding_conversion_30d' => $total30 > 0
-                ? round(($onboarded30 / $total30) * 100, 1)
-                : 0,
-            'wau' => $wau,
-            'mau' => $mau,
-            'activation_rates' => $activationRates,
-            'avg_days_to_first' => [
-                'quote' => $avgQuoteDays,
-                'invoice' => $avgInvoiceDays,
-                'product' => $avgProductDays,
-                'service' => $avgServiceDays,
-                'work' => $avgWorkDays,
-            ],
-            'activity_counts' => $activityCounts,
-            'services_total' => $servicesTotal,
-            'products_total' => $productsTotal,
-            'subscription' => $this->subscriptionStats(),
-            'cohorts' => $this->cohortStats($owners, $firstActivityMap),
-            'data_quality' => $this->dataQualityStats(),
-            'health' => $health,
-            'alerts' => $this->platformAlerts($limitAlerts, $health),
-            'usage_trends' => $usageTrends,
-            'site_traffic' => $siteTraffic,
-            'site_traffic_series' => $siteTrafficSeries,
-            'at_risk_tenants' => $riskTenants,
-            'action_center' => $this->actionCenterStats($limitAlerts, $riskTenants),
-        ];
+            return [
+                'companies_total' => $totalCompanies,
+                'companies_onboarded' => $onboardedCompanies,
+                'companies_recent_30d' => $newCompanies,
+                'acquisition_series' => $acquisitionSeries,
+                'onboarding_conversion' => $totalCompanies > 0
+                    ? round(($onboardedCompanies / $totalCompanies) * 100, 1)
+                    : 0,
+                'onboarding_conversion_30d' => $total30 > 0
+                    ? round(($onboarded30 / $total30) * 100, 1)
+                    : 0,
+                'wau' => $wau,
+                'mau' => $mau,
+                'activation_rates' => $activationRates,
+                'avg_days_to_first' => [
+                    'quote' => $avgQuoteDays,
+                    'invoice' => $avgInvoiceDays,
+                    'product' => $avgProductDays,
+                    'service' => $avgServiceDays,
+                    'work' => $avgWorkDays,
+                ],
+                'activity_counts' => $activityCounts,
+                'services_total' => $servicesTotal,
+                'products_total' => $productsTotal,
+                'subscription' => $this->subscriptionStats(),
+                'cohorts' => $this->cohortStats($owners, $firstActivityMap),
+                'data_quality' => $this->dataQualityStats(),
+                'health' => $health,
+                'alerts' => $this->platformAlerts($limitAlerts, $health),
+                'usage_trends' => $usageTrends,
+                'site_traffic' => $siteTraffic,
+                'site_traffic_series' => $siteTrafficSeries,
+                'at_risk_tenants' => $riskTenants,
+                'action_center' => $this->actionCenterStats($limitAlerts, $riskTenants),
+            ];
         });
     }
 
     public function getRecentAudits(array $filters = [], int $limit = 10): array
     {
-        $cacheKey = 'superadmin:dashboard:audits:' . md5(json_encode($filters) . ':' . $limit);
+        $cacheKey = 'superadmin:dashboard:audits:'.md5(json_encode($filters).':'.$limit);
+
         return Cache::remember($cacheKey, now()->addSeconds(30), function () use ($filters, $limit) {
-        $query = PlatformAuditLog::query()
-            ->with('user:id,name,email')
-            ->latest();
+            $query = PlatformAuditLog::query()
+                ->with('user:id,name,email')
+                ->latest();
 
-        $adminId = $filters['admin_id'] ?? null;
-        if ($adminId) {
-            $query->where('user_id', $adminId);
-        }
+            $adminId = $filters['admin_id'] ?? null;
+            if ($adminId) {
+                $query->where('user_id', $adminId);
+            }
 
-        $tenantId = $filters['tenant_id'] ?? null;
-        if ($tenantId) {
-            $query->where(function ($sub) use ($tenantId) {
-                $sub->where(function ($inner) use ($tenantId) {
-                    $inner->where('subject_type', User::class)
-                        ->where('subject_id', $tenantId);
+            $tenantId = $filters['tenant_id'] ?? null;
+            if ($tenantId) {
+                $query->where(function ($sub) use ($tenantId) {
+                    $sub->where(function ($inner) use ($tenantId) {
+                        $inner->where('subject_type', User::class)
+                            ->where('subject_id', $tenantId);
+                    })
+                        ->orWhere('metadata->tenant_id', $tenantId);
+                });
+            }
+
+            $action = $filters['action'] ?? null;
+            if ($action) {
+                $query->where('action', 'like', '%'.$action.'%');
+            }
+
+            return $query
+                ->limit($limit)
+                ->get(['id', 'user_id', 'action', 'subject_type', 'subject_id', 'metadata', 'ip_address', 'created_at'])
+                ->map(function (PlatformAuditLog $audit) {
+                    return [
+                        'id' => $audit->id,
+                        'action' => $audit->action,
+                        'subject_type' => $audit->subject_type,
+                        'subject_id' => $audit->subject_id,
+                        'created_at' => $audit->created_at?->toJSON(),
+                        'metadata' => $audit->metadata ?? [],
+                        'ip_address' => $audit->ip_address,
+                        'user' => $audit->user
+                            ? [
+                                'id' => $audit->user->id,
+                                'name' => $audit->user->name,
+                                'email' => $audit->user->email,
+                            ]
+                            : null,
+                    ];
                 })
-                    ->orWhere('metadata->tenant_id', $tenantId);
-            });
-        }
-
-        $action = $filters['action'] ?? null;
-        if ($action) {
-            $query->where('action', 'like', '%' . $action . '%');
-        }
-
-        return $query
-            ->limit($limit)
-            ->get(['id', 'user_id', 'action', 'subject_type', 'subject_id', 'metadata', 'ip_address', 'created_at'])
-            ->map(function (PlatformAuditLog $audit) {
-                return [
-                    'id' => $audit->id,
-                    'action' => $audit->action,
-                    'subject_type' => $audit->subject_type,
-                    'subject_id' => $audit->subject_id,
-                    'created_at' => $audit->created_at?->toJSON(),
-                    'metadata' => $audit->metadata ?? [],
-                    'ip_address' => $audit->ip_address,
-                    'user' => $audit->user
-                        ? [
-                            'id' => $audit->user->id,
-                            'name' => $audit->user->name,
-                            'email' => $audit->user->email,
-                        ]
-                        : null,
-                ];
-            })
-            ->toArray();
+                ->toArray();
         });
     }
 
     public function getAuditFilterOptions(): array
     {
         return Cache::remember('superadmin:dashboard:audit_options', now()->addMinutes(10), function () {
-        $roleIds = Role::query()
-            ->whereIn('name', ['superadmin', 'admin'])
-            ->pluck('id')
-            ->all();
+            $roleIds = Role::query()
+                ->whereIn('name', ['superadmin', 'admin'])
+                ->pluck('id')
+                ->all();
 
-        $admins = $roleIds
-            ? User::query()
-                ->whereIn('role_id', $roleIds)
-                ->orderBy('name')
-                ->get(['id', 'name', 'email'])
-                ->map(fn (User $user) => [
-                    'id' => $user->id,
-                    'name' => $user->name,
-                    'email' => $user->email,
-                ])
-                ->toArray()
-            : [];
+            $admins = $roleIds
+                ? User::query()
+                    ->whereIn('role_id', $roleIds)
+                    ->orderBy('name')
+                    ->get(['id', 'name', 'email'])
+                    ->map(fn (User $user) => [
+                        'id' => $user->id,
+                        'name' => $user->name,
+                        'email' => $user->email,
+                    ])
+                    ->toArray()
+                : [];
 
-        $ownerRoleId = Role::query()->where('name', 'owner')->value('id');
-        $tenants = $ownerRoleId
-            ? User::query()
-                ->where('role_id', $ownerRoleId)
-                ->orderBy('company_name')
-                ->get(['id', 'company_name', 'email'])
-                ->map(fn (User $tenant) => [
-                    'id' => $tenant->id,
-                    'company_name' => $tenant->company_name,
-                    'email' => $tenant->email,
-                ])
-                ->toArray()
-            : [];
+            $ownerRoleId = Role::query()->where('name', 'owner')->value('id');
+            $tenants = $ownerRoleId
+                ? User::query()
+                    ->where('role_id', $ownerRoleId)
+                    ->orderBy('company_name')
+                    ->get(['id', 'company_name', 'email'])
+                    ->map(fn (User $tenant) => [
+                        'id' => $tenant->id,
+                        'company_name' => $tenant->company_name,
+                        'email' => $tenant->email,
+                    ])
+                    ->toArray()
+                : [];
 
-        $actions = PlatformAuditLog::query()
-            ->select('action')
-            ->distinct()
-            ->orderBy('action')
-            ->limit(75)
-            ->pluck('action')
-            ->all();
+            $actions = PlatformAuditLog::query()
+                ->select('action')
+                ->distinct()
+                ->orderBy('action')
+                ->limit(75)
+                ->pluck('action')
+                ->all();
 
-        return [
-            'admins' => $admins,
-            'tenants' => $tenants,
-            'actions' => $actions,
-        ];
+            return [
+                'admins' => $admins,
+                'tenants' => $tenants,
+                'actions' => $actions,
+            ];
         });
     }
 
@@ -292,7 +295,7 @@ class SuperAdminDashboardService
     private function applyCounts(array &$stats, Collection $ownerIds, string $key, string $table, string $column, array $where = []): void
     {
         $query = DB::table($table)
-            ->selectRaw($column . ' as owner_id, COUNT(*) as count')
+            ->selectRaw($column.' as owner_id, COUNT(*) as count')
             ->whereIn($column, $ownerIds->all());
 
         foreach ($where as $condition) {
@@ -301,7 +304,7 @@ class SuperAdminDashboardService
 
         $counts = $query->groupBy('owner_id')->pluck('count', 'owner_id');
         foreach ($counts as $ownerId => $count) {
-            if (!array_key_exists($ownerId, $stats)) {
+            if (! array_key_exists($ownerId, $stats)) {
                 continue;
             }
             $stats[$ownerId][$key] = (int) $count;
@@ -311,7 +314,7 @@ class SuperAdminDashboardService
     private function applySumCounts(array &$stats, Collection $ownerIds, string $key, string $table, string $sumColumn, string $column, array $where = []): void
     {
         $query = DB::table($table)
-            ->selectRaw($column . ' as owner_id, SUM(' . $sumColumn . ') as count')
+            ->selectRaw($column.' as owner_id, SUM('.$sumColumn.') as count')
             ->whereIn($column, $ownerIds->all());
 
         foreach ($where as $condition) {
@@ -320,7 +323,7 @@ class SuperAdminDashboardService
 
         $counts = $query->groupBy('owner_id')->pluck('count', 'owner_id');
         foreach ($counts as $ownerId => $count) {
-            if (!array_key_exists($ownerId, $stats)) {
+            if (! array_key_exists($ownerId, $stats)) {
                 continue;
             }
             $stats[$ownerId][$key] = (int) ($count ?? 0);
@@ -383,13 +386,14 @@ class SuperAdminDashboardService
                 }
             }
 
-            if (!$flags) {
+            if (! $flags) {
                 continue;
             }
 
             usort($flags, function ($a, $b) {
                 $scoreA = ($a['status'] === 'over' ? 2 : 1) * 100 + (int) ($a['percent'] ?? 0);
                 $scoreB = ($b['status'] === 'over' ? 2 : 1) * 100 + (int) ($b['percent'] ?? 0);
+
                 return $scoreB <=> $scoreA;
             });
 
@@ -406,6 +410,7 @@ class SuperAdminDashboardService
         usort($alerts, function ($a, $b) {
             $scoreA = count($a['flags']);
             $scoreB = count($b['flags']);
+
             return $scoreB <=> $scoreA;
         });
 
@@ -419,7 +424,7 @@ class SuperAdminDashboardService
     {
         if ($priceId) {
             foreach (config('billing.plans', []) as $key => $plan) {
-                if (!empty($plan['price_id']) && $plan['price_id'] === $priceId) {
+                if (! empty($plan['price_id']) && $plan['price_id'] === $priceId) {
                     return $key;
                 }
             }
@@ -472,7 +477,7 @@ class SuperAdminDashboardService
             $flags = [];
             $score = 0;
 
-            if (!$owner->onboarding_completed_at) {
+            if (! $owner->onboarding_completed_at) {
                 $ageDays = Carbon::parse($owner->created_at)->diffInDays(now());
                 if ($ageDays >= 7) {
                     $flags[] = 'onboarding_blocked';
@@ -489,10 +494,10 @@ class SuperAdminDashboardService
             if ($status && in_array($status, ['past_due', 'paused', 'canceled', 'unpaid'], true)) {
                 $churnRisk = true;
             }
-            if (!$churnRisk && $endsAt && $endsAt->lte(now()->addDays(14))) {
+            if (! $churnRisk && $endsAt && $endsAt->lte(now()->addDays(14))) {
                 $churnRisk = true;
             }
-            if (!$churnRisk && $trialEndsAt && $trialEndsAt->lte(now()->addDays(3))) {
+            if (! $churnRisk && $trialEndsAt && $trialEndsAt->lte(now()->addDays(3))) {
                 $churnRisk = true;
             }
 
@@ -514,7 +519,7 @@ class SuperAdminDashboardService
                 $score += 1;
             }
 
-            if (!$flags) {
+            if (! $flags) {
                 continue;
             }
 
@@ -791,7 +796,7 @@ class SuperAdminDashboardService
         $days = [];
         foreach ($firstMap as $userId => $firstCreatedAt) {
             $owner = $ownersById->get($userId);
-            if (!$owner || !$firstCreatedAt) {
+            if (! $owner || ! $firstCreatedAt) {
                 continue;
             }
 
@@ -799,7 +804,7 @@ class SuperAdminDashboardService
             $days[] = $diffDays;
         }
 
-        if (!$days) {
+        if (! $days) {
             return null;
         }
 
@@ -829,7 +834,7 @@ class SuperAdminDashboardService
 
         foreach ($firstMap as $userId => $firstCreatedAt) {
             $owner = $ownersById->get($userId);
-            if (!$owner || !$firstCreatedAt) {
+            if (! $owner || ! $firstCreatedAt) {
                 continue;
             }
 
@@ -837,7 +842,7 @@ class SuperAdminDashboardService
             $days[] = $diffDays;
         }
 
-        if (!$days) {
+        if (! $days) {
             return null;
         }
 
@@ -932,7 +937,7 @@ class SuperAdminDashboardService
         $plans = collect(config('billing.plans', []));
         $planMap = $plans->mapWithKeys(function (array $plan) {
             $priceId = $plan['price_id'] ?? null;
-            if (!$priceId) {
+            if (! $priceId) {
                 return [];
             }
 
@@ -1004,7 +1009,7 @@ class SuperAdminDashboardService
 
     private function parsePrice(?string $raw): float
     {
-        if (!$raw) {
+        if (! $raw) {
             return 0.0;
         }
 
@@ -1032,7 +1037,7 @@ class SuperAdminDashboardService
             $retained = 0;
             foreach ($cohortOwners as $owner) {
                 $firstActivity = $firstActivityMap->get($owner->id);
-                if (!$firstActivity) {
+                if (! $firstActivity) {
                     continue;
                 }
 
@@ -1054,13 +1059,7 @@ class SuperAdminDashboardService
 
     private function healthStats(): array
     {
-        $failedLast24 = DB::table('failed_jobs')
-            ->where('failed_at', '>=', now()->subDay())
-            ->count();
-
-        $failedLast7 = DB::table('failed_jobs')
-            ->where('failed_at', '>=', now()->subDays(7))
-            ->count();
+        $queueHealth = $this->queueHealthService->summary();
 
         $failedMailLast24 = DB::table('failed_jobs')
             ->where('failed_at', '>=', now()->subDay())
@@ -1081,13 +1080,6 @@ class SuperAdminDashboardService
                     ->orWhere('exception', 'like', '%stripe%');
             })
             ->count();
-
-        $pendingJobs = DB::table('jobs')->count();
-        $oldestJobCreatedAt = DB::table('jobs')->min('created_at');
-        $oldestJobMinutes = null;
-        if ($oldestJobCreatedAt) {
-            $oldestJobMinutes = round((now()->timestamp - (int) $oldestJobCreatedAt) / 60, 1);
-        }
 
         $storageBytes = null;
         $storageTotal = null;
@@ -1120,12 +1112,15 @@ class SuperAdminDashboardService
         }
 
         return [
-            'failed_jobs_24h' => $failedLast24,
-            'failed_jobs_7d' => $failedLast7,
+            'failed_jobs_24h' => (int) ($queueHealth['failed_jobs_24h'] ?? 0),
+            'failed_jobs_7d' => (int) ($queueHealth['failed_jobs_7d'] ?? 0),
             'failed_mail_jobs_24h' => $failedMailLast24,
             'failed_stripe_jobs_24h' => $failedStripeLast24,
-            'pending_jobs' => $pendingJobs,
-            'oldest_job_minutes' => $oldestJobMinutes,
+            'pending_jobs' => (int) ($queueHealth['pending_jobs'] ?? 0),
+            'pending_jobs_by_queue' => $queueHealth['pending_by_queue'] ?? [],
+            'queue_connection' => $queueHealth['connection'] ?? config('queue.default', 'sync'),
+            'queue_driver' => $queueHealth['driver'] ?? config('queue.default', 'sync'),
+            'oldest_job_minutes' => $queueHealth['oldest_job_minutes'] ?? null,
             'storage_public_bytes' => $storageBytes,
             'storage_total_bytes' => $storageTotal,
             'storage_used_percent' => $storagePercent,

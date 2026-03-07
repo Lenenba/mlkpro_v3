@@ -4,35 +4,27 @@ namespace App\Http\Controllers\Portal;
 
 use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
-use App\Models\Customer;
 use App\Models\Quote;
 use App\Models\QuoteRating;
 use App\Models\User;
 use App\Models\Work;
 use App\Models\WorkRating;
 use App\Notifications\ActionEmailNotification;
+use App\Services\Portal\PortalAccessService;
 use App\Support\NotificationDispatcher;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
 class PortalRatingController extends Controller
 {
-    private function portalCustomer(Request $request): Customer
-    {
-        $customer = $request->user()?->customerProfile;
-        if (!$customer) {
-            abort(403);
-        }
-
-        return $customer;
-    }
+    public function __construct(
+        private readonly PortalAccessService $portalAccess
+    ) {}
 
     public function storeQuote(Request $request, Quote $quote)
     {
-        $customer = $this->portalCustomer($request);
-        if ($quote->customer_id !== $customer->id) {
-            abort(403);
-        }
+        $customer = $this->portalAccess->customer($request);
+        $this->portalAccess->assertQuote($customer, $quote);
 
         $validated = $request->validate([
             'rating' => 'required|integer|min:1|max:5',
@@ -58,15 +50,15 @@ class PortalRatingController extends Controller
         $owner = User::find($quote->user_id);
         if ($owner && $owner->email) {
             $customerLabel = $customer->company_name
-                ?: trim(($customer->first_name ?? '') . ' ' . ($customer->last_name ?? ''));
+                ?: trim(($customer->first_name ?? '').' '.($customer->last_name ?? ''));
             $feedback = $rating->feedback ? Str::limit($rating->feedback, 160) : null;
 
             NotificationDispatcher::send($owner, new ActionEmailNotification(
                 'Quote rating received',
-                $customerLabel ? $customerLabel . ' submitted a quote rating.' : 'A client submitted a quote rating.',
+                $customerLabel ? $customerLabel.' submitted a quote rating.' : 'A client submitted a quote rating.',
                 [
                     ['label' => 'Quote', 'value' => $quote->number ?? $quote->id],
-                    ['label' => 'Rating', 'value' => $rating->rating . ' / 5'],
+                    ['label' => 'Rating', 'value' => $rating->rating.' / 5'],
                     ['label' => 'Feedback', 'value' => $feedback ?: 'No feedback provided'],
                 ],
                 route('customer.quote.show', $quote->id),
@@ -94,10 +86,8 @@ class PortalRatingController extends Controller
 
     public function storeWork(Request $request, Work $work)
     {
-        $customer = $this->portalCustomer($request);
-        if ($work->customer_id !== $customer->id) {
-            abort(403);
-        }
+        $customer = $this->portalAccess->customer($request);
+        $this->portalAccess->assertWork($customer, $work);
 
         $validated = $request->validate([
             'rating' => 'required|integer|min:1|max:5',
@@ -123,15 +113,15 @@ class PortalRatingController extends Controller
         $owner = User::find($work->user_id);
         if ($owner && $owner->email) {
             $customerLabel = $customer->company_name
-                ?: trim(($customer->first_name ?? '') . ' ' . ($customer->last_name ?? ''));
+                ?: trim(($customer->first_name ?? '').' '.($customer->last_name ?? ''));
             $feedback = $rating->feedback ? Str::limit($rating->feedback, 160) : null;
 
             NotificationDispatcher::send($owner, new ActionEmailNotification(
                 'Job rating received',
-                $customerLabel ? $customerLabel . ' submitted a job rating.' : 'A client submitted a job rating.',
+                $customerLabel ? $customerLabel.' submitted a job rating.' : 'A client submitted a job rating.',
                 [
                     ['label' => 'Job', 'value' => $work->job_title ?? $work->number ?? $work->id],
-                    ['label' => 'Rating', 'value' => $rating->rating . ' / 5'],
+                    ['label' => 'Rating', 'value' => $rating->rating.' / 5'],
                     ['label' => 'Feedback', 'value' => $feedback ?: 'No feedback provided'],
                 ],
                 route('work.show', $work->id),

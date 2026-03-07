@@ -134,41 +134,25 @@ class CustomerController extends Controller
             abort(403);
         }
         [, $accountId] = $this->resolveCustomerAccount($user);
+        $scope = $this->normalizeCustomerOptionScope((string) $request->query('scope', 'full'));
 
-        $customers = Customer::byUser($accountId)
-            ->with(['properties' => function ($query) {
-                $query->orderByDesc('is_default')->orderBy('id');
-            }])
+        $customersQuery = Customer::byUser($accountId)
             ->orderBy('company_name')
-            ->orderBy('last_name')
-            ->get(['id', 'company_name', 'first_name', 'last_name', 'email', 'phone', 'logo', 'number']);
+            ->orderBy('last_name');
 
-        $payload = $customers->map(function ($customer) {
-            return [
-                'id' => $customer->id,
-                'company_name' => $customer->company_name,
-                'first_name' => $customer->first_name,
-                'last_name' => $customer->last_name,
-                'email' => $customer->email,
-                'phone' => $customer->phone,
-                'number' => $customer->number,
-                'logo' => $customer->logo,
-                'logo_url' => $customer->logo_url,
-                'properties' => $customer->properties->map(function ($property) {
-                    return [
-                        'id' => $property->id,
-                        'type' => $property->type,
-                        'is_default' => (bool) $property->is_default,
-                        'street1' => $property->street1,
-                        'street2' => $property->street2,
-                        'city' => $property->city,
-                        'state' => $property->state,
-                        'zip' => $property->zip,
-                        'country' => $property->country,
-                    ];
-                })->values(),
-            ];
-        })->values();
+        if ($this->customerOptionScopeIncludesProperties($scope)) {
+            $propertyColumns = $this->customerPropertyOptionColumns($scope);
+            $customersQuery->with(['properties' => function ($query) use ($propertyColumns) {
+                $query->select($propertyColumns)
+                    ->orderByDesc('is_default')
+                    ->orderBy('id');
+            }]);
+        }
+
+        $customers = $customersQuery->get($this->customerOptionColumns($scope));
+        $payload = $customers
+            ->map(fn (Customer $customer) => $this->mapCustomerOptionPayload($customer, $scope))
+            ->values();
 
         return response()->json([
             'customers' => $payload,
@@ -810,6 +794,85 @@ class CustomerController extends Controller
             ['name' => 'client'],
             ['description' => 'Access to client functionalities']
         )->id;
+    }
+
+    private function normalizeCustomerOptionScope(string $scope): string
+    {
+        return in_array($scope, ['full', 'request', 'quote', 'audience'], true)
+            ? $scope
+            : 'full';
+    }
+
+    private function customerOptionScopeIncludesProperties(string $scope): bool
+    {
+        return in_array($scope, ['full', 'quote'], true);
+    }
+
+    private function customerOptionColumns(string $scope): array
+    {
+        return match ($scope) {
+            'audience' => ['id', 'company_name', 'first_name', 'last_name', 'email', 'phone'],
+            'request', 'quote' => ['id', 'company_name', 'first_name', 'last_name', 'email', 'phone', 'logo', 'number'],
+            default => ['id', 'company_name', 'first_name', 'last_name', 'email', 'phone', 'logo', 'number'],
+        };
+    }
+
+    private function customerPropertyOptionColumns(string $scope): array
+    {
+        return match ($scope) {
+            'quote' => ['id', 'customer_id', 'is_default', 'street1', 'city'],
+            default => ['id', 'customer_id', 'type', 'is_default', 'street1', 'street2', 'city', 'state', 'zip', 'country'],
+        };
+    }
+
+    private function mapCustomerOptionPayload(Customer $customer, string $scope): array
+    {
+        $payload = [
+            'id' => $customer->id,
+            'company_name' => $customer->company_name,
+            'first_name' => $customer->first_name,
+            'last_name' => $customer->last_name,
+            'email' => $customer->email,
+            'phone' => $customer->phone,
+        ];
+
+        if (in_array($scope, ['request', 'quote', 'full'], true)) {
+            $payload['number'] = $customer->number;
+            $payload['logo'] = $customer->logo;
+            $payload['logo_url'] = $customer->logo_url;
+        }
+
+        if (! $this->customerOptionScopeIncludesProperties($scope)) {
+            return $payload;
+        }
+
+        $properties = $customer->properties ?? collect();
+        $payload['properties'] = $properties
+            ->map(function ($property) use ($scope) {
+                if ($scope === 'quote') {
+                    return [
+                        'id' => $property->id,
+                        'is_default' => (bool) $property->is_default,
+                        'street1' => $property->street1,
+                        'city' => $property->city,
+                    ];
+                }
+
+                return [
+                    'id' => $property->id,
+                    'type' => $property->type,
+                    'is_default' => (bool) $property->is_default,
+                    'street1' => $property->street1,
+                    'street2' => $property->street2,
+                    'city' => $property->city,
+                    'state' => $property->state,
+                    'zip' => $property->zip,
+                    'country' => $property->country,
+                ];
+            })
+            ->values();
+
+        return $payload;
     }
 
     private function createPortalUser(array $validated, int $roleId): User

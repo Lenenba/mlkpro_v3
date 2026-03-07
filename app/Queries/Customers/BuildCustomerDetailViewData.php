@@ -35,15 +35,28 @@ class BuildCustomerDetailViewData
         array $filters
     ): array {
         $isProductAccount = (bool) ($accountOwner && $accountOwner->company_type === 'products');
-        $works = $this->buildWorks($customer, $accountId, $filters, $isProductAccount);
 
         $customer->load(['properties', 'vipTier']);
         if (! $isProductAccount) {
             $customer->load([
-                'quotes' => fn ($query) => $query->latest()->limit(10),
-                'works' => fn ($query) => $query->with('invoice')->latest()->limit(10),
-                'requests' => fn ($query) => $query->latest()->limit(10)->with('quote:id,number,status,customer_id'),
+                'quotes' => fn ($query) => $query
+                    ->without(['products', 'property'])
+                    ->with('property:id,street1,city,country')
+                    ->select(['id', 'customer_id', 'property_id', 'job_title', 'number', 'status', 'total', 'created_at'])
+                    ->latest()
+                    ->limit(10),
+                'works' => fn ($query) => $query
+                    ->with('invoice:id,work_id')
+                    ->select(['id', 'customer_id', 'number', 'job_title', 'status', 'start_date', 'created_at'])
+                    ->latest()
+                    ->limit(10),
+                'requests' => fn ($query) => $query
+                    ->select(['id', 'customer_id', 'title', 'service_type', 'status', 'next_follow_up_at', 'created_at'])
+                    ->latest()
+                    ->limit(10)
+                    ->with('quote:id,request_id,number,status,customer_id'),
                 'invoices' => fn ($query) => $query
+                    ->select(['id', 'customer_id', 'user_id', 'number', 'status', 'total', 'created_at'])
                     ->withSum(['payments as payments_sum_amount' => fn ($paymentQuery) => $paymentQuery->whereIn('status', Payment::settledStatuses())], 'amount')
                     ->latest()
                     ->limit(10),
@@ -99,7 +112,6 @@ class BuildCustomerDetailViewData
         return [
             'customer' => $customer,
             'canEdit' => $canEdit,
-            'works' => $works,
             'filters' => $filters,
             'stats' => $stats,
             'sales' => $sales,
@@ -121,21 +133,6 @@ class BuildCustomerDetailViewData
             'campaignsFeatureEnabled' => $campaignsFeatureEnabled,
             'canManageMailingLists' => $canManageMailingLists,
         ];
-    }
-
-    private function buildWorks(Customer $customer, int $accountId, array $filters, bool $isProductAccount)
-    {
-        if ($isProductAccount) {
-            return collect();
-        }
-
-        return Work::with(['products', 'ratings', 'customer'])
-            ->byCustomer($customer->id)
-            ->byUser($accountId)
-            ->filter($filters)
-            ->latest()
-            ->paginate(10)
-            ->withQueryString();
     }
 
     private function canManageMailingLists(?User $user, ?User $accountOwner, bool $campaignsFeatureEnabled): bool

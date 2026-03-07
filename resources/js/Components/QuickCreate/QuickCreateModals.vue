@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue';
+import { computed, ref } from 'vue';
 import axios from 'axios';
 import { usePage } from '@inertiajs/vue3';
 import Modal from '@/Components/UI/Modal.vue';
@@ -29,30 +29,65 @@ const categoryOptionsRoutes = computed(() => {
     return routes;
 });
 
-const customers = ref([]);
+const requestCustomers = ref([]);
+const quoteCustomers = ref([]);
 const categories = ref([]);
-const loadingCustomers = ref(false);
+const loadingRequestCustomers = ref(false);
+const loadingQuoteCustomers = ref(false);
 const loadingCategories = ref(false);
-const customerError = ref('');
+const requestCustomerError = ref('');
+const quoteCustomerError = ref('');
 const categoryError = ref('');
+const requestCustomersLoaded = ref(false);
+const quoteCustomersLoaded = ref(false);
+const categoriesLoaded = ref(false);
 
 const { t } = useI18n();
 
-const fetchCustomers = async () => {
-    loadingCustomers.value = true;
-    customerError.value = '';
+const customerScopeState = {
+    request: {
+        rows: requestCustomers,
+        loading: loadingRequestCustomers,
+        error: requestCustomerError,
+        loaded: requestCustomersLoaded,
+    },
+    quote: {
+        rows: quoteCustomers,
+        loading: loadingQuoteCustomers,
+        error: quoteCustomerError,
+        loaded: quoteCustomersLoaded,
+    },
+};
+
+const fetchCustomers = async (scope) => {
+    const state = customerScopeState[scope];
+    if (!state || state.loading.value) {
+        return;
+    }
+
+    state.loading.value = true;
+    state.error.value = '';
     try {
-        const response = await axios.get(route('customer.options'));
-        customers.value = response.data?.customers || [];
+        const response = await axios.get(route('customer.options'), {
+            params: {
+                scope,
+            },
+        });
+        state.rows.value = Array.isArray(response.data?.customers) ? response.data.customers : [];
+        state.loaded.value = true;
     } catch (error) {
-        customerError.value = t('quick_create.errors.load_customers');
+        state.error.value = t('quick_create.errors.load_customers');
     } finally {
-        loadingCustomers.value = false;
+        state.loading.value = false;
     }
 };
 
 const fetchCategories = async () => {
     if (!categoryOptionsRoutes.value.length) {
+        return;
+    }
+
+    if (loadingCategories.value) {
         return;
     }
 
@@ -77,6 +112,7 @@ const fetchCategories = async () => {
         }
 
         categories.value = resolvedCategories;
+        categoriesLoaded.value = true;
     } catch (error) {
         categoryError.value = t('quick_create.errors.load_categories');
     } finally {
@@ -84,23 +120,85 @@ const fetchCategories = async () => {
     }
 };
 
-const handleCustomerCreated = (payload) => {
-    const customer = payload?.customer;
-    if (!customer) {
+const ensureRequestCustomersLoaded = async () => {
+    if (requestCustomersLoaded.value || (!canRequests.value && !canSales.value)) {
         return;
     }
 
-    const nextCustomer = {
-        ...customer,
-        properties: payload?.properties || [],
-    };
+    await fetchCustomers('request');
+};
 
-    const existingIndex = customers.value.findIndex((item) => item.id === customer.id);
-    if (existingIndex >= 0) {
-        customers.value.splice(existingIndex, 1, nextCustomer);
-    } else {
-        customers.value.unshift(nextCustomer);
+const ensureQuoteCustomersLoaded = async () => {
+    if (quoteCustomersLoaded.value || !canQuotes.value) {
+        return;
     }
+
+    await fetchCustomers('quote');
+};
+
+const ensureCategoriesLoaded = async () => {
+    if (categoriesLoaded.value || (!canProducts.value && !canServices.value)) {
+        return;
+    }
+
+    await fetchCategories();
+};
+
+const buildRequestCustomer = (payload) => {
+    const customer = payload?.customer;
+    if (!customer?.id) {
+        return null;
+    }
+
+    return {
+        id: customer.id,
+        company_name: customer.company_name,
+        first_name: customer.first_name,
+        last_name: customer.last_name,
+        email: customer.email,
+        phone: customer.phone,
+        number: customer.number,
+        logo: customer.logo,
+        logo_url: customer.logo_url,
+    };
+};
+
+const buildQuoteCustomer = (payload) => {
+    const customer = buildRequestCustomer(payload);
+    if (!customer) {
+        return null;
+    }
+
+    return {
+        ...customer,
+        properties: Array.isArray(payload?.properties)
+            ? payload.properties.map((property) => ({
+                id: property.id,
+                is_default: Boolean(property.is_default),
+                street1: property.street1,
+                city: property.city,
+            }))
+            : [],
+    };
+};
+
+const upsertCustomerOption = (rows, customer) => {
+    if (!customer?.id) {
+        return;
+    }
+
+    const existingIndex = rows.value.findIndex((item) => item.id === customer.id);
+    if (existingIndex >= 0) {
+        rows.value.splice(existingIndex, 1, customer);
+        return;
+    }
+
+    rows.value.unshift(customer);
+};
+
+const handleCustomerCreated = (payload) => {
+    upsertCustomerOption(requestCustomers, buildRequestCustomer(payload));
+    upsertCustomerOption(quoteCustomers, buildQuoteCustomer(payload));
 };
 
 const handleCategoryCreated = (category) => {
@@ -115,16 +213,9 @@ const handleCategoryCreated = (category) => {
         categories.value.push(category);
         categories.value.sort((a, b) => String(a.name).localeCompare(String(b.name)));
     }
-};
 
-onMounted(() => {
-    if (canQuotes.value || canRequests.value || canSales.value) {
-        fetchCustomers();
-    }
-    if (canProducts.value || canServices.value) {
-        fetchCategories();
-    }
-});
+    categoriesLoaded.value = true;
+};
 </script>
 
 <template>
@@ -137,7 +228,7 @@ onMounted(() => {
         />
     </Modal>
 
-    <Modal v-if="canProducts" :title="$t('quick_create.new_product')" :id="'hs-quick-create-product'">
+    <Modal v-if="canProducts" :title="$t('quick_create.new_product')" :id="'hs-quick-create-product'" @open="ensureCategoriesLoaded">
         <div v-if="loadingCategories" class="text-sm text-stone-500 dark:text-neutral-400">
             {{ $t('quick_create.loading_categories') }}
         </div>
@@ -153,7 +244,7 @@ onMounted(() => {
         </div>
     </Modal>
 
-    <Modal v-if="canServices" :title="$t('quick_create.new_service')" :id="'hs-quick-create-service'">
+    <Modal v-if="canServices" :title="$t('quick_create.new_service')" :id="'hs-quick-create-service'" @open="ensureCategoriesLoaded">
         <div v-if="loadingCategories" class="text-sm text-stone-500 dark:text-neutral-400">
             {{ $t('quick_create.loading_categories') }}
         </div>
@@ -169,25 +260,25 @@ onMounted(() => {
         </div>
     </Modal>
 
-    <Modal v-if="canQuotes" :title="$t('quick_create.new_quote')" :id="'hs-quick-create-quote'">
-        <div v-if="customerError" class="mb-3 text-sm text-red-600">
-            {{ customerError }}
+    <Modal v-if="canQuotes" :title="$t('quick_create.new_quote')" :id="'hs-quick-create-quote'" @open="ensureQuoteCustomersLoaded">
+        <div v-if="quoteCustomerError" class="mb-3 text-sm text-red-600">
+            {{ quoteCustomerError }}
         </div>
         <QuoteQuickDialog
-            :customers="customers"
-            :loading="loadingCustomers"
+            :customers="quoteCustomers"
+            :loading="loadingQuoteCustomers"
             :overlay-id="'#hs-quick-create-quote'"
             @customer-created="handleCustomerCreated"
         />
     </Modal>
 
-    <Modal v-if="canRequests" :title="$t('quick_create.new_request')" :id="'hs-quick-create-request'">
-        <div v-if="customerError" class="mb-3 text-sm text-red-600">
-            {{ customerError }}
+    <Modal v-if="canRequests" :title="$t('quick_create.new_request')" :id="'hs-quick-create-request'" @open="ensureRequestCustomersLoaded">
+        <div v-if="requestCustomerError" class="mb-3 text-sm text-red-600">
+            {{ requestCustomerError }}
         </div>
         <RequestQuickForm
-            :customers="customers"
-            :loading="loadingCustomers"
+            :customers="requestCustomers"
+            :loading="loadingRequestCustomers"
             :overlay-id="'#hs-quick-create-request'"
             @customer-created="handleCustomerCreated"
         />

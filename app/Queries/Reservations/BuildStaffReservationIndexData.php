@@ -37,12 +37,23 @@ class BuildStaffReservationIndexData
             ->simplePaginate(20)
             ->withQueryString();
 
-        $events = $this->reservationQuery($account->id)
+        $events = $this->reservationEventQuery($account->id)
             ->tap(fn (Builder $builder) => $this->applyReservationFilters($builder, $filters, $access))
             ->whereDate('starts_at', '>=', now()->subDays(7)->toDateString())
             ->whereDate('starts_at', '<=', now()->addDays(35)->toDateString())
             ->orderBy('starts_at')
-            ->get()
+            ->get([
+                'id',
+                'team_member_id',
+                'client_id',
+                'service_id',
+                'status',
+                'source',
+                'starts_at',
+                'ends_at',
+                'internal_notes',
+                'client_notes',
+            ])
             ->map(fn (Reservation $reservation) => $this->mapEvent($reservation))
             ->values();
 
@@ -71,7 +82,7 @@ class BuildStaffReservationIndexData
 
         $teamMembers = $teamMembersQuery
             ->orderBy('id')
-            ->get()
+            ->get(['id', 'user_id', 'title'])
             ->map(fn (TeamMember $member) => [
                 'id' => $member->id,
                 'user_id' => $member->user_id,
@@ -85,13 +96,13 @@ class BuildStaffReservationIndexData
             ->where('user_id', $account->id)
             ->where('is_active', true)
             ->orderBy('name')
-            ->get(['id', 'name', 'price', 'item_type', 'is_active']);
+            ->get(['id', 'name']);
 
         $clients = Customer::query()
             ->byUser($account->id)
             ->orderBy('company_name')
             ->orderBy('last_name')
-            ->get(['id', 'first_name', 'last_name', 'company_name', 'email', 'phone', 'portal_user_id']);
+            ->get(['id', 'first_name', 'last_name', 'company_name', 'email']);
 
         $settings = $this->availabilityService->resolveSettings($account->id, null);
         $performance = $this->buildPerformanceMetrics($account, $filters, $access, $settings);
@@ -165,7 +176,7 @@ class BuildStaffReservationIndexData
     {
         $filters = $this->normalizeFilters($request, $access);
 
-        return $this->reservationQuery($accountId)
+        return $this->reservationEventQuery($accountId)
             ->tap(fn (Builder $builder) => $this->applyReservationFilters($builder, $filters, $access, [
                 'search' => false,
                 'date' => false,
@@ -173,7 +184,18 @@ class BuildStaffReservationIndexData
             ->where('starts_at', '<', $validated['end'])
             ->where('ends_at', '>', $validated['start'])
             ->orderBy('starts_at')
-            ->get()
+            ->get([
+                'id',
+                'team_member_id',
+                'client_id',
+                'service_id',
+                'status',
+                'source',
+                'starts_at',
+                'ends_at',
+                'internal_notes',
+                'client_notes',
+            ])
             ->map(fn (Reservation $reservation) => $this->mapEvent($reservation))
             ->values()
             ->all();
@@ -193,6 +215,17 @@ class BuildStaffReservationIndexData
             'creator:id,name',
             'canceller:id,name',
         ]);
+    }
+
+    private function reservationEventQuery(int $accountId): Builder
+    {
+        return Reservation::query()
+            ->forAccount($accountId)
+            ->with([
+                'teamMember.user:id,name',
+                'client:id,first_name,last_name,company_name',
+                'service:id,name',
+            ]);
     }
 
     private function normalizeFilters(Request $request, array $access): array

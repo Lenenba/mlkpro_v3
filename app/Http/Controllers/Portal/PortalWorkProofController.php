@@ -3,31 +3,23 @@
 namespace App\Http\Controllers\Portal;
 
 use App\Http\Controllers\Controller;
-use App\Models\Customer;
 use App\Models\Task;
 use App\Models\Work;
+use App\Services\Portal\PortalAccessService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 
 class PortalWorkProofController extends Controller
 {
-    private function portalCustomer(Request $request): Customer
-    {
-        $customer = $request->user()?->customerProfile;
-        if (!$customer) {
-            abort(403);
-        }
-
-        return $customer;
-    }
+    public function __construct(
+        private readonly PortalAccessService $portalAccess
+    ) {}
 
     public function show(Request $request, Work $work)
     {
-        $customer = $this->portalCustomer($request);
-        if ($work->customer_id !== $customer->id) {
-            abort(403);
-        }
+        $customer = $this->portalAccess->customer($request);
+        $this->portalAccess->assertWork($customer, $work);
 
         $work->load('customer:id,company_name,first_name,last_name,email');
 

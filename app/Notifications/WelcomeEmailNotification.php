@@ -3,6 +3,7 @@
 namespace App\Notifications;
 
 use App\Models\User;
+use App\Support\QueueWorkload;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -17,6 +18,12 @@ class WelcomeEmailNotification extends Notification implements ShouldQueue
     public function __construct(User $accountOwner)
     {
         $this->accountOwner = $accountOwner;
+        $this->onQueue(QueueWorkload::queue('notifications'));
+    }
+
+    public function backoff(): array
+    {
+        return QueueWorkload::backoff('notifications', [60, 300, 900]);
     }
 
     public function via(object $notifiable): array
@@ -53,8 +60,8 @@ class WelcomeEmailNotification extends Notification implements ShouldQueue
             'Espace client clair et rapide',
         ];
 
-        return (new MailMessage())
-            ->subject('Bienvenue ' . $companyName)
+        return (new MailMessage)
+            ->subject('Bienvenue '.$companyName)
             ->view('emails.onboarding.welcome', [
                 'companyName' => $companyName,
                 'companyLogo' => $companyLogo,

@@ -7,6 +7,7 @@ use App\Models\CampaignRecipient;
 use App\Models\CampaignRun;
 use App\Services\Campaigns\CampaignRunProgressService;
 use App\Services\Campaigns\CampaignTrackingService;
+use App\Support\QueueWorkload;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -19,7 +20,15 @@ class ReconcileDeliveryReportsJob implements ShouldQueue
 
     public int $tries = 2;
 
-    public array $backoff = [120, 300];
+    public function __construct()
+    {
+        $this->onQueue(QueueWorkload::queue('campaigns_maintenance'));
+    }
+
+    public function backoff(): array
+    {
+        return QueueWorkload::backoff('campaigns_maintenance', [120, 300]);
+    }
 
     public function handle(
         CampaignTrackingService $trackingService,
