@@ -194,6 +194,7 @@ const billingProvider = computed(() => (props.billing?.provider_effective || pro
 const isPaddleProvider = computed(() => billingProvider.value === 'paddle');
 const isStripeProvider = computed(() => billingProvider.value === 'stripe');
 const providerReady = computed(() => props.billing?.provider_ready ?? true);
+const tenantCurrencyCode = computed(() => String(props.billing?.tenant_currency_code || 'CAD').toUpperCase());
 const stripeConnectEnabled = computed(() => Boolean(props.stripeConnect?.enabled));
 const stripeConnectHasAccount = computed(() => Boolean(props.stripeConnect?.account_id));
 const stripeConnectReady = computed(() => Boolean(props.stripeConnect?.charges_enabled && props.stripeConnect?.payouts_enabled));
@@ -666,7 +667,7 @@ const startStripeCheckout = async (plan) => {
     paddleIsLoading.value = true;
     try {
         const response = await axios.post(route('settings.billing.checkout'), {
-            price_id: plan.price_id,
+            plan_key: plan.key,
         });
         const url = response?.data?.url;
         if (!url) {
@@ -782,7 +783,7 @@ const startCheckout = (plan) => {
 
     if (isStripeProvider.value) {
         if (isSubscribed.value) {
-            router.post(route('settings.billing.swap'), { price_id: plan.price_id }, { preserveScroll: true });
+            router.post(route('settings.billing.swap'), { plan_key: plan.key }, { preserveScroll: true });
         } else {
             startStripeCheckout(plan);
         }
@@ -790,7 +791,7 @@ const startCheckout = (plan) => {
     }
 
     if (isSubscribed.value) {
-        router.post(route('settings.billing.swap'), { price_id: plan.price_id }, { preserveScroll: true });
+        router.post(route('settings.billing.swap'), { plan_key: plan.key }, { preserveScroll: true });
         return;
     }
 
@@ -975,6 +976,9 @@ watch(
                         </p>
                         <p v-else>
                             {{ $t('settings.billing.summary.no_subscription') }}
+                        </p>
+                        <p class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
+                            Charged currency: {{ tenantCurrencyCode }}
                         </p>
                     </div>
 

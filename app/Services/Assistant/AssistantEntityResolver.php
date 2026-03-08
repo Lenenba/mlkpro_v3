@@ -11,6 +11,7 @@ use App\Models\TeamMember;
 use App\Models\User;
 use App\Models\Work;
 use App\Models\WorkChecklistItem;
+use App\Support\Database\UserSelects;
 use Carbon\Carbon;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
@@ -69,7 +70,7 @@ class AssistantEntityResolver
         $owner = $ownerId === $user->id
             ? $user
             : User::query()
-                ->select(['id', 'company_type', 'company_name', 'company_logo'])
+                ->select(UserSelects::companySummary())
                 ->find($ownerId);
 
         if (! $owner) {

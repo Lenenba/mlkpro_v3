@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\CurrencyCode;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -32,6 +33,7 @@ class ReservationSetting extends Model
         'queue_no_show_on_grace_expiry',
         'deposit_required',
         'deposit_amount',
+        'currency_code',
         'no_show_fee_enabled',
         'no_show_fee_amount',
     ];
@@ -55,9 +57,23 @@ class ReservationSetting extends Model
         'queue_no_show_on_grace_expiry' => 'boolean',
         'deposit_required' => 'boolean',
         'deposit_amount' => 'decimal:2',
+        'currency_code' => 'string',
         'no_show_fee_enabled' => 'boolean',
         'no_show_fee_amount' => 'decimal:2',
     ];
+
+    protected static function booted(): void
+    {
+        static::creating(function (self $setting) {
+            if ($setting->currency_code) {
+                return;
+            }
+
+            $setting->currency_code = $setting->account_id
+                ? (User::query()->whereKey($setting->account_id)->value('currency_code') ?: CurrencyCode::default()->value)
+                : CurrencyCode::default()->value;
+        });
+    }
 
     public function account(): BelongsTo
     {

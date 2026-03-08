@@ -4,6 +4,7 @@ namespace App\Actions\Quotes;
 
 use App\Models\Product;
 use App\Models\ProductCategory;
+use App\Services\ResolveTenantCurrency;
 
 class BuildQuoteItemsAction
 {
@@ -14,18 +15,21 @@ class BuildQuoteItemsAction
         $productMap = $productIds->isNotEmpty()
             ? Product::byUser($userId)->whereIn('id', $productIds)->get()->keyBy('id')
             : collect();
+        $currencyCode = app(ResolveTenantCurrency::class)->forAccountId($accountId)->currencyCode->value;
 
-        return $lines->map(function (array $line) use ($productMap, $itemType, $userId, $accountId, $creatorId) {
+        return $lines->map(function (array $line) use ($productMap, $itemType, $userId, $accountId, $creatorId, $currencyCode) {
             $quantity = (int) ($line['quantity'] ?? 1);
             $price = (float) ($line['price'] ?? 0);
             $description = $line['description'] ?? null;
             $sourceDetails = $this->normalizeSourceDetails($line['source_details'] ?? null);
             $productId = isset($line['id']) && $line['id'] !== null ? (int) $line['id'] : null;
             $lineItemType = $line['item_type'] ?? $itemType;
+            $model = null;
 
             if (! $productId) {
                 $product = $this->createProductFromLine($userId, $accountId, $creatorId, $lineItemType, $line, $sourceDetails);
                 $productId = $product->id;
+                $model = $product;
 
                 if (! $description) {
                     $description = $product->description;
@@ -43,6 +47,7 @@ class BuildQuoteItemsAction
                 'id' => $productId,
                 'quantity' => $quantity,
                 'price' => $price,
+                'currency_code' => $model?->currency_code ?? $currencyCode,
                 'total' => round($quantity * $price, 2),
                 'description' => $description,
                 'source_details' => $sourceDetails,
@@ -118,6 +123,7 @@ class BuildQuoteItemsAction
             'description' => $description ?: 'Auto-generated from quote line.',
             'category_id' => $category->id,
             'price' => $price,
+            'currency_code' => $currencyCode,
             'cost_price' => $costPrice,
             'margin_percent' => $marginPercent,
             'unit' => $line['unit'] ?? null,

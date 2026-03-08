@@ -735,7 +735,7 @@ class PublicRequestController extends Controller
             ];
         })->all();
 
-        $quote->products()->sync($pivotData);
+        $quote->syncProductLines($pivotData);
 
         return $quote->fresh(['customer.user', 'products']);
     }

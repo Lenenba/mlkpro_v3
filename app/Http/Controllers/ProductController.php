@@ -64,6 +64,7 @@ class ProductController extends Controller
             abort(403);
         }
         [, $accountId, $canEdit] = $this->resolveProductAccount($user);
+        $tenantCurrencyCode = User::query()->whereKey($accountId)->value('currency_code') ?: $user->businessCurrencyCode();
 
         $today = now()->toDateString();
         $expiringDate = now()->addDays(30)->toDateString();
@@ -241,6 +242,7 @@ class ProductController extends Controller
             'defaultWarehouseId' => $defaultWarehouseId,
             'canEdit' => $canEdit,
             'ai_image' => $aiImagePayload,
+            'tenantCurrencyCode' => $tenantCurrencyCode,
         ]);
     }
 
@@ -297,6 +299,7 @@ class ProductController extends Controller
             abort(403);
         }
         $accountId = $this->ensureProductOwner($user);
+        $tenantCurrencyCode = User::query()->whereKey($accountId)->value('currency_code') ?: $user->businessCurrencyCode();
 
         $aiImageUsage = app(AiImageUsageService::class);
         $aiImagePayload = [
@@ -318,6 +321,7 @@ class ProductController extends Controller
                 ->orderBy('name')
                 ->get(['id', 'name']),
             'ai_image' => $aiImagePayload,
+            'tenantCurrencyCode' => $tenantCurrencyCode,
         ]);
     }
 

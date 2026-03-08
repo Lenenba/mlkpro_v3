@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\AssistantUsage;
 use App\Models\LoyaltyProgram;
 use App\Models\PlatformSetting;
+use App\Services\BillingPlanService;
 use App\Services\AssistantCreditService;
 use App\Services\BillingSubscriptionService;
 use App\Services\CompanyFeatureService;
@@ -131,34 +132,52 @@ class BillingSettingsController extends Controller
 
         $planLimits = PlatformSetting::getValue('plan_limits', []);
         $planDisplayOverrides = PlatformSetting::getValue('plan_display', []);
-        $plans = collect(config('billing.plans', []))
-            ->map(function (array $plan, string $key) use ($planLimits, $planDisplayOverrides) {
-                $display = PlanDisplay::merge($plan, $key, $planDisplayOverrides);
-                $displayPrice = $this->resolvePlanDisplayPrice([
-                    'price' => $display['price'],
-                ]);
-                $teamLimitRaw = $planLimits[$key]['team_members'] ?? null;
-                $teamLimit = is_numeric($teamLimitRaw) ? (int) $teamLimitRaw : null;
-                $contactOnly = ! empty($plan['contact_only']);
-                $teamMinRaw = $plan['team_members_min'] ?? null;
-                $teamMin = is_numeric($teamMinRaw) ? (int) $teamMinRaw : null;
+        $plans = $billingService->isStripe()
+            ? collect(app(BillingPlanService::class)->plansForTenant($user))
+                ->map(function (array $plan) use ($planLimits) {
+                    $teamLimitRaw = $planLimits[$plan['key']]['team_members'] ?? null;
+                    $teamLimit = is_numeric($teamLimitRaw) ? (int) $teamLimitRaw : null;
+                    $teamMinRaw = $plan['team_members_min'] ?? null;
+                    $teamMin = is_numeric($teamMinRaw) ? (int) $teamMinRaw : null;
+                    $contactOnly = (bool) ($plan['contact_only'] ?? false);
 
-                return [
-                    'key' => $key,
-                    'name' => $display['name'],
-                    'price_id' => $plan['price_id'] ?? null,
-                    'price' => $display['price'],
-                    'display_price' => $displayPrice,
-                    'features' => $display['features'],
-                    'badge' => $display['badge'],
-                    'team_members_limit' => $teamLimit,
-                    'team_members_min' => $teamMin,
-                    'contact_only' => $contactOnly,
-                    'cta_url' => $contactOnly ? route('settings.support.index') : null,
-                ];
-            })
-            ->values()
-            ->all();
+                    return array_merge($plan, [
+                        'team_members_limit' => $teamLimit,
+                        'team_members_min' => $teamMin,
+                        'contact_only' => $contactOnly,
+                        'cta_url' => $contactOnly ? route('settings.support.index') : null,
+                    ]);
+                })
+                ->values()
+                ->all()
+            : collect(config('billing.plans', []))
+                ->map(function (array $plan, string $key) use ($planLimits, $planDisplayOverrides) {
+                    $display = PlanDisplay::merge($plan, $key, $planDisplayOverrides);
+                    $displayPrice = $this->resolvePlanDisplayPrice([
+                        'price' => $display['price'],
+                    ]);
+                    $teamLimitRaw = $planLimits[$key]['team_members'] ?? null;
+                    $teamLimit = is_numeric($teamLimitRaw) ? (int) $teamLimitRaw : null;
+                    $contactOnly = ! empty($plan['contact_only']);
+                    $teamMinRaw = $plan['team_members_min'] ?? null;
+                    $teamMin = is_numeric($teamMinRaw) ? (int) $teamMinRaw : null;
+
+                    return [
+                        'key' => $key,
+                        'name' => $display['name'],
+                        'price_id' => $plan['price_id'] ?? null,
+                        'price' => $display['price'],
+                        'display_price' => $displayPrice,
+                        'features' => $display['features'],
+                        'badge' => $display['badge'],
+                        'team_members_limit' => $teamLimit,
+                        'team_members_min' => $teamMin,
+                        'contact_only' => $contactOnly,
+                        'cta_url' => $contactOnly ? route('settings.support.index') : null,
+                    ];
+                })
+                ->values()
+                ->all();
 
         $subscriptionSummary = $billingService->subscriptionSummary($user);
         $seatQuantity = $billingService->resolveSeatQuantity($user);
@@ -216,6 +235,7 @@ class BillingSettingsController extends Controller
                 'provider_effective' => $providerEffective,
                 'provider_label' => $providerLabel,
                 'provider_ready' => $providerReady,
+                'tenant_currency_code' => $user->businessCurrencyCode(),
                 'is_paddle' => $isPaddleProvider,
                 'support_phone' => config('app.support_phone'),
             ],

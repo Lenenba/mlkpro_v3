@@ -91,6 +91,7 @@ class DatabaseSeeder extends Seeder
         // User::factory()->count(2)->create();
 
         $this->call([
+            PlanCatalogSeeder::class,
             ProductModuleSeeder::class,
             CustomerModuleSeeder::class,
             TeamModuleSeeder::class,

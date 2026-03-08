@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Enums\CurrencyCode;
+use App\Services\AssignCurrencyToCatalogItem;
 use Illuminate\Database\Eloquent\Model;
 use App\Traits\GeneratesSequentialNumber;
 use Illuminate\Database\Eloquent\Builder;
@@ -32,6 +34,7 @@ class Product extends Model
         'stock',
         'minimum_stock',
         'price',
+        'currency_code',
         'promo_discount_percent',
         'promo_start_at',
         'promo_end_at',
@@ -67,6 +70,7 @@ class Product extends Model
         'stock' => 'integer',
         'minimum_stock' => 'integer',
         'price' => 'decimal:2',
+        'currency_code' => 'string',
         'promo_discount_percent' => 'decimal:2',
         'cost_price' => 'decimal:2',
         'margin_percent' => 'decimal:2',
@@ -94,6 +98,18 @@ class Product extends Model
             $itemType = $product->item_type ?? self::ITEM_TYPE_PRODUCT;
             $prefix = $itemType === self::ITEM_TYPE_SERVICE ? 'S' : 'P';
             $product->number = self::generateNumber($product->user_id, $prefix);
+
+            if (! $product->currency_code && $product->user_id) {
+                $owner = $product->relationLoaded('user')
+                    ? $product->user
+                    : User::query()->find($product->user_id);
+
+                if ($owner) {
+                    app(AssignCurrencyToCatalogItem::class)->execute($product, $owner);
+                } else {
+                    $product->currency_code = CurrencyCode::default()->value;
+                }
+            }
         });
     }
     /**
@@ -175,7 +191,7 @@ class Product extends Model
     public function quotes()
     {
         return $this->belongsToMany(Quote::class, 'quote_products')
-            ->withPivot(['quantity', 'price', 'description', 'total'])
+            ->withPivot(['quantity', 'price', 'currency_code', 'description', 'total'])
             ->withTimestamps();
     }
     /**

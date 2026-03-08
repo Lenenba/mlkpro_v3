@@ -175,10 +175,9 @@ class PlatformAdminNotifier
             return 'Unknown';
         }
 
-        foreach (config('billing.plans', []) as $plan) {
-            if (! empty($plan['price_id']) && $plan['price_id'] === $priceId) {
-                return $plan['name'] ?? $priceId;
-            }
+        $planPrice = app(BillingPlanService::class)->resolveByStripePriceId($priceId);
+        if ($planPrice) {
+            return $planPrice->planName ?: $planPrice->planCode;
         }
 
         return $priceId;

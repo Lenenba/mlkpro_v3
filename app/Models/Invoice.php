@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\CurrencyCode;
 use App\Traits\GeneratesSequentialNumber;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -33,10 +34,12 @@ class Invoice extends Model
         'number',
         'status',
         'total',
+        'currency_code',
     ];
 
     protected $casts = [
         'total' => 'decimal:2',
+        'currency_code' => 'string',
     ];
 
     protected $appends = [
@@ -51,6 +54,11 @@ class Invoice extends Model
         static::creating(function ($invoice) {
             if (! $invoice->number && $invoice->user_id) {
                 $invoice->number = self::generateNumber($invoice->user_id, 'I');
+            }
+
+            if (! $invoice->currency_code) {
+                $owner = $invoice->user_id ? User::query()->find($invoice->user_id) : null;
+                $invoice->currency_code = $owner?->businessCurrencyCode() ?? CurrencyCode::default()->value;
             }
         });
     }

@@ -681,7 +681,7 @@ class WorkController extends Controller
                     ],
                 ];
             });
-            $quote->products()->sync($pivotData);
+            $quote->syncProductLines($pivotData);
 
             if ($taxLines->isNotEmpty()) {
                 $quote->taxes()->createMany($taxLines->toArray());

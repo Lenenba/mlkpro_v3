@@ -19,6 +19,7 @@ use App\Services\Portal\PortalAccessService;
 use App\Services\SaleTimelineService;
 use App\Services\StripeSaleService;
 use App\Services\TenantPaymentMethodGuardService;
+use App\Support\Database\UserSelects;
 use App\Support\TenantPaymentMethodsResolver;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Database\Eloquent\Builder;
@@ -41,7 +42,7 @@ class PortalProductOrderController extends Controller
         return $this->portalAccess->customerContext(
             $request,
             'products',
-            ['id', 'company_type', 'company_name', 'company_logo', 'company_fulfillment']
+            UserSelects::portalCompanyContext()
         );
     }
 
@@ -88,7 +89,7 @@ class PortalProductOrderController extends Controller
             $request,
             $sale,
             'products',
-            ['id', 'company_type', 'company_name', 'company_logo', 'company_fulfillment']
+            UserSelects::portalCompanyContext()
         );
     }
 

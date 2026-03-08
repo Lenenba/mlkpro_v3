@@ -56,6 +56,10 @@ const props = defineProps({
         type: Number,
         default: 4,
     },
+    supported_currencies: {
+        type: Array,
+        default: () => ['CAD', 'EUR', 'USD'],
+    },
 });
 
 const { t, tm } = useI18n();
@@ -70,6 +74,12 @@ const countryOptions = computed(() => [
     { id: 'Tunisie', name: t('settings.company.countries.tunisia') },
     { id: '__other__', name: t('settings.company.select.other') },
 ]);
+const currencyOptions = computed(() =>
+    (props.supported_currencies || []).map((currency) => ({
+        id: currency,
+        name: currency,
+    }))
+);
 const timezoneFallback = [
     'UTC',
     'America/Toronto',
@@ -258,6 +268,7 @@ const form = useForm({
     company_province_other: '',
     company_city: '',
     company_city_other: '',
+    currency_code: props.company.currency_code || 'CAD',
     company_timezone: props.company.company_timezone || '',
     company_type: props.company.company_type || 'services',
     fulfillment_delivery_enabled: toBool(props.company.fulfillment?.delivery_enabled),
@@ -1007,6 +1018,7 @@ const addCategory = () => {
 };
 
 const usageItems = computed(() => props.usage_limits?.items || []);
+const currentLocale = computed(() => props.company.locale || '');
 const planName = computed(() =>
     props.usage_limits?.plan_name || props.usage_limits?.plan_key || t('settings.company.limits.plan_fallback')
 );
@@ -1238,6 +1250,23 @@ watch(activeTab, (value) => {
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <div>
                             <FloatingSelect
+                                v-model="form.currency_code"
+                                :label="'Main business currency'"
+                                :options="currencyOptions"
+                                :disabled="!company.can_change_currency"
+                            />
+                            <p class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
+                                <span v-if="company.can_change_currency">
+                                    New catalog items and Stripe online charges use this currency.
+                                </span>
+                                <span v-else>
+                                    Currency changes are locked because business activity already exists.
+                                </span>
+                            </p>
+                            <InputError class="mt-1" :message="form.errors.currency_code" />
+                        </div>
+                        <div>
+                            <FloatingSelect
                                 v-model="form.company_timezone"
                                 :label="$t('settings.company.fields.timezone')"
                                 :options="timezoneOptions"
@@ -1247,6 +1276,9 @@ watch(activeTab, (value) => {
                             />
                             <InputError class="mt-1" :message="form.errors.company_timezone" />
                         </div>
+                    </div>
+                    <div v-if="currentLocale" class="rounded-sm border border-stone-200 bg-stone-50 p-3 text-xs text-stone-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-400">
+                        Locale: <span class="font-semibold text-stone-700 dark:text-neutral-200">{{ currentLocale }}</span>
                     </div>
 
                     <div>

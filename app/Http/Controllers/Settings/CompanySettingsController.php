@@ -3,11 +3,14 @@
 namespace App\Http\Controllers\Settings;
 
 use App\Http\Controllers\Controller;
+use App\Enums\CurrencyCode;
+use App\Exceptions\Billing\TenantCurrencyChangeNotAllowedException;
 use App\Models\User;
 use App\Models\Product;
 use App\Models\ProductCategory;
 use App\Models\Warehouse;
 use App\Services\CompanyNotificationPreferenceService;
+use App\Services\PreventUnsafeTenantCurrencyChange;
 use App\Services\SupplierDirectory;
 use App\Services\AiImageUsageService;
 use App\Services\UsageLimitService;
@@ -48,6 +51,7 @@ class CompanySettingsController extends Controller
             ->orderBy('name')
             ->get(['id', 'name', 'code', 'address', 'city', 'state', 'postal_code', 'country', 'is_default', 'is_active']);
         $notificationSettings = app(CompanyNotificationPreferenceService::class)->resolveFor($user);
+        $currencyGuard = app(PreventUnsafeTenantCurrencyChange::class);
         $aiImageUsage = app(AiImageUsageService::class);
         $aiImagePayload = [
             'enabled' => (bool) config('services.openai.key'),
@@ -80,13 +84,17 @@ class CompanySettingsController extends Controller
                 'company_country' => $user->company_country,
                 'company_province' => $user->company_province,
                 'company_city' => $user->company_city,
+                'locale' => $user->locale,
+                'currency_code' => $user->businessCurrencyCode(),
                 'company_timezone' => $user->company_timezone,
                 'company_type' => $user->company_type,
                 'fulfillment' => $user->company_fulfillment ?? null,
                 'store_settings' => $user->company_store_settings ?? null,
                 'time_settings' => $user->company_time_settings ?? null,
                 'company_notification_settings' => $notificationSettings,
+                'can_change_currency' => ! $currencyGuard->hasBusinessActivity($user),
             ],
+            'supported_currencies' => CurrencyCode::values(),
             'store_products' => $storeProductsQuery
                 ->orderBy('name')
                 ->get(['id', 'name', 'sku']),
@@ -133,6 +141,7 @@ class CompanySettingsController extends Controller
             'company_country' => 'nullable|string|max:255',
             'company_province' => 'nullable|string|max:255',
             'company_city' => 'nullable|string|max:255',
+            'currency_code' => ['nullable', 'string', Rule::in(CurrencyCode::values())],
             'company_timezone' => 'nullable|string|max:255',
             'company_type' => 'required|string|in:services,products',
             'company_fulfillment' => 'nullable|array',
@@ -329,6 +338,14 @@ class CompanySettingsController extends Controller
         }
 
         $companySlug = $this->resolveCompanySlug($validated, $user);
+        $nextCurrencyCode = $validated['currency_code'] ?? $user->businessCurrencyCode();
+        try {
+            app(PreventUnsafeTenantCurrencyChange::class)->ensureCanChange($user, $nextCurrencyCode);
+        } catch (TenantCurrencyChangeNotAllowedException $exception) {
+            throw ValidationException::withMessages([
+                'currency_code' => [$exception->getMessage()],
+            ]);
+        }
 
         $user->update([
             'company_name' => $validated['company_name'],
@@ -338,6 +355,7 @@ class CompanySettingsController extends Controller
             'company_country' => $validated['company_country'] ?? null,
             'company_province' => $validated['company_province'] ?? null,
             'company_city' => $validated['company_city'] ?? null,
+            'currency_code' => $nextCurrencyCode,
             'company_timezone' => $validated['company_timezone'] ?? null,
             'company_type' => $validated['company_type'],
             'company_supplier_preferences' => [

@@ -26,6 +26,10 @@ const props = defineProps({
         type: Number,
         required: true,
     },
+    tenantCurrencyCode: {
+        type: String,
+        default: 'CAD',
+    },
 });
 
 const { t } = useI18n();
@@ -441,6 +445,7 @@ const destroyService = (service) => {
                 :categories="selectableCategories"
                 :materialProducts="materialProducts"
                 :service="editingService"
+                :tenant-currency-code="tenantCurrencyCode"
                 @submitted="editingService = null"
             />
         </Modal>

@@ -104,12 +104,14 @@ class ReservationPaymentPolicyService
         $policy = is_array($value) ? $value : [];
         $depositAmount = $this->normalizeMoney($policy['deposit_amount'] ?? 0);
         $noShowFeeAmount = $this->normalizeMoney($policy['no_show_fee_amount'] ?? 0);
+        $currencyCode = strtoupper(trim((string) ($policy['currency_code'] ?? '')));
 
         return [
             'deposit_required' => (bool) ($policy['deposit_required'] ?? false) && $depositAmount > 0,
             'deposit_amount' => $depositAmount,
             'no_show_fee_enabled' => (bool) ($policy['no_show_fee_enabled'] ?? false) && $noShowFeeAmount > 0,
             'no_show_fee_amount' => $noShowFeeAmount,
+            'currency_code' => $currencyCode !== '' ? $currencyCode : null,
             'captured_at' => $policy['captured_at'] ?? now('UTC')->toIso8601String(),
         ];
     }
@@ -121,6 +123,7 @@ class ReservationPaymentPolicyService
             'deposit_amount' => $settings['deposit_amount'] ?? 0,
             'no_show_fee_enabled' => (bool) ($settings['no_show_fee_enabled'] ?? false),
             'no_show_fee_amount' => $settings['no_show_fee_amount'] ?? 0,
+            'currency_code' => $settings['currency_code'] ?? null,
             'captured_at' => now('UTC')->toIso8601String(),
         ]);
     }

@@ -9,6 +9,8 @@ use App\Models\Role;
 use App\Models\User;
 use App\Notifications\InviteUserNotification;
 use App\Queries\Customers\BuildCustomerDetailViewData;
+use App\Queries\Customers\CustomerReadSelects;
+use App\Support\Database\UserSelects;
 use App\Support\NotificationDispatcher;
 use App\Utils\FileHandler;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
@@ -763,7 +765,7 @@ class CustomerController extends Controller
         $owner = $ownerId === $user->id
             ? $user
             : User::query()
-                ->select(['id', 'company_type', 'company_name', 'company_logo'])
+                ->select(UserSelects::companySummary())
                 ->find($ownerId);
 
         if (! $owner) {
@@ -810,19 +812,12 @@ class CustomerController extends Controller
 
     private function customerOptionColumns(string $scope): array
     {
-        return match ($scope) {
-            'audience' => ['id', 'company_name', 'first_name', 'last_name', 'email', 'phone'],
-            'request', 'quote' => ['id', 'company_name', 'first_name', 'last_name', 'email', 'phone', 'logo', 'number'],
-            default => ['id', 'company_name', 'first_name', 'last_name', 'email', 'phone', 'logo', 'number'],
-        };
+        return CustomerReadSelects::optionCustomerColumns($scope);
     }
 
     private function customerPropertyOptionColumns(string $scope): array
     {
-        return match ($scope) {
-            'quote' => ['id', 'customer_id', 'is_default', 'street1', 'city'],
-            default => ['id', 'customer_id', 'type', 'is_default', 'street1', 'street2', 'city', 'state', 'zip', 'country'],
-        };
+        return CustomerReadSelects::optionPropertyColumns($scope);
     }
 
     private function mapCustomerOptionPayload(Customer $customer, string $scope): array

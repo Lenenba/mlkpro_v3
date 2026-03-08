@@ -42,21 +42,21 @@ class BuildCustomerDetailViewData
                 'quotes' => fn ($query) => $query
                     ->without(['products', 'property'])
                     ->with('property:id,street1,city,country')
-                    ->select(['id', 'customer_id', 'property_id', 'job_title', 'number', 'status', 'total', 'created_at'])
+                    ->select(CustomerReadSelects::detailQuoteColumns())
                     ->latest()
                     ->limit(10),
                 'works' => fn ($query) => $query
                     ->with('invoice:id,work_id')
-                    ->select(['id', 'customer_id', 'number', 'job_title', 'status', 'start_date', 'created_at'])
+                    ->select(CustomerReadSelects::detailWorkColumns())
                     ->latest()
                     ->limit(10),
                 'requests' => fn ($query) => $query
-                    ->select(['id', 'customer_id', 'title', 'service_type', 'status', 'next_follow_up_at', 'created_at'])
+                    ->select(CustomerReadSelects::detailRequestColumns())
                     ->latest()
                     ->limit(10)
                     ->with('quote:id,request_id,number,status,customer_id'),
                 'invoices' => fn ($query) => $query
-                    ->select(['id', 'customer_id', 'user_id', 'number', 'status', 'total', 'created_at'])
+                    ->select(CustomerReadSelects::detailInvoiceColumns())
                     ->withSum(['payments as payments_sum_amount' => fn ($paymentQuery) => $paymentQuery->whereIn('status', Payment::settledStatuses())], 'amount')
                     ->latest()
                     ->limit(10),
@@ -195,13 +195,7 @@ class BuildCustomerDetailViewData
             ->latest('id')
             ->limit(8)
             ->get([
-                'id',
-                'payment_id',
-                'event',
-                'points',
-                'amount',
-                'processed_at',
-                'created_at',
+                ...CustomerReadSelects::detailLoyaltyLedgerColumns(),
             ])
             ->map(fn ($entry) => [
                 'id' => $entry->id,
@@ -226,7 +220,7 @@ class BuildCustomerDetailViewData
         $sales = (clone $salesQuery)
             ->latest()
             ->limit(10)
-            ->get(['id', 'number', 'status', 'total', 'created_at']);
+            ->get(CustomerReadSelects::detailSalesColumns());
 
         $salesCount = (clone $salesQuery)->count();
         $salesTotal = (float) (clone $salesQuery)->sum('total');
@@ -384,14 +378,7 @@ class BuildCustomerDetailViewData
             ->orderBy('due_date')
             ->orderByDesc('created_at')
             ->limit(8)
-            ->get([
-                'id',
-                'title',
-                'status',
-                'due_date',
-                'completed_at',
-                'assigned_team_member_id',
-            ])
+            ->get(CustomerReadSelects::detailTaskColumns())
             ->map(fn ($task) => [
                 'id' => $task->id,
                 'title' => $task->title,
@@ -408,14 +395,7 @@ class BuildCustomerDetailViewData
             ->whereDate('start_date', '>=', now()->toDateString())
             ->orderBy('start_date')
             ->limit(8)
-            ->get([
-                'id',
-                'job_title',
-                'status',
-                'start_date',
-                'end_date',
-                'created_at',
-            ])
+            ->get(CustomerReadSelects::detailUpcomingWorkColumns())
             ->map(fn ($work) => [
                 'id' => $work->id,
                 'job_title' => $work->job_title,
@@ -434,16 +414,7 @@ class BuildCustomerDetailViewData
             ->orderByDesc('paid_at')
             ->orderByDesc('created_at')
             ->limit(8)
-            ->get([
-                'id',
-                'invoice_id',
-                'amount',
-                'method',
-                'status',
-                'reference',
-                'paid_at',
-                'created_at',
-            ])
+            ->get(CustomerReadSelects::detailPaymentColumns())
             ->map(fn ($payment) => [
                 'id' => $payment->id,
                 'amount' => (float) $payment->amount,
@@ -513,7 +484,7 @@ class BuildCustomerDetailViewData
                 ->where('subject_id', $customer->id)
                 ->latest()
                 ->limit(12)
-                ->get(['id', 'action', 'description', 'subject_type', 'subject_id', 'created_at'])
+                ->get(CustomerReadSelects::detailActivityColumns())
                 ->map(fn ($log) => [
                     'id' => $log->id,
                     'action' => $log->action,
@@ -596,7 +567,7 @@ class BuildCustomerDetailViewData
             })
             ->latest()
             ->limit(12)
-            ->get(['id', 'action', 'description', 'subject_type', 'subject_id', 'created_at'])
+            ->get(CustomerReadSelects::detailActivityColumns())
             ->map(fn ($log) => [
                 'id' => $log->id,
                 'action' => $log->action,

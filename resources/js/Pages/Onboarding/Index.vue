@@ -20,6 +20,10 @@ const props = defineProps({
         type: Object,
         default: () => ({}),
     },
+    supportedCurrencies: {
+        type: Array,
+        default: () => ['CAD', 'EUR', 'USD'],
+    },
 });
 
 const page = usePage();
@@ -75,6 +79,12 @@ const selectStep = (item) => {
 const preset = computed(() => props.preset || {});
 const planOptions = computed(() => props.plans || []);
 const planLimits = computed(() => props.planLimits || {});
+const currencyOptions = computed(() =>
+    (props.supportedCurrencies || []).map((currency) => ({
+        id: currency,
+        name: currency,
+    }))
+);
 
 const registerForm = useForm({
     name: '',
@@ -135,6 +145,7 @@ const form = useForm({
     company_country: preset.value.company_country || '',
     company_province: preset.value.company_province || '',
     company_city: preset.value.company_city || '',
+    currency_code: preset.value.currency_code || 'CAD',
     company_type: preset.value.company_type || 'services',
     company_sector: preset.value.company_sector || '',
     company_sector_other: '',
@@ -349,8 +360,11 @@ const teamSizeValue = computed(() => {
     return Math.max(1, inviteCount + 1);
 });
 
+const selectedCurrencyCode = computed(() => String(form.currency_code || 'CAD').toUpperCase());
+const priceForCurrency = (plan) => plan?.prices_by_currency?.[selectedCurrencyCode.value] || null;
+const hasPlanPrice = (plan) => Boolean(plan?.contact_only || priceForCurrency(plan)?.stripe_price_id);
 const planCandidates = computed(() => planOptions.value
-    .filter((plan) => Boolean(plan?.price_id))
+    .filter((plan) => hasPlanPrice(plan))
     .map((plan) => {
         const limit = planLimits.value?.[plan.key]?.team_members;
         return {
@@ -393,11 +407,11 @@ const trialEndLabel = computed(() => {
     return new Intl.DateTimeFormat(locale.value || undefined, { dateStyle: 'medium' }).format(label);
 });
 
-const resolvePlanPrice = (plan) => plan?.display_price || plan?.price || '--';
+const resolvePlanPrice = (plan) => priceForCurrency(plan)?.display_price || plan?.display_price || plan?.price || '--';
 const isPlanSelected = (plan) => form.plan_key === plan?.key;
 const isPlanRecommended = (plan) => recommendedPlan.value?.key === plan?.key;
 const selectPlan = (plan) => {
-    if (!plan?.key || !plan?.price_id) {
+    if (!plan?.key || !hasPlanPrice(plan)) {
         return;
     }
     form.plan_key = plan.key;
@@ -406,11 +420,25 @@ const selectPlan = (plan) => {
 watch(
     () => recommendedPlan.value,
     (plan) => {
-        if (!form.plan_key && plan?.key && plan?.price_id) {
+        if (!form.plan_key && plan?.key && hasPlanPrice(plan)) {
             form.plan_key = plan.key;
         }
     },
     { immediate: true }
+);
+
+watch(
+    () => form.currency_code,
+    () => {
+        if (!form.plan_key) {
+            return;
+        }
+
+        const currentPlan = planOptions.value.find((plan) => plan.key === form.plan_key);
+        if (!currentPlan || !hasPlanPrice(currentPlan)) {
+            form.plan_key = '';
+        }
+    }
 );
 
 const goNext = () => {
@@ -700,6 +728,17 @@ const closeTerms = () => {
                             <FloatingInput v-model="form.company_province" :label="$t('onboarding.company.province_region')" />
                             <FloatingInput v-model="form.company_country" :label="$t('onboarding.company.country')" />
                         </div>
+                        <div>
+                            <FloatingSelect
+                                v-model="form.currency_code"
+                                :label="'Main business currency'"
+                                :options="currencyOptions"
+                            />
+                            <InputError class="mt-1" :message="form.errors.currency_code" />
+                            <p class="mt-2 text-xs text-stone-500 dark:text-neutral-400">
+                                Products, services, invoices, and Stripe online charges will use {{ selectedCurrencyCode }}.
+                            </p>
+                        </div>
                     </div>
 
                     <div v-else-if="step === stepIds.type" class="space-y-3">
@@ -849,6 +888,9 @@ const closeTerms = () => {
                             <h3 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ $t('onboarding.plan.title') }}</h3>
                             <p class="mt-1 text-xs text-stone-500 dark:text-neutral-400">{{ $t('onboarding.plan.subtitle') }}</p>
                             <p class="mt-2 text-xs text-stone-500 dark:text-neutral-400">
+                                Charged currency: {{ selectedCurrencyCode }}
+                            </p>
+                            <p class="mt-2 text-xs text-stone-500 dark:text-neutral-400">
                                 {{ $t('onboarding.plan.trial_note', { date: trialEndLabel }) }}
                             </p>
                             <p class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
@@ -861,14 +903,14 @@ const closeTerms = () => {
                                 v-for="plan in planOptions"
                                 :key="plan.key"
                                 type="button"
-                                :disabled="!plan.price_id"
+                                :disabled="!hasPlanPrice(plan)"
                                 @click="selectPlan(plan)"
                                 class="rounded-sm border p-3 text-left transition"
                                 :class="[
                                     isPlanSelected(plan)
                                         ? 'border-green-600 bg-green-50 text-green-800 dark:border-green-500/60 dark:bg-green-500/10 dark:text-green-200'
                                         : 'border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800',
-                                    !plan.price_id ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'
+                                    !hasPlanPrice(plan) ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'
                                 ]"
                             >
                                 <div class="flex items-start justify-between gap-2">
@@ -892,7 +934,7 @@ const closeTerms = () => {
                                     </li>
                                 </ul>
 
-                                <p v-if="!plan.price_id" class="mt-2 text-xs text-amber-600 dark:text-amber-400">
+                                <p v-if="!hasPlanPrice(plan)" class="mt-2 text-xs text-amber-600 dark:text-amber-400">
                                     {{ $t('onboarding.plan.unavailable') }}
                                 </p>
                             </button>

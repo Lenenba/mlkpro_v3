@@ -31,6 +31,7 @@ use App\Services\SupportAssignmentService;
 use App\Services\SupportSettingsService;
 use App\Services\WorkBillingService;
 use App\Support\NotificationDispatcher;
+use App\Support\SchemaAudit\ManualSelectContractAudit;
 use Database\Seeders\LaunchSeeder;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
@@ -1117,6 +1118,42 @@ Artisan::command('capacity:report {--json} {--notify}', function (
 
     return 0;
 })->purpose('Show scenario-based capacity validation and optionally notify platform admins');
+
+Artisan::command('schema:audit-selects {--json}', function (ManualSelectContractAudit $audit): int {
+    $failures = $audit->run();
+    $payload = [
+        'ok' => $failures === [],
+        'checked' => $audit->contractCount(),
+        'failures' => $failures,
+    ];
+
+    if ((bool) $this->option('json')) {
+        $this->line(json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+
+        return $failures === [] ? 0 : 1;
+    }
+
+    if ($failures === []) {
+        $this->info('Manual select schema audit passed.');
+        $this->line('Checked '.$audit->contractCount().' select contracts.');
+
+        return 0;
+    }
+
+    $this->error('Manual select schema audit failed.');
+    $this->table(
+        ['Contract', 'Table', 'Missing columns'],
+        collect($failures)
+            ->map(fn (array $failure) => [
+                (string) ($failure['contract'] ?? 'unknown'),
+                (string) ($failure['table'] ?? 'unknown'),
+                implode(', ', $failure['missing'] ?? []),
+            ])
+            ->all()
+    );
+
+    return 1;
+})->purpose('Verify curated manual select contracts against the live database schema');
 
 Schedule::command('platform:notifications-digest --frequency=daily')->dailyAt('08:00');
 Schedule::command('platform:notifications-digest --frequency=weekly')->weeklyOn(1, '08:00');

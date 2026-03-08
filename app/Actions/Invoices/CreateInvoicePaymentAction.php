@@ -38,6 +38,7 @@ class CreateInvoicePaymentAction
             'customer_id' => $invoice->customer_id,
             'user_id' => $paymentUserId ?? $invoice->user_id,
             'amount' => $amount,
+            'currency_code' => $invoice->currency_code,
             'tip_amount' => $tip['tip_amount'],
             'tip_type' => $tip['tip_type'],
             'tip_percent' => $tip['tip_percent'],

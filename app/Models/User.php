@@ -6,6 +6,7 @@ namespace App\Models;
 use App\Models\Product;
 use App\Models\Role;
 use App\Models\PlatformAdmin;
+use App\Enums\CurrencyCode;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
@@ -31,6 +32,7 @@ class User extends Authenticatable
         'name',
         'email',
         'locale',
+        'currency_code',
         'password',
         'must_change_password',
         'role_id',
@@ -133,6 +135,7 @@ class User extends Authenticatable
             'stripe_connect_details_submitted' => 'boolean',
             'stripe_connect_requirements' => 'array',
             'stripe_connect_onboarded_at' => 'datetime',
+            'currency_code' => 'string',
         ];
     }
 
@@ -349,6 +352,11 @@ class User extends Authenticatable
     public function isSuspended(): bool
     {
         return (bool) $this->is_suspended;
+    }
+
+    public function businessCurrencyCode(): string
+    {
+        return CurrencyCode::tryFromMixed($this->currency_code)?->value ?? CurrencyCode::default()->value;
     }
 
     public function accountOwnerId(): int

@@ -15,12 +15,14 @@ class QuoteProduct extends Model
         'product_id',
         'quantity',
         'price',
+        'currency_code',
         'description',
         'source_details',
         'total',
     ];
 
     protected $casts = [
+        'currency_code' => 'string',
         'source_details' => 'array',
     ];
 

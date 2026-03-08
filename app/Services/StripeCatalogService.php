@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\CurrencyCode;
 use App\Models\Product;
 use App\Models\User;
 use Illuminate\Support\Facades\Log;
@@ -35,7 +36,8 @@ class StripeCatalogService
             return;
         }
 
-        $currency = strtolower((string) config('cashier.currency', 'USD'));
+        $currency = CurrencyCode::tryFromMixed($product->currency_code)
+            ?->stripeValue() ?? CurrencyCode::default()->stripeValue();
 
         $stripeProductId = $product->stripe_product_id;
         if (!$stripeProductId) {

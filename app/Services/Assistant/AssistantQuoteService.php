@@ -173,7 +173,7 @@ class AssistantQuoteService
                     ];
                 })
                 ->toArray();
-            $quote->products()->sync($pivotData);
+            $quote->syncProductLines($pivotData);
 
             foreach ($taxLines as $taxLine) {
                 QuoteTax::create([

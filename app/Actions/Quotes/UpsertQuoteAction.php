@@ -7,6 +7,7 @@ use App\Models\Product;
 use App\Models\Quote;
 use App\Models\Tax;
 use App\Models\User;
+use App\Services\ResolveTenantCurrency;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -50,6 +51,8 @@ class UpsertQuoteAction
         $previousStatus = $quote?->status;
 
         DB::transaction(function () use (&$quote, $customer, $propertyId, $validated, $items, $subtotal, $total, $deposit, $taxLines, $accountId) {
+            $currencyCode = app(ResolveTenantCurrency::class)->forAccountId($accountId)->currencyCode->value;
+
             if ($quote) {
                 $quote->update([
                     'customer_id' => $customer->id,
@@ -57,6 +60,7 @@ class UpsertQuoteAction
                     'property_id' => $propertyId,
                     'subtotal' => $subtotal,
                     'total' => $total,
+                    'currency_code' => $quote->currency_code ?: $currencyCode,
                     'notes' => $validated['notes'] ?? null,
                     'messages' => $validated['messages'] ?? null,
                     'initial_deposit' => $deposit,
@@ -70,6 +74,7 @@ class UpsertQuoteAction
                     'job_title' => $validated['job_title'],
                     'subtotal' => $subtotal,
                     'total' => $total,
+                    'currency_code' => $currencyCode,
                     'notes' => $validated['notes'] ?? null,
                     'messages' => $validated['messages'] ?? null,
                     'initial_deposit' => $deposit,
@@ -82,13 +87,14 @@ class UpsertQuoteAction
                 $item['id'] => [
                     'quantity' => $item['quantity'],
                     'price' => $item['price'],
+                    'currency_code' => $item['currency_code'] ?? ($quote->currency_code ?: $currencyCode),
                     'total' => $item['total'],
                     'description' => $item['description'],
                     'source_details' => $item['source_details'] ? json_encode($item['source_details']) : null,
                 ],
             ]);
 
-            $quote->products()->sync($pivotData);
+            $quote->syncProductLines($pivotData);
             $quote->taxes()->delete();
 
             if ($taxLines->isNotEmpty()) {

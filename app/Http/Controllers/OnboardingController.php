@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\CurrencyCode;
 use App\Models\PlatformSetting;
 use App\Models\ProductCategory;
 use App\Models\Role;
@@ -9,11 +10,12 @@ use App\Models\TeamMember;
 use App\Models\User;
 use App\Notifications\WelcomeEmailNotification;
 use App\Services\BillingSubscriptionService;
+use App\Services\BillingPlanService;
 use App\Services\CompanyFeatureService;
+use App\Services\CreateStripeSubscriptionForTenant;
 use App\Services\PlatformAdminNotifier;
 use App\Services\StripeBillingService;
 use App\Support\NotificationDispatcher;
-use App\Support\PlanDisplay;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Hash;
@@ -23,7 +25,6 @@ use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
-use Laravel\Paddle\Cashier;
 use Laravel\Paddle\Subscription;
 
 class OnboardingController extends Controller
@@ -73,6 +74,7 @@ class OnboardingController extends Controller
                 'preset' => (object) [],
                 'plans' => $this->planOptions(),
                 'planLimits' => $this->planLimits(),
+                'supportedCurrencies' => CurrencyCode::values(),
             ]);
         }
 
@@ -96,14 +98,16 @@ class OnboardingController extends Controller
                 'company_country' => $user->company_country,
                 'company_province' => $user->company_province,
                 'company_city' => $user->company_city,
+                'currency_code' => $user->businessCurrencyCode(),
                 'company_type' => $user->company_type,
                 'company_sector' => $user->company_sector,
                 'company_team_size' => $user->company_team_size,
                 'two_factor_method' => $user->two_factor_method,
                 'onboarding_completed_at' => $user->onboarding_completed_at,
             ],
-            'plans' => $this->planOptions(),
+            'plans' => $this->planOptions($user),
             'planLimits' => $this->planLimits(),
+            'supportedCurrencies' => CurrencyCode::values(),
         ]);
     }
 
@@ -148,6 +152,7 @@ class OnboardingController extends Controller
             'company_country' => 'nullable|string|max:255',
             'company_province' => 'nullable|string|max:255',
             'company_city' => 'nullable|string|max:255',
+            'currency_code' => ['nullable', Rule::in(CurrencyCode::values())],
             'company_type' => 'required|string|in:services,products',
             'company_sector' => 'required|string|max:255',
             'company_team_size' => 'nullable|integer|min:1|max:5000',
@@ -184,6 +189,7 @@ class OnboardingController extends Controller
             'company_country' => $validated['company_country'] ?? null,
             'company_province' => $validated['company_province'] ?? null,
             'company_city' => $validated['company_city'] ?? null,
+            'currency_code' => $validated['currency_code'] ?? $accountOwner->businessCurrencyCode(),
             'company_type' => $validated['company_type'],
             'company_sector' => $validated['company_sector'],
             'company_team_size' => $validated['company_team_size'] ?? null,
@@ -421,27 +427,17 @@ class OnboardingController extends Controller
             ]);
         }
 
-        $plans = config('billing.plans', []);
-        $plan = $plans[$planKey] ?? null;
-        $priceId = $plan['price_id'] ?? null;
-        if (! $priceId) {
-            throw ValidationException::withMessages([
-                'plan_key' => ['The selected plan is not available for checkout.'],
-            ]);
-        }
-
         $trialEndsAt = now()->addMonthNoOverflow();
         $seatQuantity = $billingService->resolveSeatQuantity($accountOwner);
         $successUrl = route('onboarding.billing', ['status' => 'success']);
         $successUrl .= (str_contains($successUrl, '?') ? '&' : '?').'session_id={CHECKOUT_SESSION_ID}';
         $cancelUrl = route('onboarding.billing', ['status' => 'cancel']);
 
-        $session = app(StripeBillingService::class)->createCheckoutSession(
+        $session = app(CreateStripeSubscriptionForTenant::class)->checkoutSession(
             $accountOwner,
-            $priceId,
+            $planKey,
             $successUrl,
             $cancelUrl,
-            $planKey,
             $seatQuantity,
             $trialEndsAt
         );
@@ -654,43 +650,14 @@ class OnboardingController extends Controller
         }));
     }
 
-    private function planOptions(): array
+    private function planOptions(?User $user = null): array
     {
-        $planDisplayOverrides = PlatformSetting::getValue('plan_display', []);
-        $plans = config('billing.plans', []);
+        $currencyCode = $user?->businessCurrencyCode() ?? CurrencyCode::default()->value;
 
-        return collect($this->planKeysForOnboarding())
-            ->map(function (string $key) use ($plans, $planDisplayOverrides) {
-                $plan = $plans[$key] ?? [];
-                $display = PlanDisplay::merge($plan, $key, $planDisplayOverrides);
-
-                return [
-                    'key' => $key,
-                    'name' => $display['name'],
-                    'price_id' => $plan['price_id'] ?? null,
-                    'price' => $display['price'],
-                    'display_price' => $this->resolvePlanDisplayPrice($display['price']),
-                    'features' => $display['features'],
-                    'badge' => $display['badge'],
-                ];
-            })
+        return collect(app(BillingPlanService::class)->plansForCurrency($currencyCode))
+            ->whereIn('key', $this->planKeysForOnboarding())
             ->values()
             ->all();
-    }
-
-    private function resolvePlanDisplayPrice($raw): ?string
-    {
-        $rawValue = is_string($raw) ? trim($raw) : $raw;
-
-        if (is_numeric($rawValue)) {
-            return Cashier::formatAmount((int) round((float) $rawValue * 100), config('cashier.currency', 'USD'));
-        }
-
-        if (is_string($rawValue) && $rawValue !== '') {
-            return $rawValue;
-        }
-
-        return null;
     }
 
     private function planLimits(): array

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\CurrencyCode;
 use App\Models\Request as LeadRequest;
 use App\Traits\GeneratesSequentialNumber;
 use Illuminate\Database\Eloquent\Builder;
@@ -11,6 +12,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Collection;
 
 class Quote extends Model
 {
@@ -28,6 +30,7 @@ class Quote extends Model
         'work_id',
         'total',
         'subtotal',
+        'currency_code',
         'initial_deposit',
         'is_fixed',
         'notes',
@@ -40,6 +43,7 @@ class Quote extends Model
     protected $casts = [
         'total' => 'decimal:2',
         'subtotal' => 'decimal:2',
+        'currency_code' => 'string',
         'initial_deposit' => 'decimal:2',
         'is_fixed' => 'boolean',
         'signed_at' => 'datetime',
@@ -60,6 +64,11 @@ class Quote extends Model
 
             // Generate the number scoped by customer and user
             $quote->number = self::generateScopedNumber($quote->customer_id, 'Q');
+
+            if (! $quote->currency_code) {
+                $owner = $quote->user_id ? User::query()->find($quote->user_id) : null;
+                $quote->currency_code = $owner?->businessCurrencyCode() ?? CurrencyCode::default()->value;
+            }
         });
 
     }
@@ -87,7 +96,7 @@ class Quote extends Model
     public function products(): BelongsToMany
     {
         return $this->belongsToMany(Product::class, 'quote_products')
-            ->withPivot(['quantity', 'price', 'description', 'source_details', 'total'])
+            ->withPivot(['quantity', 'price', 'currency_code', 'description', 'source_details', 'total'])
             ->withTimestamps();
 
     }
@@ -123,6 +132,21 @@ class Quote extends Model
     public function works(): HasMany
     {
         return $this->hasMany(Work::class);
+    }
+
+    public function syncProductLines(iterable $pivotData): void
+    {
+        $currencyCode = $this->currency_code ?: CurrencyCode::default()->value;
+
+        $normalized = collect($pivotData)
+            ->mapWithKeys(function ($row, $productId) use ($currencyCode) {
+                $payload = is_array($row) ? $row : [];
+                $payload['currency_code'] = $payload['currency_code'] ?? $currencyCode;
+
+                return [$productId => $payload];
+            });
+
+        $this->products()->sync($normalized->all());
     }
 
     public function ratings(): HasMany

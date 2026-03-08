@@ -82,10 +82,9 @@ class BillingSubscriptionService
     {
         $priceId = $this->resolvePriceId($accountOwner);
         if ($priceId) {
-            foreach (config('billing.plans', []) as $key => $plan) {
-                if (!empty($plan['price_id']) && $plan['price_id'] === $priceId) {
-                    return $key;
-                }
+            $planCode = app(BillingPlanService::class)->resolvePlanCodeByStripePriceId($priceId);
+            if ($planCode) {
+                return $planCode;
             }
         }
 

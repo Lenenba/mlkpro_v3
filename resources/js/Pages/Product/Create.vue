@@ -16,6 +16,10 @@ const props = defineProps({
         type: Object,
         default: () => ({}),
     },
+    tenantCurrencyCode: {
+        type: String,
+        default: 'CAD',
+    },
 });
 
 
@@ -25,6 +29,11 @@ const props = defineProps({
 
     <Head :title="$t('products.single')" />
     <AuthenticatedLayout >
-        <ProductForm :product="product" :categories="categories" :ai-image="ai_image" />
+        <ProductForm
+            :product="product"
+            :categories="categories"
+            :ai-image="ai_image"
+            :tenant-currency-code="tenantCurrencyCode"
+        />
     </AuthenticatedLayout>
 </template>

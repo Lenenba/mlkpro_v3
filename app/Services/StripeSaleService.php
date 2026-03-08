@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\CurrencyCode;
 use App\Models\Sale;
 use Illuminate\Support\Facades\Log;
 use Stripe\StripeClient;
@@ -34,7 +35,8 @@ class StripeSaleService
             ];
         }
 
-        $currency = strtolower((string) config('cashier.currency', 'USD'));
+        $currency = CurrencyCode::tryFromMixed($sale->currency_code)
+            ?->stripeValue() ?? CurrencyCode::default()->stripeValue();
         $label = $sale->number ? "Sale {$sale->number}" : "Sale #{$sale->id}";
         if ($paymentType === 'deposit') {
             $label = $sale->number ? "Deposit for Sale {$sale->number}" : "Deposit for Sale #{$sale->id}";

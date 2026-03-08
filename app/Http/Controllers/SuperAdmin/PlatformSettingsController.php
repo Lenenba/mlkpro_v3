@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\SuperAdmin;
 
 use App\Models\PlatformSetting;
+use App\Services\BillingPlanService;
 use App\Support\PlanDisplay;
 use App\Support\PlatformPermissions;
 use Illuminate\Http\RedirectResponse;
@@ -44,6 +45,7 @@ class PlatformSettingsController extends BaseSuperAdminController
             'maintenance' => $maintenance,
             'templates' => $templates,
             'plans' => $plans,
+            'plan_prices' => app(BillingPlanService::class)->priceMatrix(),
             'plan_limits' => $planLimits,
             'plan_modules' => $planModules,
             'plan_display' => $planDisplay,
@@ -74,6 +76,13 @@ class PlatformSettingsController extends BaseSuperAdminController
             'plan_display.*.badge' => 'nullable|string|max:40',
             'plan_display.*.features' => 'nullable|array',
             'plan_display.*.features.*' => 'nullable|string|max:140',
+            'plan_prices' => 'nullable|array',
+            'plan_prices.*' => 'array',
+            'plan_prices.*.*.amount' => 'nullable|numeric|min:0',
+            'plan_prices.*.*.stripe_price_id' => 'nullable|string|max:255',
+            'plan_prices.*.*.currency_code' => 'nullable|string|size:3',
+            'plan_prices.*.*.billing_period' => 'nullable|string|max:20',
+            'plan_prices.*.*.is_active' => 'nullable|boolean',
         ]);
 
         PlatformSetting::setValue('maintenance', [
@@ -177,6 +186,7 @@ class PlatformSettingsController extends BaseSuperAdminController
         }
 
         PlatformSetting::setValue('plan_display', $displayPayload);
+        app(BillingPlanService::class)->upsertPricing($validated['plan_prices'] ?? []);
 
         $this->logAudit($request, 'platform_settings.updated');
 

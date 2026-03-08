@@ -403,7 +403,7 @@ class PlanScanController extends Controller
                 ];
             });
 
-            $quote->products()->sync($pivotData);
+            $quote->syncProductLines($pivotData);
 
             $planScan->increment('quotes_generated');
         });

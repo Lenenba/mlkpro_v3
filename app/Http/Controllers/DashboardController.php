@@ -19,11 +19,11 @@ use App\Models\User;
 use App\Models\Work;
 use App\Queries\Dashboard\DashboardProductsOverviewQuery;
 use App\Services\BillingSubscriptionService;
+use App\Services\BillingPlanService;
 use App\Services\Campaigns\DashboardKpiService;
 use App\Services\StripeInvoiceService;
 use App\Services\StripeSaleService;
 use App\Services\UsageLimitService;
-use App\Support\PlanDisplay;
 use App\Support\TenantPaymentMethodsResolver;
 use App\Support\TipSettingsResolver;
 use Illuminate\Http\Request;
@@ -31,7 +31,6 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
-use Laravel\Paddle\Cashier;
 
 class DashboardController extends Controller
 {
@@ -1139,26 +1138,6 @@ class DashboardController extends Controller
             'inventory_value' => $inventorySeries['values'],
         ];
 
-        $planDisplayOverrides = PlatformSetting::getValue('plan_display', []);
-        $plans = collect(config('billing.plans', []))
-            ->map(function (array $plan, string $key) use ($planDisplayOverrides) {
-                $display = PlanDisplay::merge($plan, $key, $planDisplayOverrides);
-
-                return [
-                    'key' => $key,
-                    'name' => $display['name'],
-                    'price_id' => $plan['price_id'] ?? null,
-                    'price' => $display['price'],
-                    'display_price' => $this->resolvePlanDisplayPrice([
-                        'price' => $display['price'],
-                    ]),
-                    'features' => $display['features'],
-                    'badge' => $display['badge'],
-                ];
-            })
-            ->values()
-            ->all();
-
         $billingService = app(BillingSubscriptionService::class);
         $subscriptionSummary = $accountOwner
             ? $billingService->subscriptionSummary($accountOwner)
@@ -1175,6 +1154,9 @@ class DashboardController extends Controller
             ? app(UsageLimitService::class)->buildForUser($accountOwner)
             : ['items' => []];
         $marketingKpis = $this->resolveMarketingKpis($accountOwner);
+        $plans = $accountOwner
+            ? app(BillingPlanService::class)->plansForTenant($accountOwner)
+            : app(BillingPlanService::class)->plansForCurrency(config('app.currency', 'CAD'));
 
         $props = [
             'stats' => $stats,
@@ -1851,19 +1833,4 @@ class DashboardController extends Controller
         return $announcements->all();
     }
 
-    private function resolvePlanDisplayPrice(array $plan): ?string
-    {
-        $raw = $plan['price'] ?? null;
-        $rawValue = is_string($raw) ? trim($raw) : $raw;
-
-        if (is_numeric($rawValue)) {
-            return Cashier::formatAmount((int) round((float) $rawValue * 100), config('cashier.currency', 'USD'));
-        }
-
-        if (is_string($rawValue) && $rawValue !== '') {
-            return $rawValue;
-        }
-
-        return null;
-    }
 }

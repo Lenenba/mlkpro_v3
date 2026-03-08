@@ -14,6 +14,10 @@ defineProps({
         type: Array,
         default: () => [],
     },
+    tenantCurrencyCode: {
+        type: String,
+        default: 'CAD',
+    },
 });
 </script>
 
@@ -28,6 +32,7 @@ defineProps({
                 :count="count"
                 :categories="categories"
                 :materialProducts="materialProducts"
+                :tenant-currency-code="tenantCurrencyCode"
             />
         </div>
     </AuthenticatedLayout>

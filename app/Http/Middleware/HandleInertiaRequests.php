@@ -2,10 +2,11 @@
 
 namespace App\Http\Middleware;
 
-use App\Models\User;
-use App\Models\TeamMemberShift;
 use App\Models\PlatformSetting;
+use App\Models\TeamMemberShift;
+use App\Models\User;
 use App\Services\CompanyFeatureService;
+use App\Support\Database\UserSelects;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -44,31 +45,15 @@ class HandleInertiaRequests extends Middleware
                 : $user->customerProfile()->first();
             if ($customer) {
                 $accountOwner = User::query()
-                    ->select([
-                        'id',
-                        'company_name',
-                        'company_type',
-                        'company_sector',
-                        'company_features',
-                        'company_logo',
-                        'onboarding_completed_at',
-                    ])
+                    ->select(UserSelects::companyFeatureContext())
                     ->find($customer->user_id);
             }
         }
-        if (!$accountOwner && $user && $ownerId) {
+        if (! $accountOwner && $user && $ownerId) {
             $accountOwner = $ownerId === $user->id
                 ? $user
                 : User::query()
-                    ->select([
-                        'id',
-                        'company_name',
-                        'company_type',
-                        'company_sector',
-                        'company_features',
-                        'company_logo',
-                        'onboarding_completed_at',
-                    ])
+                    ->select(UserSelects::companyFeatureContext())
                     ->find($ownerId);
         }
         if ($user && $accountOwner) {
@@ -78,11 +63,11 @@ class HandleInertiaRequests extends Middleware
         $impersonatorId = $request->session()->get('impersonator_id');
         $impersonator = null;
         if ($impersonatorId) {
-            $impersonator = User::query()->select(['id', 'name', 'email'])->find($impersonatorId);
+            $impersonator = User::query()->select(UserSelects::identity())->find($impersonatorId);
         }
 
         $teamMembership = null;
-        if ($user && !$user->isAccountOwner()) {
+        if ($user && ! $user->isAccountOwner()) {
             $teamMembership = $user->relationLoaded('teamMembership')
                 ? $user->teamMembership
                 : $user->teamMembership()->first();
@@ -107,7 +92,7 @@ class HandleInertiaRequests extends Middleware
                     ->latest()
                     ->limit(6)
                     ->get()
-                    ->map(fn($notification) => [
+                    ->map(fn ($notification) => [
                         'id' => $notification->id,
                         'title' => $notification->data['title'] ?? 'Notification',
                         'message' => $notification->data['message'] ?? '',
@@ -140,7 +125,7 @@ class HandleInertiaRequests extends Middleware
         }
 
         $assistantEnabled = (bool) config('services.openai.key');
-        if (!$user) {
+        if (! $user) {
             $assistantEnabled = false;
         } elseif ($accountFeatures !== null) {
             $assistantEnabled = $assistantEnabled && (bool) ($accountFeatures['assistant'] ?? false);
