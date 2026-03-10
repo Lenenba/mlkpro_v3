@@ -27,8 +27,7 @@ class StripeBillingService
         ?string $planKey = null,
         int $quantity = 1,
         ?Carbon $trialEndsAt = null
-    ): array
-    {
+    ): array {
         $client = $this->client();
         $customerId = $this->resolveCustomerId($user);
         $quantity = $this->normalizeQuantity($quantity);
@@ -144,7 +143,7 @@ class StripeBillingService
     {
         $client = $this->client();
         $local = $this->getLocalSubscription($user);
-        if (!$local) {
+        if (! $local) {
             return null;
         }
 
@@ -154,7 +153,7 @@ class StripeBillingService
         ]);
         $planItem = $this->findPlanItem($subscription);
         $itemId = $planItem?->id ?? null;
-        if (!$itemId) {
+        if (! $itemId) {
             return null;
         }
 
@@ -218,17 +217,16 @@ class StripeBillingService
         bool $comped = false,
         ?string $planKey = null,
         int $quantity = 1
-    ): ?StripeSubscription
-    {
+    ): ?StripeSubscription {
         $client = $this->client();
         $customerId = $this->resolveOrCreateCustomerId($user);
-        if (!$customerId) {
+        if (! $customerId) {
             return null;
         }
 
         $quantity = $this->normalizeQuantity($quantity);
         $couponId = $comped ? $this->compedCouponId() : null;
-        if ($comped && !$couponId) {
+        if ($comped && ! $couponId) {
             throw new \RuntimeException('Comped coupon is not configured.');
         }
 
@@ -239,7 +237,7 @@ class StripeBillingService
             ]);
             $planItem = $this->findPlanItem($subscription);
             $itemId = $planItem?->id ?? null;
-            if (!$itemId) {
+            if (! $itemId) {
                 return null;
             }
 
@@ -363,7 +361,7 @@ class StripeBillingService
     {
         $client = $this->client();
         $customerId = $this->resolveCustomerId($user);
-        if (!$customerId) {
+        if (! $customerId) {
             return null;
         }
 
@@ -378,12 +376,12 @@ class StripeBillingService
     public function enableAssistantAddon(User $user): ?StripeSubscription
     {
         $assistantPriceId = $this->assistantUsagePriceId();
-        if (!$assistantPriceId) {
+        if (! $assistantPriceId) {
             return null;
         }
 
         $local = $this->getLocalSubscription($user);
-        if (!$local) {
+        if (! $local) {
             return null;
         }
 
@@ -393,7 +391,7 @@ class StripeBillingService
         ]);
 
         $assistantItem = $this->findAssistantItem($subscription);
-        if (!$assistantItem) {
+        if (! $assistantItem) {
             $subscription = $client->subscriptions->update($subscription->id, [
                 'items' => [
                     [
@@ -412,7 +410,7 @@ class StripeBillingService
     public function disableAssistantAddon(User $user): ?StripeSubscription
     {
         $local = $this->getLocalSubscription($user);
-        if (!$local) {
+        if (! $local) {
             return null;
         }
 
@@ -422,7 +420,7 @@ class StripeBillingService
         ]);
 
         $assistantItem = $this->findAssistantItem($subscription);
-        if (!$assistantItem) {
+        if (! $assistantItem) {
             return $this->upsertSubscription($user, $subscription, $subscription->customer ?? null);
         }
 
@@ -444,7 +442,7 @@ class StripeBillingService
     {
         $quantity = max(1, $quantity);
         $itemId = $this->resolveAssistantItemId($user);
-        if (!$itemId) {
+        if (! $itemId) {
             return null;
         }
 
@@ -465,7 +463,7 @@ class StripeBillingService
             return $local->assistant_item_id;
         }
 
-        if (!$local?->stripe_id) {
+        if (! $local?->stripe_id) {
             return null;
         }
 
@@ -482,22 +480,22 @@ class StripeBillingService
     public function syncFromStripeSubscription(array $subscription, ?User $user = null): ?StripeSubscription
     {
         $stripeId = $subscription['id'] ?? null;
-        if (!$stripeId) {
+        if (! $stripeId) {
             return null;
         }
 
         $customerId = $subscription['customer'] ?? null;
 
-        if (!$user && $stripeId) {
+        if (! $user && $stripeId) {
             $local = StripeSubscription::query()->where('stripe_id', $stripeId)->first();
             $user = $local?->user;
         }
 
-        if (!$user && $customerId) {
+        if (! $user && $customerId) {
             $user = User::query()->where('stripe_customer_id', $customerId)->first();
         }
 
-        if (!$user) {
+        if (! $user) {
             return null;
         }
 
@@ -515,7 +513,7 @@ class StripeBillingService
     private function upsertSubscription(User $user, $subscription, ?string $customerId = null): ?StripeSubscription
     {
         $stripeId = $subscription->id ?? null;
-        if (!$stripeId) {
+        if (! $stripeId) {
             return null;
         }
 
@@ -557,7 +555,7 @@ class StripeBillingService
     private function upsertSubscriptionFromArray(User $user, array $subscription): ?StripeSubscription
     {
         $stripeId = $subscription['id'] ?? null;
-        if (!$stripeId) {
+        if (! $stripeId) {
             return null;
         }
 
@@ -605,6 +603,7 @@ class StripeBillingService
         $local = $this->getLocalSubscription($user);
         if ($local?->stripe_customer_id) {
             $user->forceFill(['stripe_customer_id' => $local->stripe_customer_id])->save();
+
             return $local->stripe_customer_id;
         }
 
@@ -641,14 +640,16 @@ class StripeBillingService
         $items = $subscription->items->data ?? [];
         foreach ($items as $item) {
             $priceId = $item?->price?->id ?? null;
-            if (!$priceId) {
+            if (! $priceId) {
                 continue;
             }
             if ($assistantPriceId && $priceId === $assistantPriceId) {
                 continue;
             }
+
             return $priceId;
         }
+
         return null;
     }
 
@@ -658,21 +659,23 @@ class StripeBillingService
         $items = $subscription['items']['data'] ?? [];
         foreach ($items as $item) {
             $priceId = $item['price']['id'] ?? null;
-            if (!$priceId) {
+            if (! $priceId) {
                 continue;
             }
             if ($assistantPriceId && $priceId === $assistantPriceId) {
                 continue;
             }
+
             return $priceId;
         }
+
         return null;
     }
 
     private function extractAssistantAddon($subscription): array
     {
         $assistantPriceId = $this->assistantUsagePriceId();
-        if (!$assistantPriceId) {
+        if (! $assistantPriceId) {
             return [
                 'assistant_price_id' => null,
                 'assistant_item_id' => null,
@@ -705,12 +708,13 @@ class StripeBillingService
         $items = $subscription->items->data ?? [];
         foreach ($items as $item) {
             $priceId = $item?->price?->id ?? null;
-            if (!$priceId) {
+            if (! $priceId) {
                 continue;
             }
             if ($assistantPriceId && $priceId === $assistantPriceId) {
                 continue;
             }
+
             return $item;
         }
 
@@ -720,7 +724,7 @@ class StripeBillingService
     private function extractAssistantAddonFromArray(array $subscription): array
     {
         $assistantPriceId = $this->assistantUsagePriceId();
-        if (!$assistantPriceId) {
+        if (! $assistantPriceId) {
             return [
                 'assistant_price_id' => null,
                 'assistant_item_id' => null,
@@ -774,7 +778,7 @@ class StripeBillingService
     private function findAssistantItem($subscription): ?object
     {
         $assistantPriceId = $this->assistantUsagePriceId();
-        if (!$assistantPriceId) {
+        if (! $assistantPriceId) {
             return null;
         }
 
@@ -791,7 +795,7 @@ class StripeBillingService
 
     private function timestampToCarbon($timestamp): ?Carbon
     {
-        if (!$timestamp) {
+        if (! $timestamp) {
             return null;
         }
 
@@ -801,25 +805,28 @@ class StripeBillingService
     private function assistantUsagePriceId(): ?string
     {
         $price = config('services.stripe.ai_usage_price');
+
         return is_string($price) && trim($price) !== '' ? trim($price) : null;
     }
 
     private function normalizeQuantity(?int $quantity): int
     {
         $value = (int) $quantity;
+
         return $value > 0 ? $value : 1;
     }
 
     private function compedCouponId(): ?string
     {
         $coupon = config('services.stripe.comped_coupon_id');
+
         return is_string($coupon) && trim($coupon) !== '' ? trim($coupon) : null;
     }
 
     public function createAssistantCreditCheckoutSession(User $user, int $packs, string $successUrl, string $cancelUrl): array
     {
         $priceId = $this->assistantCreditPriceId();
-        if (!$priceId) {
+        if (! $priceId) {
             return ['id' => null, 'url' => null];
         }
 
@@ -863,7 +870,7 @@ class StripeBillingService
 
     public function retrieveCheckoutSession(string $sessionId): ?array
     {
-        if (!$sessionId) {
+        if (! $sessionId) {
             return null;
         }
 
@@ -876,12 +883,14 @@ class StripeBillingService
     private function assistantCreditPriceId(): ?string
     {
         $price = config('services.stripe.ai_credit_price');
+
         return is_string($price) && trim($price) !== '' ? trim($price) : null;
     }
 
     private function assistantCreditPackSize(): int
     {
         $pack = (int) config('services.stripe.ai_credit_pack', 0);
+
         return $pack > 0 ? $pack : 0;
     }
 
@@ -957,7 +966,7 @@ class StripeBillingService
         }
 
         $secret = config('services.stripe.secret');
-        if (!$secret) {
+        if (! $secret) {
             Log::warning('Stripe secret key is missing.');
         }
 

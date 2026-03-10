@@ -22,6 +22,79 @@ function runCommand(string $command, ?array &$output = null): int
     return $code;
 }
 
+function normalizeFileList(array $lines): array
+{
+    return array_values(array_unique(array_filter(array_map(static function (string $line): string {
+        $trimmed = trim($line);
+
+        if ($trimmed === '') {
+            return '';
+        }
+
+        if (str_contains($trimmed, ' -> ')) {
+            $parts = explode(' -> ', $trimmed);
+            $trimmed = (string) end($parts);
+        }
+
+        if (preg_match('/^[A-Z?]{1,2}\s+(.+)$/', $trimmed, $matches) === 1) {
+            return trim($matches[1]);
+        }
+
+        return $trimmed;
+    }, $lines), static fn (string $path): bool => $path !== '')));
+}
+
+function dirtyPhpFiles(): array
+{
+    $files = [];
+
+    runCommand('git diff --name-only -- "*.php"', $unstagedOutput);
+    $files = array_merge($files, normalizeFileList($unstagedOutput));
+
+    runCommand('git diff --cached --name-only -- "*.php"', $stagedOutput);
+    $files = array_merge($files, normalizeFileList($stagedOutput));
+
+    runCommand('git ls-files --others --exclude-standard -- "*.php"', $untrackedOutput);
+    $files = array_merge($files, normalizeFileList($untrackedOutput));
+
+    return array_values(array_unique($files));
+}
+
+function diffPhpFiles(string $baseBranch): array
+{
+    $code = runCommand(
+        'git diff --name-only '.escapeshellarg($baseBranch).'...HEAD -- "*.php"',
+        $output
+    );
+
+    if ($code !== 0) {
+        return [];
+    }
+
+    return normalizeFileList($output);
+}
+
+function runPintOnFiles(string $pintBinary, array $files): int
+{
+    if ($files === []) {
+        fwrite(STDOUT, "No PHP files require Pint inspection.\n");
+
+        return 0;
+    }
+
+    foreach (array_chunk($files, 40) as $chunk) {
+        $arguments = array_map(static fn (string $file): string => escapeshellarg($file), $chunk);
+        $command = escapeshellarg($pintBinary).' --test '.implode(' ', $arguments);
+        passthru($command, $exitCode);
+
+        if ($exitCode !== 0) {
+            return $exitCode;
+        }
+    }
+
+    return 0;
+}
+
 function firstAvailableBaseBranch(): ?string
 {
     $candidates = [];
@@ -47,20 +120,18 @@ function firstAvailableBaseBranch(): ?string
     return null;
 }
 
-$dirtyCode = runCommand('git status --porcelain -- "*.php"', $dirtyOutput);
-$hasDirtyPhpFiles = $dirtyCode === 0 && count($dirtyOutput) > 0;
+$dirtyPhpFiles = dirtyPhpFiles();
+$hasDirtyPhpFiles = count($dirtyPhpFiles) > 0;
 
 if ($hasDirtyPhpFiles) {
-    $command = escapeshellarg($pintBinary).' --test --dirty';
-    passthru($command, $exitCode);
+    $exitCode = runPintOnFiles($pintBinary, $dirtyPhpFiles);
     exit($exitCode);
 }
 
 $baseBranch = firstAvailableBaseBranch();
 
 if ($baseBranch !== null) {
-    $command = escapeshellarg($pintBinary).' --test --diff='.escapeshellarg($baseBranch);
-    passthru($command, $exitCode);
+    $exitCode = runPintOnFiles($pintBinary, diffPhpFiles($baseBranch));
     exit($exitCode);
 }
 

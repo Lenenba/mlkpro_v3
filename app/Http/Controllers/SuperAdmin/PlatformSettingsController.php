@@ -138,7 +138,7 @@ class PlatformSettingsController extends BaseSuperAdminController
 
         PlatformSetting::setValue('plan_limits', $limitsPayload);
 
-        if (array_key_exists('plan_modules', $validated) && !$isSuperadmin) {
+        if (array_key_exists('plan_modules', $validated) && ! $isSuperadmin) {
             abort(403);
         }
 
@@ -168,7 +168,7 @@ class PlatformSettingsController extends BaseSuperAdminController
                 $price = $price === '' ? null : $price;
             }
             $features = $planInput['features'] ?? [];
-            if (!is_array($features)) {
+            if (! is_array($features)) {
                 $features = [];
             }
             $features = collect($features)

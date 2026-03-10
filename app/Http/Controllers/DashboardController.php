@@ -8,7 +8,6 @@ use App\Models\Invoice;
 use App\Models\Payment;
 use App\Models\PlanScan;
 use App\Models\PlatformAnnouncement;
-use App\Models\PlatformSetting;
 use App\Models\Product;
 use App\Models\Quote;
 use App\Models\Sale;
@@ -18,8 +17,8 @@ use App\Models\TeamMember;
 use App\Models\User;
 use App\Models\Work;
 use App\Queries\Dashboard\DashboardProductsOverviewQuery;
-use App\Services\BillingSubscriptionService;
 use App\Services\BillingPlanService;
+use App\Services\BillingSubscriptionService;
 use App\Services\Campaigns\DashboardKpiService;
 use App\Services\StripeInvoiceService;
 use App\Services\StripeSaleService;
@@ -1832,5 +1831,4 @@ class DashboardController extends Controller
 
         return $announcements->all();
     }
-
 }

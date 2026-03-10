@@ -15,6 +15,7 @@ function main(array $argv): void
 
     if ($options['help']) {
         printHelp();
+
         return;
     }
 
@@ -78,37 +79,44 @@ function parseArguments(array $argv): array
     foreach (array_slice($argv, 1) as $argument) {
         if ($argument === '--dry-run') {
             $options['dry_run'] = true;
+
             continue;
         }
 
         if ($argument === '--live') {
             $options['live'] = true;
+
             continue;
         }
 
         if ($argument === '--help' || $argument === '-h') {
             $options['help'] = true;
+
             continue;
         }
 
         if ($argument === '--sync-db') {
             $options['sync_db'] = true;
+
             continue;
         }
 
         if (str_starts_with($argument, '--plans=')) {
             $options['plans'] = parseCsv(substr($argument, strlen('--plans=')));
+
             continue;
         }
 
         if (str_starts_with($argument, '--currencies=')) {
             $options['currencies'] = array_map('strtoupper', parseCsv(substr($argument, strlen('--currencies='))));
+
             continue;
         }
 
         if (str_starts_with($argument, '--write-env=')) {
             $path = trim(substr($argument, strlen('--write-env=')));
             $options['write_env'] = $path !== '' ? $path : null;
+
             continue;
         }
 

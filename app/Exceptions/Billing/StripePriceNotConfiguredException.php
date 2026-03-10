@@ -4,6 +4,4 @@ namespace App\Exceptions\Billing;
 
 use RuntimeException;
 
-class StripePriceNotConfiguredException extends RuntimeException
-{
-}
+class StripePriceNotConfiguredException extends RuntimeException {}

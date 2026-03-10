@@ -110,7 +110,7 @@ class SalePaymentService
         $total = (float) $sale->total;
 
         $fullyPaid = $total > 0 && $amountPaid >= $total;
-        $canMarkPaid = !$sale->fulfillment_method || $this->isFulfillmentComplete($sale->fulfillment_status);
+        $canMarkPaid = ! $sale->fulfillment_method || $this->isFulfillmentComplete($sale->fulfillment_status);
 
         if ($fullyPaid && $sale->status !== Sale::STATUS_PAID) {
             if ($canMarkPaid) {
@@ -123,7 +123,7 @@ class SalePaymentService
                     $previousFulfillment,
                     $actor
                 );
-            } elseif (!$sale->paid_at) {
+            } elseif (! $sale->paid_at) {
                 $sale->forceFill([
                     'paid_at' => now(),
                     'payment_provider' => $method,
@@ -153,7 +153,7 @@ class SalePaymentService
             'stripe_checkout_session_id' => $sessionId ?: $sale->stripe_checkout_session_id,
         ];
 
-        if (!$sale->fulfillment_method && !$sale->fulfillment_status) {
+        if (! $sale->fulfillment_method && ! $sale->fulfillment_status) {
             $update['fulfillment_status'] = Sale::FULFILLMENT_COMPLETED;
         }
 
@@ -167,7 +167,7 @@ class SalePaymentService
         $inventoryAlreadyApplied = $previousStatus === Sale::STATUS_PAID
             || $this->isFulfillmentComplete($previousFulfillment);
         if (
-            !$inventoryAlreadyApplied
+            ! $inventoryAlreadyApplied
             && ($sale->status === Sale::STATUS_PAID || $this->isFulfillmentComplete($sale->fulfillment_status))
         ) {
             $this->applyInventory($sale);
@@ -220,7 +220,7 @@ class SalePaymentService
 
         foreach ($items as $item) {
             $product = $products->get($item->product_id);
-            if (!$product) {
+            if (! $product) {
                 continue;
             }
 
@@ -248,16 +248,16 @@ class SalePaymentService
         }
 
         $currentMap = $current->groupBy('product_id')
-            ->map(fn($rows) => (int) $rows->sum('quantity'))
+            ->map(fn ($rows) => (int) $rows->sum('quantity'))
             ->toArray();
 
         $nextMap = collect($itemsPayload)
             ->groupBy('product_id')
-            ->map(fn($rows) => (int) collect($rows)->sum('quantity'))
+            ->map(fn ($rows) => (int) collect($rows)->sum('quantity'))
             ->toArray();
 
         $productIds = array_values(array_unique(array_merge(array_keys($currentMap), array_keys($nextMap))));
-        if (!$productIds) {
+        if (! $productIds) {
             return;
         }
 
@@ -269,7 +269,7 @@ class SalePaymentService
 
         foreach ($productIds as $productId) {
             $product = $products->get($productId);
-            if (!$product) {
+            if (! $product) {
                 continue;
             }
 
@@ -316,7 +316,7 @@ class SalePaymentService
                 $inventoryService->adjust($product, 1, 'out', [
                     'warehouse' => $lot->warehouse ?? $fallbackWarehouse,
                     'reason' => 'sale',
-                    'note' => 'Sale ' . $sale->number,
+                    'note' => 'Sale '.$sale->number,
                     'serial_number' => $lot->serial_number,
                     'reference' => $sale,
                 ]);
@@ -346,7 +346,7 @@ class SalePaymentService
                 $inventoryService->adjust($product, $useQuantity, 'out', [
                     'warehouse' => $lot->warehouse ?? $fallbackWarehouse,
                     'reason' => 'sale',
-                    'note' => 'Sale ' . $sale->number,
+                    'note' => 'Sale '.$sale->number,
                     'lot_number' => $lot->lot_number,
                     'reference' => $sale,
                 ]);
@@ -358,7 +358,7 @@ class SalePaymentService
                 $inventoryService->adjust($product, $remaining, 'out', [
                     'warehouse' => $fallbackWarehouse,
                     'reason' => 'sale',
-                    'note' => 'Sale ' . $sale->number,
+                    'note' => 'Sale '.$sale->number,
                     'reference' => $sale,
                 ]);
             }
@@ -369,7 +369,7 @@ class SalePaymentService
         $inventoryService->adjust($product, $quantity, 'out', [
             'warehouse' => $fallbackWarehouse,
             'reason' => 'sale',
-            'note' => 'Sale ' . $sale->number,
+            'note' => 'Sale '.$sale->number,
             'reference' => $sale,
         ]);
     }

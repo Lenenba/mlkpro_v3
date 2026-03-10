@@ -18,6 +18,7 @@ use Illuminate\Support\Str;
 class AssistantQuoteService
 {
     private const MATCH_CONFIDENT_THRESHOLD = 0.84;
+
     private const MATCH_MIN_THRESHOLD = 0.68;
 
     public function handle(array $interpretation, User $user, array $context = []): array
@@ -30,11 +31,11 @@ class AssistantQuoteService
 
         $customerResult = $this->resolveCustomer($accountId, $draft['customer'] ?? []);
         $customer = $customerResult['customer'];
-        if (!$customer) {
+        if (! $customer) {
             $questions = array_merge($questions, $customerResult['questions']);
         }
 
-        if (!$customer) {
+        if (! $customer) {
             $contextCustomer = $this->resolveContextCustomer($accountId, $context);
             if ($contextCustomer) {
                 $customer = $contextCustomer;
@@ -43,7 +44,7 @@ class AssistantQuoteService
         }
 
         $items = $this->normalizeItems($draft['items'] ?? []);
-        if (!$items) {
+        if (! $items) {
             $questions[] = 'Quel service ou produit faut-il ajouter au devis ?';
         }
 
@@ -100,7 +101,7 @@ class AssistantQuoteService
 
         return [
             'status' => 'needs_confirmation',
-            'message' => $summary . "\nConfirmer ? (oui/non)",
+            'message' => $summary."\nConfirmer ? (oui/non)",
             'context' => [
                 'pending_action' => $pendingAction,
             ],
@@ -116,7 +117,7 @@ class AssistantQuoteService
             $customer = Customer::byUser($accountId)->whereKey((int) $customerId)->first();
         }
 
-        if (!$customer) {
+        if (! $customer) {
             $customer = $this->createCustomer($accountId, $payload['customer'] ?? []);
         }
 
@@ -132,6 +133,7 @@ class AssistantQuoteService
             $taxLines = collect($resolvedTaxes['taxes'] ?? [])
                 ->map(function (Tax $tax) use ($subtotal) {
                     $amount = round($subtotal * ((float) $tax->rate / 100), 2);
+
                     return [
                         'tax_id' => $tax->id,
                         'rate' => (float) $tax->rate,
@@ -241,7 +243,7 @@ class AssistantQuoteService
     {
         $indexed = [];
         foreach ($baseItems as $item) {
-            if (!is_array($item)) {
+            if (! is_array($item)) {
                 continue;
             }
             $name = strtolower(trim((string) ($item['name'] ?? '')));
@@ -252,7 +254,7 @@ class AssistantQuoteService
         }
 
         foreach ($updateItems as $item) {
-            if (!is_array($item)) {
+            if (! is_array($item)) {
                 continue;
             }
             $name = strtolower(trim((string) ($item['name'] ?? '')));
@@ -278,7 +280,7 @@ class AssistantQuoteService
     {
         $normalized = [];
         foreach ($items as $item) {
-            if (!is_array($item)) {
+            if (! is_array($item)) {
                 continue;
             }
             $name = trim((string) ($item['name'] ?? ''));
@@ -333,7 +335,7 @@ class AssistantQuoteService
         $lastName = trim((string) ($customerDraft['last_name'] ?? ''));
         $fullName = trim((string) ($customerDraft['name'] ?? ''));
 
-        if ($fullName !== '' && (!$firstName || !$lastName)) {
+        if ($fullName !== '' && (! $firstName || ! $lastName)) {
             $parts = preg_split('/\s+/', $fullName, 2);
             $firstName = $firstName ?: ($parts[0] ?? '');
             $lastName = $lastName ?: ($parts[1] ?? '');
@@ -344,20 +346,20 @@ class AssistantQuoteService
             $customer = Customer::byUser($accountId)->where('email', $email)->first();
         }
 
-        if (!$customer && $companyName !== '') {
+        if (! $customer && $companyName !== '') {
             $customer = Customer::byUser($accountId)
                 ->whereRaw('LOWER(company_name) = ?', [strtolower($companyName)])
                 ->first();
         }
 
-        if (!$customer && $firstName !== '' && $lastName !== '') {
+        if (! $customer && $firstName !== '' && $lastName !== '') {
             $customer = Customer::byUser($accountId)
                 ->whereRaw('LOWER(first_name) = ?', [strtolower($firstName)])
                 ->whereRaw('LOWER(last_name) = ?', [strtolower($lastName)])
                 ->first();
         }
 
-        if (!$customer) {
+        if (! $customer) {
             if ($firstName === '') {
                 $questions[] = 'Quel est le prenom du client ?';
             }
@@ -387,7 +389,7 @@ class AssistantQuoteService
         $product = $match['product'] ?? null;
         $score = (float) ($match['score'] ?? 0);
         $alternates = $match['alternates'] ?? [];
-        if (!$product && !$itemTypeExplicit) {
+        if (! $product && ! $itemTypeExplicit) {
             $fallbackType = $itemType === 'product' ? 'service' : 'product';
             $match = $this->findProductByName($accountId, $name, $fallbackType);
             $product = $match['product'] ?? null;
@@ -399,7 +401,7 @@ class AssistantQuoteService
         }
 
         $isConfident = $product && $score >= self::MATCH_CONFIDENT_THRESHOLD;
-        $isAmbiguous = $product && !$isConfident;
+        $isAmbiguous = $product && ! $isConfident;
 
         if ($isConfident && $item['price'] === null) {
             $item['price'] = (float) $product->price;
@@ -416,12 +418,12 @@ class AssistantQuoteService
         if ($isAmbiguous) {
             $candidates = array_values(array_filter(array_unique($alternates)));
             if ($candidates) {
-                $questions[] = 'Je ne suis pas certain du service. Voulez-vous dire: ' . implode(', ', array_slice($candidates, 0, 3)) . ' ?';
+                $questions[] = 'Je ne suis pas certain du service. Voulez-vous dire: '.implode(', ', array_slice($candidates, 0, 3)).' ?';
             } else {
                 $questions[] = 'Je ne suis pas certain du service. Pouvez-vous confirmer le nom exact ?';
             }
-        } elseif (!$product && $item['price'] === null) {
-            $questions[] = 'Quel est le prix pour "' . $name . '" ?';
+        } elseif (! $product && $item['price'] === null) {
+            $questions[] = 'Quel est le prix pour "'.$name.'" ?';
         }
 
         $item['item_type'] = $itemType;
@@ -440,7 +442,7 @@ class AssistantQuoteService
             Arr::wrap($taxNames)
         )));
 
-        if (!$names) {
+        if (! $names) {
             return [
                 'taxes' => [],
                 'questions' => [],
@@ -453,8 +455,8 @@ class AssistantQuoteService
 
         $foundNames = $taxes->map(fn (Tax $tax) => strtolower($tax->name))->all();
         foreach ($names as $name) {
-            if (!in_array(strtolower($name), $foundNames, true)) {
-                $questions[] = 'Quelle taxe faut-il appliquer pour "' . $name . '" ?';
+            if (! in_array(strtolower($name), $foundNames, true)) {
+                $questions[] = 'Quelle taxe faut-il appliquer pour "'.$name.'" ?';
             }
         }
 
@@ -503,10 +505,10 @@ class AssistantQuoteService
             $itemType = $itemType === 'product' ? 'product' : ($itemType === 'service' ? 'service' : $this->defaultItemType($user));
 
             $product = null;
-            if (!empty($item['product_id'])) {
+            if (! empty($item['product_id'])) {
                 $product = Product::byUser($accountId)->whereKey((int) $item['product_id'])->first();
             }
-            if (!$product) {
+            if (! $product) {
                 $match = $this->findProductByName($accountId, $name, $itemType);
                 $product = $match['product'] ?? null;
             }
@@ -514,7 +516,7 @@ class AssistantQuoteService
                 $itemType = $product->item_type;
             }
 
-            if (!$product) {
+            if (! $product) {
                 $category = ProductCategory::resolveForAccount(
                     $accountId,
                     $user->id,
@@ -585,7 +587,7 @@ class AssistantQuoteService
 
         usort($scored, fn ($a, $b) => $b['score'] <=> $a['score']);
         $best = $scored[0] ?? null;
-        if (!$best || $best['score'] < self::MATCH_MIN_THRESHOLD) {
+        if (! $best || $best['score'] < self::MATCH_MIN_THRESHOLD) {
             return ['product' => null, 'score' => $best['score'] ?? 0.0, 'alternates' => []];
         }
 
@@ -620,7 +622,7 @@ class AssistantQuoteService
     {
         $tokens = array_values(array_filter(explode(' ', $normalized), fn ($token) => strlen($token) >= 3));
         $seed = $tokens ? $this->longestToken($tokens) : $normalized;
-        $like = '%' . $this->escapeLikeValue($seed) . '%';
+        $like = '%'.$this->escapeLikeValue($seed).'%';
 
         $candidates = (clone $baseQuery)
             ->whereRaw('LOWER(name) LIKE ?', [$like])
@@ -628,7 +630,7 @@ class AssistantQuoteService
             ->get(['id', 'name', 'price', 'unit', 'item_type']);
 
         if ($candidates->isEmpty() && count($tokens) > 1) {
-            $fallbackLike = '%' . $this->escapeLikeValue($normalized) . '%';
+            $fallbackLike = '%'.$this->escapeLikeValue($normalized).'%';
             $candidates = (clone $baseQuery)
                 ->whereRaw('LOWER(name) LIKE ?', [$fallbackLike])
                 ->limit(50)
@@ -647,6 +649,7 @@ class AssistantQuoteService
     private function longestToken(array $tokens): string
     {
         usort($tokens, fn ($a, $b) => strlen($b) <=> strlen($a));
+
         return (string) ($tokens[0] ?? '');
     }
 
@@ -676,7 +679,7 @@ class AssistantQuoteService
     private function buildJobTitle(Customer $customer, array $itemsPayload): string
     {
         $base = $customer->company_name
-            ?: trim($customer->first_name . ' ' . $customer->last_name);
+            ?: trim($customer->first_name.' '.$customer->last_name);
 
         $firstItem = $itemsPayload[0]['description'] ?? null;
         $firstItem = $firstItem ?: ($itemsPayload[0]['product_id'] ?? null);
@@ -702,7 +705,7 @@ class AssistantQuoteService
 
         $summary = [];
         $summary[] = 'Resume du devis:';
-        $summary[] = ($customer ? 'Client existant: ' : 'Nouveau client: ') . ($label ?: 'Client');
+        $summary[] = ($customer ? 'Client existant: ' : 'Nouveau client: ').($label ?: 'Client');
 
         $subtotal = 0.0;
         if ($items) {
@@ -713,7 +716,7 @@ class AssistantQuoteService
                 $price = (float) ($item['price'] ?? 0);
                 $lineTotal = round($quantity * $price, 2);
                 $subtotal += $lineTotal;
-                $summary[] = '- ' . $name . ' x' . $quantity . ' @ ' . $this->formatMoney($price) . ' = ' . $this->formatMoney($lineTotal);
+                $summary[] = '- '.$name.' x'.$quantity.' @ '.$this->formatMoney($price).' = '.$this->formatMoney($lineTotal);
             }
         } else {
             $summary[] = 'Articles: aucun';
@@ -723,31 +726,31 @@ class AssistantQuoteService
         $taxLabels = [];
         foreach ($taxes as $tax) {
             $rate = (float) ($tax->rate ?? 0);
-            $taxLabels[] = $tax->name . ' (' . $rate . '%)';
+            $taxLabels[] = $tax->name.' ('.$rate.'%)';
             $taxTotal += round($subtotal * ($rate / 100), 2);
         }
 
-        $summary[] = 'Sous-total: ' . $this->formatMoney($subtotal);
+        $summary[] = 'Sous-total: '.$this->formatMoney($subtotal);
         if ($taxLabels) {
-            $summary[] = 'Taxes: ' . implode(', ', $taxLabels) . ' = ' . $this->formatMoney($taxTotal);
+            $summary[] = 'Taxes: '.implode(', ', $taxLabels).' = '.$this->formatMoney($taxTotal);
         }
 
         $total = round($subtotal + $taxTotal, 2);
-        $summary[] = 'Total estime: ' . $this->formatMoney($total);
+        $summary[] = 'Total estime: '.$this->formatMoney($total);
 
         return implode("\n", $summary);
     }
 
     private function formatMoney(float $value): string
     {
-        return '$' . number_format($value, 2, '.', '');
+        return '$'.number_format($value, 2, '.', '');
     }
 
     private function formatCustomerLabel(string $firstName, string $lastName, string $companyName, string $email): string
     {
         $parts = [];
         $companyName = trim($companyName);
-        $name = trim($firstName . ' ' . $lastName);
+        $name = trim($firstName.' '.$lastName);
         if ($companyName !== '') {
             $parts[] = $companyName;
         }

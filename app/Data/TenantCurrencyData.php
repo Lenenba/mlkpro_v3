@@ -11,6 +11,5 @@ final readonly class TenantCurrencyData
         public CurrencyCode $currencyCode,
         public ?string $country,
         public ?string $locale,
-    ) {
-    }
+    ) {}
 }

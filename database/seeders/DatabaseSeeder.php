@@ -2,10 +2,10 @@
 
 namespace Database\Seeders;
 
-use App\Models\Role;
-use App\Models\User;
 use App\Models\PlatformAdmin;
 use App\Models\PlatformNotificationSetting;
+use App\Models\Role;
+use App\Models\User;
 use Illuminate\Database\Seeder;
 
 class DatabaseSeeder extends Seeder
@@ -19,7 +19,7 @@ class DatabaseSeeder extends Seeder
         foreach (['superadmin', 'admin', 'owner', 'employee', 'client'] as $name) {
             Role::firstOrCreate(
                 ['name' => $name],
-                ['description' => ucfirst($name) . ' role']
+                ['description' => ucfirst($name).' role']
             );
         }
 

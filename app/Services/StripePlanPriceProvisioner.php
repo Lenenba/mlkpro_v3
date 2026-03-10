@@ -333,6 +333,7 @@ class StripePlanPriceProvisioner
 
             if (preg_match($pattern, $contents) === 1) {
                 $contents = preg_replace($pattern, $replacement, $contents, 1) ?? $contents;
+
                 continue;
             }
 

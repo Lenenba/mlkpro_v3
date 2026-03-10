@@ -23,7 +23,7 @@ class DemoSeedService
 {
     public function seed(User $account, string $type): void
     {
-        if (!config('demo.enabled')) {
+        if (! config('demo.enabled')) {
             return;
         }
 
@@ -32,11 +32,13 @@ class DemoSeedService
         if ($type === DemoAccountService::TYPE_GUIDED) {
             $this->ensureTourSteps();
             $this->seedGuidedDemo($account);
+
             return;
         }
 
         if ($type === DemoAccountService::TYPE_PRODUCT) {
             $this->seedProductDemo($account);
+
             return;
         }
 
@@ -345,7 +347,7 @@ class DemoSeedService
         $addresses = $this->demoAddresses();
 
         foreach ($customers as $index => $data) {
-            $email = "{$prefix}-customer-" . ($index + 1) . "-{$accountId}@{$domain}";
+            $email = "{$prefix}-customer-".($index + 1)."-{$accountId}@{$domain}";
             $customer = Customer::updateOrCreate(
                 [
                     'user_id' => $accountId,
@@ -355,7 +357,7 @@ class DemoSeedService
                     'first_name' => $data['first'],
                     'last_name' => $data['last'],
                     'company_name' => $data['company'],
-                    'phone' => '555-01' . str_pad((string) $index, 2, '0', STR_PAD_LEFT),
+                    'phone' => '555-01'.str_pad((string) $index, 2, '0', STR_PAD_LEFT),
                     'portal_access' => (bool) ($index % 2 === 0),
                     'billing_same_as_physical' => true,
                     'salutation' => 'Mr',
@@ -408,6 +410,7 @@ class DemoSeedService
     private function buildLine(Product $product, int $quantity): array
     {
         $price = (float) ($product->price ?? 0);
+
         return [
             'product' => $product,
             'quantity' => $quantity,

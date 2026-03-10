@@ -4,11 +4,11 @@ namespace App\Models;
 
 use App\Enums\CurrencyCode;
 use App\Services\AssignCurrencyToCatalogItem;
-use Illuminate\Database\Eloquent\Model;
 use App\Traits\GeneratesSequentialNumber;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\Storage;
@@ -16,9 +16,10 @@ use Illuminate\Support\Facades\Storage;
 class Product extends Model
 {
     /** @use HasFactory<\Database\Factories\ProductFactory> */
-    use HasFactory, GeneratesSequentialNumber;
+    use GeneratesSequentialNumber, HasFactory;
 
     public const ITEM_TYPE_PRODUCT = 'product';
+
     public const ITEM_TYPE_SERVICE = 'service';
 
     /**
@@ -112,10 +113,9 @@ class Product extends Model
             }
         });
     }
+
     /**
      * Get the category of the product.
-     *
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
      */
     public function category(): BelongsTo
     {
@@ -124,8 +124,6 @@ class Product extends Model
 
     /**
      * Get the user who owns the product.
-     *
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
      */
     public function user(): BelongsTo
     {
@@ -134,8 +132,6 @@ class Product extends Model
 
     /**
      * Get the works that use the product.
-     *
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsToMany
      */
     public function works(): BelongsToMany
     {
@@ -194,11 +190,9 @@ class Product extends Model
             ->withPivot(['quantity', 'price', 'currency_code', 'description', 'total'])
             ->withTimestamps();
     }
+
     /**
      * Scope a query to order products by the most recent.
-     *
-     * @param \Illuminate\Database\Eloquent\Builder $query
-     * @return \Illuminate\Database\Eloquent\Builder
      */
     public function scopeMostRecent(Builder $query): Builder
     {
@@ -207,9 +201,6 @@ class Product extends Model
 
     /**
      * Scope a query to find products with low stock.
-     *
-     * @param \Illuminate\Database\Eloquent\Builder $query
-     * @return \Illuminate\Database\Eloquent\Builder
      */
     public function scopeLowStock(Builder $query): Builder
     {
@@ -220,7 +211,7 @@ class Product extends Model
     {
         $path = $this->image;
 
-        if (!$path) {
+        if (! $path) {
             $path = 'products/product.jpg';
         }
 
@@ -233,8 +224,6 @@ class Product extends Model
 
     /**
      * Get a flag indicating if the product is low on stock.
-     *
-     * @return bool
      */
     public function getIsLowStockAttribute(): bool
     {
@@ -243,8 +232,6 @@ class Product extends Model
 
     /**
      * Get a human-readable stock status.
-     *
-     * @return string
      */
     public function getStockStatusAttribute(): string
     {
@@ -257,8 +244,6 @@ class Product extends Model
 
     /**
      * Get the available stock across warehouses.
-     *
-     * @return int
      */
     public function getStockAvailableAttribute(): int
     {
@@ -277,8 +262,6 @@ class Product extends Model
 
     /**
      * Get the reserved stock across warehouses.
-     *
-     * @return int
      */
     public function getStockReservedAttribute(): int
     {
@@ -296,8 +279,6 @@ class Product extends Model
 
     /**
      * Get the damaged stock across warehouses.
-     *
-     * @return int
      */
     public function getStockDamagedAttribute(): int
     {
@@ -315,8 +296,6 @@ class Product extends Model
 
     /**
      * Get the warehouse count for this product.
-     *
-     * @return int
      */
     public function getWarehouseCountAttribute(): int
     {
@@ -334,39 +313,34 @@ class Product extends Model
 
     /**
      * Get the inventory value for available stock.
-     *
-     * @return float
      */
     public function getStockValueAttribute(): float
     {
         $cost = (float) ($this->cost_price ?: $this->price);
+
         return round($this->stock_available * $cost, 2);
     }
 
     /**
      * Scope a query to filter products based on given criteria.
-     *
-     * @param \Illuminate\Database\Eloquent\Builder $query
-     * @param array $filters
-     * @return \Illuminate\Database\Eloquent\Builder
      */
     public function scopeFilter(Builder $query, array $filters): Builder
     {
         return $query
             ->when(
                 $filters['name'] ?? null,
-                fn(Builder $query, $name) => $query->where(function (Builder $query) use ($name) {
-                    $query->where('name', 'like', '%' . $name . '%')
-                        ->orWhere('description', 'like', '%' . $name . '%');
+                fn (Builder $query, $name) => $query->where(function (Builder $query) use ($name) {
+                    $query->where('name', 'like', '%'.$name.'%')
+                        ->orWhere('description', 'like', '%'.$name.'%');
                 })
             )
             ->when(
                 $filters['supplier_name'] ?? null,
-                fn(Builder $query, $supplier) => $query->where('supplier_name', 'like', '%' . $supplier . '%')
+                fn (Builder $query, $supplier) => $query->where('supplier_name', 'like', '%'.$supplier.'%')
             )
             ->when(
                 $filters['category_id'] ?? null,
-                fn(Builder $query, $categoryId) => $query->where('category_id', $categoryId)
+                fn (Builder $query, $categoryId) => $query->where('category_id', $categoryId)
             )
             ->when(
                 $filters['stock_status'] ?? null,
@@ -384,7 +358,7 @@ class Product extends Model
             )
             ->when(
                 $filters['category_ids'] ?? null,
-                fn(Builder $query, $categoryIds) => $query->whereIn('category_id', (array) $categoryIds)
+                fn (Builder $query, $categoryIds) => $query->whereIn('category_id', (array) $categoryIds)
             )
             ->when(
                 $filters['tracking_type'] ?? null,
@@ -401,7 +375,7 @@ class Product extends Model
             )
             ->when(
                 $filters['warehouse_id'] ?? null,
-                fn(Builder $query, $warehouseId) => $query->whereHas('inventories', function (Builder $inventoryQuery) use ($warehouseId) {
+                fn (Builder $query, $warehouseId) => $query->whereHas('inventories', function (Builder $inventoryQuery) use ($warehouseId) {
                     $inventoryQuery->where('warehouse_id', $warehouseId);
                 })
             )
@@ -437,19 +411,19 @@ class Product extends Model
             )
             ->when(
                 $filters['price_min'] ?? null,
-                fn(Builder $query, $priceMin) => $query->where('price', '>=', $priceMin)
+                fn (Builder $query, $priceMin) => $query->where('price', '>=', $priceMin)
             )
             ->when(
                 $filters['price_max'] ?? null,
-                fn(Builder $query, $priceMax) => $query->where('price', '<=', $priceMax)
+                fn (Builder $query, $priceMax) => $query->where('price', '<=', $priceMax)
             )
             ->when(
                 $filters['stock_min'] ?? null,
-                fn(Builder $query, $stockMin) => $query->where('stock', '>=', $stockMin)
+                fn (Builder $query, $stockMin) => $query->where('stock', '>=', $stockMin)
             )
             ->when(
                 $filters['stock_max'] ?? null,
-                fn(Builder $query, $stockMax) => $query->where('stock', '<=', $stockMax)
+                fn (Builder $query, $stockMax) => $query->where('stock', '<=', $stockMax)
             )
             ->when(
                 array_key_exists('has_image', $filters) && $filters['has_image'] !== '',
@@ -477,11 +451,11 @@ class Product extends Model
             )
             ->when(
                 $filters['created_from'] ?? null,
-                fn(Builder $query, $createdFrom) => $query->whereDate('created_at', '>=', $createdFrom)
+                fn (Builder $query, $createdFrom) => $query->whereDate('created_at', '>=', $createdFrom)
             )
             ->when(
                 $filters['created_to'] ?? null,
-                fn(Builder $query, $createdTo) => $query->whereDate('created_at', '<=', $createdTo)
+                fn (Builder $query, $createdTo) => $query->whereDate('created_at', '<=', $createdTo)
             )
             ->when(
                 $filters['status'] ?? null,
@@ -503,8 +477,7 @@ class Product extends Model
     /**
      * Scope a query to only include customers of a given user.
      *
-     * @param \Illuminate\Database\Eloquent\Builder $query
-     * @param int $userId
+     * @param  \Illuminate\Database\Eloquent\Builder  $query
      * @return \Illuminate\Database\Eloquent\Builder
      */
     public function scopeByUser($query, int $userId)
@@ -524,10 +497,6 @@ class Product extends Model
 
     /**
      * Scope a query to filter products by a specific work.
-     *
-     * @param \Illuminate\Database\Eloquent\Builder $query
-     * @param int $workId
-     * @return \Illuminate\Database\Eloquent\Builder
      */
     public function scopeForWork(Builder $query, int $workId): Builder
     {
@@ -538,10 +507,6 @@ class Product extends Model
 
     /**
      * Apply stock range filter.
-     *
-     * @param \Illuminate\Database\Eloquent\Builder $query
-     * @param string $stockRange
-     * @return \Illuminate\Database\Eloquent\Builder
      */
     private function applyStockFilter(Builder $query, string $stockRange): Builder
     {

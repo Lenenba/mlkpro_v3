@@ -5,8 +5,8 @@ namespace App\Http\Controllers\Api\SuperAdmin;
 use App\Models\Customer;
 use App\Models\Invoice;
 use App\Models\PlanScan;
-use App\Models\Product;
 use App\Models\PlatformSetting;
+use App\Models\Product;
 use App\Models\Quote;
 use App\Models\Request as LeadRequest;
 use App\Models\Role;
@@ -68,7 +68,7 @@ class TenantController extends BaseController
         $ownerRoleId = Role::query()->where('name', 'owner')->value('id');
         $query = User::query()->where('role_id', $ownerRoleId);
 
-        if (!empty($filters['search'])) {
+        if (! empty($filters['search'])) {
             $search = $filters['search'];
             $query->where(function ($builder) use ($search) {
                 $builder->where('company_name', 'like', "%{$search}%")
@@ -77,7 +77,7 @@ class TenantController extends BaseController
             });
         }
 
-        if (!empty($filters['status'])) {
+        if (! empty($filters['status'])) {
             if ($filters['status'] === 'suspended') {
                 $query->where('is_suspended', true);
             } elseif ($filters['status'] === 'active') {
@@ -85,7 +85,7 @@ class TenantController extends BaseController
             }
         }
 
-        if (!empty($filters['plan'])) {
+        if (! empty($filters['plan'])) {
             $this->applyPlanFilter($query, (string) $filters['plan']);
         }
 
@@ -147,7 +147,7 @@ class TenantController extends BaseController
                 'security' => [
                     'two_factor_exempt' => (bool) $tenant->two_factor_exempt,
                     'two_factor_method' => $tenant->twoFactorMethod(),
-                    'two_factor_has_app' => !empty($tenant->two_factor_secret),
+                    'two_factor_has_app' => ! empty($tenant->two_factor_secret),
                 ],
                 'subscription' => ($subscription || $planKey) ? [
                     'status' => $subscription?->status ?? 'free',
@@ -268,12 +268,12 @@ class TenantController extends BaseController
         $this->ensureOwner($tenant);
 
         $billingService = app(BillingSubscriptionService::class);
-        if (!$billingService->isStripe()) {
+        if (! $billingService->isStripe()) {
             return $this->jsonResponse([
                 'message' => 'Billing provider is not Stripe.',
             ], 422);
         }
-        if (!$billingService->providerReady()) {
+        if (! $billingService->providerReady()) {
             return $this->jsonResponse([
                 'message' => 'Stripe is not configured.',
             ], 422);
@@ -285,7 +285,7 @@ class TenantController extends BaseController
 
         $priceIds = $plans->pluck('price_id')->filter()->values()->all();
         $planKeys = $plans->pluck('key')->filter()->values()->all();
-        if (!$priceIds) {
+        if (! $priceIds) {
             return $this->jsonResponse([
                 'message' => 'No subscription plans are configured.',
                 'errors' => [
@@ -306,7 +306,7 @@ class TenantController extends BaseController
         $planKey = $plan['key'] ?? null;
         $comped = (bool) ($validated['comped'] ?? false);
 
-        if ($comped && !config('services.stripe.comped_coupon_id')) {
+        if ($comped && ! config('services.stripe.comped_coupon_id')) {
             return $this->jsonResponse([
                 'message' => 'Comped coupon is not configured.',
                 'errors' => [
@@ -319,7 +319,7 @@ class TenantController extends BaseController
             $seatQuantity = app(BillingSubscriptionService::class)->resolveSeatQuantity($tenant);
             $updated = app(CreateStripeSubscriptionForTenant::class)
                 ->assign($tenant, (string) $planKey, $comped, $seatQuantity);
-            if (!$updated) {
+            if (! $updated) {
                 throw new \RuntimeException('Stripe subscription update failed.');
             }
         } catch (\Throwable $exception) {
@@ -549,9 +549,11 @@ class TenantController extends BaseController
     private function planOptions(): array
     {
         $planDisplayOverrides = PlatformSetting::getValue('plan_display', []);
+
         return collect(config('billing.plans', []))
             ->map(function (array $plan, string $key) use ($planDisplayOverrides) {
                 $display = PlanDisplay::merge($plan, $key, $planDisplayOverrides);
+
                 return [
                     'key' => $key,
                     'name' => $display['name'],
@@ -592,8 +594,9 @@ class TenantController extends BaseController
                 return;
             }
 
-            if (!$priceIds) {
+            if (! $priceIds) {
                 $query->whereRaw('0 = 1');
+
                 return;
             }
 
@@ -631,8 +634,9 @@ class TenantController extends BaseController
         }
 
         $fallbackPriceId = $priceIds[0] ?? null;
-        if (!$fallbackPriceId) {
+        if (! $fallbackPriceId) {
             $query->whereRaw('0 = 1');
+
             return;
         }
 
@@ -646,7 +650,7 @@ class TenantController extends BaseController
 
     private function ensureOwner(User $tenant): void
     {
-        if (!$tenant->isOwner()) {
+        if (! $tenant->isOwner()) {
             abort(404);
         }
     }

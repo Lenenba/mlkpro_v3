@@ -7,7 +7,6 @@ use App\Services\BillingPlanService;
 use App\Support\PlanDisplay;
 use App\Support\PlatformPermissions;
 use Illuminate\Http\Request;
-use Symfony\Component\HttpFoundation\Response;
 
 class PlatformSettingsController extends BaseController
 {
@@ -156,7 +155,7 @@ class PlatformSettingsController extends BaseController
         $limitsPayload = $this->buildLimitPayload($validated['plan_limits'] ?? []);
         PlatformSetting::setValue('plan_limits', $limitsPayload);
 
-        if (array_key_exists('plan_modules', $validated) && !$isSuperadmin) {
+        if (array_key_exists('plan_modules', $validated) && ! $isSuperadmin) {
             abort(403);
         }
 
@@ -177,7 +176,7 @@ class PlatformSettingsController extends BaseController
                 $price = $price === '' ? null : $price;
             }
             $features = $planInput['features'] ?? [];
-            if (!is_array($features)) {
+            if (! is_array($features)) {
                 $features = [];
             }
             $features = collect($features)

@@ -11,12 +11,9 @@ use App\Models\Work;
 use App\Notifications\ActionEmailNotification;
 use App\Notifications\InvoicePaymentNotification;
 use App\Support\NotificationDispatcher;
-use App\Services\NotificationPreferenceService;
-use App\Services\TipAllocationService;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
 use Stripe\StripeClient;
-use App\Services\StripeConnectService;
 
 class StripeInvoiceService
 {
@@ -34,8 +31,7 @@ class StripeInvoiceService
         string $cancelUrl,
         ?float $amount = null,
         array $tip = []
-    ): array
-    {
+    ): array {
         $invoice->loadMissing(['customer', 'user']);
 
         $balanceDue = (float) $invoice->balance_due;
@@ -150,7 +146,7 @@ class StripeInvoiceService
         }
 
         $paymentIntentId = $session['payment_intent'] ?? null;
-        if (!$paymentIntentId) {
+        if (! $paymentIntentId) {
             return null;
         }
 
@@ -164,12 +160,12 @@ class StripeInvoiceService
 
         $metadata = $session['metadata'] ?? [];
         $invoiceId = $metadata['invoice_id'] ?? $session['client_reference_id'] ?? null;
-        if (!$invoiceId) {
+        if (! $invoiceId) {
             return null;
         }
 
         $invoice = Invoice::query()->find($invoiceId);
-        if (!$invoice || in_array($invoice->status, ['void', 'draft'], true)) {
+        if (! $invoice || in_array($invoice->status, ['void', 'draft'], true)) {
             return null;
         }
 
@@ -178,7 +174,7 @@ class StripeInvoiceService
             'stripe',
             'invoice_webhook'
         );
-        if (!$policyDecision['allowed']) {
+        if (! $policyDecision['allowed']) {
             Log::warning('Stripe invoice payment policy mismatch.', [
                 'account_id' => $invoice->user_id,
                 'invoice_id' => $invoice->id,
@@ -189,7 +185,7 @@ class StripeInvoiceService
         }
 
         $amountTotal = $session['amount_total'] ?? null;
-        if (!$amountTotal) {
+        if (! $amountTotal) {
             return null;
         }
 
@@ -231,7 +227,7 @@ class StripeInvoiceService
     public function recordPaymentFromPaymentIntent(array $intent): ?Payment
     {
         $paymentIntentId = $intent['id'] ?? null;
-        if (!$paymentIntentId) {
+        if (! $paymentIntentId) {
             return null;
         }
 
@@ -245,12 +241,12 @@ class StripeInvoiceService
 
         $metadata = $intent['metadata'] ?? [];
         $invoiceId = $metadata['invoice_id'] ?? null;
-        if (!$invoiceId) {
+        if (! $invoiceId) {
             return null;
         }
 
         $invoice = Invoice::query()->find($invoiceId);
-        if (!$invoice || in_array($invoice->status, ['void', 'draft'], true)) {
+        if (! $invoice || in_array($invoice->status, ['void', 'draft'], true)) {
             return null;
         }
 
@@ -259,7 +255,7 @@ class StripeInvoiceService
             'stripe',
             'invoice_webhook'
         );
-        if (!$policyDecision['allowed']) {
+        if (! $policyDecision['allowed']) {
             Log::warning('Stripe invoice payment policy mismatch.', [
                 'account_id' => $invoice->user_id,
                 'invoice_id' => $invoice->id,
@@ -270,7 +266,7 @@ class StripeInvoiceService
         }
 
         $amountTotal = $intent['amount_received'] ?? $intent['amount'] ?? null;
-        if (!$amountTotal) {
+        if (! $amountTotal) {
             return null;
         }
 
@@ -311,8 +307,7 @@ class StripeInvoiceService
         ?float $tipBaseAmount = null,
         ?float $chargedTotal = null,
         ?int $tipAssigneeUserId = null
-    ): ?Payment
-    {
+    ): ?Payment {
         $tipAmount = max(0, $tipAmount);
         $tipType = in_array($tipType, ['none', 'percent', 'fixed'], true) ? $tipType : ($tipAmount > 0 ? 'fixed' : 'none');
         $tipBaseAmount = $tipBaseAmount !== null ? max(0, $tipBaseAmount) : $amount;
@@ -385,11 +380,11 @@ class StripeInvoiceService
         if ($owner && $owner->email) {
             $customer = $invoice->customer;
             $customerLabel = $customer?->company_name
-                ?: trim(($customer?->first_name ?? '') . ' ' . ($customer?->last_name ?? ''));
+                ?: trim(($customer?->first_name ?? '').' '.($customer?->last_name ?? ''));
 
             NotificationDispatcher::send($owner, new ActionEmailNotification(
                 'Payment received from client',
-                $customerLabel ? $customerLabel . ' paid via Stripe.' : 'A client paid via Stripe.',
+                $customerLabel ? $customerLabel.' paid via Stripe.' : 'A client paid via Stripe.',
                 $this->buildPaymentDetails($invoice, $payment),
                 route('invoice.show', $invoice->id),
                 'View invoice',
@@ -411,7 +406,7 @@ class StripeInvoiceService
     private function notifyClient(Invoice $invoice, Payment $payment): void
     {
         $customer = $invoice->customer;
-        if (!$customer) {
+        if (! $customer) {
             return;
         }
 
@@ -445,7 +440,7 @@ class StripeInvoiceService
         }
 
         $secret = config('services.stripe.secret');
-        if (!$secret) {
+        if (! $secret) {
             Log::warning('Stripe secret key is missing for invoice payments.');
         }
 
@@ -457,12 +452,12 @@ class StripeInvoiceService
     public function resolveConnectedAccountId(Invoice $invoice): ?string
     {
         $owner = $invoice->user;
-        if (!$owner) {
+        if (! $owner) {
             return null;
         }
 
         $connect = app(StripeConnectService::class);
-        if (!$connect->isEnabled() || !$connect->isAccountReady($owner)) {
+        if (! $connect->isEnabled() || ! $connect->isAccountReady($owner)) {
             return null;
         }
 
@@ -475,22 +470,22 @@ class StripeInvoiceService
 
         $details = [
             ['label' => 'Invoice', 'value' => $invoice->number ?? $invoice->id],
-            ['label' => 'Amount', 'value' => '$' . number_format((float) $payment->amount, 2)],
+            ['label' => 'Amount', 'value' => '$'.number_format((float) $payment->amount, 2)],
         ];
 
         if ($tipAmount > 0) {
-            $details[] = ['label' => 'Tip', 'value' => '$' . number_format($tipAmount, 2)];
-            $details[] = ['label' => 'Total charged', 'value' => '$' . number_format((float) $payment->amount + $tipAmount, 2)];
+            $details[] = ['label' => 'Tip', 'value' => '$'.number_format($tipAmount, 2)];
+            $details[] = ['label' => 'Total charged', 'value' => '$'.number_format((float) $payment->amount + $tipAmount, 2)];
         }
 
-        $details[] = ['label' => 'Balance due', 'value' => '$' . number_format((float) $invoice->balance_due, 2)];
+        $details[] = ['label' => 'Balance due', 'value' => '$'.number_format((float) $invoice->balance_due, 2)];
 
         return $details;
     }
 
     private function parseMetadataAmount(mixed $value): ?float
     {
-        if (!is_numeric($value)) {
+        if (! is_numeric($value)) {
             return null;
         }
 
@@ -509,11 +504,12 @@ class StripeInvoiceService
 
     private function parseMetadataInteger(mixed $value): ?int
     {
-        if (!is_numeric($value)) {
+        if (! is_numeric($value)) {
             return null;
         }
 
         $parsed = (int) $value;
+
         return $parsed > 0 ? $parsed : null;
     }
 
@@ -524,6 +520,7 @@ class StripeInvoiceService
         }
 
         $fee = (int) round($amountCents * ($feePercent / 100));
+
         return max(0, min($fee, $amountCents));
     }
 }

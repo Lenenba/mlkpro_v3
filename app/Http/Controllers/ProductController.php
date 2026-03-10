@@ -2,30 +2,30 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\ProductRequest;
+use App\Models\ActivityLog;
 use App\Models\Product;
-use App\Utils\FileHandler;
-use Illuminate\Http\Request;
 use App\Models\ProductCategory;
 use App\Models\Sale;
-use App\Models\ActivityLog;
 use App\Models\User;
 use App\Models\Warehouse;
-use App\Http\Requests\ProductRequest;
-use App\Services\InventoryService;
+use App\Notifications\SupplierStockRequestNotification;
 use App\Services\AiImageUsageService;
-use App\Services\UsageLimitService;
-use App\Services\StripeCatalogService;
 use App\Services\Assistant\OpenAiClient;
 use App\Services\Assistant\OpenAiRequestException;
 use App\Services\AssistantCreditService;
-use App\Notifications\SupplierStockRequestNotification;
+use App\Services\InventoryService;
+use App\Services\StripeCatalogService;
+use App\Services\UsageLimitService;
 use App\Support\NotificationDispatcher;
+use App\Utils\FileHandler;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
+use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
-use Illuminate\Support\Collection;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
@@ -60,7 +60,7 @@ class ProductController extends Controller
             'direction',
         ]);
         $user = $request?->user() ?? Auth::user();
-        if (!$user) {
+        if (! $user) {
             abort(403);
         }
         [, $accountId, $canEdit] = $this->resolveProductAccount($user);
@@ -141,6 +141,7 @@ class ProductController extends Controller
             if (array_key_exists($product->id, $reservedTotals)) {
                 $product->setAttribute('reserved_total', $reservedTotals[$product->id]);
             }
+
             return $product;
         });
         $products->setCollection($productCollection);
@@ -252,7 +253,7 @@ class ProductController extends Controller
     public function options()
     {
         $user = Auth::user();
-        if (!$user) {
+        if (! $user) {
             abort(403);
         }
         $accountId = $this->ensureProductOwner($user);
@@ -274,7 +275,7 @@ class ProductController extends Controller
         $this->ensureProductItem($product);
 
         $user = $request->user() ?? Auth::user();
-        if (!$user) {
+        if (! $user) {
             abort(403);
         }
         [, $accountId] = $this->resolveProductAccount($user);
@@ -295,7 +296,7 @@ class ProductController extends Controller
     public function create()
     {
         $user = Auth::user();
-        if (!$user) {
+        if (! $user) {
             abort(403);
         }
         $accountId = $this->ensureProductOwner($user);
@@ -331,7 +332,7 @@ class ProductController extends Controller
     public function store(ProductRequest $request)
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             abort(403);
         }
         $accountId = $this->ensureProductOwner($user);
@@ -340,7 +341,7 @@ class ProductController extends Controller
         $validated['item_type'] = Product::ITEM_TYPE_PRODUCT;
         $validated['image'] = FileHandler::handleImageUpload('products', $request, 'image', 'products/product.jpg');
         $imageUrl = $request->input('image_url');
-        if (!$request->hasFile('image') && is_string($imageUrl) && $imageUrl !== '') {
+        if (! $request->hasFile('image') && is_string($imageUrl) && $imageUrl !== '') {
             $validated['image'] = $imageUrl;
         }
         unset($validated['image_url']);
@@ -396,7 +397,7 @@ class ProductController extends Controller
     public function storeQuick(ProductRequest $request)
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             abort(403);
         }
         $accountId = $this->ensureProductOwner($user);
@@ -405,7 +406,7 @@ class ProductController extends Controller
         $validated['item_type'] = Product::ITEM_TYPE_PRODUCT;
         $validated['image'] = FileHandler::handleImageUpload('products', $request, 'image', 'products/product.jpg');
         $imageUrl = $request->input('image_url');
-        if (!$request->hasFile('image') && is_string($imageUrl) && $imageUrl !== '') {
+        if (! $request->hasFile('image') && is_string($imageUrl) && $imageUrl !== '') {
             $validated['image'] = $imageUrl;
         }
         unset($validated['image_url']);
@@ -461,7 +462,7 @@ class ProductController extends Controller
     public function storeDraft(Request $request)
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             abort(403);
         }
         $accountId = $this->ensureProductOwner($user);
@@ -514,12 +515,12 @@ class ProductController extends Controller
         }
 
         $description = $validated['description'] ?? null;
-        if (!$description && is_array($source)) {
+        if (! $description && is_array($source)) {
             $description = $source['title'] ?? null;
         }
 
         $category = $this->resolveCategory($accountId, $creatorId, $itemType);
-        if (!$category) {
+        if (! $category) {
             return response()->json([
                 'message' => 'Unable to resolve category.',
             ], 422);
@@ -578,7 +579,7 @@ class ProductController extends Controller
         $this->ensureProductItem($product);
 
         $user = Auth::user();
-        if (!$user) {
+        if (! $user) {
             abort(403);
         }
         [, $accountId, $canEdit] = $this->resolveProductAccount($user);
@@ -638,7 +639,7 @@ class ProductController extends Controller
         $stockInput = array_key_exists('stock', $data) ? $data['stock'] : null;
         $minimumInput = array_key_exists('minimum_stock', $data) ? $data['minimum_stock'] : null;
         $previousStock = (int) $product->stock;
-        $data = array_filter($data, static fn($value) => $value !== null);
+        $data = array_filter($data, static fn ($value) => $value !== null);
         $product->update($data);
 
         if ($stockInput !== null) {
@@ -686,7 +687,7 @@ class ProductController extends Controller
         $this->authorize('update', $product);
         $this->ensureProductItem($product);
         $user = $request->user();
-        if ($user && $user->currentAccessToken() && !$user->tokenCan('inventory:write')) {
+        if ($user && $user->currentAccessToken() && ! $user->tokenCan('inventory:write')) {
             abort(403);
         }
 
@@ -706,13 +707,13 @@ class ProductController extends Controller
         ]);
 
         $accountId = $request->user()?->accountOwnerId() ?? $request->user()?->id;
-        if (!empty($data['warehouse_id'])) {
+        if (! empty($data['warehouse_id'])) {
             $warehouseExists = Warehouse::query()
                 ->forAccount($accountId)
                 ->whereKey($data['warehouse_id'])
                 ->exists();
 
-            if (!$warehouseExists) {
+            if (! $warehouseExists) {
                 throw ValidationException::withMessages([
                     'warehouse_id' => ['Invalid warehouse selection.'],
                 ]);
@@ -731,7 +732,7 @@ class ProductController extends Controller
                 static fn ($value) => $value !== ''
             ));
 
-            if (!empty($serialNumbers)) {
+            if (! empty($serialNumbers)) {
                 $uniqueSerials = array_values(array_unique($serialNumbers));
                 if (count($uniqueSerials) !== count($serialNumbers)) {
                     throw ValidationException::withMessages([
@@ -830,7 +831,7 @@ class ProductController extends Controller
         $this->authorize('update', $product);
         $this->ensureProductItem($product);
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             abort(403);
         }
         $accountId = $this->ensureProductOwner($user);
@@ -844,7 +845,7 @@ class ProductController extends Controller
         ]);
 
         $supplierEmail = $validated['supplier_email'] ?? $product->supplier_email;
-        if (!$supplierEmail) {
+        if (! $supplierEmail) {
             throw ValidationException::withMessages([
                 'supplier_email' => 'Email fournisseur requis.',
             ]);
@@ -899,6 +900,7 @@ class ProductController extends Controller
                     'ids' => $data['ids'],
                 ]);
             }
+
             return redirect()->back()->with('success', 'Products archived.');
         }
 
@@ -913,6 +915,7 @@ class ProductController extends Controller
                     'ids' => $data['ids'],
                 ]);
             }
+
             return redirect()->back()->with('success', 'Products restored.');
         }
 
@@ -944,14 +947,14 @@ class ProductController extends Controller
         $this->ensureProductItem($product);
 
         $copy = $product->replicate(['created_at', 'updated_at']);
-        $copy->name = $product->name . ' (Copy)';
+        $copy->name = $product->name.' (Copy)';
         $copy->number = null;
         $copy->is_active = false;
         $copy->save();
 
         if ($product->image) {
             $source = $product->image;
-            $target = 'products/' . basename($copy->id . '_' . basename($source));
+            $target = 'products/'.basename($copy->id.'_'.basename($source));
             if (Storage::disk('public')->exists($source)) {
                 Storage::disk('public')->copy($source, $target);
                 $copy->image = $target;
@@ -961,7 +964,7 @@ class ProductController extends Controller
 
         foreach ($product->images as $image) {
             $source = $image->path;
-            $target = 'products/' . basename($copy->id . '_' . basename($source));
+            $target = 'products/'.basename($copy->id.'_'.basename($source));
             if (Storage::disk('public')->exists($source)) {
                 Storage::disk('public')->copy($source, $target);
                 $copy->images()->create([
@@ -1002,7 +1005,7 @@ class ProductController extends Controller
     public function export(Request $request)
     {
         $user = $request->user();
-        if ($user && $user->currentAccessToken() && !$user->tokenCan('exports:read')) {
+        if ($user && $user->currentAccessToken() && ! $user->tokenCan('exports:read')) {
             abort(403);
         }
 
@@ -1038,7 +1041,7 @@ class ProductController extends Controller
             ->withSum('inventories as damaged_total', 'damaged')
             ->withCount('inventories as warehouse_count');
 
-        $filename = 'products-' . now()->format('Ymd-His') . '.csv';
+        $filename = 'products-'.now()->format('Ymd-His').'.csv';
 
         ActivityLog::record($request->user(), $request->user(), 'product_export', [
             'filters' => $filters,
@@ -1107,12 +1110,12 @@ class ProductController extends Controller
     public function import(Request $request)
     {
         $tokenUser = $request->user();
-        if ($tokenUser && $tokenUser->currentAccessToken() && !$tokenUser->tokenCan('inventory:write')) {
+        if ($tokenUser && $tokenUser->currentAccessToken() && ! $tokenUser->tokenCan('inventory:write')) {
             abort(403);
         }
 
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             abort(403);
         }
         $accountId = $this->ensureProductOwner($user);
@@ -1126,7 +1129,7 @@ class ProductController extends Controller
 
         $file = $data['file'];
         $handle = fopen($file->getRealPath(), 'r');
-        if (!$handle) {
+        if (! $handle) {
             if ($this->shouldReturnJson($request)) {
                 return response()->json([
                     'message' => 'Unable to read import file.',
@@ -1137,7 +1140,7 @@ class ProductController extends Controller
         }
 
         $headers = fgetcsv($handle);
-        if (!$headers) {
+        if (! $headers) {
             fclose($handle);
             if ($this->shouldReturnJson($request)) {
                 return response()->json([
@@ -1154,7 +1157,7 @@ class ProductController extends Controller
         while (($row = fgetcsv($handle)) !== false) {
             $row = array_pad($row, count($headers), null);
             $dataRow = array_combine($headers, $row);
-            if (!$dataRow || empty($dataRow['name'])) {
+            if (! $dataRow || empty($dataRow['name'])) {
                 continue;
             }
 
@@ -1188,7 +1191,7 @@ class ProductController extends Controller
             ];
 
             $query = Product::query()->products()->byUser(Auth::id());
-            if (!empty($payload['sku'])) {
+            if (! empty($payload['sku'])) {
                 $query->where('sku', $payload['sku']);
             } else {
                 $query->where('name', $payload['name']);
@@ -1197,7 +1200,7 @@ class ProductController extends Controller
             $existing = $query->first();
             if ($existing) {
                 $previousStock = (int) $existing->stock;
-                $existing->update(array_filter($payload, static fn($value) => $value !== null));
+                $existing->update(array_filter($payload, static fn ($value) => $value !== null));
                 $delta = (int) $payload['stock'] - $previousStock;
                 if ($delta !== 0) {
                     $inventoryService->adjust($existing, $delta, 'adjust', [
@@ -1212,7 +1215,7 @@ class ProductController extends Controller
             } else {
                 $payload['user_id'] = Auth::id();
                 $payload['item_type'] = Product::ITEM_TYPE_PRODUCT;
-                if (!$payload['category_id']) {
+                if (! $payload['category_id']) {
                     $fallback = $this->resolveCategory($accountId, $creatorId, Product::ITEM_TYPE_PRODUCT);
                     $payload['category_id'] = $fallback?->id;
                 }
@@ -1248,6 +1251,7 @@ class ProductController extends Controller
 
         return redirect()->back()->with('success', "Imported {$imported} products.");
     }
+
     /**
      * Update the specified product in the database.
      */
@@ -1277,7 +1281,7 @@ class ProductController extends Controller
         $validated['item_type'] = Product::ITEM_TYPE_PRODUCT;
         $validated['image'] = FileHandler::handleImageUpload('products', $request, 'image', 'products/product.jpg', $product->image);
         $imageUrl = $request->input('image_url');
-        if (!$request->hasFile('image') && is_string($imageUrl) && $imageUrl !== '') {
+        if (! $request->hasFile('image') && is_string($imageUrl) && $imageUrl !== '') {
             $validated['image'] = $imageUrl;
         }
         unset($validated['image_url']);
@@ -1292,7 +1296,7 @@ class ProductController extends Controller
 
         $product->update($validated);
 
-        if (!empty($removeImageIds)) {
+        if (! empty($removeImageIds)) {
             $imagesToRemove = $product->images()->whereIn('id', $removeImageIds)->get();
             foreach ($imagesToRemove as $image) {
                 FileHandler::deleteFile($image->path, 'products/product.jpg');
@@ -1300,8 +1304,8 @@ class ProductController extends Controller
             }
         }
 
-        $skipPrimaryUpdate = !empty($primaryImageId);
-        if (!$skipPrimaryUpdate
+        $skipPrimaryUpdate = ! empty($primaryImageId);
+        if (! $skipPrimaryUpdate
             && ($request->hasFile('image') || $request->filled('image_url') || $product->images()->where('is_primary', true)->doesntExist())
         ) {
             $product->images()->updateOrCreate(
@@ -1320,7 +1324,7 @@ class ProductController extends Controller
 
         if ($primaryImageId) {
             $primaryImage = $product->images()->whereKey($primaryImageId)->first();
-            if (!$primaryImage) {
+            if (! $primaryImage) {
                 throw ValidationException::withMessages([
                     'primary_image_id' => 'Primary image selection is invalid.',
                 ]);
@@ -1406,11 +1410,11 @@ class ProductController extends Controller
         $this->ensureProductItem($product);
 
         $user = $request->user() ?? Auth::user();
-        if (!$user) {
+        if (! $user) {
             abort(403);
         }
 
-        if (!config('services.openai.key')) {
+        if (! config('services.openai.key')) {
             return response()->json([
                 'message' => 'OpenAI n\'est pas configure.',
             ], 422);
@@ -1431,7 +1435,7 @@ class ProductController extends Controller
             $usedFree = true;
         } else {
             $creditConsumed = $usageService->consumeCredit($owner, $context, 1);
-            if (!$creditConsumed) {
+            if (! $creditConsumed) {
                 return response()->json([
                     'message' => 'Limite quotidienne d\'images IA atteinte. Achetez un pack IA pour continuer.',
                 ], 429);
@@ -1470,7 +1474,7 @@ class ProductController extends Controller
         }
 
         $b64 = $response['data'][0]['b64_json'] ?? null;
-        if (!is_string($b64) || $b64 === '') {
+        if (! is_string($b64) || $b64 === '') {
             if ($creditConsumed) {
                 $creditService->refund($owner, 1, [
                     'source' => $usageService->sourceForContext($context),
@@ -1499,7 +1503,7 @@ class ProductController extends Controller
 
         $format = strtolower((string) config('services.openai.image_output_format', 'png'));
         $format = preg_replace('/[^a-z0-9]/', '', $format) ?: 'png';
-        if (!in_array($format, ['png', 'jpeg', 'jpg', 'webp'], true)) {
+        if (! in_array($format, ['png', 'jpeg', 'jpg', 'webp'], true)) {
             $format = 'png';
         }
 
@@ -1555,7 +1559,7 @@ class ProductController extends Controller
     public function missingAiImages(Request $request): \Illuminate\Http\JsonResponse
     {
         $user = $request->user() ?? Auth::user();
-        if (!$user) {
+        if (! $user) {
             abort(403);
         }
 
@@ -1612,18 +1616,18 @@ class ProductController extends Controller
                 ->select(['id', 'company_type'])
                 ->find($ownerId);
 
-        if (!$owner) {
+        if (! $owner) {
             abort(403);
         }
 
         $canEdit = $user->id === $owner->id;
         $accountId = $user->id;
         if ($owner->company_type === 'products') {
-            if (!$canEdit) {
+            if (! $canEdit) {
                 $membership = $user->relationLoaded('teamMembership')
                     ? $user->teamMembership
                     : $user->teamMembership()->first();
-                if (!$membership || !$membership->hasPermission('sales.manage')) {
+                if (! $membership || ! $membership->hasPermission('sales.manage')) {
                     abort(403);
                 }
             }
@@ -1635,7 +1639,7 @@ class ProductController extends Controller
 
     private function ensureProductOwner(User $user): int
     {
-        if (!$user->isAccountOwner()) {
+        if (! $user->isAccountOwner()) {
             abort(403);
         }
 
@@ -1667,7 +1671,7 @@ class ProductController extends Controller
                 return;
             }
             if (strlen($text) > $limit) {
-                $text = rtrim(substr($text, 0, $limit)) . '...';
+                $text = rtrim(substr($text, 0, $limit)).'...';
             }
             $details[] = "{$label}: {$text}";
         };
@@ -1676,7 +1680,7 @@ class ProductController extends Controller
             if ($value === null || $value === '') {
                 return;
             }
-            if (!is_numeric($value)) {
+            if (! is_numeric($value)) {
                 return;
             }
             $numeric = (float) $value;
@@ -1702,7 +1706,7 @@ class ProductController extends Controller
         if ($product->promo_start_at || $product->promo_end_at) {
             $promoStart = $product->promo_start_at ? (string) $product->promo_start_at : '';
             $promoEnd = $product->promo_end_at ? (string) $product->promo_end_at : '';
-            $promoRange = trim($promoStart . ($promoEnd ? " to {$promoEnd}" : ''));
+            $promoRange = trim($promoStart.($promoEnd ? " to {$promoEnd}" : ''));
             $addDetail('Promo dates', $promoRange, 120);
         }
         $addNumber('Cost price', $product->cost_price, ' USD');
@@ -1715,7 +1719,7 @@ class ProductController extends Controller
         }
 
         $detailBlock = $details
-            ? "Product details:\n- " . implode("\n- ", $details)
+            ? "Product details:\n- ".implode("\n- ", $details)
             : '';
 
         return implode("\n", array_filter([
@@ -1728,12 +1732,13 @@ class ProductController extends Controller
 
     private function normalizeSourceDetails($details): ?array
     {
-        if (!$details) {
+        if (! $details) {
             return null;
         }
 
         if (is_string($details)) {
             $decoded = json_decode($details, true);
+
             return is_array($decoded) ? $decoded : null;
         }
 
@@ -1804,7 +1809,7 @@ class ProductController extends Controller
         foreach ($rows as $row) {
             $customerName = trim((string) ($row->company_name ?? ''));
             if ($customerName === '') {
-                $customerName = trim(trim((string) ($row->first_name ?? '')) . ' ' . trim((string) ($row->last_name ?? '')));
+                $customerName = trim(trim((string) ($row->first_name ?? '')).' '.trim((string) ($row->last_name ?? '')));
             }
             if ($customerName === '') {
                 $customerName = 'Client';
@@ -1828,5 +1833,4 @@ class ProductController extends Controller
 
         return $reservedOrders;
     }
-
 }

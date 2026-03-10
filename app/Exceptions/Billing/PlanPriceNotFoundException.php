@@ -4,6 +4,4 @@ namespace App\Exceptions\Billing;
 
 use RuntimeException;
 
-class PlanPriceNotFoundException extends RuntimeException
-{
-}
+class PlanPriceNotFoundException extends RuntimeException {}

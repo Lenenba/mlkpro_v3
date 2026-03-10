@@ -133,18 +133,18 @@ class StripeSaleService
         }
 
         $paymentIntentId = $session['payment_intent'] ?? null;
-        if (!$paymentIntentId) {
+        if (! $paymentIntentId) {
             return null;
         }
 
         $metadata = $session['metadata'] ?? [];
         $saleId = $metadata['sale_id'] ?? $session['client_reference_id'] ?? null;
-        if (!$saleId) {
+        if (! $saleId) {
             return null;
         }
 
         $sale = Sale::query()->find($saleId);
-        if (!$sale || in_array($sale->status, [Sale::STATUS_CANCELED], true)) {
+        if (! $sale || in_array($sale->status, [Sale::STATUS_CANCELED], true)) {
             return null;
         }
 
@@ -153,7 +153,7 @@ class StripeSaleService
             'stripe',
             'sale_webhook'
         );
-        if (!$policyDecision['allowed']) {
+        if (! $policyDecision['allowed']) {
             Log::warning('Stripe sale payment policy mismatch.', [
                 'account_id' => $sale->user_id,
                 'sale_id' => $sale->id,
@@ -164,7 +164,7 @@ class StripeSaleService
         }
 
         $amountTotal = $session['amount_total'] ?? null;
-        if (!$amountTotal) {
+        if (! $amountTotal) {
             return null;
         }
 
@@ -180,18 +180,18 @@ class StripeSaleService
     public function recordPaymentFromPaymentIntent(array $intent): ?Sale
     {
         $paymentIntentId = $intent['id'] ?? null;
-        if (!$paymentIntentId) {
+        if (! $paymentIntentId) {
             return null;
         }
 
         $metadata = $intent['metadata'] ?? [];
         $saleId = $metadata['sale_id'] ?? null;
-        if (!$saleId) {
+        if (! $saleId) {
             return null;
         }
 
         $sale = Sale::query()->find($saleId);
-        if (!$sale || in_array($sale->status, [Sale::STATUS_CANCELED], true)) {
+        if (! $sale || in_array($sale->status, [Sale::STATUS_CANCELED], true)) {
             return null;
         }
 
@@ -200,7 +200,7 @@ class StripeSaleService
             'stripe',
             'sale_webhook'
         );
-        if (!$policyDecision['allowed']) {
+        if (! $policyDecision['allowed']) {
             Log::warning('Stripe sale payment policy mismatch.', [
                 'account_id' => $sale->user_id,
                 'sale_id' => $sale->id,
@@ -211,7 +211,7 @@ class StripeSaleService
         }
 
         $amountTotal = $intent['amount_received'] ?? $intent['amount'] ?? null;
-        if (!$amountTotal) {
+        if (! $amountTotal) {
             return null;
         }
 
@@ -223,7 +223,6 @@ class StripeSaleService
         return app(SalePaymentService::class)->recordStripePayment($sale, $amount, $paymentIntentId, null);
     }
 
-
     private function client(): StripeClient
     {
         if ($this->client) {
@@ -231,7 +230,7 @@ class StripeSaleService
         }
 
         $secret = config('services.stripe.secret');
-        if (!$secret) {
+        if (! $secret) {
             Log::warning('Stripe secret key is missing for sale payments.');
         }
 
@@ -245,12 +244,12 @@ class StripeSaleService
         $owner = $sale->relationLoaded('user')
             ? $sale->user
             : $sale->user()->first();
-        if (!$owner) {
+        if (! $owner) {
             return null;
         }
 
         $connect = app(StripeConnectService::class);
-        if (!$connect->isEnabled() || !$connect->isAccountReady($owner)) {
+        if (! $connect->isEnabled() || ! $connect->isAccountReady($owner)) {
             return null;
         }
 
@@ -264,6 +263,7 @@ class StripeSaleService
         }
 
         $fee = (int) round($amountCents * ($feePercent / 100));
+
         return max(0, min($fee, $amountCents));
     }
 }

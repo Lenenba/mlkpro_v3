@@ -5,16 +5,16 @@ namespace App\Http\Controllers\SuperAdmin;
 use App\Models\Customer;
 use App\Models\Invoice;
 use App\Models\PlanScan;
-use App\Models\Product;
 use App\Models\PlatformSetting;
+use App\Models\Product;
 use App\Models\Quote;
 use App\Models\Request as LeadRequest;
 use App\Models\Role;
 use App\Models\Task;
 use App\Models\TeamMember;
 use App\Models\User;
-use App\Services\BillingPlanService;
 use App\Models\Work;
+use App\Services\BillingPlanService;
 use App\Services\BillingSubscriptionService;
 use App\Services\CompanyFeatureService;
 use App\Services\CreateStripeSubscriptionForTenant;
@@ -50,9 +50,9 @@ class TenantController extends BaseSuperAdminController
 
         $query->when($filters['search'] ?? null, function ($builder, $search) {
             $builder->where(function ($sub) use ($search) {
-                $sub->where('company_name', 'like', '%' . $search . '%')
-                    ->orWhere('email', 'like', '%' . $search . '%')
-                    ->orWhere('name', 'like', '%' . $search . '%');
+                $sub->where('company_name', 'like', '%'.$search.'%')
+                    ->orWhere('email', 'like', '%'.$search.'%')
+                    ->orWhere('name', 'like', '%'.$search.'%');
             });
         });
 
@@ -75,7 +75,7 @@ class TenantController extends BaseSuperAdminController
         $query->when($filters['created_to'] ?? null, function ($builder, $to) {
             $builder->whereDate('created_at', '<=', $to);
         });
-        if (!empty($filters['plan'])) {
+        if (! empty($filters['plan'])) {
             $this->applyPlanFilter($query, (string) $filters['plan']);
         }
 
@@ -96,7 +96,7 @@ class TenantController extends BaseSuperAdminController
             $planKey = $this->resolvePlanKey($subscription?->price_id);
             $planName = null;
             if ($planKey) {
-                $planConfig = config('billing.plans.' . $planKey, []);
+                $planConfig = config('billing.plans.'.$planKey, []);
                 $display = PlanDisplay::merge($planConfig, $planKey, $planDisplayOverrides);
                 $planName = $display['name'];
             }
@@ -145,7 +145,7 @@ class TenantController extends BaseSuperAdminController
         $planName = null;
         if ($planKey) {
             $planDisplayOverrides = PlatformSetting::getValue('plan_display', []);
-            $planConfig = config('billing.plans.' . $planKey, []);
+            $planConfig = config('billing.plans.'.$planKey, []);
             $display = PlanDisplay::merge($planConfig, $planKey, $planDisplayOverrides);
             $planName = $display['name'];
         }
@@ -197,7 +197,7 @@ class TenantController extends BaseSuperAdminController
             'security' => [
                 'two_factor_exempt' => (bool) $tenant->two_factor_exempt,
                 'two_factor_method' => $tenant->twoFactorMethod(),
-                'two_factor_has_app' => !empty($tenant->two_factor_secret),
+                'two_factor_has_app' => ! empty($tenant->two_factor_secret),
             ],
             'stats' => $stats,
             'feature_flags' => $featureFlags,
@@ -348,10 +348,10 @@ class TenantController extends BaseSuperAdminController
         $this->ensureOwner($tenant);
 
         $billingService = app(BillingSubscriptionService::class);
-        if (!$billingService->isStripe()) {
+        if (! $billingService->isStripe()) {
             return redirect()->back()->with('error', 'Billing provider is not Stripe.');
         }
-        if (!$billingService->providerReady()) {
+        if (! $billingService->providerReady()) {
             return redirect()->back()->with('error', 'Stripe is not configured.');
         }
 
@@ -377,7 +377,7 @@ class TenantController extends BaseSuperAdminController
         $planKey = $plan['key'] ?? null;
         $comped = (bool) ($validated['comped'] ?? false);
 
-        if ($comped && !config('services.stripe.comped_coupon_id')) {
+        if ($comped && ! config('services.stripe.comped_coupon_id')) {
             return redirect()->back()->withErrors([
                 'comped' => 'Comped coupon is not configured.',
             ]);
@@ -387,7 +387,7 @@ class TenantController extends BaseSuperAdminController
             $seatQuantity = app(BillingSubscriptionService::class)->resolveSeatQuantity($tenant);
             $updated = app(CreateStripeSubscriptionForTenant::class)
                 ->assign($tenant, (string) $planKey, $comped, $seatQuantity);
-            if (!$updated) {
+            if (! $updated) {
                 throw new \RuntimeException('Stripe subscription update failed.');
             }
         } catch (\Throwable $exception) {
@@ -437,7 +437,7 @@ class TenantController extends BaseSuperAdminController
 
         $this->logAudit($request, 'tenant.export', $tenant);
 
-        $fileName = 'tenant-' . $tenant->id . '-export.json';
+        $fileName = 'tenant-'.$tenant->id.'-export.json';
 
         return response()->streamDownload(function () use ($tenant) {
             $company = $tenant->only([
@@ -453,11 +453,11 @@ class TenantController extends BaseSuperAdminController
             ]);
 
             $streamCollection = function (string $key, $query) {
-                echo '"' . $key . '":[';
+                echo '"'.$key.'":[';
                 $first = true;
                 $query->orderBy('id')->chunk(200, function ($items) use (&$first) {
                     foreach ($items as $item) {
-                        if (!$first) {
+                        if (! $first) {
                             echo ',';
                         }
                         $first = false;
@@ -468,7 +468,7 @@ class TenantController extends BaseSuperAdminController
             };
 
             echo '{';
-            echo '"company":' . json_encode($company);
+            echo '"company":'.json_encode($company);
             echo ',';
             $streamCollection('customers', Customer::query()->where('user_id', $tenant->id));
             echo ',';
@@ -487,7 +487,7 @@ class TenantController extends BaseSuperAdminController
 
     private function ensureOwner(User $tenant): void
     {
-        if (!$tenant->isOwner()) {
+        if (! $tenant->isOwner()) {
             abort(404);
         }
     }
@@ -582,8 +582,9 @@ class TenantController extends BaseSuperAdminController
                 return;
             }
 
-            if (!$priceIds) {
+            if (! $priceIds) {
                 $query->whereRaw('0 = 1');
+
                 return;
             }
 
@@ -616,8 +617,9 @@ class TenantController extends BaseSuperAdminController
         }
 
         $fallbackPriceId = $priceIds[0] ?? null;
-        if (!$fallbackPriceId) {
+        if (! $fallbackPriceId) {
             $query->whereRaw('0 = 1');
+
             return;
         }
 
@@ -632,6 +634,7 @@ class TenantController extends BaseSuperAdminController
     private function planOptions(): array
     {
         $planDisplayOverrides = PlatformSetting::getValue('plan_display', []);
+
         return collect(config('billing.plans', []))
             ->map(function (array $plan, string $key) use ($planDisplayOverrides) {
                 $display = PlanDisplay::merge($plan, $key, $planDisplayOverrides);

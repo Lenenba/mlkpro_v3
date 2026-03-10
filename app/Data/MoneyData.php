@@ -9,8 +9,7 @@ final readonly class MoneyData
     public function __construct(
         public CurrencyCode $currencyCode,
         public string $amount,
-    ) {
-    }
+    ) {}
 
     public static function fromNumeric(mixed $amount, CurrencyCode|string $currencyCode): self
     {

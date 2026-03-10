@@ -2,17 +2,17 @@
 
 namespace App\Http\Controllers\Settings;
 
-use App\Http\Controllers\Controller;
 use App\Enums\CurrencyCode;
 use App\Exceptions\Billing\TenantCurrencyChangeNotAllowedException;
-use App\Models\User;
+use App\Http\Controllers\Controller;
 use App\Models\Product;
 use App\Models\ProductCategory;
+use App\Models\User;
 use App\Models\Warehouse;
+use App\Services\AiImageUsageService;
 use App\Services\CompanyNotificationPreferenceService;
 use App\Services\PreventUnsafeTenantCurrencyChange;
 use App\Services\SupplierDirectory;
-use App\Services\AiImageUsageService;
 use App\Services\UsageLimitService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -25,7 +25,7 @@ class CompanySettingsController extends Controller
     public function edit(Request $request)
     {
         $user = $request->user();
-        if (!$user || !$user->isAccountOwner()) {
+        if (! $user || ! $user->isAccountOwner()) {
             abort(403);
         }
 
@@ -117,7 +117,7 @@ class CompanySettingsController extends Controller
     public function update(Request $request)
     {
         $user = $request->user();
-        if (!$user || !$user->isAccountOwner()) {
+        if (! $user || ! $user->isAccountOwner()) {
             abort(403);
         }
 
@@ -192,6 +192,7 @@ class CompanySettingsController extends Controller
         $fulfillmentInput = $validated['company_fulfillment'] ?? [];
         $normalizeText = static function ($value): ?string {
             $trimmed = trim((string) ($value ?? ''));
+
             return $trimmed === '' ? null : $trimmed;
         };
 
@@ -213,13 +214,13 @@ class CompanySettingsController extends Controller
             'pickup_notes' => $normalizeText($fulfillmentInput['pickup_notes'] ?? null),
         ];
         $fulfillmentErrors = [];
-        if (!empty($fulfillment['delivery_enabled'])) {
-            if (!$deliveryZone) {
+        if (! empty($fulfillment['delivery_enabled'])) {
+            if (! $deliveryZone) {
                 $fulfillmentErrors['company_fulfillment.delivery_zone'] = ['Zone de livraison requise.'];
             }
         }
-        if (!empty($fulfillment['pickup_enabled'])) {
-            if (!$pickupAddress) {
+        if (! empty($fulfillment['pickup_enabled'])) {
+            if (! $pickupAddress) {
                 $fulfillmentErrors['company_fulfillment.pickup_address'] = ['Adresse de retrait requise.'];
             }
             if ($prepTime === null) {
@@ -239,7 +240,7 @@ class CompanySettingsController extends Controller
         $heroUploads = $request->file('store_hero_images_files', []);
         if ($heroUploads && is_array($heroUploads)) {
             foreach ($heroUploads as $file) {
-                if (!$file) {
+                if (! $file) {
                     continue;
                 }
                 $path = $file->store("company/store-hero/{$user->id}", 'public');
@@ -271,7 +272,7 @@ class CompanySettingsController extends Controller
                 ->where('user_id', $user->id)
                 ->where('id', $featuredProductId)
                 ->exists();
-            if (!$exists) {
+            if (! $exists) {
                 throw ValidationException::withMessages([
                     'company_store_settings.featured_product_id' => ['Produit vedette invalide.'],
                 ]);
@@ -290,7 +291,7 @@ class CompanySettingsController extends Controller
         if ($request->hasFile('company_logo')) {
             $companyLogoPath = $request->file('company_logo')->store('company/logos', 'public');
 
-            if ($user->company_logo && !str_starts_with($user->company_logo, 'http://') && !str_starts_with($user->company_logo, 'https://')) {
+            if ($user->company_logo && ! str_starts_with($user->company_logo, 'http://') && ! str_starts_with($user->company_logo, 'https://')) {
                 Storage::disk('public')->delete($user->company_logo);
             }
         }
@@ -301,7 +302,7 @@ class CompanySettingsController extends Controller
 
         $enabledSuppliers = array_values(array_unique($validated['supplier_enabled'] ?? []));
         $preferredSuppliers = array_values(array_unique($validated['supplier_preferred'] ?? []));
-        if (!$enabledSuppliers) {
+        if (! $enabledSuppliers) {
             $enabledSuppliers = $supplierKeys;
         }
         $preferredSuppliers = array_values(array_intersect($preferredSuppliers, $enabledSuppliers));
@@ -422,13 +423,13 @@ class CompanySettingsController extends Controller
         $limit = (int) config('suppliers.preferred_limit', 4);
         $keys = collect($suppliers)->pluck('key')->filter()->values()->all();
         $defaultEnabled = collect($suppliers)
-            ->filter(fn (array $supplier) => !empty($supplier['default_enabled']))
+            ->filter(fn (array $supplier) => ! empty($supplier['default_enabled']))
             ->pluck('key')
             ->values()
             ->all();
         $enabled = isset($preferences['enabled']) ? (array) $preferences['enabled'] : ($defaultEnabled ?: $keys);
         $enabled = array_values(array_intersect($keys, (array) $enabled));
-        if (!$enabled) {
+        if (! $enabled) {
             $enabled = $keys;
         }
 
@@ -444,23 +445,23 @@ class CompanySettingsController extends Controller
 
     private function prepareCustomSuppliers($suppliers): array
     {
-        if (!is_array($suppliers)) {
+        if (! is_array($suppliers)) {
             return [];
         }
 
         $prepared = [];
         foreach ($suppliers as $supplier) {
-            if (!is_array($supplier)) {
+            if (! is_array($supplier)) {
                 continue;
             }
 
             $key = isset($supplier['key']) && $supplier['key'] !== ''
                 ? (string) $supplier['key']
-                : 'custom_' . Str::uuid()->toString();
+                : 'custom_'.Str::uuid()->toString();
             $name = trim((string) ($supplier['name'] ?? ''));
             $url = trim((string) ($supplier['url'] ?? ''));
-            if ($url && !str_starts_with($url, 'http://') && !str_starts_with($url, 'https://')) {
-                $url = 'https://' . $url;
+            if ($url && ! str_starts_with($url, 'http://') && ! str_starts_with($url, 'https://')) {
+                $url = 'https://'.$url;
             }
 
             $prepared[] = [
@@ -477,7 +478,7 @@ class CompanySettingsController extends Controller
     {
         $normalized = [];
         foreach ($suppliers as $supplier) {
-            if (!is_array($supplier)) {
+            if (! is_array($supplier)) {
                 continue;
             }
 
@@ -488,8 +489,8 @@ class CompanySettingsController extends Controller
                 continue;
             }
 
-            if (!str_starts_with($url, 'http://') && !str_starts_with($url, 'https://')) {
-                $url = 'https://' . $url;
+            if (! str_starts_with($url, 'http://') && ! str_starts_with($url, 'https://')) {
+                $url = 'https://'.$url;
             }
 
             $domain = parse_url($url, PHP_URL_HOST);
@@ -516,13 +517,13 @@ class CompanySettingsController extends Controller
     {
         $byKey = [];
         foreach ($suppliers as $supplier) {
-            if (is_array($supplier) && !empty($supplier['key'])) {
+            if (is_array($supplier) && ! empty($supplier['key'])) {
                 $byKey[$supplier['key']] = $supplier;
             }
         }
 
         foreach ($customSuppliers as $supplier) {
-            if (is_array($supplier) && !empty($supplier['key'])) {
+            if (is_array($supplier) && ! empty($supplier['key'])) {
                 $byKey[$supplier['key']] = $supplier;
             }
         }

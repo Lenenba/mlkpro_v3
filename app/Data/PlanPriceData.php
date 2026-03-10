@@ -18,8 +18,7 @@ final readonly class PlanPriceData
         public string $amount,
         public ?string $stripePriceId,
         public bool $isActive,
-    ) {
-    }
+    ) {}
 
     public static function fromModel(PlanPrice $planPrice): self
     {

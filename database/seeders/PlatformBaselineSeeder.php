@@ -87,7 +87,7 @@ class PlatformBaselineSeeder extends Seeder
             }
         }
 
-        if (!$planLimits) {
+        if (! $planLimits) {
             $planLimits['free'] = array_fill_keys($limitKeys, null);
         }
 
@@ -104,13 +104,14 @@ class PlatformBaselineSeeder extends Seeder
             foreach ($moduleKeys as $moduleKey) {
                 if ($moduleKey === 'assistant') {
                     $planModules[$planKey][$moduleKey] = $planKey === $defaultAssistantPlan;
+
                     continue;
                 }
                 $planModules[$planKey][$moduleKey] = true;
             }
         }
 
-        if (!$planModules) {
+        if (! $planModules) {
             $planModules['free'] = array_fill_keys($moduleKeys, true);
         }
 
