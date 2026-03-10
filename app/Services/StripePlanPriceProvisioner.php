@@ -226,7 +226,9 @@ class StripePlanPriceProvisioner
 
             $catalog[$planCode] = [
                 'base_price_id' => $this->normalizeNullableString(
-                    env($this->envKeyFor($planCode, 'CAD')) ?: env($this->legacyEnvKeyFor($planCode))
+                    $definition['prices']['CAD']['stripe_price_id']
+                        ?? $definition['prices']['cad']['stripe_price_id']
+                        ?? null
                 ),
                 'prices' => $prices,
             ];
@@ -242,11 +244,6 @@ class StripePlanPriceProvisioner
     private function envKeyFor(string $planCode, string $currencyCode): string
     {
         return 'STRIPE_PRICE_'.strtoupper($planCode).'_'.strtoupper($currencyCode);
-    }
-
-    private function legacyEnvKeyFor(string $planCode): string
-    {
-        return 'STRIPE_PRICE_'.strtoupper($planCode);
     }
 
     private function normalizeNullableString(mixed $value): ?string
