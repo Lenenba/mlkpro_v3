@@ -67,6 +67,7 @@ function createServiceFor(
 
 beforeEach(function () {
     $this->withoutMiddleware(ValidateCsrfToken::class);
+    config(['services.geoapify.key' => 'test-geoapify-key']);
 });
 
 it('suggests only active services from the current tenant catalog', function () {
