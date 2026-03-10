@@ -62,7 +62,7 @@ it('resolves the account owner currency for team members', function () {
 
 it('falls back to CAD when a stored tenant currency is invalid', function () {
     $tenant = User::factory()->create([
-        'currency_code' => 'invalid',
+        'currency_code' => 'ZZZ',
     ]);
 
     $resolved = app(ResolveTenantCurrency::class)->forUser($tenant);
